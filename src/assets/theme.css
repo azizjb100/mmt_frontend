@@ -1,0 +1,198 @@
+/* src/assets/theme.css
+    Tema diseragamkan: Clean, Professional, dan Biru-Putih Dominan.
+    Menggunakan struktur global untuk komponen browse.
+*/
+
+/* 1. Variabel Warna Final dan Typography */
+:root {
+    --color-primary: #007bff;       /* Biru Utama */
+    --color-primary-dark: #0056b3;   /* Darker primary for hover */
+    --color-primary-light: #e0f2ff;  /* Background selected row */
+    --color-success: #28a745;        /* Hijau (Baru) */
+    --color-warning: #ffc107;        /* Kuning (Ubah) */
+    --color-danger: #dc3545;         /* Merah (Hapus) */
+    --color-info: #17a2b8;           /* Biru Info (Cetak) */
+    --color-secondary: #6c757d;      /* Abu-abu (Tutup) */
+    --color-text-dark: #343a40;      /* Abu-abu gelap */
+    --color-text-light: #6c757d;     /* Abu-abu sekunder */
+    --color-text-white: #ffffff;
+    
+    --color-bg-light: #ffffff;       /* Background Putih */
+    --color-bg-page: #f8f9fa;        /* Latar Belakang Luar Konten */
+    --color-bg-detail-soft: #fafafa; /* Background Detail Row */
+    --color-detail-header-bg: #d0f6ff; /* Background Biru Muda Detail Header */
+    
+    --color-border: #e0e0e0;         /* Border standar */
+    --color-border-subtle: #eee;     /* Border sangat tipis */
+    
+    --shadow-subtle: 0 2px 4px rgba(0, 0, 0, 0.05);
+    --shadow-medium: 0 2px 5px rgba(0, 0, 0, 0.1);
+
+    /* Spacing */
+    --spacing-sm: 10px;
+    --spacing-md: 15px;
+    --spacing-lg: 20px;
+
+    font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    font-size: 16px;
+    line-height: 1.5;
+    color: var(--color-text-dark);
+}
+
+/* 2. Reset dan Layout Utama (Full Screen) */
+html, body {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+}
+.browse-container {
+    padding: 20px;
+    min-height: 100vh;
+    box-sizing: border-box;
+    font-family: Arial, sans-serif;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    background-color: #f4f5f7;
+}
+.page-title { 
+    font-size: 1.8em; 
+    font-weight: bold; 
+    color: var(--color-text-dark); 
+    margin-bottom: 20px; 
+}
+
+/* 3. Header Panel (Filter dan Kontrol) */
+.header-panel { 
+    background-color: var(--color-bg-light); 
+    padding: 15px; 
+    border: 1px solid var(--color-border); 
+    border-radius: 6px; 
+    box-shadow: var(--shadow-subtle); 
+    margin-bottom: 20px; 
+    display: flex; 
+    justify-content: space-between; 
+    align-items: center; 
+    flex-shrink: 0;
+}
+.filter-controls { display: flex; gap: 10px; align-items: center; }
+.filter-controls input { height: 30px; width: 120px; padding: 5px; border: 1px solid #ccc; border-radius: 4px; }
+
+/* 4. Tombol Aksi (General Buttons) */
+.header-controls { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.btn { 
+    padding: 10px 15px; 
+    border: none; 
+    border-radius: 4px; 
+    cursor: pointer; 
+    font-weight: 600; 
+    display: flex; 
+    align-items: center; 
+    gap: 5px; 
+    transition: background-color 0.2s; 
+    font-size: 0.9em;
+}
+
+/* Tombol Warna (Disesuaikan dengan Variabel) */
+.btn-refresh { background-color: var(--color-primary); color: white; }
+.btn-success { background-color: var(--color-success); color: white; }
+.btn-warning { background-color: var(--color-warning); color: var(--color-text-dark); }
+.btn-danger { background-color: var(--color-danger); color: white; }
+.btn-info { background-color: var(--color-info); color: white; }
+.btn-secondary-icon { background-color: var(--color-secondary); color: white; }
+
+/* 5. Grid Container (Master/Detail Wrapper) */
+.grid-master-container, .grid-detail-container { 
+    background-color: var(--color-bg-light); 
+    border: 1px solid var(--color-border); 
+    border-radius: 6px; 
+    box-shadow: var(--shadow-medium); 
+    margin-bottom: 20px; 
+    padding: 15px; /* Padding card wrapper */
+    flex-grow: 1; /* Agar Master Grid mengisi ruang */
+}
+.grid-title { 
+    font-size: 1.2em; 
+    font-weight: 600; 
+    color: var(--color-primary); 
+    margin-bottom: 0px; 
+    margin-top: 0px; 
+}
+.table-wrapper { overflow-x: auto; }
+
+/* 6. Tabel Styles */
+.data-grid { width: 100%; border-collapse: collapse; }
+
+.data-grid th { 
+    background-color: var(--color-primary); 
+    color: white; 
+    padding: 12px 10px; 
+    font-size: 0.9em; 
+    text-align: left; 
+}
+
+.data-grid td { 
+    border: 1px solid var(--color-border-subtle); 
+    padding: 8px 10px; 
+    font-size: 0.9em; 
+}
+
+.master-row:hover { background-color: #f1f1f1; }
+.selected-row { background-color: var(--color-highlight-bg) !important; font-weight: bold; }
+.expand-cell { width: 30px; text-align: center; color: var(--color-primary); }
+.empty-state { text-align: center; padding: 20px; font-style: italic; color: var(--color-secondary); }
+
+/* 7. Detail Expansion Styles */
+.detail-row td { 
+    padding: 0; 
+    border: none; 
+    background-color: var(--color-bg-detail-soft);
+    box-shadow: inset 0 3px 5px rgba(0,0,0,0.05); 
+}
+.detail-content-cell { padding: 15px 10px 15px 40px !important; }
+
+.detail-table th { 
+    background-color: var(--color-detail-header-bg); 
+    color: var(--color-text-dark); 
+}
+.detail-table th, .detail-table td { border: 1px solid var(--color-border-subtle); }
+
+/* 8. Paginasi */
+.pagination-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-shrink: 0; 
+    padding: 12px 20px;
+    background-color: var(--color-bg-light); 
+    border-top: 1px solid var(--color-border);
+    border-radius: 0 0 8px 8px; 
+}
+
+.pagination-nav { display: flex; align-items: center; gap: 5px; }
+.btn-page { 
+    padding: 8px 12px;
+    border: 1px solid var(--color-border);
+    background-color: var(--color-bg-light);
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 500;
+    font-size: 0.85em;
+    color: var(--color-text-dark);
+    transition: all 0.2s;
+}
+
+.btn-page:hover:not(:disabled) {
+    background-color: var(--color-primary-light);
+    border-color: var(--color-primary);
+}
+
+.btn-page:disabled {
+    color: #cccccc;
+    cursor: not-allowed;
+    background-color: #f7f7f7;
+}
+
+.pagination-info { font-size: 0.9em; color: var(--color-secondary); margin: 0 5px; }
+.pagination-controls select { padding: 7px 10px; border: 1px solid var(--color-border); border-radius: 6px; background: var(--color-bg-light); font-size: 0.85em; color: var(--color-text-dark); }
+.pagination-total { font-size: 0.9em; color: var(--color-text-dark); font-weight: 500; }

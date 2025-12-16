@@ -1,0 +1,92 @@
+/* src/styles/desktop-app.css */
+
+/*
+ * GAYA "DESKTOP MODERN"
+ * Menggabungkan layout compact dengan estetika web modern.
+*/
+
+/* Container utama untuk halaman bergaya desktop */
+.desktop-app-container {
+    font-family: 'Inter', 'Segoe UI', sans-serif; /* Font modern dan bersih */
+    font-size: 12px; /* Sedikit lebih besar dari classic untuk keterbacaan */
+    background-color: #f4f5f7; /* Abu-abu muda yang netral */
+    color: #333;
+}
+
+/* Base styling untuk form section */
+.desktop-form-section {
+    background: #ffffff;
+    border: 1px solid #e0e0e0;
+    border-radius: 6px; /* Sudut sedikit membulat */
+    padding: 12px;
+    margin-bottom: 8px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05); /* Bayangan halus */
+}
+
+/* Kustomisasi global untuk komponen Vuetify agar lebih compact */
+
+/* Input Fields (Text, Select, Autocomplete) */
+.desktop-app-container :deep(.v-field) {
+    font-size: 12px !important;
+}
+
+.desktop-app-container :deep(.v-field--density-compact) {
+    --v-field-padding-top: 6px;
+    --v-field-padding-bottom: 2px;
+}
+
+/* Tombol */
+.desktop-app-container :deep(.v-btn--size-small) {
+    font-size: 11px !important;
+    text-transform: none; /* Tombol tidak uppercase */
+    letter-spacing: normal;
+}
+
+/* Tabel Data */
+.desktop-data-table {
+    font-size: 11px;
+}
+.desktop-data-table :deep(th) {
+    background-color: #f8f9fa;
+    font-weight: 600 !important;
+    font-size: 10px !important;
+    color: #555;
+    text-transform: uppercase;
+}
+.desktop-data-table :deep(td), 
+.desktop-data-table :deep(th) {
+    padding: 0 10px !important;
+    height: 30px !important; /* Tinggi baris yang ringkas */
+}
+.desktop-data-table :deep(tr:hover > td) {
+    background: #f5f8ff !important;
+}
+
+/* Status Bar di Footer */
+.desktop-statusbar {
+    background-color: #f8f9fa;
+    border-top: 1px solid #e0e0e0;
+    padding: 4px 12px;
+    font-size: 11px;
+    color: #555;
+    min-height: 24px;
+    display: flex;
+    align-items: center;
+}
+
+/* Scrollbar Styling */
+::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+::-webkit-scrollbar-thumb {
+  background: #d1d1d1;
+  border-radius: 6px;
+  border: 3px solid #f1f1f1;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #b1b1b1;
+}

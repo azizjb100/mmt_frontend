@@ -1,0 +1,17 @@
+{
+  "include": ["src/**/*.ts", "src/**/*.vue", "env.d.ts"],
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "ESNext", // atau salah satu dari: es2020, es2022, esnext, node16, node18, nodenext
+    "moduleResolution": "Node",
+    "resolveJsonModule": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "lib": ["ESNext", "DOM"],
+    "types": ["vite/client"],
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"]
+    }
+  }
+}

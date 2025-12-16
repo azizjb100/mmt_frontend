@@ -1,0 +1,345 @@
+/* ======================================= */
+/* GLOBAL STYLES & TYPOGRAPHY */
+/* ======================================= */
+:root {
+    /* Warna Dasar */
+    --primary-color: #007bff;
+    --primary-hover-color: #0056b3; /* Darker than primary */
+    --secondary-color: #6c757d;
+    --secondary-hover-color: #5a6268;
+    --success-color: #28a745;
+    --success-hover-color: #218838;
+    --warning-color: #ffc107;
+    --warning-hover-color: #e0a800;
+    --danger-color: #dc3545;
+    --danger-hover-color: #c82333;
+    --info-color: #17a2b8;
+    --info-hover-color: #117a8b; /* KOREKSI: Nilai HEX untuk darken(info-color) */
+
+    /* Latar Belakang & Border */
+    --background-light: #f8f9fa; 
+    --panel-background: #ffffff; 
+    --border-color: #e9ecef; 
+
+    /* Teks & Shadow */
+    --text-color-dark: #343a40;
+    --text-color-medium: #495057;
+    --text-color-light: #6c757d;
+    --shadow-light: rgba(0, 0, 0, 0.08); 
+    --shadow-medium: rgba(0, 0, 0, 0.15);
+
+    /* Spacing */
+    --spacing-xs: 5px;
+    --spacing-sm: 10px;
+    --spacing-md: 15px;
+    --spacing-lg: 20px;
+    --spacing-xl: 30px;
+
+    font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    font-size: 16px;
+    line-height: 1.5;
+    color: var(--text-color-dark);
+}
+
+/* Base reset for readability */
+body {
+    margin: 0;
+    background-color: var(--background-light);
+}
+
+/* ======================================= */
+/* CONTAINER UTAMA FORM */
+/* ======================================= */
+.entry-container {
+    padding: 0px;
+    max-width: 1300px;
+    margin: 0px; 
+    background-color: var(--background-light);
+    box-shadow: 0 4px 15px var(--shadow-light);
+    border-radius: 8px;
+    /* PENTING: Jika form tidak bisa di-scroll, pastikan elemen di atasnya (App/Dashboard) 
+       tidak menggunakan height: 100vh tanpa overflow: auto */
+}
+
+.entry-container h2 {
+    color: var(--primary-color);
+    border-bottom: 2px solid var(--border-color);
+    padding-bottom: 10px;
+    margin-bottom:10px;
+    font-size: 2em;
+    font-weight: 700;
+    text-align: center;
+}
+
+/* ======================================= */
+/* PANEL DAN GRID LAYOUT */
+/* ======================================= */
+.panel {
+    background-color: var(--panel-background);
+    padding: var(--spacing-lg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px; 
+    margin-bottom: var(--spacing-lg);
+    box-shadow: 0 2px 10px var(--shadow-light); 
+}
+
+/* HEADER SECTION LAYOUT */
+.header-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--spacing-lg) var(--spacing-xl);
+}
+
+.header-column {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
+}
+
+.form-group {
+    display: flex;
+    align-items: center; 
+    gap: var(--spacing-sm);
+}
+
+.form-group label {
+    flex-basis: 120px;
+    min-width: 120px;
+    color: var(--text-color-medium);
+    font-weight: 500;
+}
+
+.form-group .input-wrapper {
+    flex-grow: 1; 
+    display: flex;
+    gap: 0; /* KOREKSI: Dibuat 0 di sini karena Flex sudah diatur di input-wrapper */
+}
+
+/* KOREKSI: Tambahkan style Supplier Narrow Width untuk konsistensi */
+@media (min-width: 993px) {
+    .supplier-input-narrow .input-wrapper {
+        max-width: 350px; 
+    }
+}
+
+
+/* ======================================= */
+/* INPUT & SEARCH BUTTON ELEMENTS */
+/* ======================================= */
+
+/* Styling Input agar menyatu dengan tombol */
+.input-wrapper input[type="text"] {
+    flex-grow: 1; 
+    border-radius: 4px 0 0 4px; 
+    border-right: none; 
+}
+
+/* Styling Tombol Search */
+.btn-search {
+    background-color: var(--info-color); 
+    color: white;
+    border: 1px solid var(--info-color); 
+    border-radius: 0 4px 4px 0; 
+    padding: 10px 12px;
+    cursor: pointer;
+    font-size: 1em;
+    height: auto;
+    line-height: 1; 
+    flex-shrink: 0; 
+}
+
+.btn-search:hover {
+    background-color: var(--info-hover-color);
+}
+
+
+input[type="text"],
+input[type="number"],
+input[type="date"],
+textarea {
+    width: 100%;
+    padding: var(--spacing-sm) var(--spacing-md);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    box-sizing: border-box;
+    font-size: 1em;
+    color: var(--text-color-dark);
+    background-color: #fcfdff;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+input[readonly], textarea[readonly] {
+    background-color: #e9f0f5; 
+    color: var(--text-color-light);
+    border-style: dashed;
+    cursor: default;
+}
+
+input[type="text"]:focus,
+input[type="number"]:focus,
+input[type="date"]:focus,
+textarea:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.2);
+    outline: none;
+    background-color: var(--panel-background);
+}
+
+
+/* ======================================= */
+/* DATA GRID (DETAIL TABLE) */
+/* ======================================= */
+.detail-table-wrapper {
+    overflow-x: auto;
+    margin-bottom: var(--spacing-lg);
+}
+
+.data-grid {
+    width: 100%;
+    border-collapse: collapse;
+    background-color: var(--panel-background);
+    border-radius: 8px;
+    overflow: hidden; 
+}
+
+.data-grid th,
+.data-grid td {
+    border: 1px solid var(--border-color);
+    padding: var(--spacing-sm) var(--spacing-md);
+    text-align: left;
+    font-size: 0.95em;
+    white-space: nowrap; 
+}
+
+.data-grid thead th {
+    background-color: var(--primary-color);
+    color: white;
+    font-weight: 600;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.data-grid tbody tr:nth-child(even) {
+    background-color: #fcfdff;
+}
+
+.data-grid tbody tr:hover {
+    background-color: #e0f2ff;
+}
+
+/* Input di dalam tabel */
+.data-grid input {
+    border: none;
+    padding: var(--spacing-xs);
+    font-size: 0.9em;
+    background-color: transparent;
+    border-bottom: 1px dashed var(--border-color);
+    box-sizing: border-box;
+    width: 100%;
+}
+.data-grid input:focus {
+    border-bottom-color: var(--primary-color);
+}
+
+/* Tombol Aksi di Baris Detail */
+.data-grid .btn-delete-row, .data-grid .btn-add-row {
+    padding: 5px 10px;
+    font-size: 0.85em;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+.data-grid .btn-delete-row {
+    background-color: var(--danger-color);
+    color: white;
+}
+.data-grid .btn-delete-row:hover {
+    background-color: var(--danger-hover-color);
+}
+.data-grid .btn-add-row {
+    background-color: var(--success-color);
+    color: white;
+}
+.data-grid .btn-add-row:hover {
+    background-color: var(--success-hover-color);
+}
+
+/* ======================================= */
+/* ACTION BAR (BUTTONS) */
+/* ======================================= */
+.action-bar-entry {
+    background-color: var(--panel-background); 
+    padding: var(--spacing-md) var(--spacing-lg);
+    border-top: 1px solid var(--border-color);
+    display: flex;
+    gap: var(--spacing-sm);
+    justify-content: flex-end; 
+    border-radius: 0 0 8px 8px;
+    box-shadow: 0 -2px 10px var(--shadow-light); 
+    /* KOREKSI: Gunakan 'position: relative;' jika container induk scrollable */
+    position: relative; 
+    z-index: 100;
+}
+
+.action-bar-entry button {
+    padding: var(--spacing-sm) var(--spacing-md);
+    border: none;
+    border-radius: 4px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s, opacity 0.2s, box-shadow 0.2s;
+    display: flex; 
+    align-items: center;
+    gap: var(--spacing-xs);
+}
+
+.action-bar-entry button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    box-shadow: none;
+}
+
+.btn-save-new { background-color: var(--success-color); color: white; }
+.btn-save-new:hover:not(:disabled) { background-color: var(--success-hover-color); }
+
+.btn-save-close { background-color: var(--primary-color); color: white; }
+.btn-save-close:hover:not(:disabled) { background-color: var(--primary-hover-color); }
+
+.btn-close { background-color: var(--secondary-color); color: white; margin-left: auto; }
+.btn-close:hover:not(:disabled) { background-color: var(--secondary-hover-color); }
+
+.btn-print { background-color: var(--info-color); color: white; }
+.btn-print:hover:not(:disabled) { background-color: var(--info-hover-color); }
+
+/* Untuk ikon */
+.action-bar-entry button i { margin-right: var(--spacing-xs); }
+
+/* ======================================= */
+/* RESPONSIVE DESIGN */
+/* ======================================= */
+@media (max-width: 992px) {
+    .header-grid { grid-template-columns: 1fr; }
+    .form-group { flex-direction: column; align-items: flex-start; }
+    
+    .form-group label {
+        flex-basis: auto;
+        min-width: unset;
+        margin-bottom: var(--spacing-xs);
+    }
+    .action-bar-entry {
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+    .action-bar-entry .btn-close {
+        margin-left: unset;
+    }
+}
+
+@media (max-width: 768px) {
+    .entry-container { padding: var(--spacing-md); margin: var(--spacing-md) auto; }
+    .panel { padding: var(--spacing-md); }
+    .entry-container h2 { font-size: 1.5em; margin-bottom: 0px; }
+    .data-grid th, .data-grid td { padding: var(--spacing-xs); font-size: 0.85em; }
+}
