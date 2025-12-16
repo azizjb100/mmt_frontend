@@ -496,7 +496,7 @@ import PageLayout from "../components/PageLayout.vue";
 // --- KONSTANTA ---
 const DEFAULT_PADDING_CM = 5; // Default 5 cm
 
-const API_BASE_URL = "http://localhost:8000/api/mmt/lhk-cetak";
+const API_BASE_URL = "http://localhost:8003/api/mmt/lhk-cetak";
 
 // --- Interfaces LHK (FINAL) ---
 interface DetailLHK {
