@@ -199,7 +199,7 @@ interface LhkCetakDetail {
 type LhkCetakItem = LhkCetakHeader;
 
 const api = axios;
-const API_BASE_URL = "http://localhost:8003/api/mmt/lhk-cetak";
+const API_BASE_URL = "http://102.94.238.252:8003/api/mmt/lhk-cetak";
 
 // --- Store & utils ---
 const router = useRouter();

@@ -239,7 +239,7 @@ import axios from "axios";
 import { format, startOfMonth } from "date-fns";
 
 // [DIUBAH] Ganti API URL
-const API_URL = "http://localhost:8003/api/mmt/laporan-ls-bahan-penolong";
+const API_URL = "http://102.94.238.252:8003/api/mmt/laporan-ls-bahan-penolong";
 
 const endDate = ref(format(new Date(), "yyyy-MM-dd"));
 const startDate = ref(format(startOfMonth(new Date()), "yyyy-MM-dd"));

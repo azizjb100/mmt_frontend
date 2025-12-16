@@ -33,7 +33,8 @@ const formatNumber = (val, decimalPlaces = 0) => {
 };
 
 // --- STATE MANAGEMENT ---
-const API_URL = "http://localhost:8003/api/mmt/monitoring-cetak/monitoring";
+const API_URL =
+  "http://102.94.238.252:8003/api/mmt/monitoring-cetak/monitoring";
 
 const allData = ref([]);
 const loading = ref({ report: false });

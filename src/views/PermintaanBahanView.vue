@@ -32,7 +32,7 @@ interface PermintaanBahanHeader {
 
 const toast = useToast();
 const api = axios;
-const API_BASE_URL = "http://localhost:8003/api/mmt/permintaan-bahan";
+const API_BASE_URL = "http://102.94.238.252:8003/api/mmt/permintaan-bahan";
 const MENU_ID = "MMT_PERMINTAAN_BAHAN";
 
 const router = useRouter();

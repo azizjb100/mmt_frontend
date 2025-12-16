@@ -122,8 +122,8 @@ const titleText = computed(() => {
 // --- API berdasarkan mode ---
 const API_URL = computed(() => {
   return props.mode === "produksi"
-    ? "http://localhost:8003/api/master/bahan/mmt/produksi"
-    : "http://localhost:8003/api/master/bahan/mmt";
+    ? "http://102.94.238.252:8003/api/master/bahan/mmt/produksi"
+    : "http://102.94.238.252:8003/api/master/bahan/mmt";
 });
 
 // --- State ---

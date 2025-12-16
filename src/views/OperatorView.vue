@@ -75,7 +75,7 @@ interface Operator {
 }
 
 const api = axios;
-const API_BASE_URL = "http://localhost:8003/api/mmt/operator";
+const API_BASE_URL = "http://102.94.238.252:8003/api/mmt/operator";
 const MENU_ID = "MMT_MASTER_OPERATOR";
 
 // --- Store & utils ---

@@ -354,7 +354,7 @@ const router = useRouter();
 const route = useRoute();
 const toast = useToast();
 const authStore = useAuthStore();
-const API_BASE_URL = "http://localhost:8003/api/mmt/bahan";
+const API_BASE_URL = "http://102.94.238.252:8003/api/mmt/bahan";
 
 // --- State ---
 const isEditMode = ref(false);

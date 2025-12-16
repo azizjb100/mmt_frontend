@@ -216,7 +216,7 @@ interface LhkFinishingDetail {
 type LhkFinishingItem = LhkFinishingHeader;
 
 const api = axios;
-const API_BASE_URL = "http://localhost:8003/api/mmt/lhk-finishing";
+const API_BASE_URL = "http://102.94.238.252:8003/api/mmt/lhk-finishing";
 
 // --- Store & utils ---
 const router = useRouter();

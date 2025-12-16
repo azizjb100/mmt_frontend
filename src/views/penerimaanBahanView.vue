@@ -6,7 +6,7 @@ import { format, subDays } from "date-fns";
 import PageLayout from "../components/PageLayout.vue";
 // Asumsi PageLayout ada dan diimport
 
-const API_BASE_URL = "http://localhost:8003/api/mmt/penerimaan-bahan";
+const API_BASE_URL = "http://102.94.238.252:8003/api/mmt/penerimaan-bahan";
 const router = useRouter();
 
 // --- Interfaces (Diperlukan untuk TypeScript, tapi penting untuk struktur data) ---

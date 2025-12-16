@@ -379,12 +379,12 @@ const route = useRoute();
 const toast = useToast();
 
 // --- Konfigurasi API (Asumsi Path) ---
-const API_BASE_URL = "http://localhost:8003/api/mmt/penerimaan-bahan";
-const API_SUPPLIER_DETAIL = "http://localhost:8003/api/supplier";
+const API_BASE_URL = "http://102.94.238.252:8003/api/mmt/penerimaan-bahan";
+const API_SUPPLIER_DETAIL = "http://102.94.238.252:8003/api/supplier";
 const API_MASTER_BAHAN_DETAIL_SINGLE =
-  "http://localhost:8003/api/master/bahan/mmt";
+  "http://102.94.238.252:8003/api/master/bahan/mmt";
 const API_PO_LOOKUP_DETAIL =
-  "http://localhost:8003/api/mmt/penerimaan-bahan/po/lookup";
+  "http://102.94.238.252:8003/api/mmt/penerimaan-bahan/po/lookup";
 
 // --- Props dan State ---
 const isEditMode = ref(!!route.params.nomor);

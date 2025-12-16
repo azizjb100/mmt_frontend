@@ -164,7 +164,7 @@ import { ref, onMounted, computed } from "vue";
 import axios from "axios";
 import { format, subDays } from "date-fns";
 
-const API_URL = "http://localhost:8003/api/mmt/laporan-stbj";
+const API_URL = "http://102.94.238.252:8003/api/mmt/laporan-stbj";
 
 const endDate = ref(format(new Date(), "yyyy-MM-dd"));
 const startDate = ref(format(subDays(new Date(), 30), "yyyy-MM-dd"));

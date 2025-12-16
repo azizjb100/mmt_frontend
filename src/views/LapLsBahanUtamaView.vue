@@ -373,7 +373,7 @@ const formatNumber = (val, decimalPlaces = 0) => {
   });
 };
 
-const API_URL = "http://localhost:8003/api/mmt/laporan-ls-bahan-utama";
+const API_URL = "http://102.94.238.252:8003/api/mmt/laporan-ls-bahan-utama";
 
 const endDate = ref(formatDate(new Date()));
 const startDate = ref(formatDate(getStartOfMonth(new Date())));

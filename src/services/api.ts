@@ -3,7 +3,7 @@ import { useAuthStore } from '../stores/authStore';
 
 // Buat instance Axios dengan tipe yang jelas
 const api: AxiosInstance = axios.create({
-  baseURL: 'http://localhost:8003/api',
+  baseURL: 'http://102.94.238.252:8003/api',
   withCredentials: true
 
 });

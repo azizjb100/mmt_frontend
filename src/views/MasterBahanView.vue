@@ -127,7 +127,7 @@ interface MasterBarang {
 // ===================================
 // Constants
 // ===================================
-const API_BASE_URL = "http://localhost:8003/api/master/bahan/mmt";
+const API_BASE_URL = "http://102.94.238.252:8003/api/master/bahan/mmt";
 const MENU_ID = "MMT_MASTER_BAHAN";
 
 // ===================================

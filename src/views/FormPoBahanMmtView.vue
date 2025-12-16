@@ -654,11 +654,11 @@ const route = useRoute();
 const toast = useToast();
 
 // ASUMSI: Konstanta dari Delphi
-const API_BASE_URL = "http://localhost:8003/api/mmt/po-bahan-mmt";
-const API_SUPPLIER_DETAIL = "http://localhost:8003/api/supplier/detail";
+const API_BASE_URL = "http://102.94.238.252:8003/api/mmt/po-bahan-mmt";
+const API_SUPPLIER_DETAIL = "http://102.94.238.252:8003/api/supplier/detail";
 const API_UNFULFILLED_MB_DETAIL = `${API_BASE_URL}/unfulfilled-mb-detail`;
 const API_MASTER_BAHAN_DETAIL_SINGLE =
-  "http://localhost:8003/api/master/bahan/mmt";
+  "http://102.94.238.252:8003/api/master/bahan/mmt";
 const USER_KD = "ADMIN_PPIC"; // Ganti dengan KDUSER yang sebenarnya
 
 // ASUMSI: Dari variabel global Delphi
