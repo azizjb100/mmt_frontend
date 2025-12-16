@@ -1,7 +1,6 @@
 <!-- src/views/LapLsBahanPenolong.vue -->
 <template>
   <div class="report-layout">
-    
     <!-- Header: Filter dan Judul -->
     <div class="report-header">
       <div class="header-left">
@@ -15,23 +14,67 @@
           <label for="endDate">Selesai:</label>
           <input type="date" id="endDate" v-model="endDate" />
         </div>
-        <button @click="fetchReport" class="btn-refresh" :disabled="loading.report">
+        <button
+          @click="fetchReport"
+          class="btn-refresh"
+          :disabled="loading.report"
+        >
           <span v-if="!loading.report">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2z"/><path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466"/></svg>
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="16"
+              height="16"
+              fill="currentColor"
+              viewBox="0 0 16 16"
+            >
+              <path
+                fill-rule="evenodd"
+                d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2z"
+              />
+              <path
+                d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466"
+              />
+            </svg>
             Refresh
           </span>
           <span v-else>Memuat...</span>
         </button>
         <div class="search-group">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001q.044.06.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1 1 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0"/></svg>
-                  <input type="text" v-model="searchQuery" placeholder="Cari Kode atau Nama Bahan..." />
-                </div>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="16"
+            height="16"
+            fill="currentColor"
+            viewBox="0 0 16 16"
+          >
+            <path
+              d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001q.044.06.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1 1 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0"
+            />
+          </svg>
+          <input
+            type="text"
+            v-model="searchQuery"
+            placeholder="Cari Kode atau Nama Bahan..."
+          />
+        </div>
       </div>
-                
-            
+
       <div class="header-right">
         <button class="btn-export" @click="exportToExcel">
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5"/><path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L6.354 8.146a.5.5 0 1 0-.708.708z"/></svg>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="16"
+            height="16"
+            fill="currentColor"
+            viewBox="0 0 16 16"
+          >
+            <path
+              d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5"
+            />
+            <path
+              d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L6.354 8.146a.5.5 0 1 0-.708.708z"
+            />
+          </svg>
           Export
         </button>
       </div>
@@ -71,7 +114,6 @@
               <th>ROLL</th>
               <th>M2</th>
             </tr>
-
           </thead>
           <tbody>
             <tr v-if="loading.report">
@@ -79,7 +121,11 @@
             </tr>
             <tr v-else-if="paginatedData.length === 0">
               <td :colspan="17" class="empty-state">
-                {{ searchQuery ? 'Tidak ada data yang cocok.' : 'Tidak ada data untuk rentang tanggal ini.' }}
+                {{
+                  searchQuery
+                    ? "Tidak ada data yang cocok."
+                    : "Tidak ada data untuk rentang tanggal ini."
+                }}
               </td>
             </tr>
             <tr v-for="row in paginatedData" :key="row.kode">
@@ -98,24 +144,48 @@
               <td class="text-right">{{ formatNumber(row.keluar_m, 2) }}</td>
               <td class="text-right">{{ formatNumber(row.retur_q, 0) }}</td>
               <td class="text-right">{{ formatNumber(row.retur_m, 2) }}</td>
-              <td class="text-right">{{ formatNumber(row.stok_akhir_q, 0) }}</td>
-              <td class="text-right">{{ formatNumber(row.stok_akhir_m, 2) }}</td>
+              <td class="text-right">
+                {{ formatNumber(row.stok_akhir_q, 0) }}
+              </td>
+              <td class="text-right">
+                {{ formatNumber(row.stok_akhir_m, 2) }}
+              </td>
             </tr>
           </tbody>
           <!-- Footer Total (Grand Total) -->
           <tfoot v-if="filteredData.length > 0">
             <tr>
               <th :colspan="7" class="text-right">GRAND TOTAL:</th>
-              <th class="text-right">{{ formatNumber(reportTotals.stok_awal_q, 0) }}</th>
-              <th class="text-right">{{ formatNumber(reportTotals.stok_awal_m, 2) }}</th>
-              <th class="text-right">{{ formatNumber(reportTotals.terima_q, 0) }}</th>
-              <th class="text-right">{{ formatNumber(reportTotals.terima_m, 2) }}</th>
-              <th class="text-right">{{ formatNumber(reportTotals.keluar_q, 0) }}</th>
-              <th class="text-right">{{ formatNumber(reportTotals.keluar_m, 2) }}</th>
-              <th class="text-right">{{ formatNumber(reportTotals.retur_q, 0) }}</th>
-              <th class="text-right">{{ formatNumber(reportTotals.retur_m, 2) }}</th>
-              <th class="text-right">{{ formatNumber(reportTotals.stok_akhir_q, 0) }}</th>
-              <th class="text-right">{{ formatNumber(reportTotals.stok_akhir_m, 2) }}</th>
+              <th class="text-right">
+                {{ formatNumber(reportTotals.stok_awal_q, 0) }}
+              </th>
+              <th class="text-right">
+                {{ formatNumber(reportTotals.stok_awal_m, 2) }}
+              </th>
+              <th class="text-right">
+                {{ formatNumber(reportTotals.terima_q, 0) }}
+              </th>
+              <th class="text-right">
+                {{ formatNumber(reportTotals.terima_m, 2) }}
+              </th>
+              <th class="text-right">
+                {{ formatNumber(reportTotals.keluar_q, 0) }}
+              </th>
+              <th class="text-right">
+                {{ formatNumber(reportTotals.keluar_m, 2) }}
+              </th>
+              <th class="text-right">
+                {{ formatNumber(reportTotals.retur_q, 0) }}
+              </th>
+              <th class="text-right">
+                {{ formatNumber(reportTotals.retur_m, 2) }}
+              </th>
+              <th class="text-right">
+                {{ formatNumber(reportTotals.stok_akhir_q, 0) }}
+              </th>
+              <th class="text-right">
+                {{ formatNumber(reportTotals.stok_akhir_m, 2) }}
+              </th>
             </tr>
           </tfoot>
         </table>
@@ -125,22 +195,33 @@
       <div class="pagination-controls" v-if="filteredData.length > 0">
         <div class="pagination-rows">
           <label for="rowsPerPage">Baris per halaman:</label>
-          <select id="rowsPerPage" v-model.number="itemsPerPage" @change="currentPage = 1">
+          <select
+            id="rowsPerPage"
+            v-model.number="itemsPerPage"
+            @change="currentPage = 1"
+          >
             <option value="15">15 baris</option>
             <option value="25">25 baris</option>
             <option value="50">50 baris</option>
             <option value="100">100 baris</option>
-            
           </select>
         </div>
         <div class="pagination-nav">
-          <button @click="prevPage" :disabled="currentPage === 1" class="btn-page">
+          <button
+            @click="prevPage"
+            :disabled="currentPage === 1"
+            class="btn-page"
+          >
             &laquo; Prev
           </button>
           <span class="pagination-info">
             Halaman {{ currentPage }} dari {{ totalPages }}
           </span>
-          <button @click="nextPage" :disabled="currentPage === totalPages" class="btn-page">
+          <button
+            @click="nextPage"
+            :disabled="currentPage === totalPages"
+            class="btn-page"
+          >
             Next &raquo;
           </button>
         </div>
@@ -153,20 +234,20 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue';
-import axios from 'axios';
-import { format, startOfMonth } from 'date-fns';
+import { ref, onMounted, computed } from "vue";
+import axios from "axios";
+import { format, startOfMonth } from "date-fns";
 
 // [DIUBAH] Ganti API URL
-const API_URL = 'http://localhost:8000/api/mmt/laporan-ls-bahan-penolong';
+const API_URL = "http://localhost:8003/api/mmt/laporan-ls-bahan-penolong";
 
-const endDate = ref(format(new Date(), 'yyyy-MM-dd'));
-const startDate = ref(format(startOfMonth(new Date()), 'yyyy-MM-dd'));
+const endDate = ref(format(new Date(), "yyyy-MM-dd"));
+const startDate = ref(format(startOfMonth(new Date()), "yyyy-MM-dd"));
 const allData = ref([]);
 const loading = ref({ report: false });
 const currentPage = ref(1);
 const itemsPerPage = ref(15);
-const searchQuery = ref('');
+const searchQuery = ref("");
 
 // [FIX] Menggunakan 'allData' untuk filter
 const filteredData = computed(() => {
@@ -177,7 +258,7 @@ const filteredData = computed(() => {
     return allData.value;
   }
   const query = searchQuery.value.toLowerCase();
-  return allData.value.filter(row => {
+  return allData.value.filter((row) => {
     const kodeMatch = row.kode ? row.kode.toLowerCase().includes(query) : false;
     const namaMatch = row.Nama ? row.Nama.toLowerCase().includes(query) : false;
     return kodeMatch || namaMatch;
@@ -186,25 +267,33 @@ const filteredData = computed(() => {
 
 // [FIX] Menggunakan 'filteredData' untuk total
 const reportTotals = computed(() => {
-  return filteredData.value.reduce((acc, row) => {
-    acc.stok_awal_q += parseFloat(row.stok_awal_q || 0);
-    acc.stok_awal_m += parseFloat(row.stok_awal_m || 0);
-    acc.terima_q += parseFloat(row.terima_q || 0);
-    acc.terima_m += parseFloat(row.terima_m || 0);
-    acc.keluar_q += parseFloat(row.keluar_q || 0);
-    acc.keluar_m += parseFloat(row.keluar_m || 0);
-    acc.retur_q += parseFloat(row.retur_q || 0);
-    acc.retur_m += parseFloat(row.retur_m || 0);
-    acc.stok_akhir_q += parseFloat(row.stok_akhir_q || 0);
-    acc.stok_akhir_m += parseFloat(row.stok_akhir_m || 0);
-    return acc;
-  }, { 
-    stok_awal_q: 0, stok_awal_m: 0,
-    terima_q: 0, terima_m: 0,
-    keluar_q: 0, keluar_m: 0,
-    retur_q: 0, retur_m: 0,
-    stok_akhir_q: 0, stok_akhir_m: 0
-  });
+  return filteredData.value.reduce(
+    (acc, row) => {
+      acc.stok_awal_q += parseFloat(row.stok_awal_q || 0);
+      acc.stok_awal_m += parseFloat(row.stok_awal_m || 0);
+      acc.terima_q += parseFloat(row.terima_q || 0);
+      acc.terima_m += parseFloat(row.terima_m || 0);
+      acc.keluar_q += parseFloat(row.keluar_q || 0);
+      acc.keluar_m += parseFloat(row.keluar_m || 0);
+      acc.retur_q += parseFloat(row.retur_q || 0);
+      acc.retur_m += parseFloat(row.retur_m || 0);
+      acc.stok_akhir_q += parseFloat(row.stok_akhir_q || 0);
+      acc.stok_akhir_m += parseFloat(row.stok_akhir_m || 0);
+      return acc;
+    },
+    {
+      stok_awal_q: 0,
+      stok_awal_m: 0,
+      terima_q: 0,
+      terima_m: 0,
+      keluar_q: 0,
+      keluar_m: 0,
+      retur_q: 0,
+      retur_m: 0,
+      stok_akhir_q: 0,
+      stok_akhir_m: 0,
+    }
+  );
 });
 
 // [FIX] Menggunakan 'filteredData' untuk paginasi
@@ -234,20 +323,23 @@ const prevPage = () => {
 const fetchReport = async () => {
   loading.value.report = true;
   allData.value = [];
-  searchQuery.value = ''; 
+  searchQuery.value = "";
   currentPage.value = 1;
   try {
     const res = await axios.get(API_URL, {
       params: {
         startDate: startDate.value,
-        endDate: endDate.value
-      }
+        endDate: endDate.value,
+      },
     });
     allData.value = res.data;
   } catch (error) {
-    console.error('Gagal fetch laporan:', error);
+    console.error("Gagal fetch laporan:", error);
     // [DIUBAH] Pesan error lebih spesifik
-    alert('Gagal mengambil data Laporan Bahan Penolong: ' + (error.response?.data?.message || error.message));
+    alert(
+      "Gagal mengambil data Laporan Bahan Penolong: " +
+        (error.response?.data?.message || error.message)
+    );
   } finally {
     loading.value.report = false;
   }
@@ -258,14 +350,14 @@ const formatNumber = (val, decimalPlaces = 0) => {
     val = 0;
   }
   const num = parseFloat(val);
-  return num.toLocaleString('id-ID', { 
-    minimumFractionDigits: decimalPlaces, 
-    maximumFractionDigits: decimalPlaces 
+  return num.toLocaleString("id-ID", {
+    minimumFractionDigits: decimalPlaces,
+    maximumFractionDigits: decimalPlaces,
   });
 };
 
 const exportToExcel = () => {
-  alert('TODO: Fungsi ekspor ke Excel (seperti TeSpeedButton1Click)');
+  alert("TODO: Fungsi ekspor ke Excel (seperti TeSpeedButton1Click)");
 };
 
 onMounted(fetchReport);
@@ -273,11 +365,11 @@ onMounted(fetchReport);
 
 <style scoped>
 /* Impor font modern */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
 
 /* Container utama halaman ini */
 .report-layout {
-  font-family: 'Inter', sans-serif;
+  font-family: "Inter", sans-serif;
   background-color: #f4f7f9;
   height: calc(100vh - 80px); /* Penuh dikurangi padding/navbar */
   display: flex;
@@ -294,13 +386,13 @@ onMounted(fetchReport);
   padding: 1.25rem;
   background: #ffffff;
   border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
 }
 .header-left {
   display: flex;
   align-items: center;
   gap: 1rem;
-  flex-wrap: wrap; 
+  flex-wrap: wrap;
 }
 .header-right {
   display: flex;
@@ -330,7 +422,7 @@ select {
   border: 1px solid #dcdfe6;
   border-radius: 6px;
   padding: 0.5rem 0.75rem;
-  font-family: 'Inter', sans-serif;
+  font-family: "Inter", sans-serif;
   font-size: 0.875rem;
 }
 input[type="date"]:focus,
@@ -342,7 +434,8 @@ select:focus {
 }
 
 /* Style Tombol Modern */
-.btn-refresh, .btn-export {
+.btn-refresh,
+.btn-export {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
@@ -359,15 +452,22 @@ select:focus {
   background-color: #3b82f6;
   color: white;
 }
-.btn-refresh:hover:not(:disabled) { background-color: #2563eb; }
-.btn-refresh:disabled { background-color: #93c5fd; cursor: not-allowed; }
+.btn-refresh:hover:not(:disabled) {
+  background-color: #2563eb;
+}
+.btn-refresh:disabled {
+  background-color: #93c5fd;
+  cursor: not-allowed;
+}
 
 .btn-export {
   background-color: #ffffff;
   color: #374151;
   border: 1px solid #dcdfe6;
 }
-.btn-export:hover { background-color: #f9fafb; }
+.btn-export:hover {
+  background-color: #f9fafb;
+}
 
 /* Panel Tabel */
 .table-container {
@@ -377,7 +477,7 @@ select:focus {
   overflow: hidden;
   background: #ffffff;
   border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
 }
 .table-wrapper {
   flex-grow: 1;
@@ -388,7 +488,6 @@ table {
   border-collapse: separate; /* Penting untuk style modern */
   border-spacing: 0;
 }
-
 
 th {
   position: sticky;
@@ -434,7 +533,9 @@ thead tr.filter-row th {
   width: 200px;
   margin: 0 auto;
 }
-.search-group svg { color: #9ca3af; }
+.search-group svg {
+  color: #9ca3af;
+}
 .search-group input {
   border: none;
   padding: 8px;
@@ -454,12 +555,16 @@ td {
 tbody tr:hover {
   background-color: #f9fafb; /* Efek hover halus */
 }
-.text-right { text-align: right; }
-.text-center { text-align: center; }
+.text-right {
+  text-align: right;
+}
+.text-center {
+  text-align: center;
+}
 .empty-state {
-  padding: 1rem; 
-  text-align: center; 
-  color: #718096; 
+  padding: 1rem;
+  text-align: center;
+  color: #718096;
   font-style: italic;
 }
 

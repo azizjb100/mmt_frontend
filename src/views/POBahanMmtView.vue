@@ -233,7 +233,7 @@ interface PoBahanHeader {
 
 const api = axios;
 // ASUMSI: Endpoint API untuk PO Bahan MMT
-const API_BASE_URL = "http://localhost:8000/api/mmt/po-bahan-mmt";
+const API_BASE_URL = "http://localhost:8003/api/mmt/po-bahan-mmt";
 const MENU_ID = "MMT_PO_BAHAN";
 
 // --- Store & utils ---

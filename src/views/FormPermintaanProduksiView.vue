@@ -53,8 +53,8 @@ const router = useRouter();
 const route = useRoute();
 const toast = useToast();
 
-const API_URL = 'http://localhost:8000/api/mmt/permintaan-produksi'; 
-const API_MASTER_BAHAN_DETAIL_SINGLE = 'http://localhost:8000/api/master/bahan/mmt'; 
+const API_URL = 'http://localhost:8003/api/mmt/permintaan-produksi'; 
+const API_MASTER_BAHAN_DETAIL_SINGLE = 'http://localhost:8003/api/master/bahan/mmt'; 
 
 // --- State ---
 const isEditMode = ref(!!route.params.nomor);

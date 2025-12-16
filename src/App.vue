@@ -1,9 +1,9 @@
 <template>
-  <router-view /> 
+  <router-view />
 </template>
 
 <script setup>
-// Script setup biasanya kosong di App.vue, karena logika navigasi 
+// Script setup biasanya kosong di App.vue, karena logika navigasi
 // dan layout ditangani oleh Vue Router dan komponen Dashboard/Shell.
 </script>
 

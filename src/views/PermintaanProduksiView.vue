@@ -200,7 +200,7 @@ interface ApiResponse {
 const router = useRouter();
 const toast = useToast();
 const authStore = useAuthStore();
-const API_URL = "http://localhost:8000/api/mmt/permintaan-produksi";
+const API_URL = "http://localhost:8003/api/mmt/permintaan-produksi";
 const MENU_ID = "MMT_PERMINTAAN_PRODUKSI";
 
 const masterData = ref<PermintaanProduksiHeader[]>([]);
