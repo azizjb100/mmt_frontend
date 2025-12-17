@@ -121,7 +121,7 @@ function checkAuthStatus() {
 }
 
 async function login(username: string, password: string) {
-  const res = await fetch("/auth/login", {
+  const res = await fetch("http://103.94.238.252:8003/api/auth/login", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ username, password }),
