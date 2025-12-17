@@ -165,9 +165,11 @@ import { ref, reactive, onMounted, computed, watch, nextTick } from "vue";
 import { useRouter } from "vue-router";
 import { useToast } from "vue-toastification";
 import { useAuthStore } from "../stores/authStore";
-import axios from "axios";
+
+import type { AxiosError } from "axios";
 import { format, subDays, parseISO, isValid } from "date-fns";
 import PageLayout from "../components/PageLayout.vue";
+import api from "@/services/api";
 
 // --- Interfaces ---
 interface LhkCetakHeader {
@@ -198,8 +200,7 @@ interface LhkCetakDetail {
 
 type LhkCetakItem = LhkCetakHeader;
 
-const api = axios;
-const API_BASE_URL = "http://102.94.238.252:8003/api/mmt/lhk-cetak";
+const API_BASE_URL = "/api/mmt/lhk-cetak";
 
 // --- Store & utils ---
 const router = useRouter();

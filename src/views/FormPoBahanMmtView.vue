@@ -550,12 +550,11 @@
 <script setup lang="ts">
 import { ref, onMounted, computed, reactive, watch } from "vue";
 import { useRouter, useRoute } from "vue-router";
-import axios, { AxiosError } from "axios";
+import api from "@/services/api";
+import { AxiosError } from "axios";
 import PageLayout from "@/components/PageLayout.vue";
 import { format, parseISO, isValid } from "date-fns";
 import { useToast } from "vue-toastification";
-
-// --- ASUMSI IMPOR MODAL (Harus diimplementasikan) ---
 import SupplierLookupModal from "@/modal/SupplierLookupModal.vue";
 import MasterBahanModal from "@/modal/MasterBahanModal.vue";
 // import PoGreigeLookupModal from '@/modal/PoGreigeLookupModal.vue';
@@ -654,11 +653,10 @@ const route = useRoute();
 const toast = useToast();
 
 // ASUMSI: Konstanta dari Delphi
-const API_BASE_URL = "http://102.94.238.252:8003/api/mmt/po-bahan-mmt";
-const API_SUPPLIER_DETAIL = "http://102.94.238.252:8003/api/supplier/detail";
+const API_BASE_URL = "/mmt/po-bahan-mmt";
+const API_SUPPLIER_DETAIL = "/supplier/detail";
 const API_UNFULFILLED_MB_DETAIL = `${API_BASE_URL}/unfulfilled-mb-detail`;
-const API_MASTER_BAHAN_DETAIL_SINGLE =
-  "http://102.94.238.252:8003/api/master/bahan/mmt";
+const API_MASTER_BAHAN_DETAIL_SINGLE = "/master/bahan/mmt";
 const USER_KD = "ADMIN_PPIC"; // Ganti dengan KDUSER yang sebenarnya
 
 // ASUMSI: Dari variabel global Delphi
@@ -929,7 +927,7 @@ const refreshData = () => {
 const handleSupKodeExit = async () => {
   if (!formData.supKode) return;
   try {
-    const response = await axios.get(
+    const response = await api.get(
       `${API_SUPPLIER_DETAIL}/${formData.supKode}`
     );
     const detail = response.data;
@@ -979,7 +977,7 @@ const handlePoGreigeExit = async () => {
 
   try {
     // ASUMSI: Backend API menghandle load detail, cek jenis=1, dan hitung sisa QTY Celup
-    const response = await axios.get(
+    const response = await api.get(
       `${API_BASE_URL}/load-greige-for-celup/${formData.poGreige}`
     );
     const data = response.data;
@@ -1013,7 +1011,7 @@ const handleMppbExit = async () => {
 
   try {
     // ASUMSI: Backend API menghandle cek approve dan cek sudah di link PO
-    const response = await axios.get(
+    const response = await api.get(
       `${API_BASE_URL}/load-mppb/${formData.mppbNomor}`
     );
     const data = response.data;
@@ -1085,7 +1083,7 @@ const handleSelectPermintaan = async (permintaanItem: LookupItem) => {
 
   try {
     // Panggil API baru untuk mendapatkan HANYA item yang SISA QTY-nya > 0
-    const response = await axios.get(
+    const response = await api.get(
       `${API_UNFULFILLED_MB_DETAIL}/${encodeURIComponent(nomorPermintaan)}`
     );
     const data = response.data;
@@ -1203,12 +1201,12 @@ const handleSave = async (isSaveAndNew: boolean) => {
     let response;
 
     if (isEditMode.value) {
-      response = await axios.put(`${API_BASE_URL}/${formData.nomor}`, payload);
+      response = await api.put(`${API_BASE_URL}/${formData.nomor}`, payload);
     } else {
       delete payload.nomor;
       const payloadToSend = { ...payload, nomorToEdit: null };
 
-      response = await axios.post(API_BASE_URL, payloadToSend);
+      response = await api.post(API_BASE_URL, payloadToSend);
     }
     const newNomor = response.data.nomor;
     if (!newNomor || newNomor === "AUTO") {
@@ -1268,10 +1266,7 @@ const handleMkbSelect = async (mkb: LookupItem) => {
   if (index === null || !mkb.Nomor) return;
 
   try {
-    // ASUMSI: API /load-for-po mengembalikan detail untuk diisi ke grid
-    const response = await axios.get(`${API_BASE_URL}/load-mkb/${mkb.Nomor}`);
-
-    // Mengisi semua detail item dari MKB ke grid
+    const response = await api.get(`${API_BASE_URL}/load-mkb/${mkb.Nomor}`);
     if (response.data.Detail && response.data.Detail.length > 0) {
       formData.detail = response.data.Detail.map((d: any) => ({
         ...createEmptyDetail(),
@@ -1389,35 +1384,22 @@ const openSPKSearch = (index: number) => {
   isSPKModalVisible.value = true;
 };
 
-// --- Initial Load ---
-
-// Pastikan Anda telah mengimpor axios, format, parseISO, router, toast, dan API_BASE_URL.
-
 const loaddataall = async (nomor: string) => {
-  // 1. Validasi awal
   if (!nomor) return;
-
-  // 2. ENCODE NOMOR PO (KRITIS untuk menangani '/' dalam nomor PO otomatis)
   const nomorEncoded = encodeURIComponent(nomor);
 
   try {
-    // Panggil API dengan nomor yang sudah di-encode
-    const response = await axios.get(`${API_BASE_URL}/${nomorEncoded}`);
+    const response = await api.get(`${API_BASE_URL}/${nomorEncoded}`);
     const data = response.data;
-
-    // Helper untuk memproses dan memformat tanggal dengan aman
     const safeFormatDate = (dateStr: string | undefined): string => {
       if (!dateStr) return "";
       try {
-        // Gunakan parseISO jika string tanggal adalah ISO 8601
         const parsedDate = parseISO(dateStr);
         return format(parsedDate, "yyyy-MM-dd");
       } catch (e) {
         return ""; // Kembalikan string kosong jika parsing gagal
       }
     };
-
-    // 3. Mapping Data (Menggunakan Helper Tanggal Aman)
     Object.assign(formData, {
       nomor: data.Nomor,
       tanggal: safeFormatDate(data.Tanggal), // Menggunakan helper aman

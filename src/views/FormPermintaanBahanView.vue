@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { ref, onMounted, computed, reactive, watch } from "vue";
 import { useRouter, useRoute } from "vue-router";
-import axios, { AxiosError } from "axios";
+import api from "@/services/api";
+import { AxiosError } from "axios";
 import PageLayout from "../components/PageLayout.vue";
 import MasterBahanModal from "@/modal/MasterBahanModal.vue";
 import GudangLookupModal from "@/modal/GudangLookupView.vue"; // <-- PASTIKAN MODAL INI DI-IMPORT
@@ -54,10 +55,10 @@ const router = useRouter();
 const route = useRoute();
 const toast = useToast();
 
-const API_URL = "http://102.94.238.252:8003/api/mmt/permintaan-bahan";
-const API_MASTER_BAHAN = "http://102.94.238.252:8003/api/master/bahan/mmt";
+const API_URL = "http://localhost:8003/api/mmt/permintaan-bahan";
+const API_MASTER_BAHAN = "http://localhost:8003/api/master/bahan/mmt";
 const API_MASTER_BAHAN_DETAIL_SINGLE =
-  "http://102.94.238.252:8003/api/master/bahan/mmt";
+  "http://localhost:8003/api/master/bahan/mmt";
 
 const isEditMode = ref(!!route.params.nomor);
 const isSaving = ref(false);
@@ -189,7 +190,7 @@ const saveForm = async (saveAndNew: boolean) => {
     };
 
     // Mengirim data ke endpoint POST, yang akan ditangani oleh savePermintaanBahan di backend
-    const response = await axios.post(API_URL, payload);
+    const response = await api.post(API_URL, payload);
     toast.success(response.data.message || "Data berhasil disimpan!");
 
     if (saveAndNew) {
@@ -291,7 +292,7 @@ const handleBahanSelect = (bahan: MasterBahan) => {
 const loaddataall = async (nomor: string) => {
   isSaving.value = true;
   try {
-    const response = await axios.get(`${API_URL}/${nomor}`);
+    const response = await api.get(`${API_URL}/${nomor}`);
     const apiData = response.data; // Asumsi API mengembalikan objek header dan detail
 
     // 1. Mapping Header

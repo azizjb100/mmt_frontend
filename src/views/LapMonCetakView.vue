@@ -1,6 +1,6 @@
 <script setup>
 import { ref, onMounted, computed } from "vue";
-import axios from "axios";
+import api from "@/services/api";
 
 // --- UTILITY FUNCTIONS (DIBUAT INLINE AGAR FILE KOMPONEN TUNGGAL) ---
 
@@ -33,8 +33,7 @@ const formatNumber = (val, decimalPlaces = 0) => {
 };
 
 // --- STATE MANAGEMENT ---
-const API_URL =
-  "http://102.94.238.252:8003/api/mmt/monitoring-cetak/monitoring";
+const API_URL = "/mmt/monitoring-cetak/monitoring";
 
 const allData = ref([]);
 const loading = ref({ report: false });
@@ -158,7 +157,7 @@ const fetchReport = async () => {
   currentPage.value = 1;
 
   try {
-    const res = await axios.get(API_URL, {
+    const res = await api.get(API_URL, {
       params: {
         startDate: startDate.value,
         endDate: endDate.value,

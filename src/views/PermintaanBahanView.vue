@@ -2,7 +2,7 @@
 import { ref, reactive, onMounted, computed, watch } from "vue";
 import { useRouter } from "vue-router";
 import { useToast } from "vue-toastification";
-import axios from "axios";
+import api from "@/services/api";
 import { format, subDays, parseISO, isValid } from "date-fns";
 import PageLayout from "../components/PageLayout.vue";
 
@@ -31,8 +31,7 @@ interface PermintaanBahanHeader {
 }
 
 const toast = useToast();
-const api = axios;
-const API_BASE_URL = "http://102.94.238.252:8003/api/mmt/permintaan-bahan";
+const API_PERMINTAAN_BAHAN = "/mmt/permintaan-bahan";
 const MENU_ID = "MMT_PERMINTAAN_BAHAN";
 
 const router = useRouter();
@@ -69,8 +68,8 @@ const masterHeaders = [
   { title: "Gudang", key: "Gudang", minWidth: "100px" },
   { title: "Nama Gudang", key: "Nama", minWidth: "200px" },
   { title: "Tanggal", key: "Tanggal", minWidth: "120px" },
-  { title: "Tanggal", key: "Status_PO", minWidth: "120px" },
-  { title: "Tanggal", key: "Status_Diterima", minWidth: "120px" },
+  { title: "Status PO", key: "Status_PO", minWidth: "120px" },
+  { title: "Status Terima", key: "Status_Diterima", minWidth: "120px" },
   { title: "Keterangan", key: "Keterangan", minWidth: "250px" },
   { title: "", key: "data-table-expand", minWidth: "40px" },
 ];
@@ -128,7 +127,8 @@ const parseCustomDate = (dateString) => {
 const fetchData = async () => {
   loading.value = true;
   try {
-    const response = await axios.get(API_BASE_URL, {
+    // GUNAKAN 'api' yang sudah terkonfigurasi, dan endpoint relatif
+    const response = await api.get(API_PERMINTAAN_BAHAN, {
       params: {
         startDate: startDate.value,
         endDate: endDate.value,
@@ -154,11 +154,8 @@ const loadDetails = async (newlyExpandedItems: PermintaanBahanHeader[]) => {
 
   loadingDetails.value.add(itemToLoad.Nomor);
   try {
-    const res = await axios.get<PermintaanBahanDetail[]>(
-      `${API_BASE_URL}/detail/`,
-      {
-        params: { nomor: itemToLoad.Nomor },
-      }
+    const res = await api.get<PermintaanBahanDetail[]>(
+      `${API_PERMINTAAN_BAHAN}/detail`
     );
 
     details.value[itemToLoad.Nomor] = res.data || [];
@@ -204,7 +201,7 @@ const handleDelete = async () => {
   }
 
   try {
-    await axios.delete(`${API_BASE_URL}/${selectedNomor.value}`);
+    await api.delete(`${API_PERMINTAAN_BAHAN}/${selectedNomor.value}`);
     alert("Data berhasil di Hapus.");
 
     await fetchData();

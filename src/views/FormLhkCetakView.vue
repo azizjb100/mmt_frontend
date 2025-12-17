@@ -484,7 +484,8 @@
 import { ref, reactive, computed, onMounted } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { format } from "date-fns";
-import axios from "axios";
+import { AxiosError } from "axios";
+import api from "@/services/api";
 
 // --- Import Lookup Components ---
 import GudangLookupView from "@/modal/GudangLookupView.vue";
@@ -496,7 +497,7 @@ import PageLayout from "../components/PageLayout.vue";
 // --- KONSTANTA ---
 const DEFAULT_PADDING_CM = 5; // Default 5 cm
 
-const API_BASE_URL = "http://102.94.238.252:8003/api/mmt/lhk-cetak";
+const API_BASE_URL = "/mmt/lhk-cetak";
 
 // --- Interfaces LHK (FINAL) ---
 interface DetailLHK {
@@ -806,9 +807,7 @@ const handleGdgKodeExit = async () => {
     return;
   }
   try {
-    const response = await axios.get(
-      `/api/v1/lookup/gudang/${formData.gdgKode}`
-    );
+    const response = await api.get(`/api/v1/lookup/gudang/${formData.gdgKode}`);
     if (response.data.success && response.data.data) {
       formData.gdgNama = response.data.data.Nama;
     } else {
@@ -831,7 +830,7 @@ const handleMesinSelect = (mesin: MesinItem) => {
 const handleMesinExit = async () => {
   if (!formData.mesin) return;
   try {
-    const response = await axios.get(`/api/mmt/lookup/mesin/${formData.mesin}`);
+    const response = await api.get(`/api/mmt/lookup/mesin/${formData.mesin}`);
     if (response.data.success && response.data.data) {
       console.log(`Mesin ${formData.mesin} valid.`);
     } else {
@@ -899,7 +898,7 @@ const handleBahanExit = async () => {
   if (!formData.sku) return;
   const kode = formData.sku.split(" - ")[0];
   try {
-    const res = await axios.get(`/api/master/bahan/mmt/procuksi/${kode}`);
+    const res = await api.get(`/api/master/bahan/mmt/procuksi/${kode}`);
     if (res.data.success && res.data.data) {
       const b = res.data.data;
       formData.spkBahan = b.Kode;
@@ -1018,7 +1017,7 @@ const handleSave = async (saveAndNew: boolean) => {
     };
 
     let response;
-    response = await axios.post(API_BASE_URL, payload);
+    response = await api.post(API_BASE_URL, payload);
     const newNomor = response.data.nomor;
 
     if (!newNomor) {

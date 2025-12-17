@@ -158,7 +158,8 @@ import { ref, reactive, onMounted, computed, watch } from "vue";
 import { useRouter } from "vue-router";
 import { useToast } from "vue-toastification";
 import { useAuthStore } from "../stores/authStore";
-import axios, { AxiosError } from "axios";
+import api from "@/services/api";
+import type { AxiosError } from "axios";
 import { format, subDays } from "date-fns";
 import PageLayout from "../components/PageLayout.vue";
 import { VDataTable } from "vuetify/components";
@@ -200,7 +201,7 @@ interface ApiResponse {
 const router = useRouter();
 const toast = useToast();
 const authStore = useAuthStore();
-const API_URL = "http://102.94.238.252:8003/api/mmt/permintaan-produksi";
+const API_PERMINTAAN_PRODUKSI = "/mmt/permintaan-produksi";
 const MENU_ID = "MMT_PERMINTAAN_PRODUKSI";
 
 const masterData = ref<PermintaanProduksiHeader[]>([]);
@@ -295,7 +296,7 @@ const fetchData = async () => {
   expanded.value = [];
   details.value = {};
   try {
-    const response = await axios.get<ApiResponse>(API_URL, {
+    const response = await api.get<ApiResponse>(API_PERMINTAAN_PRODUKSI, {
       params: {
         startDate: startDate.value,
         endDate: endDate.value,
@@ -366,7 +367,7 @@ const handleDelete = async () => {
   if (!confirm(`Yakin ingin hapus transaksi ${selectedNomor.value}?`)) return;
 
   try {
-    await axios.delete(`${API_URL}/${selectedNomor.value}`);
+    await api.delete(`${API_PERMINTAAN_PRODUKSI}/${selectedNomor.value}`);
     toast.success("Data berhasil dihapus!");
     await fetchData();
   } catch (error) {

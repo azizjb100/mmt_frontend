@@ -190,7 +190,7 @@
 import { ref, reactive, onMounted, computed, watch } from "vue";
 import { useRouter } from "vue-router";
 import { useToast } from "vue-toastification";
-import axios from "axios";
+import api from "@/services/api";
 import { format, subDays, parseISO, isValid } from "date-fns";
 import PageLayout from "../components/PageLayout.vue";
 
@@ -231,9 +231,7 @@ interface PoBahanHeader {
   [key: string]: any;
 }
 
-const api = axios;
-// ASUMSI: Endpoint API untuk PO Bahan MMT
-const API_BASE_URL = "http://102.94.238.252:8003/api/mmt/po-bahan-mmt";
+const API_PO_BAHAN_MMT = "/mmt/po-bahan-mmt";
 const MENU_ID = "MMT_PO_BAHAN";
 
 // --- Store & utils ---
@@ -353,7 +351,7 @@ const fetchData = async () => {
   expanded.value = [];
   details.value = {};
   try {
-    const response = await axios.get<PoBahanHeader[]>(`${API_BASE_URL}/`, {
+    const response = await api.get<PoBahanHeader[]>(`${API_PO_BAHAN_MMT}/`, {
       params: {
         startDate: filters.startDate,
         endDate: filters.endDate,
@@ -384,7 +382,7 @@ const loadDetails = async (newlyExpandedItems: PoBahanHeader[]) => {
   loadingDetails.value.add(itemToLoad.Nomor);
   try {
     // Asumsi endpoint /detail mengembalikan detail PO Bahan MMT
-    const res = await axios.get<PoBahanDetail[]>(`${API_BASE_URL}/detail/`, {
+    const res = await api.get<PoBahanDetail[]>(`${API_PO_BAHAN_MMT}/detail/`, {
       params: { nomor: itemToLoad.Nomor },
     });
 
@@ -442,7 +440,7 @@ const handleDelete = async () => {
     confirm(`Yakin ingin hapus Pemesanan Bahan MMT ${selectedNomor.value}?`)
   ) {
     try {
-      await axios.delete(`${API_BASE_URL}/${selectedNomor.value}`);
+      await api.delete(`${API_PO_BAHAN_MMT}/${selectedNomor.value}`);
       toast.success("Data sudah diHapus.");
       await fetchData();
     } catch (error) {
@@ -459,7 +457,7 @@ const handleToggleClose = async () => {
 
   if (confirm(message)) {
     try {
-      await axios.put(`${API_BASE_URL}/${selectedNomor.value}/toggle-close`, {
+      await api.put(`${API_PO_BAHAN_MMT}/${selectedNomor.value}/toggle-close`, {
         action: action,
         user: authStore.KDUSER,
       });

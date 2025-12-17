@@ -235,11 +235,11 @@
 
 <script setup>
 import { ref, onMounted, computed } from "vue";
-import axios from "axios";
+import api from "@/services/api";
 import { format, startOfMonth } from "date-fns";
 
 // [DIUBAH] Ganti API URL
-const API_URL = "http://102.94.238.252:8003/api/mmt/laporan-ls-bahan-penolong";
+const API_URL = "/mmt/laporan-ls-bahan-penolong";
 
 const endDate = ref(format(new Date(), "yyyy-MM-dd"));
 const startDate = ref(format(startOfMonth(new Date()), "yyyy-MM-dd"));
@@ -326,7 +326,7 @@ const fetchReport = async () => {
   searchQuery.value = "";
   currentPage.value = 1;
   try {
-    const res = await axios.get(API_URL, {
+    const res = await api.get(API_URL, {
       params: {
         startDate: startDate.value,
         endDate: endDate.value,

@@ -188,7 +188,7 @@ interface KoreksiHeader {
 }
 
 const api = axios;
-const API_BASE_URL = "http://102.94.238.252:8003/api/mmt/koreksi-stok";
+const API_BASE_URL = "http://localhost:8003/api/mmt/koreksi-stok";
 const MENU_ID = "MMT_KOREKSI_STOK";
 
 // --- Store & utils ---

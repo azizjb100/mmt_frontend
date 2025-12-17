@@ -1,12 +1,13 @@
 <script setup>
 import { ref, computed, onMounted, watch } from "vue";
-import axios, { AxiosError } from "axios";
+import api from "@/services/api";
+
 import { useRouter } from "vue-router";
 import { format, subDays } from "date-fns";
 import PageLayout from "../components/PageLayout.vue";
 // Asumsi PageLayout ada dan diimport
 
-const API_BASE_URL = "http://102.94.238.252:8003/api/mmt/penerimaan-bahan";
+const API_PENERIMAAN_BAHAN = "/mmt/penerimaan-bahan";
 const router = useRouter();
 
 // --- Interfaces (Diperlukan untuk TypeScript, tapi penting untuk struktur data) ---
@@ -124,7 +125,7 @@ const fetchData = async () => {
   selected.value = [];
   expanded.value = [];
   try {
-    const response = await axios.get(API_BASE_URL, {
+    const response = await api.get(API_PENERIMAAN_BAHAN, {
       params: {
         startDate: startDate.value,
         endDate: endDate.value,
@@ -166,7 +167,7 @@ const handleDelete = async () => {
   if (!confirm(`Yakin ingin hapus transaksi ${selectedNomor.value}?`)) return;
 
   try {
-    await axios.delete(`${API_BASE_URL}/${selectedNomor.value}`);
+    await api.delete(`${API_PENERIMAAN_BAHAN}/${selectedNomor.value}`);
     alert("Data berhasil dihapus!");
     await fetchData();
   } catch (error) {

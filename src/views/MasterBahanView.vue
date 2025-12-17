@@ -101,7 +101,7 @@ import { ref, onMounted, computed, reactive } from "vue";
 import { useRouter } from "vue-router";
 import { useToast } from "vue-toastification";
 import { useAuthStore } from "../stores/authStore";
-import axios from "axios";
+import api from "@/services/api";
 import PageLayout from "../components/PageLayout.vue";
 
 // ===================================
@@ -127,7 +127,7 @@ interface MasterBarang {
 // ===================================
 // Constants
 // ===================================
-const API_BASE_URL = "http://102.94.238.252:8003/api/master/bahan/mmt";
+const API_MASTERBAHAN_MMT = "http://localhost:8003/api/master/bahan/mmt";
 const MENU_ID = "MMT_MASTER_BAHAN";
 
 // ===================================
@@ -210,7 +210,7 @@ const btnRefreshClick = async () => {
   loading.value = true;
 
   try {
-    const response = await axios.get(API_BASE_URL);
+    const response = await api.get(API_MASTERBAHAN_MMT);
 
     const res = response.data;
 
@@ -249,7 +249,7 @@ const handleDelete = async () => {
     return;
 
   try {
-    await axios.delete(`${API_BASE_URL}/${selectedKode.value}`);
+    await api.delete(`${API_MASTERBAHAN_MMT}/${selectedKode.value}`);
     toast.success("Data berhasil dihapus.");
     btnRefreshClick();
   } catch (e) {

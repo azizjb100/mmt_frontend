@@ -183,7 +183,8 @@ import { ref, reactive, onMounted, computed, watch } from "vue";
 import { useRouter } from "vue-router";
 import { useToast } from "vue-toastification";
 import { useAuthStore } from "../stores/authStore";
-import axios from "axios";
+import api from "@/services/api";
+import type { AxiosError } from "axios";
 import { format, subDays, parseISO, isValid } from "date-fns"; // Import isValid
 import PageLayout from "../components/PageLayout.vue";
 
@@ -215,8 +216,7 @@ interface LhkFinishingDetail {
 
 type LhkFinishingItem = LhkFinishingHeader;
 
-const api = axios;
-const API_BASE_URL = "http://102.94.238.252:8003/api/mmt/lhk-finishing";
+const API_BASE_URL = "/mmt/lhk-finishing";
 
 // --- Store & utils ---
 const router = useRouter();

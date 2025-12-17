@@ -129,7 +129,7 @@ const toast = useToast();
 
 // --- State ---
 // Sesuaikan dengan endpoint yang sudah dibuat di backend Express Anda
-const API_URL = "http://102.94.238.252:8003/api/mmt/SPK/lookup";
+const API_URL = "http://localhost:8003/api/mmt/SPK/lookup";
 const SPKList = ref<SPKItem[]>([]);
 const searchKeyword = ref("");
 const loading = ref(false);

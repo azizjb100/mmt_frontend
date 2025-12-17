@@ -173,7 +173,7 @@ const emit = defineEmits<{
 const toast = useToast();
 
 // --- State ---
-const API_URL = "http://102.94.238.252:8003/api/mmt/permintaan-bahan/lookup";
+const API_URL = "http://localhost:8003/api/mmt/permintaan-bahan/lookup";
 const PermintaanList = ref<PermintaanItem[]>([]);
 const loading = ref(false);
 

@@ -315,6 +315,7 @@ import { useRouter, useRoute } from "vue-router";
 import { useToast } from "vue-toastification";
 import { useAuthStore } from "../stores/authStore";
 import axios, { AxiosError } from "axios";
+import api from "@/services/api";
 import PageLayout from "../components/PageLayout.vue";
 // Asumsi Anda memiliki komponen modal universal untuk lookup
 //import MasterLookupModal from '@/modal/MasterLookupModal.vue';
@@ -354,7 +355,7 @@ const router = useRouter();
 const route = useRoute();
 const toast = useToast();
 const authStore = useAuthStore();
-const API_BASE_URL = "http://102.94.238.252:8003/api/mmt/bahan";
+const API_MASTERBAHAN_MMT = "/mmt/bahan";
 
 // --- State ---
 const isEditMode = ref(false);
@@ -456,7 +457,7 @@ const openDivisiSearch = () => openLookup("/api/lookup/divisi", "divisiKode"); /
 const loadData = async (kode: string) => {
   // loaddata(akode:string)
   try {
-    const response = await axios.get(`${API_BASE_URL}/${kode}`);
+    const response = await api.get(`${API_MASTERBAHAN_MMT}/${kode}`);
     const data = response.data.data;
 
     if (data && data.Kode) {
@@ -551,7 +552,7 @@ const saveForm = async (saveAndNew: boolean) => {
   };
 
   try {
-    const response = await axios.post(`${API_BASE_URL}/save`, payload);
+    const response = await api.post(`${API_MASTERBAHAN_MMT}/save`, payload);
     toast.success(`Simpan berhasil! Kode: ${response.data.kode}`);
 
     if (saveAndNew) {

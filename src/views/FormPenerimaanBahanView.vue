@@ -297,7 +297,8 @@
 <script setup lang="ts">
 import { ref, onMounted, watch, reactive } from "vue";
 import { useRouter, useRoute } from "vue-router";
-import axios, { AxiosError } from "axios";
+import api from "@/services/api";
+import { AxiosError } from "axios";
 import SupplierLookupModal from "@/modal/SupplierLookupModal.vue";
 import MasterBahanModal from "@/modal/MasterBahanModal.vue";
 import POLookupModal from "@/modal/POLookupModal.vue";
@@ -378,13 +379,10 @@ const router = useRouter();
 const route = useRoute();
 const toast = useToast();
 
-// --- Konfigurasi API (Asumsi Path) ---
-const API_BASE_URL = "http://102.94.238.252:8003/api/mmt/penerimaan-bahan";
-const API_SUPPLIER_DETAIL = "http://102.94.238.252:8003/api/supplier";
-const API_MASTER_BAHAN_DETAIL_SINGLE =
-  "http://102.94.238.252:8003/api/master/bahan/mmt";
-const API_PO_LOOKUP_DETAIL =
-  "http://102.94.238.252:8003/api/mmt/penerimaan-bahan/po/lookup";
+const API_BASE_URL = "/mmt/penerimaan-bahan";
+const API_SUPPLIER_DETAIL = "/supplier";
+const API_MASTER_BAHAN_DETAIL_SINGLE = "/master/bahan/mmt";
+const API_PO_LOOKUP_DETAIL = "/mmt/penerimaan-bahan/po/lookup";
 
 // --- Props dan State ---
 const isEditMode = ref(!!route.params.nomor);
@@ -451,7 +449,7 @@ const handleSupplierSelect = async (selectedSupplier: { Kode: string }) => {
 
   try {
     // Asumsi API detail supplier mengembalikan objek dengan properti di level 'data'
-    const response = await axios.get<{ data: SupplierData }>(
+    const response = await api.get<{ data: SupplierData }>(
       `${API_SUPPLIER_DETAIL}/${selectedSupplier.Kode}`
     );
     const data = response.data.data;
@@ -555,7 +553,7 @@ const handleManualBahanInput = async (item: DetailItem, index: number) => {
   }
 
   try {
-    const response = await axios.get<{ data: MasterBahan }>(
+    const response = await api.get<{ data: MasterBahan }>(
       `${API_MASTER_BAHAN_DETAIL_SINGLE}/${kode}`
     );
     const bahanData = response.data.data;
@@ -603,7 +601,7 @@ const handlePOSelect = async (poHeader: PoHeader) => {
   try {
     // 1. Panggil API untuk mendapatkan data PO LENGKAP (Header + Detail)
     // Kita tidak bisa hanya menggunakan API_PO_LOOKUP_DETAIL karena endpoint itu untuk LIST/SEARCH.
-    const response = await axios.get<{ data: PoLookupData }>(
+    const response = await api.get<{ data: PoLookupData }>(
       `${API_PO_LOOKUP_DETAIL}/${poHeader.Nomor}`
     );
 
@@ -706,7 +704,7 @@ const saveForm = async (saveAndNew: boolean) => {
       isEditMode: isEditMode.value,
     };
 
-    const response = await axios.post(API_BASE_URL, payload);
+    const response = await api.post(API_BASE_URL, payload);
 
     toast.success(response.data.message || "Data berhasil disimpan.");
 

@@ -63,7 +63,7 @@ import { ref, onMounted, computed } from "vue";
 import { useRouter } from "vue-router";
 import { useToast } from "vue-toastification";
 import { useAuthStore } from "../stores/authStore";
-import axios from "axios";
+import api from "@/services/api";
 import PageLayout from "../components/PageLayout.vue";
 
 // --- Interfaces ---
@@ -74,8 +74,7 @@ interface Operator {
   [key: string]: any;
 }
 
-const api = axios;
-const API_BASE_URL = "http://102.94.238.252:8003/api/mmt/operator";
+const API_OERATOR_MMT = "/mmt/operator";
 const MENU_ID = "MMT_MASTER_OPERATOR";
 
 // --- Store & utils ---
@@ -113,7 +112,7 @@ const fetchData = async () => {
   loading.value = true;
   try {
     // SQL Master Delphi: SELECT op_kode Kode, op_nama Nama FROM toperator_mmt
-    const response = await api.get<Operator[]>(`${API_BASE_URL}`);
+    const response = await api.get<Operator[]>(`${API_OERATOR_MMT}`);
 
     masterData.value = response.data || [];
   } catch (err) {
@@ -150,7 +149,7 @@ const handleDelete = async () => {
   ) {
     try {
       // Logika delete dari Delphi: delete from toperator_mmt where op_kode = 'KODE'
-      await api.delete(`${API_BASE_URL}/${selectedKode.value}`);
+      await api.delete(`${API_OERATOR_MMT}/${selectedKode.value}`);
       toast.success("Data berhasil di Hapus.");
       await fetchData();
     } catch (error) {

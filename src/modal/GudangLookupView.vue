@@ -113,7 +113,7 @@ const toast = useToast();
 
 // --- State ---
 // Endpoint yang sesuai dengan backend Node.js/Express lookup service
-const API_URL = "http://102.94.238.252:8003/api/mmt/lookup/gudang";
+const API_URL = "http://localhost:8003/api/mmt/lookup/gudang";
 const gudangList = ref<GudangItem[]>([]);
 const searchKeyword = ref("");
 const loading = ref(false);
