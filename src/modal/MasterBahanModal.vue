@@ -124,7 +124,7 @@ const titleText = computed(() => {
 const API_URL = computed(() => {
   return props.mode === "produksi"
     ? "/master/bahan/mmt/produksi"
-    : "/api/master/bahan/mmt";
+    : "/master/bahan/mmt";
 });
 
 // --- State ---

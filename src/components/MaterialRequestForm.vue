@@ -1,7 +1,7 @@
 <script setup>
 import { ref, onMounted } from "vue";
 import axios from "axios";
-// [PERBAIKAN] Impor 'currentUser', bukan 'useAuthStore'
+import api from "@/services/api";
 import { useAuthStore } from "@/stores/authStore";
 
 const authStore = useAuthStore();
@@ -9,7 +9,7 @@ const currentUser = authStore.currentUser;
 
 // [PENTING] Sesuaikan dengan port backend Anda
 // Rute /api/requests ini BELUM kita buat di backend
-const API_URL = "http://localhost:8003/api/requests";
+const API_URL = "/requests";
 
 // Ini adalah data "state" pengganti field di Tfrmmintabahan_mmt
 const header = ref({
@@ -45,7 +45,7 @@ const deleteRow = (index) => {
 const fetchNewNumber = async () => {
   try {
     // API ini akan error sampai kita membuatnya di backend
-    const res = await axios.get(
+    const res = await api.get(
       `${API_URL}/new-number?tanggal=${header.value.tanggal}`
     );
     header.value.nomor = res.data.newNumber;
@@ -79,7 +79,7 @@ const saveData = async () => {
 
   try {
     // API ini juga akan error sampai kita membuatnya
-    const res = await axios.post(API_URL, payload);
+    const res = await api.post(API_URL, payload);
     alert(res.data.message);
     refreshData();
   } catch (error) {

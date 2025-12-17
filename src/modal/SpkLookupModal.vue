@@ -95,6 +95,7 @@
 <script setup lang="ts">
 import { ref, watch } from "vue";
 import axios, { AxiosError } from "axios";
+import api from "@/services/api";
 import { useToast } from "vue-toastification";
 
 // --- Interfaces ---
@@ -153,7 +154,7 @@ const headers = [
 const fetchSPKData = async () => {
   loading.value = true;
   try {
-    const response = await axios.get<SPKItem[]>(API_URL, {
+    const response = await api.get<SPKItem[]>(API_URL, {
       params: { keyword: searchKeyword.value },
     });
 
