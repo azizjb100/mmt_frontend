@@ -3,6 +3,9 @@ import { ref, computed } from "vue";
 import { useRouter } from "vue-router";
 import { jwtDecode } from "jwt-decode";
 
+/* =======================
+   INTERFACES
+======================= */
 interface User {
   kode: string;
   nama: string;
@@ -28,137 +31,144 @@ interface LoginResponse {
   permissions: Permission[];
 }
 
-// 'useAuthStore' adalah nama hook yang akan kita gunakan di komponen
+interface JwtPayload {
+  exp?: number;
+}
 
+/* =======================
+   CONST
+======================= */
+const API_BASE = "http://103.94.238.252:8003/api";
 
-
-
+/* =======================
+   STORE
+======================= */
 export const useAuthStore = defineStore("auth", () => {
   const router = useRouter();
 
-  // --- STATE ---
-  // State utama yang akan kita simpan
-function safeParse(value: string | null, defaultValue: any) {
-  if (!value || value === "undefined" || value === "null") {
-    return defaultValue;
+  /* =======================
+     HELPERS
+  ======================= */
+  function safeParse<T>(value: string | null, defaultValue: T): T {
+    if (!value || value === "undefined" || value === "null") return defaultValue;
+    try {
+      return JSON.parse(value) as T;
+    } catch {
+      return defaultValue;
+    }
   }
-  try {
-    return JSON.parse(value);
-  } catch {
-    return defaultValue;
-  }
-}
 
-const token = ref<string | null>(localStorage.getItem("authToken"));
-const user = ref<User | null>(safeParse(localStorage.getItem("userData"), null));
-const permissions = ref<Permission[]>(safeParse(localStorage.getItem("userPermissions"), []));
+  /* =======================
+     STATE
+  ======================= */
+  const token = ref<string | null>(localStorage.getItem("authToken"));
+  const user = ref<User | null>(
+    safeParse<User | null>(localStorage.getItem("userData"), null)
+  );
+  const permissions = ref<Permission[]>(
+    safeParse<Permission[]>(localStorage.getItem("userPermissions"), [])
+  );
 
   const isSessionExpired = ref(false);
 
-  // --- GETTERS ---
-  // Cara mudah untuk mendapatkan data turunan dari state
-  const isAuthenticated = computed(() => {
-    // Pengguna dianggap login HANYA JIKA ada token DAN token tersebut BELUM kedaluwarsa.
-    return !!token.value && !isTokenExpired.value;
-  });
-  const userName = computed(() => user.value?.nama || "User");
-  const userInitial = computed(() => userName.value.charAt(0).toUpperCase());
-  const userCabang = computed(() => user.value?.cabang || "-");
-  const allowedMenus = computed(() => {
-    return permissions.value.filter((p) => p.view).map((p) => p.id.toString()); // convert number ke string untuk match dengan menuId di router
-  });
+  /* =======================
+     GETTERS
+  ======================= */
   const isTokenExpired = computed(() => {
-    if (!token.value) return true; // Jika tidak ada token, anggap saja expired
+    if (!token.value) return true;
     try {
-      const decoded = jwtDecode(token.value);
-      // 'exp' adalah timestamp dalam DETIK, sedangkan Date.now() dalam MILIDETIK
-      const expirationTime = (decoded.exp ?? 0) * 1000;
-      return Date.now() > expirationTime;
+      const decoded = jwtDecode<JwtPayload>(token.value);
+      if (!decoded.exp) return true;
+      return Date.now() > decoded.exp * 1000;
     } catch {
-      // Jika token tidak valid, anggap expired
       return true;
     }
   });
 
-  // --- ACTIONS ---
-  // Fungsi untuk mengubah state
+  const isAuthenticated = computed(() => {
+    return !!token.value && !isTokenExpired.value;
+  });
 
-  // Aksi yang dipanggil setelah login berhasil
-  function setLoginData(loginResponse: LoginResponse) {
-    token.value = loginResponse.token;
-    user.value = loginResponse.user;
-    permissions.value = loginResponse.permissions;
+  const userName = computed(() => user.value?.nama ?? "User");
+  const userInitial = computed(() => userName.value.charAt(0).toUpperCase());
+  const userCabang = computed(() => user.value?.cabang ?? "-");
 
-    localStorage.setItem("authToken", loginResponse.token);
-    localStorage.setItem("userData", JSON.stringify(loginResponse.user));
-    localStorage.setItem("userPermissions", JSON.stringify(loginResponse.permissions));
+  const allowedMenus = computed(() =>
+    permissions.value.filter(p => p.view).map(p => p.id.toString())
+  );
 
-    router.push("/");
+  /* =======================
+     ACTIONS
+  ======================= */
+  function setLoginData(data: LoginResponse) {
+    token.value = data.token;
+    user.value = data.user;
+    permissions.value = data.permissions;
+
+    localStorage.setItem("authToken", data.token);
+    localStorage.setItem("userData", JSON.stringify(data.user));
+    localStorage.setItem("userPermissions", JSON.stringify(data.permissions));
+
+    router.replace("/");
   }
 
-  // Aksi untuk logout
+  async function login(username: string, password: string) {
+    try {
+      const res = await fetch(`${API_BASE}/auth/login`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ username, password }),
+      });
+
+      const result = await res.json();
+
+      if (!res.ok) {
+        throw new Error(result?.message || "Login gagal");
+      }
+
+      setLoginData(result);
+    } catch (err: any) {
+      throw new Error(err.message || "Gagal terhubung ke server");
+    }
+  }
+
   function logout() {
-    isSessionExpired.value = false;
     token.value = null;
     user.value = null;
     permissions.value = [];
+    isSessionExpired.value = false;
+
     localStorage.removeItem("authToken");
     localStorage.removeItem("userData");
     localStorage.removeItem("userPermissions");
-    router.push("/login");
+
+    router.replace("/login");
   }
 
-  // Aksi untuk memeriksa status login saat aplikasi dimuat
-function checkAuthStatus() {
-  const storedToken = localStorage.getItem("authToken");
-  const storedUser = localStorage.getItem("userData");
-  const storedPermissions = localStorage.getItem("userPermissions");
+  function checkAuthStatus() {
+    if (!token.value) return;
 
-  token.value = storedToken;
-
-  user.value = safeParse(storedUser, null);
-  permissions.value = safeParse(storedPermissions, []);
-}
-
-async function login(username: string, password: string) {
-  const res = await fetch("http://103.94.238.252:8003/api/auth/login", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ username, password }),
-  });
-  if (!res.ok) throw new Error("Login gagal. Periksa username/password Anda.");
-
-  const data = await res.json();
-  setLoginData(data); 
-}
-
-
-  function can(menuId: string, action: "view" | "insert" | "edit" | "delete"): boolean {
-    // Konversi menuId (string) ke number sebelum membandingkan
-    const idAsNumber = parseInt(menuId, 10);
-
-    // Cari permission berdasarkan id (number)
-    const permission = permissions.value.find((p) => p.id === idAsNumber);
-
-    // Jika permission ditemukan, kembalikan nilai boolean dari action yang diminta
-    // Jika tidak, kembalikan false
-    return permission ? permission[action] : false;
+    if (isTokenExpired.value) {
+      handleSessionExpired();
+    }
   }
 
   function handleSessionExpired() {
-    // Hanya tampilkan dialog jika belum tampil
     if (isSessionExpired.value) return;
 
-    // Bersihkan data lama karena token sudah tidak valid
-    token.value = null;
-    user.value = null;
-    permissions.value = [];
-    localStorage.removeItem("authToken");
-    localStorage.removeItem("userData");
-    localStorage.removeItem("userPermissions");
-
-    // Tampilkan dialog
+    logout();
     isSessionExpired.value = true;
+  }
+
+  function can(
+    menuId: string,
+    action: "view" | "insert" | "edit" | "delete"
+  ): boolean {
+    const id = Number(menuId);
+    const permission = permissions.value.find(p => p.id === id);
+    return permission ? permission[action] : false;
   }
 
   return {
@@ -169,14 +179,14 @@ async function login(username: string, password: string) {
     userName,
     userInitial,
     userCabang,
+    allowedMenus,
     isTokenExpired,
-    setLoginData,
+    isSessionExpired,
+
     login,
     logout,
     checkAuthStatus,
-    can,
-    allowedMenus,
-    isSessionExpired,
     handleSessionExpired,
+    can,
   };
 });
