@@ -1,43 +1,65 @@
-
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 import App from './App.vue'
-import router from './router/index'
-import { useAuthStore } from './stores/authStore';
+import router from './router'
 
-// (1) Impor Vuetify
+// =======================
+// VUETIFY
+// =======================
 import 'vuetify/styles'
 import { createVuetify } from 'vuetify'
 import * as components from 'vuetify/components'
 import * as directives from 'vuetify/directives'
+
+// =======================
+// STYLES
+// =======================
 import './styles/global.css'
 import './styles/desktop-app.css'
 import './styles/desktop-theme.css'
+import '@mdi/font/css/materialdesignicons.css'
 
-import '@mdi/font/css/materialdesignicons.css' 
-
+// =======================
+// TOAST
+// =======================
 import Toast from 'vue-toastification'
 import 'vue-toastification/dist/index.css'
 
+// =======================
+// INIT VUETIFY
+// =======================
 const vuetify = createVuetify({
   components,
   directives,
   icons: {
-    defaultSet: 'mdi', // Mengaktifkan ikon Material Design
+    defaultSet: 'mdi',
   },
 })
 
+// =======================
+// CREATE APP
+// =======================
 const app = createApp(App)
-const pinia = createPinia()
 
+// =======================
+// PINIA
+// =======================
+const pinia = createPinia()
 app.use(pinia)
+
+// =======================
+// ROUTER
+// =======================
 app.use(router)
+
+// =======================
+// VUETIFY
+// =======================
 app.use(vuetify)
 
-const authStore = useAuthStore();
-authStore.checkAuthStatus();
-
-// (3) Daftarkan plugin toast dengan beberapa opsi default
+// =======================
+// TOAST
+// =======================
 app.use(Toast, {
   transition: "Vue-Toastification__bounce",
   maxToasts: 5,
@@ -53,7 +75,10 @@ app.use(Toast, {
   hideProgressBar: false,
   closeButton: "button",
   icon: true,
-  rtl: false
+  rtl: false,
 })
 
+// =======================
+// MOUNT
+// =======================
 app.mount('#app')
