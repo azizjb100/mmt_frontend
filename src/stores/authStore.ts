@@ -4,78 +4,18 @@ import { useRouter } from "vue-router";
 import { jwtDecode } from "jwt-decode";
 import api from "@/services/api";
 
-/* =======================
-   INTERFACES
-======================= */
-interface User {
-  kode: string;
-  nama: string;
-  cabang: string;
-  cabangNama: string;
-  canApproveCorrection?: boolean;
-  canApprovePrice?: boolean;
-}
-
-interface Permission {
-  id: number;
-  name: string;
-  path: string;
-  view: boolean;
-  insert: boolean;
-  edit: boolean;
-  delete: boolean;
-}
-
-interface LoginResponse {
-  token: string;
-  user: User;
-  permissions: Permission[];
-}
-
-interface JwtPayload {
-  exp?: number;
-}
-
-/* =======================
-   STORE
-======================= */
 export const useAuthStore = defineStore("auth", () => {
   const router = useRouter();
 
-  /* =======================
-     HELPERS
-  ======================= */
-  function safeParse<T>(value: string | null, defaultValue: T): T {
-    if (!value || value === "undefined" || value === "null") return defaultValue;
-    try {
-      return JSON.parse(value) as T;
-    } catch {
-      return defaultValue;
-    }
-  }
+  const token = ref(localStorage.getItem("authToken"));
+  const user = ref(null);
+  const permissions = ref([]);
 
-  /* =======================
-     STATE
-  ======================= */
-  const token = ref<string | null>(localStorage.getItem("authToken"));
-  const user = ref<User | null>(
-    safeParse<User | null>(localStorage.getItem("userData"), null)
-  );
-  const permissions = ref<Permission[]>(
-    safeParse<Permission[]>(localStorage.getItem("userPermissions"), [])
-  );
-
-  const isSessionExpired = ref(false);
-
-  /* =======================
-     GETTERS
-  ======================= */
   const isTokenExpired = computed(() => {
     if (!token.value) return true;
     try {
-      const decoded = jwtDecode<JwtPayload>(token.value);
-      if (!decoded.exp) return true;
-      return Date.now() > decoded.exp * 1000;
+      const decoded = jwtDecode(token.value);
+      return decoded.exp * 1000 < Date.now();
     } catch {
       return true;
     }
@@ -85,46 +25,36 @@ export const useAuthStore = defineStore("auth", () => {
     return !!token.value && !isTokenExpired.value;
   });
 
-  const userName = computed(() => user.value?.nama ?? "User");
-  const userInitial = computed(() =>
-    userName.value.charAt(0).toUpperCase()
-  );
-  const userCabang = computed(() => user.value?.cabang ?? "-");
+  async function login(username, password) {
+    try {
+      const { data } = await api.post("/auth/login", {
+        username,
+        password,
+      });
 
-  const allowedMenus = computed(() =>
-    permissions.value.filter(p => p.view).map(p => p.id.toString())
-  );
+      token.value = data.token;
+      user.value = data.user;
+      permissions.value = data.permissions || [];
 
-  /* =======================
-     ACTIONS
-  ======================= */
-  function setLoginData(data: LoginResponse) {
-    token.value = data.token;
-    user.value = data.user;
-    permissions.value = data.permissions;
+      localStorage.setItem("authToken", data.token);
+      localStorage.setItem("userData", JSON.stringify(data.user));
+      localStorage.setItem("userPermissions", JSON.stringify(data.permissions || []));
 
-    localStorage.setItem("authToken", data.token);
-    localStorage.setItem("userData", JSON.stringify(data.user));
-    localStorage.setItem(
-      "userPermissions",
-      JSON.stringify(data.permissions)
-    );
-
-    router.replace("/");
+      router.replace("/");
+    } catch (err) {
+      throw new Error(
+        err.response?.data?.message || "Gagal login ke server"
+      );
+    }
   }
 
-  // 🔥 LOGIN FIX — TANPA FETCH, TANPA IP
-  async function login(username: string, password: string) {
+  async function register(username) {
     try {
-      const { data } = await api.post<LoginResponse>(
-        "/auth/login",
-        { username, password }
-      );
-
-      setLoginData(data);
-    } catch (err: any) {
+      const { data } = await api.post("/auth/register", { username });
+      return data.message;
+    } catch (err) {
       throw new Error(
-        err.response?.data?.message || "Login gagal"
+        err.response?.data?.message || "Gagal registrasi"
       );
     }
   }
@@ -133,36 +63,9 @@ export const useAuthStore = defineStore("auth", () => {
     token.value = null;
     user.value = null;
     permissions.value = [];
-    isSessionExpired.value = false;
 
-    localStorage.removeItem("authToken");
-    localStorage.removeItem("userData");
-    localStorage.removeItem("userPermissions");
-
+    localStorage.clear();
     router.replace("/login");
-  }
-
-  function checkAuthStatus() {
-    if (!token.value) return;
-
-    if (isTokenExpired.value) {
-      handleSessionExpired();
-    }
-  }
-
-  function handleSessionExpired() {
-    if (isSessionExpired.value) return;
-    isSessionExpired.value = true;
-    logout();
-  }
-
-  function can(
-    menuId: string,
-    action: "view" | "insert" | "edit" | "delete"
-  ): boolean {
-    const id = Number(menuId);
-    const permission = permissions.value.find(p => p.id === id);
-    return permission ? permission[action] : false;
   }
 
   return {
@@ -170,17 +73,8 @@ export const useAuthStore = defineStore("auth", () => {
     user,
     permissions,
     isAuthenticated,
-    userName,
-    userInitial,
-    userCabang,
-    allowedMenus,
-    isTokenExpired,
-    isSessionExpired,
-
     login,
+    register,
     logout,
-    checkAuthStatus,
-    handleSessionExpired,
-    can,
   };
 });
