@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { ref, onMounted, computed, reactive, watch } from "vue";
 import { useRouter, useRoute } from "vue-router";
-import axios, { AxiosError } from "axios";
+
+import api from "@/services/api";
+import { AxiosError } from "axios";
 import PageLayout from "../components/PageLayout.vue";
 import MasterBahanModal from "@/modal/MasterBahanModal.vue";
-//import GudangLookupModal from '@/modal/GudangLookupModal.vue'; // Asumsi Modal untuk Gudang
-//import SPKLookupModal from '@/modal/SPKLookupModal.vue'; // Asumsi Modal untuk SPK
 import { format } from "date-fns";
 import { useToast } from "vue-toastification";
 
@@ -53,9 +53,8 @@ const router = useRouter();
 const route = useRoute();
 const toast = useToast();
 
-const API_URL = "http://localhost:8003/api/mmt/permintaan-produksi";
-const API_MASTER_BAHAN_DETAIL_SINGLE =
-  "http://localhost:8003/api/master/bahan/mmt";
+const API_URL = "/mmt/permintaan-produksi";
+const API_MASTER_BAHAN_DETAIL_SINGLE = "/master/bahan/mmt";
 
 // --- State ---
 const isEditMode = ref(!!route.params.nomor);
@@ -110,7 +109,6 @@ const isFormValid = computed(() => {
   return isHeaderValid && isDetailValid;
 });
 
-// Headers untuk v-data-table
 const detailHeaders = [
   { title: "No.", key: "index", width: "5%", sortable: false },
   { title: "Kode Bahan", key: "sku", width: "12%" },
