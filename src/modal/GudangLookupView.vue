@@ -84,6 +84,7 @@
 <script setup lang="ts">
 import { ref, watch, defineProps, defineEmits, computed } from "vue";
 import axios, { AxiosError } from "axios";
+import api from "@/services/api";
 import { useToast } from "vue-toastification";
 
 // --- Interfaces ---
@@ -113,7 +114,7 @@ const toast = useToast();
 
 // --- State ---
 // Endpoint yang sesuai dengan backend Node.js/Express lookup service
-const API_URL = "http://localhost:8003/api/mmt/lookup/gudang";
+const API_URL = "/mmt/lookup/gudang";
 const gudangList = ref<GudangItem[]>([]);
 const searchKeyword = ref("");
 const loading = ref(false);
@@ -151,7 +152,7 @@ const fetchGudangData = async () => {
   loading.value = true;
   try {
     // Panggil endpoint GET /api/v1/lookup/gudang (tanpa parameter query)
-    const response = await axios.get<ApiResponse>(API_URL);
+    const response = await api.get<ApiResponse>(API_URL);
 
     gudangList.value = response.data.data || [];
   } catch (error) {

@@ -82,6 +82,7 @@
 <script setup lang="ts">
 import { ref, watch, defineProps, defineEmits, computed } from "vue";
 import axios, { AxiosError } from "axios";
+import api from "@/services/api";
 import { useToast } from "vue-toastification";
 
 // --- Interfaces ---
@@ -122,8 +123,8 @@ const titleText = computed(() => {
 // --- API berdasarkan mode ---
 const API_URL = computed(() => {
   return props.mode === "produksi"
-    ? "http://localhost:8003/api/master/bahan/mmt/produksi"
-    : "http://localhost:8003/api/master/bahan/mmt";
+    ? "/master/bahan/mmt/produksi"
+    : "/api/master/bahan/mmt";
 });
 
 // --- State ---
@@ -147,7 +148,7 @@ const fetchBahanData = async () => {
   loading.value = true;
 
   try {
-    const response = await axios.get<ApiResponse>(API_URL.value, {
+    const response = await api.get<ApiResponse>(API_URL.value, {
       params: { q: searchKeyword.value },
     });
 

@@ -107,10 +107,8 @@ interface SPKItem {
   [key: string]: string | number | undefined;
 }
 
-// Interfaces untuk API Response
 interface ApiResponse {
   message?: string;
-  // Data langsung dari array SQL UNION
   data: SPKItem[];
 }
 
@@ -129,7 +127,7 @@ const toast = useToast();
 
 // --- State ---
 // Sesuaikan dengan endpoint yang sudah dibuat di backend Express Anda
-const API_URL = "http://localhost:8003/api/mmt/SPK/lookup";
+const API_URL = "/mmt/SPK/lookup";
 const SPKList = ref<SPKItem[]>([]);
 const searchKeyword = ref("");
 const loading = ref(false);

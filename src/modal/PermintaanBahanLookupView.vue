@@ -134,6 +134,7 @@
 <script setup lang="ts">
 import { ref, reactive, watch, computed, defineProps, defineEmits } from "vue";
 import axios, { AxiosError } from "axios";
+import api from "@/services/api";
 import { useToast } from "vue-toastification";
 import { format, subDays } from "date-fns";
 
@@ -173,7 +174,7 @@ const emit = defineEmits<{
 const toast = useToast();
 
 // --- State ---
-const API_URL = "http://localhost:8003/api/mmt/permintaan-bahan/lookup";
+const API_URL = "/mmt/permintaan-bahan/lookup";
 const PermintaanList = ref<PermintaanItem[]>([]);
 const loading = ref(false);
 
@@ -183,10 +184,9 @@ const today = format(new Date(), "yyyy-MM-dd");
 const filters = reactive({
   startDate: thirtyDaysAgo,
   endDate: today,
-  keyword: "", // Untuk filter lokal di frontend
+  keyword: "",
 });
 
-// --- Konfigurasi Header v-data-table ---
 const headers = [
   { title: "Nomor Permintaan", key: "Nomor", width: "200px" },
   { title: "Tanggal", key: "Tanggal", width: "120px" },
@@ -202,16 +202,12 @@ const headers = [
   },
 ];
 
-// --- Computed ---
 const filteredPermintaanList = computed(() => {
   if (!filters.keyword) return PermintaanList.value;
 
   const search = filters.keyword.toLowerCase();
   return PermintaanList.value.filter((item) => {
-    // 1. Cek Nomor (selalu ada)
     const nomorMatch = item.Nomor.toLowerCase().includes(search);
-
-    // 2. Cek Keterangan (pastikan tidak null sebelum toLowerCase)
     const keteranganMatch =
       item.Keterangan && item.Keterangan.toLowerCase().includes(search);
 
@@ -225,12 +221,10 @@ const fetchPermintaanData = async () => {
   loading.value = true;
   PermintaanList.value = [];
   try {
-    // Endpoint: GET /api/mmt/permintaan-bahan/lookup?startDate=...&endDate=...
-    const response = await axios.get<PermintaanItem[]>(API_URL, {
+    const response = await api.get<PermintaanItem[]>(API_URL, {
       params: {
         startDate: filters.startDate,
         endDate: filters.endDate,
-        // Kita tidak mengirim keyword, keyword hanya untuk filter lokal
       },
     });
 
@@ -256,16 +250,10 @@ const selectPermintaan = (item: PermintaanItem) => {
     toast.error("Error: Nomor Permintaan kosong di data modal.");
     return;
   }
-
-  // Mengirimkan seluruh objek Permintaan Bahan yang dipilih (termasuk Detail)
   emit("select", item); // Item ini sudah membawa Detail[] dari backend
 
   emit("close");
 };
-
-// --- Watchers & Lifecycle ---
-
-// Muat data awal saat modal terlihat atau saat filter tanggal diubah
 watch(
   () => props.isVisible,
   (newValue) => {

@@ -75,6 +75,7 @@
 <script setup lang="ts">
 import { ref, watch, onMounted, defineProps, defineEmits } from "vue";
 import axios, { AxiosError } from "axios";
+import api from "@/services/api";
 import debounce from "lodash/debounce";
 import { useToast } from "vue-toastification";
 
@@ -104,7 +105,7 @@ const emit = defineEmits<{
 const toast = useToast();
 
 // --- State ---
-const API_URL = "http://localhost:8003/api/mmt/penerimaan-bahan/po/lookup";
+const API_URL = "/mmt/penerimaan-bahan/po/lookup";
 const poList = ref<PoHeader[]>([]);
 const searchTerm = ref("");
 const loading = ref(false);
@@ -128,7 +129,7 @@ const headers = [
 const fetchPOData = async (query: string) => {
   loading.value = true;
   try {
-    const response = await axios.get<ApiResponse>(API_URL, {
+    const response = await api.get<ApiResponse>(API_URL, {
       params: { q: query }, // Menggunakan q untuk mencari di backend
     });
 

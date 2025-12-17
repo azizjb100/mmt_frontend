@@ -303,9 +303,6 @@ const loaddataall = async (nomor: string) => {
     formData.reqAcc = apiData.Req_ACC === true ? "Y" : "T";
     // formData.reqAccUser = apiData.Req_ACC_User; // Sesuaikan dengan response API jika ada
     formData.acc = apiData.ACC === true ? "Y" : "T";
-    // formData.accUser = apiData.Acc_User; // Sesuaikan dengan response API jika ada
-
-    // 2. Mapping Detail (Penting!)
     formData.detail = apiData.Detail.map((d: any) => ({
       sku: d.Kode, // Mapping dari Kode (Backend) ke sku (Frontend)
       namaBarang: d.Nama_Bahan, // Mapping dari Nama_Bahan ke namaBarang
@@ -645,6 +642,7 @@ onMounted(async () => {
 
 .left-column,
 .right-column {
+  width: 100%;
   display: flex;
   flex-direction: column;
   gap: 0px;
