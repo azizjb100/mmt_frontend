@@ -22,8 +22,8 @@
       >
         <v-icon start>mdi-printer</v-icon> Cetak (F3)
       </v-btn>
-      <v-btn size="x-small" color="error" @click="handleClose">
-        <v-icon start>mdi-exit-to-app</v-icon> Keluar (F8)
+      <v-btn size="x-small" @click="closeForm">
+        <v-icon start>mdi-close</v-icon> Tutup
       </v-btn>
     </template>
 
@@ -969,6 +969,10 @@ const handleJenisPoChange = (jenis: 0 | 1 | 2) => {
   formData.commitments = [createEmptyCommitment()];
   formData.rolls = [];
   formData.poGreige = "";
+};
+
+const closeForm = () => {
+  router.push({ name: "POBahanMmtBrowse" });
 };
 
 const handlePoGreigeExit = async () => {

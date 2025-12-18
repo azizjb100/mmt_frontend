@@ -114,8 +114,8 @@ const detailHeaders = [
   { title: "Nama Bahan", key: "namaBarang", sortable: false, width: "15%" },
   { title: "Qty Minta", key: "qty", width: "8%", align: "end" as const },
   { title: "Satuan", key: "satuan", width: "8%" },
-  { title: "Pjg", key: "Panjang", width: "6%", align: "end" as const },
-  { title: "Lbr", key: "Lebar", width: "6%", align: "end" as const },
+  { title: "Panjang", key: "Panjang", width: "6%", align: "end" as const },
+  { title: "Lebar", key: "Lebar", width: "8%", align: "end" as const },
   { title: "Operator", key: "operator", width: "10%" },
   { title: "No. SPK", key: "spk", width: "10%" },
   { title: "Stok", key: "stok", width: "8%", align: "end" as const },
@@ -268,11 +268,17 @@ const openSPKSearch = (index: number) => {
   currentDetailIndex.value = index;
   isSPKModalVisible.value = true;
 };
-const handleSPKSelect = (spk: { Nomor: string; Nama: string }) => {
+
+const handleSPKSelect = (spk: any) => {
+  console.log("Data SPK terpilih:", spk);
   const i = currentDetailIndex.value;
+
   if (i !== null) {
-    formData.detail[i].spk = spk.Nomor;
+    formData.detail[i].spk = spk.Spk;
+
     formData.detail[i].namaSPK = spk.Nama;
+
+    console.log("Nilai baru di row:", formData.detail[i].spk);
   }
   isSPKModalVisible.value = false;
 };
@@ -293,14 +299,11 @@ const handleBahanSelect = (bahan: MasterBahan) => {
 
   const targetItem = formData.detail[index];
 
-  // Cek duplikasi SKU
-  // Cek duplikasi SKU
   if (formData.detail.some((d, i) => d.sku === bahan.Kode && i !== index)) {
     toast.warning(`Kode ${bahan.Kode} sudah ada di baris lain.`);
-    return; // STOP. Jangan tambah row.
+    return;
   }
 
-  // SET nilai
   targetItem.sku = bahan.Kode;
   targetItem.namaBarang = bahan.Nama;
   targetItem.satuan = bahan.Satuan;
@@ -649,11 +652,12 @@ onMounted(async () => {
 </template>
 
 <style scoped>
-/* Styling menyesuaikan grid layout dua kolom dan Vuetify */
-
+/* =============================================================
+ 1. GRID STRUCTURE & BASE LAYOUT
+ ============================================================= */
 .form-grid-container {
   display: grid;
-  grid-template-columns: 350px 1fr; /* Kolom Kiri 350px, Kanan sisa */
+  grid-template-columns: 350px 1fr;
   gap: 10px;
   padding: 5px;
   align-items: flex-start;
@@ -661,6 +665,7 @@ onMounted(async () => {
 
 .left-column,
 .right-column {
+  width: 100%;
   display: flex;
   flex-direction: column;
   gap: 0px;
@@ -673,40 +678,96 @@ onMounted(async () => {
 
 .right-column .desktop-form-section {
   flex-grow: 2;
+  padding-left: 2px;
+  padding-right: 2px;
 }
 
+.right-column :deep(.v-field__input) {
+  min-height: 28px !important;
+  height: 28px !important;
+  padding-top: 2px !important;
+  padding-bottom: 2px !important;
+  padding-left: 2px !important;
+  padding-right: 2px !important;
+  font-size: 11px !important;
+}
+
+.right-column :deep(.v-field__field) {
+  padding-top: 2px !important;
+  padding-bottom: 2px !important;
+}
+
+.right-column :deep(.v-input__details) {
+  display: none !important; /* Hilangkan pesan/helper text agar lebih padat */
+}
+
+/* Jika ingin text align right untuk angka */
+.right-column .text-end :deep(input) {
+  text-align: right !important;
+}
+
+.v-table {
+  font-size: 11px;
+}
+
+/* =============================================================
+ 2. HEADER INPUTS (LEFT COLUMN) - LONGGAR
+ (Targeting input fields outside the data table)
+ ============================================================= */
+.left-column :deep(.v-field__input) {
+  display: flex;
+  flex-direction: column;
+  gap: 0px;
+  min-height: 100%;
+}
+
+.left-column :deep(.v-field__field) {
+  /* Padding di wrapper agar elemen (seperti ikon) sejajar */
+  padding-top: 2px !important;
+  padding-bottom: 2px !important;
+}
+
+/* =============================================================
+ 3. DETAIL TABLE (RIGHT COLUMN) - ULTRA-COMPACT
+ ============================================================= */
+
+/* Wrapper for Scroll */
 .detail-table-wrapper {
   max-height: calc(100vh - 300px);
   overflow-y: auto;
 }
 
-/* Custom styling for embedded text fields in Vuetify data table */
-.detail-entry-table :deep(.v-data-table__td) {
-  padding: 0 8px !important;
-  height: 48px;
-  vertical-align: top;
-}
-
-.detail-entry-table :deep(.v-field__input) {
-  min-height: 40px !important;
-  padding-top: 4px !important;
-  font-size: 10px;
-}
-
-.detail-entry-table :deep(.v-field--variant-underlined) .v-field__overlay {
-  background-color: transparent !important;
-}
-
-.detail-entry-table :deep(.v-field--variant-underlined) {
+/* Remove table elevation/shadow */
+.detail-entry-table {
   box-shadow: none !important;
 }
 
-/* Styling kolom readonly */
+/* A. Cell (td) Styling - Ringkas */
+.detail-entry-table :deep(.v-data-table__td) {
+  /* Padding cell minimal */
+  padding: 1px 3px !important;
+  height: 30px !important; /* Tinggi baris minimum */
+  vertical-align: middle;
+}
+
+/* B. Input Field in Cell - Sangat Ringkas */
+.detail-entry-table :deep(.v-field__input),
+.detail-entry-table :deep(.v-field__field) {
+  /* Padding vertikal sangat kecil */
+  min-height: 22px !important;
+  height: 22px !important;
+  font-size: 10px; /* Font lebih kecil */
+  padding-top: 2px !important;
+  padding-bottom: 2px !important;
+}
+
+/* Styling kolom readonly (sesuai permintaan) */
 .detail-entry-table :deep(.v-text-field--readonly) .v-field {
   background-color: #f7f7f7 !important;
 }
 
+/* Perataan Angka */
 .text-end :deep(input) {
-  text-align: right;
+  text-align: right !important;
 }
 </style>

@@ -414,7 +414,10 @@ const handleNew = () => {
 
 const handleEdit = () => {
   if (!selectedNomor.value) return;
-  router.push({ name: "PoBahanEdit", params: { nomor: selectedNomor.value } });
+  router.push({
+    name: "PoBahanMmtEdit",
+    params: { nomor: selectedNomor.value },
+  });
 };
 
 const handleDelete = async () => {

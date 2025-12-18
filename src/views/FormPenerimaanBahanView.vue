@@ -514,7 +514,7 @@ const handleBahanSelect = async (bahan: MasterBahan) => {
   targetItem.lebar = bahan.Lebar || 0;
 
   targetItem.qtyPO = 0;
-  targetItem.qtyTerima = 1;
+  targetItem.qtyTerima = 0;
 
   // 4. Final Validation dan Cleanup
   if (!bahan.Kode) {
@@ -570,7 +570,7 @@ const handleManualBahanInput = async (item: DetailItem, index: number) => {
     item.panjang = bahanData.Panjang || 0;
     item.lebar = bahanData.Lebar || 0;
     item.qtyPO = 0;
-    item.qtyTerima = 1;
+    item.qtyTerima = 0;
 
     // Tambah baris kosong jika baris ini baru terisi
     if (formData.details.length === index + 1) {
@@ -628,7 +628,7 @@ const handlePOSelect = async (poHeader: PoHeader) => {
       kode: item.SKU,
       namaBahan: item.Nama_Bahan,
       qtyPO: item.QTY_PO,
-      qtyTerima: item.QTY_PO, // Default Qty Terima = Qty PO
+      qtyTerima: 0, // Default Qty Terima = Qty PO
       panjang: item.Panjang || 0,
       lebar: item.Lebar || 0,
       satuan: item.Satuan,

@@ -88,7 +88,7 @@ const routes: RouteRecordRaw[] = [
                     layout: "PrintLayout", // Nama Layout yang akan digunakan
                 },
             },
-            { path: 'mmt/po-bahan-mmt', name: 'PO Bahan MMT', component: POBahanMmtView },
+            { path: 'mmt/po-bahan-mmt', name: 'POBahanMmtBrowse', component: POBahanMmtView },
            { 
     // 2. Rute untuk Halaman Input Baru
     path: 'mmt/po-bahan-mmt/new', 
