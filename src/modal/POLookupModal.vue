@@ -105,7 +105,7 @@ const emit = defineEmits<{
 const toast = useToast();
 
 // --- State ---
-const API_URL = "/mmt/penerimaan-bahan/po/lookup";
+const API_URL = "/mmt/po-bahan-mmt/po/lookup";
 const poList = ref<PoHeader[]>([]);
 const searchTerm = ref("");
 const loading = ref(false);

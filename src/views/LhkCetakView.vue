@@ -200,9 +200,8 @@ interface LhkCetakDetail {
 
 type LhkCetakItem = LhkCetakHeader;
 
-const API_BASE_URL = "/api/mmt/lhk-cetak";
+const API_BASE_URL = "/mmt/lhk-cetak";
 
-// --- Store & utils ---
 const router = useRouter();
 const toast = useToast();
 const authStore = useAuthStore();

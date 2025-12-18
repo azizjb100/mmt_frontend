@@ -489,24 +489,16 @@ const prevPage = () => {
 
 const fetchReport = async () => {
   loading.value.report = true;
-  allData.value = [];
-  searchQuery.value = "";
-  currentPage.value = 1;
-
   try {
-    const res = await fetch(
-      `${API_URL}?startDate=${startDate.value}&endDate=${endDate.value}`
-    );
+    const res = await api.get(`${API_URL}`, {
+      params: {
+        startDate: startDate.value,
+        endDate: endDate.value,
+      },
+    });
 
-    if (!res.ok) {
-      throw new Error(`Server responded with status: ${res.status}`);
-    }
-
-    const data = await res.json();
-    allData.value = data;
-    console.log(
-      `Laporan dimuat untuk rentang ${startDate.value} s/d ${endDate.value}`
-    );
+    // Axios otomatis mengubah JSON menjadi object di properti .data
+    allData.value = res.data;
   } catch (error) {
     console.error("Gagal fetch laporan dari Express Backend:", error);
     // Data dummy hanya untuk demonstrasi

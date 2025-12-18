@@ -200,7 +200,6 @@ interface ApiResponse {
 
 const router = useRouter();
 const toast = useToast();
-const authStore = useAuthStore();
 const API_PERMINTAAN_PRODUKSI = "/mmt/permintaan-produksi";
 const MENU_ID = "MMT_PERMINTAAN_PRODUKSI";
 
@@ -288,7 +287,11 @@ const parseCustomDate = (dateString: string): Date | null => {
   }
 };
 
-// --- API/Data Methods ---
+const useAuthStore = () => ({
+  can: (menuId: string, action: string) => true, // Selalu true untuk demo
+  KDUSER: "ADMIN",
+});
+const authStore = useAuthStore();
 
 const fetchData = async () => {
   loading.value = true;

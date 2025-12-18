@@ -6,6 +6,8 @@ import api from "@/services/api";
 import { AxiosError } from "axios";
 import PageLayout from "../components/PageLayout.vue";
 import MasterBahanModal from "@/modal/MasterBahanModal.vue";
+import GudangLookupModal from "@/modal/GudangLookupView.vue";
+import SPKLookupModal from "@/modal/SpkLookupModal.vue";
 import { format } from "date-fns";
 import { useToast } from "vue-toastification";
 
@@ -16,8 +18,8 @@ interface DetailItem {
   namaBarang: string;
   qty: number;
   satuan: string;
-  panjang: number;
-  lebar: number;
+  Panjang: number;
+  Lebar: number;
   keterangan: string;
   operator: string;
   spk: string;
@@ -71,8 +73,8 @@ const createEmptyDetail = (): DetailItem => ({
   namaBarang: "",
   qty: 0,
   satuan: "",
-  panjang: 0,
-  lebar: 0,
+  Panjang: 0,
+  Lebar: 0,
   keterangan: "",
   operator: "",
   spk: "",
@@ -94,9 +96,6 @@ const formData = reactive<FormDataState>({
   detail: [createEmptyDetail()],
 });
 
-// --- Computed ---
-
-// Total QTY Minta (untuk header)
 const calculatedTotal = computed(() => {
   return formData.detail.reduce((sum, d) => sum + (d.qty || 0), 0).toFixed(2);
 });
@@ -115,8 +114,8 @@ const detailHeaders = [
   { title: "Nama Bahan", key: "namaBarang", sortable: false, width: "15%" },
   { title: "Qty Minta", key: "qty", width: "8%", align: "end" as const },
   { title: "Satuan", key: "satuan", width: "8%" },
-  { title: "Pjg", key: "panjang", width: "6%", align: "end" as const },
-  { title: "Lbr", key: "lebar", width: "6%", align: "end" as const },
+  { title: "Pjg", key: "Panjang", width: "6%", align: "end" as const },
+  { title: "Lbr", key: "Lebar", width: "6%", align: "end" as const },
   { title: "Operator", key: "operator", width: "10%" },
   { title: "No. SPK", key: "spk", width: "10%" },
   { title: "Stok", key: "stok", width: "8%", align: "end" as const },
@@ -167,14 +166,13 @@ const removeDetail = (index: number) => {
 };
 
 const saveForm = async (saveAndNew: boolean) => {
-  // 1. SET isSaving = true di awal, ini akan menonaktifkan tombol
   isSaving.value = true;
 
   if (!isFormValid.value) {
     toast.error(
       "Validasi Gagal: Gudang, Lokasi Produksi, dan minimal satu Kode/QTY harus diisi."
     );
-    isSaving.value = false; // Penting: reset jika validasi di frontend gagal
+    isSaving.value = false;
     return;
   }
 
@@ -186,13 +184,11 @@ const saveForm = async (saveAndNew: boolean) => {
       header: {
         nomor: formData.nomor,
         tanggal: formData.tanggal,
-        // Mengirim Kode Gudang Asal (OUT) dan Lokasi Produksi (IN)
         mnt_gdg_kode: formData.gudangKode,
         mnt_lokasiproduksi: formData.lokasiProduksiKode,
         mnt_keterangan: formData.keteranganHeader,
-        user_create: undefined, // Sesuai dengan controller/service
+        user_create: undefined,
       },
-      // 2. Filter dan Map Detail: Pastikan data numerik dikirim sebagai Number
       details: formData.detail
         .filter((d) => d.sku && Number(d.qty) > 0)
         .map((d) => ({
@@ -200,19 +196,21 @@ const saveForm = async (saveAndNew: boolean) => {
           namaBarang: d.namaBarang,
           qty: Number(d.qty),
           satuan: d.satuan,
-          panjang: d.panjang,
-          lebar: d.lebar,
+          Panjang: Number(d.Panjang ?? 0),
+          Lebar: Number(d.Lebar ?? 0),
           operator: d.operator,
-          // PENTING: Pastikan 'spk' terkirim
           spk: d.spk,
           keterangan: d.keterangan,
-          // Pastikan hargabeli terkirim sebagai angka (default 0)
           hargabeli: Number(d.harga ?? 0),
         })),
       isEditMode: isEditMode.value,
     };
 
-    const response = await axios({ method, url, data: payload });
+    // ✅ PAKAI API SERVICE (BUKAN AXIOS LANGSUNG)
+    const response =
+      method === "post"
+        ? await api.post(url, payload)
+        : await api.put(url, payload);
 
     const savedNomor = response?.data?.nomor ?? null;
 
@@ -223,22 +221,18 @@ const saveForm = async (saveAndNew: boolean) => {
     }
 
     if (saveAndNew) {
-      // Jika Simpan & Baru, lakukan refresh data dan state
       await refreshData();
-      // Penting: Nomor transaksi yang baru harus di-handle oleh Controller (AUTO)
     } else {
-      // Jika Simpan, navigasi ke halaman browse
       router.push({ name: "PermintaanProduksiBrowse" });
     }
-  } catch (error) {
-    const err = error as AxiosError<any>;
-    // Tambahkan cek spesifik untuk Unique Constraint Error dari DB
+  } catch (error: any) {
     const errorMessage =
-      err.response?.data?.error || err.response?.data?.message || err.message;
+      error.response?.data?.error ||
+      error.response?.data?.message ||
+      error.message;
+
     toast.error(`Gagal Simpan: ${errorMessage}`);
   } finally {
-    // 3. SELALU SET isSaving = false di finally untuk memastikan tombol aktif kembali
-    // setelah proses Selesai (sukses/gagal)
     isSaving.value = false;
   }
 };
@@ -310,8 +304,8 @@ const handleBahanSelect = (bahan: MasterBahan) => {
   targetItem.sku = bahan.Kode;
   targetItem.namaBarang = bahan.Nama;
   targetItem.satuan = bahan.Satuan;
-  targetItem.panjang = bahan.Panjang || 0;
-  targetItem.lebar = bahan.Lebar || 0;
+  targetItem.Panjang = bahan.Panjang || 0;
+  targetItem.Lebar = bahan.Lebar || 0;
   targetItem.stok = bahan.Stok || 0;
   targetItem.qty = 1;
 
@@ -526,9 +520,9 @@ onMounted(async () => {
                   />
                 </template>
 
-                <template #[`item.panjang`]="{ item }">
+                <template #[`item.Panjang`]="{ item }">
                   <v-text-field
-                    v-model.number="item.panjang"
+                    v-model.number="item.Panjang"
                     type="number"
                     min="0"
                     readonly
@@ -539,9 +533,9 @@ onMounted(async () => {
                   />
                 </template>
 
-                <template #[`item.lebar`]="{ item }">
+                <template #[`item.Lebar`]="{ item }">
                   <v-text-field
-                    v-model.number="item.lebar"
+                    v-model.number="item.Lebar"
                     type="number"
                     min="0"
                     readonly

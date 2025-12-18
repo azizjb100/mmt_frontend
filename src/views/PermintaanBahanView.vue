@@ -61,6 +61,25 @@ const selectedRow = computed<PermintaanBahanHeader | null>(() =>
   isSingleSelected.value ? (selected.value[0] as PermintaanBahanHeader) : null
 );
 
+const getStatusColor = (status: string) => {
+  if (!status) return "default";
+
+  switch (status.toUpperCase()) {
+    case "OPEN":
+      return "success"; // Hijau
+    case "ONPROSES":
+    case "PENDING":
+      return "warning"; // Orange
+    case "CLOSE":
+    case "SELESAI":
+      return "grey"; // Abu-abu
+    case "VOID":
+    case "CANCEL":
+      return "error"; // Merah
+    default:
+      return "info"; // Biru (default)
+  }
+};
 // --- Headers ---
 
 const masterHeaders = [
@@ -357,6 +376,17 @@ watch([startDate, endDate], fetchData);
                 ? format(parseCustomDate(item.Tanggal), "dd/MM/yyyy")
                 : ""
             }}
+          </template>
+          <template #item.Status_PO="{ item }">
+            <v-chip :color="getStatusColor(item.Status_PO)" size="small" label>
+              {{ item.Status_PO }}
+            </v-chip>
+          </template>
+
+          <template #item.Status_Diterima="{ item }">
+            <v-chip :color="getStatusColor(item.Status_Diterima)" size="small">
+              {{ item.Status_Diterima }}
+            </v-chip>
           </template>
 
           <template #expanded-row="{ columns, item }">
