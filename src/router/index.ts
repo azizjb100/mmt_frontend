@@ -4,7 +4,7 @@ import { useAuthStore } from '../stores/authStore';
 // 1. Impor semua Halaman (Views) Anda
 import LoginView from '../views/LoginView.vue';
 import Dashboard from '../views/Dashboard.vue';
-import Home from '../views/Home.vue'; 
+import Home from '../views/Home.vue';
 import MaterialRequestForm from '../components/MaterialRequestForm.vue';
 import ComingSoon from '../views/ComingSoon.vue';
 import LhkCetakView from '../views/LhkCetakView.vue';
@@ -17,9 +17,9 @@ import LapMonCetakView from '../views/LapMonCetakView.vue';
 // Pastikan file-file ini sudah ada di views/ dan path ../views adalah benar
 import PermintaanBahanView from '../views/PermintaanBahanView.vue';
 import penerimaanBahanView from '../views/penerimaanBahanView.vue';
-import FormPenerimaanBahanView from '../views/FormPenerimaanBahanView.vue'; 
+import FormPenerimaanBahanView from '../views/FormPenerimaanBahanView.vue';
 import FormPermintaanBahanView from '../views/FormPermintaanBahanView.vue'; // Asumsi Anda punya form ini
-import PermintaanProduksiView from '../views/PermintaanProduksiView.vue'; 
+import PermintaanProduksiView from '../views/PermintaanProduksiView.vue';
 import FormPermintaanProduksiView from '../views/FormPermintaanProduksiView.vue';
 import ReturBeliView from '@/views/ReturBeliView.vue';
 import KoreksiStokMMTView from '@/views/KoreksiStokMMTView.vue';
@@ -34,6 +34,7 @@ import LapLsBahanPenolongView from '../views/LapLsBahanPenolongView.vue';
 import FormLhkCetakView from '@/views/FormLhkCetakView.vue';
 import PermintaanBahanPrintView from '@/views/PermintaanBahanPrintView.vue';
 import FormLhkCetakViewNew from '@/views/FormLhkCetakViewNew.vue';
+import FormRecreateBarcode from '@/views/FormRecreateBarcode.vue';
 
 
 
@@ -45,7 +46,7 @@ const routes: RouteRecordRaw[] = [
         name: 'Login',
         component: LoginView,
     },
-    
+
     {
         path: '/',
         name: 'DashboardLayout',
@@ -53,8 +54,8 @@ const routes: RouteRecordRaw[] = [
         meta: { requiresAuth: true },
         children: [
             // Rute Default untuk Dashboard (Home)
-            { path: '', name: 'Home', component: Home }, 
-            
+            { path: '', name: 'Home', component: Home },
+
             // Rute yang sudah dibuat (PATH DIBUAT RELATIF - TANPA '/')
             { path: 'garmen/permintaan-material', name: 'Permintaan Material', component: MaterialRequestForm },
             { path: 'mmt/lhk/cetak', name: 'LHK Cetak MMT', component: LhkCetakView },
@@ -63,89 +64,90 @@ const routes: RouteRecordRaw[] = [
             { path: 'mmt/lhk/finishing', name: 'LHK Finishing MMT', component: LhkFinishingView },
             { path: 'mmt/daftar/stbj', name: 'STBJ MMT', component: StbjMmtBiew },
             { path: 'mmt/permintaan-bahan', name: 'PermintaanBahanBrowse', component: PermintaanBahanView },
-            
-            { 
-                path: 'mmt/permintaan-bahan/new', 
-                name: 'PermintaanBahanNew', 
-                component: FormPermintaanBahanView, 
-                props: { isEditMode: false } 
+
+            {
+                path: 'mmt/permintaan-bahan/new',
+                name: 'PermintaanBahanNew',
+                component: FormPermintaanBahanView,
+                props: { isEditMode: false }
             },
 
             // 3. Ubah (Edit Existing)
-            { 
-                path: 'mmt/permintaan-bahan/edit/:nomor', 
-                name: 'PermintaanBahanEdit', 
-                component: FormPermintaanBahanView, 
+            {
+                path: 'mmt/permintaan-bahan/edit/:nomor',
+                name: 'PermintaanBahanEdit',
+                component: FormPermintaanBahanView,
                 props: true
             },
             {
-                path: 'mmt/permintaan-bahan/print/:nomor', 
-                name: 'PermintaanBahanPrint', 
-                component: PermintaanBahanPrintView, 
-                props: true, 
+                path: 'mmt/permintaan-bahan/print/:nomor',
+                name: 'PermintaanBahanPrint',
+                component: PermintaanBahanPrintView,
+                props: true,
                 meta: {
                     PrintLayout: true, // Tagging untuk layout
                     layout: "PrintLayout", // Nama Layout yang akan digunakan
                 },
             },
             { path: 'mmt/po-bahan-mmt', name: 'POBahanMmtBrowse', component: POBahanMmtView },
-           { 
-    // 2. Rute untuk Halaman Input Baru
-    path: 'mmt/po-bahan-mmt/new', 
-    name: 'PoBahanMmtNew',
-    component: FormPoBahanMmtView, 
-    props: { isEditMode: false } 
-},
-{ 
-    // 3. Tambahkan Rute Edit (Sangat Disarankan)
-    path: 'mmt/po-bahan-mmt/edit/:nomor', 
-    name: 'PoBahanMmtEdit', // 👈 Nama Unik: Untuk mengedit
-    component: FormPoBahanMmtView, 
-    props: (route) => ({ 
-        isEditMode: true, 
-        nomor: route.params.nomor // Meneruskan parameter nomor
-    }) 
-},
-{
-    // Rute Cetak (HARUS RELATIF dan memiliki parameter)
-    path: 'mmt/po-bahan-mmt/print/:nomor',
-    name: 'PoPrint', // <--- NAMA INI HARUS SAMA PERSIS
-    component: PoPrintView,
-    props: true // Menerima props
-},
+            {
+                // 2. Rute untuk Halaman Input Baru
+                path: 'mmt/po-bahan-mmt/new',
+                name: 'PoBahanMmtNew',
+                component: FormPoBahanMmtView,
+                props: { isEditMode: false }
+            },
+            {
+                // 3. Tambahkan Rute Edit (Sangat Disarankan)
+                path: 'mmt/po-bahan-mmt/edit/:nomor',
+                name: 'PoBahanMmtEdit', // 👈 Nama Unik: Untuk mengedit
+                component: FormPoBahanMmtView,
+                props: (route) => ({
+                    isEditMode: true,
+                    nomor: route.params.nomor // Meneruskan parameter nomor
+                })
+            },
+            {
+                // Rute Cetak (HARUS RELATIF dan memiliki parameter)
+                path: 'mmt/po-bahan-mmt/print/:nomor',
+                name: 'PoPrint', // <--- NAMA INI HARUS SAMA PERSIS
+                component: PoPrintView,
+                props: true // Menerima props
+            },
             // 1. Browse (List)
             { path: 'mmt/penerimaan-bahan', name: 'PenerimaanBahanBrowse', component: penerimaanBahanView },
-            
+
             // 2. Tambah Baru (New Entry)
-            { 
-                path: 'mmt/penerimaan-bahan/new', 
-                name: 'PenerimaanBahanNew', 
-                component: FormPenerimaanBahanView, 
-                props: { isEditMode: false } 
+            {
+                path: 'mmt/penerimaan-bahan/new',
+                name: 'PenerimaanBahanNew',
+                component: FormPenerimaanBahanView,
+                props: { isEditMode: false }
             },
             // 3. Ubah (Edit Existing)
-            { 
-                path: 'mmt/penerimaan-bahan/edit/:nomor', 
-                name: 'PenerimaanBahanEdit', 
-                component: FormPenerimaanBahanView, 
+            {
+                path: 'mmt/penerimaan-bahan/edit/:nomor',
+                name: 'PenerimaanBahanEdit',
+                component: FormPenerimaanBahanView,
                 props: true
             },
 
             { path: 'mmt/retur-beli', name: 'Retur Beli MMT', component: ReturBeliView },
+            { path: 'mmt/create-barcode', name: 'CreateBarcode', component: FormRecreateBarcode },
             { path: 'mmt/koreksi-stok', name: 'Koreksi Stok', component: KoreksiStokMMTView },
             // --- C. MODUL PERMINTAAN PRODUKSI (Minta MMT) ---
             { path: 'mmt/permintaan-produksi', name: 'PermintaanProduksiBrowse', component: PermintaanProduksiView },
-             { 
-                path: 'mmt/permintaan-produksi/new', 
-                name: 'PermintaanProduksiNew', 
-                component: FormPermintaanProduksiView, 
-                props: { isEditMode: false } 
+            {
+                path: 'mmt/permintaan-produksi/new',
+                name: 'PermintaanProduksiNew',
+                component: FormPermintaanProduksiView,
+                props: { isEditMode: false }
             },
             // 3. Ubah (Edit Existing)
-            { 
-                path: 'mmt/permintaan-produksi/edit/:nomor', 
-                name: 'PermintaanProduksiEdit', 
-                component: FormPermintaanProduksiView, 
+            {
+                path: 'mmt/permintaan-produksi/edit/:nomor',
+                name: 'PermintaanProduksiEdit',
+                component: FormPermintaanProduksiView,
                 props: true
             },
 
@@ -203,7 +205,7 @@ const routes: RouteRecordRaw[] = [
             { path: 'spanduk/mon-quiring', name: 'Mon Quiring Spanduk', component: ComingSoon },
 
             // --- GRUP MMT (LANJUTAN) ---
-            
+
             { path: 'mmt/daftar/bahan', name: 'Master Bahan', component: MasterBahanView },
             { path: 'mmt/daftar/operator', name: 'Operator', component: OperatorView },
             { path: 'mmt/daftar/retur-permintaan-produksi', name: 'Retur Permintaan Produksi MMT', component: ComingSoon },
@@ -241,48 +243,48 @@ const routes: RouteRecordRaw[] = [
             { path: 'laporan/marketing/target-vs-realisasi', name: 'Lap Target vs Realisasi', component: ComingSoon },
             { path: 'laporan/marketing/proyeksi-vs-realisasi', name: 'Lap Proyeksi vs Realisasi', component: ComingSoon },
         ],
-    },  
+    },
 ];
 
 // 3. Buat router
 const router = createRouter({
-  history: createWebHistory(),
-  routes,
-  linkActiveClass: 'router-link-active',
-  linkExactActiveClass: 'router-link-exact-active',
+    history: createWebHistory(),
+    routes,
+    linkActiveClass: 'router-link-active',
+    linkExactActiveClass: 'router-link-exact-active',
 });
 
 // 🧭 NAVIGATION GUARD (Perbaikan Akhir)
 router.beforeEach((to, from, next) => {
-  // Dapatkan instance store. Harus dipanggil di dalam function.
-  const authStore = useAuthStore();
-  
-  // 1. Dapatkan status autentikasi dari Pinia Store (menggunakan Getter yang sudah dibuat)
-  const loggedIn = authStore.isAuthenticated; 
-  
-  // 2. Cek apakah rute tujuan memerlukan autentikasi (meta: { requiresAuth: true })
-  const requiresAuth = Boolean(to.meta?.requiresAuth);
+    // Dapatkan instance store. Harus dipanggil di dalam function.
+    const authStore = useAuthStore();
 
-  if (requiresAuth && !loggedIn) {
-    // A. Jika rute memerlukan auth TAPI pengguna belum login (atau token expired)
-    
-    // Panggil action handleSessionExpired untuk membersihkan data lokal
-    if (authStore.isTokenExpired) {
-        authStore.handleSessionExpired(); 
+    // 1. Dapatkan status autentikasi dari Pinia Store (menggunakan Getter yang sudah dibuat)
+    const loggedIn = authStore.isAuthenticated;
+
+    // 2. Cek apakah rute tujuan memerlukan autentikasi (meta: { requiresAuth: true })
+    const requiresAuth = Boolean(to.meta?.requiresAuth);
+
+    if (requiresAuth && !loggedIn) {
+        // A. Jika rute memerlukan auth TAPI pengguna belum login (atau token expired)
+
+        // Panggil action handleSessionExpired untuk membersihkan data lokal
+        if (authStore.isTokenExpired) {
+            authStore.handleSessionExpired();
+        }
+
+        // Redirect ke Login, simpan tujuan awal di query
+        return next({ name: 'Login', query: { redirect: to.fullPath } });
     }
-    
-    // Redirect ke Login, simpan tujuan awal di query
-    return next({ name: 'Login', query: { redirect: to.fullPath } });
-  }
 
-  if (to.name === 'Login' && loggedIn) {
-    // B. Jika pengguna SUDAH login TAPI mencoba mengakses halaman Login
-    // Redirect ke halaman utama (Home)
-    return next({ name: 'Home' });
-  }
+    if (to.name === 'Login' && loggedIn) {
+        // B. Jika pengguna SUDAH login TAPI mencoba mengakses halaman Login
+        // Redirect ke halaman utama (Home)
+        return next({ name: 'Home' });
+    }
 
-  // C. Lanjutkan navigasi (sudah login, atau rute tidak memerlukan auth)
-  return next();
+    // C. Lanjutkan navigasi (sudah login, atau rute tidak memerlukan auth)
+    return next();
 });
 
 export default router;

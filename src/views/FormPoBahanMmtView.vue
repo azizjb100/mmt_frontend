@@ -131,12 +131,28 @@
                   hide-details
                 />
               </v-col>
+
+              <v-col cols="12" class="mt-2">
+              <v-text-field
+                label="Kirim Ke (Pabrik)"
+                v-model="formData.pabrikNama"
+                readonly
+                @click="isPabrikModalVisible = true"
+                variant="outlined"
+                density="compact"
+                hide-details
+                append-inner-icon="mdi-magnify"
+                style="cursor: pointer"
+                placeholder="Pilih Lokasi Tujuan..."
+              />
+            </v-col>
             </v-row>
+            
 
             <v-col cols="12">
               <v-text-field
-                label="Keterangan Header"
-                v-model="formData.keterangan"
+                label="Alamat Kirim"
+                v-model="formData.AlamatPabrik"
                 variant="outlined"
                 density="compact"
                 hide-details
@@ -544,6 +560,8 @@
       @close="() => (isSPKModalVisible = false)"
       @select="handleSPKSelect"
     />
+        <PabrikLookupModal :isVisible="isPabrikModalVisible" @close="isPabrikModalVisible = false" @select="handlePabrikSelect" />
+
   </PageLayout>
 </template>
 
@@ -563,6 +581,7 @@ import MasterBahanModal from "@/modal/MasterBahanModal.vue";
 // import BahanLookupModal from '@/modal/BahanLookupModal.vue';
 import SPKLookupModal from "@/modal/SpkLookupModal.vue";
 import PermintaanBahanLookupView from "@/modal/PermintaanBahanLookupView.vue";
+import PabrikLookupModal from "@/modal/PabrikLookupModal.vue"; 
 
 // --- Interfaces ---
 
@@ -622,6 +641,9 @@ interface FormDataState {
   supKota: string;
   jenisPo: 0 | 1 | 2; // 1=Greige, 2=Celup, 0=Bahan
   nomorPermintaan: string;
+  pabrikKode: string; // Kode Pabrik untuk backend
+  pabrikNama: string;
+  AlamatPabrik: string;
   poGreige: string;
   mppbNomor: string;
   mppbTanggal: string;
@@ -677,6 +699,7 @@ const isPoGreigeModalVisible = ref(false);
 const isMppbModalVisible = ref(false);
 const isMkbModalVisible = ref(false);
 const isBahanModalVisible = ref(false);
+const isPabrikModalVisible = ref(false);
 const isSPKModalVisible = ref(false);
 const isPermintaanSearchVisible = ref(false);
 
@@ -718,6 +741,7 @@ const formData = reactive<FormDataState>({
   mppbTanggal: "",
   mppbJumlah: 0,
   keterangan: "",
+  AlamatPabrik: "",
   note: "",
   isPpn: false,
   ppnRate: user.defaultPpn,
@@ -975,6 +999,13 @@ const closeForm = () => {
   router.push({ name: "POBahanMmtBrowse" });
 };
 
+const handlePabrikSelect = (pabrik: { Kode: string; Nama: string }) => {
+  formData.pabrikKode = pabrik.Kode;
+  formData.pabrikNama = pabrik.Nama;
+  formData.cabang = pabrik.Nama;
+  formData.AlamatPabrik = pabrik.AlamatPabrik;
+  isPabrikModalVisible.value = false;
+};
 const handlePoGreigeExit = async () => {
   // ufrmPO.edtpoGreigeExit logic
   if (formData.jenisPo !== 2 || !formData.poGreige) return;

@@ -158,7 +158,7 @@ import { ref, reactive, onMounted, computed, watch } from "vue";
 import { useRouter } from "vue-router";
 import { useToast } from "vue-toastification";
 import { useAuthStore } from "../stores/authStore";
-import axios from "axios";
+import api from "@/services/api";
 import { format, subDays, parseISO, isValid } from "date-fns";
 import PageLayout from "../components/PageLayout.vue";
 
@@ -187,8 +187,8 @@ interface KoreksiHeader {
   [key: string]: any;
 }
 
-const api = axios;
-const API_BASE_URL = "http://localhost:8003/api/mmt/koreksi-stok";
+
+const API_BASE_URL = "/api/mmt/koreksi-stok";
 const MENU_ID = "MMT_KOREKSI_STOK";
 
 // --- Store & utils ---

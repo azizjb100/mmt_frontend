@@ -1,5 +1,34 @@
 <template>
   <PageLayout title="Data Permintaan Produksi" icon="mdi-factory">
+    <v-expand-transition>
+      <div v-if="pendingLoans.length > 0" class="mx-4 mt-2">
+        <v-alert
+          type="warning"
+          variant="tonal"
+          density="compact"
+          border="start"
+          class="mb-4"
+        >
+        <template #title>
+            <span class="text-subtitle-2 font-weight-bold">🔔 Permintaan Pinjam Bahan (Hutang Stok)</span>
+          </template>
+          <div v-for="loan in pendingLoans" :key="loan.id" class="d-flex align-center justify-space-between mt-1">
+  <span class="text-caption">
+    Produksi membutuhkan Barcode: <strong>{{ loan.barcode }}</strong> ({{ loan.nama_bahan }}) 
+    - Sisa: {{ loan.panjang }}M
+  </span>
+  <v-btn 
+    size="x-small" 
+    color="orange-darken-2" 
+    class="ml-4"
+    @click="handleApproveLoan(loan)"
+  >
+    Proses Mutasi & Keluar
+  </v-btn>
+</div>
+        </v-alert>
+      </div>
+    </v-expand-transition>
     <template #header-actions>
       <v-btn size="x-small" color="success" @click="handleNewEdit('new')">
         <v-icon start>mdi-plus</v-icon> Baru
@@ -154,7 +183,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, computed, watch } from "vue";
+import { ref, reactive, onMounted, onUnmounted, computed, watch } from "vue";
 import { useRouter } from "vue-router";
 import { useToast } from "vue-toastification";
 import { useAuthStore } from "../stores/authStore";
@@ -167,7 +196,7 @@ import { VDataTable } from "vuetify/components";
 // --- Interfaces ---
 
 interface PermintaanProduksiDetail {
-  Nomor: string; // FIX: Tambahkan Nomor dari response
+  Nomor: string;
   Kode: string;
   Nama_Bahan: string;
   Panjang: number | null;
@@ -176,8 +205,8 @@ interface PermintaanProduksiDetail {
   Jumlah: number;
   Operator: string;
   Nomor_SPK: string;
-  spk_nama: string; // FIX: Tambahkan Nama SPK
-  Keterangan: string; // FIX: Tambahkan Keterangan
+  spk_nama: string;
+  Keterangan: string;
   [key: string]: string | number | null | undefined;
 }
 
@@ -187,7 +216,7 @@ interface PermintaanProduksiHeader {
   Nama: string;
   Tanggal: string;
   Keterangan: string;
-  Detail?: PermintaanProduksiDetail[]; // Keep Detail as an optional array
+  Detail?: PermintaanProduksiDetail[]; 
   [key: string]: string | number | null | undefined;
 }
 
@@ -331,6 +360,8 @@ const fetchData = async () => {
   }
 };
 
+
+
 const loadDetails = (newlyExpandedKeys: string[]) => {
   const newlyExpandedNomor = newlyExpandedKeys.find(
     (nomor) => !details.value[nomor]
@@ -389,10 +420,58 @@ const handlePrint = () => {
   }
 };
 
+
+const pendingLoans = ref<any[]>([]);
+let pollingInterval: any = null;
+
+// Fungsi untuk mengambil data "Hutang" dari database
+const fetchPendingLoans = async () => {
+  try {
+    // Kita panggil endpoint yang mengecek permintaan dengan status 'PINJAM'
+    const response = await api.get("/mmt/request-pinjam");
+    pendingLoans.value = response.data.data || [];
+  } catch (error) {
+    console.error("Gagal memuat notifikasi pinjam");
+  }
+};
+
+const handleApproveLoan = async (loan: any) => {
+  const confirmOk = confirm(`Proses Mutasi Barcode ${loan.barcode} dari WH-16 ke GPM sekarang?`);
+  
+  if (confirmOk) {
+    try {
+      // Panggil API untuk mutasi otomatis
+      await api.post("/mmt/approve-pinjam", { 
+        barcode: loan.barcode,
+        nomor_permintaan: loan.Nomor 
+      });
+      
+      toast.success(`Stok Barcode ${loan.barcode} telah berpindah ke Produksi.`);
+      fetchPendingLoans(); // Refresh notif
+      fetchData(); // Refresh table utama
+    } catch (error) {
+      toast.error("Gagal memproses mutasi.");
+    }
+  }
+};
+
+
 // --- Lifecycle Hook ---
 
 onMounted(() => {
-  fetchData();
+  fetchData();            // Mengambil data tabel utama
+  fetchPendingLoans();     // Mengambil data notifikasi pinjaman saat pertama kali buka
+
+  // Tambahkan interval agar sistem mengecek notifikasi setiap 30 detik secara otomatis
+  pollingInterval = setInterval(() => {
+    fetchPendingLoans();
+  }, 30000); 
+});
+
+onUnmounted(() => {
+  if (pollingInterval) {
+    clearInterval(pollingInterval);
+  }
 });
 
 // Watcher untuk tanggal (jika diubah, data dimuat ulang)

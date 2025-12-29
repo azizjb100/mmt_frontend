@@ -89,7 +89,8 @@ const masterHeaders = [
   { title: "Tanggal", key: "Tanggal", minWidth: "120px" },
   { title: "Status PO", key: "Status_PO", minWidth: "120px" },
   { title: "Status Terima", key: "Status_Diterima", minWidth: "120px" },
-  { title: "Keterangan", key: "Keterangan", minWidth: "250px" },
+  { title: "Status ACC", key: "Status_Acc", minWidth: "120px" },
+  { title: "Keterangan", key: "Keterangan", minWidth: "150px" },
   { title: "", key: "data-table-expand", minWidth: "40px" },
 ];
 
@@ -386,6 +387,12 @@ watch([startDate, endDate], fetchData);
           <template #item.Status_Diterima="{ item }">
             <v-chip :color="getStatusColor(item.Status_Diterima)" size="small">
               {{ item.Status_Diterima }}
+            </v-chip>
+          </template>
+
+          <template #item.Status_Acc="{ item }">
+            <v-chip :color="getStatusColor(item.Status_Acc)" size="small">
+              {{ item.Status_Acc }}
             </v-chip>
           </template>
 

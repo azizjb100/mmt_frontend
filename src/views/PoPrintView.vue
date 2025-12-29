@@ -25,6 +25,7 @@ interface PrintHeader {
   NamaPerusahaan: string; // comp_name (CV. Kencana Print)
   AlamatPerusahaan: string;
   NPWPPerusahaan: string;
+  AlamatPabrik: string;
 }
 
 interface PrintDetail {
@@ -66,7 +67,16 @@ const fetchPrintData = async (nomor: string) => {
 watch(isLoading, (newValue) => {
   if (newValue === false) {
     nextTick(() => {
-    window.print(); // Aktifkan ini untuk cetak otomatis
+      setTimeout(() => {
+        // Tambahkan class khusus PO
+        document.body.classList.add('is-printing-po');
+        
+        window.print();
+
+        window.addEventListener('afterprint', () => {
+          document.body.classList.remove('is-printing-po');
+        }, { once: true });
+      }, 800);
     });
   }
 });
@@ -153,7 +163,7 @@ onMounted(() => {
           </p>
           <p class="delivery-address">
             **alamat pengiriman di:**<br>
-            {{ printData.Header.KeteranganHeader || 'CV Kencana Print Jeron RT01 RW03 Demen, Jeron, Nogosari Boyolali, Jawa Tengah' }}
+            {{ printData.Header.AlamatPabrik || 'CV Kencana Print Jeron RT01 RW03 Demen, Jeron, Nogosari Boyolali, Jawa Tengah' }}
           </p>
         </div>
         
@@ -318,26 +328,48 @@ onMounted(() => {
    PRINT MEDIA QUERIES (Tidak berubah)
    ================================================================= */
 @media print {
-    @page { size: A4 portrait; margin: 10mm; }
-
-    body, .po-page {
-        -webkit-print-color-adjust: exact !important;
-        print-color-adjust: exact !important;
-        font-size: 9.5pt !important;
-        color: #000 !important;
+    @page {
+        size: A4 portrait;
+        margin: 0; /* Margin nol karena kita sudah pakai padding di .po-page */
     }
 
-    .po-page { box-shadow: none; border: none; width: auto; }
-    
-    .vendor-header, .notes-header, .items-table thead th {
+    /* Reset Global Vuetify yang sering merusak cetakan */
+    :global(html), :global(body) {
+        height: auto !important;
+        overflow: visible !important;
+        background-color: white !important;
+    }
+
+    /* Sembunyikan elemen Vuetify */
+    :global(.v-application) { background: none !important; }
+    :global(.v-main) { padding: 0 !important; }
+    :global(.v-navigation-drawer), :global(.v-app-bar), :global(.v-footer) {
+        display: none !important;
+      }
+
+    .po-print-container {
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+
+    .po-page {
+        margin: 0 !important;
+        border: none !important;
+        box-shadow: none !important;
+        width: 210mm !important;
+        height: 297mm !important;
+        padding: 15mm !important;
+        position: absolute;
+        top: 0;
+        left: 0;
+    }
+
+    /* Memastikan background warna biru tabel tetap muncul */
+    .items-table thead th, .notes-header, .vendor-header {
         background-color: #000080 !important;
         color: white !important;
-    }
-    
-    .total-row.grand-total-line {
-        background-color: #f0f0f0 !important;
-        border-top: 2px solid black !important;
-        border-bottom: none !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
     }
 }
 </style>

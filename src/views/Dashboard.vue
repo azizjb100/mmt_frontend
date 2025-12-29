@@ -19,9 +19,7 @@
 
                 <ul class="dropdown-menu sub-menu shadow-md rounded-soft">
                   <li v-for="subItem in item.items" :key="subItem.name">
-                    <router-link :to="subItem.path">{{
-                      subItem.name
-                    }}</router-link>
+                    <router-link :to="subItem.path">{{ subItem.name }}</router-link>
                   </li>
                 </ul>
               </li>
@@ -34,16 +32,11 @@
       </ul>
 
       <div class="navbar-user">
-        <span class="user-welcome"
-          >Selamat datang,
-          <b class="font-semibold">{{
-            currentUser?.nmUser || "UserAdmin"
-          }}</b></span
-        >
-        <button
-          @click="handleLogout"
-          class="logout-button rounded-soft transition-smooth hover-lift"
-        >
+        <span class="user-welcome">
+          Selamat datang,
+          <b class="font-semibold">{{ currentUser?.nmUser || "UserAdmin" }}</b>
+        </span>
+        <button @click="handleLogout" class="logout-button rounded-soft transition-smooth hover-lift">
           Logout
         </button>
       </div>
@@ -58,12 +51,12 @@
 </template>
 
 <script setup>
-import { ref } from "vue";
+import { ref, computed } from "vue"; // Tambahkan computed
 import { useRouter } from "vue-router";
 import { useAuthStore } from "@/stores/authStore";
 
 const authStore = useAuthStore();
-const currentUser = authStore.currentUser;
+const currentUser = authStore.user; // Mengambil data user dari store
 
 const router = useRouter();
 
@@ -72,8 +65,8 @@ const handleLogout = () => {
   router.push("/login");
 };
 
-// Data Menu (dengan penambahan path pada SubGroup)
-const menuGroups = ref([
+// Data Master Menu (Semua Menu Didefinisikan di sini)
+const allMenuGroups = [
   {
     name: "File",
     items: [
@@ -100,6 +93,133 @@ const menuGroups = ref([
       { name: "Jenis Potongan", path: "/daftar/jenis-potongan" },
     ],
   },
+  {
+    name: "Transaksi",
+    items: [
+      {
+        name: "Daftar",
+        isSubGroup: true,
+        path: "/mmt/daftar",
+        items: [
+          { name: "Master Bahan", path: "/mmt/daftar/bahan" },
+          { name: "Mesin Produksi", path: "/mmt/daftar/mesin-produksi" },
+          { name: "Operator", path: "/mmt/daftar/operator" },
+          { name: "Bahan Sisa", path: "/mmt/daftar/bahan-sisa" },
+        ],
+      },
+      { name: "Permintaan Bahan", path: "/mmt/permintaan-bahan" },
+      { name: "PO Bahan MMT", path: "/mmt/po-bahan-mmt" },
+      { name: "Penerimaan Bahan", path: "/mmt/penerimaan-bahan" },
+      { name: "Retur Beli", path: "/mmt/retur-beli" },
+      { name: "Koreksi Stok", path: "/mmt/koreksi-stok" },
+      { name: "Permintaan Produksi", path: "/mmt/permintaan-produksi" },
+      { name: "BS & Sisa Digital Print", path: "/mmt/bs-digital" },
+      { name: "BS & Sisa Tekstil", path: "/mmt/bs-tekstil" },
+      { name: "Bahan Sisa", path: "/mmt/bahan-sisa" },
+      {
+        name: "LHK",
+        isSubGroup: true,
+        path: "/mmt/lhk/browse",
+        items: [
+          { name: "LHK Cetak", path: "/mmt/lhk/cetak" },
+          { name: "LHK Kain", path: "/mmt/lhk/kain" },
+          { name: "LHK Finishing", path: "/mmt/lhk/finishing" },
+          { name: "LHK Proof", path: "/mmt/lhk/proof" },
+          { name: "LHK Sublim", path: "/mmt/lhk/sublim" },
+          { name: "LHK RTR", path: "/mmt/lhk/rtr" },
+        ],
+      },
+      { name: "PO Paperprint", path: "/mmt/po-paperprint" },
+      { name: "Penerimaan PO External", path: "/mmt/penerimaan-po-external" },
+    ],
+  },
+  {
+    name: "Laporan",
+    items: [
+      {
+        name: "Garmen",
+        isSubGroup: true,
+        path: "/laporan/garmen/browse",
+        items: [
+          { name: "Mutasi Bahan", path: "/laporan/garmen/mutasi-bahan" },
+          { name: "Kartu Stok Bahan Baku", path: "/laporan/garmen/kartu-stok-bahan" },
+          { name: "Stok Barang", path: "/laporan/garmen/stok-barang" },
+          { name: "SPK vs STBJ vs SJ", path: "/laporan/garmen/spk-stbj-sj" },
+          { name: "Proses Produksi", path: "/laporan/garmen/proses-produksi" },
+          { name: "Lap Outstanding SPK", path: "/laporan/garmen/outstanding-spk" },
+        ],
+      },
+      {
+        name: "Penjualan",
+        isSubGroup: true,
+        path: "/laporan/penjualan/browse",
+        items: [
+          { name: "Penawaran vs SPK", path: "/laporan/penjualan/penawaran-vs-spk" },
+          { name: "Realisasi Pengiriman SPK", path: "/laporan/penjualan/realisasi-kirim-spk" },
+          { name: "SPK vs SJ vs Invoice", path: "/laporan/penjualan/spk-sj-invoice" },
+          { name: "Rekap Penawaran", path: "/laporan/penjualan/rekap-penawaran" },
+        ],
+      },
+      {
+        name: "Hutang",
+        isSubGroup: true,
+        path: "/laporan/hutang/browse",
+        items: [
+          { name: "PPN Masukan", path: "/laporan/hutang/ppn-masukan" },
+          { name: "PO vs BPB", path: "/laporan/hutang/po-vs-bpb" },
+          { name: "Daftar Hutang", path: "/laporan/hutang/daftar-hutang" },
+          { name: "PO Bahan vs Realisasi", path: "/laporan/hutang/po-bahan-vs-realisasi" },
+        ],
+      },
+      {
+        name: "Piutang",
+        isSubGroup: true,
+        path: "/laporan/piutang/browse",
+        items: [
+          { name: "Rekap Mutasi Piutang", path: "/laporan/piutang/rekap-mutasi" },
+          { name: "Daftar Piutang", path: "/laporan/piutang/daftar-piutang" },
+          { name: "Saldo Piutang", path: "/laporan/piutang/saldo-piutang" },
+        ],
+      },
+      {
+        name: "Spanduk",
+        isSubGroup: true,
+        path: "/laporan/spanduk/browse",
+        items: [
+          { name: "Laporan Persediaan", path: "/laporan/spanduk/persediaan" },
+          { name: "Laporan Kartu Stok", path: "/laporan/spanduk/kartu-stok" },
+          { name: "Laporan In Out Gudang", path: "/laporan/spanduk/in-out-gudang" },
+          { name: "Stok Barang Jadi", path: "/laporan/spanduk/stok-jadi" },
+        ],
+      },
+      {
+        name: "Produksi MMT",
+        isSubGroup: true,
+        path: "/laporan/mmt/browse",
+        items: [
+          { name: "LS Bahan Utama", path: "/laporan/mmt/ls-bahan-utama" },
+          { name: "LS Bahan Penolong", path: "/laporan/mmt/ls-bahan-penolong" },
+          { name: "LS Tinta", path: "/laporan/mmt/ls-tinta" },
+          { name: "LS Bahan Kain", path: "/laporan/mmt/ls-bahan-kain" },
+          { name: "Kartu Stock Bahan", path: "/laporan/mmt/mon-jadwal-kirim" },
+          { name: "Lap. BS & Sisa Digital Printing", path: "/laporan/mmt/stok-jadi" },
+        ],
+      },
+      {
+        name: "Marketing",
+        isSubGroup: true,
+        path: "/laporan/marketing/browse",
+        items: [
+          { name: "Target vs Realisasi", path: "/laporan/marketing/target-vs-realisasi" },
+          { name: "Proyeksi vs Realisasi", path: "/laporan/marketing/proyeksi-vs-realisasi" },
+        ],
+      },
+    ],
+  },
+];
+
+// DATA COMMENTED (TETAP DIPERTAHANKAN SESUAI REQUEST)
+/*
   // {
   // name: 'Pembelian',
   // items: [
@@ -146,46 +266,6 @@ const menuGroups = ref([
   // { name: 'LHK Quiring', path: '/spanduk/lhk-quiring' },
   // ]
   // },
-  {
-    name: "Transaksi",
-    items: [
-      {
-        name: "Daftar",
-        isSubGroup: true,
-        path: "/mmt/daftar",
-        items: [
-          { name: "Master Bahan", path: "/mmt/daftar/bahan" },
-          { name: "Mesin Produksi", path: "/mmt/daftar/mesin-produksi" },
-          { name: "Operator", path: "/mmt/daftar/operator" },
-          { name: "Bahan Sisa", path: "/mmt/daftar/bahan-sisa" },
-        ],
-      },
-      { name: "Permintaan Bahan", path: "/mmt/permintaan-bahan" },
-      { name: "PO Bahan MMT", path: "/mmt/po-bahan-mmt" },
-      { name: "Penerimaan Bahan", path: "/mmt/penerimaan-bahan" },
-      { name: "Retur Beli", path: "/mmt/retur-beli" },
-      { name: "Koreksi Stok", path: "/mmt/koreksi-stok" },
-      { name: "Permintaan Produksi", path: "/mmt/permintaan-produksi" },
-      { name: "BS & Sisa Digital Print", path: "/mmt/bs-digital" },
-      { name: "BS & Sisa Tekstil", path: "/mmt/bs-tekstil" },
-      { name: "Bahan Sisa", path: "/mmt/bahan-sisa" },
-      {
-        name: "LHK",
-        isSubGroup: true,
-        path: "/mmt/lhk/browse", // FIX: Tambahkan path untuk LHK Browse
-        items: [
-          { name: "LHK Cetak", path: "/mmt/lhk/cetak" },
-          { name: "LHK Kain", path: "/mmt/lhk/kain" },
-          { name: "LHK Finishing", path: "/mmt/lhk/finishing" },
-          { name: "LHK Proof", path: "/mmt/lhk/proof" },
-          { name: "LHK Sublim", path: "/mmt/lhk/sublim" },
-          { name: "LHK RTR", path: "/mmt/lhk/rtr" },
-        ],
-      },
-      { name: "PO Paperprint", path: "/mmt/po-paperprint" },
-      { name: "Penerimaan PO External", path: "/mmt/penerimaan-po-external" },
-    ],
-  },
   // {
   // name: 'Penjualan',
   // items: [
@@ -216,126 +296,32 @@ const menuGroups = ref([
   // { name: 'Pelunasan', path: '/piutang/pelunasan' },
   // ]
   // },
-  {
-    name: "Laporan",
-    items: [
-      {
-        name: "Garmen",
-        isSubGroup: true,
-        path: "/laporan/garmen/browse",
-        items: [
-          { name: "Mutasi Bahan", path: "/laporan/garmen/mutasi-bahan" },
-          {
-            name: "Kartu Stok Bahan Baku",
-            path: "/laporan/garmen/kartu-stok-bahan",
-          },
-          { name: "Stok Barang", path: "/laporan/garmen/stok-barang" },
-          { name: "SPK vs STBJ vs SJ", path: "/laporan/garmen/spk-stbj-sj" },
-          { name: "Proses Produksi", path: "/laporan/garmen/proses-produksi" },
-          {
-            name: "Lap Outstanding SPK",
-            path: "/laporan/garmen/outstanding-spk",
-          },
-        ],
-      },
-      {
-        name: "Penjualan",
-        isSubGroup: true,
-        path: "/laporan/penjualan/browse",
-        items: [
-          {
-            name: "Penawaran vs SPK",
-            path: "/laporan/penjualan/penawaran-vs-spk",
-          },
-          {
-            name: "Realisasi Pengiriman SPK",
-            path: "/laporan/penjualan/realisasi-kirim-spk",
-          },
-          {
-            name: "SPK vs SJ vs Invoice",
-            path: "/laporan/penjualan/spk-sj-invoice",
-          },
-          {
-            name: "Rekap Penawaran",
-            path: "/laporan/penjualan/rekap-penawaran",
-          },
-        ],
-      },
-      {
-        name: "Hutang",
-        isSubGroup: true,
-        path: "/laporan/hutang/browse",
-        items: [
-          { name: "PPN Masukan", path: "/laporan/hutang/ppn-masukan" },
-          { name: "PO vs BPB", path: "/laporan/hutang/po-vs-bpb" },
-          { name: "Daftar Hutang", path: "/laporan/hutang/daftar-hutang" },
-          {
-            name: "PO Bahan vs Realisasi",
-            path: "/laporan/hutang/po-bahan-vs-realisasi",
-          },
-        ],
-      },
-      {
-        name: "Piutang",
-        isSubGroup: true,
-        path: "/laporan/piutang/browse",
-        items: [
-          {
-            name: "Rekap Mutasi Piutang",
-            path: "/laporan/piutang/rekap-mutasi",
-          },
-          { name: "Daftar Piutang", path: "/laporan/piutang/daftar-piutang" },
-          { name: "Saldo Piutang", path: "/laporan/piutang/saldo-piutang" },
-        ],
-      },
-      {
-        name: "Spanduk",
-        isSubGroup: true,
-        path: "/laporan/spanduk/browse",
-        items: [
-          { name: "Laporan Persediaan", path: "/laporan/spanduk/persediaan" },
-          { name: "Laporan Kartu Stok", path: "/laporan/spanduk/kartu-stok" },
-          {
-            name: "Laporan In Out Gudang",
-            path: "/laporan/spanduk/in-out-gudang",
-          },
-          { name: "Stok Barang Jadi", path: "/laporan/spanduk/stok-jadi" },
-        ],
-      },
-      {
-        name: "Produksi MMT",
-        isSubGroup: true,
-        path: "/laporan/mmt/browse",
-        items: [
-          { name: "LS Bahan Utama", path: "/laporan/mmt/ls-bahan-utama" },
-          { name: "LS Bahan Penolong", path: "/laporan/mmt/ls-bahan-penolong" },
-          { name: "LS Tinta", path: "/laporan/mmt/ls-tinta" },
-          { name: "LS Bahan Kain", path: "/laporan/mmt/ls-bahan-kain" },
-          { name: "Kartu Stock Bahan", path: "/laporan/mmt/mon-jadwal-kirim" },
-          {
-            name: "Lap. BS & Sisa Digital Printing",
-            path: "/laporan/mmt/stok-jadi",
-          },
-        ],
-      },
-      {
-        name: "Marketing",
-        isSubGroup: true,
-        path: "/laporan/marketing/browse",
-        items: [
-          {
-            name: "Target vs Realisasi",
-            path: "/laporan/marketing/target-vs-realisasi",
-          },
-          {
-            name: "Proyeksi vs Realisasi",
-            path: "/laporan/marketing/proyeksi-vs-realisasi",
-          },
-        ],
-      },
-    ],
-  },
-]);
+*/
+
+// Logic Filter Menu Berdasarkan Divisi (ZDIVISI)
+const menuGroups = computed(() => {
+  const user = authStore.user;
+  const zdivisi = user?.divisi; // Mengambil zdivisi dari store
+
+  // Deep copy menu agar tidak merubah master data
+  const menus = JSON.parse(JSON.stringify(allMenuGroups));
+
+  // Jika Divisi = 1 (Logika Delphi: Hanya Permintaan Bahan, Penerimaan Bahan, Permintaan Produksi, LHK)
+  if (zdivisi === 1) {
+    const allowedTitles = ["Permintaan Bahan", "Penerimaan Bahan", "Permintaan Produksi", "LHK"];
+
+    return menus.map(group => {
+      // Filter item level 2
+      const filteredItems = group.items.filter(item => 
+        allowedTitles.includes(item.name)
+      );
+      return { ...group, items: filteredItems };
+    }).filter(group => group.items.length > 0); // Sembunyikan Group jika kosong (misal: File & Daftar hilang)
+  }
+
+  // Jika Admin atau divisi lain, tampilkan semua (sesuai logika Delphi 'Else')
+  return menus;
+});
 </script>
 
 <style>
@@ -367,27 +353,13 @@ const menuGroups = ref([
 }
 
 /* KELAS UTILITY */
-.font-body {
-  font-family: var(--font-family-primary);
-}
-.font-heading {
-  font-family: var(--font-family-heading);
-}
-.font-semibold {
-  font-weight: var(--font-weight-semibold);
-}
-.shadow-sm {
-  box-shadow: var(--shadow-sm);
-}
-.shadow-md {
-  box-shadow: var(--shadow-md);
-}
-.rounded-soft {
-  border-radius: var(--border-radius-md);
-}
-.transition-fast {
-  transition: all var(--transition-fast);
-}
+.font-body { font-family: var(--font-family-primary); }
+.font-heading { font-family: var(--font-family-heading); }
+.font-semibold { font-weight: var(--font-weight-semibold); }
+.shadow-sm { box-shadow: var(--shadow-sm); }
+.shadow-md { box-shadow: var(--shadow-md); }
+.rounded-soft { border-radius: var(--border-radius-md); }
+.transition-fast { transition: all var(--transition-fast); }
 
 .hover-lift:hover {
   transform: translateY(-1px);
@@ -437,7 +409,6 @@ const menuGroups = ref([
   margin-right: 8px;
 }
 
-/* Menu Items */
 .navbar-menu {
   display: flex;
   list-style: none;
@@ -462,8 +433,7 @@ const menuGroups = ref([
   color: var(--color-text-dark);
   text-decoration: none;
   font-weight: var(--font-weight-semibold);
-  transition: background-color var(--transition-fast),
-    color var(--transition-fast);
+  transition: background-color var(--transition-fast), color var(--transition-fast);
 }
 
 .dropdown-toggle:hover,
@@ -472,7 +442,6 @@ const menuGroups = ref([
   color: var(--color-primary-dark);
 }
 
-/* User Info */
 .navbar-user {
   display: flex;
   align-items: center;
@@ -491,7 +460,7 @@ const menuGroups = ref([
   font-size: 0.85rem;
   font-weight: var(--font-weight-medium);
   color: white;
-  background-color: var(--color-primary); /* Changed to primary color */
+  background-color: var(--color-primary);
   cursor: pointer;
   border-radius: var(--border-radius-sm);
 }
@@ -500,7 +469,7 @@ const menuGroups = ref([
 }
 
 /* ======================================= */
-/* 2. DROPDOWN MENU (Level 2 & 3) - ELEGANT LOOK */
+/* 2. DROPDOWN MENU (Level 2 & 3) */
 /* ======================================= */
 
 .dropdown-menu {
@@ -521,7 +490,6 @@ const menuGroups = ref([
   display: block;
 }
 
-/* Styling Link di dalam Menu */
 .dropdown-menu a {
   display: block;
   padding: 4px 8px;
@@ -532,11 +500,9 @@ const menuGroups = ref([
   font-weight: var(--font-weight-normal);
   border-radius: var(--border-radius-sm);
   margin: 0 5px;
-  transition: background-color var(--transition-fast),
-    color var(--transition-fast);
+  transition: background-color var(--transition-fast), color var(--transition-fast);
 }
 
-/* 🔄 PERBAIKAN: Hover state untuk item menu Level 2 dan 3 */
 .dropdown-menu li:hover > a,
 .dropdown-menu a.router-link-exact-active {
   background-color: var(--color-primary);
@@ -544,21 +510,16 @@ const menuGroups = ref([
   font-weight: var(--font-weight-medium);
 }
 
-/* Sub-menu (Level 3) */
-.sub-dropdown {
-  position: relative;
-}
-
+.sub-dropdown { position: relative; }
 .sub-menu {
-  display: none; /* 🔄 PERBAIKAN: Default hidden */
-  position: absolute; /* Tetap absolute */
+  display: none;
+  position: absolute;
   left: 100%;
   top: 0;
   border-left: none;
   padding: 5px 0;
 }
 
-/* 🔄 PERBAIKAN: Tampilkan sub-menu saat hover pada sub-dropdown */
 .sub-dropdown:hover > .sub-menu {
   display: block;
 }
@@ -576,11 +537,9 @@ const menuGroups = ref([
   font-weight: var(--font-weight-normal);
   margin: 0 5px;
   border-radius: var(--border-radius-sm);
-  transition: background-color var(--transition-fast),
-    color var(--transition-fast);
+  transition: background-color var(--transition-fast), color var(--transition-fast);
 }
 
-/* 🔄 PERBAIKAN: Hover state untuk Sub-dropdown Toggle */
 .sub-dropdown:hover > .sub-dropdown-toggle {
   background-color: var(--color-primary);
   color: white;
@@ -589,7 +548,7 @@ const menuGroups = ref([
 .icon-arrow {
   margin-left: 10px;
   font-size: 0.8rem;
-  color: inherit; /* Inherit warna dari parent (putih saat hover) */
+  color: inherit;
 }
 
 /* ======================================= */
@@ -607,17 +566,8 @@ const menuGroups = ref([
   box-sizing: border-box;
 }
 
-/* UTILITIES */
-/* Hapus blok ini atau pastikan tidak bertentangan dengan hover state baru di atas */
-/*
-.dropdown-menu a:hover,
-.sub-dropdown-toggle:hover {
-  background-color: var(--color-primary) !important;
- color: white !important;
-}
-/* ... (Sisa CSS tidak berubah) ... */
 .dashboard-layout-top.print-mode {
-  display: block !important; /* Non-aktifkan Flexbox di mode cetak */
+  display: block !important;
   height: auto !important;
   overflow: visible !important;
   padding: 0 !important;
@@ -626,11 +576,7 @@ const menuGroups = ref([
 }
 
 @media print {
-  /* 1. Sembunyikan elemen Navbar (Pengamanan CSS) */
-  .top-navbar,
-  .navbar-brand,
-  .navbar-menu,
-  .navbar-user {
+  .top-navbar, .navbar-brand, .navbar-menu, .navbar-user {
     display: none !important;
     visibility: hidden !important;
     height: 0 !important;
@@ -638,7 +584,6 @@ const menuGroups = ref([
     margin: 0 !important;
   }
 
-  /* 2. Reset Layout Containers */
   .dashboard-layout-top {
     display: block !important;
     height: auto !important;
@@ -647,8 +592,7 @@ const menuGroups = ref([
     margin: 0 !important;
   }
 
-  .main-content-top,
-  .content-area {
+  .main-content-top, .content-area {
     margin: 0 !important;
     padding: 0 !important;
     min-height: unset !important;
@@ -656,9 +600,7 @@ const menuGroups = ref([
     background-color: white !important;
   }
 
-  /* 3. Global Reset */
-  body,
-  html {
+  body, html {
     margin: 0 !important;
     padding: 0 !important;
   }
