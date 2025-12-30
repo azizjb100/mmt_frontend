@@ -9,7 +9,7 @@ import SPKLookupModal from "@/modal/SpkLookupModal.vue";
 import { format } from "date-fns";
 import { useToast } from "vue-toastification";
 
-// --- Interfaces ---
+
 interface DetailItem {
   barcode: string;
   sku: string;

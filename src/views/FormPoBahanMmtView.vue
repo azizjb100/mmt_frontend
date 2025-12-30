@@ -1117,58 +1117,57 @@ const handleSelectPermintaan = async (permintaanItem: LookupItem) => {
   }
 
   try {
-    // Panggil API baru untuk mendapatkan HANYA item yang SISA QTY-nya > 0
+    // Memanggil API detail sisa permintaan
     const response = await api.get(
       `${API_UNFULFILLED_MB_DETAIL}/${encodeURIComponent(nomorPermintaan)}`
     );
     const data = response.data;
 
-    // 1. Isi data Header PO dari Permintaan Bahan
+    // 1. Set Header
     formData.nomorPermintaan = nomorPermintaan;
-    formData.keterangan = `PO untuk Permintaan: ${nomorPermintaan} (${
-      data.Keterangan || ""
-    })`;
+    formData.keterangan = `PO untuk Permintaan: ${nomorPermintaan} (${data.Keterangan || ""})`;
 
-    // 2. Clear Detail PO lama
+    // 2. Clear Detail lama
     formData.detail = [];
 
-    // 3. Masukkan Detail Permintaan Bahan ke Detail PO
+    // 3. Masukkan Detail dengan FILTER mbd_acc / Is_Acc
     if (data.Detail && data.Detail.length > 0) {
-      const newDetail = data.Detail.map((d: any) => ({
-        // Struktur baru dari backend yang hanya menyajikan sisa
-        kode: d.Kode,
-        nama: d.Nama_Bahan,
-        // KRITIS: Gunakan Jumlah SISA yang dikirim dari backend
-        jumlah: d.Jumlah,
-        satuan: d.Satuan,
-        spk: d.Nomor_SPK,
-        mb_nomor: nomorPermintaan,
+      const filteredDetail = data.Detail
+        // --- KUNCI PERBAIKAN: Hanya ambil yang status ACC-nya bukan 'N' ---
+        .filter((d: any) => d.Is_Acc !== 'N' && d.Is_Acc !== false) 
+        .map((d: any) => ({
+          ...createEmptyDetail(), // Gunakan template default
+          kode: d.Kode,
+          nama: d.Nama_Bahan,
+          namaext: d.Nama_Bahan,
+          jumlah: d.Jumlah, // Ini adalah sisa QTY yang dikirim backend
+          satuan: d.Satuan,
+          spk: d.Nomor_SPK,
+          mb_nomor: nomorPermintaan,
+          harga: d.Harga || 0,
+          diskon: 0,
+          total: 0 // Akan dihitung oleh fungsi hitung()
+        }));
 
-        // Kolom yang harus diisi/dihitung
-        harga: d.Harga || 0,
-        diskon: d.Diskon || 0,
-        total: calculateTotal(d), // Hitung ulang total
-        namaext: d.Nama_Bahan,
-      }));
-
-      formData.detail = newDetail;
-      toast.success(
-        `Berhasil memuat ${data.Detail.length} item SISA PO dari Permintaan Bahan.`
-      );
-    } else {
-      toast.warning(
-        `Permintaan Bahan ${nomorPermintaan} sudah ter-PO seluruhnya.`
-      );
+      if (filteredDetail.length === 0) {
+        toast.warning("Tidak ada item yang disetujui (ACC) dalam dokumen ini.");
+      } else {
+        formData.detail = filteredDetail;
+        toast.success(`Berhasil menarik ${filteredDetail.length} item yang disetujui.`);
+      }
     }
 
-    // 4. Tambahkan baris kosong di akhir
-    formData.detail.push(createEmptyDetail());
-    hitung(); // Recalculate totals
+    // 4. Tambahkan baris kosong di akhir agar user bisa tambah manual jika perlu
+    if (formData.detail.length === 0 || formData.detail[formData.detail.length - 1].kode) {
+      formData.detail.push(createEmptyDetail());
+    }
+    
+    // 5. Jalankan perhitungan total
+    hitung(); 
+
   } catch (error) {
     const err = error as AxiosError;
-    toast.error(
-      err.response?.data?.message || "Gagal memuat detail Permintaan Bahan."
-    );
+    toast.error(err.response?.data?.message || "Gagal memuat detail Permintaan Bahan.");
   }
   isPermintaanSearchVisible.value = false;
 };

@@ -441,7 +441,7 @@ const handleApproveLoan = async (loan: any) => {
   if (confirmOk) {
     try {
       // Panggil API untuk mutasi otomatis
-      await api.post("/mmt/approve-pinjam", { 
+      await api.post("/mmt/request-pinjam/approve-pinjam", { 
         barcode: loan.barcode,
         nomor_permintaan: loan.Nomor 
       });

@@ -97,6 +97,7 @@ const masterHeaders = [
 const detailHeaders = [
   { title: "Kode Bahan", key: "Kode", minWidth: "120px" },
   { title: "Nama Bahan", key: "Nama_Bahan", minWidth: "250px" },
+  { title: "ACC", key: "Is_Acc", minWidth: "250px" },
   { title: "Jumlah", key: "Jumlah", minWidth: "100px", align: "end" },
   { title: "Jumlah Terima", key: "Jumlah_terima", minWidth: "80px" },
   { title: "Satuan", key: "Satuan", minWidth: "80px" },
@@ -170,21 +171,7 @@ const loadDetails = async (newlyExpandedItems: PermintaanBahanHeader[]) => {
     (it) =>
       it && !details.value[it.Nomor] && !loadingDetails.value.has(it.Nomor)
   );
-  if (!itemToLoad) return;
-
-  loadingDetails.value.add(itemToLoad.Nomor);
-  try {
-    const res = await api.get<PermintaanBahanDetail[]>(
-      `${API_PERMINTAAN_BAHAN}/detail`
-    );
-
-    details.value[itemToLoad.Nomor] = res.data || [];
-  } catch (err) {
-    //toast.error(`Gagal memuat detail untuk ${itemToLoad.Nomor}`);
-    details.value[itemToLoad.Nomor] = [];
-  } finally {
-    loadingDetails.value.delete(itemToLoad.Nomor);
-  }
+ 
 };
 
 // --- Actions ---
@@ -402,17 +389,34 @@ watch([startDate, endDate], fetchData);
                 <div class="detail-container">
                   <div class="detail-table-wrapper">
                     <v-data-table
-                      :headers="detailHeaders"
-                      :items="item.Detail || []"
-                      density="compact"
-                      class="detail-table"
-                      :items-per-page="-1"
-                      hide-default-footer
-                    >
-                      <template #item.Jumlah="{ item: d }">
-                        {{ d.Jumlah }}
-                      </template>
-                    </v-data-table>
+  :headers="detailHeaders"
+  :items="item.Detail || []"
+  density="compact"
+  class="detail-table"
+  :items-per-page="-1"
+  hide-default-footer
+>
+  <template #item="{ item: d }">
+    <tr :class="{ 'text-red font-weight-bold': d.Is_Acc === 'N' }">
+      <td>{{ d.Kode }}</td>
+      <td>{{ d.Nama_Bahan }}</td>
+      <td>
+        <v-chip 
+          :color="d.Is_Acc === 'Y' ? 'success' : 'error'" 
+          size="x-small" 
+          label
+        >
+          {{ d.Is_Acc }}
+        </v-chip>
+      </td>
+      <td class="text-right">{{ d.Jumlah }}</td>
+      <td>{{ d.Jumlah_terima }}</td>
+      <td>{{ d.Satuan }}</td>
+      <td>{{ d.Nomor_SPK }}</td>
+      <td>{{ d.Operator }}</td>
+    </tr>
+  </template>
+</v-data-table>
 
                     <div
                       v-if="!(item.Detail && item.Detail.length)"

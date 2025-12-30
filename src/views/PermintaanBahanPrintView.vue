@@ -1,16 +1,17 @@
 <script setup lang="ts">
-import { ref, onMounted, nextTick, watch } from 'vue';
+import { ref, onMounted, nextTick, watch, computed } from 'vue'; // Perbaikan: Tambahkan computed
 import { useRoute } from 'vue-router';
 import api from '@/services/api'; 
 
-// 1. Perbaikan Interface Detail agar konsisten
+// --- Interfaces ---
 interface MmtDetail {
   No: number | string;
   SPK: string;
   Jenis: string;
   Keterangan: string;
   Satuan: string;
-  QTY: number | string; // Backend mengirim field ini sebagai kuantitas
+  QTY: number | string;
+  Is_Acc?: string;
 }
 
 interface MmtPrintData {
@@ -24,11 +25,29 @@ interface MmtPrintData {
   Disetujui: string;
 }
 
+// --- State & Setup ---
 const route = useRoute();
 const printData = ref<MmtPrintData | null>(null);
 const isLoading = ref(true);
 
+// --- Computed Logic ---
+const filteredDetails = computed(() => {
+  // Jika data belum dimuat atau Details bukan array, kembalikan array kosong
+  if (!printData.value || !Array.isArray(printData.value.Details)) {
+    return [];
+  }
+  
+  return printData.value.Details
+    .filter(item => item.Is_Acc !== 'N') // Filter: Hilangkan baris yang tidak di-ACC (N)
+    .map((item, index) => ({
+      ...item,
+      No: index + 1 // Penomoran ulang agar tetap urut (1, 2, 3...)
+    }));
+});
+
+// --- Methods ---
 const fetchPrintData = async (nomor: string) => {
+  isLoading.value = true;
   try {
     const response = await api.get(`mmt/permintaan-bahan/print/${nomor}`); 
     printData.value = response.data;
@@ -41,26 +60,32 @@ const fetchPrintData = async (nomor: string) => {
   }
 };
 
+// --- Watcher for Auto Print ---
 watch(isLoading, (newValue) => {
-  if (newValue === false && printData.value) {
+  // Hanya jalankan print jika loading selesai dan data berhasil didapat
+  if (newValue === false && printData.value && filteredDetails.value.length >= 0) {
     nextTick(() => {
+      // Delay sedikit untuk memastikan render DOM selesai sempurna
       setTimeout(() => {
         window.print();
-      }, 700);
+      }, 800);
     });
   }
 });
 
+// --- Lifecycle ---
 onMounted(() => {
   const nomor = route.params.nomor as string; 
-  if (nomor) fetchPrintData(nomor);
+  if (nomor) {
+    fetchPrintData(nomor);
+  }
 });
 </script>
 
 <template>
   <div class="mmt-print-container">
     <div v-if="isLoading" class="text-center loading-message pt-10">
-      Memuat data Form Permintaan...
+      <p>Memuat data Form Permintaan...</p>
     </div>
     
     <div v-else-if="printData" class="mmt-page">
@@ -103,7 +128,7 @@ onMounted(() => {
             </tr>
           </thead>
           <tbody>
-            <tr v-for="(item, index) in printData.Details" :key="index">
+            <tr v-for="(item, index) in filteredDetails" :key="'item-' + index">
               <td class="text-center">{{ item.No }}</td>
               <td>{{ item.SPK }}</td>
               <td>{{ item.Jenis }}</td>
@@ -111,8 +136,14 @@ onMounted(() => {
               <td class="text-right">{{ item.QTY }}</td>
               <td>{{ item.Keterangan }}</td>
             </tr>
-            <tr v-for="i in Math.max(0, 8 - printData.Details.length)" :key="'empty-' + i" class="empty-row">
-              <td>&nbsp;</td><td></td><td></td><td></td><td></td><td></td>
+            
+            <tr v-for="i in Math.max(0, 8 - filteredDetails.length)" :key="'empty-' + i" class="empty-row">
+              <td>&nbsp;</td>
+              <td></td>
+              <td></td>
+              <td></td>
+              <td></td>
+              <td></td>
             </tr>
           </tbody>
         </table>
@@ -137,6 +168,10 @@ onMounted(() => {
           <div class="signer-role">{{ printData.Disetujui }}</div>
         </div>
       </div>
+    </div>
+
+    <div v-else class="text-center pt-10">
+      Data tidak ditemukan.
     </div>
   </div>
 </template>
