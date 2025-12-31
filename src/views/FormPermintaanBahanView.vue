@@ -70,7 +70,10 @@ const isLocked = computed(() => {
   return formData.accManager && formData.accManager !== "-" && formData.accManager !== "";
 });
 
+
+// Fungsi untuk mengambil user dari localStorage
 const getCurrentUser = () => {
+  // Mencari di dalam objek JSON seperti yang Anda lakukan di fungsi approveData
   for (let i = 0; i < localStorage.length; i++) {
     const key = localStorage.key(i);
     if (key) {
@@ -81,9 +84,10 @@ const getCurrentUser = () => {
           currentUserKode.value = parsed.kdUser;
           return;
         }
-      } catch (e) { /* skip */ }
+      } catch (e) { /* bukan JSON */ }
     }
   }
+  // Fallback jika disimpan langsung
   currentUserKode.value = localStorage.getItem("kdUser") || "";
 };
 
@@ -139,6 +143,46 @@ const isFormValid = computed(() => {
   const detailOk = formData.detail.some((d) => d.sku && Number(d.qty) > 0);
   return headerOk && detailOk;
 });
+
+// --- Tambahkan Fungsi ini di dalam script setup ---
+// --- Bagian Script Setup ---
+
+const approveData = async (type: 'SPV' | 'MANAGER') => {
+  if (type === 'MANAGER' && (!formData.accSpv || formData.accSpv === "-" || formData.accSpv === "")) {
+    toast.warning("Manager tidak dapat melakukan ACC sebelum SPV menyetujui.");
+    return;
+  }
+
+  isApproving.value = true;
+  try {
+    // Sesuaikan payload ini dengan apa yang ditangkap oleh Controller Backend
+    const payload = {
+      nomor: formData.nomor,
+      role: type,        // Ganti 'type' menjadi 'role' jika controller backend pakai 'role'
+      user: currentUserKode.value, // Ganti 'userKD' menjadi 'user' jika controller backend pakai 'user'
+      details: formData.detail
+        .filter(d => d.sku)
+        .map(d => ({ sku: d.sku, isAcc: d.isAcc ? 'Y' : 'N' }))
+    };
+
+    // Log untuk memastikan data sebelum dikirim
+    console.log("Payload Approval:", payload);
+
+    await api.post(`${API_URL}/approve`, payload, {
+      headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
+    });
+
+    toast.success(`Berhasil melakukan ACC ${type}`);
+    await loaddataall(formData.nomor);
+    
+  } catch (error: any) {
+    // Jika error "Gagal ACC Header" muncul, artinya status SPV di DB memang masih 'N'
+    const msg = error.response?.data?.message || `Gagal melakukan ACC ${type}`;
+    toast.error(msg);
+  } finally {
+    isApproving.value = false;
+  }
+};
 
 // --- Methods ---
 const addDetail = () => {
@@ -240,25 +284,36 @@ const saveForm = async (saveAndNew: boolean) => {
       NomorToEdit: isEditMode.value ? formData.nomor : null,
       Tanggal: formData.tanggal,
       GudangKode: formData.gudangKode,
-      PabrikKode: formData.pabrikKode,
       Keterangan: formData.keteranganHeader,
-      Kepada: formData.kepada,
-      Cabang: formData.cabang,
+      Kepada: formData.kepada, // Pastikan terisi
+      Cabang: formData.cabang, // Data dari Pabrik select
       Detail: formData.detail
         .filter((d) => d.sku && d.qty > 0)
         .map((d) => ({
-          SPK: d.spk, SKU: d.sku, QTY: d.qty, Satuan: d.satuan,
-          KeteranganItem: d.keterangan, IsAcc: d.isAcc ? 'Y' : 'N'
+          SPK: d.spk, 
+          SKU: d.sku, 
+          QTY: d.qty, 
+          Satuan: d.satuan,
+          KeteranganItem: d.keterangan, 
+          IsAcc: d.isAcc ? 'Y' : 'N'
         })),
     };
-    if (isEditMode.value) await api.put(`${API_URL}/${formData.nomor}`, payload);
-    else await api.post(API_URL, payload);
+    
+    let response;
+    if (isEditMode.value) {
+      response = await api.put(`${API_URL}/${formData.nomor}`, payload);
+    } else {
+      response = await api.post(API_URL, payload);
+    }
 
     toast.success("Data berhasil disimpan!");
+    
     if (saveAndNew) {
-      router.push({ name: route.name as string }).then(() => router.go(0));
+      refreshData();
     } else {
-      router.push({ name: "PermintaanBahanBrowse" });
+      // Jika baru simpan (AUTO), ambil nomor baru dari response backend
+      const newNomor = response.data.Nomor || formData.nomor;
+      await loaddataall(newNomor);
     }
   } catch (error: any) {
     toast.error(error.response?.data?.message || "Gagal menyimpan data.");
@@ -276,18 +331,50 @@ onMounted(() => {
 <template>
   <PageLayout title="Form Permintaan Bahan MMT" icon="mdi-basket-fill">
     <template #header-actions>
-      <v-btn size="x-small" color="primary" @click="saveForm(false)" :loading="isSaving" :disabled="!isFormValid">
-        <v-icon start>mdi-check-circle</v-icon> Simpan
-      </v-btn>
+  <v-btn 
+    v-if="isEditMode && currentUserKode === 'EKAMMT'" 
+    size="x-small" 
+    color="orange-darken-2" 
+    @click="approveData('SPV')" 
+    :loading="isApproving" 
+    class="mr-1"
+  >
+    <v-icon start>mdi-account-check</v-icon> Acc SPV
+  </v-btn>
 
-      <v-btn size="x-small" color="success" class="ml-1" @click="saveForm(true)" :disabled="isSaving || !isFormValid">
-        <v-icon start>mdi-content-save-all</v-icon> Simpan & Baru
-      </v-btn>
+  <v-btn 
+    v-if="isEditMode && currentUserKode === 'FADLY'" 
+    size="x-small" 
+    color="purple-darken-2" 
+    @click="approveData('MANAGER')" 
+    :loading="isApproving" 
+    class="mr-1"
+  >
+    <v-icon start>mdi-shield-check</v-icon> Acc Manager
+  </v-btn>
 
-      <v-btn size="x-small" class="ml-1" @click="router.push({ name: 'PermintaanBahanBrowse' })">
-        <v-icon start>mdi-close</v-icon> Tutup
-      </v-btn>
-    </template>
+  <v-divider vertical class="mx-2" v-if="isEditMode && (currentUserKode === 'EKAMMT' || currentUserKode === 'FADLY')"></v-divider>
+
+  <v-btn 
+    size="x-small" 
+    color="primary" 
+    @click="saveForm(false)" 
+    :loading="isSaving" 
+    :disabled="!isFormValid || isLocked"
+  >
+    <v-icon start>mdi-check-circle</v-icon> Simpan
+  </v-btn>
+
+  <v-btn 
+    size="x-small" 
+    color="success" 
+    class="ml-1" 
+    @click="saveForm(true)" 
+    :disabled="isSaving || !isFormValid || isLocked"
+  >
+    <v-icon start>mdi-content-save-all</v-icon> Simpan & Baru
+  </v-btn>
+  </template>
 
     <div class="form-grid-container">
       <div class="left-column">
