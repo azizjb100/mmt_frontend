@@ -397,6 +397,7 @@ interface DetailLHK {
   padding: number;
   tile: number;
   cetak1: number; cetak2: number; cetak3: number; cetak4: number; cetak5: number;
+  cetak6: number; cetak7: number;
   totalcetak: number;
   panjangTerpakai: number;
   sisaBahanPanjang: number;
@@ -486,6 +487,7 @@ const defaultDetail = (): DetailLHK => ({
   padding: DEFAULT_PADDING_CM,
   tile: 1,
   cetak1: 0, cetak2: 0, cetak3: 0, cetak4: 0, cetak5: 0,
+  cetak6: 0, cetak7: 0,
   totalcetak: 0,
   panjangTerpakai: 0.0,
   sisaBahanPanjang: 0.0,
@@ -589,6 +591,8 @@ const detailHeaders = [
   { title: "C3", key: "cetak3", width: "5%", align: "end" as const },
   { title: "C4", key: "cetak4", width: "5%", align: "end" as const },
   { title: "C5", key: "cetak5", width: "5%", align: "end" as const },
+  { title: "C6", key: "cetak6", width: "5%", align: "end" as const },
+  { title: "C7", key: "cetak7", width: "5%", align: "end" as const },
   {
     title: "Total Unit",
     key: "totalcetak",
@@ -648,8 +652,11 @@ const calculateTotals = (detail: DetailLHK) => {
   const c3 = getVal("cetak3");
   const c4 = getVal("cetak4");
   const c5 = getVal("cetak5");
+  const c6 = getVal("cetak6");
+  const c7 = getVal("cetak7");
 
-  const totalUnitCetak = c1 + c2 + c3 + c4 + c5;
+
+  const totalUnitCetak = c1 + c2 + c3 + c4 + c5 + c6 + c7;
 
   // 4. Hitungan Total Panjang Bahan Terpakai (TPT)
   let totalPanjangTerpakai = 0;
@@ -964,6 +971,8 @@ const handleSave = async (saveAndNew: boolean) => {
     cetak3: d.cetak3,
     cetak4: d.cetak4,
     cetak5: d.cetak5,
+    cetak6: d.cetak6,
+    cetak7: d.cetak7,
     totalcetak: d.totalcetak,
     cetakmeter: Number(d.panjangTerpakai.toFixed(3)), 
     roll: d.roll,
@@ -1069,6 +1078,8 @@ const loadExistingData = () => {
         cetak3: 0,
         cetak4: 0,
         cetak5: 0,
+        cetak6: 0,
+        cetak7: 0,
         totalcetak: 100,
         panjangTerpakai: 0,
         sisaBahanPanjang: 0,

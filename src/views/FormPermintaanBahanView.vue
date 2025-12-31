@@ -63,8 +63,10 @@ const isSPKModalVisible = ref(false);
 const currentDetailIndex = ref<number | null>(null);
 const isApproving = ref(false);
 const currentUserKode = ref("");
+
+// Logika Lock: Hanya mengunci field utama jika data lama dan sudah di-ACC Manager
 const isLocked = computed(() => {
-  // Jika accManager bukan "-", null, atau string kosong, maka terkunci
+  if (formData.nomor === "AUTO") return false;
   return formData.accManager && formData.accManager !== "-" && formData.accManager !== "";
 });
 
@@ -79,7 +81,7 @@ const getCurrentUser = () => {
           currentUserKode.value = parsed.kdUser;
           return;
         }
-      } catch (e) { /* skip non-json */ }
+      } catch (e) { /* skip */ }
     }
   }
   currentUserKode.value = localStorage.getItem("kdUser") || "";
@@ -133,58 +135,23 @@ const calculatedTotal = computed(() => {
 });
 
 const isFormValid = computed(() => {
-  return !!formData.gudangKode && !!formData.cabang && formData.detail.some((d) => d.sku && d.qty > 0);
+  const headerOk = !!formData.gudangKode && (!!formData.cabang || !!formData.pabrikNama);
+  const detailOk = formData.detail.some((d) => d.sku && Number(d.qty) > 0);
+  return headerOk && detailOk;
 });
 
 // --- Methods ---
-const addDetail = () => formData.detail.push(createEmptyDetail());
+const addDetail = () => {
+  if (isLocked.value) return;
+  formData.detail.push(createEmptyDetail());
+}
 
 const removeDetail = (index: number) => {
+  if (isLocked.value) return;
   if (formData.detail.length > 1) {
     formData.detail.splice(index, 1);
   } else {
     formData.detail[0] = createEmptyDetail();
-  }
-};
-
-const approveData = async (role: 'SPV' | 'MANAGER') => {
-  if (formData.nomor === "AUTO") {
-    toast.warning("Simpan data terlebih dahulu.");
-    return;
-  }
-
-  isApproving.value = true;
-  try {
-    const token = localStorage.getItem("token");
-    const itemApprovals = formData.detail
-      .filter(d => d.sku)
-      .map(d => ({
-        sku: d.sku,
-        isAcc: d.isAcc
-      }));
-
-    if (!currentUserKode.value) {
-      toast.error("Identitas user tidak ditemukan. Silakan login ulang.");
-      return;
-    }
-
-    const payload = {
-      nomor: formData.nomor,
-      role: role,
-      user: currentUserKode.value,
-      details: itemApprovals 
-    };
-
-    const config = { headers: { Authorization: `Bearer ${token}` } };
-    await api.post(`${API_URL}/approve`, payload, config);
-
-    toast.success(`Berhasil disetujui sebagai ${role}`);
-    await loaddataall(formData.nomor);
-    
-  } catch (error: any) {
-    toast.error(error.response?.data?.message || `Gagal Acc ${role}.`);
-  } finally {
-    isApproving.value = false;
   }
 };
 
@@ -195,7 +162,6 @@ const loaddataall = async (nomor: string) => {
       headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
     });
     const d = response.data;
-
     formData.nomor = d.Nomor;
     formData.tanggal = format(new Date(d.Tanggal), "yyyy-MM-dd");
     formData.gudangKode = d.Gudang_Asal_Kode;
@@ -217,9 +183,8 @@ const loaddataall = async (nomor: string) => {
       keterangan: item.KeteranganItem || "",
       spk: item.Nomor_SPK || "",
       namaSPK: item.spk_nama || "",
-      isAcc: item.Is_Acc !== false,
+      isAcc: item.Is_Acc !== 'N',
     }));
-    
     if (formData.detail.length === 0 || formData.detail[formData.detail.length-1].sku) addDetail();
   } catch (error) {
     toast.error("Gagal memuat data transaksi.");
@@ -232,7 +197,7 @@ const handleBahanSelect = (bahan: MasterBahan) => {
   if (currentDetailIndex.value === null) return;
   const isDuplicate = formData.detail.some((d, i) => d.sku === bahan.Kode && i !== currentDetailIndex.value);
   if (isDuplicate) {
-    toast.warning(`Bahan ${bahan.Kode} sudah ada di baris lain.`);
+    toast.warning(`Bahan ${bahan.Kode} sudah ada.`);
     return;
   }
   const target = formData.detail[currentDetailIndex.value];
@@ -282,24 +247,16 @@ const saveForm = async (saveAndNew: boolean) => {
       Detail: formData.detail
         .filter((d) => d.sku && d.qty > 0)
         .map((d) => ({
-          SPK: d.spk,
-          SKU: d.sku,
-          QTY: d.qty,
-          Satuan: d.satuan,
-          KeteranganItem: d.keterangan,
-          IsAcc: d.isAcc ? 'Y' : 'N'
+          SPK: d.spk, SKU: d.sku, QTY: d.qty, Satuan: d.satuan,
+          KeteranganItem: d.keterangan, IsAcc: d.isAcc ? 'Y' : 'N'
         })),
     };
-
-    if (isEditMode.value) {
-      await api.put(`${API_URL}/${formData.nomor}`, payload);
-    } else {
-      await api.post(API_URL, payload);
-    }
+    if (isEditMode.value) await api.put(`${API_URL}/${formData.nomor}`, payload);
+    else await api.post(API_URL, payload);
 
     toast.success("Data berhasil disimpan!");
     if (saveAndNew) {
-      router.go(0); // Refresh for new
+      router.push({ name: route.name as string }).then(() => router.go(0));
     } else {
       router.push({ name: "PermintaanBahanBrowse" });
     }
@@ -312,44 +269,21 @@ const saveForm = async (saveAndNew: boolean) => {
 
 onMounted(() => {
   getCurrentUser();
-  if (isEditMode.value && route.params.nomor) {
-    loaddataall(route.params.nomor as string);
-  }
+  if (isEditMode.value && route.params.nomor) loaddataall(route.params.nomor as string);
 });
 </script>
 
 <template>
   <PageLayout title="Form Permintaan Bahan MMT" icon="mdi-basket-fill">
     <template #header-actions>
-      <v-btn v-if="isEditMode && currentUserKode === 'EKAMMT'" size="x-small" color="orange-darken-2" @click="approveData('SPV')" :loading="isApproving" class="mr-1">
-        <v-icon start>mdi-account-check</v-icon> Acc SPV
+      <v-btn size="x-small" color="primary" @click="saveForm(false)" :loading="isSaving" :disabled="!isFormValid">
+        <v-icon start>mdi-check-circle</v-icon> Simpan
       </v-btn>
 
-      <v-btn v-if="isEditMode && currentUserKode === 'FADLY'" size="x-small" color="purple-darken-2" @click="approveData('MANAGER')" :loading="isApproving" class="mr-1">
-        <v-icon start>mdi-shield-check</v-icon> Acc Manager
+      <v-btn size="x-small" color="success" class="ml-1" @click="saveForm(true)" :disabled="isSaving || !isFormValid">
+        <v-icon start>mdi-content-save-all</v-icon> Simpan & Baru
       </v-btn>
 
-      <v-divider vertical class="mx-2" v-if="isEditMode && (currentUserKode === 'EKAMMT' || currentUserKode === 'FADLY')" />
-      
-      <v-btn 
-  size="x-small" 
-  color="primary" 
-  @click="saveForm(false)" 
-  :loading="isSaving" 
-  :disabled="!isFormValid || isLocked"
->
-  <v-icon start>mdi-check-circle</v-icon> Simpan
-</v-btn>
-
-<v-btn 
-  size="x-small" 
-  color="success" 
-  class="ml-1" 
-  @click="saveForm(true)" 
-  :disabled="isSaving || !isFormValid || isLocked"
->
-  <v-icon start>mdi-content-save-all</v-icon> Simpan & Baru
-</v-btn>
       <v-btn size="x-small" class="ml-1" @click="router.push({ name: 'PermintaanBahanBrowse' })">
         <v-icon start>mdi-close</v-icon> Tutup
       </v-btn>
@@ -366,58 +300,31 @@ onMounted(() => {
                 <v-text-field label="Nomor Transaksi" v-model="formData.nomor" readonly variant="filled" density="compact" hide-details />
               </v-col>
               <v-col cols="6">
-                <v-text-field 
-  label="Tanggal" 
-  v-model="formData.tanggal" 
-  type="date" 
-  variant="outlined" 
-  density="compact" 
-  hide-details 
-  :readonly="isLocked" 
-/>
+                <v-text-field label="Tanggal" v-model="formData.tanggal" type="date" variant="outlined" density="compact" hide-details :readonly="isLocked" />
               </v-col>
               <v-col cols="6">
-                <v-text-field 
-  label="Gudang Asal" 
-  v-model="formData.gudangKode" 
-  @click="!isLocked && (isGudangModalVisible = true)" 
-  :append-inner-icon="isLocked ? '' : 'mdi-magnify'" 
-  readonly 
-  density="compact" 
-  variant="outlined" 
-  hide-details 
-/>
+                <v-text-field label="Gudang Asal" v-model="formData.gudangKode" @click="!isLocked && (isGudangModalVisible = true)" :append-inner-icon="isLocked ? '' : 'mdi-magnify'" readonly density="compact" variant="outlined" hide-details />
               </v-col>
               <v-col cols="12">
                 <v-text-field label="Nama Gudang" v-model="formData.gudangNama" readonly bg-color="grey-lighten-4" density="compact" variant="outlined" hide-details />
               </v-col>
+              
               <v-col cols="12">
                 <v-text-field label="Kepada" v-model="formData.kepada" variant="outlined" density="compact" hide-details />
               </v-col>
+
               <v-col cols="12">
-                <v-text-field label="Pilih Tujuan (Pabrik)" v-model="formData.pabrikNama" @click="isPabrikModalVisible = true" append-inner-icon="mdi-magnify" readonly variant="outlined" density="compact" hide-details color="primary" />
+                <v-text-field label="Pilih Tujuan (Pabrik)" v-model="formData.pabrikNama" @click="!isLocked && (isPabrikModalVisible = true)" append-inner-icon="isLocked ? '' : 'mdi-magnify'" readonly variant="outlined" density="compact" hide-details color="primary" />
               </v-col>
               <v-col cols="12">
-                <v-textarea 
-  label="Keterangan Header" 
-  v-model="formData.keteranganHeader" 
-  rows="2" 
-  variant="outlined" 
-  density="compact" 
-  hide-details 
-  :readonly="isLocked" 
-/>
+                <v-textarea label="Keterangan Header" v-model="formData.keteranganHeader" rows="2" variant="outlined" density="compact" hide-details :readonly="isLocked" />
               </v-col>
 
               <v-col cols="12" class="mt-4 pt-4 border-t">
                 <div class="text-caption font-weight-bold text-grey mb-2">STATUS APPROVAL</div>
                 <v-row dense>
-                  <v-col cols="6">
-                    <v-text-field label="Acc SPV" v-model="formData.accSpv" readonly density="compact" variant="filled" hide-details class="text-caption" />
-                  </v-col>
-                  <v-col cols="6">
-                    <v-text-field label="Acc Manager" v-model="formData.accManager" readonly density="compact" variant="filled" hide-details class="text-caption" />
-                  </v-col>
+                  <v-col cols="6"><v-text-field label="Acc SPV" v-model="formData.accSpv" readonly density="compact" variant="filled" hide-details class="text-caption" /></v-col>
+                  <v-col cols="6"><v-text-field label="Acc Manager" v-model="formData.accManager" readonly density="compact" variant="filled" hide-details class="text-caption" /></v-col>
                 </v-row>
               </v-col>
 
@@ -434,81 +341,40 @@ onMounted(() => {
 
       <div class="right-column">
         <v-card border flat>
-          <v-data-table 
-            :headers="detailHeaders" 
-            :items="formData.detail" 
-            :items-per-page="-1" 
-            density="compact" 
-            hide-default-footer 
-            fixed-header 
-            height="calc(100vh - 220px)"
-          >
+          <v-data-table :headers="detailHeaders" :items="formData.detail" :items-per-page="-1" density="compact" hide-default-footer fixed-header height="calc(100vh - 220px)">
             <template #[`item.index`]="{ index }">
               <span class="text-grey text-caption">{{ index + 1 }}</span>
             </template>
 
             <template #[`item.isAcc`]="{ item }">
-              <v-checkbox
-                v-model="item.isAcc"
-                density="compact"
-                hide-details
-                color="purple"
-                :readonly="currentUserKode !== 'FADLY'"
-                :disabled="!isEditMode"
-              />
+              <v-checkbox v-model="item.isAcc" density="compact" hide-details color="purple" :readonly="currentUserKode !== 'FADLY'" :disabled="!isEditMode" />
             </template>
 
             <template #[`item.spk`]="{ item, index }">
-              <v-text-field v-model="item.spk" @click="currentDetailIndex = index; isSPKModalVisible = true" append-inner-icon="mdi-magnify" readonly density="compact" variant="plain" hide-details />
+              <v-text-field v-model="item.spk" @click="!isLocked && (currentDetailIndex = index, isSPKModalVisible = true)" append-inner-icon="mdi-magnify" readonly density="compact" variant="plain" hide-details />
             </template>
 
             <template #[`item.sku`]="{ item, index }">
-              <v-text-field 
-                v-model="item.sku" 
-                :class="{ 'text-decoration-line-through text-red': !item.isAcc }"
-                @click="currentDetailIndex = index; isBahanModalVisible = true" 
-                append-inner-icon="mdi-magnify" 
-                readonly 
-                density="compact" 
-                variant="plain" 
-                hide-details 
-              />
+              <v-text-field v-model="item.sku" :class="{ 'text-decoration-line-through text-red': !item.isAcc }" @click="!isLocked && (currentDetailIndex = index, isBahanModalVisible = true)" append-inner-icon="mdi-magnify" readonly density="compact" variant="plain" hide-details />
             </template>
 
             <template #[`item.namaBarang`]="{ item }">
-              <div :class="{ 'text-decoration-line-through text-grey': !item.isAcc }" class="text-truncate">
-                {{ item.namaBarang }}
-              </div>
+              <div :class="{ 'text-decoration-line-through text-grey': !item.isAcc }" class="text-truncate">{{ item.namaBarang }}</div>
             </template>
 
             <template #[`item.qty`]="{ item }">
-  <v-text-field 
-    v-model.number="item.qty" 
-    type="number" 
-    density="compact" 
-    variant="plain" 
-    hide-details 
-    class="text-right-input" 
-    :readonly="isLocked"
-  />
-</template>
+              <v-text-field v-model.number="item.qty" type="number" density="compact" variant="plain" hide-details class="text-right-input" />
+            </template>
 
             <template #[`item.actions`]="{ index }">
-  <v-btn 
-    v-if="!isLocked"
-    icon="mdi-delete" 
-    size="x-small" 
-    color="error" 
-    variant="text" 
-    @click="removeDetail(index)" 
-  />
-</template>
+              <v-btn v-if="!isLocked" icon="mdi-delete" size="x-small" color="error" variant="text" @click="removeDetail(index)" />
+            </template>
 
             <template #bottom>
-  <div class="pa-2 border-t" v-if="!isLocked">
-    <v-btn size="x-small" color="primary" variant="tonal" prepend-icon="mdi-plus" @click="addDetail">Tambah Baris</v-btn>
-  </div>
-</template>
+              <div class="pa-2 border-t" v-if="!isLocked">
+                <v-btn size="x-small" color="primary" variant="tonal" prepend-icon="mdi-plus" @click="addDetail">Tambah Baris</v-btn>
+              </div>
+            </template>
           </v-data-table>
         </v-card>
       </div>
@@ -522,69 +388,9 @@ onMounted(() => {
 </template>
 
 <style scoped>
-
-.form-grid-container {
-
-  display: grid;
-
-  grid-template-columns: 350px 1fr;
-
-  gap: 15px;
-
-  padding: 10px;
-
-}
-
-
-
-/* Menargetkan seluruh area kolom kanan */
-
-.right-column :deep(*) {
-
-  font-size: 11px !important;
-
-}
-
-
-
-.detail-entry-table :deep(.v-data-table-header__content) {
-  font-weight: bold;
-}
-
-
-
-/* Custom styling untuk input dalam tabel agar sangat rapat */
-
-.detail-entry-table :deep(.v-field__input) {
-  padding: 2px 6px !important;
-  min-height: 28px !important;
-  height: 28px !important;
-}
-
-
-.detail-entry-table :deep(.v-data-table__td) {
-  height: 32px !important;
-}
-
-
-
-.text-right-input :deep(input) {
-
-  text-align: right !important;
-
-}
-
-
-.no-spinner :deep(input::-webkit-outer-spin-button),
-.no-spinner :deep(input::-webkit-inner-spin-button) {
-  -webkit-appearance: none;
-  margin: 0;
-}
-
-
-
-.bg-grey-lighten-5 {
-  background-color: #f9f9f9 !important;
-}
-
+.form-grid-container { display: grid; grid-template-columns: 350px 1fr; gap: 15px; padding: 10px; }
+.right-column :deep(*) { font-size: 11px !important; }
+.text-right-input :deep(input) { text-align: right !important; }
+:deep(.v-data-table__td) { height: 32px !important; }
+.bg-grey-lighten-5 { background-color: #f9f9f9 !important; }
 </style>

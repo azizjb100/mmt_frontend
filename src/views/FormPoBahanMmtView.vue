@@ -244,16 +244,19 @@
                   />
                 </template>
                 <template #[`item.harga`]="{ item }">
-                  <v-text-field
-                    v-model.number="item.harga"
-                    type="number"
-                    min="0"
-                    :disabled="!user.canSeePrice"
-                    @update:modelValue="hitung"
-                    density="compact"
-                    hide-details
-                    class="text-end"
-                  />
+  <v-text-field
+    v-model.number="item.harga"
+    type="number"
+    min="0"
+    :label="formData.isPpn ? 'Inc PPN' : 'Harga'"
+    :bg-color="formData.isPpn ? 'blue-lighten-5' : ''"
+    :disabled="!user.canSeePrice"
+    @update:modelValue="hitung"
+    density="compact"
+    hide-details
+    class="text-end"
+  />
+
                 </template>
                 <template #[`item.diskon`]="{ item }">
                   <v-text-field
@@ -761,14 +764,27 @@ const formTitle = computed(() =>
 // --- Computed Totals (Hitung Logic) ---
 
 const calculateTotal = (item: DetailItem): number => {
-  return item.jumlah * item.harga * (1 - (item.diskon || 0) / 100);
+  let hargaBersih = item.harga;
+  if (formData.isPpn && formData.ppnRate > 0) {
+    hargaBersih = item.harga / (1 + (formData.ppnRate / 100));
+  }
+  return item.jumlah * hargaClean * (1 - (item.diskon || 0) / 100);
 };
 
 const hitung = () => {
-  // Replikasi ufrmPO.hitung logic
   let subTotal = 0;
+  
   formData.detail.forEach((item) => {
-    item.total = calculateTotal(item);
+    // Jika harga diisi dan PPN aktif
+    let hargaBersih = item.harga;
+    
+    // Logic Include PPN: Hitung mundur ke DPP
+    if (formData.isPpn && formData.ppnRate > 0) {
+      hargaBersih = item.harga / (1 + (formData.ppnRate / 100));
+    }
+
+    // Kalkulasi per baris menggunakan harga bersih (DPP)
+    item.total = item.jumlah * hargaBersih * (1 - (item.diskon || 0) / 100);
     subTotal += item.total;
   });
 
@@ -786,11 +802,12 @@ const calculatedSubTotal = computed(() => {
 });
 
 const calculatedPpnTotal = computed(() => {
-  if (!formData.isPpn || formData.ppnRate === 0) return 0;
+  // PPN dihitung dari DPP (Subtotal)
   return calculatedSubTotal.value * (formData.ppnRate / 100);
 });
 
 const calculatedGrandTotal = computed(() => {
+  // Hasil akhirnya harus SAMA dengan (Total Qty * Harga Input) sebelum diskon
   return calculatedSubTotal.value + calculatedPpnTotal.value;
 });
 

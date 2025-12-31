@@ -61,6 +61,27 @@ const selectedRow = computed<PermintaanBahanHeader | null>(() =>
   isSingleSelected.value ? (selected.value[0] as PermintaanBahanHeader) : null
 );
 
+// Fungsi untuk menentukan status PO berdasarkan item yang di-ACC saja
+const calculateStatusPO = (details: PermintaanBahanDetail[]) => {
+  if (!details || details.length === 0) return "OPEN";
+
+  // 1. Filter hanya item yang disetujui (ACC = 'Y')
+  const accItems = details.filter(d => d.Is_Acc === 'Y');
+
+  // Jika tidak ada satu pun yang di-ACC, bisa dianggap CLOSE atau VOID tergantung kebijakan
+  if (accItems.length === 0) return "CLOSE"; 
+
+  // 2. Cek apakah semua item yang di-ACC sudah memiliki relasi ke PO 
+  // (Asumsi: item yang sudah dibuatkan PO memiliki flag atau nomor PO di database)
+  // Contoh logika: jika Jumlah_PO >= Jumlah_Permintaan
+  const allProcessed = accItems.every(d => {
+    // Ganti 'Jumlah_PO' dengan field asli dari database Anda yang menandakan item sudah jadi PO
+    return (d.Jumlah_PO || 0) >= d.Jumlah; 
+  });
+
+  return allProcessed ? "CLOSE" : "ONPROSES";
+};
+
 const getStatusColor = (status: string) => {
   if (!status) return "default";
 

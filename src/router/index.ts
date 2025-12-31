@@ -35,6 +35,7 @@ import FormLhkCetakView from '@/views/FormLhkCetakView.vue';
 import PermintaanBahanPrintView from '@/views/PermintaanBahanPrintView.vue';
 import FormLhkCetakViewNew from '@/views/FormLhkCetakViewNew.vue';
 import FormRecreateBarcode from '@/views/FormRecreateBarcode.vue';
+import LapMonLmkpMmtView from '@/views/LapMonLmkpMmtView.vue';
 
 
 
@@ -230,6 +231,7 @@ const routes: RouteRecordRaw[] = [
             { path: 'produksi-mmt/mon/tekstil', name: 'Monitoring Tekstil MMT', component: ComingSoon },
             { path: 'laporan/mmt/ls-bahan-utama', name: 'LS Bahan Utama', component: LapLsBahanUtamaView },
             { path: 'laporan/mmt/ls-bahan-penolong', name: 'LS Bahan Penolong', component: LapLsBahanPenolongView },
+            { path: 'laporan/mmt/lap-mon-lmkp-mmt', name: 'lapMonLmkpMmt', component: LapMonLmkpMmtView },
             { path: 'produksi-mmt/ls-tinta', name: 'LS Tinta', component: ComingSoon },
             { path: 'produksi-mmt/ls-bahan-kain', name: 'LS Bahan Kain', component: ComingSoon },
             { path: 'produksi-mmt/kartu-stock-bahan', name: 'Kartu Stock Bahan MMT', component: ComingSoon },

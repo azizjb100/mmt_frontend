@@ -21,13 +21,30 @@
           <v-card-title class="text-subtitle-1">Data Header</v-card-title>
           <v-card-text>
             <v-row dense>
-              <v-col cols="12"><v-text-field label="Nomor Transaksi" v-model="formData.nomor" readonly variant="filled" density="compact" hide-details /></v-col>
-              <v-col cols="6"><v-text-field label="Tanggal" v-model="formData.tanggal" type="date" variant="outlined" density="compact" hide-details /></v-col>
-              <v-col cols="6"><v-text-field label="Gudang" :model-value="`${formData.gudangKode} - ${formData.gudang}`" readonly variant="filled" density="compact" hide-details /></v-col>
-              <v-col cols="12"><v-text-field label="Nomor PO/Minta" v-model="formData.noPermintaan" readonly @click="openPOLookup" variant="outlined" density="compact" hide-details append-inner-icon="mdi-magnify" style="cursor: pointer" /></v-col>
-              <v-col cols="5"><v-text-field label="Kode Supplier" v-model="formData.supplierKode" readonly @click="openSupplierSearch" variant="outlined" density="compact" hide-details append-inner-icon="mdi-magnify" style="cursor: pointer" /></v-col>
-              <v-col cols="7"><v-text-field label="Nama Supplier" v-model="formData.supplier" readonly variant="filled" density="compact" hide-details /></v-col>
-              <v-col cols="12"><v-textarea label="Keterangan" v-model="formData.keterangan" rows="2" variant="outlined" density="compact" hide-details /></v-col>
+              <v-col cols="12">
+                <v-text-field label="Nomor Transaksi" v-model="formData.nomor" readonly variant="filled" density="compact" hide-details />
+              </v-col>
+              <v-col cols="6">
+                <v-text-field label="Tanggal" v-model="formData.tanggal" type="date" variant="outlined" density="compact" hide-details />
+              </v-col>
+              <v-col cols="6">
+                <v-text-field label="Gudang" :model-value="`${formData.gudangKode} - ${formData.gudang}`" readonly variant="filled" density="compact" hide-details />
+              </v-col>
+              <v-col cols="12">
+                <v-text-field label="Nomor PO/Minta" v-model="formData.noPermintaan" readonly @click="openPOLookup" variant="outlined" density="compact" hide-details append-inner-icon="mdi-magnify" style="cursor: pointer" />
+              </v-col>
+              <v-col cols="5">
+                <v-text-field label="Kode Supplier" v-model="formData.supplierKode" readonly @click="openSupplierSearch" variant="outlined" density="compact" hide-details append-inner-icon="mdi-magnify" style="cursor: pointer" />
+              </v-col>
+              <v-col cols="7">
+                <v-text-field label="Nama Supplier" v-model="formData.supplier" readonly variant="filled" density="compact" hide-details />
+              </v-col>
+              <v-col cols="12">
+                <v-text-field label="Nomor Resi" v-model="formData.no_resi" variant="outlined" density="compact" hide-details placeholder="Masukkan No. Resi pengiriman" />
+              </v-col>
+              <v-col cols="12">
+                <v-textarea label="Keterangan" v-model="formData.keterangan" rows="2" variant="outlined" density="compact" hide-details />
+              </v-col>
             </v-row>
           </v-card-text>
         </v-card>
@@ -52,7 +69,11 @@
                   <v-btn icon="mdi-delete" size="x-small" variant="text" color="error" @click="removeDetail(index)" :disabled="formData.details.length === 1" />
                 </template>
                 <template #bottom>
-                  <v-container class="py-2"><v-row justify="end"><v-btn size="small" color="primary" @click="addDetail" prepend-icon="mdi-plus">Tambah Item</v-btn></v-row></v-container>
+                  <v-container class="py-2">
+                    <v-row justify="end">
+                      <v-btn size="small" color="primary" @click="addDetail" prepend-icon="mdi-plus">Tambah Item</v-btn>
+                    </v-row>
+                  </v-container>
                 </template>
               </v-data-table>
             </div>
@@ -61,54 +82,59 @@
       </div>
     </div>
 
-    <v-dialog v-model="showPrintSelection" max-width="550px" persistent>
+    <v-dialog v-model="showPrintSelection" max-width="500px" persistent>
       <v-card>
-        <v-card-title class="bg-teal text-white d-flex align-center">
-          <v-icon start>mdi-barcode-scan</v-icon> Pilih Item untuk Barcode
-        </v-card-title>
+        <v-card-title class="bg-teal text-white">Cetak Barcode</v-card-title>
         <v-card-text class="pa-4">
-          <p class="text-body-2 mb-4">Transaksi <b>{{ savedNomor }}</b> sukses. Pilih barang yang ingin dicetak labelnya:</p>
-          <v-list lines="two" border rounded>
+          <p class="mb-4">Pilih item dari transaksi <b>{{ savedNomor }}</b>:</p>
+          <v-list lines="two" border rounded max-height="300px">
             <v-list-item v-for="item in printSelectionItems" :key="item.kode">
               <template #prepend>
                 <v-checkbox v-model="selectedForBarcode" :value="item.kode" hide-details density="compact" />
               </template>
               <v-list-item-title class="font-weight-bold">{{ item.namaBahan }}</v-list-item-title>
-              <v-list-item-subtitle>{{ item.kode }} — Jumlah: <b>{{ item.qtyTerima }}</b></v-list-item-subtitle>
+              <v-list-item-subtitle>{{ item.kode }} — Qty: {{ item.qtyTerima }}</v-list-item-subtitle>
             </v-list-item>
           </v-list>
         </v-card-text>
-        <v-divider />
         <v-card-actions class="pa-3">
           <v-btn variant="text" color="grey" @click="handleAfterPrint">Lewati</v-btn>
           <v-spacer />
-          <v-btn color="primary" variant="elevated" prepend-icon="mdi-eye" @click="generateAndShowBarcodes">Preview Barcode</v-btn>
+          <v-btn color="primary" variant="elevated" @click="generateAndShowBarcodes">Preview Barcode</v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>
 
     <v-dialog v-model="showBarcodePreview" fullscreen persistent transition="dialog-bottom-transition">
-  <v-card>
-    <v-toolbar color="primary" density="compact">
-      <v-btn icon @click="showBarcodePreview = false"><v-icon>mdi-close</v-icon></v-btn>
-      <v-toolbar-title>Preview Label Barcode ({{ itemsToRender.length }} Pcs)</v-toolbar-title>
-      <v-spacer />
-      <v-btn color="white" variant="outlined" prepend-icon="mdi-printer" @click="printNow">Cetak Sekarang</v-btn>
-    </v-toolbar>
+      <v-card color="#f0f0f0">
+        <v-toolbar color="primary" density="compact">
+          <v-btn icon @click="showBarcodePreview = false"><v-icon>mdi-close</v-icon></v-btn>
+          <v-toolbar-title>Preview Label Barcode - {{ savedNomor }}</v-toolbar-title>
+          <v-spacer />
+          <v-btn color="white" variant="outlined" prepend-icon="mdi-printer" @click="printNow">Cetak Sekarang</v-btn>
+        </v-toolbar>
 
-    <v-card-text class="pa-0">
-      <div id="print-area">
-        <div class="qr-grid">
-          <div v-for="(item, idx) in itemsToRender" :key="idx" class="qr-card">
-            <div class="label-header">{{ item.namaBahan }}</div>
-            <canvas :id="'canvas-' + idx"></canvas>
-            <div class="label-footer">{{ item.qrValue }}</div>
+        <v-card-text class="pa-4 d-flex flex-column align-center">
+          <div id="print-area">
+            <div v-for="(item, idx) in itemsToRender" :key="idx" class="barcode-label-box">
+              <div class="label-top-section">
+                <div class="qr-container">
+                  <canvas :id="'canvas-' + idx"></canvas>
+                </div>
+                <div class="text-container">
+                  <div class="barcode-text">{{ item.qrValue }}</div>
+                  <div class="dimensi-text">Dimensi: {{ item.panjang }}x{{ item.lebar }}</div>
+                </div>
+              </div>
+              <div class="label-divider"></div>
+              <div class="label-bottom-section">
+                {{ item.namaBahan }}
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
-    </v-card-text>
-  </v-card>
-</v-dialog>
+        </v-card-text>
+      </v-card>
+    </v-dialog>
 
     <SupplierLookupModal v-if="isModalVisible" :isVisible="isModalVisible" @close="closeModal" @select="handleSupplierSelect" />
     <MasterBahanModal :isVisible="isBahanMMTModalVisible" mode="mmt" @close="closeBahanMMTModal" @select="handleBahanSelect" />
@@ -117,14 +143,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, nextTick } from "vue";
+import { ref, reactive, nextTick } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import api from "@/services/api";
 import { format } from "date-fns";
 import { useToast } from "vue-toastification";
 import QRCode from 'qrcode';
 
-// Komponen Modal Tetap Sama
 import SupplierLookupModal from "@/modal/SupplierLookupModal.vue";
 import MasterBahanModal from "@/modal/MasterBahanModal.vue";
 import POLookupModal from "@/modal/POLookupModal.vue";
@@ -142,7 +167,6 @@ const API_BASE_URL = "/mmt/penerimaan-bahan";
 const API_SUPPLIER_DETAIL = "/supplier";
 const API_PO_LOOKUP_DETAIL = "/mmt/penerimaan-bahan/po/lookup";
 
-// --- State ---
 const isEditMode = ref(!!route.params.nomor);
 const isSaving = ref(false);
 const isModalVisible = ref(false);
@@ -150,7 +174,6 @@ const isBahanMMTModalVisible = ref(false);
 const isPOLookupVisible = ref(false);
 const currentDetailIndex = ref<number | null>(null);
 
-// --- State Barcode ---
 const showPrintSelection = ref(false);
 const showBarcodePreview = ref(false);
 const savedNomor = ref("");
@@ -158,13 +181,14 @@ const printSelectionItems = ref<DetailItem[]>([]);
 const selectedForBarcode = ref<string[]>([]);
 const itemsToRender = ref<any[]>([]);
 const lastSaveAndNew = ref(false);
+const dbBarcodes = ref<any[]>([]);
 
 const formData = reactive({
   nomor: (route.params.nomor as string) || "AUTO",
   tanggal: format(new Date(), "yyyy-MM-dd"),
   supplier: "", supplierKode: "", alamat: "", telp: "",
   gudang: "GUDANG UTAMA MMT", gudangKode: "WH-16",
-  noPermintaan: "", keterangan: "",
+  noPermintaan: "", no_resi: "", keterangan: "",
   details: [{ kode: "", namaBahan: "", qtyPO: 0, qtyTerima: 0, panjang: 0, lebar: 0, satuan: "", keterangan: "" }]
 });
 
@@ -178,8 +202,6 @@ const detailHeaders = [
   { title: "Aksi", key: "actions", sortable: false },
 ];
 
-const dbBarcodes = ref<any[]>([]);
-// --- Logika Simpan ---
 const saveForm = async (saveAndNew: boolean) => {
   isSaving.value = true;
   lastSaveAndNew.value = saveAndNew;
@@ -199,41 +221,30 @@ const saveForm = async (saveAndNew: boolean) => {
         supplier_kode: formData.supplierKode, 
         gudang_kode: formData.gudangKode, 
         no_permintaan: formData.noPermintaan, 
+        no_resi: formData.no_resi,
         keterangan: formData.keterangan 
       },
       details: validDetails.map(d => ({ 
-        kode: d.kode, 
-        satuan: d.satuan, 
-        qtyPO: d.qtyPO, 
-        qtyTerima: d.qtyTerima, 
-        keterangan: d.keterangan,
-        // TAMBAHKAN INI: Agar nilai panjang & lebar dikirim ke backend
-        panjang: Number(d.panjang || 0),
-        lebar: Number(d.lebar || 0)
+        kode: d.kode, satuan: d.satuan, qtyPO: d.qtyPO, qtyTerima: d.qtyTerima, 
+        keterangan: d.keterangan, panjang: Number(d.panjang || 0), lebar: Number(d.lebar || 0)
       })),
       isEditMode: isEditMode.value
     });
-
 
     const newNomor = res.data.data?.Nomor || formData.nomor;
     toast.success("Berhasil disimpan!");
     savedNomor.value = newNomor;
 
-    // --- KRUSIAL: Tunggu data barcode dari DB sebelum lanjut ---
     const resBarcode = await api.get(`${API_BASE_URL}/barcodes/${newNomor}`);
-    
     if (resBarcode.data && resBarcode.data.data) {
-      dbBarcodes.value = resBarcode.data.data; // Simpan data barcode asli
-      
+      dbBarcodes.value = resBarcode.data.data;
       printSelectionItems.value = JSON.parse(JSON.stringify(validDetails));
       selectedForBarcode.value = validDetails.map(d => d.kode);
-      
-      // Dialog baru dimunculkan SETELAH data dbBarcodes terisi
       showPrintSelection.value = true;
     } else {
       toast.warning("Transaksi berhasil, tapi barcode gagal diambil.");
+      handleAfterPrint();
     }
-
   } catch (error: any) {
     toast.error(error.response?.data?.message || "Gagal simpan.");
   } finally {
@@ -241,31 +252,16 @@ const saveForm = async (saveAndNew: boolean) => {
   }
 };
 
-// --- Logika Generate QR Real ---
 const generateAndShowBarcodes = async () => {
-  if (dbBarcodes.value.length === 0) {
-    toast.error("Data barcode tidak tersedia.");
-    return;
-  }
-
+  if (dbBarcodes.value.length === 0) return;
   const temp: any[] = [];
-  
-  // 1. Filter data berdasarkan pilihan user DAN Satuan (Hanya ROLL)
-  const filtered = dbBarcodes.value.filter(b => {
-    const isSelected = selectedForBarcode.value.includes(b.kode);
-    // Cari satuan dari formData.details berdasarkan kode
-    const detail = formData.details.find(d => d.kode === b.kode);
-    const isRoll = detail?.satuan?.toLowerCase() === 'roll';
-    
-    return isSelected && isRoll;
-  });
+  const filtered = dbBarcodes.value.filter(b => selectedForBarcode.value.includes(b.kode));
 
   if (filtered.length === 0) {
-    toast.warning("Tidak ada item satuan 'ROLL' yang dipilih untuk dicetak.");
+    toast.warning("Pilih item untuk dicetak.");
     return;
   }
 
-  // 2. Duplikasi: Masukkan setiap item 2 kali ke antrean cetak
   filtered.forEach(item => {
     const detailInfo = formData.details.find(d => d.kode === item.kode);
     for (let i = 0; i < 2; i++) {
@@ -283,26 +279,13 @@ const generateAndShowBarcodes = async () => {
   showBarcodePreview.value = true;
 
   await nextTick();
-  
-  // Render QR ke Canvas
   for (let i = 0; i < itemsToRender.value.length; i++) {
-    const canvasId = 'canvas-' + i;
-    const canvas = document.getElementById(canvasId) as HTMLCanvasElement;
+    const canvas = document.getElementById('canvas-' + i) as HTMLCanvasElement;
     if (canvas) {
-      try {
-        await QRCode.toCanvas(canvas, itemsToRender.value[i].qrValue, { 
-          width: 180, // Ukuran dioptimalkan untuk label 7cm
-          margin: 1,
-          errorCorrectionLevel: 'M'
-        });
-      } catch (err) {
-        console.error("Gagal render QR:", err);
-      }
+      await QRCode.toCanvas(canvas, itemsToRender.value[i].qrValue, { width: 85, margin: 0 });
     }
   }
 };
-// --- Logika Generate QR Real ---
-
 
 const printNow = () => {
   window.print();
@@ -312,54 +295,57 @@ const printNow = () => {
   }, 1000);
 };
 
+const printSlip = () => {
+  if (!formData.nomor || formData.nomor === 'AUTO') return;
+  const url = router.resolve({ name: "PenerimaanBahanPrint", params: { nomor: formData.nomor } }).href;
+  window.open(url, "_blank");
+};
+
 const handleAfterPrint = () => {
   if (lastSaveAndNew.value) {
-    Object.assign(formData, { nomor: "AUTO", details: [{ kode: "", namaBahan: "", qtyPO: 0, qtyTerima: 0, panjang: 0, lebar: 0, satuan: "", keterangan: "" }] });
+    Object.assign(formData, { 
+      nomor: "AUTO", no_resi: "", keterangan: "",
+      details: [{ kode: "", namaBahan: "", qtyPO: 0, qtyTerima: 0, panjang: 0, lebar: 0, satuan: "", keterangan: "" }] 
+    });
+    showPrintSelection.value = false; showBarcodePreview.value = false;
   } else {
     router.push({ name: "PenerimaanBahanBrowse" });
   }
 };
 
-// Lookup & Utility (Sama)
 const openSupplierSearch = () => isModalVisible.value = true;
 const closeModal = () => isModalVisible.value = false;
 const handleSupplierSelect = async (s: any) => {
   const res = await api.get(`${API_SUPPLIER_DETAIL}/${s.Kode}`);
   const d = res.data.data;
-  formData.supplierKode = d.Kode; formData.supplier = d.Nama; formData.alamat = d.Alamat; formData.telp = d.Telp;
+  formData.supplierKode = d.Kode; formData.supplier = d.Nama;
   closeModal();
 };
+
 const openBahanSearch = (index: number) => { currentDetailIndex.value = index; isBahanMMTModalVisible.value = true; };
 const closeBahanMMTModal = () => isBahanMMTModalVisible.value = false;
 const handleBahanSelect = (b: any) => {
   if (currentDetailIndex.value === null) return;
   const item = formData.details[currentDetailIndex.value];
-  
-  item.kode = b.Kode; 
-  item.namaBahan = b.Nama; 
-  item.satuan = b.Satuan;
-  item.panjang = b.Panjang; // Ambil dari master
-  item.lebar = b.Lebar;     // Ambil dari master
-
-  if (formData.details[formData.details.length - 1].kode) {
-    formData.details.push({ 
-        kode: "", namaBahan: "", qtyPO: 0, qtyTerima: 0, 
-        panjang: 0, lebar: 0, satuan: "", keterangan: "" 
-    });
-  }
+  item.kode = b.Kode; item.namaBahan = b.Nama; item.satuan = b.Satuan;
+  item.panjang = b.Panjang; item.lebar = b.Lebar;
+  if (formData.details[formData.details.length - 1].kode) addDetail();
   closeBahanMMTModal();
 };
+
 const openPOLookup = () => isPOLookupVisible.value = true;
 const closePOLookup = () => isPOLookupVisible.value = false;
 const handlePOSelect = async (po: any) => {
   const res = await api.get(`${API_PO_LOOKUP_DETAIL}/${po.Nomor}`);
   const d = res.data.data;
   formData.noPermintaan = d.header.Nomor; formData.supplierKode = d.header.Kode_Supplier;
-  formData.details = d.details.map((x: any) => ({ kode: x.SKU, namaBahan: x.Nama_Bahan, qtyPO: x.QTY_PO, qtyTerima: 0, satuan: x.Satuan, keterangan: "" }));
+  formData.details = d.details.map((x: any) => ({ 
+    kode: x.SKU, namaBahan: x.Nama_Bahan, qtyPO: x.QTY_PO, qtyTerima: 0, 
+    panjang: x.Panjang, lebar: x.Lebar, satuan: x.Satuan, keterangan: "" 
+  }));
   closePOLookup();
 };
 
-const printSlip = () => toast.info("Cetak slip...");
 const closeForm = () => router.push({ name: "PenerimaanBahanBrowse" });
 const addDetail = () => formData.details.push({ kode: "", namaBahan: "", qtyPO: 0, qtyTerima: 0, panjang: 0, lebar: 0, satuan: "", keterangan: "" });
 const removeDetail = (i: number) => formData.details.splice(i, 1);
@@ -367,96 +353,64 @@ const removeDetail = (i: number) => formData.details.splice(i, 1);
 
 <style scoped>
 .form-grid-container { display: grid; grid-template-columns: 350px 1fr; gap: 15px; padding: 10px; }
-.qr-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; padding: 20px; }
-.qr-card { border: 1px solid #ddd; padding: 10px; display: flex; flex-direction: column; align-items: center; background: white; page-break-inside: avoid; }
-.label-header { font-size: 10px; font-weight: bold; text-align: center; margin-bottom: 5px; height: 30px; overflow: hidden; }
-.label-footer { font-size: 11px; font-family: monospace; }
 
-
-/* Layout Form */
-.form-grid-container { display: grid; grid-template-columns: 350px 1fr; gap: 15px; padding: 10px; }
-
-/* Grid Preview di Layar */
-.qr-grid { 
-  display: grid; 
-  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); 
-  gap: 15px; 
-  padding: 20px; 
-  background-color: #f5f5f5;
+/* STYLE LABEL BARCODE SESUAI GAMBAR 2 (HORIZONTAL) */
+.barcode-label-box {
+  background: white;
+  width: 320px; 
+  border: 1px solid #000;
+  margin-bottom: 15px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
 }
 
-/* Kartu Barcode */
-.qr-card { 
-  border: 1px dashed #ccc; 
-  padding: 10px; 
-  display: flex; 
-  flex-direction: column; 
-  align-items: center; 
-  background: white; 
-  width: 150px; /* Ukuran label standard */
-  margin: auto;
+.label-top-section {
+  display: flex;
+  align-items: center;
+  gap: 15px;
 }
 
-.label-header { 
-  font-size: 10px; 
-  font-weight: bold; 
-  text-align: center; 
-  margin-bottom: 5px; 
-  height: 25px; 
-  line-height: 1.2;
-  overflow: hidden; 
+.qr-container {
+  width: 85px;
+  height: 85px;
 }
 
-.label-footer { 
-  font-size: 10px; 
-  font-family: monospace; 
-  margin-top: 5px;
+.text-container {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
 
-/* ========================================== */
-/* LOGIKA CETAK (PRINT)                       */
-/* ========================================== */
+.barcode-text {
+  font-family: 'Courier New', Courier, monospace;
+  font-weight: bold;
+  font-size: 14px;
+}
+
+.dimensi-text {
+  font-size: 12px;
+  margin-top: 4px;
+}
+
+.label-divider {
+  border-top: 1px dashed #000;
+  margin: 8px 0;
+}
+
+.label-bottom-section {
+  text-align: center;
+  font-weight: bold;
+  font-size: 14px;
+  text-transform: uppercase;
+}
+
+/* CSS PRINT AREA */
 @media print {
-  /* Sembunyikan semua elemen di halaman */
-  body * { 
-    visibility: hidden !important; 
-    -webkit-print-color-adjust: exact; 
-  }
-
-  /* Tampilkan area barcode saja */
-  #print-area, #print-area * { 
-    visibility: visible !important; 
-  }
-
-  /* Posisikan area cetak di pojok kiri atas kertas */
-  #print-area { 
-    position: absolute; 
-    left: 0; 
-    top: 0; 
-    width: 100%; 
-    padding: 0;
-    background-color: white;
-  }
-
-  /* Atur grid saat cetak (misal 4 kolom per baris kertas A4) */
-  .qr-grid { 
-    display: grid !important;
-    grid-template-columns: repeat(4, 1fr) !important; 
-    gap: 10px !important; 
-    background-color: white !important;
-  }
-
-  /* Pastikan kartu tidak terpotong antar halaman */
-  .qr-card { 
-    border: 1px solid #eee; /* Beri border tipis untuk membantu potong manual */
-    page-break-inside: avoid; 
-    break-inside: avoid;
-    margin-bottom: 10px;
-  }
-
-  /* Sembunyikan tombol tutup/toolbar dialog saat print */
-  .v-toolbar, .v-btn { 
-    display: none !important; 
-  }
+  body * { visibility: hidden !important; }
+  #print-area, #print-area * { visibility: visible !important; }
+  #print-area { position: absolute; left: 0; top: 0; width: 100%; padding: 0; margin: 0; }
+  .barcode-label-box { border: 1px solid #000 !important; page-break-inside: avoid; margin: 10px auto; }
+  .v-toolbar, .v-btn { display: none !important; }
 }
 </style>

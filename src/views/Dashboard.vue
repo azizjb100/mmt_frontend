@@ -199,6 +199,7 @@ const allMenuGroups = [
         items: [
           { name: "LS Bahan Utama", path: "/laporan/mmt/ls-bahan-utama" },
           { name: "LS Bahan Penolong", path: "/laporan/mmt/ls-bahan-penolong" },
+          { name: "Lap. Mon LMKP MMT", path: "/laporan/mmt/lap-mon-lmkp-mmt" },
           { name: "LS Tinta", path: "/laporan/mmt/ls-tinta" },
           { name: "LS Bahan Kain", path: "/laporan/mmt/ls-bahan-kain" },
           { name: "Kartu Stock Bahan", path: "/laporan/mmt/mon-jadwal-kirim" },
