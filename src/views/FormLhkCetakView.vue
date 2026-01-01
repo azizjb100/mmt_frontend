@@ -936,12 +936,9 @@ const handleSave = async (saveAndNew: boolean) => {
 
   try {
     // --- 2. Persiapan Payload ---
-    const userLoggedIn = "USER-PROD"; // Ganti dengan logika user ID yang sebenarnya
-
-    // Header Payload: Mapping field ke nama kolom DB (ltanggal, lgdg_prod, dll.)
+    const userLoggedIn = "USER-PROD";
     const headerPayload = {
       ...formData,
-      // Mapping Wajib untuk Backend Service
       ltanggal: formData.tanggal,
       lgdg_prod: formData.gdgKode,
       lspk_nomor: formData.spkNomor,
@@ -959,11 +956,11 @@ const handleSave = async (saveAndNew: boolean) => {
     };
 
     // Detail Payload: Mapping field ke nama yang digunakan di Backend Service
-    const detailPayload = detailData
-  .filter((d) => (d.sku && d.sku !== "")) // Hanya kirim yang ada barcodenya
+   const detailPayload = detailData
+  .filter((d) => (d.sku && d.sku !== "")) 
   .map((d) => ({
-    sku: d.sku,                // <--- INI PENTING: Mengirim Barcode Roll
-    kodebahan: d.kodebahan,    // Ini Kode Barang (SKU)
+    sku: d.sku,                // Barcode
+    kodebahan: d.kodebahan,    // Kode Barang
     ambilBahanPanjang: d.ambilBahanPanjang,
     ambilBahanLebar: d.ambilBahanLebar,
     cetak1: d.cetak1,
@@ -974,10 +971,11 @@ const handleSave = async (saveAndNew: boolean) => {
     cetak6: d.cetak6,
     cetak7: d.cetak7,
     totalcetak: d.totalcetak,
-    cetakmeter: Number(d.panjangTerpakai.toFixed(3)), 
+    cetakmeter: d.panjangTerpakai, 
     roll: d.roll,
-    sisabahan: Number(d.sisaBahanPanjang.toFixed(3)),
-    sisabahanlebar: d.sisaBahanLebar,
+    // PASTIKAN NAMA INI SAMA DENGAN YANG DIBACA BACKEND
+    sisabahan: d.sisaBahanPanjang, 
+    sisabahanlebar: d.sisaBahanLebar, 
     padding: d.padding,
     tile: d.tile,
   }));
@@ -1000,9 +998,7 @@ const handleSave = async (saveAndNew: boolean) => {
     if (saveAndNew) {
       refreshData();
     } else {
-      // Perbarui state form ke mode EDIT dengan nomor yang baru
-      formData.nomor = newNomor;
-      isEditMode.value = true;
+      router.push({ name: 'LhkCetakList' });
     }
   } catch (error) {
     // --- 5. Penanganan Error ---
