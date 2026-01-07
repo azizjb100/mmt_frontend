@@ -12,21 +12,29 @@
 
           <ul class="dropdown-menu shadow-md rounded-soft">
             <template v-for="item in group.items" :key="item.name">
-              <li v-if="item.isSubGroup" class="sub-dropdown">
-                <router-link :to="item.path" class="sub-dropdown-toggle">
-                  {{ item.name }} <span class="icon-arrow">&raquo;</span>
-                </router-link>
+  <li v-if="item.isSubGroup" class="sub-dropdown" :class="{ 'item-disabled': item.isDisabled }">
+    <router-link v-if="!item.isDisabled" :to="item.path" class="sub-dropdown-toggle">
+      {{ item.name }} <span class="icon-arrow">&raquo;</span>
+    </router-link>
+    
+    <span v-else class="sub-dropdown-toggle">
+      {{ item.name }} <span class="mdi mdi-lock-outline"></span>
+    </span>
 
-                <ul class="dropdown-menu sub-menu shadow-md rounded-soft">
-                  <li v-for="subItem in item.items" :key="subItem.name">
-                    <router-link :to="subItem.path">{{ subItem.name }}</router-link>
-                  </li>
-                </ul>
-              </li>
-              <li v-else>
-                <router-link :to="item.path">{{ item.name }}</router-link>
-              </li>
-            </template>
+    <ul v-if="!item.isDisabled" class="dropdown-menu sub-menu shadow-md rounded-soft">
+      <li v-for="subItem in item.items" :key="subItem.name">
+        <router-link :to="subItem.path">{{ subItem.name }}</router-link>
+      </li>
+    </ul>
+  </li>
+
+  <li v-else :class="{ 'item-disabled': item.isDisabled }">
+    <router-link v-if="!item.isDisabled" :to="item.path">{{ item.name }}</router-link>
+    <span v-else class="disabled-link">
+        {{ item.name }} <span class="mdi mdi-lock-outline"></span>
+    </span>
+  </li>
+</template>
           </ul>
         </li>
       </ul>
@@ -59,6 +67,30 @@ const authStore = useAuthStore();
 const currentUser = authStore.user; // Mengambil data user dari store
 
 const router = useRouter();
+
+const rolePermissions = {
+  1: [ // DIVISI 1: Produksi & Laporan Tertentu
+    "Permintaan Bahan", 
+    "Penerimaan Bahan", 
+    "Permintaan Produksi", 
+    "LHK", 
+    "LHK Cetak", 
+    "LHK Kain",
+    "Laporan", 
+    "Produksi MMT", 
+    "LS Bahan Utama", 
+    "LS Bahan Penolong", 
+    "Lap. Mon LMKP MMT"
+  ],
+  2: [ // DIVISI 2: Contoh Sales
+    "File",
+    "Ganti Password",
+    "Customer",
+    "Sales",
+    "Laporan",
+    "Penjualan"
+  ]
+};
 
 const handleLogout = () => {
   authStore.logout();
@@ -299,29 +331,50 @@ const allMenuGroups = [
   // },
 */
 
-// Logic Filter Menu Berdasarkan Divisi (ZDIVISI)
 const menuGroups = computed(() => {
   const user = authStore.user;
-  const zdivisi = user?.divisi; // Mengambil zdivisi dari store
-
-  // Deep copy menu agar tidak merubah master data
+  const zdivisi = user?.divisi;
+  
+  // Clone master menu agar tidak merusak data asli
   const menus = JSON.parse(JSON.stringify(allMenuGroups));
 
-  // Jika Divisi = 1 (Logika Delphi: Hanya Permintaan Bahan, Penerimaan Bahan, Permintaan Produksi, LHK)
-  if (zdivisi === 1) {
-    const allowedTitles = ["Permintaan Bahan", "Penerimaan Bahan", "Permintaan Produksi", "LHK"];
+  // Ambil daftar izin berdasarkan divisi. 
+  // Jika divisi tidak terdaftar di mapping, anggap dia ADMIN (bisa semua/tidak ada isDisabled)
+  const allowedTitles = rolePermissions[zdivisi];
 
-    return menus.map(group => {
-      // Filter item level 2
-      const filteredItems = group.items.filter(item => 
-        allowedTitles.includes(item.name)
-      );
-      return { ...group, items: filteredItems };
-    }).filter(group => group.items.length > 0); // Sembunyikan Group jika kosong (misal: File & Daftar hilang)
-  }
+  // Jika divisi tidak ada di mapping (ADMIN), return menu apa adanya
+  if (!allowedTitles) return menus;
 
-  // Jika Admin atau divisi lain, tampilkan semua (sesuai logika Delphi 'Else')
-  return menus;
+  return menus.map(group => {
+    return {
+      ...group,
+      // Jika nama Group-nya saja tidak ada di izin, kita tandai (Opsional)
+      // Namun biasanya kita cek per item di dalamnya
+      items: group.items.map(item => {
+        
+        // Cek Level 2
+        let canAccess = allowedTitles.includes(item.name);
+
+        // Cek Level 3 (Sub-items) jika ada
+        if (item.isSubGroup && item.items) {
+          // Tandai sub-item level 3
+          item.items = item.items.map(subItem => ({
+            ...subItem,
+            isDisabled: !allowedTitles.includes(subItem.name)
+          }));
+          
+          // Jika ada salah satu anak yang boleh diakses, maka bapaknya (Level 2) harus terbuka
+          const anySubAllowed = item.items.some(sub => !sub.isDisabled);
+          if (anySubAllowed) canAccess = true;
+        }
+
+        return { 
+          ...item, 
+          isDisabled: !canAccess 
+        };
+      })
+    };
+  });
 });
 </script>
 
@@ -351,6 +404,32 @@ const menuGroups = computed(() => {
   --color-bg-page: #f8f9fa; /* Latar Belakang Luar Konten */
   --color-bg-menu-hover: #e3f2fd; /* Hover Biru Muda */
   --color-border: #e0e0e0;
+}
+/* Style untuk menu yang tidak bisa diklik */
+.item-disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  position: relative;
+}
+
+.disabled-link {
+  display: block;
+  padding: 4px 15px;
+  color: #999 !important;
+  font-size: 0.9rem;
+  text-decoration: none;
+  pointer-events: none; /* Mematikan semua interaksi mouse */
+}
+
+.item-disabled:hover .sub-menu {
+  display: none !important; /* Mencegah submenu muncul jika parent disabled */
+}
+
+/* Opsional: Tambahkan icon gembok kecil */
+.mdi-lock-outline {
+  font-size: 12px;
+  margin-left: 5px;
+  float: right;
 }
 
 /* KELAS UTILITY */

@@ -1,25 +1,13 @@
 <template>
   <PageLayout :title="formTitle" icon="mdi-printer-3d-nozzle-alert-outline">
     <template #header-actions>
-      <v-btn
-        size="small"
-        color="primary"
-        @click="handleSave(false)"
-        :loading="isSaving"
-        :disabled="isSaving || !isFormValid"
-      >
+      <v-btn size="small" color="primary" @click="handleSave(false)" :loading="isSaving" :disabled="isSaving || !isFormValid">
         <v-icon start>mdi-content-save</v-icon> Simpan (F10)
       </v-btn>
       <v-btn size="small" @click="handleCancel" :disabled="isSaving">
         <v-icon start>mdi-close</v-icon> Batal (F7)
       </v-btn>
-      <v-btn
-        v-if="isEditMode"
-        size="small"
-        color="teal"
-        @click="handlePrint"
-        :disabled="isSaving"
-      >
+      <v-btn v-if="isEditMode" size="small" color="teal" @click="handlePrint" :disabled="isSaving">
         <v-icon start>mdi-printer</v-icon> Cetak (F3)
       </v-btn>
       <v-btn size="small" color="error" @click="handleClose">
@@ -29,1147 +17,355 @@
 
     <div class="form-grid-container">
       <div class="left-column">
-  <v-card class="desktop-form-section mb-3" flat border>
-    <v-card-title class="text-subtitle-1 d-flex align-center pa-2">
-      Data LHK
-      <v-spacer />
-      <v-chip size="small" :color="isEditMode ? 'orange' : 'blue'" label>
-        {{ isEditMode ? "EDIT" : "BARU" }}
-      </v-chip>
-    </v-card-title>
-    <v-card-text>
-      <v-row dense>
-        <v-col cols="12">
-          <v-text-field
-            label="Nomor LHK"
-            v-model="formData.nomor"
-            readonly
-            filled
-            density="compact"
-            variant="outlined"
-            hint="AUTO dihasilkan saat form dibuka."
-            persistent-hint
-          />
-        </v-col>
-
-        <v-col cols="4">
-          <v-text-field label="Tanggal" v-model="formData.tanggal" type="date" variant="outlined" density="compact" hide-details />
-        </v-col>
-        <v-col cols="4">
-          <v-text-field label="Gudang Prod." v-model="formData.gdgKode" @click:append-inner="openGudangSearch" append-inner-icon="mdi-magnify" density="compact" variant="outlined" hide-details readonly style="cursor: pointer" />
-        </v-col>
-        <v-col cols="4">
-          <v-text-field label="Nama Gudang" v-model="formData.gdgNama" readonly filled density="compact" hide-details />
-        </v-col>
-
-        <v-col cols="6">
-          <v-text-field label="Shift" v-model.number="formData.shift" type="number" density="compact" variant="outlined" hide-details />
-        </v-col>
-        <v-col cols="6">
-          <v-text-field label="Operator" v-model="formData.operator" density="compact" variant="outlined" hide-details />
-        </v-col>
-
-        <v-col cols="12">
-          <v-text-field label="Mesin" v-model="formData.mesin" @click:append-inner="openMesinSearch" append-inner-icon="mdi-magnify" density="compact" variant="outlined" hide-details readonly style="cursor: pointer" />
-        </v-col>
-      </v-row>
-    </v-card-text>
-  </v-card>
-
-  <v-card class="desktop-form-section mb-3" flat border>
-    <v-card-title class="text-subtitle-1 pa-2">Detail SPK & Bahan</v-card-title>
-    <v-card-text>
-      <v-row dense>
-        <v-col cols="6">
-          <v-text-field label="SPK Nomor" v-model="formData.spkNomor" @click:append-inner="openSpkSearch" append-inner-icon="mdi-magnify" density="compact" variant="outlined" hide-details readonly style="cursor: pointer" />
-        </v-col>
-        <v-col cols="3">
-          <v-text-field label="P. SPK" v-model="formData.Panjang_spk" readonly filled density="compact" hide-details class="text-end" />
-        </v-col>
-        <v-col cols="3">
-          <v-text-field label="L. SPK" v-model="formData.Lebar_spk" readonly filled density="compact" hide-details class="text-end" />
-        </v-col>
-
-        <v-col cols="12">
-          <v-text-field label="Nama SPK" v-model="formData.spkNama" readonly filled density="compact" hide-details />
-        </v-col>
-
-        <v-col cols="4">
-          <v-text-field label="Jml Order" v-model="formData.Jumlah" readonly filled density="compact" hide-details class="text-end" />
-        </v-col>
-        <v-col cols="4">
-          <v-text-field label="Jml Jadi" v-model="formData.jumlah_jadi" readonly filled density="compact" hide-details class="text-end" />
-        </v-col>
-        <v-col cols="4">
-          <v-text-field label="Kurang" v-model="formData.jumlah_kurang" readonly filled density="compact" hide-details class="text-end" />
-        </v-col>
-
-        <v-col cols="6">
-  <v-text-field
-    label="Scan Barcode Roll"
-    v-model="formData.barcode_input" 
-    placeholder="Scan Barcode Roll di sini..."
-    prepend-inner-icon="mdi-barcode-scan"
-    variant="outlined"
-    density="compact"
-    hide-details
-    color="primary"
-    @keyup.enter="handleBarcodeScan(0)" 
-    autocomplete="off"
-  />
-</v-col>
-<v-col cols="3">
-  <v-text-field
-    label="P. Bahan"
-    v-model="formData.Panjang_bahan"
-    readonly
-    filled
-    density="compact"
-    hide-details
-    class="text-end"
-  />
-</v-col>
-<v-col cols="3">
-  <v-text-field
-    label="L. Bahan"
-    v-model="formData.Lebar_bahan"
-    readonly
-    filled
-    density="compact"
-    hide-details
-    class="text-end"
-  />
-</v-col>
-      </v-row>
-    </v-card-text>
-  </v-card>
-</div>
+        <v-card class="mb-3" flat border>
+          <v-card-title class="text-subtitle-2 pa-2 bg-grey-lighten-4">Informasi LHK</v-card-title>
+          <v-card-text class="pa-2">
+            <v-row dense>
+              <v-col cols="12"><v-text-field label="Nomor LHK" v-model="formData.nomor" readonly variant="outlined" density="compact" hide-details /></v-col>
+              <v-col cols="12"><v-text-field label="Tanggal" v-model="formData.tanggal" type="date" variant="outlined" density="compact" hide-details /></v-col>
+              <v-col cols="6"><v-text-field label="Shift" v-model.number="formData.shift" type="number" variant="outlined" density="compact" hide-details /></v-col>
+              <v-col cols="6"><v-text-field label="Operator" v-model="formData.operator" variant="outlined" density="compact" hide-details /></v-col>
+              <v-col cols="12">
+                <v-text-field label="Mesin" v-model="formData.mesin" @click:append-inner="openMesinSearch" append-inner-icon="mdi-magnify" variant="outlined" density="compact" hide-details readonly style="cursor: pointer" />
+              </v-col>
+            </v-row>
+          </v-card-text>
+        </v-card>
+        
+        <v-card class="mb-3" flat border>
+          <v-card-title class="text-subtitle-2 pa-2 bg-blue-lighten-5">Scan Material (Roll)</v-card-title>
+          <v-card-text class="pt-4 pa-2">
+            <v-row dense>
+              <v-col cols="12">
+                <v-text-field
+                  label="Scan Barcode Roll"
+                  v-model="formData.barcode_input"
+                  placeholder="Scan di sini..."
+                  prepend-inner-icon="mdi-barcode-scan"
+                  variant="outlined"
+                  density="compact"
+                  color="primary"
+                  @keyup.enter="handleBarcodeScan"
+                  autocomplete="off"
+                />
+              </v-col>
+              <v-col cols="6"><v-text-field label="P. Bahan" v-model="formData.Panjang_bahan" readonly filled density="compact" hide-details class="text-end" /></v-col>
+              <v-col cols="6"><v-text-field label="L. Bahan" v-model="formData.Lebar_bahan" readonly filled density="compact" hide-details class="text-end" /></v-col>
+            </v-row>
+          </v-card-text>
+        </v-card>
+      </div>
 
       <div class="right-column">
-        <v-card
-          flat
-          class="desktop-form-section flex-grow-1 d-flex flex-column mb-3"
-        >
-          <v-card-title class="text-subtitle-1"
-            >Hasil Produksi (Per Roll/Putaran)</v-card-title
-          >
-          <v-card-text class="pa-0 flex-grow-1">
+        <v-card flat border class="d-flex flex-column h-100">
+          <v-card-title class="text-subtitle-1 d-flex align-center pa-2 bg-blue-grey-lighten-5">
+            Daftar Produksi (Combine SPK)
+            <v-spacer />
+            <v-btn size="small" color="success" prepend-icon="mdi-plus" @click="openSpkSearch">Tambah SPK</v-btn>
+          </v-card-title>
+
+          <v-card-text class="pa-0">
             <div class="detail-table-wrapper">
               <v-data-table
                 :headers="detailHeaders"
                 :items="detailData"
-                :items-per-page="-1"
-                class="elevation-0 detail-entry-table"
+                class="detail-entry-table"
                 hide-default-footer
+                density="compact"
               >
                 <template #[`item.no`]="{ index }">{{ index + 1 }}</template>
 
-                <template #[`item.ambilBahanPanjang`]="{ item }">
-                  <v-text-field
-                    v-model.number="item.ambilBahanPanjang"
-                    type="number"
-                    min="0"
-                    @update:modelValue="calculateTotals(item)"
-                    density="compact"
-                    hide-details
-                    class="text-end"
-                  />
-                </template>
-
-                <template #[`item.ambilBahanLebar`]="{ item }">
-                  <v-text-field
-                    v-model.number="item.ambilBahanLebar"
-                    type="number"
-                    min="0"
-                    @update:modelValue="calculateTotals(item)"
-                    density="compact"
-                    hide-details
-                    class="text-end"
-                  />
-                </template>
-
                 <template #[`item.padding`]="{ item }">
-                  <v-text-field
-                    v-model.number="item.padding"
-                    type="number"
-                    min="0"
-                    @update:modelValue="calculateTotals(item)"
-                    density="compact"
-                    hide-details
-                    class="text-end"
-                  />
+                  <v-text-field v-model.number="item.padding" type="number" density="compact" variant="underlined" @update:modelValue="recalculateCombine" hide-details class="text-end" />
                 </template>
 
                 <template #[`item.tile`]="{ item }">
-                  <v-text-field
-                    v-model.number="item.tile"
-                    type="number"
-                    min="1"
-                    @update:modelValue="calculateTotals(item)"
-                    density="compact"
-                    hide-details
-                    class="text-end"
-                    :error="!isTileValid(item)"
-                    :hint="
-                      !isTileValid(item)
-                        ? `Lebar (${(
-                            item.tile *
-                            (formData.Lebar_spk + (item.padding * 2) / 100)
-                          ).toFixed(3)} M) > L. Ambil (${
-                            item.ambilBahanLebar
-                          } M)`
-                        : ''
-                    "
-                    persistent-hint
-                  />
+                  <v-text-field v-model.number="item.tile" type="number" density="compact" variant="underlined" @update:modelValue="recalculateCombine" hide-details class="text-end" />
                 </template>
 
-                <template
-                  v-for="n in 5"
-                  :key="n"
-                  #[`item.cetak${n}`]="{ item }"
-                >
+                <template v-for="n in 7" :key="n" #[`item.cetak${n}`]="{ item }">
                   <v-text-field
-                    v-model.number="item[`cetak${n}`]"
+                    v-model.number="item['cetak' + n]"
                     type="number"
-                    min="0"
-                    @update:modelValue="calculateTotals(item)"
                     density="compact"
+                    variant="underlined"
+                    @update:modelValue="recalculateCombine"
                     hide-details
-                    class="text-end input-cetak"
+                    class="text-end cetak-field"
                   />
                 </template>
 
                 <template #[`item.totalcetak`]="{ item }">
-                  <v-text-field
-                    :model-value="item.totalcetak"
-                    readonly
-                    filled
-                    density="compact"
-                    hide-details
-                    class="text-end font-weight-bold"
-                  />
-                </template>
-
-                <template #[`item.panjangTerpakai`]="{ item }">
-                  <v-text-field
-                    :model-value="item.panjangTerpakai.toFixed(3)"
-                    readonly
-                    filled
-                    density="compact"
-                    hide-details
-                    class="text-end font-weight-bold"
-                  />
-                </template>
-
-                <template #[`item.sisaBahanPanjang`]="{ item }">
-                  <v-text-field
-                    :model-value="item.sisaBahanPanjang.toFixed(3)"
-                    readonly
-                    filled
-                    density="compact"
-                    hide-details
-                    class="text-end font-weight-bold"
-                  />
-                </template>
-
-                <template #[`item.sisaBahanLebar`]="{ item }">
-                  <v-text-field
-                    v-model.number="item.sisaBahanLebar"
-                    type="number"
-                    density="compact"
-                    hide-details
-                    class="text-end font-weight-bold"
-                    @update:modelValue="calculateTotals(item)"
-                  />
-                </template>
-
-                <template #[`item.roll`]="{ item }">
-                  <v-text-field
-                    v-model.number="item.roll"
-                    type="number"
-                    min="0"
-                    density="compact"
-                    hide-details
-                    class="text-end"
-                  />
+                  <div class="text-end font-weight-bold text-primary">{{ item.totalcetak }}</div>
                 </template>
 
                 <template #[`item.actions`]="{ index }">
-                  <v-btn
-                    icon="mdi-delete"
-                    size="x-small"
-                    variant="text"
-                    color="red"
-                    @click="removeDetail(index)"
-                    :disabled="detailData.length === 1"
-                  ></v-btn>
+                  <v-btn icon="mdi-delete" size="x-small" color="red" variant="text" @click="removeDetail(index)"></v-btn>
                 </template>
 
                 <template #bottom>
-                  <v-container class="py-2">
-                    <v-row justify="space-between" class="px-4">
-                      <v-col cols="auto">
-                        <v-btn
-                          size="small"
-                          color="primary"
-                          @click="addDetail"
-                          prepend-icon="mdi-plus"
-                          >Tambah Baris</v-btn
-                        >
-                      </v-col>
-                      <v-col cols="auto">
-                        <v-label class="font-weight-bold"
-                          >Baris Aktif: {{ detailData.length }}</v-label
-                        >
-                      </v-col>
-                    </v-row>
-                  </v-container>
+                  <div class="pa-4 bg-grey-lighten-4 d-flex align-center border-t">
+                    <div class="mr-6">
+                      <span class="text-caption">Estimasi P. Terpakai:</span>
+                      <div class="text-h6 text-primary">{{ totalPanjangTerpakai.toFixed(3) }} M</div>
+                    </div>
+                    <div class="mr-6">
+                      <span class="text-caption">Sisa Panjang Bahan:</span>
+                      <div class="text-h6" :class="sisaPanjangBahan < 0 ? 'text-error' : 'text-success'">
+                        {{ sisaPanjangBahan.toFixed(3) }} M
+                      </div>
+                    </div>
+                    
+                    <div class="text-right">
+                      <span class="text-caption">Total Lebar Gabungan:</span>
+                      <div class="text-subtitle-1" :class="totalLebarGabungan > formData.Lebar_bahan ? 'text-error font-weight-bold' : ''">
+                        {{ totalLebarGabungan.toFixed(2) }} / {{ formData.Lebar_bahan }} M
+                      </div>
+                    </div>
+                    <v-spacer />
+                  </div>
                 </template>
               </v-data-table>
             </div>
           </v-card-text>
         </v-card>
-
-        <v-card flat class="desktop-form-section">
-          <v-card-text class="pa-2 text-caption">
-            Status:
-            {{ isEditMode ? "Mengubah LHK yang sudah ada" : "Input LHK baru" }}
-          </v-card-text>
-        </v-card>
       </div>
     </div>
+    
 
-    <GudangLookupView
-      :isVisible="isGudangLookupVisible"
-      @close="isGudangLookupVisible = false"
-      @select="handleGudangSelect"
-    />
-
-    <MesinLookupView
-      :isVisible="isMesinLookupVisible"
-      @close="isMesinLookupVisible = false"
-      @select="handleMesinSelect"
-    />
-
-    <SpkLookupView
-      :isVisible="isSpkLookupVisible"
-      @close="isSpkLookupVisible = false"
-      @select="handleSpkSelect"
-    />
-    <MasterBahanModal
-      :isVisible="isBahanModalVisible"
-      mode="produksi"
-      @close="closeBahanModal"
-      @select="handleBahanSelect"
-    />
+    <GudangLookupView :isVisible="isGudangLookupVisible" @close="isGudangLookupVisible = false" @select="handleGudangSelect" />
+    <MesinLookupView :isVisible="isMesinLookupVisible" @close="isMesinLookupVisible = false" @select="handleMesinSelect" />
+    <SpkLookupView :isVisible="isSpkLookupVisible" @close="isSpkLookupVisible = false" @select="handleSpkSelect" />
   </PageLayout>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from "vue";
-import { useRouter, useRoute } from "vue-router";
+import { ref, reactive, computed } from "vue";
 import { format } from "date-fns";
-import { AxiosError } from "axios";
 import api from "@/services/api";
 import { useToast } from "vue-toastification";
-
-
-// --- Import Lookup Components ---
 import GudangLookupView from "@/modal/GudangLookupView.vue";
 import MesinLookupView from "@/modal/MesinLookupModal.vue";
 import SpkLookupView from "@/modal/SpkLookupModal.vue";
-import MasterBahanModal from "@/modal/MasterBahanModal.vue";
 import PageLayout from "../components/PageLayout.vue";
-
-// --- KONSTANTA ---
-const DEFAULT_PADDING_CM = 5; // Default 5 cm
-
-const API_BASE_URL = "/mmt/lhk-cetak";
-
-// --- Interfaces LHK (FINAL) ---
-interface DetailLHK {
-  no: number;
-  sku: string;           // Untuk menyimpan nomor barcode hasil scan
-  kodebahan: string;     // Untuk menyimpan kode barang asli (mst_brg_kode)
-  ambilBahanPanjang: number;
-  ambilBahanLebar: number;
-  padding: number;
-  tile: number;
-  cetak1: number; cetak2: number; cetak3: number; cetak4: number; cetak5: number;
-  cetak6: number; cetak7: number;
-  totalcetak: number;
-  panjangTerpakai: number;
-  sisaBahanPanjang: number;
-  sisaBahanLebar: number;
-  roll: number;
-}
-
-
-
-interface FormDataLHK {
-  nomor: string;
-  tanggal: string;
-  gdgKode: string;
-  gdgNama: string;
-  shift: number;
-  operator: string;
-  mesin: string;
-  spkNomor: string;
-  spkNama: string;
-  Jumlah: number;
-  jumlah_jadi: number;
-  Panjang_spk: number;
-  Lebar_spk: number;
-  barcode_input: string;
-  Panjang_bahan: number;
-  Lebar_bahan: number;
-  Bahan: string;
-  Gramasi: string;
-  X: string;
-  spkBahan: string;
-}
-
-// --- Interfaces Item Lookup ---
-interface MasterBahan {
-  Kode: string;
-  Nama: string;
-  Satuan: string;
-  Panjang: number;
-  Lebar: number;
-  [key: string]: string | number | undefined;
-}
-interface GudangItem {
-  Kode: string;
-  Nama: string;
-}
-interface MesinItem {
-  Kode: string;
-  Nama: string;
-  Keterangan: string;
-}
-interface SPKItemLookup {
-  Spk: string;
-  Nama: string;
-  Jumlah: number;
-  Jumlah_jadi: number;
-  Panjang: number;
-  Lebar: number;
-  Bahan: string;
-  Gramasi: string;
-  Divisi?: number;
-  Tanggal?: string;
-  [key: string]: any;
-}
-
-// --- State Management ---
 
 const toast = useToast();
 
-
-const router = useRouter();
-const route = useRoute();
-
-const isEditMode = ref(false);
 const isSaving = ref(false);
-
+const isEditMode = ref(false);
 const isGudangLookupVisible = ref(false);
 const isMesinLookupVisible = ref(false);
 const isSpkLookupVisible = ref(false);
-const isBahanModalVisible = ref(false);
 
-const defaultDetail = (): DetailLHK => ({
-  no: 0,
-  sku: "",               // Inisialisasi string kosong agar tidak undefined
-  kodebahan: "",
-  ambilBahanPanjang: 0,
-  ambilBahanLebar: 0,
-  padding: DEFAULT_PADDING_CM,
-  tile: 1,
-  cetak1: 0, cetak2: 0, cetak3: 0, cetak4: 0, cetak5: 0,
-  cetak6: 0, cetak7: 0,
-  totalcetak: 0,
-  panjangTerpakai: 0.0,
-  sisaBahanPanjang: 0.0,
-  sisaBahanLebar: 0.0,
-  roll: 0,
-});
-
-const formData = reactive<FormDataLHK>({
+const formData = reactive({
   nomor: "AUTO",
-  tanggal: format(new Date(), "yyyy-MM-dd HH:mm:ss"),
-  gdgKode: "GPM",
-  gdgNama: "Gudang Produksi MMT",
+  tanggal: format(new Date(), "yyyy-MM-dd"),
   shift: 1,
   operator: "",
   mesin: "",
-  spkNomor: "",
-  spkNama: "",
-  Panjang_spk: 2.0,
-  Lebar_spk: 1.0,
-  barcode_input: "", // Penampung hasil scanner
+  barcode_input: "",
   Panjang_bahan: 0,
   Lebar_bahan: 0,
-  Bahan: "",
-  X: "X",
-  Gramasi: "",
-  Jumlah: 0,
-  jumlah_jadi: 0,
-  spkBahan: "",
+  sku_aktif: "",
+  kode_bahan_aktif: ""
 });
 
-const detailData = reactive<DetailLHK[]>([defaultDetail()]);
+const detailData = reactive<any[]>([]);
 
-
-
-const formTitle = computed(() =>
-  isEditMode.value
-    ? `Ubah LHK Cetak MMT: ${formData.nomor}`
-    : "Input LHK Cetak MMT Baru"
-);
-
-// FUNGSI VALIDASI TILE (Menggunakan Padding CM * 2)
-const isTileValid = (detail: DetailLHK): boolean => {
-  const tile = detail.tile || 1;
-  const lebarSpk = formData.Lebar_spk || 0;
-  const ambilLebar = detail.ambilBahanLebar || 0;
-  const padding = detail.padding || 0;
-
-  // Total Padding (M) = (Input CM * 2) / 100
-  const totalPaddingMeter = (padding * 2) / 100;
-
-  // Lebar Efektif (LE) = Lebar SPK + Total Padding (M)
-  const lebarEfektif = lebarSpk + totalPaddingMeter;
-
-  // Total Lebar Tile yang dipakai
-  const totalLebarTile = tile * lebarEfektif;
-
-  if (ambilLebar <= 0) return true;
-
-  return totalLebarTile <= ambilLebar;
-};
-
-const isFormValid = computed(() => {
-  const headerValid =
-    formData.tanggal &&
-    formData.gdgKode &&
-    formData.mesin &&
-    formData.spkNomor &&
-    formData.operator;
-
-  // Validasi Tile hanya untuk display error/hint, tidak menghalangi form submit jika ada data cetak.
-  const detailValid = detailData.some((d) => d.totalcetak > 0);
-
-  return headerValid && detailValid;
-});
-
-// Header Tabel (FINAL)
 const detailHeaders = [
-  {
-    title: "No",
-    key: "no",
-    width: "3%",
-    sortable: false,
-    align: "center" as const,
-  },
-  {
-    title: "P. Ambil (M)",
-    key: "ambilBahanPanjang",
-    width: "8%",
-    align: "end" as const,
-  },
-  {
-    title: "L. Ambil (M)",
-    key: "ambilBahanLebar",
-    width: "8%",
-    align: "end" as const,
-  },
-  { title: "Padding (CM)", key: "padding", width: "8%", align: "end" as const },
-  { title: "Tile (Kolom)", key: "tile", width: "6%", align: "end" as const },
-  { title: "C1", key: "cetak1", width: "5%", align: "end" as const },
-  { title: "C2", key: "cetak2", width: "5%", align: "end" as const },
-  { title: "C3", key: "cetak3", width: "5%", align: "end" as const },
-  { title: "C4", key: "cetak4", width: "5%", align: "end" as const },
-  { title: "C5", key: "cetak5", width: "5%", align: "end" as const },
-  { title: "C6", key: "cetak6", width: "5%", align: "end" as const },
-  { title: "C7", key: "cetak7", width: "5%", align: "end" as const },
-  {
-    title: "Total Unit",
-    key: "totalcetak",
-    width: "7%",
-    align: "end" as const,
-  },
-  {
-    title: "P. Terpakai (M)",
-    key: "panjangTerpakai",
-    width: "8%",
-    align: "end" as const,
-  },
-  {
-    title: "Sisa P. (M)",
-    key: "sisaBahanPanjang",
-    width: "8%",
-    align: "end" as const,
-  },
-  {
-    title: "Sisa L. (M)",
-    key: "sisaBahanLebar",
-    width: "8%",
-    align: "end" as const,
-  }, // INPUT MANUAL
-  { title: "Roll", key: "roll", width: "5%", align: "end" as const },
-  {
-    title: "Aksi",
-    key: "actions",
-    width: "5%",
-    sortable: false,
-    align: "center" as const,
-  },
+  { title: "No", key: "no", width: "40px" },
+  { title: "Nomor SPK", key: "nomor_spk" },
+  { title: "Nama Produk", key: "nama_spk" },
+  { title: "P. SPK", key: "panjang_spk", align: "end" as const },
+  { title: "L. SPK", key: "lebar_spk", align: "end" as const },
+  { title: "Pad(cm)", key: "padding", width: "70px" },
+  { title: "Tile", key: "tile", width: "60px" },
+  { title: "C1", key: "cetak1", width: "50px" },
+  { title: "C2", key: "cetak2", width: "50px" },
+  { title: "C3", key: "cetak3", width: "50px" },
+  { title: "C4", key: "cetak4", width: "50px" },
+  { title: "C5", key: "cetak5", width: "50px" },
+  { title: "C6", key: "cetak6", width: "50px" },
+  { title: "C7", key: "cetak7", width: "50px" },
+  { title: "Total", key: "totalcetak", width: "60px", align: 'end' as const },
+  { title: "", key: "actions", width: "40px" },
 ];
 
-// --- Logika Inti: Perhitungan Cetak (FINAL) ---
+// --- Logika Perhitungan ---
+const totalLebarGabungan = ref(0);
+const totalPanjangTerpakai = ref(0);
+const sisaPanjangBahan = computed(() => formData.Panjang_bahan - totalPanjangTerpakai.value);
 
-const calculateTotals = (detail: DetailLHK) => {
-  const getVal = (key: keyof DetailLHK) => (detail[key] as number) || 0;
-
-  // 1. Ambil Dimensi dan Hitung Total Padding Meter
-  const panjangSpk = formData.Panjang_spk || 0;
-
-  const ambilPanjang = getVal("ambilBahanPanjang");
-  const padding = getVal("padding");
-  const tile = getVal("tile");
-  const tileValue = tile < 1 ? 1 : tile;
-
-  // Total Padding (M) = (Input CM * 2) / 100
-  const totalPaddingMeter = (padding * 2) / 100;
-
-  // 2. Hitung Panjang Efektif (PE) dalam Meter
-  const panjangEfektif = panjangSpk + totalPaddingMeter;
-
-  // 3. Hitung Total Unit Cetak
-  const c1 = getVal("cetak1");
-  const c2 = getVal("cetak2");
-  const c3 = getVal("cetak3");
-  const c4 = getVal("cetak4");
-  const c5 = getVal("cetak5");
-  const c6 = getVal("cetak6");
-  const c7 = getVal("cetak7");
-
-
-  const totalUnitCetak = c1 + c2 + c3 + c4 + c5 + c6 + c7;
-
-  // 4. Hitungan Total Panjang Bahan Terpakai (TPT)
-  let totalPanjangTerpakai = 0;
-
-  if (totalUnitCetak > 0 && panjangEfektif > 0 && tileValue > 0) {
-    // Logic Putaran Roll: Menggunakan Math.ceil
-    const kebutuhanPutaranRoll = Math.ceil(totalUnitCetak / tileValue);
-    totalPanjangTerpakai = kebutuhanPutaranRoll * panjangEfektif;
-  }
-
-  // 5. Update Detail Item
-  detail.totalcetak = totalUnitCetak;
-  detail.panjangTerpakai = Number(totalPanjangTerpakai.toFixed(3));
-  detail.sisaBahanPanjang = Number((ambilPanjang - totalPanjangTerpakai).toFixed(3));
-
-  // Sisa Bahan Lebar TIDAK DIHITUNG, melainkan diambil dari input manual (v-model)
-};
-
-const hitung = () => {
-  detailData.forEach(calculateTotals);
-};
-// --- Aksi Lookup Header dan Lainnya ---
-const openGudangSearch = () => {
-  if (isSaving.value) return;
-  isGudangLookupVisible.value = true;
-};
-const handleGudangSelect = (gudang: GudangItem) => {
-  if (gudang.Kode) {
-    formData.gdgKode = gudang.Kode;
-    formData.gdgNama = gudang.Nama;
-  }
-  isGudangLookupVisible.value = false;
-};
-const handleGdgKodeExit = async () => {
-  if (!formData.gdgKode) {
-    formData.gdgNama = "";
+const recalculateCombine = () => {
+  if (detailData.length === 0) {
+    totalPanjangTerpakai.value = 0;
+    totalLebarGabungan.value = 0;
     return;
   }
-  try {
-    const response = await api.get(`/api/v1/lookup/gudang/${formData.gdgKode}`);
-    if (response.data.success && response.data.data) {
-      formData.gdgNama = response.data.data.Nama;
-    } else {
-      formData.gdgNama = "Kode tidak ditemukan.";
-    }
-  } catch (error) {
-    formData.gdgNama = "Gagal memvalidasi kode.";
-  }
-};
-const openMesinSearch = () => {
-  isMesinLookupVisible.value = true;
-};
-const handleMesinSelect = (mesin: MesinItem) => {
-  if (mesin.Kode) {
-    formData.mesin = mesin.Kode;
-    console.log(`Mesin dipilih: ${mesin.Nama} (${mesin.Keterangan})`);
-  }
-  isMesinLookupVisible.value = false;
-};
-const handleMesinExit = async () => {
-  if (!formData.mesin) return;
-  try {
-    const response = await api.get(`/api/mmt/lookup/mesin/${formData.mesin}`);
-    if (response.data.success && response.data.data) {
-      console.log(`Mesin ${formData.mesin} valid.`);
-    } else {
-      console.warn(`Kode Mesin ${formData.mesin} tidak ditemukan.`);
-    }
-  } catch (error) {
-    console.error("Gagal validasi mesin.");
-  }
-};
-const openSpkSearch = () => {
-  isSpkLookupVisible.value = true;
-};
-const handleSpkSelect = (spk: SPKItemLookup) => {
-  if (spk.Spk) {
-    formData.spkNomor = spk.Spk;
-    formData.spkNama = spk.Nama;
-    formData.Panjang_spk = spk.Panjang || 0;
-    formData.Lebar_spk = spk.Lebar || 0;
-    formData.Gramasi = spk.Gramasi;
-    formData.Bahan = spk.Bahan;
-    formData.Jumlah = spk.Jumlah || 0;
-    formData.jumlah_jadi = spk.Jumlah_jadi || 0;
-    formData.jumlah_kurang = formData.Jumlah - formData.jumlah_jadi;
-    formData.spkBahan = spk.Bahan || "";
-  }
-  isSpkLookupVisible.value = false;
-};
-const handleSpkNomorExit = async () => {
-  if (!formData.spkNomor) return;
-  try {
-    // SIMULASI PENGISIAN SETELAH VALIDASI
-    formData.spkNama = `Produk Valid (${formData.spkNomor})`;
-    formData.Jumlah = 1000;
-    formData.jumlah_jadi = 30;
-    formData.jumlahKolom = 0;
-    formData.spkBahan = "Bahan XYZ";
-  } catch (error) {
-    formData.spkNama = "Gagal memvalidasi SPK.";
-  }
-};
 
+  // 1. Hitung Lebar Gabungan (Horizontal)
+  totalLebarGabungan.value = detailData.reduce((acc, d) => {
+    const padM = (d.padding * 2) / 100;
+    return acc + (d.tile * (d.lebar_spk + padM));
+  }, 0);
 
-const handleBarcodeScan = async (index: number) => {
-  const barcodeValue = formData.barcode_input;
-  if (!barcodeValue) return;
+  // 2. Cari Panjang SPK terbesar sebagai acuan tarikan mesin (Vertical)
+  const maxPanjangSpk = Math.max(...detailData.map(d => d.panjang_spk));
+  // Ambil padding baris pertama sebagai acuan jarak antar tarikan
+  const paddingM = (detailData[0].padding * 2) / 100;
+  const panjangEfektif = maxPanjangSpk + paddingM;
 
-  try {
-    const response = await api.get(`/mmt/stok-gudang/${encodeURIComponent(barcodeValue)}`);
+  let maxPutaran = 0;
+
+  detailData.forEach(d => {
+    // Hitung total cetak per baris (C1-C7)
+    d.totalcetak = (d.cetak1 || 0) + (d.cetak2 || 0) + (d.cetak3 || 0) + 
+                   (d.cetak4 || 0) + (d.cetak5 || 0) + (d.cetak6 || 0) + (d.cetak7 || 0);
     
-    // Validasi struktur data agar tidak terkena error 'flags'
-    if (!response.data || !response.data.data) {
-       console.warn("Respon server tidak valid atau data kosong.");
-       return;
-    }
-
-    const responseBody = response.data; 
-    const realData = responseBody.data.data;   
-    const currentStatus = responseBody.data.status;
-
-    if (currentStatus === 'READY' && realData) {
-      // 1. Masukkan data ke form/tabel
-      fillDataToForm(index, realData);
-      
-      // 2. Kunci Perubahan: Jangan kosongkan formData.barcode_input agar tetap tampil
-      // 3. Kunci Perubahan: Tidak memanggil alert() atau toast() di sini
-      
-      console.log("Barcode dimuat secara otomatis dari GPM.");
-    } 
-    else if (currentStatus === 'NEED_MUTATION' && realData) {
-      const msg = `Barcode ${barcodeValue} ditemukan di GUDANG UTAMA (WH-16).\n\n` +
-                  `Stok di Produksi (GPM) kosong. Apakah Anda ingin mengajukan PINJAM bahan?`;
-      
-      if (confirm(msg)) {
-        await api.post("/mmt/request-pinjam", {
-          barcode: realData.Barcode,
-          operator: formData.operator,
-          nomor_spk: formData.spkNomor,
-          nama_bahan: realData.Nama_Bahan,
-          panjang: realData.Sisa_Panjang,
-          lebar: realData.Lebar
-        });
-        alert("Permintaan Pinjam terkirim.");
-        formData.barcode_input = ""; // Untuk mutasi tetap dikosongkan agar siap scan yang lain
-      }
-    } 
-    else {
-      alert("Barcode tidak ditemukan di gudang manapun atau stok sudah habis.");
-      formData.barcode_input = ""; // Reset jika tidak ditemukan
-    }
-  } catch (error: any) {
-    console.error("Scan Error:", error);
-    alert("Terjadi kesalahan sistem: " + error.message);
-    formData.barcode_input = "";
-  }
-};
-// Fungsi pembantu untuk mengisi form
-const fillDataToForm = (index: number, data: any) => {
-  // Pastikan baris di index tersebut ada
-  if (!detailData[index]) {
-    detailData.push(defaultDetail());
-  }
-
-  const target = detailData[index];
-  
-  if (target) {
-    target.sku = data.Barcode || "";
-    target.kodebahan = data.Kode || "";
-    target.ambilBahanPanjang = parseFloat(data.Sisa_Panjang) || 0;
-    target.ambilBahanLebar = parseFloat(data.Lebar) || 0;
-    
-    // Gunakan nextTick jika perlu, tapi pastikan data aman dulu
-    calculateTotals(target);
-    
-    if (typeof toast !== 'undefined') {
-      toast.success("Barang berhasil dimuat.");
-    } else {
-      console.log("Barang berhasil dimuat.");
-    }
-  }
-};
-// Modifikasi juga handleBahanSelect agar tetap sinkron jika user menggunakan modal (manual)
-const handleBahanSelect = (item: MasterBahan) => {
-  if (!item) return;
-  formData.spkBahan = item.Kode;
-  formData.sku = item.Kode; // Jika manual, barcode dianggap sama dengan kode
-  formData.Bahan = item.Nama;
-  formData.Panjang_bahan = item.Panjang || 0;
-  formData.Lebar_bahan = item.Lebar || 0;
-
-  if (detailData.length === 1 && detailData[0].ambilBahanLebar === 0) {
-    detailData[0].ambilBahanLebar = item.Lebar || 0;
-  }
-  isBahanModalVisible = false;
-};
-
-const addDetail = () => {
-  detailData.push(defaultDetail());
-};
-const openBahanSearch = () => {
-  if (isSaving.value) return;
-  isBahanModalVisible.value = true;
-};
-const closeBahanModal = () => {
-  isBahanModalVisible.value = false;
-};
-
-const handleBahanExit = async () => {
-  if (!formData.sku) return;
-  const kode = formData.sku.split(" - ")[0];
-  try {
-    const res = await api.get(`/api/master/bahan/mmt/procuksi/${kode}`);
-    if (res.data.success && res.data.data) {
-      const b = res.data.data;
-      formData.spkBahan = b.Kode;
-      formData.sku = `${b.Kode} - ${b.Nama}`;
-    } else {
-      formData.sku = "Bahan tidak ditemukan";
-      formData.Panjang_bahan = 0;
-      formData.Lebar_bahan = 0;
-    }
-  } catch (err) {
-    formData.sku = "Gagal validasi bahan";
-  }
-};
-const removeDetail = (index: number) => {
-  if (detailData.length > 1) {
-    detailData.splice(index, 1);
-    hitung();
-  } else {
-    alert("Minimal harus ada satu baris data.");
-  }
-};
-
-const refreshData = () => {
-  Object.assign(formData, {
-    nomor: "AUTO",
-    tanggal: format(new Date(), "yyyy-MM-dd"),
-    gdgKode: "GPM",
-    gdgNama: "Gudang Produksi MMT",
-    shift: 1,
-    operator: "",
-    mesin: "",
-    spkNomor: "",
-    spkNama: "",
-    Panjang_spk: 0,
-    Lebar_spk: 0,
-    Panjang_bahan: 0,
-    Lebar_bahan: 0,
-    Jumlah: 0,
-    jumlah_jadi: 0,
-    spkBahan: "",
+    // Hitung berapa kali mesin harus menarik roll untuk SPK ini
+    const putaranPerSpk = Math.ceil(d.totalcetak / (d.tile || 1));
+    if (putaranPerSpk > maxPutaran) maxPutaran = putaranPerSpk;
   });
-  detailData.splice(0, detailData.length, defaultDetail());
-  isEditMode.value = false;
+
+  // 3. Finalize Angka
+  totalPanjangTerpakai.value = maxPutaran * panjangEfektif;
+
+  // Sinkronkan data ke setiap baris agar Map detailPayload tetap valid
+  detailData.forEach(d => {
+    d.panjangTerpakai = totalPanjangTerpakai.value;
+    d.sisaBahanPanjang = formData.Panjang_bahan - totalPanjangTerpakai.value;
+  });
+};
+
+// --- Handlers ---
+const handleBarcodeScan = async () => {
+  try {
+    const res = await api.get(`/mmt/stok-gudang/${formData.barcode_input}`);
+    if (res.data?.success) {
+      const d = res.data.data.data;
+      formData.sku_aktif = d.Barcode;
+      formData.kode_bahan_aktif = d.Kode;
+      formData.Panjang_bahan = parseFloat(d.Sisa_Panjang);
+      formData.Lebar_bahan = parseFloat(d.Lebar);
+      recalculateCombine();
+      toast.success("Barcode material berhasil dimuat.");
+    }
+  } catch (e) { toast.error("Barcode tidak ditemukan."); }
+};
+
+const handleSpkSelect = (spk: any) => {
+  detailData.push({
+    // Data Material (Sinkron dengan scan di kolom kiri)
+    sku: formData.sku_aktif,
+    kodebahan: formData.kode_bahan_aktif,
+    ambilBahanPanjang: formData.Panjang_bahan,
+    ambilBahanLebar: formData.Lebar_bahan,
+    nomor_spk: spk.Spk,
+    nama_spk: spk.Nama,
+    panjang_spk: spk.Panjang || 0,
+    lebar_spk: spk.Lebar || 0,
+    padding: 5,
+    tile: 1,
+    cetak1: 0, cetak2: 0, cetak3: 0, cetak4: 0, cetak5: 0, cetak6: 0, cetak7: 0,
+    totalcetak: 0,
+    
+    // Field hasil kalkulasi per baris
+    panjangTerpakai: 0,
+    sisaBahanPanjang: 0,
+    sisaBahanLebar: 0
+  });
+
+  recalculateCombine();
+  isSpkLookupVisible.value = false;
 };
 
 const handleSave = async (saveAndNew: boolean) => {
-  // 1. Validasi Klien Tambahan (Bisa dipindahkan ke computed isFormValid)
-  if (!isFormValid.value) {
-    alert(
-      "Harap lengkapi semua data header wajib (Tanggal, Gudang, Mesin, SPK, Operator) dan masukkan minimal satu baris hasil cetak."
-    );
+  if (detailData.length === 0) {
+    toast.warning("Belum ada data produksi.");
     return;
   }
 
-  if (
-    !confirm(
-      `Lanjutkan simpan LHK ${isEditMode.value ? formData.nomor : "BARU"}?`
-    )
-  )
-    return;
-
   isSaving.value = true;
 
+  // 1. Detail Payload
+  const detailPayload = detailData
+    .filter(d => d.sku)
+    .map(d => ({
+      sku: d.sku,
+      kodebahan: d.kodebahan,
+      ambilBahanPanjang: d.ambilBahanPanjang,
+      ambilBahanLebar: d.ambilBahanLebar,
+      cetak1: d.cetak1 || 0,
+      cetak2: d.cetak2 || 0,
+      cetak3: d.cetak3 || 0,
+      cetak4: d.cetak4 || 0,
+      cetak5: d.cetak5 || 0,
+      cetak6: d.cetak6 || 0,
+      cetak7: d.cetak7 || 0,
+      totalcetak: d.totalcetak || 0,
+      cetakmeter: d.panjangTerpakai || 0,
+      sisabahan: d.sisaBahanPanjang || 0,
+      sisabahanlebar: d.sisaBahanLebar || 0,
+      padding: d.padding || 0,
+      tile: d.tile || 0,
+    }));
+
+  // 2. Header Payload (TANPA USER)
+  const headerPayload = {
+    lnomor: formData.nomor,
+    ltanggal: formData.tanggal,
+    lshift: formData.shift,
+    loperator: formData.operator,
+    lmesin: formData.mesin,
+
+    lgdg_prod: "GPM",
+    lspk_nomor: detailData[0]?.nomor_spk || "",
+    lbahan: detailData[0]?.kodebahan || "",
+    lpanjang: detailData[0]?.panjang_spk || 0,
+    ljumlah_kolom: detailData[0]?.tile || 1,
+    lfixed: 0
+  };
+
+  const payload = {
+    header: headerPayload,
+    details: detailPayload
+  };
+
+  console.log("Kirim Payload:", payload);
+
   try {
-    // --- 2. Persiapan Payload ---
-    const userLoggedIn = "USER-PROD";
-    const headerPayload = {
-      ...formData,
-      ltanggal: formData.tanggal,
-      lgdg_prod: formData.gdgKode,
-      lspk_nomor: formData.spkNomor,
-      lmesin: formData.mesin,
-      lshift: formData.shift,
-      loperator: formData.operator,
-      lbahan: formData.spkBahan, // Kode bahan yang dipakai
-      lpanjang: formData.Panjang_spk, // Panjang SPK
-      ljumlah_kolom: detailData[0]?.tile || 1, // Ambil tile dari baris pertama
-      lfixed: detailData[0]?.padding || DEFAULT_PADDING_CM, // Ambil padding dari baris pertama
+    const res = await api.post("/mmt/lhk-cetak", payload);
 
-      // Penanda User
-      luser_Create: !isEditMode.value ? userLoggedIn : undefined,
-      luser_modified: isEditMode.value ? userLoggedIn : undefined,
-    };
-
-    // Detail Payload: Mapping field ke nama yang digunakan di Backend Service
-   const detailPayload = detailData
-  .filter((d) => (d.sku && d.sku !== "")) 
-  .map((d) => ({
-    sku: d.sku,                // Barcode
-    kodebahan: d.kodebahan,    // Kode Barang
-    ambilBahanPanjang: d.ambilBahanPanjang,
-    ambilBahanLebar: d.ambilBahanLebar,
-    cetak1: d.cetak1,
-    cetak2: d.cetak2,
-    cetak3: d.cetak3,
-    cetak4: d.cetak4,
-    cetak5: d.cetak5,
-    cetak6: d.cetak6,
-    cetak7: d.cetak7,
-    totalcetak: d.totalcetak,
-    cetakmeter: d.panjangTerpakai, 
-    roll: d.roll,
-    // PASTIKAN NAMA INI SAMA DENGAN YANG DIBACA BACKEND
-    sisabahan: d.sisaBahanPanjang, 
-    sisabahanlebar: d.sisaBahanLebar, 
-    padding: d.padding,
-    tile: d.tile,
-  }));
-
-    const payload = {
-      existingNomor: isEditMode.value ? formData.nomor : null,
-      header: headerPayload,
-      details: detailPayload,
-    };
-
-    let response;
-    response = await api.post(API_BASE_URL, payload);
-    const newNomor = response.data.nomor;
-
-    if (!newNomor) {
-      throw new Error("Backend gagal mengembalikan nomor LHK yang baru.");
-    }
-    alert(`LHK berhasil disimpan dengan nomor: ${newNomor}`);
-
-    if (saveAndNew) {
-      refreshData();
+    if (res.data.success) {
+      toast.success("LHK berhasil disimpan");
+      if (!saveAndNew) {
+        // redirect / reset
+      }
     } else {
-      router.push({ name: 'LhkCetakList' });
+      toast.error(res.data.message || "Gagal menyimpan");
     }
-  } catch (error) {
-    // --- 5. Penanganan Error ---
-    const err = error as AxiosError;
-    let errorMessage = "Gagal menyimpan data LHK. Cek log.";
-
-    if (err.response?.data?.message) {
-      errorMessage = err.response.data.message;
-    } else if (error instanceof Error) {
-      errorMessage = error.message;
-    }
-
-    // alert(errorMessage); // Asumsi alert jika toast tidak tersedia
-    console.error("Error saving LHK:", error);
+  } catch (err: any) {
+    toast.error(err.response?.data?.message || "Terjadi kesalahan sistem");
   } finally {
     isSaving.value = false;
   }
 };
 
-const handleCancel = () => {
-  if (confirm("Batalkan transaksi dan kembali?")) {
-    router.back();
-  }
-};
-const handleClose = () => {
-  if (confirm("Keluar dari modul?")) {
-    router.back();
-  }
-};
-const handlePrint = () => {
-  if (formData.nomor !== "AUTO") {
-    alert(`Simulasi mencetak slip LHK ${formData.nomor}.`);
-  }
-};
 
-// --- Initialization ---
-
-const loadExistingData = () => {
-  const existingNomor = route.params.nomor as string;
-  if (existingNomor) {
-    isEditMode.value = true;
-
-    // Load data simulasi edit mode
-    Object.assign(formData, {
-      nomor: existingNomor,
-      tanggal: format(new Date(Date.now() - 86400000), "yyyy-MM-dd"),
-      gdgKode: "GPM",
-      gdgNama: "Gudang Produksi MMT",
-      shift: 2,
-      operator: "Budi",
-      mesin: "MMT01",
-      spkNomor: "SPK-1234",
-      spkNama: "Produk Lama",
-      Panjang_spk: 2.0, // Harus ada nilai agar hitungan PE dan LE jalan
-      Lebar_spk: 1.0, // Harus ada nilai agar hitungan PE dan LE jalan
-      Panjang_bahan: 100,
-      Lebar_bahan: 3.2,
-      Jumlah: 1000,
-      spkBahan: "BB-Lama",
-    });
-
-    // Data Detail Simulasi
-    detailData.splice(
-      0,
-      detailData.length,
-      {
-        no: 1,
-        ambilBahanPanjang: 50,
-        ambilBahanLebar: 3.2,
-        padding: 5, // 5 cm
-        cetak1: 100,
-        cetak2: 0,
-        cetak3: 0,
-        cetak4: 0,
-        cetak5: 0,
-        cetak6: 0,
-        cetak7: 0,
-        totalcetak: 100,
-        panjangTerpakai: 0,
-        sisaBahanPanjang: 0,
-        sisaBahanLebar: 0.05, // Nilai default sisa manual
-        roll: 1,
-        tile: 3,
-      },
-      defaultDetail()
-    );
-    hitung();
-  } else {
-    refreshData();
-  }
-};
-
-onMounted(() => {
-  loadExistingData();
-});
+const openMesinSearch = () => isMesinLookupVisible.value = true;
+const openSpkSearch = () => isSpkLookupVisible.value = true;
+const handleMesinSelect = (m: any) => { formData.mesin = m.Kode; isMesinLookupVisible.value = false; };
+const removeDetail = (idx: number) => { detailData.splice(idx, 1); recalculateCombine(); };
+const isFormValid = computed(() => formData.operator && formData.mesin && detailData.length > 0);
 </script>
 
 <style scoped>
-/* Vuetify ERP Styling (Dipertahankan) */
 .form-grid-container {
   display: grid;
-  /* Kolom Kiri: Fixed 350px, Kolom Kanan: Ambil sisa ruang */
   grid-template-columns: 350px 1fr;
-  gap: 10px;
-  align-items: flex-start;
+  gap: 15px;
 }
-.left-column {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-  min-height: 100%;
-}
-.right-column {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-  min-height: 100%;
-}
-.detail-table-wrapper {
-  /* SOLUSI: Ini memastikan jika tabel melebihi lebar kontainer kolom kanan, 
-     hanya isi dari wrapper ini yang dapat digeser (scroll) secara horizontal. */
-  overflow-x: auto;
-}
-.desktop-form-section {
-  width: 100%;
-  padding: 5px;
-}
-.left-column :deep(.v-field__input) {
-  padding-top: 15px !important;
-  padding-bottom: 0px !important;
-  min-height: 15px;
-  font-size: 12px;
-}
-.left-column :deep(.v-field__field) {
-  padding-top: 2px !important;
-  padding-bottom: 2px !important;
-}
-.detail-entry-table :deep(.v-data-table__td),
-.detail-entry-table :deep(.v-data-table__th) {
-  padding: 1px 3px !important;
-  height: 30px !important;
-  vertical-align: middle;
-}
-.detail-entry-table :deep(.v-field__input),
-.detail-entry-table :deep(.v-field__field) {
-  min-height: 22px !important;
-  height: 22px !important;
-  font-size: 10px;
-  padding-top: 3px !important;
-  padding-bottom: 3px !important;
-  padding-left: 3px !important;
-  padding-right: 5px !important;
-}
-.text-end :deep(input) {
-  text-align: right !important;
-}
-.detail-entry-table :deep(.v-table__wrapper .v-table__row .v-field--filled) {
-  background-color: var(--v-theme-surface);
-}
-/* Warna Latar Belakang untuk kolom Hasil */
-.detail-entry-table
-  :deep(.v-table__wrapper .v-table__row td:nth-child(12) .v-field--filled) {
-  background-color: #fffff0 !important;
-} /* Panjang Terpakai */
-.detail-entry-table
-  :deep(.v-table__wrapper .v-table__row td:nth-child(13) .v-field--filled) {
-  background-color: #fff5f5 !important;
-} /* Sisa P. */
-
-.detail-entry-table {
-  min-width: 1200px; /* Nilai ini mungkin perlu disesuaikan */
-}
-/* CSS untuk Horizontal Scrolling */
+.detail-table-wrapper { overflow-x: auto; }
+.cetak-field :deep(input) { text-align: center !important; font-size: 11px; }
+.text-end :deep(input) { text-align: right !important; }
 </style>

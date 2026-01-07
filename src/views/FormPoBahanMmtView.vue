@@ -146,7 +146,7 @@
                 placeholder="Pilih Lokasi Tujuan..."
               />
             </v-col>
-            </v-row>
+            
             
 
             <v-col cols="12">
@@ -159,367 +159,330 @@
                 class="mt-4"
               />
             </v-col>
-          </v-card-text>
-        </v-card>
-      </div>
-
-      <div class="right-column">
-        <v-card
-          flat
-          class="desktop-form-section flex-grow-1 d-flex flex-column mb-3"
-        >
-          <v-card-title class="text-subtitle-1">Detail Item PO</v-card-title>
-          <v-card-text class="pa-0 flex-grow-1">
-            <div class="detail-table-wrapper">
-              <v-data-table
-                :headers="detailHeaders"
-                :items="formData.detail"
-                :items-per-page="-1"
-                class="elevation-0 detail-entry-table"
-                hide-default-footer
-              >
-                <template #[`item.index`]="{ index }">{{ index + 1 }}</template>
-
-                <template #[`item.mkb`]="{ item, index }">
-                  <v-text-field
-                    v-model="item.mkb"
-                    @click="item.kode ? null : openMkbSearch(index)"
-                    @keyup.f1.prevent="item.kode ? null : openMkbSearch(index)"
-                    :readonly="!!item.kode"
-                    :filled="!!item.kode"
-                    append-inner-icon="mdi-magnify"
-                    density="compact"
-                    hide-details
-                    style="cursor: pointer"
-                  />
-                </template>
-
-                <template #[`item.kode`]="{ item, index }">
-                  <v-text-field
-                    v-model="item.kode"
-                    @click="openBahanSearch(index)"
-                    @keyup.f1.prevent="openBahanSearch(index)"
-                    :readonly="!!item.mkb"
-                    :filled="!!item.mkb"
-                    density="compact"
-                    hide-details
-                    style="cursor: pointer"
-                  />
-                </template>
-                <template #[`item.namaext`]="{ item }">
-                  <v-text-field
-                    v-model="item.namaext"
-                    density="compact"
-                    hide-details
-                  />
-                </template>
-                <template #[`item.satuan`]="{ item }">
-                  <v-text-field
-                    v-model="item.satuan"
-                    density="compact"
-                    hide-details
-                  />
-                </template>
-                <template #[`item.roll`]="{ item }">
-                  <v-text-field
-                    v-model.number="item.roll"
-                    type="number"
-                    min="0"
-                    :disabled="formData.jenisPo !== 2"
-                    @update:modelValue="handleRollChange(item)"
-                    density="compact"
-                    hide-details
-                    class="text-end"
-                  />
-                </template>
-                <template #[`item.jumlah`]="{ item }">
-                  <v-text-field
-                    v-model.number="item.jumlah"
-                    type="number"
-                    min="0"
-                    @update:modelValue="hitung"
-                    density="compact"
-                    hide-details
-                    class="text-end"
-                  />
-                </template>
-                <template #[`item.harga`]="{ item }">
-  <v-text-field
-    v-model.number="item.harga"
-    type="number"
-    min="0"
-    :label="formData.isPpn ? 'Inc PPN' : 'Harga'"
-    :bg-color="formData.isPpn ? 'blue-lighten-5' : ''"
-    :disabled="!user.canSeePrice"
-    @update:modelValue="hitung"
-    density="compact"
-    hide-details
-    class="text-end"
-  />
-
-                </template>
-                <template #[`item.diskon`]="{ item }">
-                  <v-text-field
-                    v-model.number="item.diskon"
-                    type="number"
-                    min="0"
-                    max="100"
-                    @update:modelValue="hitung"
-                    density="compact"
-                    hide-details
-                    class="text-end"
-                  />
-                </template>
-                <template #[`item.total`]="{ item }">
-                  <v-text-field
-                    :model-value="formatCurrency(item.total)"
-                    readonly
-                    filled
-                    density="compact"
-                    hide-details
-                    class="text-end"
-                  />
-                </template>
-                <template #[`item.spk`]="{ item, index }">
-                  <v-text-field
-                    v-model="item.spk"
-                    @click="openSPKSearch(index)"
-                    @keyup.f1.prevent="openSPKSearch(index)"
-                    append-inner-icon="mdi-magnify"
-                    density="compact"
-                    hide-details
-                    style="cursor: pointer"
-                  />
-                </template>
-                <template #[`item.actions`]="{ index }">
-                  <v-btn
-                    icon="mdi-delete"
-                    size="x-x-small"
-                    variant="text"
-                    color="error"
-                    @click="removeDetail(index)"
-                    :disabled="
-                      formData.detail.length === 1 && !formData.detail[0].sku
-                    "
-                    title="Hapus baris"
-                  />
-                </template>
-
-                <template #bottom>
-                  <v-container class="py-2">
-                    <v-row justify="space-between" class="px-4">
-                      <v-col cols="auto">
-                        <v-btn
-                          size="x-small"
-                          color="primary"
-                          @click="addDetail"
-                          prepend-icon="mdi-plus"
-                          >Tambah Item</v-btn
-                        >
-                      </v-col>
-                      <v-col cols="auto">
-                        <v-label class="font-weight-bold"
-                          >Total QTY Item:
-                          {{ calculatedItemTotal.toFixed(2) }}</v-label
-                        >
-                      </v-col>
-                    </v-row>
-                  </v-container>
-                </template>
-              </v-data-table>
-            </div>
-          </v-card-text>
-        </v-card>
-
-        <v-card
-          v-if="formData.jenisPo === 0"
-          flat
-          class="desktop-form-section mb-3"
-        >
-          <v-card-title class="text-subtitle-1"
-            >Delivery Commitment (PO Bahan)</v-card-title
-          >
-          <v-card-text class="pa-0">
-            <v-data-table
-              :headers="commitmentHeaders"
-              :items="formData.commitments"
-              :items-per-page="-1"
-              class="elevation-0 detail-entry-table"
-              hide-default-footer
-            >
-              <template #[`item.index`]="{ index }">{{ index + 1 }}</template>
-              <template #[`item.tanggal`]="{ item }">
-                <v-text-field
-                  v-model="item.tanggal"
-                  type="date"
-                  density="compact"
-                  hide-details
-                />
-              </template>
-              <template #[`item.jumlah`]="{ item }">
-                <v-text-field
-                  v-model.number="item.jumlah"
-                  type="number"
-                  min="0"
-                  density="compact"
-                  hide-details
-                  class="text-end"
-                />
-              </template>
-              <template #bottom>
-                <v-container class="py-2">
-                  <v-row justify="end">
-                    <v-col cols="auto">
-                      <v-btn
-                        size="x-small"
-                        color="primary"
-                        @click="addCommitment"
-                        prepend-icon="mdi-plus"
-                        >Tambah Commitment</v-btn
-                      >
-                    </v-col>
-                  </v-row>
-                </v-container>
-              </template>
-            </v-data-table>
-          </v-card-text>
-        </v-card>
-
-        <v-card
-          v-if="formData.jenisPo === 2"
-          flat
-          class="desktop-form-section mb-3"
-        >
-          <v-card-title class="text-subtitle-1"
-            >Roll Detail (PO Celup)</v-card-title
-          >
-          <v-card-text class="pa-0">
-            <v-data-table
-              :headers="rollHeaders"
-              :items="formData.rolls"
-              :items-per-page="-1"
-              class="elevation-0 detail-entry-table"
-              hide-default-footer
-            >
-              <template #[`item.no`]="{ item }">{{ item.no }}</template>
-              <template #[`item.kode`]="{ item }">
-                <v-text-field
-                  v-model="item.kode"
-                  readonly
-                  filled
-                  density="compact"
-                  hide-details
-                />
-              </template>
-              <template #[`item.nama`]="{ item }">
-                <v-text-field
-                  v-model="item.nama"
-                  readonly
-                  filled
-                  density="compact"
-                  hide-details
-                />
-              </template>
-              <template #[`item.jumlah`]="{ item }">
-                <v-text-field
-                  v-model.number="item.jumlah"
-                  type="number"
-                  min="0"
-                  density="compact"
-                  hide-details
-                  class="text-end"
-                />
-              </template>
-              <template #bottom>
-                <v-container class="py-2">
-                  <v-row justify="space-between" class="px-4">
-                    <v-col cols="auto" class="text-caption font-weight-bold">
-                      Total Roll Qty: {{ calculatedRollTotal.toFixed(2) }}
-                    </v-col>
-                  </v-row>
-                </v-container>
-              </template>
-            </v-data-table>
-          </v-card-text>
-        </v-card>
-
-        <v-card flat class="desktop-form-section">
-          <v-card-text>
-            <v-row dense>
-              <v-col cols="6">
-                <v-textarea
-                  label="Note (mmNote)"
-                  v-model="formData.note"
-                  rows="2"
-                  variant="outlined"
-                  density="compact"
-                  hide-details
-                />
-              </v-col>
-              <v-col cols="6">
-                <v-row dense>
-                  <v-col cols="6">
-                    <v-checkbox
-                      label="PPN"
-                      v-model="formData.isPpn"
-                      @change="handlePpnToggle"
-                      density="compact"
-                      hide-details
-                      class="mt-0 pt-0"
-                    />
-                  </v-col>
-                  <v-col cols="6">
-                    <v-text-field
-                      label="Rate PPN (%)"
-                      v-model.number="formData.ppnRate"
-                      type="number"
-                      @update:modelValue="hitung"
-                      :readonly="!formData.isPpn"
-                      density="compact"
-                      hide-details
-                      class="text-right"
-                    />
-                  </v-col>
-                  <v-col cols="6">
-                    <v-text-field
-                      label="Total Subtotal"
-                      :model-value="formatCurrency(calculatedSubTotal)"
-                      readonly
-                      filled
-                      density="compact"
-                      hide-details
-                      class="text-right"
-                    />
-                  </v-col>
-                  <v-col cols="6">
-                    <v-text-field
-                      label="Total PPN"
-                      :model-value="formatCurrency(calculatedPpnTotal)"
-                      readonly
-                      filled
-                      density="compact"
-                      hide-details
-                      class="text-right"
-                    />
-                  </v-col>
-                  <v-col cols="12">
-                    <v-text-field
-                      label="Grand Total"
-                      :model-value="formatCurrency(calculatedGrandTotal)"
-                      readonly
-                      filled
-                      density="compact"
-                      hide-details
-                      class="text-right font-weight-bold"
-                    />
-                  </v-col>
-                </v-row>
-              </v-col>
             </v-row>
+            <div v-if="formData.jenisPo === 0" class="mt-4">
+  <v-divider class="mb-2"></v-divider>
+  <div class="text-caption font-weight-bold mb-1 text-primary">
+    <v-icon size="small" class="mr-1">mdi-calendar-clock</v-icon>
+    DATELINE / DELIVERY COMMITMENT
+  </div>
+  <v-text-field
+    v-model="formData.commitments[0].tanggal"
+    type="date"
+    density="compact"
+    variant="outlined"
+    color="primary"
+    hide-details
+  />
+</div>
           </v-card-text>
         </v-card>
       </div>
-    </div>
+
+<div class="right-column">
+  <!-- ===================== DETAIL ITEM PO ===================== -->
+  <v-card border flat class="mb-3 d-flex flex-column">
+    <v-card-title class="text-subtitle-1 pa-2">
+      Detail Item PO
+    </v-card-title>
+
+    <v-card-text class="pa-0">
+      <div class="detail-table-wrapper" style="overflow-x: auto;">
+        <v-data-table
+          :headers="detailHeaders"
+          :items="formData.detail"
+          :items-per-page="-1"
+          density="compact"
+          hide-default-footer
+          fixed-header
+          height="calc(100vh - 400px)"
+          class="detail-entry-table"
+          style="min-width: 1300px;"
+        >
+          <!-- INDEX -->
+          <template #[`item.index`]="{ index }">
+            <span class="text-grey text-caption">{{ index + 1 }}</span>
+          </template>
+
+          <!-- KODE -->
+          <template #[`item.kode`]="{ item, index }">
+            <v-text-field
+              v-model="item.kode"
+              @click="openBahanSearch(index)"
+              append-inner-icon="mdi-magnify"
+              readonly
+              variant="plain"
+              density="compact"
+              hide-details
+              class="cursor-pointer"
+            />
+          </template>
+
+          <!-- NAMA -->
+          <template #[`item.namaext`]="{ item }">
+            <v-text-field
+              v-model="item.namaext"
+              variant="plain"
+              density="compact"
+              hide-details
+            />
+          </template>
+
+          <!-- SATUAN -->
+          <template #[`item.satuan`]="{ item }">
+            <v-text-field
+              v-model="item.satuan"
+              variant="plain"
+              density="compact"
+              hide-details
+            />
+          </template>
+
+          <!-- ROLL -->
+          <template #[`item.roll`]="{ item }">
+            <v-text-field
+              v-model.number="item.roll"
+              type="number"
+              :disabled="formData.jenisPo !== 2"
+              @update:modelValue="handleRollChange(item)"
+              variant="plain"
+              density="compact"
+              hide-details
+              class="text-right-input"
+            />
+          </template>
+
+          <!-- JUMLAH -->
+          <template #[`item.jumlah`]="{ item }">
+            <v-text-field
+              v-model.number="item.jumlah"
+              type="number"
+              @update:modelValue="hitung"
+              variant="plain"
+              density="compact"
+              hide-details
+              class="text-right-input font-weight-bold"
+            />
+          </template>
+
+          <!-- HARGA -->
+          <template #[`item.harga`]="{ item }">
+            <v-text-field
+              v-model.number="item.harga"
+              type="number"
+              :disabled="!user.canSeePrice"
+              @update:modelValue="hitung"
+              variant="plain"
+              density="compact"
+              hide-details
+              class="text-right-input"
+            />
+          </template>
+
+          <!-- DISKON -->
+          <template #[`item.diskon`]="{ item }">
+            <v-text-field
+              v-model.number="item.diskon"
+              type="number"
+              @update:modelValue="hitung"
+              variant="plain"
+              density="compact"
+              hide-details
+              class="text-right-input"
+            />
+          </template>
+
+          <!-- TOTAL -->
+          <template #[`item.total`]="{ item }">
+            <div class="text-right font-weight-bold pr-2">
+              {{ formatCurrency(item.total) }}
+            </div>
+          </template>
+
+          <!-- SPK -->
+          <template #[`item.spk`]="{ item, index }">
+            <v-text-field
+              v-model="item.spk"
+              @click="openSPKSearch(index)"
+              append-inner-icon="mdi-magnify"
+              readonly
+              variant="plain"
+              density="compact"
+              hide-details
+            />
+          </template>
+
+          <!-- ACTION -->
+          <template #[`item.actions`]="{ index }">
+            <v-btn
+              icon="mdi-delete"
+              size="x-small"
+              color="error"
+              variant="text"
+              @click="removeDetail(index)"
+              :disabled="formData.detail.length === 1 && !formData.detail[0].kode"
+            />
+          </template>
+
+          <!-- FOOTER -->
+          <template #bottom>
+            <v-container class="py-2">
+              <v-row justify="space-between" class="px-4">
+                <v-col cols="auto">
+                  <v-btn
+                    size="x-small"
+                    color="primary"
+                    prepend-icon="mdi-plus"
+                    @click="addDetail"
+                  >
+                    Tambah Item
+                  </v-btn>
+                </v-col>
+                <v-col cols="auto">
+                  <v-label class="font-weight-bold">
+                    Total QTY Item:
+                    {{ calculatedItemTotal.toFixed(2) }}
+                  </v-label>
+                </v-col>
+              </v-row>
+            </v-container>
+          </template>
+        </v-data-table>
+      </div>
+    </v-card-text>
+  </v-card>
+
+  <!-- ===================== ROLL DETAIL ===================== -->
+  <v-card
+    v-if="formData.jenisPo === 2"
+    flat
+    class="desktop-form-section mb-3"
+  >
+    <v-card-title class="text-subtitle-1">
+      Roll Detail (PO Celup)
+    </v-card-title>
+
+    <v-card-text class="pa-0">
+      <v-data-table
+        :headers="rollHeaders"
+        :items="formData.rolls"
+        :items-per-page="-1"
+        hide-default-footer
+        class="detail-entry-table"
+      >
+        <template #[`item.no`]="{ item }">{{ item.no }}</template>
+
+        <template #[`item.kode`]="{ item }">
+          <v-text-field v-model="item.kode" readonly density="compact" hide-details />
+        </template>
+
+        <template #[`item.nama`]="{ item }">
+          <v-text-field v-model="item.nama" readonly density="compact" hide-details />
+        </template>
+
+        <template #[`item.jumlah`]="{ item }">
+          <v-text-field
+            v-model.number="item.jumlah"
+            type="number"
+            density="compact"
+            hide-details
+            class="text-end"
+          />
+        </template>
+
+        <template #bottom>
+          <v-container class="py-2 px-4">
+            <div class="text-caption font-weight-bold">
+              Total Roll Qty: {{ calculatedRollTotal.toFixed(2) }}
+            </div>
+          </v-container>
+        </template>
+      </v-data-table>
+    </v-card-text>
+  </v-card>
+
+  <!-- ===================== SUMMARY ===================== -->
+  <v-card flat class="desktop-form-section">
+    <v-card-text>
+      <v-row dense>
+        <v-col cols="6">
+          <v-textarea
+            label="Note (mmNote)"
+            v-model="formData.note"
+            rows="2"
+            variant="outlined"
+            density="compact"
+            hide-details
+          />
+        </v-col>
+
+        <v-col cols="6">
+          <v-row dense>
+            <v-col cols="6">
+              <v-checkbox
+                label="PPN"
+                v-model="formData.isPpn"
+                @change="handlePpnToggle"
+                density="compact"
+                hide-details
+              />
+            </v-col>
+
+            <v-col cols="6">
+              <v-text-field
+                label="Rate PPN (%)"
+                v-model.number="formData.ppnRate"
+                type="number"
+                :readonly="!formData.isPpn"
+                @update:modelValue="hitung"
+                density="compact"
+                hide-details
+                class="text-right"
+              />
+            </v-col>
+
+            <v-col cols="6">
+              <v-text-field
+                label="Total Subtotal"
+                :model-value="formatCurrency(calculatedSubTotal)"
+                readonly
+                density="compact"
+                hide-details
+                class="text-right"
+              />
+            </v-col>
+
+            <v-col cols="6">
+              <v-text-field
+                label="Total PPN"
+                :model-value="formatCurrency(calculatedPpnTotal)"
+                readonly
+                density="compact"
+                hide-details
+                class="text-right"
+              />
+            </v-col>
+
+            <v-col cols="12">
+              <v-text-field
+                label="Grand Total"
+                :model-value="formatCurrency(calculatedGrandTotal)"
+                readonly
+                density="compact"
+                hide-details
+                class="text-right font-weight-bold"
+              />
+            </v-col>
+          </v-row>
+        </v-col>
+      </v-row>
+    </v-card-text>
+  </v-card>
+</div>
+
+        </div>
+
+
 
     <SupplierLookupModal
       v-if="isSupplierModalVisible"
@@ -768,7 +731,8 @@ const calculateTotal = (item: DetailItem): number => {
   if (formData.isPpn && formData.ppnRate > 0) {
     hargaBersih = item.harga / (1 + (formData.ppnRate / 100));
   }
-  return item.jumlah * hargaClean * (1 - (item.diskon || 0) / 100);
+  // Pastikan menggunakan hargaBersih, bukan hargaClean
+  return item.jumlah * hargaBersih * (1 - (item.diskon || 0) / 100);
 };
 
 const hitung = () => {
@@ -838,8 +802,9 @@ const isFormValid = computed(() => {
 
   // Khusus PO Bahan: Cek Commitment
   if (formData.jenisPo === 0) {
-    if (formData.commitments.filter((c) => c.jumlah > 0).length === 0)
+    if (!formData.commitments[0] || !formData.commitments[0].tanggal) {
       return false;
+    }
   }
 
   return isHeaderValid && isDetailValid;
@@ -877,24 +842,17 @@ const openPermintaanSearch = () => {
 
 // --- Headers Sesuai Delphi Grid ---
 const detailHeaders = [
-  {
-    title: "No",
-    key: "index",
-    width: "5%",
-    sortable: false,
-    align: "center" as const,
-  },
-  { title: "Kode Bahan", key: "kode", width: "10%" }, // clkode (F1)
-  { title: "Nama Ext", key: "namaext", width: "18%" }, // clnamaext
-  { title: "Satuan", key: "satuan", width: "8%" }, // clsatuan
-  { title: "Gramasi", key: "gramasi", width: "8%" }, // clgramasi
-  { title: "Roll", key: "roll", width: "6%", align: "end" as const }, // clroll (Hanya Celup)
-  { title: "Jumlah", key: "jumlah", width: "8%", align: "end" as const }, // cljumlah
-  { title: "Harga", key: "harga", width: "8%", align: "end" as const }, // clharga
-  { title: "Diskon(%)", key: "diskon", width: "7%", align: "end" as const }, // cldiskon
-  { title: "Total", key: "total", width: "10%", align: "end" as const }, // cltotal
-  { title: "SPK", key: "spk", width: "10%" }, // clspk (F1)
-  { title: "Aksi", key: "actions", width: "5%", sortable: false },
+  { title: "No", key: "index", width: "50px", align: "center" as const },
+  { title: "Kode Bahan", key: "kode", width: "150px" },
+  { title: "Nama Ext", key: "namaext", width: "250px" },
+  { title: "Satuan", key: "satuan", width: "80px" },
+  { title: "Gramasi", key: "gramasi", width: "80px" },
+  { title: "Jumlah", key: "jumlah", width: "100px", align: "end" as const },
+  { title: "Harga", key: "harga", width: "150px", align: "end" as const },
+  { title: "Diskon(%)", key: "diskon", width: "90px", align: "end" as const },
+  { title: "Total", key: "total", width: "150px", align: "end" as const },
+  { title: "SPK", key: "spk", width: "150px" },
+  { title: "Aksi", key: "actions", width: "60px", sortable: false },
 ] as const;
 
 const commitmentHeaders = [
@@ -1217,56 +1175,77 @@ const handlePrint = () => {
 };
 
 const handleSave = async (isSaveAndNew: boolean) => {
+  // 1. Validasi awal
   if (!isFormValid.value) {
-    toast.error(
-      "Validasi gagal: Pastikan Header, Supplier, QTY, dan Harga diisi."
-    );
+    toast.error("Validasi gagal: Pastikan Header, Supplier, Detail, dan Dateline terisi.");
     return;
   }
 
   if (formData.status !== "OPEN") {
-    toast.warning(
-      `PO sudah berstatus ${formData.status}. Tidak bisa disimpan.`
-    );
+    toast.warning(`PO sudah berstatus ${formData.status}. Tidak bisa disimpan.`);
     return;
   }
+
   if (!confirm(`Yakin ingin simpan PO?`)) return;
 
   try {
     isSaving.value = true;
+
+    // 2. Bersihkan detail (hanya item yang valid)
     const cleanDetail = formData.detail
-      .filter((d) => d && d.kode && d.jumlah > 0)
+      .filter((d) => d && d.kode && (Number(d.jumlah) > 0))
       .map((d) => ({
-        ...d,
-        mb_nomor: d.mb_nomor || null, // ⬅ HARUS DIKIRIM
-        spk: d.spk || null, // ⬅ opsional
+        kode: d.kode,
+        satuan: d.satuan,
+        jumlah: d.jumlah,
+        harga: d.harga,
+        diskon: d.diskon || 0,
+        total: d.total, // Digunakan backend untuk kalkulasi totalAmount
+        namaext: d.namaext || d.nama,
+        spk: d.spk || null,
+        mb_nomor: d.mb_nomor || null,
       }));
+
+    // 3. Ambil nilai dateline dari commitments array
+    const datelineValue = formData.commitments.length > 0 ? formData.commitments[0].tanggal : null;
+
+    // 4. Susun Payload (Harus sesuai dengan Destructuring di Backend)
+    // Backend: const { tanggal, supKode, keterangan, isPpn, ppnRate, detail, dateline, jenisPo, AlamatPabrik } = data;
     const payload = {
-      ...formData,
-      // Kirim array yang sudah bersih
+      tanggal: formData.tanggal,
+      supKode: formData.supKode,
+      keterangan: formData.note || "", // Note di frontend dikirim sebagai 'keterangan' ke backend
+      isPpn: formData.isPpn,
+      ppnRate: formData.ppnRate,
       detail: cleanDetail,
-      commitments: formData.commitments.filter((c) => c.jumlah > 0),
-      rolls: formData.rolls.filter((r) => r.jumlah > 0 && r.kode),
+      dateline: datelineValue, // Diambil dari variabel datelineValue di atas
+      jenisPo: formData.jenisPo,
+      AlamatPabrik: formData.AlamatPabrik,
+      // Field tambahan untuk update
+      nomorToEdit: isEditMode.value ? formData.nomor : null 
     };
 
     let response;
 
     if (isEditMode.value) {
+      // Pastikan API PUT menerima data dalam struktur yang sama
       response = await api.put(`${API_BASE_URL}/${formData.nomor}`, payload);
     } else {
-      delete payload.nomor;
-      const payloadToSend = { ...payload, nomorToEdit: null };
-
-      response = await api.post(API_BASE_URL, payloadToSend);
+      response = await api.post(API_BASE_URL, payload);
     }
-    const newNomor = response.data.nomor;
-    if (!newNomor || newNomor === "AUTO") {
-      throw new Error("Backend gagal mengembalikan nomor PO yang baru.");
+
+    // Backend Anda mengembalikan { Nomor: poNomor } (N besar) atau { nomor: ... }
+    // Sesuaikan dengan response asli backend Anda
+    const newNomor = response.data.Nomor || response.data.nomor;
+
+    if (!newNomor) {
+      throw new Error("Backend tidak mengembalikan nomor PO.");
     }
 
     toast.success(`Data berhasil disimpan dengan nomor: ${newNomor}`);
 
     if (confirm(`Akan di Cetak?`)) {
+      // Ganti route sesuai nama yang benar di router Anda
       router.push({ name: "PoPrint", params: { nomor: newNomor } });
     }
 
@@ -1277,8 +1256,9 @@ const handleSave = async (isSaveAndNew: boolean) => {
     }
   } catch (error) {
     const err = error as AxiosError;
+    console.error("Save Error Detail:", err.response?.data); // Sangat penting untuk cek di console browser
     toast.error(
-      err.response?.data?.message || "Gagal menyimpan data. Cek log."
+      err.response?.data?.message || "Gagal menyimpan data. Pastikan semua field terisi."
     );
   } finally {
     isSaving.value = false;
@@ -1471,10 +1451,11 @@ const loaddataall = async (nomor: string) => {
       pinStatus: data.PinStatus || "",
       // Pastikan calculateTotal didefinisikan di scope global file Vue Anda
       detail: data.Detail.map((d: any) => ({ ...d, total: calculateTotal(d) })),
-      commitments:
-        data.Commitments && data.Commitments.length > 0
-          ? data.Commitments
-          : [createEmptyCommitment()],
+      commitments: [{ 
+        no: 1, 
+        tanggal: safeFormatDate(data.Dateline || data.po_dateline || new Date()), 
+        jumlah: 0 
+      }],
       rolls: data.Rolls || [],
     });
 
@@ -1518,13 +1499,65 @@ watch(formData.detail, hitung, { deep: true });
   align-items: flex-start;
 }
 
+.detail-entry-table :deep(table) {
+  table-layout: fixed;
+  width: 100%;
+}
+
+/* Header */
+.detail-entry-table :deep(th) {
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  padding: 4px 6px !important;
+  background: #fafafa;
+}
+
+/* Cell */
+.detail-entry-table :deep(td) {
+  padding: 2px 6px !important;
+  height: 28px !important;
+  vertical-align: middle;
+}
+
+.text-right-input {
+  width: 100%;
+}
+
+.text-right-input :deep(.v-field) {
+  min-height: 20px !important;
+  height: 20px !important;
+  padding: 0 !important;
+}
+
+.text-right-input :deep(input) {
+  text-align: right;
+  font-size: 10px;
+  padding: 0 !important;
+  line-height: 20px;
+}
+
+.cell-text {
+  font-size: 10px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cell-number {
+  text-align: right;
+  font-weight: 500;
+  font-size: 10px;
+}
+
+
 .left-column,
 .right-column {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-  min-height: 100%;
+  height: calc(100vh - 120px); /* sesuaikan header page */
+  overflow-y: auto;
+  padding-right: 8px;
 }
+
 
 .desktop-form-section {
   width: 100%;

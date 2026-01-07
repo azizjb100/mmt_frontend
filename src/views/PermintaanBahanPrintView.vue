@@ -18,6 +18,7 @@ interface MmtPrintData {
   NoPermintaan: string;
   Tanggal: string;
   Kepada: string;
+  Priority: string;
   Keterangan: string;
   Details: MmtDetail[];
   Dibuat: string;
@@ -102,6 +103,10 @@ onMounted(() => {
             <span class="value">: {{ printData.Tanggal }}</span>
           </div>
           <div class="info-row">
+            <span class="label">PRIORITY</span>
+            <span class="value">: {{ printData.Priority }}</span>
+          </div>
+          <div class="info-row">
             <span class="label">KETERANGAN</span>
             <span class="value">: {{ printData.Keterangan }}</span>
           </div>
@@ -154,18 +159,21 @@ onMounted(() => {
           <div class="signature-label">Dibuat Oleh,</div>
           <div class="spacer"></div>
           <div class="signer-role">{{ printData.Dibuat }}</div>
+          <div class="signature-label">TEAM MMT</div>
         </div>
 
         <div class="signature-box">
           <div class="signature-label">Diketahui Oleh,</div>
           <div class="spacer"></div>
           <div class="signer-role">{{ printData.Diketahui }}</div>
+          <div class="signature-label">SPV MMT</div>
         </div>
     
         <div class="signature-box">
           <div class="signature-label">Disetujui Oleh,</div>
           <div class="spacer"></div>
           <div class="signer-role">{{ printData.Disetujui }}</div>
+          <div class="signature-label">MANAGER MMT</div>
         </div>
       </div>
     </div>

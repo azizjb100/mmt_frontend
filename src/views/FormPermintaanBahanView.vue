@@ -40,6 +40,7 @@ interface FormDataState {
   pabrikKode: string;
   pabrikNama: string;
   keteranganHeader: string;
+  priority: string;
   kepada: string;
   cabang: string;
   accSpv: string;
@@ -112,6 +113,7 @@ const formData = reactive<FormDataState>({
   pabrikKode: "",
   pabrikNama: "",
   keteranganHeader: "",
+  priority: "Urgent",
   kepada: "",
   cabang: "",
   accSpv: "",
@@ -211,6 +213,7 @@ const loaddataall = async (nomor: string) => {
     formData.gudangKode = d.Gudang_Asal_Kode;
     formData.gudangNama = d.Gudang_Asal_Nama;
     formData.keteranganHeader = d.Keterangan;
+    formData.priority = d.Priority;
     formData.kepada = d.Kepada || "";
     formData.cabang = d.To_Cabang || d.Cabang || "";
     formData.pabrikNama = formData.cabang; 
@@ -285,6 +288,7 @@ const saveForm = async (saveAndNew: boolean) => {
       Tanggal: formData.tanggal,
       GudangKode: formData.gudangKode,
       Keterangan: formData.keteranganHeader,
+      Priority: formData.priority,
       Kepada: formData.kepada, // Pastikan terisi
       Cabang: formData.cabang, // Data dari Pabrik select
       Detail: formData.detail
@@ -309,11 +313,9 @@ const saveForm = async (saveAndNew: boolean) => {
     toast.success("Data berhasil disimpan!");
     
     if (saveAndNew) {
-      refreshData();
+      refreshData(); // tetap di form
     } else {
-      // Jika baru simpan (AUTO), ambil nomor baru dari response backend
-      const newNomor = response.data.Nomor || formData.nomor;
-      await loaddataall(newNomor);
+      router.back(); // ✅ kembali ke halaman sebelumnya
     }
   } catch (error: any) {
     toast.error(error.response?.data?.message || "Gagal menyimpan data.");
@@ -374,6 +376,10 @@ onMounted(() => {
   >
     <v-icon start>mdi-content-save-all</v-icon> Simpan & Baru
   </v-btn>
+
+  <v-btn size="x-small" @click="router.back()">
+        <v-icon start>mdi-close</v-icon> Tutup
+      </v-btn>
   </template>
 
     <div class="form-grid-container">
@@ -402,6 +408,17 @@ onMounted(() => {
 
               <v-col cols="12">
                 <v-text-field label="Pilih Tujuan (Pabrik)" v-model="formData.pabrikNama" @click="!isLocked && (isPabrikModalVisible = true)" append-inner-icon="isLocked ? '' : 'mdi-magnify'" readonly variant="outlined" density="compact" hide-details color="primary" />
+              </v-col>
+              <v-col cols="12">
+              <v-select
+                label="Priority"
+                v-model="formData.priority"
+                :items="['Urgent', 'Top Urgent']"
+                variant="outlined"
+                density="compact"
+                hide-details
+                clearable
+              />
               </v-col>
               <v-col cols="12">
                 <v-textarea label="Keterangan Header" v-model="formData.keteranganHeader" rows="2" variant="outlined" density="compact" hide-details :readonly="isLocked" />
@@ -451,6 +468,10 @@ onMounted(() => {
 
             <template #[`item.qty`]="{ item }">
               <v-text-field v-model.number="item.qty" type="number" density="compact" variant="plain" hide-details class="text-right-input" />
+            </template>
+
+            <template #[`item.keterangan`]="{ item }">
+              <v-text-field v-model.number="item.keterangan" type="text" density="compact" variant="plain" hide-details class="text-right-input" />
             </template>
 
             <template #[`item.actions`]="{ index }">

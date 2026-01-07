@@ -8,7 +8,7 @@ export const useAuthStore = defineStore("auth", () => {
   const router = useRouter();
 
   const token = ref(localStorage.getItem("authToken"));
-  const user = ref(null);
+  const user = ref(JSON.parse(localStorage.getItem("userData") || "null"));
   const permissions = ref([]);
 
   const isTokenExpired = computed(() => {

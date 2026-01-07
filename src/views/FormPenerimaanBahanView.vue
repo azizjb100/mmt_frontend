@@ -34,13 +34,31 @@
                 <v-text-field label="Nomor PO/Minta" v-model="formData.noPermintaan" readonly @click="openPOLookup" variant="outlined" density="compact" hide-details append-inner-icon="mdi-magnify" style="cursor: pointer" />
               </v-col>
               <v-col cols="5">
-                <v-text-field label="Kode Supplier" v-model="formData.supplierKode" readonly @click="openSupplierSearch" variant="outlined" density="compact" hide-details append-inner-icon="mdi-magnify" style="cursor: pointer" />
-              </v-col>
-              <v-col cols="7">
-                <v-text-field label="Nama Supplier" v-model="formData.supplier" readonly variant="filled" density="compact" hide-details />
-              </v-col>
-              <v-col cols="12">
-                <v-text-field label="Nomor Resi" v-model="formData.no_resi" variant="outlined" density="compact" hide-details placeholder="Masukkan No. Resi pengiriman" />
+                  <v-text-field 
+                    label="Kode Supplier" 
+                    v-model="formData.supplierKode" 
+                    readonly 
+                    @click="openSupplierSearch" 
+                    variant="outlined" 
+                    density="compact" 
+                    hide-details 
+                    append-inner-icon="mdi-magnify" 
+                    style="cursor: pointer" 
+                  />
+                </v-col>
+
+                <v-col cols="7">
+                  <v-text-field 
+                    label="Nama Supplier" 
+                    v-model="formData.supplier" 
+                    readonly 
+                    variant="filled" 
+                    density="compact" 
+                    hide-details 
+                  />
+                </v-col>
+                <v-col cols="12">
+                  <v-text-field label="Nomor Resi" v-model="formData.no_resi" variant="outlined" density="compact" hide-details placeholder="Masukkan No. Resi pengiriman" />
               </v-col>
               <v-col cols="12">
                 <v-textarea label="Keterangan" v-model="formData.keterangan" rows="2" variant="outlined" density="compact" hide-details />
@@ -318,7 +336,8 @@ const closeModal = () => isModalVisible.value = false;
 const handleSupplierSelect = async (s: any) => {
   const res = await api.get(`${API_SUPPLIER_DETAIL}/${s.Kode}`);
   const d = res.data.data;
-  formData.supplierKode = d.Kode; formData.supplier = d.Nama;
+  formData.supplierKode = d.Kode;
+  formData.supplier = d.Nama;
   closeModal();
 };
 
@@ -336,14 +355,61 @@ const handleBahanSelect = (b: any) => {
 const openPOLookup = () => isPOLookupVisible.value = true;
 const closePOLookup = () => isPOLookupVisible.value = false;
 const handlePOSelect = async (po: any) => {
-  const res = await api.get(`${API_PO_LOOKUP_DETAIL}/${po.Nomor}`);
-  const d = res.data.data;
-  formData.noPermintaan = d.header.Nomor; formData.supplierKode = d.header.Kode_Supplier;
-  formData.details = d.details.map((x: any) => ({ 
-    kode: x.SKU, namaBahan: x.Nama_Bahan, qtyPO: x.QTY_PO, qtyTerima: 0, 
-    panjang: x.Panjang, lebar: x.Lebar, satuan: x.Satuan, keterangan: "" 
-  }));
-  closePOLookup();
+  try {
+    const res = await api.get(`${API_PO_LOOKUP_DETAIL}/${po.Nomor}`);
+    const d = res.data.data;
+
+    if (d && d.header) {
+      // 1. Set Nomor PO
+      formData.noPermintaan = d.header.Nomor || d.header.no_po || d.header.no_permintaan;
+      
+      // 2. Set Kode Supplier (Cek berbagai kemungkinan nama field dari backend)
+      const kodeSup = d.header.Kode_Supplier || d.header.supplier_kode || d.header.kode_supplier || d.header.Supplier_Kode;
+      formData.supplierKode = kodeSup;
+
+      // 3. Set Nama Supplier
+      // Jika API PO sudah menyertakan nama, langsung ambil.
+      // Jika tidak ada (null/undefined), kita panggil API Supplier secara manual.
+      const namaSup = d.header.Nama || d.header.Nama_Supplier || d.header.nama_supplier || d.header.Supplier_Nama;
+      
+      if (namaSup) {
+        formData.supplier = namaSup;
+      } else if (kodeSup) {
+        // Panggil fungsi pembantu jika nama tidak disertakan di API PO
+        await fetchSupplierName(kodeSup);
+      }
+
+      // 4. Set Detail Barang
+      if (d.details) {
+        formData.details = d.details.map((x: any) => ({ 
+          kode: x.SKU || x.Kode_Bahan || x.kode, 
+          namaBahan: x.Nama_Bahan || x.nama_bahan || x.Nama, 
+          qtyPO: Number(x.QTY_PO || x.qty || 0), 
+          qtyTerima: 0, 
+          panjang: Number(x.Panjang || 0), 
+          lebar: Number(x.Lebar || 0), 
+          satuan: x.Satuan || "", 
+          keterangan: "" 
+        }));
+      }
+    }
+    closePOLookup();
+  } catch (error) {
+    console.error("Error PO Select:", error);
+    toast.error("Gagal memuat detail PO");
+  }
+};
+
+// Fungsi tambahan untuk mengambil nama supplier berdasarkan kode
+const fetchSupplierName = async (kode: string) => {
+  try {
+    const res = await api.get(`${API_SUPPLIER_DETAIL}/${kode}`);
+    if (res.data && res.data.data) {
+      formData.supplier = res.data.data.Nama || res.data.data.nama;
+    }
+  } catch (error) {
+    console.error("Gagal mengambil nama supplier:", error);
+  }
 };
 
 const closeForm = () => router.push({ name: "PenerimaanBahanBrowse" });

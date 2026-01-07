@@ -78,146 +78,38 @@
           no-data-text="Tidak ada data laporan untuk rentang tanggal ini."
           loading-text="Memuat data laporan..."
         >
-          <template #thead>
-            <thead class="custom-header">
-              <tr class="header-row-1">
-                <th
-                  rowspan="2"
-                  class="text-center font-weight-bold border-header fixed-col-kode bg-primary-header"
-                >
-                  KODE
-                </th>
-                <th
-                  rowspan="2"
-                  class="text-center font-weight-bold border-header fixed-col-nama bg-primary-header"
-                >
-                  NAMA BAHAN
-                </th>
-                <th
-                  rowspan="2"
-                  class="text-center font-weight-bold border-header bg-primary-header"
-                >
-                  JENIS
-                </th>
-                <th
-                  rowspan="2"
-                  class="text-center font-weight-bold border-header bg-primary-header"
-                >
-                  STATUS
-                </th>
+         <template #thead>
+  <thead class="custom-header-blue">
+    <tr class="header-row-1">
+      <th rowspan="2" class="text-center fixed-col-kode bg-blue-main">KODE</th>
+      <th rowspan="2" class="text-center fixed-col-nama bg-blue-main">NAMA BAHAN</th>
+      <th rowspan="2" class="text-center bg-blue-main">JENIS</th>
+      <th rowspan="2" class="text-center bg-blue-main">STATUS</th>
+      <th colspan="3" class="text-center bg-blue-sub">SPESIFIKASI</th>
+      <th colspan="2" class="text-center bg-blue-sub">STOCK AWAL</th>
+      <th colspan="2" class="text-center bg-blue-sub">TERIMA</th>
+      <th colspan="2" class="text-center bg-blue-sub">KELUAR</th>
+      <th colspan="2" class="text-center bg-blue-sub">RETUR/SISA PRODUKSI</th>
+      <th colspan="2" class="text-center bg-blue-sub">STOCK AKHIR</th>
+    </tr>
 
-                <th
-                  colspan="3"
-                  class="text-center font-weight-bold border-header bg-group-blue"
-                >
-                  SPESIFIKASI
-                </th>
-                <th
-                  colspan="2"
-                  class="text-center font-weight-bold border-header bg-group-green"
-                >
-                  STOCK AWAL
-                </th>
-                <th
-                  colspan="2"
-                  class="text-center font-weight-bold border-header bg-group-orange"
-                >
-                  TERIMA
-                </th>
-                <th
-                  colspan="2"
-                  class="text-center font-weight-bold border-header bg-group-purple"
-                >
-                  KELUAR
-                </th>
-                <th
-                  colspan="2"
-                  class="text-center font-weight-bold border-header bg-group-teal"
-                >
-                  RETUR/SISA PRODUKSI
-                </th>
-                <th
-                  colspan="2"
-                  class="text-center font-weight-bold border-header bg-group-red"
-                >
-                  STOCK AKHIR
-                </th>
-              </tr>
-
-              <tr class="header-row-1">
-                <th
-                  class="text-center font-weight-bold border-header bg-sub-blue sub-header"
-                >
-                  LEBAR
-                </th>
-                <th
-                  class="text-center font-weight-bold border-header bg-sub-blue sub-header"
-                >
-                  PANJANG
-                </th>
-                <th
-                  class="text-center font-weight-bold border-header bg-sub-blue sub-header"
-                >
-                  M2
-                </th>
-
-                <th
-                  class="text-center font-weight-bold border-header bg-sub-green sub-header"
-                >
-                  ROLL
-                </th>
-                <th
-                  class="text-right font-weight-bold border-header bg-sub-green sub-header"
-                >
-                  M2
-                </th>
-
-                <th
-                  class="text-center font-weight-bold border-header bg-sub-orange sub-header"
-                >
-                  ROLL
-                </th>
-                <th
-                  class="text-right font-weight-bold border-header bg-sub-orange sub-header"
-                >
-                  M2
-                </th>
-
-                <th
-                  class="text-center font-weight-bold border-header bg-sub-purple sub-header"
-                >
-                  ROLL
-                </th>
-                <th
-                  class="text-right font-weight-bold border-header bg-sub-purple sub-header"
-                >
-                  M2
-                </th>
-
-                <th
-                  class="text-center font-weight-bold border-header bg-sub-teal sub-header"
-                >
-                  ROLL
-                </th>
-                <th
-                  class="text-right font-weight-bold border-header bg-sub-teal sub-header"
-                >
-                  M2
-                </th>
-
-                <th
-                  class="text-center font-weight-bold border-header bg-sub-red sub-header"
-                >
-                  ROLL
-                </th>
-                <th
-                  class="text-right font-weight-bold border-header bg-sub-red sub-header"
-                >
-                  M2
-                </th>
-              </tr>
-            </thead>
-          </template>
+    <tr class="header-row-2">
+      <th class="text-center bg-blue-detail">LEBAR</th>
+      <th class="text-center bg-blue-detail">PANJANG</th>
+      <th class="text-center bg-blue-detail">M2</th>
+      <th class="text-center bg-blue-detail">ROLL</th>
+      <th class="text-center bg-blue-detail">M2</th>
+      <th class="text-center bg-blue-detail">ROLL</th>
+      <th class="text-center bg-blue-detail">M2</th>
+      <th class="text-center bg-blue-detail">ROLL</th>
+      <th class="text-center bg-blue-detail">M2</th>
+      <th class="text-center bg-blue-detail">ROLL</th>
+      <th class="text-center bg-blue-detail">M2</th>
+      <th class="text-center bg-blue-detail">ROLL</th>
+      <th class="text-center bg-blue-detail">M2</th>
+    </tr>
+  </thead>
+</template>
 
           <template v-slot:item="{ item }">
             <tr class="data-row">
@@ -602,199 +494,136 @@ const exportToExcel = () => {
 </script>
 
 <style scoped>
-/* --- UTILITY CSS VUETIFY UNTUK HEADER MULTI-LEVEL DENGAN SLOT --- */
-
+/* --- CONTAINER UTAMA --- */
 .browse-content {
   padding: 4px;
 }
-.filter-section {
-  padding: 8px 0;
-  gap: 12px;
-}
-.filter-label {
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: #555;
-}
+
 .table-container {
-  border-radius: 10px;
-  overflow: auto; /* Mengaktifkan scroll di level container */
-  border: 1px solid #e5e5e5;
-}
-.desktop-table.v-data-table {
-  font-size: 0.82rem;
+  border: 1px solid #7bdaff;
+  border-radius: 8px;
+  overflow: auto; /* Penting untuk scroll horizontal */
+  max-height: 70vh; /* Sesuaikan tinggi maksimal tabel */
 }
 
-/* Override TH default */
-.desktop-table :deep(th) {
-  padding: 0 !important;
-  height: auto !important;
-  border-bottom: none !important;
-  white-space: nowrap;
+/* --- BASE TABLE STYLE --- */
+.desktop-table :deep(table) {
+  border-collapse: separate;
+  border-spacing: 0;
+  width: 100%;
 }
 
-/* Style umum untuk TH di custom-header */
-.desktop-table :deep(.custom-header) th {
-  font-weight: 600;
-  font-size: 0.75rem;
-  padding: 8px 15px;
-  border-right: 1px solid #e2e8f0; /* Garis vertikal antar kolom */
-  border-bottom: 1px solid #e2e8f0;
-  height: 40px;
-  vertical-align: middle;
+/* Style umum Header (TH) */
+.desktop-table :deep(thead th) {
+  font-size: 10px !important;
+  font-weight: 800 !important;
+  padding: 4px 8px !important;
+  border-right: 1px solid #7bdaff !important;
+  border-bottom: 1px solid #7bdaff !important;
   text-transform: uppercase;
-  color: #1a202c; /* Default text color */
+  color: #333 !important;
+  white-space: nowrap;
+  text-align: center !important;
+  height: 32px !important;
 }
 
-/* --- BARIS HEADER 1 (Grup Utama) --- */
-
+/* --- PENGATURAN WARNA HEADER (BIRU MUDA MONITORING) --- */
 .desktop-table :deep(.header-row-1) th {
   position: sticky;
   top: 0;
-  z-index: 15;
-  background-color: #53bafa;
-  color: white;
-  height: 40px;
+  z-index: 20;
+  background: linear-gradient(180deg, #e1f5fe 0%, #b3e5fc 100%) !important;
 }
-/* Warna background untuk Baris 1/Grup utama */
-.desktop-table :deep(.header-row-1 .bg-primary-header) {
-  background-color: #53bafa !important;
-  color: white;
-}
-.desktop-table :deep(.header-row-1 .bg-group-blue) {
-  background-color: #81d4fa !important;
-}
-.desktop-table :deep(.header-row-1 .bg-group-green) {
-  background-color: #a5d6a7 !important;
-}
-.desktop-table :deep(.header-row-1 .bg-group-orange) {
-  background-color: #ffcc80 !important;
-}
-.desktop-table :deep(.header-row-1 .bg-group-purple) {
-  background-color: #ce93d8 !important;
-}
-.desktop-table :deep(.header-row-1 .bg-group-teal) {
-  background-color: #80cbc4 !important;
-}
-.desktop-table :deep(.header-row-1 .bg-group-red) {
-  background-color: #ef9a9a !important;
-}
-
-/* --- BARIS HEADER 2 (Detail Kolom) --- */
 
 .desktop-table :deep(.header-row-2) th {
-  font-weight: 500;
-  font-size: 0.7rem;
-  padding: 4px 15px;
   position: sticky;
-  top: 40px; /* Tepat di bawah Baris 1 (40px) */
-  z-index: 10;
-  background-color: #f8f8f8;
-  color: #1a202c;
-  height: 30px;
-}
-/* Warna background untuk Baris 2/Sub-header */
-.desktop-table :deep(.header-row-2 .bg-sub-blue) {
-  background-color: #e1f5fe !important;
-}
-.desktop-table :deep(.header-row-2 .bg-sub-green) {
-  background-color: #e8f5e9 !important;
-}
-.desktop-table :deep(.header-row-2 .bg-sub-orange) {
-  background-color: #fff3e0 !important;
-}
-.desktop-table :deep(.header-row-2 .bg-sub-purple) {
-  background-color: #f3e5f5 !important;
-}
-.desktop-table :deep(.header-row-2 .bg-sub-teal) {
-  background-color: #e0f2f1 !important;
-}
-.desktop-table :deep(.header-row-2 .bg-sub-red) {
-  background-color: #ffebee !important;
+  top: 32px; /* Tepat di bawah Baris 1 */
+  z-index: 15;
+  background-color: #f1f8ff !important;
+  font-size: 9px !important;
 }
 
-/* --- STICKY FIX UNTUK ROWSPAN (KODE & NAMA BAHAN) --- */
-
-/* KODE Header */
-.desktop-table :deep(.fixed-col-kode) {
-  position: sticky !important;
-  left: 0;
-  z-index: 20 !important;
-  background-color: #53bafa !important;
-}
-/* NAMA BAHAN Header */
-.desktop-table :deep(.fixed-col-nama) {
-  position: sticky !important;
-  left: 100px; /* Lebar KODE */
-  z-index: 20 !important;
-  background-color: #53bafa !important;
-}
-/* Kolom rowspan di Baris 2 harus mengambil warna header baris 1 */
-.desktop-table :deep(.header-row-2 th.fixed-col-kode),
-.desktop-table :deep(.header-row-2 th.fixed-col-nama),
-.desktop-table :deep(.header-row-2 th:nth-child(3)), /* JENIS */
-.desktop-table :deep(.header-row-2 th:nth-child(4)) {
-  /* STATUS */
-  background-color: #53bafa !important;
+/* Kolom Aksen Biru Cerah (Misal untuk M2 atau ROLL) */
+.desktop-table :deep(.bg-blue-accent) {
+  background-color: #4dabf7 !important;
   color: white !important;
 }
 
-/* --- STICKY KOLOM DATA (PENTING: Memastikan Latar Belakang Tetap PUTIH) --- */
+/* --- STICKY COLUMNS (KODE & NAMA) --- */
+/* Lebar Kolom Kode: 100px | Nama: 250px */
+.desktop-table :deep(.fixed-col-kode) {
+  position: sticky !important;
+  left: 0;
+  z-index: 30 !important;
+  min-width: 100px;
+  max-width: 100px;
+  background: #e1f5fe !important;
+  border-right: 2px solid #7bdaff !important;
+}
 
-/* Sel data di kolom KODE (Kolom 1) */
-.desktop-table :deep(td:nth-child(1)) {
+.desktop-table :deep(.fixed-col-nama) {
+  position: sticky !important;
+  left: 100px; /* Sesuai lebar kolom kode */
+  z-index: 30 !important;
+  min-width: 250px;
+  max-width: 250px;
+  background: #e1f5fe !important;
+  border-right: 2px solid #7bdaff !important;
+  text-align: left !important;
+}
+
+/* --- DATA ROWS (BODY) --- */
+.desktop-table :deep(td) {
+  font-size: 11px !important;
+  border-right: 1px solid #eee !important;
+  border-bottom: 1px solid #eee !important;
+  padding: 6px 8px !important;
+  white-space: nowrap;
+  background-color: white; /* Dasar isian putih */
+}
+
+/* Sticky Data Body */
+.desktop-table :deep(tbody td:nth-child(1)) {
   position: sticky;
   left: 0;
-  z-index: 2;
-  background-color: white !important; /* Latar belakang data normal: Putih */
-  font-weight: 600;
-  border-right: 1px solid #e2e8f0;
-}
-/* Memastikan latar belakang tetap PUTIH saat di-HOVER */
-.desktop-table :deep(tr:hover td:nth-child(1)) {
+  z-index: 10;
   background-color: white !important;
+  font-weight: 600;
+  border-right: 2px solid #e1f5fe !important;
 }
 
-/* Sel data di kolom NAMA BAHAN (Kolom 2) */
-.desktop-table :deep(td:nth-child(2)) {
+.desktop-table :deep(tbody td:nth-child(2)) {
   position: sticky;
   left: 100px;
-  z-index: 2;
-  background-color: white !important; /* Latar belakang data normal: Putih */
-  border-right: 1px solid #e2e8f0;
-}
-/* Memastikan latar belakang tetap PUTIH saat di-HOVER */
-.desktop-table :deep(tr:hover td:nth-child(2)) {
+  z-index: 10;
   background-color: white !important;
+  border-right: 2px solid #e1f5fe !important;
 }
 
-/* Baris Data Normal */
-.desktop-table :deep(td) {
-  padding: 8px 15px !important;
-  font-size: 10px;
-  white-space: nowrap;
-  border-right: 1px solid #e2e8f0; /* Pemisah vertikal */
+/* Hover Effect */
+.desktop-table :deep(tbody tr:hover td) {
+  background-color: #f5faff !important;
 }
 
-/* --- FOOTER FIX --- */
-
-.table-footer {
+/* --- FOOTER TOTALS --- */
+.table-footer td {
   position: sticky;
   bottom: 0;
-  z-index: 10;
-  background-color: #e0e0e0;
+  z-index: 25;
+  background-color: #f0f4f8 !important;
+  border-top: 2px solid #7bdaff !important;
   font-weight: bold;
+  font-size: 11px;
+  color: #01579b;
+  padding: 8px !important;
 }
-.table-footer :deep(td) {
-  border-top: 2px solid #bdbdbd !important;
-  padding: 10px 15px !important;
-}
-.table-footer :deep(td:nth-child(1)) {
-  position: sticky !important;
-  left: 0 !important;
-  z-index: 11 !important;
+
+/* Footer Sticky Nama */
+.table-footer td:nth-child(1) {
+  position: sticky;
+  left: 0;
+  z-index: 30;
   text-align: right !important;
-  padding-right: 25px !important;
-  border-right: 1px solid #e2e8f0;
+  border-right: 2px solid #7bdaff !important;
 }
 </style>

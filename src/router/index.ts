@@ -36,6 +36,7 @@ import PermintaanBahanPrintView from '@/views/PermintaanBahanPrintView.vue';
 import FormLhkCetakViewNew from '@/views/FormLhkCetakViewNew.vue';
 import FormRecreateBarcode from '@/views/FormRecreateBarcode.vue';
 import LapMonLmkpMmtView from '@/views/LapMonLmkpMmtView.vue';
+import FormInvoiceView from '@/views/FormInvoiceView.vue';
 
 
 
@@ -134,6 +135,12 @@ const routes: RouteRecordRaw[] = [
             },
 
             { path: 'mmt/retur-beli', name: 'Retur Beli MMT', component: ReturBeliView },
+            {
+                path: 'mmt/invoice/new',
+                name: 'InvoiceNew',
+                component: FormInvoiceView,
+                props: { isEditMode: false }
+            },
             { path: 'mmt/create-barcode', name: 'CreateBarcode', component: FormRecreateBarcode },
             { path: 'mmt/koreksi-stok', name: 'Koreksi Stok', component: KoreksiStokMMTView },
             // --- C. MODUL PERMINTAAN PRODUKSI (Minta MMT) ---
