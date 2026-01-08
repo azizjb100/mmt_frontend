@@ -1,13 +1,7 @@
 <template>
   <PageLayout title="Laporan Stok Bahan Utama" icon="mdi-factory">
     <template #header-actions>
-      <v-btn
-        size="x-small"
-        color="info"
-        variant="text"
-        @click="fetchReport"
-        :loading="loading.report"
-      >
+      <v-btn size="x-small" color="info" variant="text" @click="fetchReport" :loading="loading.report">
         <v-icon start>mdi-refresh</v-icon> Refresh
       </v-btn>
 
@@ -17,227 +11,178 @@
     </template>
 
     <div class="browse-content">
-      <v-card flat class="mb-4">
-        <v-card-text>
-          <div class="filter-section d-flex align-center flex-wrap ga-4">
-            <v-label class="filter-label">Tanggal Mulai:</v-label>
-            <v-text-field
-              v-model="startDate"
-              type="date"
-              density="compact"
-              hide-details
-              variant="outlined"
-              style="max-width: 150px"
-            />
-
-            <v-label class="mx-2">s/d</v-label>
-
-            <v-text-field
-              v-model="endDate"
-              type="date"
-              density="compact"
-              hide-details
-              variant="outlined"
-              style="max-width: 150px"
-            />
-
-            <v-btn
-              variant="text"
-              size="x-small"
-              @click="fetchReport"
-              :loading="loading.report"
-            >
-              <v-icon>mdi-refresh</v-icon> Muat Ulang
-            </v-btn>
+      <v-card flat class="border-bottom mb-1">
+        <v-card-text class="py-2 px-3">
+          <div class="filter-section d-flex align-center flex-wrap ga-3">
+            <span class="text-caption font-weight-bold">Periode:</span>
+            <v-text-field v-model="startDate" type="date" density="compact" hide-details variant="outlined"
+              style="max-width: 140px" />
+            <v-label class="mx-1">s/d</v-label>
+            <v-text-field v-model="endDate" type="date" density="compact" hide-details variant="outlined"
+              style="max-width: 140px" />
 
             <v-spacer />
 
-            <v-text-field
-              v-model="searchQuery"
-              label="Cari Kode atau Nama Bahan..."
-              prepend-inner-icon="mdi-magnify"
-              density="compact"
-              hide-details
-              variant="outlined"
-              style="max-width: 300px"
-            />
+            <v-text-field v-model="searchQuery" label="Cari Kode atau Nama..." prepend-inner-icon="mdi-magnify"
+              density="compact" hide-details variant="outlined" style="max-width: 250px" />
           </div>
         </v-card-text>
       </v-card>
 
       <div class="table-container">
-        <v-data-table
-          :headers="reportHeaders"
-          :items="paginatedData"
-          :loading="loading.report"
-          item-value="kode"
-          density="compact"
-          class="desktop-table header-browse-blue elevation-1"
-          hide-default-footer
-          :items-per-page="-1"
-          no-data-text="Tidak ada data laporan untuk rentang tanggal ini."
-          loading-text="Memuat data laporan..."
-        >
-         <template #thead>
-  <thead class="custom-header-blue">
-    <tr class="header-row-1">
-      <th rowspan="2" class="text-center fixed-col-kode bg-blue-main">KODE</th>
-      <th rowspan="2" class="text-center fixed-col-nama bg-blue-main">NAMA BAHAN</th>
-      <th rowspan="2" class="text-center bg-blue-main">JENIS</th>
-      <th rowspan="2" class="text-center bg-blue-main">STATUS</th>
-      <th colspan="3" class="text-center bg-blue-sub">SPESIFIKASI</th>
-      <th colspan="2" class="text-center bg-blue-sub">STOCK AWAL</th>
-      <th colspan="2" class="text-center bg-blue-sub">TERIMA</th>
-      <th colspan="2" class="text-center bg-blue-sub">KELUAR</th>
-      <th colspan="2" class="text-center bg-blue-sub">RETUR/SISA PRODUKSI</th>
-      <th colspan="2" class="text-center bg-blue-sub">STOCK AKHIR</th>
-    </tr>
+        <v-data-table :headers="[]" :items="paginatedData" :loading="loading.report" item-value="kode"
+          density="compact" class="desktop-table elevation-1" hide-default-footer :items-per-page="-1"
+          :show-header="false">
 
-    <tr class="header-row-2">
-      <th class="text-center bg-blue-detail">LEBAR</th>
-      <th class="text-center bg-blue-detail">PANJANG</th>
-      <th class="text-center bg-blue-detail">M2</th>
-      <th class="text-center bg-blue-detail">ROLL</th>
-      <th class="text-center bg-blue-detail">M2</th>
-      <th class="text-center bg-blue-detail">ROLL</th>
-      <th class="text-center bg-blue-detail">M2</th>
-      <th class="text-center bg-blue-detail">ROLL</th>
-      <th class="text-center bg-blue-detail">M2</th>
-      <th class="text-center bg-blue-detail">ROLL</th>
-      <th class="text-center bg-blue-detail">M2</th>
-      <th class="text-center bg-blue-detail">ROLL</th>
-      <th class="text-center bg-blue-detail">M2</th>
-    </tr>
-  </thead>
-</template>
+          <template #thead>
+            <thead>
+              <tr class="header-row-1">
+                <th rowspan="2" class="text-center sticky-col-1 bg-blue-main" :style="{ width: colWidths.kode + 'px' }">
+                  KODE
+                  <div class="resizer" @mousedown.stop="onResizeStart($event, 'kode')"></div>
+                </th>
+                <th rowspan="2" class="text-center sticky-col-2 bg-blue-main" :style="{ width: colWidths.Nama + 'px' }">
+                  NAMA BAHAN
+                  <div class="resizer" @mousedown.stop="onResizeStart($event, 'Nama')"></div>
+                </th>
+                <th rowspan="2" class="text-center" :style="{ width: colWidths.jb_nama + 'px' }">
+                  JENIS
+                  <div class="resizer" @mousedown.stop="onResizeStart($event, 'jb_nama')"></div>
+                </th>
+                <th rowspan="2" class="text-center" :style="{ width: colWidths.status + 'px' }">
+                  STATUS
+                  <div class="resizer" @mousedown.stop="onResizeStart($event, 'status')"></div>
+                </th>
+                <th colspan="3" class="text-center bg-blue-sub">SPESIFIKASI</th>
+                <th colspan="2" class="text-center bg-blue-sub">STOCK AWAL</th>
+                <th colspan="2" class="text-center bg-blue-sub">TERIMA</th>
+                <th colspan="2" class="text-center bg-blue-sub">KELUAR</th>
+                <th colspan="2" class="text-center bg-blue-sub">RETUR/SISA PRODUKSI</th>
+                <th colspan="2" class="text-center bg-blue-sub">STOCK AKHIR</th>
+              </tr>
+
+              <tr class="header-row-2">
+                <th class="text-center bg-blue-detail" :style="{ width: colWidths.Lebar + 'px' }">
+                  LEBAR <div class="resizer" @mousedown.stop="onResizeStart($event, 'Lebar')"></div>
+                </th>
+                <th class="text-center bg-blue-detail" :style="{ width: colWidths.Panjang + 'px' }">
+                  PANJANG <div class="resizer" @mousedown.stop="onResizeStart($event, 'Panjang')"></div>
+                </th>
+                <th class="text-center bg-blue-detail" :style="{ width: colWidths.m2 + 'px' }">
+                  M2 <div class="resizer" @mousedown.stop="onResizeStart($event, 'm2')"></div>
+                </th>
+                <th class="text-center bg-blue-detail" :style="{ width: colWidths.stok_awal_q + 'px' }">
+                  ROLL <div class="resizer" @mousedown.stop="onResizeStart($event, 'stok_awal_q')"></div>
+                </th>
+                <th class="text-center bg-blue-detail" :style="{ width: colWidths.stok_awal_m + 'px' }">
+                  M2 <div class="resizer" @mousedown.stop="onResizeStart($event, 'stok_awal_m')"></div>
+                </th>
+                <th class="text-center bg-blue-detail" :style="{ width: colWidths.terima_q + 'px' }">
+                  ROLL <div class="resizer" @mousedown.stop="onResizeStart($event, 'terima_q')"></div>
+                </th>
+                <th class="text-center bg-blue-detail" :style="{ width: colWidths.terima_m + 'px' }">
+                  M2 <div class="resizer" @mousedown.stop="onResizeStart($event, 'terima_m')"></div>
+                </th>
+                <th class="text-center bg-blue-detail" :style="{ width: colWidths.keluar_q + 'px' }">
+                  ROLL <div class="resizer" @mousedown.stop="onResizeStart($event, 'keluar_q')"></div>
+                </th>
+                <th class="text-center bg-blue-detail" :style="{ width: colWidths.keluar_m + 'px' }">
+                  M2 <div class="resizer" @mousedown.stop="onResizeStart($event, 'keluar_m')"></div>
+                </th>
+                <th class="text-center bg-blue-detail" :style="{ width: colWidths.retur_q + 'px' }">
+                  ROLL <div class="resizer" @mousedown.stop="onResizeStart($event, 'retur_q')"></div>
+                </th>
+                <th class="text-center bg-blue-detail" :style="{ width: colWidths.retur_m + 'px' }">
+                  M2 <div class="resizer" @mousedown.stop="onResizeStart($event, 'retur_m')"></div>
+                </th>
+                <th class="text-center bg-blue-detail" :style="{ width: colWidths.stok_akhir_q + 'px' }">
+                  ROLL <div class="resizer" @mousedown.stop="onResizeStart($event, 'stok_akhir_q')"></div>
+                </th>
+                <th class="text-center bg-blue-detail" :style="{ width: colWidths.stok_akhir_m + 'px' }">
+                  M2 <div class="resizer" @mousedown.stop="onResizeStart($event, 'stok_akhir_m')"></div>
+                </th>
+              </tr>
+            </thead>
+          </template>
 
           <template v-slot:item="{ item }">
             <tr class="data-row">
-              <td class="text-left fixed-col fixed-col-kode">
-                {{ item.kode }}
+              <td class="text-left sticky-col-1 bg-white font-weight-bold" :style="{ width: colWidths.kode + 'px' }">{{
+                item.kode }}</td>
+              <td class="text-left sticky-col-2 bg-white" :style="{ width: colWidths.Nama + 'px' }">{{ item.Nama }}</td>
+              <td class="text-left" :style="{ width: colWidths.jb_nama + 'px' }">{{ item.jb_nama || "" }}</td>
+              <td class="text-left" :style="{ width: colWidths.status + 'px' }">{{ item.status || "" }}</td>
+              <td class="text-right" :style="{ width: colWidths.Lebar + 'px' }">{{ formatNumber(item.Lebar, 2) }}</td>
+              <td class="text-right" :style="{ width: colWidths.Panjang + 'px' }">{{ formatNumber(item.Panjang, 2) }}
               </td>
-              <td class="text-left fixed-col fixed-col-nama">
-                {{ item.Nama }}
+              <td class="text-right" :style="{ width: colWidths.m2 + 'px' }">{{ formatNumber(item.m2, 2) }}</td>
+              <td class="text-right" :style="{ width: colWidths.stok_awal_q + 'px' }">{{ formatNumber(item.stok_awal_q,
+                0) }}</td>
+              <td class="text-right" :style="{ width: colWidths.stok_awal_m + 'px' }">{{ formatNumber(item.stok_awal_m,
+                2) }}</td>
+              <td class="text-right" :style="{ width: colWidths.terima_q + 'px' }">{{ formatNumber(item.terima_q, 0) }}
               </td>
-              <td class="text-left">{{ item.jb_nama || "" }}</td>
-              <td class="text-left">{{ item.status || "" }}</td>
-
-              <td class="text-right">{{ formatNumber(item.Lebar, 2) }}</td>
-              <td class="text-right">{{ formatNumber(item.Panjang, 2) }}</td>
-              <td class="text-right">{{ formatNumber(item.m2, 2) }}</td>
-
-              <td class="text-right">
-                {{ formatNumber(item.stok_awal_q, 0) }}
+              <td class="text-right" :style="{ width: colWidths.terima_m + 'px' }">{{ formatNumber(item.terima_m, 2) }}
               </td>
-              <td class="text-right">
-                {{ formatNumber(item.stok_awal_m, 2) }}
+              <td class="text-right" :style="{ width: colWidths.keluar_q + 'px' }">{{ formatNumber(item.keluar_q, 0) }}
               </td>
-              <td class="text-right">{{ formatNumber(item.terima_q, 0) }}</td>
-              <td class="text-right">{{ formatNumber(item.terima_m, 2) }}</td>
-              <td class="text-right">{{ formatNumber(item.keluar_q, 0) }}</td>
-              <td class="text-right">{{ formatNumber(item.keluar_m, 2) }}</td>
-              <td class="text-right">{{ formatNumber(item.retur_q, 0) }}</td>
-              <td class="text-right">{{ formatNumber(item.retur_m, 2) }}</td>
-              <td class="text-right">
-                {{ formatNumber(item.stok_akhir_q, 0) }}
+              <td class="text-right" :style="{ width: colWidths.keluar_m + 'px' }">{{ formatNumber(item.keluar_m, 2) }}
               </td>
-              <td class="text-right">
-                {{ formatNumber(item.stok_akhir_m, 2) }}
+              <td class="text-right" :style="{ width: colWidths.retur_q + 'px' }">{{ formatNumber(item.retur_q, 0) }}
               </td>
+              <td class="text-right" :style="{ width: colWidths.retur_m + 'px' }">{{ formatNumber(item.retur_m, 2) }}
+              </td>
+              <td class="text-right" :style="{ width: colWidths.stok_akhir_q + 'px' }">{{
+                formatNumber(item.stok_akhir_q, 0) }}</td>
+              <td class="text-right" :style="{ width: colWidths.stok_akhir_m + 'px' }">{{
+                formatNumber(item.stok_akhir_m, 2) }}</td>
             </tr>
           </template>
 
           <template #tfoot>
             <tr class="table-footer">
-              <td
-                :colspan="4"
-                class="text-right font-weight-bold fixed-col-total"
-              >
-                GRAND TOTAL:
-              </td>
-              <td :colspan="3"></td>
-              <td class="text-end font-weight-bold">
-                {{ formatNumber(reportTotals.stok_awal_q, 0) }}
-              </td>
-              <td class="text-end font-weight-bold">
-                {{ formatNumber(reportTotals.stok_awal_m, 2) }}
-              </td>
-              <td class="text-end font-weight-bold">
-                {{ formatNumber(reportTotals.terima_q, 0) }}
-              </td>
-              <td class="text-end font-weight-bold">
-                {{ formatNumber(reportTotals.terima_m, 2) }}
-              </td>
-              <td class="text-end font-weight-bold">
-                {{ formatNumber(reportTotals.keluar_q, 0) }}
-              </td>
-              <td class="text-end font-weight-bold">
-                {{ formatNumber(reportTotals.keluar_m, 2) }}
-              </td>
-              <td class="text-end font-weight-bold">
-                {{ formatNumber(reportTotals.retur_q, 0) }}
-              </td>
-              <td class="text-end font-weight-bold">
-                {{ formatNumber(reportTotals.retur_m, 2) }}
-              </td>
-              <td class="text-end font-weight-bold">
-                {{ formatNumber(reportTotals.stok_akhir_q, 0) }}
-              </td>
-              <td class="text-end font-weight-bold">
-                {{ formatNumber(reportTotals.stok_akhir_m, 2) }}
-              </td>
+              <td colspan="4" class="text-right font-weight-bold sticky-footer-title">GRAND TOTAL:</td>
+              <td colspan="3"></td>
+              <td class="text-end font-weight-bold">{{ formatNumber(reportTotals.stok_awal_q, 0) }}</td>
+              <td class="text-end font-weight-bold">{{ formatNumber(reportTotals.stok_awal_m, 2) }}</td>
+              <td class="text-end font-weight-bold">{{ formatNumber(reportTotals.terima_q, 0) }}</td>
+              <td class="text-end font-weight-bold">{{ formatNumber(reportTotals.terima_m, 2) }}</td>
+              <td class="text-end font-weight-bold">{{ formatNumber(reportTotals.keluar_q, 0) }}</td>
+              <td class="text-end font-weight-bold">{{ formatNumber(reportTotals.keluar_m, 2) }}</td>
+              <td class="text-end font-weight-bold">{{ formatNumber(reportTotals.retur_q, 0) }}</td>
+              <td class="text-end font-weight-bold">{{ formatNumber(reportTotals.retur_m, 2) }}</td>
+              <td class="text-end font-weight-bold">{{ formatNumber(reportTotals.stok_akhir_q, 0) }}</td>
+              <td class="text-end font-weight-bold">{{ formatNumber(reportTotals.stok_akhir_m, 2) }}</td>
             </tr>
           </template>
         </v-data-table>
       </div>
 
-      <div
-        class="d-flex justify-space-between align-center mt-3"
-        v-if="filteredData.length > 0"
-      >
+      <div class="d-flex justify-space-between align-center mt-3" v-if="filteredData.length > 0">
         <div class="d-flex align-center ga-2 text-caption">
           <v-label>Baris per halaman:</v-label>
-          <v-select
-            v-model.number="itemsPerPage"
-            :items="[15, 25, 50, 100, { title: 'All data', value: -1 }]"
-            density="compact"
-            hide-details
-            variant="outlined"
-            style="max-width: 120px"
-            @update:model-value="currentPage = 1"
-          />
+          <v-select v-model.number="itemsPerPage" :items="[15, 25, 50, 100, { title: 'All data', value: -1 }]"
+            density="compact" hide-details variant="outlined" style="max-width: 120px"
+            @update:model-value="currentPage = 1" />
         </div>
         <div class="d-flex align-center ga-2 text-caption">
-          <v-btn
-            size="x-small"
-            icon="mdi-chevron-left"
-            @click="prevPage"
-            :disabled="currentPage === 1 || itemsPerPage === -1"
-          />
-          <span v-if="itemsPerPage !== -1"
-            >Halaman **{{ currentPage }}** dari **{{ totalPages }}**</span
-          >
+          <v-btn size="x-small" icon="mdi-chevron-left" @click="prevPage"
+            :disabled="currentPage === 1 || itemsPerPage === -1" />
+          <span v-if="itemsPerPage !== -1">Halaman **{{ currentPage }}** dari **{{ totalPages }}**</span>
           <span v-else>Menampilkan Semua Data</span>
-          <v-btn
-            size="x-small"
-            icon="mdi-chevron-right"
-            @click="nextPage"
-            :disabled="currentPage === totalPages || itemsPerPage === -1"
-          />
+          <v-btn size="x-small" icon="mdi-chevron-right" @click="nextPage"
+            :disabled="currentPage === totalPages || itemsPerPage === -1" />
         </div>
-        <span class="text-caption"
-          >Total **{{ filteredData.length }}** data (dari **{{
-            allData.length
-          }}**)</span
-        >
+        <span class="text-caption">Total **{{ filteredData.length }}** data (dari **{{
+          allData.length
+        }}**)</span>
       </div>
     </div>
   </PageLayout>
 </template>
 
 <script setup>
-// ... (Bagian Script Setup sama seperti sebelumnya) ...
-import { ref, onMounted, computed } from "vue";
+import { ref, reactive, onMounted, computed } from "vue";
 import PageLayout from "../components/PageLayout.vue";
 import api from "@/services/api";
 
@@ -280,26 +225,61 @@ onMounted(() => {
   fetchReport();
 });
 
+// Logika Resize
+const resizingColumn = ref(null);
+const startX = ref(0);
+const startWidth = ref(0);
+
+const colWidths = reactive({
+  kode: 100,
+  Nama: 300, // Permintaan user: width 300
+  jb_nama: 100,
+  status: 80,
+  Lebar: 80,
+  Panjang: 80,
+  m2: 80,
+  stok_awal_q: 80,
+  stok_awal_m: 100,
+  terima_q: 80,
+  terima_m: 100,
+  keluar_q: 80,
+  keluar_m: 100,
+  retur_q: 80,
+  retur_m: 100,
+  stok_akhir_q: 80,
+  stok_akhir_m: 100,
+});
+
+const onResizeStart = (e, column) => {
+  resizingColumn.value = column;
+  startX.value = e.pageX;
+  startWidth.value = colWidths[column];
+  document.addEventListener("mousemove", onResizeMove);
+  document.addEventListener("mouseup", onResizeEnd);
+  document.body.style.cursor = "col-resize";
+};
+
+const onResizeMove = (e) => {
+  if (!resizingColumn.value) return;
+  const diff = e.pageX - startX.value;
+  colWidths[resizingColumn.value] = Math.max(50, startWidth.value + diff);
+};
+
+const onResizeEnd = () => {
+  resizingColumn.value = null;
+  document.removeEventListener("mousemove", onResizeMove);
+  document.removeEventListener("mouseup", onResizeEnd);
+  document.body.style.cursor = "default";
+};
+
+// Pastikan reportHeaders tetap didefinisikan untuk sinkronisasi data-table internal
 const reportHeaders = computed(() => {
-  return [
-    { key: "kode", width: "100px" },
-    { key: "Nama", width: "250px" },
-    { key: "jb_nama", width: "100px" },
-    { key: "status", width: "80px" },
-    { key: "Lebar", width: "80px" },
-    { key: "Panjang", width: "80px" },
-    { key: "m2", width: "80px" },
-    { key: "stok_awal_q", width: "80px" },
-    { key: "stok_awal_m", width: "100px" },
-    { key: "terima_q", width: "80px" },
-    { key: "terima_m", width: "100px" },
-    { key: "keluar_q", width: "80px" },
-    { key: "keluar_m", width: "100px" },
-    { key: "retur_q", width: "80px" },
-    { key: "retur_m", width: "100px" },
-    { key: "stok_akhir_q", width: "80px" },
-    { key: "stok_akhir_m", width: "100px" },
-  ].map((h) => ({ ...h, title: "", sortable: false }));
+  return Object.keys(colWidths).map(key => ({
+    key: key,
+    title: "", // Title dikelola manual di #thead
+    sortable: false,
+    width: colWidths[key] + 'px'
+  }));
 });
 
 const filteredData = computed(() => {
@@ -484,8 +464,8 @@ const exportToExcel = () => {
   const dataToExport = filteredData.value;
   console.log(
     "Fungsi ekspor ke Excel dipanggil untuk " +
-      dataToExport.length +
-      " baris data."
+    dataToExport.length +
+    " baris data."
   );
   console.info(
     "Simulasi Ekspor: Siap mengekspor " + dataToExport.length + " baris data."
@@ -502,8 +482,10 @@ const exportToExcel = () => {
 .table-container {
   border: 1px solid #7bdaff;
   border-radius: 8px;
-  overflow: auto; /* Penting untuk scroll horizontal */
-  max-height: 70vh; /* Sesuaikan tinggi maksimal tabel */
+  overflow: auto;
+  /* Penting untuk scroll horizontal */
+  max-height: 70vh;
+  /* Sesuaikan tinggi maksimal tabel */
 }
 
 /* --- BASE TABLE STYLE --- */
@@ -537,7 +519,8 @@ const exportToExcel = () => {
 
 .desktop-table :deep(.header-row-2) th {
   position: sticky;
-  top: 32px; /* Tepat di bawah Baris 1 */
+  top: 32px;
+  /* Tepat di bawah Baris 1 */
   z-index: 15;
   background-color: #f1f8ff !important;
   font-size: 9px !important;
@@ -563,7 +546,8 @@ const exportToExcel = () => {
 
 .desktop-table :deep(.fixed-col-nama) {
   position: sticky !important;
-  left: 100px; /* Sesuai lebar kolom kode */
+  left: 100px;
+  /* Sesuai lebar kolom kode */
   z-index: 30 !important;
   min-width: 250px;
   max-width: 250px;
@@ -579,7 +563,8 @@ const exportToExcel = () => {
   border-bottom: 1px solid #eee !important;
   padding: 6px 8px !important;
   white-space: nowrap;
-  background-color: white; /* Dasar isian putih */
+  background-color: white;
+  /* Dasar isian putih */
 }
 
 /* Sticky Data Body */
@@ -625,5 +610,74 @@ const exportToExcel = () => {
   z-index: 30;
   text-align: right !important;
   border-right: 2px solid #7bdaff !important;
+}
+
+/* --- RESIZER STYLE --- */
+.resizer {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 5px;
+  cursor: col-resize;
+  z-index: 10;
+}
+
+.resizer:hover {
+  background: rgba(0, 0, 0, 0.1);
+}
+
+/* --- STICKY COLUMNS --- */
+/* Menggunakan variable css agar dinamis mengikuti resize (opsional) 
+   atau menggunakan binding style di template seperti di atas */
+
+.sticky-col-1 {
+  position: sticky;
+  left: 0;
+  z-index: 6;
+}
+
+.sticky-col-2 {
+  position: sticky;
+  left: var(--kode-width);
+  z-index: 6;
+}
+
+/* Overide z-index header baris 2 agar tidak menutupi sticky col 1 & 2 */
+.header-row-2 th {
+  top: 32px;
+  z-index: 15;
+}
+
+/* --- MERAPIKAN LAYOUT ATAS --- */
+.table-container {
+  border: 1px solid #7bdaff;
+  border-radius: 4px;
+  /* Lebih tajam sedikit */
+  overflow: auto;
+  max-height: calc(100vh - 200px);
+  /* Dinamis mengikuti layar */
+}
+
+.desktop-table :deep(thead th) {
+  position: relative;
+  /* Untuk resizer */
+  background-color: #b3e5fc !important;
+}
+
+/* Sticky Footer Title */
+.sticky-footer-title {
+  position: sticky;
+  left: 0;
+  z-index: 30;
+  background: #f0f4f8 !important;
+}
+
+.desktop-table :deep(thead.v-data-table__thead) {
+  display: none !important;
+}
+
+.desktop-table :deep(thead.v-data-table__thead tr) {
+  display: none !important;
 }
 </style>

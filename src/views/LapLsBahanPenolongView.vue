@@ -1,262 +1,280 @@
-<!-- src/views/LapLsBahanPenolong.vue -->
 <template>
-  <div class="report-layout">
-    <!-- Header: Filter dan Judul -->
-    <div class="report-header">
-      <div class="header-left">
-        <!-- [DIUBAH] Judul halaman -->
-        <h2 class="page-title">Laporan Stok Bahan Penolong</h2>
-        <div class="filter-group">
-          <label for="startDate">Mulai:</label>
-          <input type="date" id="startDate" v-model="startDate" />
-        </div>
-        <div class="filter-group">
-          <label for="endDate">Selesai:</label>
-          <input type="date" id="endDate" v-model="endDate" />
-        </div>
-        <button
-          @click="fetchReport"
-          class="btn-refresh"
-          :disabled="loading.report"
-        >
-          <span v-if="!loading.report">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="16"
-              height="16"
-              fill="currentColor"
-              viewBox="0 0 16 16"
-            >
-              <path
-                fill-rule="evenodd"
-                d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2z"
-              />
-              <path
-                d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466"
-              />
-            </svg>
-            Refresh
-          </span>
-          <span v-else>Memuat...</span>
-        </button>
-        <div class="search-group">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="16"
-            height="16"
-            fill="currentColor"
-            viewBox="0 0 16 16"
-          >
-            <path
-              d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001q.044.06.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1 1 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0"
-            />
-          </svg>
-          <input
-            type="text"
-            v-model="searchQuery"
-            placeholder="Cari Kode atau Nama Bahan..."
-          />
-        </div>
+  <PageLayout title="Laporan Stok Bahan Penolong" icon="mdi-hand-heart">
+    <template #header-actions>
+      <v-btn size="x-small" color="info" variant="text" @click="fetchReport" :loading="loading.report">
+        <v-icon start>mdi-refresh</v-icon> Refresh
+      </v-btn>
+
+      <v-btn size="x-small" color="success" @click="exportToExcel">
+        <v-icon start>mdi-file-excel</v-icon> Export
+      </v-btn>
+    </template>
+
+    <div class="browse-content">
+      <v-card flat class="border-bottom mb-1">
+        <v-card-text class="py-2 px-3">
+          <div class="filter-section d-flex align-center flex-wrap ga-3">
+            <span class="text-caption font-weight-bold">Periode:</span>
+            <v-text-field v-model="startDate" type="date" density="compact" hide-details variant="outlined"
+              style="max-width: 140px" />
+            <v-label class="mx-1">s/d</v-label>
+            <v-text-field v-model="endDate" type="date" density="compact" hide-details variant="outlined"
+              style="max-width: 140px" />
+
+            <v-spacer />
+
+            <v-text-field v-model="searchQuery" label="Cari Kode atau Nama..." prepend-inner-icon="mdi-magnify"
+              density="compact" hide-details variant="outlined" style="max-width: 250px" />
+          </div>
+        </v-card-text>
+      </v-card>
+
+      <div class="table-container">
+        <v-data-table :headers="[]" :items="paginatedData" :loading="loading.report" item-value="kode" density="compact"
+          class="desktop-table elevation-1" hide-default-footer :items-per-page="-1" :show-header="false">
+
+          <template #thead>
+            <thead>
+              <tr class="header-row-1">
+                <th rowspan="2" class="text-center sticky-col-1 bg-blue-main" :style="{ width: colWidths.kode + 'px' }">
+                  KODE
+                  <div class="resizer" @mousedown.stop="onResizeStart($event, 'kode')"></div>
+                </th>
+                <th rowspan="2" class="text-center sticky-col-2 bg-blue-main"
+                  :style="{ width: colWidths.Nama + 'px', left: colWidths.kode + 'px' }">
+                  NAMA BAHAN
+                  <div class="resizer" @mousedown.stop="onResizeStart($event, 'Nama')"></div>
+                </th>
+                <th rowspan="2" class="text-center" :style="{ width: colWidths.jb_nama + 'px' }">
+                  JENIS
+                  <div class="resizer" @mousedown.stop="onResizeStart($event, 'jb_nama')"></div>
+                </th>
+                <th rowspan="2" class="text-center" :style="{ width: colWidths.status + 'px' }">
+                  STATUS
+                  <div class="resizer" @mousedown.stop="onResizeStart($event, 'status')"></div>
+                </th>
+                <th colspan="3" class="text-center bg-blue-sub">SPESIFIKASI</th>
+                <th colspan="2" class="text-center bg-blue-sub">STOCK AWAL</th>
+                <th colspan="2" class="text-center bg-blue-sub">TERIMA</th>
+                <th colspan="2" class="text-center bg-blue-sub">KELUAR</th>
+                <th colspan="2" class="text-center bg-blue-sub">RETUR/SISA PRODUKSI</th>
+                <th colspan="2" class="text-center bg-blue-sub">STOCK AKHIR</th>
+              </tr>
+
+              <tr class="header-row-2">
+                <th class="text-center bg-blue-detail" :style="{ width: colWidths.Lebar + 'px' }">
+                  LEBAR <div class="resizer" @mousedown.stop="onResizeStart($event, 'Lebar')"></div>
+                </th>
+                <th class="text-center bg-blue-detail" :style="{ width: colWidths.Panjang + 'px' }">
+                  PANJANG <div class="resizer" @mousedown.stop="onResizeStart($event, 'Panjang')"></div>
+                </th>
+                <th class="text-center bg-blue-detail" :style="{ width: colWidths.m2 + 'px' }">
+                  M2 <div class="resizer" @mousedown.stop="onResizeStart($event, 'm2')"></div>
+                </th>
+                <th class="text-center bg-blue-detail" :style="{ width: colWidths.stok_awal_q + 'px' }">
+                  ROLL <div class="resizer" @mousedown.stop="onResizeStart($event, 'stok_awal_q')"></div>
+                </th>
+                <th class="text-center bg-blue-detail" :style="{ width: colWidths.stok_awal_m + 'px' }">
+                  M2 <div class="resizer" @mousedown.stop="onResizeStart($event, 'stok_awal_m')"></div>
+                </th>
+                <th class="text-center bg-blue-detail" :style="{ width: colWidths.terima_q + 'px' }">
+                  ROLL <div class="resizer" @mousedown.stop="onResizeStart($event, 'terima_q')"></div>
+                </th>
+                <th class="text-center bg-blue-detail" :style="{ width: colWidths.terima_m + 'px' }">
+                  M2 <div class="resizer" @mousedown.stop="onResizeStart($event, 'terima_m')"></div>
+                </th>
+                <th class="text-center bg-blue-detail" :style="{ width: colWidths.keluar_q + 'px' }">
+                  ROLL <div class="resizer" @mousedown.stop="onResizeStart($event, 'keluar_q')"></div>
+                </th>
+                <th class="text-center bg-blue-detail" :style="{ width: colWidths.keluar_m + 'px' }">
+                  M2 <div class="resizer" @mousedown.stop="onResizeStart($event, 'keluar_m')"></div>
+                </th>
+                <th class="text-center bg-blue-detail" :style="{ width: colWidths.retur_q + 'px' }">
+                  ROLL <div class="resizer" @mousedown.stop="onResizeStart($event, 'retur_q')"></div>
+                </th>
+                <th class="text-center bg-blue-detail" :style="{ width: colWidths.retur_m + 'px' }">
+                  M2 <div class="resizer" @mousedown.stop="onResizeStart($event, 'retur_m')"></div>
+                </th>
+                <th class="text-center bg-blue-detail" :style="{ width: colWidths.stok_akhir_q + 'px' }">
+                  ROLL <div class="resizer" @mousedown.stop="onResizeStart($event, 'stok_akhir_q')"></div>
+                </th>
+                <th class="text-center bg-blue-detail" :style="{ width: colWidths.stok_akhir_m + 'px' }">
+                  M2 <div class="resizer" @mousedown.stop="onResizeStart($event, 'stok_akhir_m')"></div>
+                </th>
+              </tr>
+            </thead>
+          </template>
+
+          <template v-slot:item="{ item }">
+            <tr class="data-row">
+              <td class="text-left sticky-col-1 bg-white font-weight-bold" :style="{ width: colWidths.kode + 'px' }">
+                {{ item.kode }}
+              </td>
+              <td class="text-left sticky-col-2 bg-white"
+                :style="{ width: colWidths.Nama + 'px', left: colWidths.kode + 'px' }">
+                {{ item.Nama }}
+              </td>
+              <td class="text-left" :style="{ width: colWidths.jb_nama + 'px' }">{{ item.jb_nama || "" }}</td>
+              <td class="text-left" :style="{ width: colWidths.status + 'px' }">{{ item.status || "" }}</td>
+              <td class="text-right" :style="{ width: colWidths.Lebar + 'px' }">{{ formatNumber(item.Lebar, 2) }}</td>
+              <td class="text-right" :style="{ width: colWidths.Panjang + 'px' }">{{ formatNumber(item.Panjang, 2) }}
+              </td>
+              <td class="text-right" :style="{ width: colWidths.m2 + 'px' }">{{ formatNumber(item.m2, 2) }}</td>
+              <td class="text-right" :style="{ width: colWidths.stok_awal_q + 'px' }">{{ formatNumber(item.stok_awal_q,
+                0) }}</td>
+              <td class="text-right" :style="{ width: colWidths.stok_awal_m + 'px' }">{{ formatNumber(item.stok_awal_m,
+                2) }}</td>
+              <td class="text-right" :style="{ width: colWidths.terima_q + 'px' }">{{ formatNumber(item.terima_q, 0) }}
+              </td>
+              <td class="text-right" :style="{ width: colWidths.terima_m + 'px' }">{{ formatNumber(item.terima_m, 2) }}
+              </td>
+              <td class="text-right" :style="{ width: colWidths.keluar_q + 'px' }">{{ formatNumber(item.keluar_q, 0) }}
+              </td>
+              <td class="text-right" :style="{ width: colWidths.keluar_m + 'px' }">{{ formatNumber(item.keluar_m, 2) }}
+              </td>
+              <td class="text-right" :style="{ width: colWidths.retur_q + 'px' }">{{ formatNumber(item.retur_q, 0) }}
+              </td>
+              <td class="text-right" :style="{ width: colWidths.retur_m + 'px' }">{{ formatNumber(item.retur_m, 2) }}
+              </td>
+              <td class="text-right" :style="{ width: colWidths.stok_akhir_q + 'px' }">{{
+                formatNumber(item.stok_akhir_q, 0) }}</td>
+              <td class="text-right" :style="{ width: colWidths.stok_akhir_m + 'px' }">{{
+                formatNumber(item.stok_akhir_m, 2) }}</td>
+            </tr>
+          </template>
+
+          <template #tfoot>
+            <tr class="table-footer">
+              <td colspan="4" class="text-right font-weight-bold sticky-footer-title">GRAND TOTAL:</td>
+              <td colspan="3"></td>
+              <td class="text-end font-weight-bold">{{ formatNumber(reportTotals.stok_awal_q, 0) }}</td>
+              <td class="text-end font-weight-bold">{{ formatNumber(reportTotals.stok_awal_m, 2) }}</td>
+              <td class="text-end font-weight-bold">{{ formatNumber(reportTotals.terima_q, 0) }}</td>
+              <td class="text-end font-weight-bold">{{ formatNumber(reportTotals.terima_m, 2) }}</td>
+              <td class="text-end font-weight-bold">{{ formatNumber(reportTotals.keluar_q, 0) }}</td>
+              <td class="text-end font-weight-bold">{{ formatNumber(reportTotals.keluar_m, 2) }}</td>
+              <td class="text-end font-weight-bold">{{ formatNumber(reportTotals.retur_q, 0) }}</td>
+              <td class="text-end font-weight-bold">{{ formatNumber(reportTotals.retur_m, 2) }}</td>
+              <td class="text-end font-weight-bold">{{ formatNumber(reportTotals.stok_akhir_q, 0) }}</td>
+              <td class="text-end font-weight-bold">{{ formatNumber(reportTotals.stok_akhir_m, 2) }}</td>
+            </tr>
+          </template>
+        </v-data-table>
       </div>
 
-      <div class="header-right">
-        <button class="btn-export" @click="exportToExcel">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="16"
-            height="16"
-            fill="currentColor"
-            viewBox="0 0 16 16"
-          >
-            <path
-              d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5"
-            />
-            <path
-              d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L6.354 8.146a.5.5 0 1 0-.708.708z"
-            />
-          </svg>
-          Export
-        </button>
+      <div class="d-flex justify-space-between align-center mt-3" v-if="filteredData.length > 0">
+        <div class="d-flex align-center ga-2 text-caption">
+          <v-label>Baris per halaman:</v-label>
+          <v-select v-model.number="itemsPerPage" :items="[15, 25, 50, 100, { title: 'All data', value: -1 }]"
+            density="compact" hide-details variant="outlined" style="max-width: 120px"
+            @update:model-value="currentPage = 1" />
+        </div>
+        <div class="d-flex align-center ga-2 text-caption">
+          <v-btn size="x-small" icon="mdi-chevron-left" @click="prevPage"
+            :disabled="currentPage === 1 || itemsPerPage === -1" />
+          <span v-if="itemsPerPage !== -1">Halaman **{{ currentPage }}** dari **{{ totalPages }}**</span>
+          <span v-else>Menampilkan Semua Data</span>
+          <v-btn size="x-small" icon="mdi-chevron-right" @click="nextPage"
+            :disabled="currentPage === totalPages || itemsPerPage === -1" />
+        </div>
+        <span class="text-caption">Total **{{ filteredData.length }}** data (dari **{{
+          allData.length
+        }}**)</span>
       </div>
     </div>
-
-    <!-- Panel Tabel (Master Grid) -->
-    <div class="table-container">
-      <div class="table-wrapper">
-        <table>
-          <thead>
-            <!-- Baris 1: Banded Headers -->
-            <tr>
-              <th rowspan="2">KODE</th>
-              <th rowspan="2">NAMA BAHAN</th>
-              <th rowspan="2">JENIS</th>
-              <th rowspan="2">STATUS</th>
-              <th colspan="3">SPESIFIKASI</th>
-              <th colspan="2">STOCK AWAL</th>
-              <th colspan="2">TERIMA</th>
-              <th colspan="2">KELUAR</th>
-              <th colspan="2">RETUR/SISA PRODUKSI</th>
-              <th colspan="2">STOCK AKHIR</th>
-            </tr>
-            <!-- Baris 2: Sub-Headers -->
-            <tr>
-              <th>LEBAR</th>
-              <th>PANJANG</th>
-              <th>M2</th>
-              <th>ROLL</th>
-              <th>M2</th>
-              <th>ROLL</th>
-              <th>M2</th>
-              <th>ROLL</th>
-              <th>M2</th>
-              <th>ROLL</th>
-              <th>M2</th>
-              <th>ROLL</th>
-              <th>M2</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-if="loading.report">
-              <td :colspan="17" class="empty-state">Memuat data laporan...</td>
-            </tr>
-            <tr v-else-if="paginatedData.length === 0">
-              <td :colspan="17" class="empty-state">
-                {{
-                  searchQuery
-                    ? "Tidak ada data yang cocok."
-                    : "Tidak ada data untuk rentang tanggal ini."
-                }}
-              </td>
-            </tr>
-            <tr v-for="row in paginatedData" :key="row.kode">
-              <td>{{ row.kode }}</td>
-              <td>{{ row.Nama }}</td>
-              <td>{{ row.jb_nama }}</td>
-              <td>{{ row.status }}</td>
-              <td class="text-right">{{ formatNumber(row.Lebar, 2) }}</td>
-              <td class="text-right">{{ formatNumber(row.Panjang, 2) }}</td>
-              <td class="text-right">{{ formatNumber(row.m2, 2) }}</td>
-              <td class="text-right">{{ formatNumber(row.stok_awal_q, 0) }}</td>
-              <td class="text-right">{{ formatNumber(row.stok_awal_m, 2) }}</td>
-              <td class="text-right">{{ formatNumber(row.terima_q, 0) }}</td>
-              <td class="text-right">{{ formatNumber(row.terima_m, 2) }}</td>
-              <td class="text-right">{{ formatNumber(row.keluar_q, 0) }}</td>
-              <td class="text-right">{{ formatNumber(row.keluar_m, 2) }}</td>
-              <td class="text-right">{{ formatNumber(row.retur_q, 0) }}</td>
-              <td class="text-right">{{ formatNumber(row.retur_m, 2) }}</td>
-              <td class="text-right">
-                {{ formatNumber(row.stok_akhir_q, 0) }}
-              </td>
-              <td class="text-right">
-                {{ formatNumber(row.stok_akhir_m, 2) }}
-              </td>
-            </tr>
-          </tbody>
-          <!-- Footer Total (Grand Total) -->
-          <tfoot v-if="filteredData.length > 0">
-            <tr>
-              <th :colspan="7" class="text-right">GRAND TOTAL:</th>
-              <th class="text-right">
-                {{ formatNumber(reportTotals.stok_awal_q, 0) }}
-              </th>
-              <th class="text-right">
-                {{ formatNumber(reportTotals.stok_awal_m, 2) }}
-              </th>
-              <th class="text-right">
-                {{ formatNumber(reportTotals.terima_q, 0) }}
-              </th>
-              <th class="text-right">
-                {{ formatNumber(reportTotals.terima_m, 2) }}
-              </th>
-              <th class="text-right">
-                {{ formatNumber(reportTotals.keluar_q, 0) }}
-              </th>
-              <th class="text-right">
-                {{ formatNumber(reportTotals.keluar_m, 2) }}
-              </th>
-              <th class="text-right">
-                {{ formatNumber(reportTotals.retur_q, 0) }}
-              </th>
-              <th class="text-right">
-                {{ formatNumber(reportTotals.retur_m, 2) }}
-              </th>
-              <th class="text-right">
-                {{ formatNumber(reportTotals.stok_akhir_q, 0) }}
-              </th>
-              <th class="text-right">
-                {{ formatNumber(reportTotals.stok_akhir_m, 2) }}
-              </th>
-            </tr>
-          </tfoot>
-        </table>
-      </div>
-
-      <!-- Kontrol Paginasi -->
-      <div class="pagination-controls" v-if="filteredData.length > 0">
-        <div class="pagination-rows">
-          <label for="rowsPerPage">Baris per halaman:</label>
-          <select
-            id="rowsPerPage"
-            v-model.number="itemsPerPage"
-            @change="currentPage = 1"
-          >
-            <option value="15">15 baris</option>
-            <option value="25">25 baris</option>
-            <option value="50">50 baris</option>
-            <option value="100">100 baris</option>
-          </select>
-        </div>
-        <div class="pagination-nav">
-          <button
-            @click="prevPage"
-            :disabled="currentPage === 1"
-            class="btn-page"
-          >
-            &laquo; Prev
-          </button>
-          <span class="pagination-info">
-            Halaman {{ currentPage }} dari {{ totalPages }}
-          </span>
-          <button
-            @click="nextPage"
-            :disabled="currentPage === totalPages"
-            class="btn-page"
-          >
-            Next &raquo;
-          </button>
-        </div>
-        <span class="pagination-total">
-          Total {{ filteredData.length }} data (dari {{ allData.length }})
-        </span>
-      </div>
-    </div>
-  </div>
+  </PageLayout>
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from "vue";
+import { ref, reactive, onMounted, computed } from "vue";
+import PageLayout from "../components/PageLayout.vue";
 import api from "@/services/api";
-import { format, startOfMonth } from "date-fns";
 
-// [DIUBAH] Ganti API URL
+// Utility functions
+const formatDate = (date) => {
+  const d = new Date(date);
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
+const getStartOfMonth = (date) => {
+  const d = new Date(date);
+  return new Date(d.getFullYear(), d.getMonth(), 1);
+};
+
+const formatNumber = (val, decimalPlaces = 0) => {
+  if (val === null || val === undefined) val = 0;
+  const num = parseFloat(val);
+  return num.toLocaleString("id-ID", {
+    minimumFractionDigits: decimalPlaces,
+    maximumFractionDigits: decimalPlaces,
+  });
+};
+
 const API_URL = "/mmt/laporan-ls-bahan-penolong";
 
-const endDate = ref(format(new Date(), "yyyy-MM-dd"));
-const startDate = ref(format(startOfMonth(new Date()), "yyyy-MM-dd"));
+const endDate = ref(formatDate(new Date()));
+const startDate = ref(formatDate(getStartOfMonth(new Date())));
 const allData = ref([]);
 const loading = ref({ report: false });
 const currentPage = ref(1);
 const itemsPerPage = ref(15);
 const searchQuery = ref("");
 
-// [FIX] Menggunakan 'allData' untuk filter
+// Logika Resize
+const resizingColumn = ref(null);
+const startX = ref(0);
+const startWidth = ref(0);
+
+const colWidths = reactive({
+  kode: 100,
+  Nama: 300,
+  jb_nama: 100,
+  status: 80,
+  Lebar: 80,
+  Panjang: 80,
+  m2: 80,
+  stok_awal_q: 80,
+  stok_awal_m: 100,
+  terima_q: 80,
+  terima_m: 100,
+  keluar_q: 80,
+  keluar_m: 100,
+  retur_q: 80,
+  retur_m: 100,
+  stok_akhir_q: 80,
+  stok_akhir_m: 100,
+});
+
+const onResizeStart = (e, column) => {
+  resizingColumn.value = column;
+  startX.value = e.pageX;
+  startWidth.value = colWidths[column];
+  document.addEventListener("mousemove", onResizeMove);
+  document.addEventListener("mouseup", onResizeEnd);
+  document.body.style.cursor = "col-resize";
+};
+
+const onResizeMove = (e) => {
+  if (!resizingColumn.value) return;
+  const diff = e.pageX - startX.value;
+  colWidths[resizingColumn.value] = Math.max(50, startWidth.value + diff);
+};
+
+const onResizeEnd = () => {
+  resizingColumn.value = null;
+  document.removeEventListener("mousemove", onResizeMove);
+  document.removeEventListener("mouseup", onResizeEnd);
+  document.body.style.cursor = "default";
+};
+
 const filteredData = computed(() => {
-  if (currentPage.value !== 1) {
+  if (currentPage.value !== 1 && allData.value.length > 0 && searchQuery.value) {
     currentPage.value = 1;
   }
-  if (!searchQuery.value) {
-    return allData.value;
-  }
+  if (!searchQuery.value) return allData.value;
   const query = searchQuery.value.toLowerCase();
   return allData.value.filter((row) => {
     const kodeMatch = row.kode ? row.kode.toLowerCase().includes(query) : false;
@@ -265,7 +283,6 @@ const filteredData = computed(() => {
   });
 });
 
-// [FIX] Menggunakan 'filteredData' untuk total
 const reportTotals = computed(() => {
   return filteredData.value.reduce(
     (acc, row) => {
@@ -282,359 +299,171 @@ const reportTotals = computed(() => {
       return acc;
     },
     {
-      stok_awal_q: 0,
-      stok_awal_m: 0,
-      terima_q: 0,
-      terima_m: 0,
-      keluar_q: 0,
-      keluar_m: 0,
-      retur_q: 0,
-      retur_m: 0,
-      stok_akhir_q: 0,
-      stok_akhir_m: 0,
+      stok_awal_q: 0, stok_awal_m: 0, terima_q: 0, terima_m: 0,
+      keluar_q: 0, keluar_m: 0, retur_q: 0, retur_m: 0,
+      stok_akhir_q: 0, stok_akhir_m: 0,
     }
   );
 });
 
-// [FIX] Menggunakan 'filteredData' untuk paginasi
 const paginatedData = computed(() => {
+  if (itemsPerPage.value === -1) return filteredData.value;
   const start = (currentPage.value - 1) * itemsPerPage.value;
   const end = start + itemsPerPage.value;
   return filteredData.value.slice(start, end);
 });
 
-// [FIX] Menggunakan 'filteredData' untuk total halaman
 const totalPages = computed(() => {
-  if (filteredData.value.length === 0) return 1;
+  if (itemsPerPage.value === -1 || filteredData.value.length === 0) return 1;
   return Math.ceil(filteredData.value.length / itemsPerPage.value);
 });
 
-const nextPage = () => {
-  if (currentPage.value < totalPages.value) {
-    currentPage.value++;
-  }
-};
-const prevPage = () => {
-  if (currentPage.value > 1) {
-    currentPage.value--;
-  }
-};
+const nextPage = () => { if (currentPage.value < totalPages.value) currentPage.value++; };
+const prevPage = () => { if (currentPage.value > 1) currentPage.value--; };
 
 const fetchReport = async () => {
   loading.value.report = true;
-  allData.value = [];
-  searchQuery.value = "";
-  currentPage.value = 1;
   try {
     const res = await api.get(API_URL, {
-      params: {
-        startDate: startDate.value,
-        endDate: endDate.value,
-      },
+      params: { startDate: startDate.value, endDate: endDate.value },
     });
     allData.value = res.data;
   } catch (error) {
     console.error("Gagal fetch laporan:", error);
-    // [DIUBAH] Pesan error lebih spesifik
-    alert(
-      "Gagal mengambil data Laporan Bahan Penolong: " +
-        (error.response?.data?.message || error.message)
-    );
   } finally {
     loading.value.report = false;
   }
 };
 
-const formatNumber = (val, decimalPlaces = 0) => {
-  if (val === null || val === undefined) {
-    val = 0;
-  }
-  const num = parseFloat(val);
-  return num.toLocaleString("id-ID", {
-    minimumFractionDigits: decimalPlaces,
-    maximumFractionDigits: decimalPlaces,
-  });
-};
-
 const exportToExcel = () => {
-  alert("TODO: Fungsi ekspor ke Excel (seperti TeSpeedButton1Click)");
+  console.info("Simulasi Ekspor: Siap mengekspor " + filteredData.value.length + " baris data.");
 };
 
 onMounted(fetchReport);
 </script>
 
 <style scoped>
-/* Impor font modern */
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
-
-/* Container utama halaman ini */
-.report-layout {
-  font-family: "Inter", sans-serif;
-  background-color: #f4f7f9;
-  height: calc(100vh - 80px); /* Penuh dikurangi padding/navbar */
-  display: flex;
-  flex-direction: column;
-  gap: 1.25rem;
+.browse-content {
+  padding: 0 !important;
 }
 
-/* Header (Filter & Tombol) */
-.report-header {
-  flex-shrink: 0;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 1.25rem;
-  background: #ffffff;
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-}
-.header-left {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  flex-wrap: wrap;
-}
-.header-right {
-  display: flex;
-  gap: 0.75rem;
-}
-.page-title {
-  font-size: 16px;
-  font-weight: 700;
-  margin: 0;
-  color: #1a202c;
-}
-.filter-group {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-.filter-group label {
-  font-weight: 500;
-  font-size: 0.875rem;
-  color: #4a5568;
+.v-card-text {
+  padding-bottom: 4px !important;
 }
 
-/* Style Form Modern */
-input[type="date"],
-input[type="text"],
-select {
-  border: 1px solid #dcdfe6;
-  border-radius: 6px;
-  padding: 0.5rem 0.75rem;
-  font-family: "Inter", sans-serif;
-  font-size: 0.875rem;
-}
-input[type="date"]:focus,
-input[type="text"]:focus,
-select:focus {
-  outline: none;
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 1px #3b82f6;
-}
-
-/* Style Tombol Modern */
-.btn-refresh,
-.btn-export {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 1rem;
-  border: 1px solid transparent;
-  border-radius: 6px;
-  cursor: pointer;
-  font-weight: 600;
-  font-size: 0.875rem;
-  transition: all 0.2s ease;
-  white-space: nowrap;
-}
-.btn-refresh {
-  background-color: #3b82f6;
-  color: white;
-}
-.btn-refresh:hover:not(:disabled) {
-  background-color: #2563eb;
-}
-.btn-refresh:disabled {
-  background-color: #93c5fd;
-  cursor: not-allowed;
-}
-
-.btn-export {
-  background-color: #ffffff;
-  color: #374151;
-  border: 1px solid #dcdfe6;
-}
-.btn-export:hover {
-  background-color: #f9fafb;
-}
-
-/* Panel Tabel */
 .table-container {
-  flex-grow: 1;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  background: #ffffff;
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  border: 1px solid #7bdaff;
+  border-radius: 4px;
+  overflow: auto;
+  max-height: calc(100vh - 200px);
 }
-.table-wrapper {
-  flex-grow: 1;
-  overflow: auto; /* Scroll horizontal & vertikal */
-}
-table {
-  width: 100%;
-  border-collapse: separate; /* Penting untuk style modern */
+
+.desktop-table :deep(table) {
+  border-collapse: separate;
   border-spacing: 0;
+  width: 100%;
 }
 
-th {
-  position: sticky;
-  background-color: #f8f9fa; /* Latar header abu-abu muda */
-  z-index: 1;
-  text-align: center;
-  white-space: nowrap;
-  padding: 12px 15px;
-  border-bottom: 1px solid #e2e8f0;
-  font-size: 0.75rem; /* Lebih kecil */
-  font-weight: 600;
-  color: #4a5568;
+.desktop-table :deep(thead th) {
+  font-size: 10px !important;
+  font-weight: 800 !important;
+  padding: 0 4px !important;
+  border-right: 1px solid #7bdaff !important;
+  border-bottom: 1px solid #7bdaff !important;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
-  height: 40px;
-  box-sizing: border-box;
-}
-/* Baris 1: Banded Headers */
-thead tr:first-child th {
-  top: 0;
-  z-index: 3;
-}
-/* Baris 2: Sub-Headers */
-thead tr:nth-child(2) th {
-  top: 40px; /* Sesuai tinggi baris 1 */
-  z-index: 2;
+  color: #333 !important;
+  white-space: nowrap;
+  text-align: center !important;
+  height: 32px !important;
+  vertical-align: middle !important;
+  background-color: #b3e5fc !important;
 }
 
-thead tr.filter-row th {
-  top: 80px;
-  z-index: 1;
-  background-color: #f8f9fa;
-  padding: 8px;
+.header-row-1 th {
+  position: sticky;
+  top: 0;
+  z-index: 40;
 }
-.search-group {
+
+.header-row-2 th {
+  position: sticky;
+  top: 32px;
+  z-index: 30;
+}
+
+.sticky-col-1 {
+  position: sticky;
+  left: 0;
+  z-index: 6;
+}
+
+.sticky-col-2 {
+  position: sticky;
+  left: var(--kode-width);
+  z-index: 6;
+}
+
+.desktop-table :deep(td) {
+  font-size: 11px !important;
+  border-right: 1px solid #eee !important;
+  border-bottom: 1px solid #eee !important;
+  padding: 6px 8px !important;
+  white-space: nowrap;
+}
+
+.desktop-table :deep(tbody td.sticky-col-1) {
+  position: sticky !important;
+  left: 0;
+  z-index: 10;
+}
+
+.desktop-table :deep(tbody td.sticky-col-2) {
+  position: sticky !important;
+  z-index: 10;
+}
+
+.header-content {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  background: #ffffff;
-  border: 1px solid #dcdfe6;
-  border-radius: 6px;
-  padding: 0 10px;
-  width: 200px;
-  margin: 0 auto;
-}
-.search-group svg {
-  color: #9ca3af;
-}
-.search-group input {
-  border: none;
-  padding: 8px;
-  outline: none;
-  width: 100%;
-  font-size: 0.875rem;
+  justify-content: center;
+  height: 100%;
 }
 
-/* Body Tabel Modern */
-td {
-  padding: 12px 15px;
-  border-bottom: 1px solid #e2e8f0;
-  font-size: 10px;
-  color: #2d3748;
-  white-space: nowrap;
-}
-tbody tr:hover {
-  background-color: #f9fafb; /* Efek hover halus */
-}
-.text-right {
-  text-align: right;
-}
-.text-center {
-  text-align: center;
-}
-.empty-state {
-  padding: 1rem;
-  text-align: center;
-  color: #718096;
-  font-style: italic;
+.resizer {
+  position: absolute;
+  right: -4px;
+  top: 0;
+  bottom: 0;
+  width: 8px;
+  cursor: col-resize;
+  z-index: 10;
 }
 
-/* Footer Total Modern (Teks Hitam) */
-tfoot {
+.resizer:hover {
+  background: rgba(0, 0, 0, 0.1);
+}
+
+.table-footer td {
   position: sticky;
   bottom: 0;
-  z-index: 1;
-}
-tfoot th {
-  background-color: var(--color-bg-panel); /* Latar putih */
-  color: var(--color-text-dark); /* Teks hitam */
-  padding: 14px 15px;
-  text-align: right;
-  font-size: 12px;
-  font-weight: 700;
-  border-top: 2px solid var(--color-primary); /* Garis biru di atas */
+  z-index: 25;
+  background-color: #f0f4f8 !important;
+  border-top: 2px solid #7bdaff !important;
+  font-weight: bold;
+  font-size: 11px;
+  color: #01579b;
+  padding: 8px !important;
 }
 
-/* Paginasi Modern */
-.pagination {
-  flex-shrink: 0;
-  padding: 1rem 1.25rem;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 1rem;
-  border-top: 1px solid #e2e8f0;
+.sticky-footer-title {
+  position: sticky;
+  left: 0;
+  z-index: 30;
+  background: #f0f4f8 !important;
 }
-.rows-per-page {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 0.875rem;
-  color: #4a5568;
-}
-.rows-per-page select {
-  padding: 0.4rem 0.5rem;
-  font-size: 0.875rem;
-}
-.page-nav {
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
-}
-.page-info {
-  font-size: 0.875rem;
-  color: #4a5568;
-  margin: 0 0.75rem;
-}
-.total-info {
-  font-size: 0.875rem;
-  color: #718096;
-  font-weight: 500;
-}
-.btn-page {
-  padding: 0.4rem 0.75rem;
-  border: 1px solid #dcdfe6;
-  background-color: #ffffff;
-  border-radius: 6px;
-  cursor: pointer;
-  font-weight: 600;
-  color: #4a5568;
-}
-.btn-page:hover:not(:disabled) {
-  background-color: #f9fafb;
-}
-.btn-page:disabled {
-  color: #cbd5e1;
-  cursor: not-allowed;
+
+.desktop-table :deep(.v-data-table__thead) {
+  display: none !important;
 }
 </style>
