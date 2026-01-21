@@ -377,7 +377,7 @@ const saveForm = async (saveAndNew: boolean) => {
         qtyPO: Number(d.qtyPO || 0),
         qtyTerima: Number(d.qtyTerima || 0),
 
-        // ✅ harga otomatis dari PO (tidak dari input user)
+        // harga otomatis dari PO
         harga: Number(d.harga ?? d.Harga_PO ?? d.hargaPO ?? 0),
 
         keterangan: d.keterangan || "",
@@ -391,12 +391,25 @@ const saveForm = async (saveAndNew: boolean) => {
     toast.success("Berhasil disimpan!");
     savedNomor.value = newNomor;
 
+    // ================= BARCODE =================
     const resBarcode = await api.get(`${API_BASE_URL}/barcodes/${newNomor}`);
+
     if (resBarcode.data && resBarcode.data.data) {
       dbBarcodes.value = resBarcode.data.data;
-      printSelectionItems.value = JSON.parse(JSON.stringify(validDetails));
-      selectedForBarcode.value = validDetails.map((d) => d.kode);
-      showPrintSelection.value = true;
+
+      // 🔥 hanya item satuan ROLL
+      const rollItems = validDetails.filter(
+        (d) => (d.satuan || "").toUpperCase() === "ROLL",
+      );
+
+      if (rollItems.length > 0 && dbBarcodes.value.length > 0) {
+        printSelectionItems.value = JSON.parse(JSON.stringify(rollItems));
+        selectedForBarcode.value = rollItems.map((d) => d.kode);
+        showPrintSelection.value = true;
+      } else {
+        // tidak ada barcode yang perlu dicetak
+        handleAfterPrint();
+      }
     } else {
       toast.warning("Transaksi berhasil, tapi barcode gagal diambil.");
       handleAfterPrint();

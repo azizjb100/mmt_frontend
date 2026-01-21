@@ -17,6 +17,7 @@ interface PengajuanPrintData {
   Tanggal: string;
   Kepada: string;
   JenisPengajuan: string;
+  Priority: string;
   Keterangan: string;
   Details: PengajuanDetail[];
   Dibuat: string;
@@ -91,8 +92,8 @@ onMounted(() => {
 
         <div class="right-column">
           <div class="info-row">
-            <span class="label">KEPADA</span>
-            <span class="value">: {{ printData.Kepada }}</span>
+            <span class="label">Priority</span>
+            <span class="value">: {{ printData.Priority }}</span>
           </div>
           <div class="info-row">
             <span class="label">KETERANGAN</span>

@@ -319,7 +319,7 @@ const loaddataall = async (nomor: string) => {
 const handleBahanSelect = (bahan: MasterBahan) => {
   if (currentDetailIndex.value === null) return;
   const isDuplicate = formData.detail.some(
-    (d, i) => d.sku === bahan.Kode && i !== currentDetailIndex.value
+    (d, i) => d.sku === bahan.Kode && i !== currentDetailIndex.value,
   );
   if (isDuplicate) {
     toast.warning(`Bahan ${bahan.Kode} sudah ada.`);
@@ -574,7 +574,7 @@ onMounted(() => {
                 v-model="item.spk"
                 @click="
                   !isLocked &&
-                    ((currentDetailIndex = index), (isSPKModalVisible = true))
+                  ((currentDetailIndex = index), (isSPKModalVisible = true))
                 "
                 append-inner-icon="mdi-magnify"
                 readonly
@@ -592,7 +592,7 @@ onMounted(() => {
                 }"
                 @click="
                   !isLocked &&
-                    ((currentDetailIndex = index), (isBahanModalVisible = true))
+                  ((currentDetailIndex = index), (isBahanModalVisible = true))
                 "
                 append-inner-icon="mdi-magnify"
                 readonly

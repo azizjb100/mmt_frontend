@@ -88,8 +88,8 @@ const router = useRouter();
 
 const rolePermissions = {
   1: [
-    "Pengajuan Permintaan",
-    "Permintaan Bahan",
+    "Daftar Permintaan Pembelian",
+    "Permintaan Pembelian(PR)",
     "Penerimaan Bahan",
     "Permintaan Produksi",
     "LHK",
@@ -599,7 +599,8 @@ const menuGroups = computed(() => {
   color: var(--color-text-dark);
   text-decoration: none;
   font-weight: var(--font-weight-semibold);
-  transition: background-color var(--transition-fast),
+  transition:
+    background-color var(--transition-fast),
     color var(--transition-fast);
 }
 
@@ -667,7 +668,8 @@ const menuGroups = computed(() => {
   font-weight: var(--font-weight-normal);
   border-radius: var(--border-radius-sm);
   margin: 0 5px;
-  transition: background-color var(--transition-fast),
+  transition:
+    background-color var(--transition-fast),
     color var(--transition-fast);
 }
 
@@ -707,7 +709,8 @@ const menuGroups = computed(() => {
   font-weight: var(--font-weight-normal);
   margin: 0 5px;
   border-radius: var(--border-radius-sm);
-  transition: background-color var(--transition-fast),
+  transition:
+    background-color var(--transition-fast),
     color var(--transition-fast);
 }
 
