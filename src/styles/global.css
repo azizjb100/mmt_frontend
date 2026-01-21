@@ -263,6 +263,33 @@ body {
   box-shadow: var(--shadow-sm) !important;
 }
 
+/* ============================
+   TABLE WIDTH NORMALIZATION
+   ============================ */
+.v-data-table,
+.v-table,
+.v-table__wrapper {
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
+/* Paksa table mengikuti container */
+.v-data-table table {
+  width: 100% !important;
+  min-width: 100% !important;
+  table-layout: fixed;
+  /* kolom stabil */
+  border-collapse: collapse;
+}
+
+/* Header dan body ikut full */
+.v-data-table thead,
+.v-data-table tbody,
+.v-data-table tr {
+  width: 100%;
+}
+
+
 .v-data-table thead {
   background-color: #9ed3ff !important;
   /* Biru Solid (Warna Primer) */

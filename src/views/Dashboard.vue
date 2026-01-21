@@ -12,29 +12,44 @@
 
           <ul class="dropdown-menu shadow-md rounded-soft">
             <template v-for="item in group.items" :key="item.name">
-  <li v-if="item.isSubGroup" class="sub-dropdown" :class="{ 'item-disabled': item.isDisabled }">
-    <router-link v-if="!item.isDisabled" :to="item.path" class="sub-dropdown-toggle">
-      {{ item.name }} <span class="icon-arrow">&raquo;</span>
-    </router-link>
-    
-    <span v-else class="sub-dropdown-toggle">
-      {{ item.name }} <span class="mdi mdi-lock-outline"></span>
-    </span>
+              <li
+                v-if="item.isSubGroup"
+                class="sub-dropdown"
+                :class="{ 'item-disabled': item.isDisabled }"
+              >
+                <router-link
+                  v-if="!item.isDisabled"
+                  :to="item.path"
+                  class="sub-dropdown-toggle"
+                >
+                  {{ item.name }} <span class="icon-arrow">&raquo;</span>
+                </router-link>
 
-    <ul v-if="!item.isDisabled" class="dropdown-menu sub-menu shadow-md rounded-soft">
-      <li v-for="subItem in item.items" :key="subItem.name">
-        <router-link :to="subItem.path">{{ subItem.name }}</router-link>
-      </li>
-    </ul>
-  </li>
+                <span v-else class="sub-dropdown-toggle">
+                  {{ item.name }} <span class="mdi mdi-lock-outline"></span>
+                </span>
 
-  <li v-else :class="{ 'item-disabled': item.isDisabled }">
-    <router-link v-if="!item.isDisabled" :to="item.path">{{ item.name }}</router-link>
-    <span v-else class="disabled-link">
-        {{ item.name }} <span class="mdi mdi-lock-outline"></span>
-    </span>
-  </li>
-</template>
+                <ul
+                  v-if="!item.isDisabled"
+                  class="dropdown-menu sub-menu shadow-md rounded-soft"
+                >
+                  <li v-for="subItem in item.items" :key="subItem.name">
+                    <router-link :to="subItem.path">{{
+                      subItem.name
+                    }}</router-link>
+                  </li>
+                </ul>
+              </li>
+
+              <li v-else :class="{ 'item-disabled': item.isDisabled }">
+                <router-link v-if="!item.isDisabled" :to="item.path">{{
+                  item.name
+                }}</router-link>
+                <span v-else class="disabled-link">
+                  {{ item.name }} <span class="mdi mdi-lock-outline"></span>
+                </span>
+              </li>
+            </template>
           </ul>
         </li>
       </ul>
@@ -44,7 +59,10 @@
           Selamat datang,
           <b class="font-semibold">{{ currentUser?.nmUser || "UserAdmin" }}</b>
         </span>
-        <button @click="handleLogout" class="logout-button rounded-soft transition-smooth hover-lift">
+        <button
+          @click="handleLogout"
+          class="logout-button rounded-soft transition-smooth hover-lift"
+        >
           Logout
         </button>
       </div>
@@ -69,27 +87,29 @@ const currentUser = authStore.user; // Mengambil data user dari store
 const router = useRouter();
 
 const rolePermissions = {
-  1: [ // DIVISI 1: Produksi & Laporan Tertentu
-    "Permintaan Bahan", 
-    "Penerimaan Bahan", 
-    "Permintaan Produksi", 
-    "LHK", 
-    "LHK Cetak", 
+  1: [
+    "Pengajuan Permintaan",
+    "Permintaan Bahan",
+    "Penerimaan Bahan",
+    "Permintaan Produksi",
+    "LHK",
+    "LHK Cetak",
     "LHK Kain",
-    "Laporan", 
-    "Produksi MMT", 
-    "LS Bahan Utama", 
-    "LS Bahan Penolong", 
-    "Lap. Mon LMKP MMT"
+    "Laporan",
+    "Produksi MMT",
+    "LS Bahan Utama",
+    "LS Bahan Penolong",
+    "Lap. Mon LMKP MMT",
   ],
-  2: [ // DIVISI 2: Contoh Sales
+  2: [
+    // DIVISI 2: Contoh Sales
     "File",
     "Ganti Password",
     "Customer",
     "Sales",
     "Laporan",
-    "Penjualan"
-  ]
+    "Penjualan",
+  ],
 };
 
 const handleLogout = () => {
@@ -139,12 +159,18 @@ const allMenuGroups = [
           { name: "Bahan Sisa", path: "/mmt/daftar/bahan-sisa" },
         ],
       },
-      { name: "Permintaan Bahan", path: "/mmt/permintaan-bahan" },
+      {
+        name: "Daftar Permintaan Pembelian",
+        path: "/mmt/pengajuan-permintaan",
+      },
+      { name: "Permintaan Pembelian(PR)", path: "/mmt/permintaan-bahan" },
       { name: "PO Bahan MMT", path: "/mmt/po-bahan-mmt" },
       { name: "Penerimaan Bahan", path: "/mmt/penerimaan-bahan" },
+      { name: "Invoice", path: "/mmt/invoice" },
       { name: "Retur Beli", path: "/mmt/retur-beli" },
       { name: "Koreksi Stok", path: "/mmt/koreksi-stok" },
       { name: "Permintaan Produksi", path: "/mmt/permintaan-produksi" },
+      { name: "Realisasi Produksi", path: "/mmt/realisasi-produksi" },
       { name: "BS & Sisa Digital Print", path: "/mmt/bs-digital" },
       { name: "BS & Sisa Tekstil", path: "/mmt/bs-tekstil" },
       { name: "Bahan Sisa", path: "/mmt/bahan-sisa" },
@@ -174,11 +200,17 @@ const allMenuGroups = [
         path: "/laporan/garmen/browse",
         items: [
           { name: "Mutasi Bahan", path: "/laporan/garmen/mutasi-bahan" },
-          { name: "Kartu Stok Bahan Baku", path: "/laporan/garmen/kartu-stok-bahan" },
+          {
+            name: "Kartu Stok Bahan Baku",
+            path: "/laporan/garmen/kartu-stok-bahan",
+          },
           { name: "Stok Barang", path: "/laporan/garmen/stok-barang" },
           { name: "SPK vs STBJ vs SJ", path: "/laporan/garmen/spk-stbj-sj" },
           { name: "Proses Produksi", path: "/laporan/garmen/proses-produksi" },
-          { name: "Lap Outstanding SPK", path: "/laporan/garmen/outstanding-spk" },
+          {
+            name: "Lap Outstanding SPK",
+            path: "/laporan/garmen/outstanding-spk",
+          },
         ],
       },
       {
@@ -186,10 +218,22 @@ const allMenuGroups = [
         isSubGroup: true,
         path: "/laporan/penjualan/browse",
         items: [
-          { name: "Penawaran vs SPK", path: "/laporan/penjualan/penawaran-vs-spk" },
-          { name: "Realisasi Pengiriman SPK", path: "/laporan/penjualan/realisasi-kirim-spk" },
-          { name: "SPK vs SJ vs Invoice", path: "/laporan/penjualan/spk-sj-invoice" },
-          { name: "Rekap Penawaran", path: "/laporan/penjualan/rekap-penawaran" },
+          {
+            name: "Penawaran vs SPK",
+            path: "/laporan/penjualan/penawaran-vs-spk",
+          },
+          {
+            name: "Realisasi Pengiriman SPK",
+            path: "/laporan/penjualan/realisasi-kirim-spk",
+          },
+          {
+            name: "SPK vs SJ vs Invoice",
+            path: "/laporan/penjualan/spk-sj-invoice",
+          },
+          {
+            name: "Rekap Penawaran",
+            path: "/laporan/penjualan/rekap-penawaran",
+          },
         ],
       },
       {
@@ -200,7 +244,10 @@ const allMenuGroups = [
           { name: "PPN Masukan", path: "/laporan/hutang/ppn-masukan" },
           { name: "PO vs BPB", path: "/laporan/hutang/po-vs-bpb" },
           { name: "Daftar Hutang", path: "/laporan/hutang/daftar-hutang" },
-          { name: "PO Bahan vs Realisasi", path: "/laporan/hutang/po-bahan-vs-realisasi" },
+          {
+            name: "PO Bahan vs Realisasi",
+            path: "/laporan/hutang/po-bahan-vs-realisasi",
+          },
         ],
       },
       {
@@ -208,7 +255,10 @@ const allMenuGroups = [
         isSubGroup: true,
         path: "/laporan/piutang/browse",
         items: [
-          { name: "Rekap Mutasi Piutang", path: "/laporan/piutang/rekap-mutasi" },
+          {
+            name: "Rekap Mutasi Piutang",
+            path: "/laporan/piutang/rekap-mutasi",
+          },
           { name: "Daftar Piutang", path: "/laporan/piutang/daftar-piutang" },
           { name: "Saldo Piutang", path: "/laporan/piutang/saldo-piutang" },
         ],
@@ -220,7 +270,10 @@ const allMenuGroups = [
         items: [
           { name: "Laporan Persediaan", path: "/laporan/spanduk/persediaan" },
           { name: "Laporan Kartu Stok", path: "/laporan/spanduk/kartu-stok" },
-          { name: "Laporan In Out Gudang", path: "/laporan/spanduk/in-out-gudang" },
+          {
+            name: "Laporan In Out Gudang",
+            path: "/laporan/spanduk/in-out-gudang",
+          },
           { name: "Stok Barang Jadi", path: "/laporan/spanduk/stok-jadi" },
         ],
       },
@@ -231,11 +284,25 @@ const allMenuGroups = [
         items: [
           { name: "LS Bahan Utama", path: "/laporan/mmt/ls-bahan-utama" },
           { name: "LS Bahan Penolong", path: "/laporan/mmt/ls-bahan-penolong" },
+          {
+            name: "Kartu Stok Produksi",
+            path: "/laporan/mmt/kartu-stok-produksi",
+          },
+          { name: "Laporan SPK MMT", path: "/laporan/mmt/lap-spk-mmt" },
           { name: "Lap. Mon LMKP MMT", path: "/laporan/mmt/lap-mon-lmkp-mmt" },
-          { name: "LS Tinta", path: "/laporan/mmt/ls-tinta" },
+          {
+            name: "Lap. Plan Produksi",
+            path: "/laporan/mmt/lap-plan-produksi",
+          },
+          { name: "Lap. Barang Jadi", path: "/laporan/mmt/lap-barang-jadi" },
+          { name: "LS Tinta", path: "/laporan/mmt/lap-stok-tinta" },
+          { name: "Lap. Bahan Kain", path: "/laporan/mmt/lap-bahan-kain" },
           { name: "LS Bahan Kain", path: "/laporan/mmt/ls-bahan-kain" },
           { name: "Kartu Stock Bahan", path: "/laporan/mmt/mon-jadwal-kirim" },
-          { name: "Lap. BS & Sisa Digital Printing", path: "/laporan/mmt/stok-jadi" },
+          {
+            name: "Lap. BS & Sisa Digital Printing",
+            path: "/laporan/mmt/stok-jadi",
+          },
         ],
       },
       {
@@ -243,8 +310,14 @@ const allMenuGroups = [
         isSubGroup: true,
         path: "/laporan/marketing/browse",
         items: [
-          { name: "Target vs Realisasi", path: "/laporan/marketing/target-vs-realisasi" },
-          { name: "Proyeksi vs Realisasi", path: "/laporan/marketing/proyeksi-vs-realisasi" },
+          {
+            name: "Target vs Realisasi",
+            path: "/laporan/marketing/target-vs-realisasi",
+          },
+          {
+            name: "Proyeksi vs Realisasi",
+            path: "/laporan/marketing/proyeksi-vs-realisasi",
+          },
         ],
       },
     ],
@@ -334,45 +407,44 @@ const allMenuGroups = [
 const menuGroups = computed(() => {
   const user = authStore.user;
   const zdivisi = user?.divisi;
-  
+
   // Clone master menu agar tidak merusak data asli
   const menus = JSON.parse(JSON.stringify(allMenuGroups));
 
-  // Ambil daftar izin berdasarkan divisi. 
+  // Ambil daftar izin berdasarkan divisi.
   // Jika divisi tidak terdaftar di mapping, anggap dia ADMIN (bisa semua/tidak ada isDisabled)
   const allowedTitles = rolePermissions[zdivisi];
 
   // Jika divisi tidak ada di mapping (ADMIN), return menu apa adanya
   if (!allowedTitles) return menus;
 
-  return menus.map(group => {
+  return menus.map((group) => {
     return {
       ...group,
       // Jika nama Group-nya saja tidak ada di izin, kita tandai (Opsional)
       // Namun biasanya kita cek per item di dalamnya
-      items: group.items.map(item => {
-        
+      items: group.items.map((item) => {
         // Cek Level 2
         let canAccess = allowedTitles.includes(item.name);
 
         // Cek Level 3 (Sub-items) jika ada
         if (item.isSubGroup && item.items) {
           // Tandai sub-item level 3
-          item.items = item.items.map(subItem => ({
+          item.items = item.items.map((subItem) => ({
             ...subItem,
-            isDisabled: !allowedTitles.includes(subItem.name)
+            isDisabled: !allowedTitles.includes(subItem.name),
           }));
-          
+
           // Jika ada salah satu anak yang boleh diakses, maka bapaknya (Level 2) harus terbuka
-          const anySubAllowed = item.items.some(sub => !sub.isDisabled);
+          const anySubAllowed = item.items.some((sub) => !sub.isDisabled);
           if (anySubAllowed) canAccess = true;
         }
 
-        return { 
-          ...item, 
-          isDisabled: !canAccess 
+        return {
+          ...item,
+          isDisabled: !canAccess,
         };
-      })
+      }),
     };
   });
 });
@@ -433,13 +505,27 @@ const menuGroups = computed(() => {
 }
 
 /* KELAS UTILITY */
-.font-body { font-family: var(--font-family-primary); }
-.font-heading { font-family: var(--font-family-heading); }
-.font-semibold { font-weight: var(--font-weight-semibold); }
-.shadow-sm { box-shadow: var(--shadow-sm); }
-.shadow-md { box-shadow: var(--shadow-md); }
-.rounded-soft { border-radius: var(--border-radius-md); }
-.transition-fast { transition: all var(--transition-fast); }
+.font-body {
+  font-family: var(--font-family-primary);
+}
+.font-heading {
+  font-family: var(--font-family-heading);
+}
+.font-semibold {
+  font-weight: var(--font-weight-semibold);
+}
+.shadow-sm {
+  box-shadow: var(--shadow-sm);
+}
+.shadow-md {
+  box-shadow: var(--shadow-md);
+}
+.rounded-soft {
+  border-radius: var(--border-radius-md);
+}
+.transition-fast {
+  transition: all var(--transition-fast);
+}
 
 .hover-lift:hover {
   transform: translateY(-1px);
@@ -513,7 +599,8 @@ const menuGroups = computed(() => {
   color: var(--color-text-dark);
   text-decoration: none;
   font-weight: var(--font-weight-semibold);
-  transition: background-color var(--transition-fast), color var(--transition-fast);
+  transition: background-color var(--transition-fast),
+    color var(--transition-fast);
 }
 
 .dropdown-toggle:hover,
@@ -580,7 +667,8 @@ const menuGroups = computed(() => {
   font-weight: var(--font-weight-normal);
   border-radius: var(--border-radius-sm);
   margin: 0 5px;
-  transition: background-color var(--transition-fast), color var(--transition-fast);
+  transition: background-color var(--transition-fast),
+    color var(--transition-fast);
 }
 
 .dropdown-menu li:hover > a,
@@ -590,7 +678,9 @@ const menuGroups = computed(() => {
   font-weight: var(--font-weight-medium);
 }
 
-.sub-dropdown { position: relative; }
+.sub-dropdown {
+  position: relative;
+}
 .sub-menu {
   display: none;
   position: absolute;
@@ -617,7 +707,8 @@ const menuGroups = computed(() => {
   font-weight: var(--font-weight-normal);
   margin: 0 5px;
   border-radius: var(--border-radius-sm);
-  transition: background-color var(--transition-fast), color var(--transition-fast);
+  transition: background-color var(--transition-fast),
+    color var(--transition-fast);
 }
 
 .sub-dropdown:hover > .sub-dropdown-toggle {
@@ -656,7 +747,10 @@ const menuGroups = computed(() => {
 }
 
 @media print {
-  .top-navbar, .navbar-brand, .navbar-menu, .navbar-user {
+  .top-navbar,
+  .navbar-brand,
+  .navbar-menu,
+  .navbar-user {
     display: none !important;
     visibility: hidden !important;
     height: 0 !important;
@@ -672,7 +766,8 @@ const menuGroups = computed(() => {
     margin: 0 !important;
   }
 
-  .main-content-top, .content-area {
+  .main-content-top,
+  .content-area {
     margin: 0 !important;
     padding: 0 !important;
     min-height: unset !important;
@@ -680,7 +775,8 @@ const menuGroups = computed(() => {
     background-color: white !important;
   }
 
-  body, html {
+  body,
+  html {
     margin: 0 !important;
     padding: 0 !important;
   }

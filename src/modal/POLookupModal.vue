@@ -84,6 +84,8 @@ interface PoHeader {
   Nomor: string;
   Tanggal: string;
   Supplier: string; // Nama Supplier
+  NamaSupplier: string; // Tambahkan ini agar konsisten dengan backend
+  TotalHarga: number;
   [key: string]: string | number | undefined;
 }
 

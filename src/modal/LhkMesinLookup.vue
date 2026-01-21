@@ -41,6 +41,7 @@
                 'selected-row': selectedHeader?.Nomor === header.Nomor,
               }"
               @click="selectHeader(header)"
+              @dblclick="confirmSelection(header)"
             >
               <td>{{ header.Nomor }}</td>
               <td>{{ formatDate(header.Tanggal) }}</td>
@@ -167,7 +168,12 @@ const selectHeader = (header) => {
   fetchDetails(header.Nomor);
 };
 
-const confirmSelection = (header) => {
+const confirmSelection = async (header) => {
+  // Opsional: Pastikan detail sudah terambil jika diperlukan oleh parent
+  if (!details.value.length || selectedHeader.value?.Nomor !== header.Nomor) {
+    await fetchDetails(header.Nomor);
+  }
+
   // Mengirim seluruh data header terpilih kembali ke komponen induk
   emit("select", header);
   emit("close");

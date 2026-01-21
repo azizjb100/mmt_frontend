@@ -37,8 +37,21 @@ import FormLhkCetakViewNew from '@/views/FormLhkCetakViewNew.vue';
 import FormRecreateBarcode from '@/views/FormRecreateBarcode.vue';
 import LapMonLmkpMmtView from '@/views/LapMonLmkpMmtView.vue';
 import FormInvoiceView from '@/views/FormInvoiceView.vue';
-
-
+import LapSpkMmtView from '@/views/LapSpkMmtView.vue';
+import LapPlanProdView from '@/views/LapPlanProdView.vue';
+import LapBarangJadiView from '@/views/LapBarangJadiView.vue';
+import LapStokTintaMmtView from '@/views/LapStokTintaMmtView.vue';
+import LapOutputMesinView from '@/views/LapOutputMesinView.vue';
+import FormReturBeliView from '@/views/FormReturBeliView.vue';
+import InvoiceView from '@/views/InvoiceView.vue';
+import FormPengajuanPermintaanView from '@/views/FormPengajuanPermintaanView.vue';
+import PengajuanPermintaanView from '@/views/PengajuanPermintaanView.vue';
+import MutasiProduksiView from '@/views/MutasiProduksiView.vue';
+import FormMutasiProduksiView from '@/views/FormMutasiProduksiView.vue';
+import PengajuanPermintaanPrintView from '@/views/PengajuanPermintaanPrintView.vue';
+import FormLhkFinishingView from '@/views/FormLhkFinishingView.vue';
+import PenerimaanBahanPrint from '@/views/PenerimaanBahanPrint.vue';
+import FormKoreksiStokView from '@/views/FormKoreksiStokView.vue';
 
 
 // 2. Definisikan Rute (Jalan)
@@ -63,8 +76,36 @@ const routes: RouteRecordRaw[] = [
             { path: 'mmt/lhk/cetak', name: 'LHK Cetak MMT', component: LhkCetakView },
             { path: 'mmt/lhk/cetak/new', name: 'LhkCetakCreate', component: FormLhkCetakView },
             { path: 'mmt/lhk/cetak/neww', name: 'LHK Cetak', component: FormLhkCetakViewNew },
-            { path: 'mmt/lhk/finishing', name: 'LHK Finishing MMT', component: LhkFinishingView },
+            { path: 'mmt/lhk/finishing', name: 'LHK Finishing MMT', component: LhkFinishingView },{
+                path: 'mmt/lhk/finishing/new',
+                name: 'LhkFinishingNew',
+                component: FormLhkFinishingView,
+                props: { isEditMode: false }
+            },
             { path: 'mmt/daftar/stbj', name: 'STBJ MMT', component: StbjMmtBiew },
+            { path: 'mmt/pengajuan-permintaan', name: 'PengajuanPermintaanBrowse', component: PengajuanPermintaanView },
+            {
+                path: 'mmt/pengajuan-permintaan/new',
+                name: 'PengajuanPermintaanNew',
+                component: FormPengajuanPermintaanView,
+                props: { isEditMode: false }
+            },
+            {
+                path: 'mmt/pengajuan-permintaan/edit/:nomor',
+                name: 'PengajuanPermintaanEdit',
+                component: FormPengajuanPermintaanView,
+                props: { isEditMode: false }
+            },
+            {
+                path: 'mmt/pengajuan-permintaan/print/:nomor',
+                name: 'PengajuanPermintaanPrint',
+                component: PengajuanPermintaanPrintView,
+                props: true,
+                meta: {
+                    PrintLayout: true,
+                    layout: "PrintLayout", 
+                },
+            },
             { path: 'mmt/permintaan-bahan', name: 'PermintaanBahanBrowse', component: PermintaanBahanView },
 
             {
@@ -110,13 +151,11 @@ const routes: RouteRecordRaw[] = [
                 })
             },
             {
-                // Rute Cetak (HARUS RELATIF dan memiliki parameter)
                 path: 'mmt/po-bahan-mmt/print/:nomor',
                 name: 'PoPrint', // <--- NAMA INI HARUS SAMA PERSIS
                 component: PoPrintView,
                 props: true // Menerima props
             },
-            // 1. Browse (List)
             { path: 'mmt/penerimaan-bahan', name: 'PenerimaanBahanBrowse', component: penerimaanBahanView },
 
             // 2. Tambah Baru (New Entry)
@@ -133,8 +172,17 @@ const routes: RouteRecordRaw[] = [
                 component: FormPenerimaanBahanView,
                 props: true
             },
+            {
+                path: 'mmt/penerimaan-bahan/print/:nomor',
+                name: 'PenerimaanBahanPrint',
+                component: PenerimaanBahanPrint,
+                props: true
+            },
 
             { path: 'mmt/retur-beli', name: 'Retur Beli MMT', component: ReturBeliView },
+            { path: 'mmt/retur-beli/new', name: 'ReturBeliNew', component: FormReturBeliView },
+
+            { path: 'mmt/invoice', name: 'InvoiceBrowse', component: InvoiceView },
             {
                 path: 'mmt/invoice/new',
                 name: 'InvoiceNew',
@@ -142,8 +190,13 @@ const routes: RouteRecordRaw[] = [
                 props: { isEditMode: false }
             },
             { path: 'mmt/create-barcode', name: 'CreateBarcode', component: FormRecreateBarcode },
-            { path: 'mmt/koreksi-stok', name: 'Koreksi Stok', component: KoreksiStokMMTView },
-            // --- C. MODUL PERMINTAAN PRODUKSI (Minta MMT) ---
+            { path: 'mmt/koreksi-stok', name: 'KoreksiStokBrowse', component: KoreksiStokMMTView },
+            {
+                path: 'mmt/koreksi-stok/new',
+                name: 'KoreksiStokNew',
+                component: FormKoreksiStokView,
+                props: { isEditMode: false }
+            },
             { path: 'mmt/permintaan-produksi', name: 'PermintaanProduksiBrowse', component: PermintaanProduksiView },
             {
                 path: 'mmt/permintaan-produksi/new',
@@ -156,6 +209,21 @@ const routes: RouteRecordRaw[] = [
                 path: 'mmt/permintaan-produksi/edit/:nomor',
                 name: 'PermintaanProduksiEdit',
                 component: FormPermintaanProduksiView,
+                props: true
+            },
+
+            { path: 'mmt/realisasi-produksi', name: 'MutasiProduksiBrowse', component: MutasiProduksiView },
+            {
+                path: 'mmt/realisasi-produksi/new',
+                name: 'MutasiProduksiNew',
+                component: FormMutasiProduksiView,
+                props: { isEditMode: false }
+            },
+            // 3. Ubah (Edit Existing)
+            {
+                path: 'mmt/realisasi-produksi/edit/:nomor',
+                name: 'MutasuProduksiEdit',
+                component: FormMutasiProduksiView,
                 props: true
             },
 
@@ -239,6 +307,12 @@ const routes: RouteRecordRaw[] = [
             { path: 'laporan/mmt/ls-bahan-utama', name: 'LS Bahan Utama', component: LapLsBahanUtamaView },
             { path: 'laporan/mmt/ls-bahan-penolong', name: 'LS Bahan Penolong', component: LapLsBahanPenolongView },
             { path: 'laporan/mmt/lap-mon-lmkp-mmt', name: 'lapMonLmkpMmt', component: LapMonLmkpMmtView },
+            { path: 'laporan/mmt/lap-spk-mmt', name: 'lapSpkMmt', component: LapSpkMmtView },
+            { path: 'laporan/mmt/lap-plan-produksi', name: 'lapPlanProduksi', component: LapPlanProdView },
+            { path: 'laporan/mmt/lap-barang-jadi', name: 'lapBarangJadi', component: LapBarangJadiView },
+            { path: 'laporan/mmt/lap-stok-tinta', name: 'lapStokTinta', component: LapStokTintaMmtView },
+            { path: 'laporan/mmt/lap-output-mesin', name: 'lapOutputMesin', component: LapOutputMesinView },
+
             { path: 'produksi-mmt/ls-tinta', name: 'LS Tinta', component: ComingSoon },
             { path: 'produksi-mmt/ls-bahan-kain', name: 'LS Bahan Kain', component: ComingSoon },
             { path: 'produksi-mmt/kartu-stock-bahan', name: 'Kartu Stock Bahan MMT', component: ComingSoon },

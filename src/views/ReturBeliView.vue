@@ -219,6 +219,16 @@ const selectedNomor = computed<string | null>(() =>
 const isFormValid = computed(() => true);
 
 // --- Helpers ---
+const handleNewEdit = (mode: "new" | "edit") => {
+  if (mode === "new") {
+    router.push({ name: "ReturBeliNew" });
+  } else if (mode === "edit" && selectedNomor.value) {
+    router.push({
+      name: "ReturBeliEdit",
+      params: { nomor: selectedNomor.value },
+    });
+  }
+};
 
 const safeFormatDate = (dateString: string | undefined): string => {
   if (!dateString) return "";

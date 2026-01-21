@@ -38,11 +38,12 @@
           :items="poList"
           :loading="loading"
           hover
-          class="desktop-table flex-grow-1"
+          class="desktop-table flex-grow-1 clickable-row"
           density="compact"
           item-key="Kode"
           fixed-header
           :items-per-page="15"
+          @dblclick:row="handleDoubleClick"
         >
           <template #item.actions="{ item }">
             <div class="text-center">
@@ -173,6 +174,14 @@ const selectBahan = (bahan: MasterBahan) => {
   emit("close");
 };
 
+// --- Fungsi Baru: Handle Double Click pada Baris ---
+const handleDoubleClick = (
+  _event: MouseEvent,
+  { item }: { item: MasterBahan }
+) => {
+  selectBahan(item);
+};
+
 // --- Watch Modal Open ---
 watch(
   () => props.isVisible,
@@ -204,6 +213,15 @@ watch(
   background-color: #f5f5f5 !important;
   font-weight: bold;
   color: #333 !important;
+}
+
+/* Tambahkan ini untuk efek kursor dan hover */
+.clickable-row :deep(tbody tr):hover {
+  cursor: pointer !important;
+}
+
+.clickable-row :deep(tbody tr):active {
+  background-color: #e3f2fd !important;
 }
 .flex-grow-1 {
   height: 100%;

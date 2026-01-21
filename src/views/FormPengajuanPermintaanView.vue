@@ -7,7 +7,6 @@ import MasterBahanModal from "@/modal/MasterBahanModal.vue";
 import GudangLookupModal from "@/modal/GudangLookupView.vue";
 import SPKLookupModal from "@/modal/SpkLookupModal.vue";
 import PabrikLookupModal from "@/modal/PabrikLookupModal.vue";
-import PengajuanLookupModal from "@/modal/PengajuanPermintaanLookupModal.vue";
 import { format } from "date-fns";
 import { useToast } from "vue-toastification";
 
@@ -55,7 +54,7 @@ const router = useRouter();
 const route = useRoute();
 const toast = useToast();
 
-const API_URL = "/mmt/permintaan-bahan";
+const API_URL = "/mmt/pengajuan-permintaan";
 
 const isEditMode = ref(!!route.params.nomor);
 const isSaving = ref(false);
@@ -66,8 +65,6 @@ const isSPKModalVisible = ref(false);
 const currentDetailIndex = ref<number | null>(null);
 const isApproving = ref(false);
 const currentUserKode = ref("");
-const isPengajuanModalVisible = ref(false); // Modal untuk list pengajuan
-const noPengajuan = ref(""); // Menyimpan nomor referensi pengajuan
 
 // Logika Lock: Hanya mengunci field utama jika data lama dan sudah di-ACC Manager
 const isLocked = computed(() => {
@@ -170,8 +167,7 @@ const calculatedTotal = computed(() => {
 });
 
 const isFormValid = computed(() => {
-  const headerOk =
-    !!formData.gudangKode && (!!formData.cabang || !!formData.pabrikNama);
+  const headerOk = !!formData.gudangKode && !!formData.jenis;
   const detailOk = formData.detail.some((d) => d.sku && Number(d.qty) > 0);
   return headerOk && detailOk;
 });
@@ -179,42 +175,67 @@ const isFormValid = computed(() => {
 // --- Tambahkan Fungsi ini di dalam script setup ---
 // --- Bagian Script Setup ---
 
-const approveData = async (type: "SPV" | "MANAGER") => {
-  if (
-    type === "MANAGER" &&
-    (!formData.accSpv || formData.accSpv === "-" || formData.accSpv === "")
-  ) {
-    toast.warning("Manager tidak dapat melakukan ACC sebelum SPV menyetujui.");
-    return;
-  }
-
+const approvePengajuan = async () => {
   isApproving.value = true;
   try {
-    // Sesuaikan payload ini dengan apa yang ditangkap oleh Controller Backend
     const payload = {
-      nomor: formData.nomor,
-      role: type, // Ganti 'type' menjadi 'role' jika controller backend pakai 'role'
-      user: currentUserKode.value, // Ganti 'userKD' menjadi 'user' jika controller backend pakai 'user'
-      details: formData.detail
-        .filter((d) => d.sku)
-        .map((d) => ({ sku: d.sku, isAcc: d.isAcc ? "Y" : "N" })),
+      nomor: formData.nomor, // Hanya kirim nomor
     };
 
-    // Log untuk memastikan data sebelum dikirim
-    console.log("Payload Approval:", payload);
+    await api.post(`/mmt/pengajuan-permintaan/approve`, payload);
 
-    await api.post(`${API_URL}/approve`, payload, {
-      headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
-    });
-
-    toast.success(`Berhasil melakukan ACC ${type}`);
-    await loaddataall(formData.nomor);
+    toast.success(`Berhasil melakukan ACC Pengajuan`);
+    await loaddataall(formData.nomor); // Refresh data untuk update UI
   } catch (error: any) {
-    // Jika error "Gagal ACC Header" muncul, artinya status SPV di DB memang masih 'N'
-    const msg = error.response?.data?.message || `Gagal melakukan ACC ${type}`;
-    toast.error(msg);
+    toast.error(error.response?.data?.message || "Gagal ACC Pengajuan");
   } finally {
     isApproving.value = false;
+  }
+};
+
+const saveForm = async (saveAndNew: boolean) => {
+  if (!isFormValid.value) return;
+  isSaving.value = true;
+  try {
+    const payload = {
+      NomorToEdit: isEditMode.value ? formData.nomor : null,
+      Tanggal: formData.tanggal,
+      GudangKode: formData.gudangKode,
+      GudangNama: formData.gudangNama,
+      Jenis: formData.jenis,
+      Keterangan: formData.keteranganHeader,
+      Kepada: formData.kepada,
+      Priority: formData.priority,
+
+      Detail: formData.detail
+        .filter((d) => d.sku && d.qty > 0)
+        .map((d) => ({
+          Nomor_SPK: d.spk,
+          Kode_Bahan: d.sku,
+          Jumlah: d.qty,
+          Satuan: d.satuan,
+          Keterangan: d.keterangan,
+        })),
+    };
+
+    console.log("Payload yang dikirim:", payload); // Untuk memantau di console
+
+    if (isEditMode.value) {
+      await api.put(`${API_URL}/${formData.nomor}`, payload);
+    } else {
+      await api.post(API_URL, payload);
+    }
+
+    toast.success("Pengajuan berhasil disimpan!");
+    if (saveAndNew) {
+      refreshData();
+    } else {
+      router.back();
+    }
+  } catch (error: any) {
+    toast.error(error.response?.data?.message || "Gagal menyimpan pengajuan.");
+  } finally {
+    isSaving.value = false;
   }
 };
 
@@ -239,37 +260,56 @@ const loaddataall = async (nomor: string) => {
     const response = await api.get(`${API_URL}/${nomor}`, {
       headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
     });
-    const d = response.data;
-    formData.nomor = d.Nomor;
-    formData.tanggal = format(new Date(d.Tanggal), "yyyy-MM-dd");
-    formData.gudangKode = d.Gudang_Asal_Kode;
-    formData.gudangNama = d.Gudang_Asal_Nama;
-    formData.keteranganHeader = d.Keterangan;
-    formData.priority = d.Priority;
-    formData.kepada = d.Kepada || "";
-    formData.cabang = d.To_Cabang || d.Cabang || "";
-    formData.pabrikNama = formData.cabang;
-    formData.accSpv = d.Req_ACC_User || "-";
-    formData.accManager = d.Acc_User || "-";
 
-    formData.detail = d.Detail.map((item: any) => ({
-      sku: item.Kode,
-      namaBarang: item.Nama_Bahan,
-      qty: item.Jumlah,
-      satuan: item.Satuan,
-      Panjang: item.Panjang || 0,
-      Lebar: item.Lebar || 0,
-      keterangan: item.KeteranganItem || "",
-      spk: item.Nomor_SPK || "",
-      namaSPK: item.spk_nama || "",
-      isAcc: item.Is_Acc !== "N",
-    }));
+    const d = response.data;
+
+    // --- Pemetaan Header ---
+    formData.nomor = d.Nomor;
+    formData.tanggal = d.Tanggal
+      ? d.Tanggal.substring(0, 10)
+      : format(new Date(), "yyyy-MM-dd");
+    formData.gudangKode = d.Gudang || "";
+    formData.gudangNama = d.Nama || "";
+    formData.jenis = d.Jenis || "";
+    formData.kepada = d.Ditujukan_Ke || "";
+    formData.keteranganHeader = d.Keterangan || "";
+
+    // --- PERBAIKAN DI SINI ---
+    // Jika Status_Acc adalah 'Y' atau Acc_SPV berisi nama user, maka tampilkan nama usernya
+    if (d.Status_Acc === "Y" || (d.Acc_SPV && d.Acc_SPV !== "")) {
+      formData.accSpv = d.Acc_SPV || "EKAMMT";
+    } else {
+      formData.accSpv = "-";
+    }
+
+    formData.accManager = "-";
+
+    // --- Pemetaan Detail ---
+    if (d.Detail && Array.isArray(d.Detail)) {
+      formData.detail = d.Detail.map((item: any) => ({
+        sku: item.Kode_Bahan || item.Kode,
+        namaBarang: item.Nama_Bahan,
+        qty: Number(item.Jumlah),
+        satuan: item.Satuan,
+        Panjang: item.Panjang || 0,
+        Lebar: item.Lebar || 0,
+        keterangan: item.Keterangan || "",
+        spk: item.Nomor_SPK || "",
+        namaSPK: item.spk_nama || "",
+        isAcc: true,
+      }));
+    } else {
+      formData.detail = [];
+    }
+
     if (
       formData.detail.length === 0 ||
       formData.detail[formData.detail.length - 1].sku
-    )
+    ) {
       addDetail();
+    }
   } catch (error) {
+    console.error("Error Load Data:", error);
     toast.error("Gagal memuat data transaksi.");
   } finally {
     isSaving.value = false;
@@ -279,7 +319,7 @@ const loaddataall = async (nomor: string) => {
 const handleBahanSelect = (bahan: MasterBahan) => {
   if (currentDetailIndex.value === null) return;
   const isDuplicate = formData.detail.some(
-    (d, i) => d.sku === bahan.Kode && i !== currentDetailIndex.value,
+    (d, i) => d.sku === bahan.Kode && i !== currentDetailIndex.value
   );
   if (isDuplicate) {
     toast.warning(`Bahan ${bahan.Kode} sudah ada.`);
@@ -317,150 +357,6 @@ const handleSPKSelect = (spk: { Spk: string; Nama: string }) => {
   isSPKModalVisible.value = false;
 };
 
-const handlePengajuanSelect = async (pengajuan: any) => {
-  isSaving.value = true;
-
-  try {
-    // 1. Ambil data lengkap (Header + Detail)
-    const response = await api.get(
-      `/mmt/pengajuan-permintaan/${pengajuan.Nomor}`,
-      {
-        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
-      },
-    );
-
-    const data = response.data;
-
-    // =========================
-    // 2. HEADER
-    // =========================
-    noPengajuan.value = data.Nomor;
-
-    const isAccSpv = data.Status_Acc === "Y";
-
-    // 👉 ACC SPV ikut status pengajuan
-    if (isAccSpv) {
-      formData.accSpv =
-        data.Acc_SPV || data.Acc_Spv_User || data.Req_ACC_User || "SYSTEM";
-    } else {
-      formData.accSpv = "-";
-    }
-
-    // ACC Manager (kalau ada)
-    formData.accManager = data.Acc_Manager_User || "-";
-
-    formData.keteranganHeader = `Ref Pengajuan: ${data.Nomor}. ${data.Keterangan || ""}`;
-    formData.kepada = data.Ditujukan_Ke || "Purchasing";
-
-    if (data.Jenis) {
-      // @ts-ignore
-      formData.jenis = data.Jenis;
-    }
-
-    // =========================
-    // 3. DETAIL
-    // =========================
-    formData.detail = [];
-
-    if (Array.isArray(data.Detail)) {
-      data.Detail.forEach((item: any) => {
-        formData.detail.push({
-          sku: item.Kode_Bahan || item.Kode || "",
-          namaBarang: item.Nama_Bahan || item.Nama || "",
-          qty: Number(item.Jumlah || item.Qty || 0),
-          satuan: item.Satuan || "",
-          Panjang: Number(item.Panjang || 0),
-          Lebar: Number(item.Lebar || 0),
-          keterangan: item.Keterangan || item.KeteranganItem || "",
-          spk: item.Nomor_SPK || "",
-          namaSPK: item.spk_nama || item.Nama_SPK || "",
-          // 👉 ikut status ACC pengajuan
-          isAcc: isAccSpv,
-        });
-      });
-    }
-
-    // =========================
-    // 4. BARIS KOSONG TAMBAHAN
-    // =========================
-    addDetail();
-
-    toast.success(
-      `Berhasil menarik ${data.Detail?.length || 0} item dari pengajuan ${data.Nomor}`,
-    );
-  } catch (error: any) {
-    console.error("Error tarik pengajuan:", error);
-    toast.error(
-      error.response?.data?.message || "Gagal menarik data pengajuan.",
-    );
-  } finally {
-    isSaving.value = false;
-    isPengajuanModalVisible.value = false;
-  }
-};
-
-// Pastikan fungsi refreshData didefinisikan jika dipanggil di saveForm
-const refreshData = () => {
-  Object.assign(formData, {
-    nomor: "AUTO",
-    tanggal: format(new Date(), "yyyy-MM-dd"),
-    detail: [createEmptyDetail()],
-    keteranganHeader: "",
-  });
-  noPengajuan.value = "";
-};
-
-const saveForm = async (saveAndNew: boolean) => {
-  if (!isFormValid.value) return;
-  isSaving.value = true;
-  try {
-    const payload = {
-      NoPengajuan: noPengajuan.value,
-      NomorToEdit: isEditMode.value ? formData.nomor : null,
-      Tanggal: formData.tanggal,
-      GudangKode: formData.gudangKode,
-      Keterangan: formData.keteranganHeader,
-      Priority: formData.priority,
-      Kepada: formData.kepada,
-      Cabang: formData.cabang,
-
-      // ✅ TAMBAHAN ACC SPV
-      AccSpv: formData.accSpv && formData.accSpv !== "-" ? "Y" : "N",
-      AccSpvUser:
-        formData.accSpv && formData.accSpv !== "-" ? formData.accSpv : null,
-      Detail: formData.detail
-        .filter((d) => d.sku && d.qty > 0)
-        .map((d) => ({
-          SPK: d.spk,
-          SKU: d.sku,
-          QTY: d.qty,
-          Satuan: d.satuan,
-          KeteranganItem: d.keterangan,
-          IsAcc: d.isAcc ? "Y" : "N",
-        })),
-    };
-
-    let response;
-    if (isEditMode.value) {
-      response = await api.put(`${API_URL}/${formData.nomor}`, payload);
-    } else {
-      response = await api.post(API_URL, payload);
-    }
-
-    toast.success("Data berhasil disimpan!");
-
-    if (saveAndNew) {
-      refreshData(); // tetap di form
-    } else {
-      router.back(); // ✅ kembali ke halaman sebelumnya
-    }
-  } catch (error: any) {
-    toast.error(error.response?.data?.message || "Gagal menyimpan data.");
-  } finally {
-    isSaving.value = false;
-  }
-};
-
 onMounted(() => {
   getCurrentUser();
   if (isEditMode.value && route.params.nomor)
@@ -469,37 +365,23 @@ onMounted(() => {
 </script>
 
 <template>
-  <PageLayout title="Form Permintaan Barang" icon="mdi-basket-fill">
+  <PageLayout title="Form Pengajuan Permintaan" icon="mdi-basket-fill">
     <template #header-actions>
       <v-btn
         v-if="isEditMode && currentUserKode === 'EKAMMT'"
         size="x-small"
         color="orange-darken-2"
-        @click="approveData('SPV')"
+        @click="approvePengajuan"
         :loading="isApproving"
         class="mr-1"
       >
-        <v-icon start>mdi-account-check</v-icon> Acc SPV
-      </v-btn>
-
-      <v-btn
-        v-if="isEditMode && currentUserKode === 'FADLY'"
-        size="x-small"
-        color="purple-darken-2"
-        @click="approveData('MANAGER')"
-        :loading="isApproving"
-        class="mr-1"
-      >
-        <v-icon start>mdi-shield-check</v-icon> Acc Manager
+        <v-icon start>mdi-account-check</v-icon> Acc Ekammt
       </v-btn>
 
       <v-divider
         vertical
         class="mx-2"
-        v-if="
-          isEditMode &&
-          (currentUserKode === 'EKAMMT' || currentUserKode === 'FADLY')
-        "
+        v-if="isEditMode && currentUserKode === 'EKAMMT'"
       ></v-divider>
 
       <v-btn
@@ -580,39 +462,8 @@ onMounted(() => {
                   hide-details
                 />
               </v-col>
-              <v-col cols="12" class="mt-1">
-                <v-text-field
-                  label="Ambil Dari Pengajuan (Persiapan)"
-                  v-model="noPengajuan"
-                  placeholder="Klik untuk cari dokumen..."
-                  readonly
-                  persistent-placeholder
-                  density="compact"
-                  variant="outlined"
-                  color="orange-darken-3"
-                  prepend-inner-icon="mdi-file-find"
-                  hide-details
-                  @click="!isLocked && (isPengajuanModalVisible = true)"
-                  :disabled="isEditMode"
-                >
-                  <template
-                    v-slot:append-inner
-                    v-if="noPengajuan && !isEditMode"
-                  >
-                    <v-icon
-                      color="error"
-                      size="small"
-                      @click.stop="
-                        noPengajuan = '';
-                        formData.detail = [createEmptyDetail()];
-                      "
-                      >mdi-close-circle</v-icon
-                    >
-                  </template>
-                </v-text-field>
-              </v-col>
 
-              <v-col cols="12" class="pt-1">
+              <v-col cols="12">
                 <v-select
                   label="Jenis"
                   v-model="formData.jenis"
@@ -624,31 +475,6 @@ onMounted(() => {
                 />
               </v-col>
 
-              <v-col cols="12">
-                <v-select
-                  label="Kepada"
-                  v-model="formData.kepada"
-                  :items="['Gudang', 'Purchasing', 'GA']"
-                  variant="outlined"
-                  density="compact"
-                  hide-details
-                  :readonly="isLocked"
-                />
-              </v-col>
-
-              <v-col cols="12">
-                <v-text-field
-                  label="Pilih Tujuan (Pabrik)"
-                  v-model="formData.pabrikNama"
-                  @click="!isLocked && (isPabrikModalVisible = true)"
-                  append-inner-icon="isLocked ? '' : 'mdi-magnify'"
-                  readonly
-                  variant="outlined"
-                  density="compact"
-                  hide-details
-                  color="primary"
-                />
-              </v-col>
               <v-col cols="12">
                 <v-select
                   label="Priority"
@@ -748,7 +574,7 @@ onMounted(() => {
                 v-model="item.spk"
                 @click="
                   !isLocked &&
-                  ((currentDetailIndex = index), (isSPKModalVisible = true))
+                    ((currentDetailIndex = index), (isSPKModalVisible = true))
                 "
                 append-inner-icon="mdi-magnify"
                 readonly
@@ -766,7 +592,7 @@ onMounted(() => {
                 }"
                 @click="
                   !isLocked &&
-                  ((currentDetailIndex = index), (isBahanModalVisible = true))
+                    ((currentDetailIndex = index), (isBahanModalVisible = true))
                 "
                 append-inner-icon="mdi-magnify"
                 readonly
@@ -841,11 +667,6 @@ onMounted(() => {
       :isVisible="isGudangModalVisible"
       @close="isGudangModalVisible = false"
       @select="handleGudangAsalSelect"
-    />
-    <PengajuanLookupModal
-      :isVisible="isPengajuanModalVisible"
-      @close="isPengajuanModalVisible = false"
-      @select="handlePengajuanSelect"
     />
     <PabrikLookupModal
       :isVisible="isPabrikModalVisible"
