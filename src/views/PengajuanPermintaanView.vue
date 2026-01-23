@@ -58,7 +58,7 @@ const selectedNomor = computed<string | null>(() => {
 });
 
 const selectedRow = computed<PermintaanBahanHeader | null>(() =>
-  isSingleSelected.value ? (selected.value[0] as PermintaanBahanHeader) : null
+  isSingleSelected.value ? (selected.value[0] as PermintaanBahanHeader) : null,
 );
 
 // Fungsi untuk menentukan status PO berdasarkan item yang di-ACC saja
@@ -148,7 +148,7 @@ const parseCustomDate = (dateString) => {
         "December",
       ];
       const monthIndex = months.findIndex((m) =>
-        m.toLowerCase().startsWith(monthName.toLowerCase())
+        m.toLowerCase().startsWith(monthName.toLowerCase()),
       );
       if (monthIndex === -1) return null;
 
@@ -164,6 +164,12 @@ const parseCustomDate = (dateString) => {
     return null;
   }
   return null;
+};
+
+const getRowProps = ({ item }) => {
+  return {
+    class: item?.Nomor === selectedNomor.value ? "row-selected" : "",
+  };
 };
 
 const fetchData = async () => {
@@ -190,7 +196,7 @@ const fetchData = async () => {
 const loadDetails = async (newlyExpandedItems: PermintaanBahanHeader[]) => {
   const itemToLoad = newlyExpandedItems?.find(
     (it) =>
-      it && !details.value[it.Nomor] && !loadingDetails.value.has(it.Nomor)
+      it && !details.value[it.Nomor] && !loadingDetails.value.has(it.Nomor),
   );
 };
 
@@ -236,7 +242,7 @@ const handleDelete = async () => {
     const err = error;
     console.error(
       "Error deleting data:",
-      err.response ? err.response.data : err.message
+      err.response ? err.response.data : err.message,
     );
     alert(`Gagal Hapus! ${err.response?.data?.error || "Silakan cek konsol."}`);
   }
@@ -258,7 +264,7 @@ const handlePrint = () => {
   } catch (e) {
     console.error("Gagal Navigasi atau membuka jendela cetak:", e);
     alert(
-      'Gagal memulai pencetakan. Pastikan rute "PengajuanPermintaanPrint" sudah benar.'
+      'Gagal memulai pencetakan. Pastikan rute "PengajuanPermintaanPrint" sudah benar.',
     );
   }
 };
@@ -375,6 +381,7 @@ watch([startDate, endDate], fetchData);
           show-expand
           @update:expanded="loadDetails"
           @click:row="handleRowClick"
+          :row-props="getRowProps"
         >
           <template #item.Tanggal="{ item }">
             {{
@@ -471,5 +478,19 @@ watch([startDate, endDate], fetchData);
   background-color: white !important;
   font-size: 0.8rem;
 }
+
+.row-selected {
+  background-color: rgb(30, 93, 138) !important; /* biru muda */
+}
+
+:deep(.row-selected) {
+  background-color: rgb(216, 239, 255) !important;
+}
+
+.v-data-table tbody tr:hover {
+  background-color: #f1f8ff;
+  cursor: pointer;
+}
+
 /* Style tambahan Vuetify (seperti .desktop-table) biasanya didefinisikan secara global */
 </style>

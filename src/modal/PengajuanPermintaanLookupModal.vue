@@ -111,11 +111,22 @@
             </v-chip>
           </template>
 
+          <template #item.Status_Proses="{ item }">
+            <v-chip
+              size="small"
+              :color="item.Status_Proses === 'CLOSE' ? 'blue' : 'green'"
+              variant="flat"
+            >
+              {{ item.Status_Proses }}
+            </v-chip>
+          </template>
+
           <template #item.actions="{ item }">
             <div class="text-center">
               <v-btn
                 color="orange-darken-3"
                 size="x-small"
+                :disabled="item.Status_Proses === 'CLOSE'"
                 @click.stop="selectPengajuan(item)"
                 variant="tonal"
               >
@@ -176,6 +187,7 @@ interface PengajuanItem {
   Ditujukan_Ke: string;
   Keterangan: string;
   Status_Acc: "Y" | "N";
+  Status_Proses: "CLOSE" | "OPEN";
   Pembuat: string;
   Detail: PengajuanDetail[]; // Backend kita mengirimkan data gabungan
 }
@@ -218,6 +230,7 @@ const headers = [
     width: "100px",
     align: "center" as const,
   },
+  { title: "Proses", key: "Status_Proses", width: "120px", align: "center" },
   {
     title: "Aksi",
     key: "actions",
@@ -263,13 +276,16 @@ const fetchPengajuanData = async () => {
 
 const handleDoubleClick = (
   _event: MouseEvent,
-  { item }: { item: PengajuanItem }
+  { item }: { item: PengajuanItem },
 ) => {
   selectPengajuan(item);
 };
 
 const selectPengajuan = (item: PengajuanItem) => {
-  if (!item.Nomor) return;
+  if (item.Status_Proses === "CLOSE") {
+    toast.warning("Pengajuan ini sudah diproses menjadi Minta Bahan.");
+    return;
+  }
   emit("select", item);
   emit("close");
 };
@@ -282,7 +298,7 @@ watch(
     } else {
       filters.keyword = "";
     }
-  }
+  },
 );
 
 watch([() => filters.startDate, () => filters.endDate], () => {

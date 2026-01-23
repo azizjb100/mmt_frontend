@@ -58,7 +58,7 @@ const selectedNomor = computed<string | null>(() => {
 });
 
 const selectedRow = computed<PermintaanBahanHeader | null>(() =>
-  isSingleSelected.value ? (selected.value[0] as PermintaanBahanHeader) : null
+  isSingleSelected.value ? (selected.value[0] as PermintaanBahanHeader) : null,
 );
 
 // Fungsi untuk menentukan status PO berdasarkan item yang di-ACC saja
@@ -66,17 +66,17 @@ const calculateStatusPO = (details: PermintaanBahanDetail[]) => {
   if (!details || details.length === 0) return "OPEN";
 
   // 1. Filter hanya item yang disetujui (ACC = 'Y')
-  const accItems = details.filter(d => d.Is_Acc === 'Y');
+  const accItems = details.filter((d) => d.Is_Acc === "Y");
 
   // Jika tidak ada satu pun yang di-ACC, bisa dianggap CLOSE atau VOID tergantung kebijakan
-  if (accItems.length === 0) return "CLOSE"; 
+  if (accItems.length === 0) return "CLOSE";
 
-  // 2. Cek apakah semua item yang di-ACC sudah memiliki relasi ke PO 
+  // 2. Cek apakah semua item yang di-ACC sudah memiliki relasi ke PO
   // (Asumsi: item yang sudah dibuatkan PO memiliki flag atau nomor PO di database)
   // Contoh logika: jika Jumlah_PO >= Jumlah_Permintaan
-  const allProcessed = accItems.every(d => {
+  const allProcessed = accItems.every((d) => {
     // Ganti 'Jumlah_PO' dengan field asli dari database Anda yang menandakan item sudah jadi PO
-    return (d.Jumlah_PO || 0) >= d.Jumlah; 
+    return (d.Jumlah_PO || 0) >= d.Jumlah;
   });
 
   return allProcessed ? "CLOSE" : "ONPROSES";
@@ -148,7 +148,7 @@ const parseCustomDate = (dateString) => {
         "December",
       ];
       const monthIndex = months.findIndex((m) =>
-        m.toLowerCase().startsWith(monthName.toLowerCase())
+        m.toLowerCase().startsWith(monthName.toLowerCase()),
       );
       if (monthIndex === -1) return null;
 
@@ -187,12 +187,17 @@ const fetchData = async () => {
   }
 };
 
+const getRowProps = ({ item }) => {
+  return {
+    class: item?.Nomor === selectedNomor.value ? "row-selected" : "",
+  };
+};
+
 const loadDetails = async (newlyExpandedItems: PermintaanBahanHeader[]) => {
   const itemToLoad = newlyExpandedItems?.find(
     (it) =>
-      it && !details.value[it.Nomor] && !loadingDetails.value.has(it.Nomor)
+      it && !details.value[it.Nomor] && !loadingDetails.value.has(it.Nomor),
   );
- 
 };
 
 // --- Actions ---
@@ -237,7 +242,7 @@ const handleDelete = async () => {
     const err = error;
     console.error(
       "Error deleting data:",
-      err.response ? err.response.data : err.message
+      err.response ? err.response.data : err.message,
     );
     alert(`Gagal Hapus! ${err.response?.data?.error || "Silakan cek konsol."}`);
   }
@@ -259,7 +264,7 @@ const handlePrint = () => {
   } catch (e) {
     console.error("Gagal Navigasi atau membuka jendela cetak:", e);
     alert(
-      'Gagal memulai pencetakan. Pastikan rute "PermintaanBahanPrint" sudah benar.'
+      'Gagal memulai pencetakan. Pastikan rute "PermintaanBahanPrint" sudah benar.',
     );
   }
 };
@@ -378,6 +383,7 @@ watch([startDate, endDate], fetchData);
           show-expand
           @update:expanded="loadDetails"
           @click:row="handleRowClick"
+          :row-props="getRowProps"
         >
           <template #item.Tanggal="{ item }">
             {{
@@ -410,34 +416,38 @@ watch([startDate, endDate], fetchData);
                 <div class="detail-container">
                   <div class="detail-table-wrapper">
                     <v-data-table
-  :headers="detailHeaders"
-  :items="item.Detail || []"
-  density="compact"
-  class="detail-table"
-  :items-per-page="-1"
-  hide-default-footer
->
-  <template #item="{ item: d }">
-    <tr :class="{ 'text-red font-weight-bold': d.Is_Acc === 'N' }">
-      <td>{{ d.Kode }}</td>
-      <td>{{ d.Nama_Bahan }}</td>
-      <td>
-        <v-chip 
-          :color="d.Is_Acc === 'Y' ? 'success' : 'error'" 
-          size="x-small" 
-          label
-        >
-          {{ d.Is_Acc }}
-        </v-chip>
-      </td>
-      <td class="text-right">{{ d.Jumlah }}</td>
-      <td>{{ d.Jumlah_terima }}</td>
-      <td>{{ d.Satuan }}</td>
-      <td>{{ d.Nomor_SPK }}</td>
-      <td>{{ d.Operator }}</td>
-    </tr>
-  </template>
-</v-data-table>
+                      :headers="detailHeaders"
+                      :items="item.Detail || []"
+                      density="compact"
+                      class="detail-table"
+                      :items-per-page="-1"
+                      hide-default-footer
+                    >
+                      <template #item="{ item: d }">
+                        <tr
+                          :class="{
+                            'text-red font-weight-bold': d.Is_Acc === 'N',
+                          }"
+                        >
+                          <td>{{ d.Kode }}</td>
+                          <td>{{ d.Nama_Bahan }}</td>
+                          <td>
+                            <v-chip
+                              :color="d.Is_Acc === 'Y' ? 'success' : 'error'"
+                              size="x-small"
+                              label
+                            >
+                              {{ d.Is_Acc }}
+                            </v-chip>
+                          </td>
+                          <td class="text-right">{{ d.Jumlah }}</td>
+                          <td>{{ d.Jumlah_terima }}</td>
+                          <td>{{ d.Satuan }}</td>
+                          <td>{{ d.Nomor_SPK }}</td>
+                          <td>{{ d.Operator }}</td>
+                        </tr>
+                      </template>
+                    </v-data-table>
 
                     <div
                       v-if="!(item.Detail && item.Detail.length)"
@@ -469,6 +479,19 @@ watch([startDate, endDate], fetchData);
 .detail-table {
   background-color: white !important;
   font-size: 0.8rem;
+}
+
+.row-selected {
+  background-color: rgb(30, 93, 138) !important; /* biru muda */
+}
+
+:deep(.row-selected) {
+  background-color: rgb(216, 239, 255) !important;
+}
+
+.v-data-table tbody tr:hover {
+  background-color: #f1f8ff;
+  cursor: pointer;
 }
 /* Style tambahan Vuetify (seperti .desktop-table) biasanya didefinisikan secara global */
 </style>

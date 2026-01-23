@@ -2,6 +2,17 @@
   <PageLayout :title="formTitle" icon="mdi-basket-fill">
     <template #header-actions>
       <v-btn
+        v-if="isEditMode && user.user_manager === 1 && formData.poAcc === 'N'"
+        size="x-small"
+        color="success"
+        @click="handleAccManager"
+        :disabled="isSaving"
+      >
+        <v-icon start>mdi-check-decagram</v-icon>
+        ACC Manager
+      </v-btn>
+
+      <v-btn
         size="x-small"
         color="primary"
         @click="handleSave(false)"
@@ -643,7 +654,7 @@ interface FormDataState {
   isPpn: boolean;
   ppnRate: number;
   status: "OPEN" | "CLOSE" | "ONPROSES"; // lblbpb status
-  pinStatus: "MINTA" | "WAIT" | "ACC" | "TOLAK" | ""; // xminta5 status
+  poAcc: "Y" | "N";
   detail: DetailItem[];
   commitments: CommitmentItem[];
   rolls: RollItem[];
@@ -672,13 +683,13 @@ const API_BASE_URL = "/mmt/po-bahan-mmt";
 const API_SUPPLIER_DETAIL = "/supplier/detail";
 const API_UNFULFILLED_MB_DETAIL = `${API_BASE_URL}/unfulfilled-mb-detail`;
 const API_MASTER_BAHAN_DETAIL_SINGLE = "/master/bahan/mmt";
-const USER_KD = "ADMIN_PPIC"; // Ganti dengan KDUSER yang sebenarnya
+const USER_KD = "ADMIN_PPIC";
 
-// ASUMSI: Dari variabel global Delphi
 const user = reactive({
-  canSeePrice: true, // zPpic/zLihatBeli = 1
-  defaultPpn: 11, // zppn
+  canSeePrice: true,
+  defaultPpn: 11,
   KDUSER: USER_KD,
+  user_manager: 1, // 🔥 1 = manager, 0 = bukan
 });
 
 const isEditMode = ref(!!route.params.nomor);
@@ -744,7 +755,7 @@ const formData = reactive<FormDataState>({
   isPpn: false,
   ppnRate: user.defaultPpn,
   status: "OPEN",
-  pinStatus: "",
+  poAcc: "N",
   detail: [createEmptyDetail()],
   commitments: [createEmptyCommitment()],
   rolls: [],
@@ -756,48 +767,67 @@ const formTitle = computed(() =>
     : "Input Baru PO Bahan MMT",
 );
 
-// --- Computed Totals (Hitung Logic) ---
+const handleAccManager = async () => {
+  if (!isEditMode.value || !formData.nomor) return;
+
+  if (!confirm(`ACC PO ${formData.nomor}?`)) return;
+
+  try {
+    isSaving.value = true;
+
+    await api.put(`${API_BASE_URL}/${formData.nomor}/acc-manager`, {
+      po_acc: "Y",
+      user: user.KDUSER,
+    });
+
+    toast.success("PO berhasil di-ACC Manager");
+
+    // update lokal tanpa reload
+    formData.poAcc = "Y";
+    formData.pinStatus = "ACC";
+  } catch (err) {
+    console.error(err);
+    toast.error("Gagal ACC PO. Silakan ulangi.");
+  } finally {
+    isSaving.value = false;
+  }
+};
 
 const calculateTotal = (item: DetailItem): number => {
-  let hargaBersih = item.harga;
+  const qty = Number(item.jumlah) || 0;
+  const m2 = Number(item.m2) || 0;
+  const harga = Number(item.harga) || 0;
+  const diskon = Number(item.diskon) || 0;
+
+  let hargaBersih = harga;
+
   if (formData.isPpn && formData.ppnRate > 0) {
-    hargaBersih = item.harga / (1 + formData.ppnRate / 100);
+    hargaBersih = harga / (1 + formData.ppnRate / 100);
   }
-  // Pastikan menggunakan hargaBersih, bukan hargaClean
-  return item.jumlah * hargaBersih * (1 - (item.diskon || 0) / 100);
+
+  const bruto = qty * m2 * hargaBersih;
+  const net = bruto * (1 - diskon / 100);
+
+  return net;
 };
 
 const hitung = () => {
-  let subTotal = 0;
-
   formData.detail.forEach((item) => {
-    let hargaBersih = item.harga;
-
-    if (formData.isPpn && formData.ppnRate > 0) {
-      hargaBersih = item.harga / (1 + formData.ppnRate / 100);
-    }
-
-    const luasTotal = (item.jumlah || 0) * (item.m2 || 0);
-
-    item.total = luasTotal * hargaBersih * (1 - (item.diskon || 0) / 100);
-
-    subTotal += item.total;
+    item.total = calculateTotal(item);
   });
 };
 
-const calculatedSubTotal = computed(() => {
-  return formData.detail.reduce((sum, d) => sum + d.total, 0);
-});
+const calculatedSubTotal = computed(() =>
+  formData.detail.reduce((sum, d) => sum + (Number(d.total) || 0), 0),
+);
 
-const calculatedPpnTotal = computed(() => {
-  // PPN dihitung dari DPP (Subtotal)
-  return calculatedSubTotal.value * (formData.ppnRate / 100);
-});
+const calculatedPpnTotal = computed(() =>
+  formData.isPpn ? calculatedSubTotal.value * (formData.ppnRate / 100) : 0,
+);
 
-const calculatedGrandTotal = computed(() => {
-  // Hasil akhirnya harus SAMA dengan (Total Qty * Harga Input) sebelum diskon
-  return calculatedSubTotal.value + calculatedPpnTotal.value;
-});
+const calculatedGrandTotal = computed(
+  () => calculatedSubTotal.value + calculatedPpnTotal.value,
+);
 
 const calculatedItemTotal = computed(() => {
   return formData.detail.reduce((sum, d) => sum + d.jumlah, 0);
@@ -808,30 +838,26 @@ const calculatedRollTotal = computed(() => {
 });
 
 const isFormValid = computed(() => {
-  const isHeaderValid = !!formData.supKode && formData.jenisPo !== undefined;
-  const isDetailValid = formData.detail.some(
-    (d) => d.kode && d.jumlah > 0 && d.harga > 0,
+  if (!formData.supKode) return false;
+
+  const validDetail = formData.detail.some(
+    (d) => d.kode && d.jumlah > 0 && d.harga >= 0,
   );
 
-  // Khusus PO Celup: Cek QTY Roll harus diisi jika ada Roll
-  if (formData.jenisPo === 2) {
-    if (
-      formData.detail.some((d) => d.roll > 0) &&
-      calculatedRollTotal.value === 0
-    )
-      return false;
-    // Opsional: Validasi total QTY item vs QTY roll (seperti di Delphi)
-    // if (Math.abs(calculatedRollTotal.value - calculatedItemTotal.value) > 0.01) return false;
-  }
+  if (!validDetail) return false;
 
-  // Khusus PO Bahan: Cek Commitment
+  // PO Bahan wajib dateline
   if (formData.jenisPo === 0) {
-    if (!formData.commitments[0] || !formData.commitments[0].tanggal) {
-      return false;
-    }
+    if (!formData.commitments[0]?.tanggal) return false;
   }
 
-  return isHeaderValid && isDetailValid;
+  // PO Celup wajib roll detail kalau ada roll
+  if (formData.jenisPo === 2) {
+    const adaRoll = formData.detail.some((d) => d.roll > 0);
+    if (adaRoll && calculatedRollTotal.value === 0) return false;
+  }
+
+  return true;
 });
 
 // Menentukan apakah radio button jenis PO harus di-disable
@@ -1067,19 +1093,18 @@ const handleMppbExit = async () => {
 };
 
 const handleRollChange = (item: DetailItem) => {
-  // ufrmPO.clrollPropertiesEditValueChanged logic
   if (formData.jenisPo !== 2 || !item.kode) return;
 
-  // Hapus roll lama terkait item ini, lalu buat roll baru
+  // hapus roll lama milik item ini
   formData.rolls = formData.rolls.filter((r) => r.kode !== item.kode);
 
-  for (let i = 1; i <= item.roll; i++) {
+  for (let i = 1; i <= (item.roll || 0); i++) {
     formData.rolls.push({
-      no: i,
+      no: formData.rolls.length + 1,
       kode: item.kode,
-      nama: item.nama,
+      nama: item.namaext || item.nama,
       satuan: item.satuan,
-      jumlah: 0, // Jumlah per roll diisi manual
+      jumlah: 0,
     });
   }
 };
@@ -1452,64 +1477,78 @@ const openSPKSearch = (index: number) => {
 
 const loaddataall = async (nomor: string) => {
   if (!nomor) return;
-  const nomorEncoded = encodeURIComponent(nomor);
 
   try {
-    const response = await api.get(`${API_BASE_URL}/${nomorEncoded}`);
+    const response = await api.get(
+      `${API_BASE_URL}/${encodeURIComponent(nomor)}`,
+    );
     const data = response.data;
-    const safeFormatDate = (dateStr: string | undefined): string => {
-      if (!dateStr) return "";
-      try {
-        const parsedDate = parseISO(dateStr);
-        return format(parsedDate, "yyyy-MM-dd");
-      } catch (e) {
-        return ""; // Kembalikan string kosong jika parsing gagal
-      }
+
+    const safeDate = (v: any) => {
+      if (!v) return "";
+      const d = parseISO(v);
+      return isValid(d) ? format(d, "yyyy-MM-dd") : "";
     };
-    Object.assign(formData, {
-      nomor: data.Nomor,
-      tanggal: safeFormatDate(data.Tanggal), // Menggunakan helper aman
-      supKode: data.KodeSup,
-      supNama: data.SupNama,
-      supAlamat: data.SupAlamat,
-      supKota: data.SupKota,
-      jenisPo: data.JenisPo,
-      poGreige: data.PoGreige || "",
-      mppbNomor: data.MppbNomor || "",
-      mppbTanggal: safeFormatDate(data.MppbTanggal), // Menggunakan helper aman
-      mppbJumlah: data.MppbJumlah || 0,
-      keterangan: data.Keterangan,
-      note: data.Note,
-      isPpn: data.IsPpn === 1,
-      ppnRate: data.PpnRate || 0,
-      status: data.Status,
-      pinStatus: data.PinStatus || "",
-      // Pastikan calculateTotal didefinisikan di scope global file Vue Anda
-      detail: data.Detail.map((d: any) => ({ ...d, total: calculateTotal(d) })),
-      commitments: [
-        {
-          no: 1,
-          tanggal: safeFormatDate(
-            data.Dateline || data.po_dateline || new Date(),
-          ),
-          jumlah: 0,
-        },
-      ],
-      rolls: data.Rolls || [],
+
+    formData.nomor = data.Nomor;
+    formData.tanggal = safeDate(data.Tanggal);
+    formData.supKode = data.KodeSup;
+    formData.supNama = data.SupNama;
+    formData.supAlamat = data.SupAlamat;
+    formData.supKota = data.SupKota;
+
+    formData.jenisPo = data.JenisPo;
+    formData.poGreige = data.PoGreige || "";
+    formData.mppbNomor = data.MppbNomor || "";
+    formData.mppbTanggal = safeDate(data.MppbTanggal);
+    formData.mppbJumlah = data.MppbJumlah || 0;
+
+    formData.note = data.Note || "";
+    formData.keterangan = data.Keterangan || "";
+
+    formData.isPpn = data.IsPpn === 1;
+    formData.ppnRate = data.PpnRate || user.defaultPpn;
+
+    formData.status = data.Status;
+    formData.poAcc = data.po_acc || data.PoAcc || "N";
+
+    // DETAIL
+    formData.detail = (data.Detail || []).map((d: any) => {
+      const p = Number(d.panjang || d.Panjang || 0);
+      const l = Number(d.lebar || d.Lebar || 0);
+      const m2 = d.m2 || p * l;
+
+      const item: DetailItem = {
+        ...createEmptyDetail(),
+        ...d,
+        panjang: p,
+        lebar: l,
+        m2: m2,
+      };
+
+      item.total = calculateTotal(item);
+      return item;
     });
 
-    isEditMode.value = true;
+    formData.detail.push(createEmptyDetail());
 
-    // 4. Pastikan Detail ditutup dengan baris kosong
-    if (
-      formData.detail.length === 0 ||
-      formData.detail[formData.detail.length - 1].kode
-    ) {
-      formData.detail.push(createEmptyDetail());
-    }
-  } catch (error) {
-    console.error("Error loading PO data:", error);
-    toast.error("Gagal memuat data PO. Kembali ke halaman browse.");
+    // COMMITMENT
+    formData.commitments = [
+      {
+        no: 1,
+        tanggal: safeDate(data.Dateline || data.po_dateline),
+        jumlah: 0,
+      },
+    ];
+
+    // ROLL
+    formData.rolls = data.Rolls || [];
+
+    isEditMode.value = true;
+    hitung();
+  } catch (err) {
+    console.error(err);
+    toast.error("Gagal memuat data PO.");
     router.push({ name: "PoBahanBrowse" });
   }
 };

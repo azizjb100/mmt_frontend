@@ -227,7 +227,8 @@ interface PoBahanHeader {
   Keterangan: string;
   IsTax: number;
   Status: "OPEN" | "ONPROSES" | "CLOSE";
-  Ngedit: "WAIT" | "ACC" | "TOLAK" | "";
+  Acc: "Y" | "N";
+
   [key: string]: any;
 }
 
@@ -266,11 +267,11 @@ const selectedNomor = computed<string | null>(() => {
 });
 
 const selectedRow = computed<PoBahanHeader | null>(() =>
-  isSingleSelected.value ? (selected.value[0] as PoBahanHeader) : null
+  isSingleSelected.value ? (selected.value[0] as PoBahanHeader) : null,
 );
 
 const selectedStatus = computed<"OPEN" | "ONPROSES" | "CLOSE" | null>(() =>
-  selectedRow.value ? selectedRow.value.Status : null
+  selectedRow.value ? selectedRow.value.Status : null,
 );
 
 // --- Helpers ---
@@ -316,12 +317,13 @@ const getStatusColor = (status: "OPEN" | "ONPROSES" | "CLOSE" | string) => {
 const masterHeaders = [
   { title: "Nomor PO", key: "Nomor", minWidth: "150px", fixed: true },
   { title: "Tanggal PO", key: "Tanggal", minWidth: "120px" },
-  { title: "Dateline", key: "Dateline", minWidth: "120px" },
-  { title: "Kode Sup", key: "KodeSup", minWidth: "100px" },
+  { title: "Dateline", key: "Dateline", minWidth: "60px" },
+  { title: "Kode Sup", key: "KodeSup", minWidth: "60px" },
   { title: "Supplier", key: "Nama", minWidth: "200px" },
   { title: "Cab", key: "Cab", minWidth: "80px" },
   { title: "Status", key: "Status", minWidth: "100px" },
   { title: "Tax", key: "IsTax", minWidth: "60px" },
+  { title: "Acc", key: "Acc", minWidth: "60px" },
   { title: "Keterangan", key: "Keterangan", minWidth: "250px" },
   { title: "", key: "data-table-expand", minWidth: "40px" },
 ] as const;
@@ -375,7 +377,7 @@ const fetchData = async () => {
 const loadDetails = async (newlyExpandedItems: PoBahanHeader[]) => {
   const itemToLoad = newlyExpandedItems?.find(
     (it) =>
-      it && !details.value[it.Nomor] && !loadingDetails.value.has(it.Nomor)
+      it && !details.value[it.Nomor] && !loadingDetails.value.has(it.Nomor),
   );
   if (!itemToLoad) return;
 
@@ -434,7 +436,7 @@ const handleDelete = async () => {
 
   if (poDate < sixMonthsAgo) {
     toast.error(
-      "Transaksi sudah melewati batas periode penutupan (Close Period) dan tidak bisa dihapus."
+      "Transaksi sudah melewati batas periode penutupan (Close Period) dan tidak bisa dihapus.",
     );
     return;
   }
@@ -473,31 +475,32 @@ const handleToggleClose = async () => {
 };
 
 const handlePrint = () => {
-  // 1. Pastikan ada satu baris yang terpilih
-  if (!selectedNomor.value) {
-    toast.warning("Pilih satu Purchase Order untuk dicetak.");
+  if (!formData.nomor || formData.nomor === "AUTO") {
+    toast.error("Nomor PO belum ada untuk dicetak.");
     return;
   }
 
-  try {
-    const url = router.resolve({
-      name: "PoPrint", // Pastikan nama rute ini sudah terdaftar
-      params: {
-        nomor: selectedNomor.value,
-      },
-    }).href;
+  // 👉 JIKA BELUM ACC → JANGAN PRINT PREVIEW
+  if (formData.poAcc === "N") {
+    toast.warning("PO belum di-ACC Manager, belum bisa Print Preview.");
+    return;
+  }
 
-    // 2. Memicu pembukaan tab baru/jendela baru untuk cetak
-    window.open(url, "_blank");
+  // 👉 JIKA SUDAH ACC → BOLEH PRINT
+  toast.info(`Membuka Print Preview PO ${formData.nomor}`);
 
-    toast.success(`Membuka pratinjau cetak PO: ${selectedNomor.value}`);
-  } catch (e) {
-    console.error("Gagal Navigasi atau membuka jendela cetak:", e);
-    toast.error(
-      'Gagal memulai pencetakan. Pastikan rute "PoPrint" sudah benar.'
-    );
+  router.push({
+    name: "PoPrint",
+    params: { nomor: formData.nomor },
+  });
+
+  // kalau PO Celup + ada roll detail → bisa lanjut cetak roll
+  if (formData.jenisPo === 2 && formData.rolls.some((r) => r.jumlah > 0)) {
+    // optional: route khusus roll
+    // router.push({ name: "PoRollPrint", params: { nomor: formData.nomor } });
   }
 };
+
 // --- Lifecycle ---
 onMounted(() => {
   fetchData();

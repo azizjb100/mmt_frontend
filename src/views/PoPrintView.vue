@@ -26,6 +26,7 @@ interface PrintHeader {
   AlamatPerusahaan: string;
   NPWPPerusahaan: string;
   AlamatPabrik: string;
+  IsAcc: "Y" | "N";
 }
 
 interface PrintDetail {
@@ -52,8 +53,15 @@ const isLoading = ref(true);
 
 const fetchPrintData = async (nomor: string) => {
   try {
-    // Memanggil endpoint baru: /api/mmt/po-bahan/:nomor/print
     const response = await api.get(`mmt/po-bahan-mmt/print/${nomor}`);
+
+    // 🔥 CEK ACC DULU
+    if (response.data?.Header?.IsAcc !== "Y") {
+      alert("PO belum di-ACC, tidak dapat dicetak.");
+      window.close(); // atau router.back()
+      return;
+    }
+
     printData.value = response.data;
     document.title = `PO - ${response.data.Header?.Nomor || "PO"}`;
   } catch (error) {

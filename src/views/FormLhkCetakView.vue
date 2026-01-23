@@ -268,7 +268,7 @@
                         >
                           {{
                             (formData.Lebar_bahan - totalLebarGabungan).toFixed(
-                              2
+                              2,
                             )
                           }}
                           M
@@ -424,14 +424,24 @@ const formData = reactive({
   operator: "",
   mesin: "",
   barcode_input: "",
+
   Panjang_bahan: 0,
   Lebar_bahan: 0,
+
   sku_aktif: "",
   kode_bahan_aktif: "",
-  Panjang_bahan: 0,
-  Lebar_bahan: 0,
-  manual_panjang: null as number | null, // Input manual P
-  manual_lebar: null as number | null,
+
+  // ===== TAMBAHKAN INI =====
+  sisa_panjang_manual: null as number | null,
+  sisa_lebar_manual: null as number | null,
+
+  panjang_nyempil_manual: null as number | null,
+  lebar_nyempil_manual: null as number | null,
+
+  panjang_bs: null as number | null,
+  lebar_bs: null as number | null,
+
+  manual_panjang_pakai: null as number | null,
 });
 
 const detailData = reactive<any[]>([]);
@@ -780,7 +790,8 @@ const removeDetail = (idx: number) => {
 };
 
 const handleSave = async (isContinue: boolean = false) => {
-  // 1. Validasi Header (Wajib diisi)
+  recalculateCombine(); // <-- penting
+
   if (!formData.operator || !formData.mesin || !formData.barcode_input) {
     toast.error("Operator, Mesin, dan Barcode Roll wajib diisi.");
     return;
@@ -807,7 +818,7 @@ const handleSave = async (isContinue: boolean = false) => {
     // 3. Cek apakah ada data yang akan disimpan
     if (detailsToSave.length === 0) {
       toast.warning(
-        "Isi jumlah cetak pada minimal satu SPK sebelum menyimpan."
+        "Isi jumlah cetak pada minimal satu SPK sebelum menyimpan.",
       );
       isSaving.value = false;
       return;
@@ -850,7 +861,7 @@ const handleSave = async (isContinue: boolean = false) => {
   } catch (error: any) {
     console.error("Save Error:", error);
     toast.error(
-      error.response?.data?.message || "Terjadi kesalahan koneksi server."
+      error.response?.data?.message || "Terjadi kesalahan koneksi server.",
     );
   } finally {
     isSaving.value = false;
@@ -862,7 +873,7 @@ const handleCancel = () => {
   // Logika pembatalan (misal reset form atau kembali)
   if (
     confirm(
-      "Apakah Anda yakin ingin membatalkan? Data yang belum disimpan akan hilang."
+      "Apakah Anda yakin ingin membatalkan? Data yang belum disimpan akan hilang.",
     )
   ) {
     location.reload();
@@ -882,7 +893,11 @@ const handleMesinSelect = (m: any) => {
   isMesinLookupVisible.value = false;
 };
 const isFormValid = computed(
-  () => formData.operator && formData.mesin && detailData.length > 0
+  () =>
+    formData.operator &&
+    formData.mesin &&
+    formData.barcode_input &&
+    detailData.length > 0,
 );
 </script>
 
