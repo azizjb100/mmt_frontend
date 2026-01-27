@@ -63,11 +63,12 @@
           :items="filteredPermintaanList"
           :loading="loading"
           hover
-          class="desktop-table flex-grow-1"
+          class="desktop-table flex-grow-1 clickable-row"
           density="compact"
           item-key="Nomor"
           fixed-header
           :items-per-page="20"
+          @dblclick:row="handleDoubleClick"
         >
           <template #item.Tanggal="{ item }">
             {{
@@ -94,13 +95,29 @@
             </v-chip>
           </template>
 
+          <template #item.Status_Proses="{ item }">
+            <v-chip
+              size="small"
+              :color="
+                item.Status_Proses === 'OPEN'
+                  ? 'success'
+                  : item.Status_Proses === 'PROGRESS'
+                    ? 'warning'
+                    : 'grey'
+              "
+            >
+              {{ item.Status_Proses }}
+            </v-chip>
+          </template>
+
           <template #item.actions="{ item }">
             <div class="text-center">
               <v-btn
                 color="success"
                 size="x-small"
-                @click.stop="selectPermintaan(item as PermintaanItem)"
                 variant="tonal"
+                :disabled="item.Status_Proses === 'CLOSE'"
+                @click.stop="selectPermintaan(item as PermintaanItem)"
               >
                 Pilih
               </v-btn>
@@ -132,32 +149,21 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, watch, computed, defineProps, defineEmits } from "vue";
-import axios, { AxiosError } from "axios";
+import { ref, reactive, watch, computed } from "vue";
+import { AxiosError } from "axios";
 import api from "@/services/api";
 import { useToast } from "vue-toastification";
 import { format, subDays } from "date-fns";
 
 // --- Interfaces ---
-
-interface PermintaanDetail {
-  Nomor: string;
-  Nomor_SPK: string;
-  Kode: string;
-  Nama_Bahan: string;
-  Jumlah: number;
-  Satuan: string;
-  Panjang: number;
-  Lebar: number;
-}
-
 interface PermintaanItem {
-  Nomor: string; // mb_nomor
-  Tanggal: string; // mb_tanggal (YYYY-MM-DD)
-  KodeGudang: string; // mb_gdg_kode
-  NamaGudang: string; // gdg_nama
-  Keterangan: string; // mb_keterangan
-  ACC: "Y" | "N"; // mb_acc
+  Nomor: string;
+  Tanggal: string;
+  KodeGudang: string;
+  NamaGudang: string;
+  Keterangan: string;
+  ACC: "Y" | "N";
+  Status_Proses: "OPEN" | "PROGRESS" | "CLOSE";
 }
 
 // --- Props & Emits ---
@@ -167,7 +173,6 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: "close"): void;
-  // Mengirimkan seluruh objek header Permintaan Bahan yang dipilih
   (e: "select", permintaan: PermintaanItem): void;
 }>();
 
@@ -194,6 +199,12 @@ const headers = [
   { title: "Keterangan", key: "Keterangan", width: "450px" },
   { title: "ACC Status", key: "ACC", width: "100px", align: "center" as const },
   {
+    title: "Status Permintaan",
+    key: "Status_Proses",
+    width: "110px",
+    align: "center" as const,
+  },
+  {
     title: "Aksi",
     key: "actions",
     sortable: false,
@@ -204,13 +215,11 @@ const headers = [
 
 const filteredPermintaanList = computed(() => {
   if (!filters.keyword) return PermintaanList.value;
-
   const search = filters.keyword.toLowerCase();
   return PermintaanList.value.filter((item) => {
     const nomorMatch = item.Nomor.toLowerCase().includes(search);
     const keteranganMatch =
       item.Keterangan && item.Keterangan.toLowerCase().includes(search);
-
     return nomorMatch || keteranganMatch;
   });
 });
@@ -227,48 +236,52 @@ const fetchPermintaanData = async () => {
         endDate: filters.endDate,
       },
     });
-
     PermintaanList.value = response.data || [];
   } catch (error) {
     const err = error as AxiosError;
-    const errorMessage =
-      (err.response?.data as { message?: string })?.message ||
-      "Gagal memuat daftar Permintaan Bahan.";
-    toast.error(errorMessage);
+    toast.error("Gagal memuat daftar Permintaan Bahan.");
     PermintaanList.value = [];
   } finally {
     loading.value = false;
   }
 };
 
-/**
- * Memilih Permintaan Bahan dan mengirimkannya kembali ke parent component.
- */
 const selectPermintaan = (item: PermintaanItem) => {
-  // Pastikan nomor terisi sebelum di-emit
-  if (!item.Nomor) {
-    toast.error("Error: Nomor Permintaan kosong di data modal.");
+  if (item.Status_Proses === "CLOSE") {
+    toast.warning("Permintaan ini sudah selesai (CLOSE).");
     return;
   }
-  emit("select", item); // Item ini sudah membawa Detail[] dari backend
-
+  if (!item.Nomor) {
+    toast.error("Error: Nomor Permintaan kosong.");
+    return;
+  }
+  emit("select", item);
   emit("close");
 };
+
+/**
+ * Handler Double Click
+ */
+const handleDoubleClick = (
+  _event: MouseEvent,
+  { item }: { item: PermintaanItem },
+) => {
+  selectPermintaan(item);
+};
+
 watch(
   () => props.isVisible,
   (newValue) => {
     if (newValue) {
-      // Menggunakan fetchSPKData sebagai pemuatan awal
       fetchPermintaanData();
     } else {
       PermintaanList.value = [];
-      filters.keyword = ""; // Bersihkan keyword saat ditutup
+      filters.keyword = "";
     }
   },
-  { immediate: true }
+  { immediate: true },
 );
 
-// Memuat data saat filter tanggal berubah
 watch([() => filters.startDate, () => filters.endDate], () => {
   if (props.isVisible) {
     fetchPermintaanData();
@@ -279,6 +292,7 @@ watch([() => filters.startDate, () => filters.endDate], () => {
 <style scoped>
 .dialog-card {
   font-size: 13px;
+  height: 90vh !important;
 }
 .desktop-table {
   font-size: 12px;
@@ -289,14 +303,22 @@ watch([() => filters.startDate, () => filters.endDate], () => {
   height: 35px !important;
 }
 .desktop-table :deep(thead th) {
-  background-color: #e3f2fd !important; /* Warna biru muda untuk header */
+  background-color: #e3f2fd !important;
   font-weight: bold;
   color: #333 !important;
 }
+
+/* Penambahan styling untuk efek klik */
+.clickable-row :deep(tbody tr):hover {
+  cursor: pointer !important;
+  background-color: #f5f5f5 !important;
+}
+
+.clickable-row :deep(tbody tr):active {
+  background-color: #e1f5fe !important;
+}
+
 .flex-grow-1 {
   height: 100%;
-}
-.dialog-card {
-  height: 90vh !important;
 }
 </style>

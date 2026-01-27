@@ -37,11 +37,12 @@
           :items="SPKList"
           :loading="loading"
           hover
-          class="desktop-table flex-grow-1"
+          class="desktop-table flex-grow-1 clickable-row"
           density="compact"
           item-key="SPK"
           fixed-header
           :items-per-page="20"
+          @dblclick:row="handleDoubleClick"
         >
           <template #item.SPK="{ item }">{{ item.SPK }}</template>
           <template #item.Nama="{ item }">{{ item.Nama }}</template>
@@ -94,23 +95,23 @@
 
 <script setup lang="ts">
 import { ref, watch } from "vue";
-import axios, { AxiosError } from "axios";
+import { AxiosError } from "axios";
 import api from "@/services/api";
 import { useToast } from "vue-toastification";
 
 // --- Interfaces ---
 interface SPKItem {
-  SPK: string; // Nomor SPK (Kode) - Mirip dengan varglobal di Delphi
-  Nama: string; // Nama/Deskripsi SPK - Mirip dengan varglobal1 di Delphi
-  Tanggal: string; // Tanggal SPK
-  Divisi: number; // Divisi (Harusnya selalu 5 berdasarkan logika Delphi)
-  Jumlah?: number; // Jumlah (optional)
-  [key: string]: string | number | undefined;
-}
-
-interface ApiResponse {
-  message?: string;
-  data: SPKItem[];
+  SPK: string;
+  Nama: string;
+  Tanggal: string;
+  Divisi: number;
+  Jumlah?: number;
+  Panjang?: number;
+  Lebar?: number;
+  Bahan?: string;
+  Gramasi?: string;
+  Jumlah_jadi?: number;
+  [key: string]: any;
 }
 
 // --- Props & Emits ---
@@ -120,26 +121,22 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: "close"): void;
-  // Mengirimkan objek yang hanya berisi data kunci (Nomor SPK dan Nama SPK)
-  (e: "select", SPK: Pick<SPKItem, "SPK" | "Nama">): void;
+  (e: "select", data: any): void;
 }>();
 
 const toast = useToast();
 
 // --- State ---
-// Sesuaikan dengan endpoint yang sudah dibuat di backend Express Anda
 const API_URL = "/mmt/SPK/lookup";
 const SPKList = ref<SPKItem[]>([]);
 const searchKeyword = ref("");
 const loading = ref(false);
 
-// --- Konfigurasi Header v-data-table ---
 const headers = [
   { title: "Nomor SPK", key: "SPK", width: "200px" },
   { title: "Nama Proyek/SPK", key: "Nama", width: "450px" },
   { title: "Tanggal", key: "Tanggal", width: "120px" },
   { title: "Jumlah", key: "Jumlah", width: "80px" },
-  // { title: 'Divisi', key: 'Divisi', width: '80px' },
   {
     title: "Aksi",
     key: "actions",
@@ -157,38 +154,24 @@ const fetchSPKData = async () => {
     const response = await api.get<SPKItem[]>(API_URL, {
       params: { keyword: searchKeyword.value },
     });
-
     const allData = response.data || [];
-
-    // 🔥 Jika tidak ada keyword → limit 200
-    if (!searchKeyword.value) {
-      SPKList.value = allData.slice(0, 200);
-    } else {
-      // 🔍 Jika sedang search → tampilkan semua
-      SPKList.value = allData;
-    }
+    SPKList.value = !searchKeyword.value ? allData.slice(0, 200) : allData;
   } catch (error) {
     const err = error as AxiosError;
-    const errorMessage =
-      (err.response?.data as { message?: string })?.message ||
-      "Gagal memuat daftar SPK.";
-    toast.error(errorMessage);
+    toast.error("Gagal memuat daftar SPK.");
     SPKList.value = [];
   } finally {
     loading.value = false;
   }
 };
 
-/**
- * Memilih SPK dan mengirimkannya kembali ke parent component.
- * Mirip dengan logic varglobal dan varglobal1 di Delphi.
- */
 const selectSPK = (SPK: SPKItem) => {
-  // Pastikan Nomor SPK terisi (safety check)
   if (!SPK.SPK) {
-    toast.error("Error: Nomor SPK kosong di data modal.");
+    toast.error("Error: Nomor SPK kosong.");
     return;
   }
+
+  // Mapping data sesuai kebutuhan parent
   emit("select", {
     Spk: SPK.SPK,
     Nama: SPK.Nama,
@@ -205,24 +188,28 @@ const selectSPK = (SPK: SPKItem) => {
   emit("close");
 };
 
+/**
+ * Handler untuk double click pada baris tabel
+ */
+const handleDoubleClick = (_event: MouseEvent, { item }: { item: SPKItem }) => {
+  selectSPK(item);
+};
+
 watch(
   () => props.isVisible,
   (newValue) => {
     if (newValue) {
-      // Membersihkan keyword, lalu memuat data (sama seperti behavior Delphi)
       searchKeyword.value = "";
       fetchSPKData();
     } else {
-      // Bersihkan list data saat ditutup
       SPKList.value = [];
     }
   },
-  { immediate: true }
+  { immediate: true },
 );
 </script>
 
 <style scoped>
-/* Styling dari komponen Master Bahan MMT sebelumnya */
 .dialog-card {
   font-size: 13px;
 }
@@ -239,6 +226,17 @@ watch(
   font-weight: bold;
   color: #333 !important;
 }
+
+/* Tambahkan styling hover dan pointer */
+.clickable-row :deep(tbody tr):hover {
+  cursor: pointer !important;
+  background-color: #f0f4f8 !important;
+}
+
+.clickable-row :deep(tbody tr):active {
+  background-color: #e3f2fd !important;
+}
+
 .flex-grow-1 {
   height: 100%;
 }

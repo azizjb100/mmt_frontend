@@ -4,7 +4,7 @@ import api from "@/services/api";
 import { useRouter } from "vue-router";
 import { format, subDays } from "date-fns";
 import PageLayout from "../components/PageLayout.vue";
-import QRCode from 'qrcode';
+import QRCode from "qrcode";
 
 // --- Interfaces ---
 interface DetailBahan {
@@ -42,7 +42,7 @@ const router = useRouter();
 // --- State ---
 const masterData = ref<PenerimaanBahan[]>([]);
 const loading = ref(false);
-const selected = ref<PenerimaanBahan[]>([]); 
+const selected = ref<PenerimaanBahan[]>([]);
 const expanded = ref<string[]>([]);
 const showQRDialog = ref(false);
 const itemsToPrint = ref<PrintItem[]>([]);
@@ -58,10 +58,27 @@ const parseCustomDate = (dateString: string) => {
   if (!dateString) return new Date();
   try {
     const [day, monthName, year] = dateString.split("-");
-    const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-    const monthIndex = months.findIndex((m) => m.toLowerCase().startsWith(monthName.toLowerCase()));
+    const months = [
+      "January",
+      "February",
+      "March",
+      "April",
+      "May",
+      "June",
+      "July",
+      "August",
+      "September",
+      "October",
+      "November",
+      "December",
+    ];
+    const monthIndex = months.findIndex((m) =>
+      m.toLowerCase().startsWith(monthName.toLowerCase()),
+    );
     return new Date(Number(year), monthIndex, Number(day));
-  } catch (e) { return new Date(); }
+  } catch (e) {
+    return new Date();
+  }
 };
 
 // --- Headers ---
@@ -77,8 +94,18 @@ const masterHeaders = [
 const detailHeaders = [
   { title: "Kode Bahan", key: "Kode", minWidth: "120px" },
   { title: "Nama Bahan", key: "Nama_Bahan", minWidth: "250px" },
-  { title: "Jml PO", key: "Jumlah_PO", minWidth: "100px", align: "end" as const },
-  { title: "Jml Terima", key: "Jumlah_Terima", minWidth: "100px", align: "end" as const },
+  {
+    title: "Jml PO",
+    key: "Jumlah_PO",
+    minWidth: "100px",
+    align: "end" as const,
+  },
+  {
+    title: "Jml Terima",
+    key: "Jumlah_Terima",
+    minWidth: "100px",
+    align: "end" as const,
+  },
   { title: "Satuan", key: "Satuan", minWidth: "80px" },
 ];
 
@@ -93,7 +120,9 @@ const fetchData = async () => {
     masterData.value = response.data.data || [];
   } catch (error) {
     console.error("Gagal memuat data:", error);
-  } finally { loading.value = false; }
+  } finally {
+    loading.value = false;
+  }
 };
 
 const handleRowClick = (_event: any, row: any) => {
@@ -110,15 +139,17 @@ const handlePrintQR = async () => {
   try {
     for (const item of details) {
       const barcodes = item.List_Barcode
-        ? item.List_Barcode.split(",").map(b => b.trim()).filter(Boolean)
+        ? item.List_Barcode.split(",")
+            .map((b) => b.trim())
+            .filter(Boolean)
         : [];
 
       for (const val of barcodes) {
         // Generate QR Code as DataURL
-        const qrImage = await QRCode.toDataURL(val, { 
-            width: 300, 
-            margin: 0,
-            errorCorrectionLevel: 'H' 
+        const qrImage = await QRCode.toDataURL(val, {
+          width: 300,
+          margin: 0,
+          errorCorrectionLevel: "H",
         });
 
         // Loop 2x per Barcode
@@ -149,19 +180,21 @@ const handlePrintQR = async () => {
 };
 
 const printContent = () => {
-  const iframe = document.createElement('iframe');
-  iframe.style.position = 'fixed';
-  iframe.style.right = '0';
-  iframe.style.bottom = '0';
-  iframe.style.width = '0';
-  iframe.style.height = '0';
-  iframe.style.border = '0';
+  const iframe = document.createElement("iframe");
+  iframe.style.position = "fixed";
+  iframe.style.right = "0";
+  iframe.style.bottom = "0";
+  iframe.style.width = "0";
+  iframe.style.height = "0";
+  iframe.style.border = "0";
   document.body.appendChild(iframe);
 
   const doc = iframe.contentWindow?.document;
   if (!doc) return;
 
-  const labelHtml = itemsToPrint.value.map(item => `
+  const labelHtml = itemsToPrint.value
+    .map(
+      (item) => `
     <div class="label-box">
       <div class="border-inner">
         <div class="top-row">
@@ -177,7 +210,9 @@ const printContent = () => {
         <div class="product-name">${item.Nama_Bahan}</div>
       </div>
     </div>
-  `).join('');
+  `,
+    )
+    .join("");
 
   doc.open();
   doc.write(`
@@ -300,8 +335,34 @@ const printContent = () => {
   setTimeout(() => {
     iframe.contentWindow?.focus();
     iframe.contentWindow?.print();
-    setTimeout(() => { document.body.removeChild(iframe); }, 1000);
+    setTimeout(() => {
+      document.body.removeChild(iframe);
+    }, 1000);
   }, 500);
+};
+
+const handlePrintSlip = () => {
+  if (!isSingleSelected.value) {
+    alert("Pilih satu transaksi untuk mencetak slip.");
+    return;
+  }
+
+  // Mengambil nomor dari baris yang dipilih
+  const nomor = selected.value[0].Nomor;
+
+  // Membuka tab baru yang berisi tampilan Surat Jalan / Tanda Terima
+  // Pastikan rute "PenerimaanBahanPrint" sudah ada di router Anda
+  try {
+    const url = router.resolve({
+      name: "PenerimaanBahanPrint",
+      params: { nomor: nomor },
+    }).href;
+
+    window.open(url, "_blank");
+  } catch (e) {
+    // Jika rute belum ada, bisa gunakan URL manual
+    window.open(`/print/penerimaan-bahan/${nomor}`, "_blank");
+  }
 };
 
 onMounted(() => fetchData());
@@ -311,11 +372,29 @@ watch([startDate, endDate], fetchData);
 <template>
   <PageLayout title="Data Penerimaan Bahan" icon="mdi-truck-check">
     <template #header-actions>
-      <v-btn size="x-small" color="success" @click="router.push({ name: 'PenerimaanBahanNew' })">
+      <v-btn
+        size="x-small"
+        color="success"
+        @click="router.push({ name: 'PenerimaanBahanNew' })"
+      >
         <v-icon start>mdi-plus</v-icon> Baru
       </v-btn>
       <v-divider vertical class="mx-2" />
-      <v-btn size="x-small" color="info" :disabled="!isSingleSelected" @click="handlePrintQR" :loading="loading">
+      <v-btn
+        size="x-small"
+        color="indigo"
+        :disabled="!isSingleSelected"
+        @click="handlePrintSlip"
+      >
+        <v-icon start>mdi-file-document</v-icon> Cetak Tanda Terima
+      </v-btn>
+      <v-btn
+        size="x-small"
+        color="info"
+        :disabled="!isSingleSelected"
+        @click="handlePrintQR"
+        :loading="loading"
+      >
         <v-icon start>mdi-qrcode</v-icon> Cetak QR Item
       </v-btn>
     </template>
@@ -325,10 +404,29 @@ watch([startDate, endDate], fetchData);
         <v-card-text>
           <div class="filter-section d-flex align-center flex-wrap ga-4">
             <v-label class="filter-label">Periode Mulai:</v-label>
-            <v-text-field v-model="startDate" type="date" density="compact" hide-details variant="outlined" style="max-width: 150px" />
+            <v-text-field
+              v-model="startDate"
+              type="date"
+              density="compact"
+              hide-details
+              variant="outlined"
+              style="max-width: 150px"
+            />
             <v-label class="mx-2">s/d</v-label>
-            <v-text-field v-model="endDate" type="date" density="compact" hide-details variant="outlined" style="max-width: 150px" />
-            <v-btn variant="text" size="x-small" @click="fetchData" :loading="loading">
+            <v-text-field
+              v-model="endDate"
+              type="date"
+              density="compact"
+              hide-details
+              variant="outlined"
+              style="max-width: 150px"
+            />
+            <v-btn
+              variant="text"
+              size="x-small"
+              @click="fetchData"
+              :loading="loading"
+            >
               <v-icon>mdi-refresh</v-icon> Refresh
             </v-btn>
           </div>
@@ -342,7 +440,7 @@ watch([startDate, endDate], fetchData);
           :headers="masterHeaders"
           :items="masterData"
           :loading="loading"
-          item-value="Nomor" 
+          item-value="Nomor"
           density="compact"
           class="desktop-table elevation-1 border"
           show-select
@@ -353,14 +451,23 @@ watch([startDate, endDate], fetchData);
           @click:row="handleRowClick"
         >
           <template #item.Tanggal="{ item }">
-            {{ item.Tanggal ? format(parseCustomDate(item.Tanggal), "dd/MM/yyyy") : "" }}
+            {{
+              item.Tanggal
+                ? format(parseCustomDate(item.Tanggal), "dd/MM/yyyy")
+                : ""
+            }}
           </template>
 
           <template #expanded-row="{ columns, item }">
             <tr>
               <td :colspan="columns.length">
                 <div class="detail-container pa-2">
-                  <v-data-table :headers="detailHeaders" :items="item.Detail || []" density="compact" hide-default-footer></v-data-table>
+                  <v-data-table
+                    :headers="detailHeaders"
+                    :items="item.Detail || []"
+                    density="compact"
+                    hide-default-footer
+                  ></v-data-table>
                 </div>
               </td>
             </tr>
@@ -369,26 +476,45 @@ watch([startDate, endDate], fetchData);
       </div>
     </div>
 
-    <v-dialog v-model="showQRDialog" fullscreen transition="dialog-bottom-transition">
+    <v-dialog
+      v-model="showQRDialog"
+      fullscreen
+      transition="dialog-bottom-transition"
+    >
       <v-card color="grey-lighten-4">
         <v-toolbar color="primary" density="compact" class="d-print-none">
-          <v-btn icon @click="showQRDialog = false"><v-icon>mdi-close</v-icon></v-btn>
-          <v-toolbar-title>Preview Cetak ({{ itemsToPrint.length }} Label)</v-toolbar-title>
+          <v-btn icon @click="showQRDialog = false"
+            ><v-icon>mdi-close</v-icon></v-btn
+          >
+          <v-toolbar-title
+            >Preview Cetak ({{ itemsToPrint.length }} Label)</v-toolbar-title
+          >
           <v-spacer></v-spacer>
-          <v-btn color="white" variant="elevated" @click="printContent" prepend-icon="mdi-printer">
+          <v-btn
+            color="white"
+            variant="elevated"
+            @click="printContent"
+            prepend-icon="mdi-printer"
+          >
             PRINT SEKARANG
           </v-btn>
         </v-toolbar>
 
         <v-card-text class="d-flex flex-column align-center pa-4">
           <div class="print-wrapper">
-            <div v-for="(item, index) in itemsToPrint" :key="index" class="label-box">
+            <div
+              v-for="(item, index) in itemsToPrint"
+              :key="index"
+              class="label-box"
+            >
               <div class="border-inner">
                 <div class="top-row">
                   <img :src="item.qrImage" class="qr-img" />
                   <div class="spec-info">
                     <div class="qr-text">{{ item.qrValue }}</div>
-                    <div class="dimens-text">Dimensi: {{ item.Panjang }}x{{ item.Lebar }}</div>
+                    <div class="dimens-text">
+                      Dimensi: {{ item.Panjang }}x{{ item.Lebar }}
+                    </div>
                   </div>
                 </div>
                 <div class="divider"></div>
@@ -435,8 +561,8 @@ watch([startDate, endDate], fetchData);
 }
 
 .qr-img {
-  width: 2.2cm;
-  height: 2.2cm;
+  width: 1.5cm;
+  height: 1.5cm;
 }
 
 .qr-text {
@@ -501,11 +627,11 @@ watch([startDate, endDate], fetchData);
     break-after: page !important;
     margin: 0 !important;
   }
-  
+
   /* Hilangkan border atau shadow preview layar saat cetak */
   .label-box {
     box-shadow: none !important;
-    border: none !important; 
+    border: none !important;
   }
 }
 </style>

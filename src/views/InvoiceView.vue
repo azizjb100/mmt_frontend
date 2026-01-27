@@ -1,6 +1,5 @@
 <template>
   <PageLayout title="Data Invoice Pembelian" icon="mdi-file-document-multiple">
-    <!-- ================= HEADER ACTIONS ================= -->
     <template #header-actions>
       <v-btn
         v-if="authStore.can(MENU_ID, 'insert')"
@@ -44,10 +43,8 @@
       </v-btn>
     </template>
 
-    <!-- ================= CONTENT ================= -->
     <div class="browse-content">
-      <!-- ===== FILTER ===== -->
-      <v-card flat class="mb-4">
+      <v-card flat class="mb-1">
         <v-card-text>
           <div class="filter-section d-flex align-center flex-wrap ga-4">
             <v-label class="filter-label">Periode:</v-label>
@@ -72,7 +69,12 @@
               style="max-width: 150px"
             />
 
-            <v-btn variant="text" size="x-small" @click="fetchData">
+            <v-btn
+              variant="text"
+              size="x-small"
+              @click="fetchData"
+              :loading="loading"
+            >
               <v-icon>mdi-refresh</v-icon> Refresh
             </v-btn>
 
@@ -81,10 +83,10 @@
         </v-card-text>
       </v-card>
 
-      <!-- ===== TABLE ===== -->
       <div class="table-container">
         <v-data-table
           v-model:selected="selected"
+          v-model:expanded="expanded"
           :headers="masterHeaders"
           :items="masterData || []"
           :loading="loading"
@@ -93,15 +95,58 @@
           class="desktop-table elevation-1"
           fixed-header
           show-select
+          show-expand
           return-object
           @click:row="handleRowClick"
+          :row-props="getRowProps"
         >
           <template #item.Tanggal="{ item }">
             {{ safeFormatDate(item.Tanggal) }}
           </template>
 
           <template #item.Total="{ item }">
-            {{ formatCurrency(item.Total) }}
+            <span class="font-weight-bold">{{
+              formatCurrency(item.Total)
+            }}</span>
+          </template>
+
+          <template #item.Status="{ item }">
+            <v-chip :color="getStatusColor(item.Status)" size="x-small" label>
+              {{ item.Status }}
+            </v-chip>
+          </template>
+
+          <template #expanded-row="{ columns, item }">
+            <tr>
+              <td :colspan="columns.length">
+                <div class="detail-container">
+                  <div class="detail-table-wrapper">
+                    <v-data-table
+                      :headers="detailHeaders"
+                      :items="item.Detail || []"
+                      density="compact"
+                      class="detail-table"
+                      :items-per-page="-1"
+                      hide-default-footer
+                    >
+                      <template #item.Harga="{ item: d }">
+                        {{ formatCurrency(d.Harga) }}
+                      </template>
+                      <template #item.SubTotal="{ item: d }">
+                        {{ formatCurrency(d.SubTotal) }}
+                      </template>
+                    </v-data-table>
+
+                    <div
+                      v-if="!(item.Detail && item.Detail.length)"
+                      class="text-center pa-4 text-caption"
+                    >
+                      Tidak ada data detail.
+                    </div>
+                  </div>
+                </div>
+              </td>
+            </tr>
           </template>
         </v-data-table>
       </div>
@@ -125,13 +170,23 @@ const useAuthStore = () => ({
 const authStore = useAuthStore();
 
 /* ================= INTERFACES ================= */
+interface InvoiceDetail {
+  NoUrut: number;
+  Kode: string;
+  Nama: string;
+  Satuan: string;
+  Jumlah: number;
+  Harga: number;
+  SubTotal: number;
+}
+
 interface InvoiceHeader {
   Nomor: string;
   Tanggal: string;
   Supplier?: string;
   Status?: string;
   Total: number;
-  [key: string]: any;
+  Detail?: InvoiceDetail[];
 }
 
 /* ================= CONST ================= */
@@ -146,6 +201,7 @@ const toast = useToast();
 const masterData = ref<InvoiceHeader[]>([]);
 const loading = ref<boolean>(false);
 const selected = ref<InvoiceHeader[]>([]);
+const expanded = ref<string[]>([]);
 
 const thirtyDaysAgo = format(subDays(new Date(), 30), "yyyy-MM-dd");
 const today = format(new Date(), "yyyy-MM-dd");
@@ -162,25 +218,34 @@ const selectedNomor = computed<string | null>(() =>
   isSingleSelected.value ? selected.value[0].Nomor : null,
 );
 
-const selectedRow = computed<InvoiceHeader | null>(() =>
-  isSingleSelected.value ? selected.value[0] : null,
-);
-
 /* ================= HELPERS ================= */
 const safeFormatDate = (dateString?: string): string => {
   if (!dateString) return "";
-  try {
-    const parsed = parseISO(dateString);
-    if (isValid(parsed)) return format(parsed, "dd/MM/yyyy");
-    return dateString;
-  } catch {
-    return "";
-  }
+  // Handle format DD-MM-YYYY dari backend
+  return dateString;
 };
 
 const formatCurrency = (val: any) => {
   const num = Number(val || 0);
   return new Intl.NumberFormat("id-ID").format(num);
+};
+
+const getStatusColor = (status: string) => {
+  if (!status) return "info";
+  switch (status.toUpperCase()) {
+    case "OPEN":
+      return "success";
+    case "CLOSED":
+      return "grey";
+    default:
+      return "info";
+  }
+};
+
+const getRowProps = ({ item }: { item: any }) => {
+  return {
+    class: item?.Nomor === selectedNomor.value ? "row-selected" : "",
+  };
 };
 
 /* ================= HEADERS ================= */
@@ -190,6 +255,17 @@ const masterHeaders = [
   { title: "Supplier", key: "Supplier", minWidth: "220px" },
   { title: "Status", key: "Status", minWidth: "100px" },
   { title: "Total", key: "Total", minWidth: "140px", align: "end" as const },
+  { title: "", key: "data-table-expand" },
+] as const;
+
+const detailHeaders = [
+  { title: "No", key: "NoUrut", width: "50px" },
+  { title: "Kode", key: "Kode", width: "120px" },
+  { title: "Nama Barang", key: "Nama", minWidth: "250px" },
+  { title: "Satuan", key: "Satuan", width: "80px" },
+  { title: "Jumlah", key: "Jumlah", width: "100px", align: "end" as const },
+  { title: "Harga", key: "Harga", width: "120px", align: "end" as const },
+  { title: "SubTotal", key: "SubTotal", width: "130px", align: "end" as const },
 ] as const;
 
 /* ================= API ================= */
@@ -197,16 +273,15 @@ const fetchData = async () => {
   loading.value = true;
   selected.value = [];
   try {
-    const response = await api.get<InvoiceHeader[]>(API_INVOICE, {
+    const response = await api.get(API_INVOICE, {
       params: {
         startDate: filters.startDate,
         endDate: filters.endDate,
       },
     });
 
-    masterData.value = Array.isArray(response.data)
-      ? response.data
-      : (response.data as any)?.data || [];
+    const res = response.data;
+    masterData.value = Array.isArray(res) ? res : res.data || [];
   } catch (err) {
     toast.error("Gagal mengambil data Invoice Pembelian.");
   } finally {
@@ -214,14 +289,13 @@ const fetchData = async () => {
   }
 };
 
-/* ================= ROW CLICK ================= */
-const handleRowClick = (event: Event, { item }: { item: InvoiceHeader }) => {
-  selected.value = [item];
+/* ================= ACTIONS ================= */
+const handleRowClick = (event: Event, row: any) => {
+  selected.value = [row.item];
 };
 
-/* ================= ACTIONS ================= */
 const handleNew = () => {
-  router.push({ name: "InvoicePembelianNew" });
+  router.push({ name: "InvoiceNew" });
 };
 
 const handleEdit = () => {
@@ -234,7 +308,6 @@ const handleEdit = () => {
 
 const handleDelete = async () => {
   if (!selectedNomor.value) return;
-
   if (confirm(`Hapus Invoice ${selectedNomor.value}?`)) {
     try {
       await api.delete(`${API_INVOICE}/${selectedNomor.value}`);
@@ -247,21 +320,12 @@ const handleDelete = async () => {
 };
 
 const handlePrint = () => {
-  if (!selectedNomor.value) {
-    toast.warning("Pilih satu invoice untuk dicetak.");
-    return;
-  }
-
-  try {
-    const url = router.resolve({
-      name: "InvoicePembelianPrint",
-      params: { nomor: selectedNomor.value },
-    }).href;
-
-    window.open(url, "_blank");
-  } catch (e) {
-    toast.error("Gagal membuka halaman cetak.");
-  }
+  if (!selectedNomor.value) return;
+  const url = router.resolve({
+    name: "InvoicePembelianPrint",
+    params: { nomor: selectedNomor.value },
+  }).href;
+  window.open(url, "_blank");
 };
 
 /* ================= LIFECYCLE ================= */
@@ -275,5 +339,30 @@ watch(filters, fetchData, { deep: true });
 }
 .filter-section {
   padding: 10px 16px;
+}
+
+/* Detail Expand Style */
+.detail-container {
+  padding: 10px 0;
+  background-color: #f7f7f7;
+  border-top: 1px solid #ddd;
+  border-bottom: 1px solid #ddd;
+}
+.detail-table-wrapper {
+  padding: 0 20px 0 60px;
+}
+.detail-table {
+  background-color: white !important;
+  font-size: 0.8rem;
+  border: 1px solid #eee;
+}
+
+/* Highlight Selected Row */
+:deep(.row-selected) {
+  background-color: #d8efff !important;
+}
+
+.v-data-table :deep(tbody tr:hover) {
+  cursor: pointer;
 }
 </style>

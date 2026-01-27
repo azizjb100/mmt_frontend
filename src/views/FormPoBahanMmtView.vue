@@ -770,11 +770,13 @@ const formTitle = computed(() =>
 const handleAccManager = async () => {
   if (!isEditMode.value || !formData.nomor) return;
 
+  // Konfirmasi keamanan
   if (!confirm(`ACC PO ${formData.nomor}?`)) return;
 
   try {
     isSaving.value = true;
 
+    // Mengirim permintaan PUT ke endpoint spesifik
     await api.put(`${API_BASE_URL}/${formData.nomor}/acc-manager`, {
       po_acc: "Y",
       user: user.KDUSER,
@@ -782,7 +784,7 @@ const handleAccManager = async () => {
 
     toast.success("PO berhasil di-ACC Manager");
 
-    // update lokal tanpa reload
+    // Update state lokal agar UI langsung merespon (tombol hilang)
     formData.poAcc = "Y";
     formData.pinStatus = "ACC";
   } catch (err) {
@@ -1216,14 +1218,30 @@ const handleClose = () => {
 };
 
 const handlePrint = () => {
-  // ufrmPO.FormKeyDown (VK_F3) / ufrmPO.cetak
   if (!formData.nomor || formData.nomor === "AUTO") {
     toast.error("Nomor PO belum ada untuk dicetak.");
     return;
   }
-  toast.info(`TODO: Mencetak PO ${formData.nomor}`);
-  if (formData.jenisPo === 2 && formData.rolls.some((r) => r.jumlah > 0)) {
-    toast.info(`TODO: Mencetak Roll Detail PO ${formData.nomor}`);
+
+  // Arahkan ke rute cetak (Sesuaikan nama route 'PoPrint' dengan konfigurasi router Anda)
+  // Biasanya rute ini akan membuka tab baru yang berisi tampilan PDF/Laporan
+  const routeData = router.resolve({
+    name: "PoPrint",
+    params: { nomor: formData.nomor },
+  });
+
+  window.open(routeData.href, "_blank");
+
+  // Opsional: Jika PO Celup (jenisPo === 2), tawarkan cetak Roll Detail
+  if (formData.jenisPo === 2 && formData.rolls.length > 0) {
+    if (confirm("Cetak Detail Roll juga?")) {
+      // Contoh rute cetak roll (sesuaikan dengan sistem Anda)
+      const rollRoute = router.resolve({
+        name: "PoRollPrint",
+        params: { nomor: formData.nomor },
+      });
+      window.open(rollRoute.href, "_blank");
+    }
   }
 };
 

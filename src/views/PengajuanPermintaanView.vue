@@ -3,6 +3,7 @@ import { ref, reactive, onMounted, computed, watch } from "vue";
 import { useRouter } from "vue-router";
 import { useToast } from "vue-toastification";
 import api from "@/services/api";
+import * as XLSX from "xlsx";
 import { format, subDays, parseISO, isValid } from "date-fns";
 import PageLayout from "../components/PageLayout.vue";
 
@@ -200,9 +201,69 @@ const loadDetails = async (newlyExpandedItems: PermintaanBahanHeader[]) => {
   );
 };
 
-// --- Actions ---
+const handleExportExcel = () => {
+  if (masterData.value.length === 0) {
+    toast.warning("Tidak ada data untuk di-export.");
+    return;
+  }
 
-// Replikasi cxButton2Click (Baru) dan cxButton1Click (Ubah)
+  loading.value = true;
+  try {
+    // 1. Siapkan data datar (Flatten) untuk Excel
+    // Kita menggabungkan data Header dan data Detail agar informatif di Excel
+    const exportData = [];
+
+    masterData.value.forEach((header) => {
+      if (header.Detail && header.Detail.length > 0) {
+        header.Detail.forEach((dtl) => {
+          exportData.push({
+            "Nomor Permintaan": header.Nomor,
+            Tanggal: header.Tanggal,
+            Gudang: header.Nama,
+            "Keterangan Header": header.Keterangan,
+            "Status ACC": header.Status_Acc,
+            "Kode Bahan": dtl.Kode,
+            "Nama Bahan": dtl.Nama_Bahan,
+            "Jumlah Minta": dtl.Jumlah,
+            "Jumlah Terima": dtl.Jumlah_terima,
+            Satuan: dtl.Satuan,
+            "Nomor SPK": dtl.Nomor_SPK,
+            Operator: dtl.Operator,
+            "ACC Item": dtl.Is_Acc,
+          });
+        });
+      } else {
+        // Jika tidak ada detail, tetap masukkan headernya saja
+        exportData.push({
+          "Nomor Permintaan": header.Nomor,
+          Tanggal: header.Tanggal,
+          Gudang: header.Nama,
+          "Keterangan Header": header.Keterangan,
+          "Status ACC": header.Status_Acc,
+          "Kode Bahan": "-",
+          "Nama Bahan": "Tidak ada detail",
+        });
+      }
+    });
+
+    // 2. Buat Worksheet
+    const ws = XLSX.utils.json_to_sheet(exportData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "PermintaanBahan");
+
+    // 3. Generate File & Download
+    const fileName = `Permintaan_Bahan_${startDate.value}_to_${endDate.value}.xlsx`;
+    XLSX.writeFile(wb, fileName);
+
+    toast.success("Export Excel Berhasil!");
+  } catch (error) {
+    console.error("Export error:", error);
+    toast.error("Gagal melakukan export excel.");
+  } finally {
+    loading.value = false;
+  }
+};
+
 const handleNewEdit = (mode) => {
   if (mode === "new") {
     router.push({ name: "PengajuanPermintaanNew" });
@@ -319,10 +380,10 @@ watch([startDate, endDate], fetchData);
       <v-btn
         size="x-small"
         color="info"
-        :disabled="!isSingleSelected"
-        @click="handleExportDetail"
+        @click="handleExportExcel"
+        :loading="loading"
       >
-        <v-icon start>mdi-download</v-icon> Export Detail
+        <v-icon start>mdi-microsoft-excel</v-icon> Export Excel
       </v-btn>
     </template>
 

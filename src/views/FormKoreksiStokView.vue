@@ -1,9 +1,11 @@
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, watch } from "vue";
+import { ref, reactive, computed, onMounted, nextTick } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import api from "@/services/api";
 import { format } from "date-fns";
+import QRCode from "qrcode";
 import PageLayout from "../components/PageLayout.vue";
+import MasterBahanModal from "@/modal/MasterBahanModal.vue";
 
 // --- Interfaces ---
 interface DetailItem {
@@ -13,11 +15,11 @@ interface DetailItem {
   Panjang: number;
   Lebar: number;
   Expired: string | null;
-  System: number; // Stok Program
-  Fisik: number; // Stok Riil
-  Qty: number; // Selisih (Fisik - System)
+  System: number;
+  Fisik: number;
+  Qty: number;
   Harga: number;
-  Nilai: number; // Qty * Harga
+  Nilai: number;
 }
 
 interface MasterHeader {
@@ -25,14 +27,20 @@ interface MasterHeader {
   Tanggal: string;
   GudangKode: string;
   GudangNama: string;
-  TypeKor: number | null;
+  TypeKor: number;
   Keterangan: string;
 }
 
-const router = useRouter();
-const route = useRoute();
+// --- Constants ---
+const LIST_TYPE_KOR = [
+  { nama: "Terima", kode: 100 },
+  { nama: "Keluar", kode: 200 },
+  { nama: "Sisa Produksi", kode: 300 },
+];
 
 // --- State ---
+const router = useRouter();
+const route = useRoute();
 const loading = ref(false);
 const isEdit = computed(() => !!route.params.id);
 
@@ -41,13 +49,18 @@ const header = reactive<MasterHeader>({
   Tanggal: format(new Date(), "yyyy-MM-dd"),
   GudangKode: "WH-16",
   GudangNama: "GUDANG UTAMA MMT",
-  TypeKor: "STOK OPNAME AWAL", // Default sesuai Delphi: cxLookupTypekor.ItemIndex:=3
+  TypeKor: 100,
   Keterangan: "",
 });
 
 const details = ref<DetailItem[]>([]);
 const listGudang = ref([]);
-const listTypeKor = ref([]);
+const isBahanModalVisible = ref(false);
+const currentDetailIndex = ref<number | null>(null);
+
+// Barcode State
+const showBarcodePreview = ref(false);
+const itemsToRender = ref<any[]>([]);
 
 // --- Table Headers ---
 const tableHeaders = [
@@ -55,13 +68,21 @@ const tableHeaders = [
   { title: "SKU / Kode Barang", key: "SKU", width: "150px" },
   { title: "Nama Barang", key: "NamaBarang", minWidth: "250px" },
   { title: "Satuan", key: "Satuan", width: "100px" },
-  { title: "Stok Sistem", key: "System", align: "end", width: "120px" },
-  { title: "Stok Fisik", key: "Fisik", align: "end", width: "120px" },
-  { title: "Qty Koreksi", key: "Qty", align: "end", width: "120px" },
+  { title: "P (m)", key: "Panjang", width: "80px", align: "end" as const },
+  { title: "L (m)", key: "Lebar", width: "80px", align: "end" as const },
+  {
+    title: "Stok Sistem",
+    key: "System",
+    align: "end" as const,
+    width: "100px",
+  },
+  { title: "Stok Fisik", key: "Fisik", align: "end" as const, width: "100px" },
+  { title: "Qty Koreksi", key: "Qty", align: "end" as const, width: "100px" },
   { title: "Aksi", key: "actions", sortable: false, width: "50px" },
 ];
 
 // --- Methods ---
+
 const addRow = () => {
   details.value.push({
     SKU: "",
@@ -83,49 +104,65 @@ const removeRow = (index: number) => {
   if (details.value.length === 0) addRow();
 };
 
-// Logika hitung selisih (Fisik - Sistem)
 const calculateRow = (index: number) => {
   const item = details.value[index];
-  item.Qty = (item.Fisik || 0) - (item.System || 0);
-  item.Nilai = item.Qty * (item.Harga || 0);
+  const fisik = Number(item.Fisik) || 0;
+  const system = Number(item.System) || 0;
+  const harga = Number(item.Harga) || 0;
+  item.Qty = fisik - system;
+  item.Nilai = item.Qty * harga;
 };
 
 const fetchLookups = async () => {
   try {
-    const [resGdg, resType] = await Promise.all([
-      api.get("/lookup/gudang-mmt"),
-      api.get("/lookup/type-koreksi"),
-    ]);
+    const resGdg = await api.get("/lookup/gudang-mmt");
     listGudang.value = resGdg.data.data;
-    listTypeKor.value = resType.data.data;
   } catch (e) {
-    console.error("Gagal load lookup", e);
+    console.error("Gagal load lookup gudang", e);
   }
+};
+
+const searchBarang = (index: number) => {
+  currentDetailIndex.value = index;
+  isBahanModalVisible.value = true;
+};
+
+const handleBahanSelect = (bahan: any) => {
+  if (currentDetailIndex.value !== null) {
+    const skuBaru = bahan.Kode || bahan.sku;
+    const isDuplicate = details.value.some(
+      (d, i) => d.SKU === skuBaru && i !== currentDetailIndex.value,
+    );
+
+    if (isDuplicate) {
+      alert(`Bahan ${skuBaru} sudah ada di daftar.`);
+      return;
+    }
+
+    const item = details.value[currentDetailIndex.value];
+    item.SKU = skuBaru;
+    item.NamaBarang = bahan.Nama || bahan.namaBarang;
+    item.Satuan = bahan.Satuan || bahan.satuan;
+    item.Panjang = Number(bahan.Panjang) || 0;
+    item.Lebar = Number(bahan.Lebar) || 0;
+    item.System = bahan.Stok || 0;
+    item.Harga = bahan.HRGBELI || bahan.Harga || 0;
+    item.Fisik = 0;
+
+    calculateRow(currentDetailIndex.value);
+    if (currentDetailIndex.value === details.value.length - 1) addRow();
+  }
+  isBahanModalVisible.value = false;
 };
 
 const loadAllStockFromGudang = async () => {
   if (!header.GudangKode) return alert("Pilih gudang terlebih dahulu");
-
   loading.value = true;
   try {
-    // Perbaikan: Mengirim parameter gudangKode dan tanggal melalui query string
     const res = await api.get("/mmt/koreksi-stok/stok", {
-      params: {
-        gudangKode: header.GudangKode,
-        tanggal: header.Tanggal,
-      },
+      params: { gudangKode: header.GudangKode, tanggal: header.Tanggal },
     });
-
-    // Pastikan mengambil data dari struktur response yang benar (res.data.data)
     const dataStok = res.data.data || [];
-
-    if (dataStok.length === 0) {
-      alert("Tidak ada data stok ditemukan untuk gudang dan tanggal tersebut.");
-      details.value = [];
-      return;
-    }
-
-    // Mapping hasil query ke dalam format tabel detail
     details.value = dataStok.map((item: any) => ({
       SKU: item.Kode,
       NamaBarang: item.Nama,
@@ -133,49 +170,74 @@ const loadAllStockFromGudang = async () => {
       Panjang: item.Panjang || 0,
       Lebar: item.Lebar || 0,
       Expired: null,
-      System: item.Stok, // Stok dari database masuk ke kolom System
-      Fisik: 0, // User akan mengisi ini
-      Qty: item.Stok * -1, // Logika awal: 0 - System
+      System: item.Stok || 0,
+      Fisik: 0,
+      Qty: 0 - (item.Stok || 0),
       Harga: item.HRGBELI || 0,
-      Nilai: item.Stok * -1 * (item.HRGBELI || 0),
+      Nilai: (0 - (item.Stok || 0)) * (item.HRGBELI || 0),
     }));
   } catch (e: any) {
-    console.error("Gagal load stok:", e);
     alert("Gagal memuat stok: " + (e.response?.data?.message || e.message));
   } finally {
     loading.value = false;
   }
 };
 
-// Simulasi bantuansku (Pencarian Barang)
-const searchBarang = async (index: number) => {
-  console.log("Mencari barang untuk baris", index);
-};
-
 const saveData = async () => {
-  // Validasi minimal
-  if (!header.GudangKode) return alert("Pilih gudang terlebih dahulu!");
-  if (details.value.filter((d) => d.SKU).length === 0)
-    return alert("Detail barang belum diisi!");
+  const validDetails = details.value.filter(
+    (d) => d.SKU && d.SKU.trim() !== "",
+  );
+  if (!header.GudangKode || !header.TypeKor)
+    return alert("Header harus lengkap!");
+  if (validDetails.length === 0) return alert("Detail barang kosong!");
 
   loading.value = true;
   try {
     const payload = {
-      header: header,
-      details: details.value.filter((d) => d.SKU), // Hanya kirim baris yang ada SKU-nya
+      header: {
+        ...header,
+        TypeName: LIST_TYPE_KOR.find((t) => t.kode === header.TypeKor)?.nama,
+      },
+      details: validDetails,
     };
-
-    const res = await api.post("/mmt/koreksi-stok", payload);
-
-    if (res.data.status === "success") {
-      alert("Simpan Berhasil dengan Nomor: " + res.data.data.nomor);
-      router.push({ name: "KoreksiStokBrowse" }); // Kembali ke daftar histori
-    }
+    await api.post("/mmt/koreksi-stok", payload);
+    alert("Simpan Berhasil!");
+    router.push({ name: "KoreksiStokBrowse" });
   } catch (e: any) {
     alert("Gagal Simpan: " + (e.response?.data?.message || e.message));
   } finally {
     loading.value = false;
   }
+};
+
+// --- Barcode Logic ---
+const openBarcodePreview = async () => {
+  const validItems = details.value.filter((d) => d.SKU);
+  if (validItems.length === 0) return alert("Pilih bahan terlebih dahulu");
+
+  itemsToRender.value = validItems.map((item) => ({
+    namaBahan: item.NamaBarang,
+    qrValue: item.SKU,
+    panjang: item.Panjang,
+    lebar: item.Lebar,
+  }));
+
+  showBarcodePreview.value = true;
+  await nextTick();
+
+  for (let i = 0; i < itemsToRender.value.length; i++) {
+    const canvas = document.getElementById("canvas-" + i) as HTMLCanvasElement;
+    if (canvas) {
+      await QRCode.toCanvas(canvas, itemsToRender.value[i].qrValue, {
+        width: 85,
+        margin: 0,
+      });
+    }
+  }
+};
+
+const printNow = () => {
+  window.print();
 };
 
 onMounted(() => {
@@ -196,13 +258,19 @@ onMounted(() => {
         size="small"
         class="mr-2"
         @click="router.back()"
+        >Batal</v-btn
       >
-        Batal
+      <v-btn
+        color="teal"
+        size="small"
+        variant="elevated"
+        class="mr-2"
+        @click="openBarcodePreview"
+      >
+        <v-icon start>mdi-barcode-scan</v-icon>Cetak Barcode
       </v-btn>
-
       <v-btn color="primary" size="small" @click="saveData" :loading="loading">
-        <v-icon start>mdi-content-save</v-icon>
-        Simpan Data
+        <v-icon start>mdi-content-save</v-icon>Simpan Data
       </v-btn>
     </template>
 
@@ -215,7 +283,6 @@ onMounted(() => {
             readonly
             density="compact"
             variant="outlined"
-            color="primary"
             class="mb-2"
           />
           <v-text-field
@@ -238,7 +305,7 @@ onMounted(() => {
           />
           <v-select
             v-model="header.TypeKor"
-            :items="listTypeKor"
+            :items="LIST_TYPE_KOR"
             item-title="nama"
             item-value="kode"
             label="Tipe Koreksi"
@@ -271,9 +338,9 @@ onMounted(() => {
             >
               Ambil Semua Stok Gudang
             </v-btn>
-            <v-spacer></v-spacer>
+            <v-spacer />
             <v-btn color="primary" variant="text" size="small" @click="addRow">
-              <v-icon start>mdi-plus</v-icon>Tambah Baris Manual
+              <v-icon start>mdi-plus</v-icon>Tambah Baris
             </v-btn>
           </v-toolbar>
 
@@ -285,10 +352,7 @@ onMounted(() => {
             fixed-header
             height="400px"
           >
-            <template #item.index="{ index }">
-              {{ index + 1 }}
-            </template>
-
+            <template #item.index="{ index }">{{ index + 1 }}</template>
             <template #item.SKU="{ item, index }">
               <v-text-field
                 v-model="item.SKU"
@@ -296,11 +360,31 @@ onMounted(() => {
                 variant="plain"
                 hide-details
                 append-inner-icon="mdi-magnify"
-                @click:append-inner="searchBarang(index)"
+                @click="searchBarang(index)"
                 readonly
+                class="cursor-pointer"
               />
             </template>
-
+            <template #item.Panjang="{ item }">
+              <v-text-field
+                v-model.number="item.Panjang"
+                type="number"
+                density="compact"
+                variant="outlined"
+                hide-details
+                class="text-right custom-input"
+              />
+            </template>
+            <template #item.Lebar="{ item }">
+              <v-text-field
+                v-model.number="item.Lebar"
+                type="number"
+                density="compact"
+                variant="outlined"
+                hide-details
+                class="text-right custom-input"
+              />
+            </template>
             <template #item.Fisik="{ item, index }">
               <v-text-field
                 v-model.number="item.Fisik"
@@ -312,7 +396,6 @@ onMounted(() => {
                 class="text-right custom-input"
               />
             </template>
-
             <template #item.Qty="{ item }">
               <span
                 :class="
@@ -320,11 +403,9 @@ onMounted(() => {
                     ? 'text-error font-weight-bold'
                     : 'text-success font-weight-bold'
                 "
+                >{{ item.Qty }}</span
               >
-                {{ item.Qty }}
-              </span>
             </template>
-
             <template #item.actions="{ index }">
               <v-btn
                 icon="mdi-delete"
@@ -335,41 +416,153 @@ onMounted(() => {
               />
             </template>
           </v-data-table>
-
           <v-divider />
-
           <v-card-actions class="bg-grey-lighten-5">
-            <v-btn
-              color="primary"
-              variant="text"
-              prepend-icon="mdi-plus"
-              @click="addRow"
-            >
-              Tambah Baris
-            </v-btn>
             <v-spacer />
             <div class="text-subtitle-1 mr-4">
               Total Nilai:
-              <span class="font-weight-bold text-primary">
-                {{
-                  details
-                    .reduce((a, b) => a + (b.Nilai || 0), 0)
-                    .toLocaleString()
-                }}
-              </span>
+              <span class="font-weight-bold text-primary">{{
+                details.reduce((a, b) => a + (b.Nilai || 0), 0).toLocaleString()
+              }}</span>
             </div>
           </v-card-actions>
         </v-card>
       </v-col>
     </v-row>
   </PageLayout>
+
+  <MasterBahanModal
+    :is-visible="isBahanModalVisible"
+    mode="mmt"
+    @close="isBahanModalVisible = false"
+    @select="handleBahanSelect"
+  />
+
+  <v-dialog
+    v-model="showBarcodePreview"
+    fullscreen
+    transition="dialog-bottom-transition"
+  >
+    <v-card>
+      <v-toolbar color="primary">
+        <v-btn icon @click="showBarcodePreview = false"
+          ><v-icon>mdi-close</v-icon></v-btn
+        >
+        <v-toolbar-title>Preview Label Barcode</v-toolbar-title>
+        <v-spacer></v-spacer>
+        <v-btn
+          variant="flat"
+          color="white"
+          @click="printNow"
+          prepend-icon="mdi-print"
+          >Cetak Sekarang</v-btn
+        >
+      </v-toolbar>
+      <v-card-text
+        class="bg-grey-darken-3 d-flex flex-column align-center pa-10 overflow-y-auto"
+      >
+        <div id="print-area">
+          <div
+            v-for="(item, i) in itemsToRender"
+            :key="i"
+            class="barcode-label-box"
+          >
+            <div class="label-top-section">
+              <div class="qr-container">
+                <canvas :id="'canvas-' + i"></canvas>
+              </div>
+              <div class="text-container">
+                <div class="barcode-text">{{ item.qrValue }}</div>
+                <div class="dimensi-text">
+                  Ukuran: {{ item.panjang }}m x {{ item.lebar }}m
+                </div>
+              </div>
+            </div>
+            <div class="label-divider"></div>
+            <div class="label-bottom-section">{{ item.namaBahan }}</div>
+          </div>
+        </div>
+      </v-card-text>
+    </v-card>
+  </v-dialog>
 </template>
 
 <style scoped>
 .custom-input :deep(input) {
   text-align: right;
 }
+.cursor-pointer :deep(input) {
+  cursor: pointer;
+}
 :deep(.v-data-table-header) {
   background-color: #f5f5f5 !important;
+}
+
+/* Styles untuk Barcode Label */
+.barcode-label-box {
+  background: white;
+  width: 320px;
+  border: 1px solid #000;
+  margin-bottom: 15px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  color: black;
+}
+.label-top-section {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+.qr-container {
+  width: 85px;
+  height: 85px;
+}
+.text-container {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.barcode-text {
+  font-family: "Courier New", monospace;
+  font-weight: bold;
+  font-size: 14px;
+}
+.dimensi-text {
+  font-size: 12px;
+  margin-top: 4px;
+}
+.label-divider {
+  border-top: 1px dashed #000;
+  margin: 8px 0;
+}
+.label-bottom-section {
+  text-align: center;
+  font-weight: bold;
+  font-size: 13px;
+  text-transform: uppercase;
+}
+
+@media print {
+  body * {
+    visibility: hidden !important;
+  }
+  #print-area,
+  #print-area * {
+    visibility: visible !important;
+  }
+  #print-area {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    padding: 0;
+    margin: 0;
+  }
+  .barcode-label-box {
+    border: 1px solid #000 !important;
+    page-break-inside: avoid;
+    margin: 10px auto;
+  }
 }
 </style>

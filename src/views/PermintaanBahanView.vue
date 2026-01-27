@@ -3,6 +3,7 @@ import { ref, reactive, onMounted, computed, watch } from "vue";
 import { useRouter } from "vue-router";
 import { useToast } from "vue-toastification";
 import api from "@/services/api";
+import * as XLSX from "xlsx";
 import { format, subDays, parseISO, isValid } from "date-fns";
 import PageLayout from "../components/PageLayout.vue";
 
@@ -200,6 +201,68 @@ const loadDetails = async (newlyExpandedItems: PermintaanBahanHeader[]) => {
   );
 };
 
+const handleExportExcel = () => {
+  if (masterData.value.length === 0) {
+    toast.warning("Tidak ada data untuk di-export.");
+    return;
+  }
+
+  loading.value = true;
+  try {
+    const exportData: any[] = [];
+
+    masterData.value.forEach((header) => {
+      if (header.Detail && header.Detail.length > 0) {
+        header.Detail.forEach((dtl) => {
+          exportData.push({
+            "Nomor Permintaan": header.Nomor,
+            Tanggal: header.Tanggal,
+            Gudang: header.Nama,
+            "Keterangan Header": header.Keterangan,
+            "Status PO": header.Status_PO,
+            "Status Diterima": header.Status_Diterima,
+            "Status ACC": header.Status_Acc,
+            "Kode Bahan": dtl.Kode,
+            "Nama Bahan": dtl.Nama_Bahan,
+            "ACC Item": dtl.Is_Acc,
+            "Jumlah Minta": dtl.Jumlah,
+            "Jumlah Terima": dtl.Jumlah_terima,
+            Satuan: dtl.Satuan,
+            "Nomor SPK": dtl.Nomor_SPK,
+            Operator: dtl.Operator,
+          });
+        });
+      } else {
+        exportData.push({
+          "Nomor Permintaan": header.Nomor,
+          Tanggal: header.Tanggal,
+          Gudang: header.Nama,
+          "Keterangan Header": header.Keterangan,
+          "Status PO": header.Status_PO,
+          "Status Diterima": header.Status_Diterima,
+          "Status ACC": header.Status_Acc,
+          "Kode Bahan": "-",
+          "Nama Bahan": "Tidak ada detail",
+        });
+      }
+    });
+
+    const ws = XLSX.utils.json_to_sheet(exportData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "PermintaanBahan");
+
+    const fileName = `Permintaan_Bahan_${startDate.value}_to_${endDate.value}.xlsx`;
+    XLSX.writeFile(wb, fileName);
+
+    toast.success("Export Excel Berhasil!");
+  } catch (error) {
+    console.error("Export error:", error);
+    toast.error("Gagal melakukan export excel.");
+  } finally {
+    loading.value = false;
+  }
+};
+
 // --- Actions ---
 
 // Replikasi cxButton2Click (Baru) dan cxButton1Click (Ubah)
@@ -322,7 +385,7 @@ watch([startDate, endDate], fetchData);
         size="x-small"
         color="info"
         :disabled="!isSingleSelected"
-        @click="handleExportDetail"
+        @click="handleExportExcel"
       >
         <v-icon start>mdi-download</v-icon> Export Detail
       </v-btn>

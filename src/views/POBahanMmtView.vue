@@ -475,30 +475,23 @@ const handleToggleClose = async () => {
 };
 
 const handlePrint = () => {
-  if (!formData.nomor || formData.nomor === "AUTO") {
-    toast.error("Nomor PO belum ada untuk dicetak.");
+  if (!selectedRow.value || !selectedNomor.value) {
+    toast.error("Pilih satu PO terlebih dahulu.");
     return;
   }
 
-  // 👉 JIKA BELUM ACC → JANGAN PRINT PREVIEW
-  if (formData.poAcc === "N") {
+  // 👉 cek ACC
+  if (selectedRow.value.Acc === "N") {
     toast.warning("PO belum di-ACC Manager, belum bisa Print Preview.");
     return;
   }
 
-  // 👉 JIKA SUDAH ACC → BOLEH PRINT
-  toast.info(`Membuka Print Preview PO ${formData.nomor}`);
+  toast.info(`Membuka Print Preview PO ${selectedNomor.value}`);
 
   router.push({
     name: "PoPrint",
-    params: { nomor: formData.nomor },
+    params: { nomor: selectedNomor.value },
   });
-
-  // kalau PO Celup + ada roll detail → bisa lanjut cetak roll
-  if (formData.jenisPo === 2 && formData.rolls.some((r) => r.jumlah > 0)) {
-    // optional: route khusus roll
-    // router.push({ name: "PoRollPrint", params: { nomor: formData.nomor } });
-  }
 };
 
 // --- Lifecycle ---
