@@ -8,6 +8,7 @@ import SPKLookupModal from "@/modal/SpkLookupModal.vue";
 import { format } from "date-fns";
 import { useToast } from "vue-toastification";
 
+// Interface disesuaikan dengan kebutuhan payload backend
 interface DetailPermintaan {
   sku: string;
   namaBahan: string;
@@ -15,6 +16,7 @@ interface DetailPermintaan {
   satuan: string;
   spk: string;
   keterangan: string;
+  barcode?: string; // Tambahan jika ada logic barcode
 }
 
 interface FormDataState {
@@ -29,7 +31,7 @@ const router = useRouter();
 const route = useRoute();
 const toast = useToast();
 
-const API_URL = "/mmt/permintaan-produksi-bahan"; // Endpoint baru
+const API_URL = "/mmt/permintaan-produksi-bahan";
 
 // --- State ---
 const isEditMode = ref(!!route.params.nomor);
@@ -64,22 +66,22 @@ const detailHeaders = [
   { title: "No.", key: "index", width: "50px" },
   { title: "SKU / Bahan", key: "sku", width: "200px" },
   { title: "Nama Bahan", key: "namaBahan" },
-  {
-    title: "Qty Dibutuhkan",
-    key: "qtyMinta",
-    width: "120px",
-    align: "end" as const,
-  },
-  { title: "Satuan", key: "satuan", width: "100px" },
+  { title: "Qty", key: "qtyMinta", width: "100px", align: "end" as const },
+  { title: "Satuan", key: "satuan", width: "80px" },
   { title: "Untuk SPK", key: "spk", width: "180px" },
   { title: "Keterangan", key: "keterangan" },
-  { title: "", key: "actions", width: "50px" },
+  { title: "", key: "actions", width: "50px", sortable: false },
 ] as const;
 
 // --- Methods ---
 const addDetail = () => formData.detail.push(createEmptyDetail());
+
 const removeDetail = (index: number) => {
-  if (formData.detail.length > 1) formData.detail.splice(index, 1);
+  if (formData.detail.length > 1) {
+    formData.detail.splice(index, 1);
+  } else {
+    formData.detail[0] = createEmptyDetail();
+  }
 };
 
 const openBahanSearch = (index: number) => {
@@ -93,6 +95,7 @@ const handleBahanSelect = (bahan: any) => {
     item.sku = bahan.Kode;
     item.namaBahan = bahan.Nama;
     item.satuan = bahan.Satuan;
+    // item.barcode = bahan.Barcode; // Aktifkan jika backend butuh mntd_barcode
   }
   isBahanModalVisible.value = false;
 };
@@ -110,26 +113,56 @@ const handleSPKSelect = (spk: any) => {
 };
 
 const saveForm = async () => {
+  if (!isFormValid.value) return;
+
   isSaving.value = true;
   try {
+    // MAPPING PAYLOAD ke format yang diterima Service Backend
     const payload = {
-      ...formData,
-      detail: formData.detail.filter((d) => d.sku !== ""),
+      Nomor: formData.nomor,
+      Tanggal: formData.tanggal,
+      Departemen: formData.departemenPeminta,
+      Keterangan: formData.keteranganHeader,
+      User: "ADMIN_PROD", // Idealnya ambil dari store user/auth
+      isUpdate: isEditMode.value,
+      Details: formData.detail
+        .filter((d) => d.sku !== "")
+        .map((d) => ({
+          sku: d.sku,
+          qtyMinta: d.qtyMinta,
+          satuan: d.satuan,
+          spk: d.spk,
+          keterangan: d.keterangan,
+          barcode: d.barcode || null,
+        })),
     };
-    await api.post(API_URL, payload);
-    toast.success("Permintaan Produksi berhasil dibuat.");
-    router.push({ name: "PermintaanProduksiBrowse" });
+
+    const response = await api.post(API_URL, payload);
+
+    if (response.data.success) {
+      toast.success(`Permintaan ${response.data.nomor} berhasil disimpan.`);
+      router.push({ name: "PermintaanProduksiBrowse" });
+    }
   } catch (error: any) {
-    toast.error("Gagal menyimpan permintaan.");
+    const errorMsg =
+      error.response?.data?.message || "Gagal menyimpan permintaan.";
+    toast.error(errorMsg);
   } finally {
     isSaving.value = false;
   }
 };
+
+// Hook untuk Edit Mode
+onMounted(async () => {
+  if (isEditMode.value) {
+    // Logic fetch data by nomor jika diperlukan untuk edit
+  }
+});
 </script>
 
 <template>
   <PageLayout
-    title="Form Permintaan Kebutuhan Bahan"
+    title="Form Permintaan Bahan Produksi"
     icon="mdi-file-document-edit"
   >
     <template #header-actions>
@@ -138,54 +171,66 @@ const saveForm = async () => {
         @click="saveForm"
         :loading="isSaving"
         :disabled="!isFormValid"
+        prepend-icon="mdi-send"
       >
-        <v-icon start>mdi-send</v-icon> Ajukan Permintaan
+        Simpan Permintaan
       </v-btn>
-      <v-btn @click="router.back()">Batal</v-btn>
+      <v-btn variant="text" @click="router.back()">Batal</v-btn>
     </template>
 
     <v-row>
       <v-col cols="12" md="4">
-        <v-card variant="outlined" class="pa-4">
+        <v-card variant="outlined" class="pa-4 border-opacity-50">
+          <div class="text-subtitle-2 mb-4 color-grey">Informasi Header</div>
+
           <v-text-field
-            label="Nomor Permintaan"
+            label="Nomor Dokumen"
             v-model="formData.nomor"
             readonly
             density="compact"
             variant="filled"
+            class="mb-2"
           />
+
           <v-text-field
-            label="Tanggal Butuh"
+            label="Tanggal Permintaan"
             v-model="formData.tanggal"
             type="date"
             density="compact"
             variant="outlined"
+            class="mb-2"
           />
+
           <v-text-field
-            label="Unit Kerja / Dept"
+            label="Lokasi Produksi / Unit"
             v-model="formData.departemenPeminta"
             density="compact"
             variant="outlined"
+            placeholder="Contoh: PRODUKSI MMT"
+            class="mb-2"
           />
+
           <v-textarea
-            label="Alasan/Keterangan"
+            label="Keterangan Tambahan"
             v-model="formData.keteranganHeader"
-            rows="2"
+            rows="3"
             density="compact"
             variant="outlined"
+            hide-details
           />
         </v-card>
       </v-col>
 
       <v-col cols="12" md="8">
-        <v-card variant="outlined">
+        <v-card variant="outlined" class="border-opacity-50">
           <v-data-table
             :headers="detailHeaders"
             :items="formData.detail"
             hide-default-footer
+            class="elevation-0"
           >
             <template #[`item.index`]="{ index }">
-              {{ index + 1 }}
+              <span class="text-caption grey--text">{{ index + 1 }}</span>
             </template>
 
             <template #[`item.sku`]="{ item, index }">
@@ -194,10 +239,12 @@ const saveForm = async () => {
                 placeholder="Cari Bahan..."
                 readonly
                 append-inner-icon="mdi-magnify"
+                @click:append-inner="openBahanSearch(index)"
                 @click="openBahanSearch(index)"
                 density="compact"
                 variant="underlined"
                 hide-details
+                class="mt-0 pt-0"
               />
             </template>
 
@@ -208,16 +255,27 @@ const saveForm = async () => {
                 density="compact"
                 variant="underlined"
                 hide-details
+                text-align="right"
               />
             </template>
 
             <template #[`item.spk`]="{ item, index }">
               <v-text-field
                 v-model="item.spk"
-                placeholder="Pilih SPK"
+                placeholder="Lookup SPK"
                 readonly
-                append-inner-icon="mdi-calendar-check"
+                append-inner-icon="mdi-card-search-outline"
                 @click="openSPKSearch(index)"
+                density="compact"
+                variant="underlined"
+                hide-details
+              />
+            </template>
+
+            <template #[`item.keterangan`]="{ item }">
+              <v-text-field
+                v-model="item.keterangan"
+                placeholder="Catatan..."
                 density="compact"
                 variant="underlined"
                 hide-details
@@ -226,23 +284,25 @@ const saveForm = async () => {
 
             <template #[`item.actions`]="{ index }">
               <v-btn
-                icon="mdi-delete"
-                size="small"
-                color="error"
+                icon="mdi-close-circle-outline"
+                size="x-small"
+                color="red-lighten-2"
                 variant="text"
                 @click="removeDetail(index)"
               />
             </template>
 
             <template #bottom>
+              <v-divider />
               <v-btn
                 block
-                color="secondary"
-                variant="text"
+                color="blue-grey-lighten-4"
+                variant="flat"
                 prepend-icon="mdi-plus"
+                class="rounded-0"
                 @click="addDetail"
               >
-                Tambah Baris Bahan
+                Tambah Baris
               </v-btn>
             </template>
           </v-data-table>

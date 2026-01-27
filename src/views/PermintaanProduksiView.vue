@@ -9,23 +9,30 @@
           border="start"
           class="mb-4"
         >
-        <template #title>
-            <span class="text-subtitle-2 font-weight-bold">🔔 Permintaan Pinjam Bahan (Hutang Stok)</span>
+          <template #title>
+            <span class="text-subtitle-2 font-weight-bold"
+              >🔔 Permintaan Pinjam Bahan (Hutang Stok)</span
+            >
           </template>
-          <div v-for="loan in pendingLoans" :key="loan.id" class="d-flex align-center justify-space-between mt-1">
-  <span class="text-caption">
-    Produksi membutuhkan Barcode: <strong>{{ loan.barcode }}</strong> ({{ loan.nama_bahan }}) 
-    - Sisa: {{ loan.panjang }}M
-  </span>
-  <v-btn 
-    size="x-small" 
-    color="orange-darken-2" 
-    class="ml-4"
-    @click="handleApproveLoan(loan)"
-  >
-    Proses Mutasi & Keluar
-  </v-btn>
-</div>
+          <div
+            v-for="loan in pendingLoans"
+            :key="loan.id"
+            class="d-flex align-center justify-space-between mt-1"
+          >
+            <span class="text-caption">
+              Produksi membutuhkan Barcode:
+              <strong>{{ loan.barcode }}</strong> ({{ loan.nama_bahan }}) -
+              Sisa: {{ loan.panjang }}M
+            </span>
+            <v-btn
+              size="x-small"
+              color="orange-darken-2"
+              class="ml-4"
+              @click="handleApproveLoan(loan)"
+            >
+              Proses Mutasi & Keluar
+            </v-btn>
+          </div>
         </v-alert>
       </div>
     </v-expand-transition>
@@ -216,7 +223,7 @@ interface PermintaanProduksiHeader {
   Nama: string;
   Tanggal: string;
   Keterangan: string;
-  Detail?: PermintaanProduksiDetail[]; 
+  Detail?: PermintaanProduksiDetail[];
   [key: string]: string | number | null | undefined;
 }
 
@@ -229,7 +236,7 @@ interface ApiResponse {
 
 const router = useRouter();
 const toast = useToast();
-const API_PERMINTAAN_PRODUKSI = "/mmt/permintaan-produksi";
+const API_PERMINTAAN_PRODUKSI = "/mmt/permintaan-produksi-bahan";
 const MENU_ID = "MMT_PERMINTAAN_PRODUKSI";
 
 const masterData = ref<PermintaanProduksiHeader[]>([]);
@@ -250,7 +257,7 @@ const endDate = ref<string>(today);
 
 const isSingleSelected = computed(() => selected.value.length === 1);
 const selectedNomor = computed<string | null>(() =>
-  isSingleSelected.value ? selected.value[0].Nomor : null
+  isSingleSelected.value ? selected.value[0].Nomor : null,
 );
 
 // --- Konfigurasi Tabel (Headers) ---
@@ -301,7 +308,7 @@ const parseCustomDate = (dateString: string): Date | null => {
       "December",
     ];
     const monthIndex = months.findIndex((m) =>
-      m.toLowerCase().startsWith(monthName.toLowerCase())
+      m.toLowerCase().startsWith(monthName.toLowerCase()),
     );
 
     if (monthIndex === -1) return null;
@@ -353,23 +360,21 @@ const fetchData = async () => {
   } catch (error) {
     const err = error as AxiosError;
     toast.error(
-      `Gagal memuat data: ${err.message || "Terjadi kesalahan jaringan."}`
+      `Gagal memuat data: ${err.message || "Terjadi kesalahan jaringan."}`,
     );
   } finally {
     loading.value = false;
   }
 };
 
-
-
 const loadDetails = (newlyExpandedKeys: string[]) => {
   const newlyExpandedNomor = newlyExpandedKeys.find(
-    (nomor) => !details.value[nomor]
+    (nomor) => !details.value[nomor],
   );
 
   if (newlyExpandedNomor) {
     console.warn(
-      `Detail for ${newlyExpandedNomor} not found in cache. Simulating load...`
+      `Detail for ${newlyExpandedNomor} not found in cache. Simulating load...`,
     );
     loadingDetails.value.add(newlyExpandedNomor);
     setTimeout(() => {
@@ -409,7 +414,7 @@ const handleDelete = async () => {
     toast.error(
       `Gagal Hapus: ${
         err.response?.data?.message ?? err.message ?? "Terjadi kesalahan."
-      }`
+      }`,
     );
   }
 };
@@ -419,7 +424,6 @@ const handlePrint = () => {
     alert(`TODO: Mencetak slip untuk ${selectedNomor.value}`);
   }
 };
-
 
 const pendingLoans = ref<any[]>([]);
 let pollingInterval: any = null;
@@ -436,17 +440,21 @@ const fetchPendingLoans = async () => {
 };
 
 const handleApproveLoan = async (loan: any) => {
-  const confirmOk = confirm(`Proses Mutasi Barcode ${loan.barcode} dari WH-16 ke GPM sekarang?`);
-  
+  const confirmOk = confirm(
+    `Proses Mutasi Barcode ${loan.barcode} dari WH-16 ke GPM sekarang?`,
+  );
+
   if (confirmOk) {
     try {
       // Panggil API untuk mutasi otomatis
-      await api.post("/mmt/request-pinjam/approve-pinjam", { 
+      await api.post("/mmt/request-pinjam/approve-pinjam", {
         barcode: loan.barcode,
-        nomor_permintaan: loan.Nomor 
+        nomor_permintaan: loan.Nomor,
       });
-      
-      toast.success(`Stok Barcode ${loan.barcode} telah berpindah ke Produksi.`);
+
+      toast.success(
+        `Stok Barcode ${loan.barcode} telah berpindah ke Produksi.`,
+      );
       fetchPendingLoans(); // Refresh notif
       fetchData(); // Refresh table utama
     } catch (error) {
@@ -455,17 +463,16 @@ const handleApproveLoan = async (loan: any) => {
   }
 };
 
-
 // --- Lifecycle Hook ---
 
 onMounted(() => {
-  fetchData();            // Mengambil data tabel utama
-  fetchPendingLoans();     // Mengambil data notifikasi pinjaman saat pertama kali buka
+  fetchData(); // Mengambil data tabel utama
+  fetchPendingLoans(); // Mengambil data notifikasi pinjaman saat pertama kali buka
 
   // Tambahkan interval agar sistem mengecek notifikasi setiap 30 detik secara otomatis
   pollingInterval = setInterval(() => {
     fetchPendingLoans();
-  }, 30000); 
+  }, 30000);
 });
 
 onUnmounted(() => {

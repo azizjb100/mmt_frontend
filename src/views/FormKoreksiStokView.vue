@@ -6,6 +6,7 @@ import { format } from "date-fns";
 import QRCode from "qrcode";
 import PageLayout from "../components/PageLayout.vue";
 import MasterBahanModal from "@/modal/MasterBahanModal.vue";
+import GudangLookupModal from "@/modal/GudangLookupView.vue";
 
 // --- Interfaces ---
 interface DetailItem {
@@ -58,7 +59,7 @@ const listGudang = ref([]);
 const isBahanModalVisible = ref(false);
 const currentDetailIndex = ref<number | null>(null);
 
-// Barcode State
+const isGudangModalVisible = ref(false);
 const showBarcodePreview = ref(false);
 const itemsToRender = ref<any[]>([]);
 
@@ -99,6 +100,16 @@ const addRow = () => {
   });
 };
 
+const openGudangSearch = () => {
+  isGudangModalVisible.value = true;
+};
+
+const handleGudangSelect = (gudang: any) => {
+  header.GudangKode = gudang.Kode;
+  header.GudangNama = gudang.Nama; // Mengisi nama gudang agar user tahu apa yang dipilih
+  isGudangModalVisible.value = false;
+};
+
 const removeRow = (index: number) => {
   details.value.splice(index, 1);
   if (details.value.length === 0) addRow();
@@ -115,7 +126,7 @@ const calculateRow = (index: number) => {
 
 const fetchLookups = async () => {
   try {
-    const resGdg = await api.get("/lookup/gudang-mmt");
+    const resGdg = await api.get("/lookup/gudang");
     listGudang.value = resGdg.data.data;
   } catch (e) {
     console.error("Gagal load lookup gudang", e);
@@ -293,15 +304,25 @@ onMounted(() => {
             variant="outlined"
             class="mb-2"
           />
-          <v-select
+          <v-text-field
             v-model="header.GudangKode"
-            :items="listGudang"
-            item-title="Gudang"
-            item-value="Kode"
             label="Gudang"
+            readonly
             density="compact"
             variant="outlined"
             class="mb-2"
+            append-inner-icon="mdi-magnify"
+            @click="openGudangSearch"
+          />
+
+          <v-text-field
+            v-model="header.GudangNama"
+            label="Nama Gudang"
+            readonly
+            density="compact"
+            variant="filled"
+            class="mb-2"
+            hide-details
           />
           <v-select
             v-model="header.TypeKor"
@@ -485,6 +506,11 @@ onMounted(() => {
       </v-card-text>
     </v-card>
   </v-dialog>
+  <GudangLookupModal
+    :isVisible="isGudangModalVisible"
+    @close="isGudangModalVisible = false"
+    @select="handleGudangSelect"
+  />
 </template>
 
 <style scoped>
