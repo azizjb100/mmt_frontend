@@ -7,10 +7,17 @@
       </div>
 
       <ul class="navbar-menu">
-        <li v-for="group in menuGroups" :key="group.name" class="dropdown">
-          <a class="dropdown-toggle">{{ group.name }}</a>
+        <li
+          v-for="group in menuGroups"
+          :key="group.name"
+          class="dropdown"
+          :class="{ 'is-active': activeMenu === group.name }"
+        >
+          <a class="dropdown-toggle" @click.prevent="toggleMenu(group.name)">
+            {{ group.name }}
+          </a>
 
-          <ul class="dropdown-menu shadow-md rounded-soft">
+          <ul class="dropdown-menu shadow-md">
             <template v-for="item in group.items" :key="item.name">
               <li
                 v-if="item.isSubGroup"
@@ -24,27 +31,23 @@
                 >
                   {{ item.name }} <span class="icon-arrow">&raquo;</span>
                 </router-link>
-
-                <span v-else class="sub-dropdown-toggle">
+                <span v-else class="disabled-link">
                   {{ item.name }} <span class="mdi mdi-lock-outline"></span>
                 </span>
 
-                <ul
-                  v-if="!item.isDisabled"
-                  class="dropdown-menu sub-menu shadow-md rounded-soft"
-                >
+                <ul v-if="!item.isDisabled" class="dropdown-menu sub-menu">
                   <li v-for="subItem in item.items" :key="subItem.name">
-                    <router-link :to="subItem.path">{{
-                      subItem.name
-                    }}</router-link>
+                    <router-link :to="subItem.path">
+                      {{ subItem.name }}
+                    </router-link>
                   </li>
                 </ul>
               </li>
 
               <li v-else :class="{ 'item-disabled': item.isDisabled }">
-                <router-link v-if="!item.isDisabled" :to="item.path">{{
-                  item.name
-                }}</router-link>
+                <router-link v-if="!item.isDisabled" :to="item.path">
+                  {{ item.name }}
+                </router-link>
                 <span v-else class="disabled-link">
                   {{ item.name }} <span class="mdi mdi-lock-outline"></span>
                 </span>
@@ -59,12 +62,7 @@
           Selamat datang,
           <b class="font-semibold">{{ currentUser?.nmUser || "UserAdmin" }}</b>
         </span>
-        <button
-          @click="handleLogout"
-          class="logout-button rounded-soft transition-smooth hover-lift"
-        >
-          Logout
-        </button>
+        <button @click="handleLogout" class="logout-button">Logout</button>
       </div>
     </nav>
 
@@ -77,14 +75,16 @@
 </template>
 
 <script setup>
-import { ref, computed } from "vue"; // Tambahkan computed
+import { ref, computed, onMounted, onUnmounted } from "vue"; // PERBAIKAN: Tambah onUnmounted
 import { useRouter } from "vue-router";
 import { useAuthStore } from "@/stores/authStore";
 
 const authStore = useAuthStore();
-const currentUser = authStore.user; // Mengambil data user dari store
-
+const currentUser = authStore.user;
 const router = useRouter();
+
+// State untuk menu aktif
+const activeMenu = ref(null);
 
 const rolePermissions = {
   1: [
@@ -93,7 +93,7 @@ const rolePermissions = {
     "Penerimaan Bahan",
     "Permintaan Produksi",
     "LHK",
-    "LHK Cetak",
+    "LHK Mesin Cetak",
     "LHK Kain",
     "Laporan",
     "Produksi MMT",
@@ -101,15 +101,7 @@ const rolePermissions = {
     "LS Bahan Penolong",
     "Lap. Mon LMKP MMT",
   ],
-  2: [
-    // DIVISI 2: Contoh Sales
-    "File",
-    "Ganti Password",
-    "Customer",
-    "Sales",
-    "Laporan",
-    "Penjualan",
-  ],
+  2: ["File", "Ganti Password", "Customer", "Sales", "Laporan", "Penjualan"],
 };
 
 const handleLogout = () => {
@@ -117,7 +109,26 @@ const handleLogout = () => {
   router.push("/login");
 };
 
-// Data Master Menu (Semua Menu Didefinisikan di sini)
+// LOGIC TOGGLE MENU
+const toggleMenu = (menuName) => {
+  activeMenu.value = activeMenu.value === menuName ? null : menuName;
+};
+
+// LOGIC KLIK DI LUAR UNTUK MENUTUP
+const closeMenu = (e) => {
+  if (!e.target.closest(".dropdown")) {
+    activeMenu.value = null;
+  }
+};
+
+onMounted(() => {
+  window.addEventListener("click", closeMenu);
+});
+
+onUnmounted(() => {
+  window.removeEventListener("click", closeMenu);
+});
+
 const allMenuGroups = [
   {
     name: "File",
@@ -151,7 +162,7 @@ const allMenuGroups = [
       {
         name: "Daftar",
         isSubGroup: true,
-        path: "/mmt/daftar",
+        path: "/mmt/",
         items: [
           { name: "Master Bahan", path: "/mmt/daftar/bahan" },
           { name: "Mesin Produksi", path: "/mmt/daftar/mesin-produksi" },
@@ -179,7 +190,7 @@ const allMenuGroups = [
         isSubGroup: true,
         path: "/mmt/lhk/browse",
         items: [
-          { name: "LHK Cetak", path: "/mmt/lhk/cetak" },
+          { name: "LHK Mesin Cetak", path: "/mmt/lhk/cetak" },
           { name: "LHK Kain", path: "/mmt/lhk/kain" },
           { name: "LHK Finishing", path: "/mmt/lhk/finishing" },
           { name: "LHK Proof", path: "/mmt/lhk/proof" },
@@ -324,118 +335,24 @@ const allMenuGroups = [
   },
 ];
 
-// DATA COMMENTED (TETAP DIPERTAHANKAN SESUAI REQUEST)
-/*
-  // {
-  // name: 'Pembelian',
-  // items: [
-  // { name: 'MKB', path: '/pembelian/mkb' },
-  // { name: 'PO Bahan', path: '/pembelian/po-bahan' },
-  // { name: 'Input PPN', path: '/pembelian/input-ppn' },
-  // { name: 'Retur PPN', path: '/pembelian/retur-ppn' },
-  // { name: 'Retur Pembelian', path: '/pembelian/retur-beli' },
-  // ]
-  // },
-  // {
-  // name: 'Garmen',
-  // items: [
-  // { name: 'BPB Bahan', path: '/garmen/bpb-bahan' },
-  // { name: 'PO Jasa', path: '/garmen/po-jasa' },
-  // { name: 'PO Paper Print', path: '/garmen/po-paper-print' },
-  // { name: 'BPB Jasa', path: '/garmen/bpb-jasa' },
-  // { name: 'STBJ', path: '/garmen/stbj' },
-  // { name: 'Permintaan Material', path: '/garmen/permintaan-material' },
-  // { name: 'Mutasi Produksi', path: '/garmen/mutasi-produksi' },
-  // { name: 'Retur Material', path: '/garmen/retur-material' },
-  // { name: 'Koreksi Stok Barang Jadi', path: '/garmen/koreksi-stok-jadi' },
-  // { name: 'Koreksi Stok Bahan Baku', path: '/garmen/koreksi-stok-bahan' },
-  // { name: 'BPB Non PO', path: '/garmen/bpb-non-po' },
-  // { name: 'Jadwal Kirim Produksi', path: '/garmen/jadwal-kirim-produksi' },
-  // ]
-  // },
-  // {
-  // name: 'Spanduk',
-  // items: [
-  // { name: 'Terima Supplier', path: '/spanduk/terima-supplier' },
-  // { name: 'Retur Beli', path: '/spanduk/retur-beli' },
-  // { name: 'Mutasi Gudang', path: '/spanduk/mutasi-gudang' },
-  // { name: 'Permintaan Produksi', path: '/spanduk/permintaan-produksi' },
-  // { name: 'Realisasi Produksi', path: '/spanduk/realisasi-produksi' },
-  // { name: 'Anval', path: '/spanduk/anval' },
-  // { name: 'Penjualan', path: '/spanduk/penjualan' },
-  // { name: 'Koreksi Stok v2', path: '/spanduk/koreksi-stok' },
-  // { name: 'SPK Tambahan', path: '/spanduk/spk-tambahan' },
-  // { name: 'Monitoring Proof', path: '/spanduk/monitoring-proof' },
-  // { name: 'LHK Cetak', path: '/spanduk/lhk-cetak' },
-  // { name: 'LHK Jahit', path: '/spanduk/lhk-jahit' },
-  // { name: 'LHK Lipat', path: '/spanduk/lhk-lipat' },
-  // { name: 'LHK Quiring', path: '/spanduk/lhk-quiring' },
-  // ]
-  // },
-  // {
-  // name: 'Penjualan',
-  // items: [
-  // { name: 'Penawaran', path: '/penjualan/penawaran' },
-  // { name: 'SPK', path: '/penjualan/spk' },
-  // { name: 'Pra Surat Jalan', path: '/penjualan/pra-sj' },
-  // { name: 'Surat Jalan', path: '/penjualan/surat-jalan' },
-  // { name: 'Invoice', path: '/penjualan/invoice' },
-  // { name: 'Retur Jual', path: '/penjualan/retur-jual' },
-  // { name: 'MAP', path: '/penjualan/map' },
-  // { name: 'Surat Jalan MAP', path: '/penjualan/surat-jalan-map' },
-  // ]
-  // },
-  // {
-  // name: 'Hutang',
-  // items: [
-  // { name: 'Voucher Pembayaran', path: '/hutang/voucher-pembayaran' },
-  // { name: 'Pelunasan', path: '/hutang/pelunasan' },
-  // ]
-  // },
-  // {
-  // name: 'Piutang',
-  // items: [
-  // { name: 'Penerimaan Giro', path: '/piutang/penerimaan-giro' },
-  // { name: 'Penerimaan Cash', path: '/piutang/penerimaan-cash' },
-  // { name: 'Penerimaan Transfer', path: '/piutang/penerimaan-transfer' },
-  // { name: 'Potongan', path: '/piutang/potongan' },
-  // { name: 'Pelunasan', path: '/piutang/pelunasan' },
-  // ]
-  // },
-*/
-
 const menuGroups = computed(() => {
-  const user = authStore.user;
-  const zdivisi = user?.divisi;
-
-  // Clone master menu agar tidak merusak data asli
+  const zdivisi = authStore.user?.divisi;
   const menus = JSON.parse(JSON.stringify(allMenuGroups));
-
-  // Ambil daftar izin berdasarkan divisi.
-  // Jika divisi tidak terdaftar di mapping, anggap dia ADMIN (bisa semua/tidak ada isDisabled)
   const allowedTitles = rolePermissions[zdivisi];
 
-  // Jika divisi tidak ada di mapping (ADMIN), return menu apa adanya
   if (!allowedTitles) return menus;
 
   return menus.map((group) => {
     return {
       ...group,
-      // Jika nama Group-nya saja tidak ada di izin, kita tandai (Opsional)
-      // Namun biasanya kita cek per item di dalamnya
       items: group.items.map((item) => {
-        // Cek Level 2
         let canAccess = allowedTitles.includes(item.name);
 
-        // Cek Level 3 (Sub-items) jika ada
         if (item.isSubGroup && item.items) {
-          // Tandai sub-item level 3
           item.items = item.items.map((subItem) => ({
             ...subItem,
             isDisabled: !allowedTitles.includes(subItem.name),
           }));
-
-          // Jika ada salah satu anak yang boleh diakses, maka bapaknya (Level 2) harus terbuka
           const anySubAllowed = item.items.some((sub) => !sub.isDisabled);
           if (anySubAllowed) canAccess = true;
         }
@@ -450,129 +367,58 @@ const menuGroups = computed(() => {
 });
 </script>
 
-<style>
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Poppins:wght@300;400;500;600;700;800&display=swap");
+<style scoped>
+/* Gunakan scoped agar tidak merusak style halaman lain */
 
+/* 1. VARIABLES */
 :root {
   --font-family-primary: "Inter", sans-serif;
   --font-family-heading: "Poppins", sans-serif;
-  --font-weight-normal: 400;
-  --font-weight-medium: 500;
-  --font-weight-semibold: 600;
-  --font-weight-bold: 700;
-
-  --border-radius-sm: 8px;
-  --border-radius-md: 12px;
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.1);
-  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.1);
-  --transition-fast: 0.15s cubic-bezier(0.4, 0, 0.2, 1);
-
-  /* WARNA DASHBOARD */
   --color-primary: #1e78c8;
   --color-primary-dark: #155a9b;
   --color-text-dark: #333333;
   --color-text-secondary: #6c757d;
-  --color-bg-main: #ffffff; /* Putih */
-  --color-bg-page: #f8f9fa; /* Latar Belakang Luar Konten */
-  --color-bg-menu-hover: #e3f2fd; /* Hover Biru Muda */
+  --color-bg-main: #ffffff;
+  --color-bg-page: #f8f9fa;
+  --color-bg-menu-hover: #e3f2fd;
   --color-border: #e0e0e0;
-}
-/* Style untuk menu yang tidak bisa diklik */
-.item-disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-  position: relative;
-}
-
-.disabled-link {
-  display: block;
-  padding: 4px 15px;
-  color: #999 !important;
-  font-size: 0.9rem;
-  text-decoration: none;
-  pointer-events: none; /* Mematikan semua interaksi mouse */
+  --color-disabled: #999999;
+  --border-radius-sm: 8px;
+  --border-radius-md: 12px;
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.1);
+  --shadow-md: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+  --transition-fast: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.item-disabled:hover .sub-menu {
-  display: none !important; /* Mencegah submenu muncul jika parent disabled */
-}
-
-/* Opsional: Tambahkan icon gembok kecil */
-.mdi-lock-outline {
-  font-size: 12px;
-  margin-left: 5px;
-  float: right;
-}
-
-/* KELAS UTILITY */
-.font-body {
-  font-family: var(--font-family-primary);
-}
-.font-heading {
-  font-family: var(--font-family-heading);
-}
-.font-semibold {
-  font-weight: var(--font-weight-semibold);
-}
-.shadow-sm {
-  box-shadow: var(--shadow-sm);
-}
-.shadow-md {
-  box-shadow: var(--shadow-md);
-}
-.rounded-soft {
-  border-radius: var(--border-radius-md);
-}
-.transition-fast {
-  transition: all var(--transition-fast);
-}
-
-.hover-lift:hover {
-  transform: translateY(-1px);
-  box-shadow: var(--shadow-md);
-}
-
-/* ======================================= */
-/* GLOBAL LAYOUT */
-/* ======================================= */
-
+/* 2. LAYOUT */
 .dashboard-layout-top {
   display: flex;
   flex-direction: column;
   height: 100vh;
   width: 100%;
   overflow: hidden;
-  background-color: var(--color-bg-page);
+  background-color: #f8f9fa;
 }
-
-/* ======================================= */
-/* 1. TOP NAVBAR (Modern & Soft) */
-/* ======================================= */
 
 .top-navbar {
   display: flex;
   align-items: center;
-  background-color: var(--color-bg-main);
-  color: var(--color-text-dark);
-  padding: 0 20px;
-  height: 55px;
-  flex-shrink: 0;
-  border-bottom: 1px solid var(--color-border);
-  font-size: 0.95rem;
+  justify-content: space-between;
+  background-color: white;
+  padding: 0 24px;
+  height: 64px;
+  border-bottom: 1px solid #e0e0e0;
+  z-index: 1000;
 }
 
 .navbar-brand {
-  font-size: 1.2rem;
-  font-weight: var(--font-weight-bold);
-  color: var(--color-primary-dark);
+  font-family: "Poppins", sans-serif;
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: #155a9b;
   display: flex;
   align-items: center;
-  margin-right: 20px;
-}
-
-.brand-icon {
-  font-size: 1.4rem;
-  margin-right: 8px;
+  gap: 10px;
 }
 
 .navbar-menu {
@@ -581,207 +427,154 @@ const menuGroups = computed(() => {
   margin: 0;
   padding: 0;
   height: 100%;
-  flex-grow: 1;
+  gap: 4px;
 }
 
+/* 3. DROPDOWN CORE */
 .dropdown {
   position: relative;
   height: 100%;
-  transition: all var(--transition-fast);
 }
 
 .dropdown-toggle {
   display: flex;
   align-items: center;
   height: 100%;
-  padding: 0 15px;
+  padding: 0 16px;
   cursor: pointer;
-  color: var(--color-text-dark);
+  color: #333;
+  font-weight: 600;
+  font-size: 0.95rem;
+  transition: 0.2s;
   text-decoration: none;
-  font-weight: var(--font-weight-semibold);
-  transition:
-    background-color var(--transition-fast),
-    color var(--transition-fast);
 }
 
-.dropdown-toggle:hover,
-.dropdown:hover .dropdown-toggle {
-  background-color: var(--color-bg-menu-hover);
-  color: var(--color-primary-dark);
+.dropdown.is-active .dropdown-toggle,
+.dropdown-toggle:hover {
+  background-color: #e3f2fd;
+  color: #1e78c8;
 }
-
-.navbar-user {
-  display: flex;
-  align-items: center;
-  gap: 15px;
-  margin-left: auto;
-}
-
-.user-welcome {
-  color: var(--color-text-secondary);
-  font-size: 0.85rem;
-}
-
-.logout-button {
-  border: none;
-  padding: 6px 12px;
-  font-size: 0.85rem;
-  font-weight: var(--font-weight-medium);
-  color: white;
-  background-color: var(--color-primary);
-  cursor: pointer;
-  border-radius: var(--border-radius-sm);
-}
-.logout-button:hover {
-  background-color: var(--color-primary-dark);
-}
-
-/* ======================================= */
-/* 2. DROPDOWN MENU (Level 2 & 3) */
-/* ======================================= */
 
 .dropdown-menu {
   display: none;
   position: absolute;
   top: 100%;
   left: 0;
-  background-color: var(--color-bg-main);
-  border: 1px solid var(--color-border);
-  min-width: 260px;
+  background-color: white;
+  border: 1px solid #e0e0e0;
+  min-width: 240px;
   list-style: none;
-  padding: 0px;
-  z-index: 100;
-  border-radius: var(--border-radius-sm);
+  padding: 8px;
+  border-radius: 12px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+  z-index: 1100;
 }
 
-.dropdown:hover > .dropdown-menu {
+.dropdown.is-active > .dropdown-menu {
   display: block;
+  animation: slideIn 0.2s ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .dropdown-menu a {
   display: block;
-  padding: 4px 8px;
-  color: var(--color-text-dark);
+  padding: 5px;
+  color: #333;
   text-decoration: none;
-  white-space: nowrap;
   font-size: 0.9rem;
-  font-weight: var(--font-weight-normal);
-  border-radius: var(--border-radius-sm);
-  margin: 0 5px;
-  transition:
-    background-color var(--transition-fast),
-    color var(--transition-fast);
+  border-radius: 8px;
 }
 
-.dropdown-menu li:hover > a,
-.dropdown-menu a.router-link-exact-active {
-  background-color: var(--color-primary);
-  color: white;
-  font-weight: var(--font-weight-medium);
+.dropdown-menu li:not(.item-disabled) > a:hover {
+  background-color: #1e78c8;
+  color: white !important;
 }
-
 .sub-dropdown {
   position: relative;
 }
+
 .sub-menu {
   display: none;
   position: absolute;
-  left: 100%;
+  left: 100%; /* Tetap di kanan */
   top: 0;
-  border-left: none;
-  padding: 5px 0;
+  /* PERBAIKAN: Tambahkan padding/margin negatif agar tidak ada celah antara L2 dan L3 */
+  margin-left: 0;
+  padding-left: 10px; /* Area pancingan: Jarak visual tapi tetap dianggap satu area */
+  min-width: 220px;
+  z-index: 1200;
 }
 
+/* Memastikan area hover tetap aktif saat kursor di area padding */
 .sub-dropdown:hover > .sub-menu {
   display: block;
 }
 
-.sub-dropdown-toggle {
+/* Styling tambahan untuk link di Level 3 agar lebih rapat dan mudah dijangkau */
+.sub-menu li {
+  background-color: white; /* Beri background agar area klik jelas */
+  border: 1px solid var(--color-border);
+  border-radius: var(--border-radius-sm);
+  margin-bottom: 2px;
+  box-shadow: var(--shadow-md);
+}
+
+.sub-menu li:first-child {
+  border-top-left-radius: var(--border-radius-md);
+  border-top-right-radius: var(--border-radius-md);
+}
+
+.sub-menu li:last-child {
+  border-bottom-left-radius: var(--border-radius-md);
+  border-bottom-right-radius: var(--border-radius-md);
+}
+/* 5. DISABLED */
+.item-disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.disabled-link {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  padding: 8px 15px;
-  cursor: pointer;
-  color: var(--color-text-dark);
-  text-decoration: none;
-  white-space: nowrap;
+  padding: 10px 14px;
+  color: #999;
   font-size: 0.9rem;
-  font-weight: var(--font-weight-normal);
-  margin: 0 5px;
-  border-radius: var(--border-radius-sm);
-  transition:
-    background-color var(--transition-fast),
-    color var(--transition-fast);
 }
 
-.sub-dropdown:hover > .sub-dropdown-toggle {
-  background-color: var(--color-primary);
+.navbar-user {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.logout-button {
+  background-color: #1e78c8;
   color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
 }
 
-.icon-arrow {
-  margin-left: 10px;
-  font-size: 0.8rem;
-  color: inherit;
+.logout-button:hover {
+  background-color: #155a9b;
 }
 
-/* ======================================= */
-/* 4. KONTEN UTAMA AREA */
-/* ======================================= */
 .main-content-top {
   flex-grow: 1;
-  background-color: var(--color-bg-page);
   overflow-y: auto;
-}
-
-.content-area {
-  padding: 2px;
-  min-height: 100%;
-  box-sizing: border-box;
-}
-
-.dashboard-layout-top.print-mode {
-  display: block !important;
-  height: auto !important;
-  overflow: visible !important;
-  padding: 0 !important;
-  margin: 0 !important;
-  background-color: white !important;
-}
-
-@media print {
-  .top-navbar,
-  .navbar-brand,
-  .navbar-menu,
-  .navbar-user {
-    display: none !important;
-    visibility: hidden !important;
-    height: 0 !important;
-    padding: 0 !important;
-    margin: 0 !important;
-  }
-
-  .dashboard-layout-top {
-    display: block !important;
-    height: auto !important;
-    overflow: visible !important;
-    padding: 0 !important;
-    margin: 0 !important;
-  }
-
-  .main-content-top,
-  .content-area {
-    margin: 0 !important;
-    padding: 0 !important;
-    min-height: unset !important;
-    overflow: visible !important;
-    background-color: white !important;
-  }
-
-  body,
-  html {
-    margin: 0 !important;
-    padding: 0 !important;
-  }
+  padding: 20px;
 }
 </style>

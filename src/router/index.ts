@@ -7,7 +7,7 @@ import Dashboard from '../views/Dashboard.vue';
 import Home from '../views/Home.vue';
 import MaterialRequestForm from '../components/MaterialRequestForm.vue';
 import ComingSoon from '../views/ComingSoon.vue';
-import LhkCetakView from '../views/LhkCetakView.vue';
+import LhkCetakView from '../views/LhkMesinCetakView.vue';
 import LhkFinishingView from '../views/LhkFinishingView.vue';
 import StbjMmtBiew from '../views/StbjMmtView.vue';
 import lapBahanUtamaView from '../views/LapLsBahanUtamaView.vue';
@@ -52,6 +52,9 @@ import PengajuanPermintaanPrintView from '@/views/PengajuanPermintaanPrintView.v
 import FormLhkFinishingView from '@/views/FormLhkFinishingView.vue';
 import PenerimaanBahanPrint from '@/views/PenerimaanBahanPrint.vue';
 import FormKoreksiStokView from '@/views/FormKoreksiStokView.vue';
+import FormLhkMesinCetakView from '@/views/FormLhkMesinCetakView.vue';
+import LhkMesinCetakView from '../views/LhkMesinCetakView.vue';
+import LhkCetakMmtView from '@/views/LhkCetakMmtView.vue';
 
 
 // 2. Definisikan Rute (Jalan)
@@ -73,9 +76,10 @@ const routes: RouteRecordRaw[] = [
 
             // Rute yang sudah dibuat (PATH DIBUAT RELATIF - TANPA '/')
             { path: 'garmen/permintaan-material', name: 'Permintaan Material', component: MaterialRequestForm },
-            { path: 'mmt/lhk/cetak', name: 'LHK Cetak MMT', component: LhkCetakView },
-            { path: 'mmt/lhk/cetak/new', name: 'LhkCetakCreate', component: FormLhkCetakView },
-            { path: 'mmt/lhk/cetak/edit/:nomor', name: 'LhkCetakEdit', component: FormLhkCetakView, props: { isEditMode: false } },
+            { path: 'mmt/lhk/cetak-mmt', name: 'LHKCetakMMT', component: LhkCetakMmtView },
+            { path: 'mmt/lhk/cetak', name: 'LHKMesinCetakView', component: LhkMesinCetakView },
+            { path: 'mmt/lhk/cetak/new', name: 'LhkCetakCreate', component: FormLhkMesinCetakView },
+            { path: 'mmt/lhk/cetak/edit/:nomor', name: 'LhkCetakEdit', component: FormLhkMesinCetakView, props: { isEditMode: false } },
             { path: 'mmt/lhk/cetak/neww', name: 'LHK Cetak', component: FormLhkCetakViewNew },
             { path: 'mmt/lhk/finishing', name: 'LHK Finishing MMT', component: LhkFinishingView },{
                 path: 'mmt/lhk/finishing/new',

@@ -61,7 +61,7 @@ const masterHeaders = [
   { title: "Nomor", key: "Nomor", minWidth: "150px", fixed: true },
   { title: "Tanggal", key: "Tanggal", minWidth: "130px" },
   { title: "Gudang", key: "Gudang", minWidth: "200px" },
-  { title: "Tipe", key: "Nama", minWidth: "150px" },
+  { title: "Tipe", key: "Tipe_Nama", minWidth: "150px" },
   { title: "Keterangan", key: "Keterangan", minWidth: "200px" },
   { title: "", key: "data-table-expand", minWidth: "40px" },
 ];
