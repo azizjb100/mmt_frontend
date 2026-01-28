@@ -92,6 +92,7 @@
           show-select
           return-object
           show-expand
+          @click:row="handleRowClick"
           @update:expanded="loadDetails"
         >
           <template #item.Tanggal="{ item }">
@@ -224,17 +225,35 @@ const filters = reactive({
 // --- Computed ---
 const isSingleSelected = computed(() => selected.value.length === 1);
 const selectedRow = computed<LhkCetakItem | null>(() =>
-  isSingleSelected.value ? (selected.value[0] as LhkCetakItem) : null
+  isSingleSelected.value ? (selected.value[0] as LhkCetakItem) : null,
 );
 
 const handleNewEdit = (mode: "new" | "edit") => {
   if (mode === "new") {
     router.push({ name: "LhkCetakCreate" });
-  } else if (mode === "edit" && selectedNomor.value) {
+  } else if (mode === "edit" && selectedRow.value) {
     router.push({
-      name: "PermintaanProduksiEdit",
-      params: { nomor: selectedNomor.value },
+      name: "LhkCetakEdit", // Pastikan sesuai dengan nama route di router/index.ts
+      params: { nomor: selectedRow.value.Nomor },
     });
+  }
+};
+
+// Pastikan fungsi handleEditClick (yang dipanggil di template) tersedia
+const handleEditClick = () => {
+  handleNewEdit("edit");
+};
+
+const handleRowClick = (event: any, { item }: { item: LhkCetakHeader }) => {
+  // Mengecek apakah item yang diklik sudah ada di array 'selected'
+  const isSelected = selected.value.some((s) => s.Nomor === item.Nomor);
+
+  if (isSelected) {
+    // Jika diklik lagi pada baris yang sama, kosongkan pilihan (unselect)
+    selected.value = [];
+  } else {
+    // Jika diklik pada baris lain, jadikan item tersebut sebagai satu-satunya yang terpilih
+    selected.value = [item];
   }
 };
 
@@ -341,7 +360,7 @@ const resizeTable = (tableSelector: string) => {
 
       // Dapatkan semua sel data (td) untuk kolom ini
       const columnCells = Array.from(
-        tbody.querySelectorAll(`tr td:nth-child(${index + 1})`)
+        tbody.querySelectorAll(`tr td:nth-child(${index + 1})`),
       ) as HTMLElement[];
 
       const handleMouseMove = (moveEvent: MouseEvent) => {
@@ -408,7 +427,7 @@ const fetchMasterData = async () => {
 const loadDetails = async (newlyExpandedItems: LhkCetakItem[]) => {
   const itemToLoad = newlyExpandedItems?.find(
     (it) =>
-      it && !details.value[it.Nomor] && !loadingDetails.value.has(it.Nomor)
+      it && !details.value[it.Nomor] && !loadingDetails.value.has(it.Nomor),
   );
   if (!itemToLoad) return;
 

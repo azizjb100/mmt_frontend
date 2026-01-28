@@ -403,7 +403,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed } from "vue";
+import { ref, reactive, computed, onMounted } from "vue";
+import { useRoute, useRouter } from "vue-router";
 import { format } from "date-fns";
 import api from "@/services/api";
 import { useToast } from "vue-toastification";
@@ -411,9 +412,16 @@ import MesinLookupView from "@/modal/MesinLookupModal.vue";
 import SpkLookupView from "@/modal/SpkLookupModal.vue";
 import PageLayout from "../components/PageLayout.vue";
 
+// --- Setup & State ---
+const route = useRoute();
+const router = useRouter();
 const toast = useToast();
+
+const API_BASE_URL = "/mmt/lhk-cetak";
+const SCALE = 60; // Skala tampilan (1m = 60px)
+
 const isSaving = ref(false);
-const isEditMode = ref(false);
+const isEditMode = ref(!!route.params.nomor);
 const isMesinLookupVisible = ref(false);
 const isSpkLookupVisible = ref(false);
 
@@ -424,65 +432,44 @@ const formData = reactive({
   operator: "",
   mesin: "",
   barcode_input: "",
-
   Panjang_bahan: 0,
   Lebar_bahan: 0,
-
   sku_aktif: "",
   kode_bahan_aktif: "",
-
-  // ===== TAMBAHKAN INI =====
   sisa_panjang_manual: null as number | null,
   sisa_lebar_manual: null as number | null,
-
   panjang_nyempil_manual: null as number | null,
   lebar_nyempil_manual: null as number | null,
-
   panjang_bs: null as number | null,
   lebar_bs: null as number | null,
-
-  manual_panjang_pakai: null as number | null,
 });
 
 const detailData = reactive<any[]>([]);
 
-const detailHeaders = [
-  { title: "No", key: "no", width: "40px" },
-  { title: "Nomor SPK", key: "nomor_spk" },
-  { title: "Nama Produk", key: "nama_spk" },
-  { title: "P. SPK", key: "panjang_spk", align: "end" as const },
-  { title: "L. SPK", key: "lebar_spk", align: "end" as const },
-  { title: "Orientasi", key: "orientasi", width: "130px" },
-  { title: "Pad(cm)", key: "padding", width: "70px" },
-  { title: "Tile", key: "tile", width: "60px" },
-  { title: "C1", key: "cetak1", width: "50px" },
-  { title: "C2", key: "cetak2", width: "50px" },
-  { title: "C3", key: "cetak3", width: "50px" },
-  { title: "Total", key: "totalcetak", width: "60px", align: "end" as const },
-  { title: "", key: "actions", width: "40px" },
-];
+// --- Computed ---
+const formTitle = computed(() =>
+  isEditMode.value
+    ? `Edit LHK Cetak: ${formData.nomor}`
+    : "Entry LHK Cetak Baru",
+);
 
-const SCALE = 60; // Skala tampilan (1m = 60px)
+const isFormValid = computed(
+  () =>
+    formData.operator &&
+    formData.mesin &&
+    formData.barcode_input &&
+    detailData.length > 0,
+);
+
 const totalPanjangTerpakai = ref(0);
 const totalLebarGabungan = ref(0);
 const lebarSisaLayoutGanjil = ref(0);
 const panjangSisaLayoutGanjil = ref(0);
 
-const sisaPanjangBahan = computed(() => {
-  // Jika manual_panjang ada isinya dan > 0, gunakan manual. Jika tidak, gunakan otomatis sistem.
-  const pakai =
-    formData.manual_panjang_pakai > 0
-      ? formData.manual_panjang_pakai
-      : totalPanjangTerpakai.value;
+const sisaStokOtomatis = computed(
+  () => formData.Panjang_bahan - totalPanjangTerpakai.value,
+);
 
-  return formData.Panjang_bahan - pakai;
-});
-
-const sisaStokOtomatis = computed(() => {
-  return formData.Panjang_bahan - totalPanjangTerpakai.value;
-});
-
-// Panjang Terpakai Final (Prioritas Sisa Manual)
 const displayPanjangTerpakai = computed(() => {
   if (
     formData.sisa_panjang_manual !== null &&
@@ -493,17 +480,68 @@ const displayPanjangTerpakai = computed(() => {
   return totalPanjangTerpakai.value;
 });
 
-// Menghitung sisa stok yang tampil di layar
-const displaySisaStok = computed(() => {
-  if (
-    formData.sisa_panjang_manual !== null &&
-    formData.sisa_panjang_manual > 0
-  ) {
-    return formData.sisa_panjang_manual;
-  }
-  return formData.Panjang_bahan - totalPanjangTerpakai.value;
-});
+// --- Methods (Load Data) ---
+const loaddataall = async (nomor: string) => {
+  isSaving.value = true;
+  try {
+    const response = await api.get(`${API_BASE_URL}/lookup/${nomor}`);
+    const res = response.data.data || response.data;
 
+    if (res && res.header) {
+      const h = res.header;
+
+      // 1. Mapping Header
+      formData.nomor = h.Nomor;
+      formData.tanggal = h.Tanggal
+        ? h.Tanggal.substring(0, 10)
+        : format(new Date(), "yyyy-MM-dd");
+      formData.shift = h.Shift || 1;
+      formData.operator = h.Operator || "";
+      formData.mesin = h.Mesin || "";
+      formData.kode_bahan_aktif = h.Kode_bahan || "";
+
+      // 2. Mapping Detail
+      detailData.splice(0, detailData.length);
+
+      if (res.details && Array.isArray(res.details)) {
+        res.details.forEach((d: any, index: number) => {
+          // Ambil info material dari baris pertama detail untuk mengisi state material di header
+          if (index === 0) {
+            formData.barcode_input = d.Roll || "";
+            formData.Panjang_bahan = parseFloat(d.AmbilBahanPanjang || 0);
+            formData.Lebar_bahan = parseFloat(d.AmbilBahanLebar || 0);
+            formData.sisa_panjang_manual = d.Sisa_Panjang || null;
+            formData.sisa_lebar_manual = d.Sisa_Lebar || null;
+          }
+
+          detailData.push({
+            nomor_spk: d.ld_spk_nomor || h.NomorSPK,
+            nama_spk: h.NamaOrder || "",
+            panjang_spk: parseFloat(h.spk_panjang || 0),
+            lebar_spk: parseFloat(h.spk_lebar || 0),
+            padding: 3,
+            tile: h.Tile || 1,
+            orientasi: "lebar",
+            cetak1: d.J_Cetak1 || 0,
+            cetak2: d.J_Cetak2 || 0,
+            cetak3: d.J_Cetak3 || 0,
+            totalcetak: d.TotalCetak || 0,
+          });
+        });
+      }
+
+      recalculateCombine();
+      toast.info("Data berhasil dimuat");
+    }
+  } catch (error: any) {
+    console.error("Error Load Data:", error);
+    toast.error("Gagal memuat data transaksi.");
+  } finally {
+    isSaving.value = false;
+  }
+};
+
+// --- Core Logics ---
 const recalculateCombine = () => {
   totalPanjangTerpakai.value = 0;
   totalLebarGabungan.value = 0;
@@ -514,7 +552,7 @@ const recalculateCombine = () => {
 
   const maxRollHeight = formData.Lebar_bahan;
   const TOLERANSI_SISA = 0.3;
-  const MIN_LEBAR_AFAL = 0.5; // Batas 50cm
+  const MIN_LEBAR_AFAL = 0.5;
 
   let currentXOffset = 0;
   let nextXOffset = 0;
@@ -525,19 +563,15 @@ const recalculateCombine = () => {
     if (d.totalcetak <= 0 || d.tile <= 0) return;
 
     const padM = (d.padding * 2) / 100;
-    let dimMenyamping =
+    const dimMenyamping =
       d.orientasi === "lebar" ? d.lebar_spk + padM : d.panjang_spk + padM;
-    let dimMemanjang =
+    const dimMemanjang =
       d.orientasi === "lebar" ? d.panjang_spk + padM : d.lebar_spk + padM;
 
     const totalHeightSPK = d.tile * dimMenyamping;
     const totalWidthSPK = Math.ceil(d.totalcetak / d.tile) * dimMemanjang;
 
-    const sisaLebarTersedia = maxRollHeight - currentUsedHeight;
-    if (
-      sisaLebarTersedia < TOLERANSI_SISA ||
-      currentUsedHeight + totalHeightSPK > maxRollHeight + 0.01
-    ) {
+    if (currentUsedHeight + totalHeightSPK > maxRollHeight + 0.01) {
       currentXOffset = nextXOffset;
       currentUsedHeight = 0;
     }
@@ -549,28 +583,15 @@ const recalculateCombine = () => {
       totalLebarGabungan.value = currentUsedHeight;
     }
 
-    // --- LOGIKA AFAL (Sisa Nyempil) ---
+    // Logika Afal
     const sisaItem = d.totalcetak % d.tile;
-    let tempLebarSisa = 0;
-    let tempPanjangSisa = 0;
+    let tempLebarSisa =
+      sisaItem > 0
+        ? (d.tile - sisaItem) * dimMenyamping
+        : maxRollHeight - currentUsedHeight;
+    let tempPanjangSisa = sisaItem > 0 ? dimMemanjang : totalWidthSPK;
 
-    if (sisaItem > 0) {
-      const jumlahKolomKosong = d.tile - sisaItem;
-      tempLebarSisa = jumlahKolomKosong * dimMenyamping;
-      tempPanjangSisa = dimMemanjang;
-    } else {
-      const sisaBawah = maxRollHeight - currentUsedHeight;
-      if (sisaBawah >= TOLERANSI_SISA) {
-        tempLebarSisa = sisaBawah;
-        tempPanjangSisa = totalWidthSPK;
-      }
-    }
-
-    // Perbaikan: Jika sisa lebar < 50cm, maka dianggap 0
-    if (tempLebarSisa < MIN_LEBAR_AFAL) {
-      lebarSisaLayoutGanjil.value = 0;
-      panjangSisaLayoutGanjil.value = 0;
-    } else {
+    if (tempLebarSisa >= MIN_LEBAR_AFAL) {
       lebarSisaLayoutGanjil.value = tempLebarSisa;
       panjangSisaLayoutGanjil.value = tempPanjangSisa;
     }
@@ -579,260 +600,79 @@ const recalculateCombine = () => {
   totalPanjangTerpakai.value = nextXOffset;
 };
 
-const handleSave = async (isContinue: boolean = false) => {
-  recalculateCombine();
-
-  if (!formData.operator || !formData.mesin || !formData.barcode_input) {
-    toast.error("Operator, Mesin, dan Barcode Roll wajib diisi.");
-    return;
-  }
-
-  isSaving.value = true;
-
-  try {
-    const headerData = {
-      // ... (sama seperti sebelumnya)
-      ltanggal: formData.tanggal,
-      lgdg_prod: "GPM",
-      lspk_nomor: detailData[0]?.nomor_spk || "",
-      lmesin: formData.mesin,
-      lshift: formData.shift,
-      loperator: formData.operator,
-      lbahan: formData.kode_bahan_aktif,
-      lbarcode_roll: formData.barcode_input,
-      ljumlah_kolom: detailData[0]?.tile || 0,
-      lfixed: "N",
-      luser_create: "ADMIN",
-    };
-
-    const detailsData = detailData
-      .filter((d) => d.totalcetak > 0)
-      .map((d) => ({
-        // PENTING: Tambahkan nomor_spk di sini agar tersimpan di ld_spk_nomor
-        nomor_spk: d.nomor_spk,
-        cetakmeter:
-          (d.panjang_spk + (d.padding * 2) / 100) * (d.totalcetak / d.tile),
-        cetak1: d.cetak1,
-        cetak2: d.cetak2,
-        cetak3: d.cetak3,
-        cetak4: 0,
-        cetak5: 0,
-        cetak6: 0,
-        cetak7: 0,
-        ambilBahanPanjang: formData.Panjang_bahan,
-        ambilBahanLebar: formData.Lebar_bahan,
-        sisabahan: formData.sisa_panjang_manual || sisaStokOtomatis.value,
-        sisabahanlebar: formData.sisa_lebar_manual || 0,
-      }));
-
-    const finalPayload = {
-      header: headerData,
-      details: detailsData,
-      existingNomor: isEditMode.value ? formData.nomor : null,
-    };
-
-    const response = await api.post("/mmt/lhk-cetak", finalPayload);
-    // ... (logic sukses)
-  } catch (error: any) {
-    toast.error(error.response?.data?.message || "Gagal simpan ke server");
-  } finally {
-    isSaving.value = false;
-  }
-};
-
-// const layoutColumns = computed(() => {
-//   const columns = [];
-//   if (detailData.length === 0) return columns;
-
-//   let maxPutaran = 0;
-//   detailData.forEach((spk) => {
-//     const putaranSpk = Math.ceil(spk.totalcetak / spk.tile);
-//     if (putaranSpk > maxPutaran) maxPutaran = putaranSpk;
-//   });
-
-//   for (let p = 0; p < maxPutaran; p++) {
-//     const columnItems = [];
-//     let maxWidthOfThisColumn = 0;
-//     let currentRowOffset = 1; // Indikator baris untuk CSS Grid
-
-//     detailData.forEach((spk, idx) => {
-//       const padM = (spk.padding * 2) / 100;
-//       const totalPutaranSpk = Math.ceil(spk.totalcetak / spk.tile);
-
-//       if (p < totalPutaranSpk) {
-//         const isLastPutaran = p === totalPutaranSpk - 1;
-//         const sisaCetak = spk.totalcetak % spk.tile;
-//         const itemInThisColumn =
-//           isLastPutaran && sisaCetak !== 0 ? sisaCetak : spk.tile;
-
-//         const panjangReal = spk.panjang_spk + padM;
-//         if (panjangReal > maxWidthOfThisColumn)
-//           maxWidthOfThisColumn = panjangReal;
-
-//         // Tentukan range baris (grid-row) untuk kelompok SPK ini
-//         const rowStart = currentRowOffset;
-//         const rowEnd = currentRowOffset + itemInThisColumn;
-
-//         columnItems.push({
-//           label: `SPK ${idx + 1}`,
-//           count: itemInThisColumn,
-//           unitHeight: spk.lebar_spk + padM,
-//           unitWidth: panjangReal,
-//           gridRow: `${rowStart} / ${rowEnd}`,
-//           isFirstInGroup: true, // Untuk penanda garis tebal antar SPK
-//         });
-
-//         currentRowOffset = rowEnd;
-//       }
-//     });
-
-//     if (columnItems.length > 0) {
-//       columns.push({
-//         width: maxWidthOfThisColumn,
-//         items: columnItems,
-//       });
-//     }
-//   }
-//   return columns;
-// });
-
-const layoutRows = computed(() => {
-  const blocks: any[] = [];
-  if (detailData.length === 0 || formData.Lebar_bahan <= 0) return blocks;
-
-  const maxRollHeight = formData.Lebar_bahan;
-  const TOLERANSI_SISA = 0.3;
-
-  let currentXOffset = 0;
-  let nextXOffset = 0;
-  let currentUsedHeight = 0;
-
-  detailData.forEach((spk, spkIdx) => {
-    spk.totalcetak = (spk.cetak1 || 0) + (spk.cetak2 || 0) + (spk.cetak3 || 0);
-    if (spk.totalcetak <= 0 || spk.tile <= 0) return;
-
-    const padM = (spk.padding * 2) / 100;
-
-    // Visual W (Lebar di layar/X) dan H (Tinggi di layar/Y)
-    const visualW =
-      spk.orientasi === "lebar" ? spk.panjang_spk + padM : spk.lebar_spk + padM;
-    const visualH =
-      spk.orientasi === "lebar" ? spk.lebar_spk + padM : spk.panjang_spk + padM;
-
-    const totalHeightSPK = spk.tile * visualH;
-    const totalWidthSPK = Math.ceil(spk.totalcetak / spk.tile) * visualW;
-
-    const sisaLebarTersedia = maxRollHeight - currentUsedHeight;
-    if (
-      sisaLebarTersedia < TOLERANSI_SISA ||
-      currentUsedHeight + totalHeightSPK > maxRollHeight + 0.01
-    ) {
-      currentXOffset = nextXOffset;
-      currentUsedHeight = 0;
-    }
-
-    const pcsPerRow = Math.ceil(spk.totalcetak / spk.tile);
-
-    for (let t = 0; t < spk.tile; t++) {
-      const yPos = currentUsedHeight + t * visualH;
-
-      for (let c = 0; c < pcsPerRow; c++) {
-        const indexCetak = t + c * spk.tile;
-        if (indexCetak < spk.totalcetak) {
-          blocks.push({
-            label: `SPK ${spkIdx + 1}`,
-            w: visualW,
-            h: visualH,
-            x: currentXOffset + c * visualW,
-            y: yPos,
-            rotated: spk.orientasi === "panjang", // Penanda rotasi untuk CSS
-          });
-        }
-      }
-    }
-
-    currentUsedHeight += totalHeightSPK;
-    nextXOffset = Math.max(nextXOffset, currentXOffset + totalWidthSPK);
-  });
-
-  return blocks;
-});
-
-const rollStyle = computed(() => ({
-  height: `${formData.Lebar_bahan * SCALE}px`,
-  display: "flex",
-  flexDirection: "column", // ✅ BARIS TURUN KE BAWAH
-  backgroundColor: "#ffffff",
-  border: "1px solid #999",
-  padding: "2px",
-  width: "max-content",
-  alignItems: "flex-start",
-}));
-
-const getColStyle = (item: any) => {
-  const padM = (item.padding * 2) / 100;
-  return {
-    display: "flex",
-    flexDirection: "column",
-    height: "100%",
-    width: `${(item.panjang_spk + padM) * SCALE}px`,
-    marginRight: "2px",
-    gap: "2px",
-  };
-};
-
-const getBoxStyle = (item: any) => ({
-  width: "100%",
-  height: `${item.lebar_spk * SCALE}px`,
-  backgroundColor: "#e3f2fd",
-  border: "1px solid #2196f3",
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  fontSize: "9px",
-  color: "#1976d2",
-  fontWeight: "bold",
-  flexShrink: 0,
-});
-
-const getTileInRow = (item: any, currentRow: number) => {
-  const totalRows = Math.ceil(item.totalcetak / item.tile);
-  if (currentRow === totalRows) {
-    const remainder = item.totalcetak % item.tile;
-    return remainder === 0 ? item.tile : remainder;
-  }
-  return item.tile;
-};
-
-// --- API & Handlers ---
+// --- Handlers ---
 const handleBarcodeScan = async () => {
   try {
     const res = await api.get(`/mmt/stok-gudang/${formData.barcode_input}`);
     const resData = res.data.data;
-    if (resData.status === "READY") {
-      formData.sku_aktif = resData.data.Barcode;
+    if (resData && resData.status === "READY") {
       formData.kode_bahan_aktif = resData.data.Kode;
       formData.Panjang_bahan = parseFloat(resData.data.Sisa_Panjang);
       formData.Lebar_bahan = parseFloat(resData.data.Lebar);
       recalculateCombine();
       toast.success("Material Siap");
     } else {
-      toast.error("Barcode tidak tersedia");
+      toast.error("Barcode tidak tersedia atau tidak READY");
     }
   } catch (e) {
     toast.error("Gagal scan barcode");
   }
 };
 
-const handleSpkSelect = (spk: any) => {
-  // Validasi: Cek apakah nomor SPK sudah ada di detailData
-  const isDuplicate = detailData.some((d) => d.nomor_spk === spk.Spk);
+const handleSave = async (isContinue: boolean = false) => {
+  if (!isFormValid.value) return;
+  isSaving.value = true;
+  try {
+    const payload = {
+      header: {
+        ltanggal: formData.tanggal,
+        lgdg_prod: "GPM",
+        lspk_nomor: detailData[0]?.nomor_spk || "",
+        lmesin: formData.mesin,
+        lshift: formData.shift,
+        loperator: formData.operator,
+        lbahan: formData.kode_bahan_aktif,
+        lbarcode_roll: formData.barcode_input,
+        ljumlah_kolom: detailData[0]?.tile || 1,
+        lfixed: "N",
+      },
+      details: detailData
+        .filter((d) => d.totalcetak > 0)
+        .map((d) => ({
+          nomor_spk: d.nomor_spk,
+          cetakmeter:
+            (d.panjang_spk + (d.padding * 2) / 100) * (d.totalcetak / d.tile),
+          cetak1: d.cetak1,
+          cetak2: d.cetak2,
+          cetak3: d.cetak3,
+          ambilBahanPanjang: formData.Panjang_bahan,
+          ambilBahanLebar: formData.Lebar_bahan,
+          sisabahan: formData.sisa_panjang_manual || sisaStokOtomatis.value,
+          sisabahanlebar: formData.sisa_lebar_manual || 0,
+        })),
+      existingNomor: isEditMode.value ? formData.nomor : null,
+    };
 
-  if (isDuplicate) {
-    toast.warning(`SPK ${spk.Spk} sudah ada dalam daftar produksi!`);
+    await api.post(API_BASE_URL, payload);
+    toast.success("Data berhasil disimpan");
+
+    if (isContinue) {
+      location.reload();
+    } else {
+      router.back();
+    }
+  } catch (error: any) {
+    toast.error(error.response?.data?.message || "Gagal menyimpan data");
+  } finally {
+    isSaving.value = false;
+  }
+};
+
+const handleSpkSelect = (spk: any) => {
+  if (detailData.some((d) => d.nomor_spk === spk.Spk)) {
+    toast.warning("SPK sudah ada dalam daftar");
     return;
   }
-
   detailData.push({
     nomor_spk: spk.Spk,
     nama_spk: spk.Nama,
@@ -840,53 +680,26 @@ const handleSpkSelect = (spk: any) => {
     lebar_spk: spk.Lebar || 0,
     padding: 3,
     tile: 1,
-    orientasi: "lebar", // Default: tile menghitung lebar produk ke samping
-    totalcetak: 0,
+    orientasi: "lebar",
     cetak1: 0,
     cetak2: 0,
     cetak3: 0,
-    panjangTerpakai: 0,
+    totalcetak: 0,
   });
-
-  recalculateCombine();
   isSpkLookupVisible.value = false;
 };
 
-const removeDetail = (idx: number) => {
-  detailData.splice(idx, 1);
-  recalculateCombine();
-};
-
-const handleCancel = () => {
-  // Logika pembatalan (misal reset form atau kembali)
-  if (
-    confirm(
-      "Apakah Anda yakin ingin membatalkan? Data yang belum disimpan akan hilang.",
-    )
-  ) {
-    location.reload();
-  }
-};
-
-const handleClose = () => {
-  // Logika keluar halaman
-  // useRouter().push('/mmt/lhk-list') atau window.history.back()
-  console.log("Keluar dari halaman");
-};
-
-const openMesinSearch = () => (isMesinLookupVisible.value = true);
-const openSpkSearch = () => (isSpkLookupVisible.value = true);
 const handleMesinSelect = (m: any) => {
   formData.mesin = m.Kode;
   isMesinLookupVisible.value = false;
 };
-const isFormValid = computed(
-  () =>
-    formData.operator &&
-    formData.mesin &&
-    formData.barcode_input &&
-    detailData.length > 0,
-);
+
+// --- Lifecycle ---
+onMounted(() => {
+  if (isEditMode.value && route.params.nomor) {
+    loaddataall(route.params.nomor as string);
+  }
+});
 </script>
 
 <style scoped>
@@ -922,5 +735,51 @@ const isFormValid = computed(
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+/* Container Utama */
+.form-grid-container {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start; /* Penting agar kolom kiri tidak ikut memanjang */
+}
+
+.left-column {
+  width: 300px; /* Sesuaikan lebar kolom kiri */
+  position: sticky;
+  top: 0;
+}
+
+.right-column {
+  flex: 1;
+  min-width: 0; /* Mencegah flexbox pecah jika tabel terlalu lebar */
+}
+
+/* Bagian Tabel yang bisa di-scroll */
+.detail-entry-table {
+  /* Memberikan batas tinggi agar scroll muncul jika SPK banyak */
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+/* Pastikan Header Tabel tetap terlihat saat di-scroll (Sticky Header) */
+:deep(.v-data-table__th) {
+  position: sticky;
+  top: 0;
+  background-color: #a1d9ff !important; /* bg-blue-grey-lighten-5 */
+  z-index: 2;
+}
+
+/* Agar tampilan input di dalam tabel lebih rapi */
+.cetak-field {
+  width: 50px;
+}
+
+/* Tambahan untuk footer agar tidak ikut ter-scroll jika tabel panjang */
+.footer-container {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  border-top: 2px solid #ddd !important;
 }
 </style>

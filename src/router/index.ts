@@ -75,6 +75,7 @@ const routes: RouteRecordRaw[] = [
             { path: 'garmen/permintaan-material', name: 'Permintaan Material', component: MaterialRequestForm },
             { path: 'mmt/lhk/cetak', name: 'LHK Cetak MMT', component: LhkCetakView },
             { path: 'mmt/lhk/cetak/new', name: 'LhkCetakCreate', component: FormLhkCetakView },
+            { path: 'mmt/lhk/cetak/edit/:nomor', name: 'LhkCetakEdit', component: FormLhkCetakView, props: { isEditMode: false } },
             { path: 'mmt/lhk/cetak/neww', name: 'LHK Cetak', component: FormLhkCetakViewNew },
             { path: 'mmt/lhk/finishing', name: 'LHK Finishing MMT', component: LhkFinishingView },{
                 path: 'mmt/lhk/finishing/new',
@@ -141,7 +142,6 @@ const routes: RouteRecordRaw[] = [
                 props: { isEditMode: false }
             },
             {
-                // 3. Tambahkan Rute Edit (Sangat Disarankan)
                 path: 'mmt/po-bahan-mmt/edit/:nomor',
                 name: 'PoBahanMmtEdit', // 👈 Nama Unik: Untuk mengedit
                 component: FormPoBahanMmtView,
@@ -165,7 +165,6 @@ const routes: RouteRecordRaw[] = [
                 component: FormPenerimaanBahanView,
                 props: { isEditMode: false }
             },
-            // 3. Ubah (Edit Existing)
             {
                 path: 'mmt/penerimaan-bahan/edit/:nomor',
                 name: 'PenerimaanBahanEdit',
@@ -222,7 +221,7 @@ const routes: RouteRecordRaw[] = [
             // 3. Ubah (Edit Existing)
             {
                 path: 'mmt/realisasi-produksi/edit/:nomor',
-                name: 'MutasuProduksiEdit',
+                name: 'MutasiProduksiEdit',
                 component: FormMutasiProduksiView,
                 props: true
             },
