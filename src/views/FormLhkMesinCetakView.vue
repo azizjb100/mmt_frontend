@@ -795,7 +795,9 @@ const handleSave = async (statusValue: "DRAFT" | "POSTED" = "DRAFT") => {
       ljumlah_kolom: detailData[0]?.tile || 0,
       lfixed: "N",
       lstatus: statusValue, // Kolom status: DRAFT atau POSTED
-      luser_create: "ADMIN", // Bisa diganti dengan user session jika ada
+      luser_create: "ADMIN",
+      lpanjang_bs: formData.panjang_bs || 0,
+      llebar_bs: formData.lebar_bs || 0,
     };
 
     // 2. Persiapkan Detail Data

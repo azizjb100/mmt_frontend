@@ -220,12 +220,15 @@ const printContent = () => {
     <html>
       <head>
         <style>
-          @page { size: 76.2mm 101mm portrait; margin: 0; }
-          body { margin: 0; padding: 0; font-family: Arial, sans-serif; display: flex; flex-direction: column; align-items: flex-start; }
-          .label-box { width: 70mm; height: 50mm; padding: 2mm; box-sizing: border-box; }
+          @page { size: 101.2mm 101mm portrait; margin: 0; }
+          body { margin: 0; padding: 0; font-family: Arial, sans-serif; display: flex; flex-direction: column; align-items: flex-start; gap: 5px;
+          align-items: center;      /* Mengetengahkan secara horizontal */
+            justify-content: center;   /* Mengetengahkan secara vertikal */
+            min-height: 100vh; }
+          .label-box { width: 70mm; height: 50mm; padding: 3mm; box-sizing: border-box; }
           .label-box:nth-child(2n) { page-break-after: always; }
           .border-inner { border: 1pt solid black; height: 100%; width: 100%; padding: 2mm; display: flex; flex-direction: column; box-sizing: border-box; }
-          .top-row { display: flex; gap: 10px; margin-bottom: 4px; }
+          .top-row { display: flex; gap: 10px; margin-bottom: 4px;  }
           .qr-img { width: 1.5cm; height: 1.5cm; }
           .qr-text { font-weight: bold; font-size: 8pt; word-break: break-all; }
           .dimens-text { font-size: 11pt; font-weight: bold; margin-top: 5px; }

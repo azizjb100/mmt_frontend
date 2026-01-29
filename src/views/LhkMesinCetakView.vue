@@ -285,8 +285,15 @@ const getRowTextColor = (item: LhkCetakItem) => {
 
 // --- Headers (Sesuai SQL Delphi) ---
 const masterHeaders = [
-  { title: "Nomor", key: "Nomor", minWidth: "150px", fixed: true },
-  { title: "Shift", key: "Shift" },
+  {
+    title: "Nomor",
+    key: "Nomor",
+    minWidth: "250px", // Ditambah agar tidak terpotong seperti di gambar
+    width: "250px",
+    fixed: true,
+  },
+  { title: "Shift", key: "Shift", minWidth: "50px" },
+  // ... sisanya tetap sama
   { title: "Tanggal", key: "Tanggal" },
   { title: "Mesin", key: "Mesin" },
   { title: "Nomor SPK", key: "NomorSPK" },
