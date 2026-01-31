@@ -273,13 +273,24 @@ body {
   max-width: 100% !important;
 }
 
-/* Paksa table mengikuti container */
 .v-data-table table {
   width: 100% !important;
   min-width: 100% !important;
-  table-layout: fixed;
-  /* kolom stabil */
+  /* UBAH table-layout dari fixed ke auto agar kolom fleksibel 
+     atau tetap fixed tapi dengan overflow control */
+  table-layout: auto; 
   border-collapse: collapse;
+}
+
+.v-data-table__td {
+  padding-top: 4px !important;
+  padding-bottom: 4px !important;
+  padding-left: 8px !important;
+  padding-right: 8px !important;
+  /* TAMBAHKAN INI: Agar teks yang terlalu panjang tidak keluar jalur */
+  white-space: nowrap; 
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* Header dan body ikut full */
