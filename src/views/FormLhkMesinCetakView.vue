@@ -394,8 +394,8 @@
           <v-card-title
             class="text-subtitle-2 bg-grey-lighten-3 pa-2 d-flex align-center"
           >
-            <v-icon start size="small">mdi-eye-outline</v-icon> Estimasi Layout
-            Produksi (Horizontal Scroll)
+            <v-icon start size="small">mdi-eye-outline</v-icon>
+            Estimasi Layout Produksi (Horizontal Scroll)
           </v-card-title>
 
           <v-card-text class="pa-4 bg-white">
@@ -407,25 +407,15 @@
                   class="product-unit"
                   :style="{
                     width: `${item.w * SCALE}px`,
-
                     height: `${item.h * SCALE}px`,
-
                     position: 'absolute',
-
                     left: `${item.x * SCALE}px`,
-
                     top: `${item.y * SCALE}px`,
-
                     backgroundColor: '#e3f2fd',
-
                     border: '1px solid #2196f3',
-
                     display: 'flex',
-
                     alignItems: 'center',
-
                     justifyContent: 'center',
-
                     boxSizing: 'border-box',
                   }"
                 >
@@ -458,30 +448,29 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from "vue"; // Pastikan onMounted diimport
+import { ref, reactive, computed, onMounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { format } from "date-fns";
 import api from "@/services/api";
-
 import { useToast } from "vue-toastification";
 
+// Modals & Components
 import MesinLookupView from "@/modal/MesinLookupModal.vue";
-
 import SpkLookupView from "@/modal/SpkLookupModal.vue";
-
 import PageLayout from "../components/PageLayout.vue";
 
-const route = useRoute(); // DEKLARASI WAJIB
+// --- Configuration & Constants ---
+const route = useRoute();
 const router = useRouter();
 const toast = useToast();
+const API_BASE_URL = "/mmt/lhk-cetak";
+const SCALE = 60; // 1m = 60px untuk visualisasi
 
+// --- State Management ---
 const isSaving = ref(false);
 const isEditMode = ref(false);
-
 const isMesinLookupVisible = ref(false);
 const isSpkLookupVisible = ref(false);
-
-const API_BASE_URL = "/mmt/lhk-cetak";
 
 const formData = reactive({
   nomor: "AUTO",
@@ -505,60 +494,35 @@ const formData = reactive({
 
 const detailData = reactive<any[]>([]);
 
+// Headers yang mendukung C1 - C7
 const detailHeaders = [
   { title: "No", key: "no", width: "40px" },
-
   { title: "Nomor SPK", key: "nomor_spk" },
-
   { title: "Nama Produk", key: "nama_spk" },
-
   { title: "P. SPK", key: "panjang_spk", align: "end" as const },
-
   { title: "L. SPK", key: "lebar_spk", align: "end" as const },
-
   { title: "Orientasi", key: "orientasi", width: "130px" },
-
   { title: "Pad(cm)", key: "padding", width: "70px" },
-
   { title: "Tile", key: "tile", width: "60px" },
-
-  { title: "C1", key: "cetak1", width: "50px" },
-
-  { title: "C2", key: "cetak2", width: "50px" },
-
-  { title: "C3", key: "cetak3", width: "50px" },
-
+  // Cetak 1 sampai 7
+  ...Array.from({ length: 7 }, (_, i) => ({
+    title: `C${i + 1}`,
+    key: `cetak${i + 1}`,
+    width: "50px",
+  })),
   { title: "Total", key: "totalcetak", width: "60px", align: "end" as const },
-
   { title: "", key: "actions", width: "40px" },
 ];
 
-const SCALE = 60; // Skala tampilan (1m = 60px)
-
+// --- Computed Layout Metrics ---
 const totalPanjangTerpakai = ref(0);
-
 const totalLebarGabungan = ref(0);
-
 const lebarSisaLayoutGanjil = ref(0);
-
 const panjangSisaLayoutGanjil = ref(0);
 
-const sisaPanjangBahan = computed(() => {
-  // Jika manual_panjang ada isinya dan > 0, gunakan manual. Jika tidak, gunakan otomatis sistem.
-
-  const pakai =
-    formData.manual_panjang_pakai > 0
-      ? formData.manual_panjang_pakai
-      : totalPanjangTerpakai.value;
-
-  return formData.Panjang_bahan - pakai;
-});
-
-const sisaStokOtomatis = computed(() => {
-  return formData.Panjang_bahan - totalPanjangTerpakai.value;
-});
-
-// Panjang Terpakai Final (Prioritas Sisa Manual)
+const sisaStokOtomatis = computed(
+  () => formData.Panjang_bahan - totalPanjangTerpakai.value,
+);
 
 const displayPanjangTerpakai = computed(() => {
   if (
@@ -567,188 +531,79 @@ const displayPanjangTerpakai = computed(() => {
   ) {
     return formData.Panjang_bahan - formData.sisa_panjang_manual;
   }
-
   return totalPanjangTerpakai.value;
 });
 
-// Menghitung sisa stok yang tampil di layar
+const isFormValid = computed(
+  () =>
+    formData.operator &&
+    formData.mesin &&
+    formData.barcode_input &&
+    detailData.length > 0,
+);
 
-const displaySisaStok = computed(() => {
-  if (
-    formData.sisa_panjang_manual !== null &&
-    formData.sisa_panjang_manual > 0
-  ) {
-    return formData.sisa_panjang_manual;
-  }
+// --- Core Logic & Calculations ---
 
-  return formData.Panjang_bahan - totalPanjangTerpakai.value;
-});
-
-onMounted(() => {
-  // Ambil parameter nomor dari URL (sesuai definisi router: /edit/:nomor)
-  const nomorEdit = route.params.nomor;
-
-  if (nomorEdit && nomorEdit !== "create") {
-    isEditMode.value = true;
-    loaddataall(nomorEdit as string);
-  }
-});
-
-// --- Fungsi Load Data ---
-const loaddataall = async (nomor: string) => {
-  isSaving.value = true;
-  try {
-    const response = await api.get(`${API_BASE_URL}/lookup/${nomor}`);
-    const res = response.data.data || response.data;
-
-    if (res && res.header) {
-      const h = res.header;
-
-      // 1. Mapping Header
-      formData.nomor = h.Nomor;
-      // Gunakan substring untuk mendapatkan YYYY-MM-DD saja agar cocok dengan input type="date"
-      formData.tanggal = h.Tanggal
-        ? h.Tanggal.substring(0, 10)
-        : format(new Date(), "yyyy-MM-dd");
-      formData.shift = h.Shift || 1;
-      formData.operator = h.Operator || "";
-      formData.mesin = h.Mesin || "";
-      formData.kode_bahan_aktif = h.Kode_bahan || "";
-      formData.barcode_input = h.lbarcode_roll || "";
-
-      // 2. Mapping Detail
-      detailData.splice(0, detailData.length); // Kosongkan array sebelum mengisi
-
-      if (res.details && Array.isArray(res.details)) {
-        res.details.forEach((d: any, index: number) => {
-          // Ambil spek bahan dari detail baris pertama untuk mengisi info roll di header
-          if (index === 0) {
-            formData.Panjang_bahan = parseFloat(d.AmbilBahanPanjang || 0);
-            formData.Lebar_bahan = parseFloat(d.AmbilBahanLebar || 0);
-            formData.sisa_panjang_manual = d.Sisa_Panjang || null;
-            formData.sisa_lebar_manual = d.Sisa_Lebar || null;
-          }
-
-          detailData.push({
-            nomor_spk: d.ld_spk_nomor || h.NomorSPK,
-            nama_spk: h.NamaOrder || "",
-            panjang_spk: parseFloat(h.spk_panjang || 0),
-            lebar_spk: parseFloat(h.spk_lebar || 0),
-            padding: 3,
-            tile: h.Tile || 1,
-            orientasi: "lebar",
-            cetak1: d.J_Cetak1 || 0,
-            cetak2: d.J_Cetak2 || 0,
-            cetak3: d.J_Cetak3 || 0,
-            totalcetak: d.TotalCetak || 0,
-          });
-        });
-      }
-
-      // Jalankan kalkulasi visual layout
-      recalculateCombine();
-      toast.info("Data berhasil dimuat");
-    }
-  } catch (error: any) {
-    console.error("Error Load Data:", error);
-    toast.error("Gagal memuat data transaksi.");
-  } finally {
-    isSaving.value = false;
-  }
-};
-
+/**
+ * Menghitung ulang total cetak per baris dan posisi visual layout
+ */
 const recalculateCombine = () => {
   totalPanjangTerpakai.value = 0;
-
   totalLebarGabungan.value = 0;
-
   lebarSisaLayoutGanjil.value = 0;
-
   panjangSisaLayoutGanjil.value = 0;
 
   if (detailData.length === 0 || formData.Lebar_bahan <= 0) return;
 
   const maxRollHeight = formData.Lebar_bahan;
-
   const TOLERANSI_SISA = 0.3;
-
-  const MIN_LEBAR_AFAL = 0.5; // Batas 50cm
+  const MIN_LEBAR_AFAL = 0.5;
 
   let currentXOffset = 0;
-
   let nextXOffset = 0;
-
   let currentUsedHeight = 0;
 
   detailData.forEach((d) => {
-    d.totalcetak = (d.cetak1 || 0) + (d.cetak2 || 0) + (d.cetak3 || 0);
+    // Hitung total cetak dari C1 - C7
+    d.totalcetak = 0;
+    for (let i = 1; i <= 7; i++) {
+      d.totalcetak += d[`cetak${i}`] || 0;
+    }
 
     if (d.totalcetak <= 0 || d.tile <= 0) return;
 
     const padM = (d.padding * 2) / 100;
-
-    let dimMenyamping =
+    const dimMenyamping =
       d.orientasi === "lebar" ? d.lebar_spk + padM : d.panjang_spk + padM;
-
-    let dimMemanjang =
+    const dimMemanjang =
       d.orientasi === "lebar" ? d.panjang_spk + padM : d.lebar_spk + padM;
 
     const totalHeightSPK = d.tile * dimMenyamping;
-
     const totalWidthSPK = Math.ceil(d.totalcetak / d.tile) * dimMemanjang;
 
-    const sisaLebarTersedia = maxRollHeight - currentUsedHeight;
-
-    if (
-      sisaLebarTersedia < TOLERANSI_SISA ||
-      currentUsedHeight + totalHeightSPK > maxRollHeight + 0.01
-    ) {
+    // Logic Baris Baru (Wrap layout jika lebar bahan tidak cukup)
+    if (currentUsedHeight + totalHeightSPK > maxRollHeight + 0.01) {
       currentXOffset = nextXOffset;
-
       currentUsedHeight = 0;
     }
 
     currentUsedHeight += totalHeightSPK;
-
     nextXOffset = Math.max(nextXOffset, currentXOffset + totalWidthSPK);
 
     if (currentUsedHeight > totalLebarGabungan.value) {
       totalLebarGabungan.value = currentUsedHeight;
     }
 
-    // --- LOGIKA AFAL (Sisa Nyempil) ---
-
+    // Logic Sisa Afal/Nyempil
     const sisaItem = d.totalcetak % d.tile;
+    let tempLebarSisa =
+      sisaItem > 0
+        ? (d.tile - sisaItem) * dimMenyamping
+        : maxRollHeight - currentUsedHeight;
+    let tempPanjangSisa = sisaItem > 0 ? dimMemanjang : totalWidthSPK;
 
-    let tempLebarSisa = 0;
-
-    let tempPanjangSisa = 0;
-
-    if (sisaItem > 0) {
-      const jumlahKolomKosong = d.tile - sisaItem;
-
-      tempLebarSisa = jumlahKolomKosong * dimMenyamping;
-
-      tempPanjangSisa = dimMemanjang;
-    } else {
-      const sisaBawah = maxRollHeight - currentUsedHeight;
-
-      if (sisaBawah >= TOLERANSI_SISA) {
-        tempLebarSisa = sisaBawah;
-
-        tempPanjangSisa = totalWidthSPK;
-      }
-    }
-
-    // Perbaikan: Jika sisa lebar < 50cm, maka dianggap 0
-
-    if (tempLebarSisa < MIN_LEBAR_AFAL) {
-      lebarSisaLayoutGanjil.value = 0;
-
-      panjangSisaLayoutGanjil.value = 0;
-    } else {
+    if (tempLebarSisa >= MIN_LEBAR_AFAL) {
       lebarSisaLayoutGanjil.value = tempLebarSisa;
-
       panjangSisaLayoutGanjil.value = tempPanjangSisa;
     }
   });
@@ -756,207 +611,61 @@ const recalculateCombine = () => {
   totalPanjangTerpakai.value = nextXOffset;
 };
 
-const handleSave = async (statusValue: "DRAFT" | "POSTED" = "DRAFT") => {
-  // Jalankan kalkulasi ulang sebelum kirim untuk memastikan data terbaru
-  recalculateCombine();
-
-  // Validasi Dasar
-  if (!formData.operator || !formData.mesin || !formData.barcode_input) {
-    toast.error("Operator, Mesin, dan Barcode Roll wajib diisi.");
-    return;
-  }
-
-  if (detailData.length === 0) {
-    toast.error("Daftar produksi (SPK) masih kosong.");
-    return;
-  }
-
-  // Konfirmasi khusus jika Simpan Hasil (POSTED)
-  if (statusValue === "POSTED") {
-    const yakin = confirm(
-      "Simpan Hasil akan MEMOTONG STOK secara permanen. Lanjutkan?",
-    );
-    if (!yakin) return;
-  }
-
+const loaddataall = async (nomor: string) => {
   isSaving.value = true;
-
   try {
-    // 1. Persiapkan Header Data (Tambahkan lstatus)
-    const headerData = {
-      ltanggal: formData.tanggal,
-      lgdg_prod: "GPM",
-      lspk_nomor: detailData[0]?.nomor_spk || "",
-      lmesin: formData.mesin,
-      lshift: formData.shift,
-      loperator: formData.operator,
-      lbahan: formData.kode_bahan_aktif,
-      lbarcode_roll: formData.barcode_input,
-      ljumlah_kolom: detailData[0]?.tile || 0,
-      lfixed: "N",
-      lstatus: statusValue, // Kolom status: DRAFT atau POSTED
-      luser_create: "ADMIN",
-      lpanjang_bs: formData.panjang_bs || 0,
-      llebar_bs: formData.lebar_bs || 0,
-    };
+    const response = await api.get(`${API_BASE_URL}/lookup/${nomor}`);
+    const res = response.data.data || response.data;
 
-    // 2. Persiapkan Detail Data
-    const detailsData = detailData
-      .filter((d) => d.cetak1 + d.cetak2 + d.cetak3 > 0) // Pastikan hanya kirim yang ada qty-nya
-      .map((d) => ({
-        nomor_spk: d.nomor_spk,
-        // Kalkulasi meter pakai per baris SPK
-        cetakmeter:
-          (d.panjang_spk + (d.padding * 2) / 100) *
-          Math.ceil(d.totalcetak / d.tile),
-        cetak1: d.cetak1 || 0,
-        cetak2: d.cetak2 || 0,
-        cetak3: d.cetak3 || 0,
-        cetak4: 0,
-        cetak5: 0,
-        cetak6: 0,
-        cetak7: 0,
-        ambilBahanPanjang: formData.Panjang_bahan,
-        ambilBahanLebar: formData.Lebar_bahan,
-        // Jika status POSTED, sisa bahan akan jadi stok baru di backend
-        sisabahan:
-          formData.sisa_panjang_manual !== null
-            ? formData.sisa_panjang_manual
-            : sisaStokOtomatis.value,
-        sisabahanlebar:
-          formData.sisa_lebar_manual !== null ? formData.sisa_lebar_manual : 0,
-      }));
+    if (res?.header) {
+      const h = res.header;
+      formData.nomor = h.Nomor;
+      formData.tanggal =
+        h.Tanggal?.substring(0, 10) || format(new Date(), "yyyy-MM-dd");
+      formData.shift = h.Shift || 1;
+      formData.operator = h.Operator || "";
+      formData.mesin = h.Mesin || "";
+      formData.kode_bahan_aktif = h.Kode_bahan || "";
+      formData.barcode_input = h.lbarcode_roll || "";
 
-    if (detailsData.length === 0) {
-      toast.warning("Belum ada jumlah cetak yang diisi.");
-      isSaving.value = false;
-      return;
-    }
+      detailData.splice(0, detailData.length);
 
-    // 3. Payload Akhir
-    const finalPayload = {
-      header: headerData,
-      details: detailsData,
-      existingNomor: isEditMode.value ? formData.nomor : null,
-    };
+      if (Array.isArray(res.details)) {
+        res.details.forEach((d: any, index: number) => {
+          if (index === 0) {
+            formData.Panjang_bahan = parseFloat(d.AmbilBahanPanjang || 0);
+            formData.Lebar_bahan = parseFloat(d.AmbilBahanLebar || 0);
+            formData.sisa_panjang_manual = d.Sisa_Panjang || null;
+            formData.sisa_lebar_manual = d.Sisa_Lebar || null;
+          }
 
-    const response = await api.post("/mmt/lhk-cetak", finalPayload);
+          const detailObj: any = {
+            nomor_spk: d.ld_spk_nomor || h.NomorSPK,
+            nama_spk: d.NamaOrder || h.NamaOrder || "",
+            panjang_spk: parseFloat(d.spk_panjang || h.spk_panjang || 0),
+            lebar_spk: parseFloat(d.spk_lebar || h.spk_lebar || 0),
+            padding: d.Padding || 3,
+            tile: d.Tile || 1,
+            orientasi: d.Orientasi || "lebar",
+          };
 
-    if (response.data.success) {
-      toast.success(response.data.message);
+          // Map C1 - C7 dari API
+          for (let i = 1; i <= 7; i++) {
+            detailObj[`cetak${i}`] = d[`J_Cetak${i}`] || 0;
+          }
 
-      if (statusValue === "POSTED") {
-        // Jika sudah potong stok, biasanya diarahkan kembali ke list atau cetak
-        router.push("/mmt/lhk-list");
-      } else {
-        // Jika simpan sementara, tetap di halaman tapi update nomor (jika baru)
-        if (!isEditMode.value) {
-          formData.nomor = response.data.nomor;
-          isEditMode.value = true;
-          // Opsional: ganti URL tanpa reload agar user bisa lanjut edit
-          router.replace(`/mmt/lhk-cetak/edit/${response.data.nomor}`);
-        }
+          detailData.push(detailObj);
+        });
       }
+      recalculateCombine();
     }
-  } catch (error: any) {
-    console.error("Save Error:", error);
-    toast.error(error.response?.data?.message || "Gagal simpan ke server");
+  } catch (error) {
+    console.error("Load Error:", error);
+    toast.error("Gagal memuat data.");
   } finally {
     isSaving.value = false;
   }
 };
-
-// const layoutColumns = computed(() => {
-
-//   const columns = [];
-
-//   if (detailData.length === 0) return columns;
-
-//   let maxPutaran = 0;
-
-//   detailData.forEach((spk) => {
-
-//     const putaranSpk = Math.ceil(spk.totalcetak / spk.tile);
-
-//     if (putaranSpk > maxPutaran) maxPutaran = putaranSpk;
-
-//   });
-
-//   for (let p = 0; p < maxPutaran; p++) {
-
-//     const columnItems = [];
-
-//     let maxWidthOfThisColumn = 0;
-
-//     let currentRowOffset = 1; // Indikator baris untuk CSS Grid
-
-//     detailData.forEach((spk, idx) => {
-
-//       const padM = (spk.padding * 2) / 100;
-
-//       const totalPutaranSpk = Math.ceil(spk.totalcetak / spk.tile);
-
-//       if (p < totalPutaranSpk) {
-
-//         const isLastPutaran = p === totalPutaranSpk - 1;
-
-//         const sisaCetak = spk.totalcetak % spk.tile;
-
-//         const itemInThisColumn =
-
-//           isLastPutaran && sisaCetak !== 0 ? sisaCetak : spk.tile;
-
-//         const panjangReal = spk.panjang_spk + padM;
-
-//         if (panjangReal > maxWidthOfThisColumn)
-
-//           maxWidthOfThisColumn = panjangReal;
-
-//         // Tentukan range baris (grid-row) untuk kelompok SPK ini
-
-//         const rowStart = currentRowOffset;
-
-//         const rowEnd = currentRowOffset + itemInThisColumn;
-
-//         columnItems.push({
-
-//           label: `SPK ${idx + 1}`,
-
-//           count: itemInThisColumn,
-
-//           unitHeight: spk.lebar_spk + padM,
-
-//           unitWidth: panjangReal,
-
-//           gridRow: `${rowStart} / ${rowEnd}`,
-
-//           isFirstInGroup: true, // Untuk penanda garis tebal antar SPK
-
-//         });
-
-//         currentRowOffset = rowEnd;
-
-//       }
-
-//     });
-
-//     if (columnItems.length > 0) {
-
-//       columns.push({
-
-//         width: maxWidthOfThisColumn,
-
-//         items: columnItems,
-
-//       });
-
-//     }
-
-//   }
-
-//   return columns;
-
-// });
 
 const layoutRows = computed(() => {
   const blocks: any[] = [];
@@ -1109,119 +818,142 @@ const getTileInRow = (item: any, currentRow: number) => {
   return item.tile;
 };
 
-// --- API & Handlers ---
-
 const handleBarcodeScan = async () => {
+  if (!formData.barcode_input) return;
   try {
     const res = await api.get(`/mmt/stok-gudang/${formData.barcode_input}`);
-
     const resData = res.data.data;
 
     if (resData.status === "READY") {
       formData.sku_aktif = resData.data.Barcode;
-
       formData.kode_bahan_aktif = resData.data.Kode;
-
       formData.Panjang_bahan = parseFloat(resData.data.Sisa_Panjang);
-
       formData.Lebar_bahan = parseFloat(resData.data.Lebar);
-
       recalculateCombine();
-
       toast.success("Material Siap");
     } else {
-      toast.error("Barcode tidak tersedia");
+      toast.error("Barcode tidak tersedia/sudah terpakai");
     }
   } catch (e) {
     toast.error("Gagal scan barcode");
   }
 };
 
-const handleSpkSelect = (spk: any) => {
-  // Validasi: Cek apakah nomor SPK sudah ada di detailData
+const handleSave = async (statusValue: "DRAFT" | "POSTED" = "DRAFT") => {
+  recalculateCombine();
 
-  const isDuplicate = detailData.some((d) => d.nomor_spk === spk.Spk);
-
-  if (isDuplicate) {
-    toast.warning(`SPK ${spk.Spk} sudah ada dalam daftar produksi!`);
-
+  if (!isFormValid.value) {
+    toast.error("Mohon lengkapi data wajib (Operator, Mesin, Barcode, SPK)");
     return;
   }
 
-  detailData.push({
+  if (
+    statusValue === "POSTED" &&
+    !confirm("Simpan Hasil akan MEMOTONG STOK. Lanjutkan?")
+  )
+    return;
+
+  isSaving.value = true;
+  try {
+    const payload = {
+      header: {
+        ltanggal: formData.tanggal,
+        lgdg_prod: "GPM",
+        lmesin: formData.mesin,
+        lshift: formData.shift,
+        loperator: formData.operator,
+        lbahan: formData.kode_bahan_aktif,
+        lbarcode_roll: formData.barcode_input,
+        lstatus: statusValue,
+        luser_create: "ADMIN",
+        lpanjang_bs: formData.panjang_bs || 0,
+        llebar_bs: formData.lebar_bs || 0,
+      },
+      details: detailData.map((d) => {
+        const detailEntry: any = {
+          nomor_spk: d.nomor_spk,
+          tile: d.tile,
+          padding: d.padding,
+          ambilBahanPanjang: formData.Panjang_bahan,
+          ambilBahanLebar: formData.Lebar_bahan,
+          sisabahan: formData.sisa_panjang_manual ?? sisaStokOtomatis.value,
+          sisabahanlebar: formData.sisa_lebar_manual ?? 0,
+        };
+        // Map C1 - C7 ke payload
+        for (let i = 1; i <= 7; i++) {
+          detailEntry[`cetak${i}`] = d[`cetak${i}`] || 0;
+        }
+        return detailEntry;
+      }),
+      existingNomor: isEditMode.value ? formData.nomor : null,
+    };
+
+    const response = await api.post("/mmt/lhk-cetak", payload);
+    if (response.data.success) {
+      toast.success(response.data.message);
+      if (statusValue === "POSTED") router.push("/mmt/lhk-list");
+      else if (!isEditMode.value) {
+        formData.nomor = response.data.nomor;
+        isEditMode.value = true;
+        router.replace(`/mmt/lhk-cetak/edit/${response.data.nomor}`);
+      }
+    }
+  } catch (error: any) {
+    toast.error(error.response?.data?.message || "Gagal simpan.");
+  } finally {
+    isSaving.value = false;
+  }
+};
+
+// --- UI Handlers ---
+
+const handleSpkSelect = (spk: any) => {
+  if (detailData.some((d) => d.nomor_spk === spk.Spk)) {
+    toast.warning(`SPK ${spk.Spk} sudah ada dalam daftar!`);
+    return;
+  }
+
+  const newEntry: any = {
     nomor_spk: spk.Spk,
-
     nama_spk: spk.Nama,
-
     panjang_spk: spk.Panjang || 0,
-
     lebar_spk: spk.Lebar || 0,
-
     padding: 3,
-
     tile: 1,
-
-    orientasi: "lebar", // Default: tile menghitung lebar produk ke samping
-
+    orientasi: "lebar",
     totalcetak: 0,
+  };
+  // Init C1 - C7
+  for (let i = 1; i <= 7; i++) newEntry[`cetak${i}`] = 0;
 
-    cetak1: 0,
-
-    cetak2: 0,
-
-    cetak3: 0,
-
-    panjangTerpakai: 0,
-  });
-
+  detailData.push(newEntry);
   recalculateCombine();
-
   isSpkLookupVisible.value = false;
 };
 
 const removeDetail = (idx: number) => {
   detailData.splice(idx, 1);
-
   recalculateCombine();
 };
 
-const handleCancel = () => {
-  // Logika pembatalan (misal reset form atau kembali)
-
-  if (
-    confirm(
-      "Apakah Anda yakin ingin membatalkan? Data yang belum disimpan akan hilang.",
-    )
-  ) {
-    location.reload();
-  }
-};
-
-const handleClose = () => {
-  // Logika keluar halaman
-
-  // useRouter().push('/mmt/lhk-list') atau window.history.back()
-
-  console.log("Keluar dari halaman");
-};
-
 const openMesinSearch = () => (isMesinLookupVisible.value = true);
-
 const openSpkSearch = () => (isSpkLookupVisible.value = true);
-
 const handleMesinSelect = (m: any) => {
   formData.mesin = m.Kode;
-
   isMesinLookupVisible.value = false;
 };
 
-const isFormValid = computed(
-  () =>
-    formData.operator &&
-    formData.mesin &&
-    formData.barcode_input &&
-    detailData.length > 0,
-);
+const handleCancel = () => {
+  if (confirm("Batalkan perubahan?")) location.reload();
+};
+
+onMounted(() => {
+  const nomorEdit = route.params.nomor;
+  if (nomorEdit && nomorEdit !== "create") {
+    isEditMode.value = true;
+    loaddataall(nomorEdit as string);
+  }
+});
 </script>
 
 <style scoped>

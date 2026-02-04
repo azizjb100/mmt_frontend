@@ -8,6 +8,7 @@ import GudangLookupModal from "@/modal/GudangLookupView.vue";
 import SPKLookupModal from "@/modal/SpkLookupModal.vue";
 import { format } from "date-fns";
 import { useToast } from "vue-toastification";
+import { useAuthStore } from "../stores/authStore";
 
 interface DetailItem {
   barcode: string;
@@ -47,6 +48,7 @@ interface FormDataState {
 const router = useRouter();
 const route = useRoute();
 const toast = useToast();
+const authStore = useAuthStore();
 
 const API_URL = "/mmt/permintaan-produksi";
 
@@ -156,7 +158,7 @@ const handleBarcodeScan = async (index: number) => {
   if (!barcodeValue) return;
 
   const isDuplicate = formData.detail.some(
-    (d, i) => d.barcode === barcodeValue && i !== index
+    (d, i) => d.barcode === barcodeValue && i !== index,
   );
 
   if (isDuplicate) {
@@ -167,7 +169,7 @@ const handleBarcodeScan = async (index: number) => {
 
   try {
     const response = await api.get(
-      `${API_URL}/stok-barcode/${encodeURIComponent(barcodeValue)}`
+      `${API_URL}/stok-barcode/${encodeURIComponent(barcodeValue)}`,
     );
 
     const bahan = response.data.data;
@@ -207,7 +209,7 @@ const saveForm = async (saveAndNew: boolean) => {
 
   // 1. Ambil detail yang valid
   const validDetails = formData.detail.filter(
-    (d) => d.barcode.trim() !== "" && d.qty > 0
+    (d) => d.barcode.trim() !== "" && d.qty > 0,
   );
 
   if (validDetails.length === 0) {
@@ -236,7 +238,7 @@ const saveForm = async (saveAndNew: boolean) => {
         mnt_gdg_kode: formData.gudangKode, // Controller butuh 'mnt_gdg_kode'
         mnt_lokasiproduksi: formData.lokasiProduksiKode,
         mnt_keterangan: formData.keteranganHeader,
-        user_create: "Admin",
+        user_create: authStore.KDUSER || "Unknown",
       },
       details: validDetails.map((d) => ({
         // Controller butuh 'details' huruf kecil

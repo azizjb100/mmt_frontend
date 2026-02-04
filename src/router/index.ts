@@ -55,6 +55,7 @@ import FormKoreksiStokView from '@/views/FormKoreksiStokView.vue';
 import FormLhkMesinCetakView from '@/views/FormLhkMesinCetakView.vue';
 import LhkMesinCetakView from '../views/LhkMesinCetakView.vue';
 import LhkCetakMmtView from '@/views/LhkCetakMmtView.vue';
+import PlanningProduksiView from '@/views/PlanningProduksiView.vue';
 
 
 // 2. Definisikan Rute (Jalan)
@@ -229,6 +230,7 @@ const routes: RouteRecordRaw[] = [
                 component: FormMutasiProduksiView,
                 props: true
             },
+            { path: 'mmt/planning-produksi', name: 'PlanningProduksiBrowse', component: PlanningProduksiView },
 
             // --- GRUP COMING SOON / UMUM (PATH DIBUAT RELATIF) ---
             { path: 'file/user', name: 'User', component: ComingSoon },
