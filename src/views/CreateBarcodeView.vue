@@ -66,17 +66,17 @@ const preparePrint = async (header: BarcodeHeader) => {
     const tempPrintList: PrintItem[] = [];
 
     for (const det of header.details) {
-      // Generate QR Code satu kali saja untuk efisiensi
       const qrImage = await QRCode.toDataURL(det.mst_barcode, {
         width: 300,
         margin: 0,
         errorCorrectionLevel: "M",
       });
 
-      // --- LOGIKA DUPLIKASI: Tambah 2 kali ke list ---
+      // Duplikasi 2 stiker per barcode
       for (let i = 0; i < 2; i++) {
         tempPrintList.push({
-          namaBahan: det.brg_nama || "BAHAN MMT",
+          // Menggunakan nama_asli hasil join dari backend, bukan "Bahan MMT"
+          namaBahan: det.nama_asli || "BAHAN UMUM",
           qrValue: det.mst_barcode,
           qrImage: qrImage,
           panjang: det.mst_panjang,
@@ -84,11 +84,9 @@ const preparePrint = async (header: BarcodeHeader) => {
         });
       }
     }
-
     itemsToPrint.value = tempPrintList;
     showQRDialog.value = true;
   } catch (e) {
-    console.error("Print Error:", e);
     alert("Gagal menyiapkan data cetak.");
   } finally {
     loading.value = false;
