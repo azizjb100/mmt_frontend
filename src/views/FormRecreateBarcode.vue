@@ -45,38 +45,69 @@ const selectBahan = (val: any) => {
 
 // FUNGSI GENERATE (Hanya tambah ke list bawah, tidak simpan ke DB)
 const handleGenerate = async () => {
-  if (!form.kodeBahan || form.qty <= 0) return;
-  loading.value = true;
+  if (!form.kodeBahan || form.qty <= 0) {
+    toast.warning("Pilih bahan dan isi jumlah qty");
+    return;
+  }
 
+  loading.value = true;
   try {
-    // API ini untuk ambil nomor terakhir saja
+    // 1. Ambil nomor urut terakhir yang terdaftar di DATABASE
     const res = await api.get(`/mmt/recreate-barcode/next-number`, {
-      params: { kodeBahan: form.kodeBahan, tanggal: form.tanggal },
+      params: {
+        kodeBahan: form.kodeBahan,
+        tanggal: form.tanggal,
+      },
     });
 
-    let currentSeq = res.data.nextSeq - 1;
-    const ym = form.tanggal.replace(/-/g, "").substring(2, 6); // yyMM
+    if (res.data.success) {
+      const ym = res.data.ym;
+      // StartSeq awal dari database
+      let startSeq = res.data.nextSeq;
 
-    for (let i = 0; i < form.qty; i++) {
-      currentSeq++;
-      const newBarcode = `${form.kodeBahan}-${ym}-${String(currentSeq).padStart(3, "0")}`;
+      // 2. SINKRONISASI: Cek apakah bahan yang sama sudah ada di antrean (listPending)
+      // Kita cari semua barcode di listPending yang punya kode bahan yang sama
+      const sameBahanInAntrean = listPending.value.filter(
+        (item) => item.kodeBahan === form.kodeBahan,
+      );
 
-      listPending.value.push({
-        tanggal: form.tanggal,
-        kodeBahan: form.kodeBahan,
-        namaBahan: form.namaBahan,
-        barcode: newBarcode,
-        panjang: form.panjang,
-        lebar: form.lebar,
-        gudangKode: form.gudangKode,
-      });
+      if (sameBahanInAntrean.length > 0) {
+        // Ambil barcode paling terakhir dari daftar antrean
+        const lastBarcodeInList =
+          sameBahanInAntrean[sameBahanInAntrean.length - 1].barcode;
+
+        // Ambil angka urutnya (angka setelah dash terakhir)
+        const parts = lastBarcodeInList.split("-");
+        const lastSeqNumber = parseInt(parts[parts.length - 1]);
+
+        // Gunakan nomor setelah nomor terakhir di antrean
+        startSeq = lastSeqNumber + 1;
+      }
+
+      // 3. Tambahkan ke listPending sesuai jumlah roll (Qty)
+      for (let i = 0; i < form.qty; i++) {
+        const currentSeq = startSeq + i;
+        // Format tetap 3 digit (001, 002, dst)
+        const newBarcode = `${form.kodeBahan}-${ym}-${String(currentSeq).padStart(3, "0")}`;
+
+        listPending.value.push({
+          tanggal: form.tanggal,
+          kodeBahan: form.kodeBahan,
+          namaBahan: form.namaBahan,
+          barcode: newBarcode,
+          panjang: form.panjang,
+          lebar: form.lebar,
+          gudangKode: "WH-16",
+        });
+      }
+
+      await nextTick();
+      renderAllQRCodes();
+      toast.success(`${form.qty} barcode ditambahkan ke antrean.`);
     }
-
-    await nextTick();
-    renderAllQRCodes();
-    toast.info(`${form.qty} Barcode ditambahkan ke daftar.`);
   } catch (error: any) {
-    toast.error("Gagal mengambil nomor urut terakhir");
+    console.error("Error Generate:", error);
+    toast.error("Gagal sinkronisasi nomor urut terakhir");
   } finally {
     loading.value = false;
   }
