@@ -56,6 +56,7 @@ import FormLhkMesinCetakView from '@/views/FormLhkMesinCetakView.vue';
 import LhkMesinCetakView from '../views/LhkMesinCetakView.vue';
 import LhkCetakMmtView from '@/views/LhkCetakMmtView.vue';
 import PlanningProduksiView from '@/views/PlanningProduksiView.vue';
+import CreateBarcodeView from '@/views/CreateBarcodeView.vue';
 
 
 // 2. Definisikan Rute (Jalan)
@@ -193,7 +194,8 @@ const routes: RouteRecordRaw[] = [
                 component: FormInvoiceView,
                 props: { isEditMode: false }
             },
-            { path: 'mmt/create-barcode', name: 'CreateBarcode', component: FormRecreateBarcode },
+            { path: 'mmt/create-barcode', name: 'CreateBarcode', component: CreateBarcodeView },
+            { path: 'mmt/create-barcode/new', name: 'CreateBarcodeNew', component: FormRecreateBarcode },
             { path: 'mmt/koreksi-stok', name: 'KoreksiStokBrowse', component: KoreksiStokMMTView },
             {
                 path: 'mmt/koreksi-stok/new',
