@@ -888,10 +888,10 @@ const handleSave = async (statusValue: "DRAFT" | "POSTED" = "DRAFT") => {
       existingNomor: isEditMode.value ? formData.nomor : null,
     };
 
-    const response = await api.post("/mmt/lhk-cetak", payload);
+    const response = await api.post("/mmt/lhk/cetak", payload);
     if (response.data.success) {
       toast.success(response.data.message);
-      if (statusValue === "POSTED") router.push("/mmt/lhk-list");
+      if (statusValue === "POSTED") router.push("/mmt/lhk/cetak");
       else if (!isEditMode.value) {
         formData.nomor = response.data.nomor;
         isEditMode.value = true;

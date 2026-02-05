@@ -485,15 +485,27 @@ body {
 
 /* Print Styles */
 @media print {
-  /* Jangan gunakan * { background: transparent !important } */
-
-  .no-print {
+  /* Sembunyikan elemen UI Aplikasi secara global */
+  .v-navigation-drawer, 
+  .v-app-bar, 
+  .v-footer, 
+  .v-system-bar,
+  .no-print,
+  #logout-button, /* Jika ada ID spesifik */
+  header, 
+  nav {
     display: none !important;
   }
 
-  /* Izinkan warna latar belakang dicetak (khusus Chrome/Safari) */
+  /* Pastikan container utama tidak memiliki margin/padding yang mengganggu */
+  .v-main {
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
   body {
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
+    background-color: white !important;
   }
 }
