@@ -220,20 +220,25 @@ const printContent = () => {
   <head>
     <title>Print Label</title>
     <style>
+      /* 1. Setting ukuran kertas */
       @page { 
         size: 76.2mm 101mm portrait; 
         margin: 0; 
       }
+
+      /* 2. Body sebagai container utama yang mengetengahkan isi */
       body { 
         margin: 0; 
         padding: 0; 
-        background: white;
-        font-family: Arial, sans-serif;
-        display: flex;
-        flex-direction: column;
-        /* PERBAIKAN: Rata kiri pada kertas */
-        align-items: flex-start; 
+        font-family: Arial, sans-serif; 
+        display: flex; 
+        flex-direction: column; 
+        align-items: center;    /* Center Horizontal */
+        justify-content: center; /* Center Vertikal */
+        min-height: 100vh;      /* Memastikan body setinggi layar/kertas */
       }
+
+      /* 3. Box Label */
       .label-box {
         width: 70mm;
         height: 50mm;
@@ -241,11 +246,10 @@ const printContent = () => {
         box-sizing: border-box;
         display: flex;
         flex-direction: column;
-        margin-bottom: 2px; 
       }
 
+      /* Page break setiap 2 label */
       .label-box:nth-child(2n) {
-        margin-bottom: 0;
         page-break-after: always;
       }
 
@@ -263,14 +267,8 @@ const printContent = () => {
         display: flex; 
         gap: 10px; 
         align-items: flex-start; 
-        /* PERBAIKAN: Height otomatis agar divider menempel ke bawah barcode */
         height: auto; 
-        overflow: hidden;
-        margin-bottom: 4px; /* Jarak kecil antara barcode dan divider */
-      }
-
-      .qr-wrapper {
-        line-height: 0;
+        margin-bottom: 4px;
       }
 
       .qr-img { 
@@ -283,8 +281,8 @@ const printContent = () => {
       .info-column {
         display: flex;
         flex-direction: column;
-        padding-top: 2px; 
         text-align: left;
+        flex-grow: 1;
       }
 
       .qr-text { 
@@ -292,14 +290,12 @@ const printContent = () => {
         font-size: 8pt; 
         line-height: 1.1;
         word-break: break-all;
-        margin-bottom: 5px;
       }
 
       .dimens-text { 
         font-size: 11pt; 
         font-weight: bold;
-        margin-top: 5px;
-        text-align: center;
+        margin-top: 2px;
       }
 
       .divider { 
@@ -313,15 +309,15 @@ const printContent = () => {
         font-weight: bold; 
         text-align: center;
         line-height: 1.1;
-        display: -webkit-box;
-        -webkit-line-clamp: 2;
-        -webkit-box-orient: vertical;
-        overflow: hidden;
-        /* Mengisi sisa ruang di bawah divider */
         flex-grow: 1; 
         display: flex;
         align-items: center;
         justify-content: center;
+        overflow: hidden;
+        /* Menangani teks panjang agar tidak merusak layout */
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
       }
     </style>
   </head>
@@ -329,7 +325,7 @@ const printContent = () => {
     ${labelHtml}
   </body>
 </html>
-  `);
+`);
   doc.close();
 
   setTimeout(() => {
