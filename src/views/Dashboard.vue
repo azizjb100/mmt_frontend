@@ -89,7 +89,7 @@ const activeMenu = ref(null);
 const rolePermissions = {
   1: [
     "Daftar Permintaan Pembelian",
-    "Permintaan Pembelian(PR)",
+    "Purchase Order (PR)",
     "Penerimaan Bahan",
     "Permintaan Produksi",
     "Realisasi Produksi",
@@ -176,7 +176,7 @@ const allMenuGroups = [
         name: "Daftar Permintaan Pembelian",
         path: "/mmt/pengajuan-permintaan",
       },
-      { name: "Permintaan Pembelian(PR)", path: "/mmt/permintaan-bahan" },
+      { name: "Purchase Order (PR)", path: "/mmt/permintaan-bahan" },
       { name: "PO Bahan MMT", path: "/mmt/po-bahan-mmt" },
       { name: "Penerimaan Bahan", path: "/mmt/penerimaan-bahan" },
       { name: "Invoice", path: "/mmt/invoice" },
