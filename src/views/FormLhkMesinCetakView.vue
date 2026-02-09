@@ -842,7 +842,14 @@ const layoutRows = computed(() => {
   let currentUsedHeight = 0;
 
   detailData.forEach((spk, spkIdx) => {
-    spk.totalcetak = (spk.cetak1 || 0) + (spk.cetak2 || 0) + (spk.cetak3 || 0);
+    spk.totalcetak =
+      (spk.cetak1 || 0) +
+      (spk.cetak2 || 0) +
+      (spk.cetak3 || 0) +
+      (spk.cetak4 || 0) +
+      (spk.cetak5 || 0) +
+      (spk.cetak6 || 0) +
+      (spk.cetak7 || 0);
 
     if (spk.totalcetak <= 0 || spk.tile <= 0) return;
 

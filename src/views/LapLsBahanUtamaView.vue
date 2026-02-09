@@ -39,6 +39,20 @@
               style="max-width: 140px"
             />
 
+            <v-divider vertical class="mx-2" />
+            <span class="text-caption font-weight-bold">Gudang:</span>
+            <v-select
+              v-model="selectedGudang"
+              :items="gudangOptions"
+              item-title="text"
+              item-value="value"
+              density="compact"
+              hide-details
+              variant="outlined"
+              style="max-width: 200px"
+              @update:model-value="fetchReport"
+            />
+
             <v-spacer />
 
             <v-text-field
@@ -536,6 +550,12 @@ const onResizeEnd = () => {
   document.body.style.cursor = "default";
 };
 
+const selectedGudang = ref("WH-16"); // Default ke Gudang Utama
+const gudangOptions = [
+  { text: "Gudang Utama (WH-16)", value: "WH-16" },
+  { text: "Gudang Produksi (GPM)", value: "GPM" },
+];
+
 // Pastikan reportHeaders tetap didefinisikan untuk sinkronisasi data-table internal
 const reportHeaders = computed(() => {
   return Object.keys(colWidths).map((key) => ({
@@ -630,6 +650,7 @@ const fetchReport = async () => {
       params: {
         startDate: startDate.value,
         endDate: endDate.value,
+        gdgKode: selectedGudang.value,
       },
     });
 
