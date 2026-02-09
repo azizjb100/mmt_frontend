@@ -190,6 +190,24 @@
                   class="text-end"
               /></template>
 
+              <template #[`item.jumlah`]="{ item }">
+                <div class="text-end text-grey-darken-1">
+                  {{ item.jumlah || "0" }}
+                </div>
+              </template>
+
+              <template #[`item.luas_satuan`]="{ item }">
+                <div class="text-end text-grey-darken-1">
+                  {{ item.luas_satuan || "0.000" }}
+                </div>
+              </template>
+
+              <template #[`item.total_luas`]="{ item }">
+                <div class="text-end font-weight-bold text-deep-purple">
+                  {{ item.total_luas || "0.00" }}
+                </div>
+              </template>
+
               <template #[`item.orientasi`]="{ item }">
                 <v-select
                   v-model="item.orientasi"
@@ -399,7 +417,7 @@
           </v-card-title>
 
           <v-card-text class="pa-4 bg-white">
-            <div class="roll-horizontal-wrapper">
+            <div class="roll-horizontal-wrapper" style="overflow-x: auto">
               <div class="roll-material" :style="rollStyle">
                 <div
                   v-for="(item, idx) in layoutRows"
@@ -409,15 +427,17 @@
                     width: `${item.w * SCALE}px`,
                     height: `${item.h * SCALE}px`,
                     position: 'absolute',
-                    left: `${item.x * SCALE}px`,
-                    top: `${item.y * SCALE}px`,
+                    left: `${(manualOffsets[idx]?.x ?? item.x) * SCALE}px`,
+                    top: `${(manualOffsets[idx]?.y ?? item.y) * SCALE}px`,
                     backgroundColor: '#e3f2fd',
                     border: '1px solid #2196f3',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    boxSizing: 'border-box',
+                    cursor: 'move',
+                    zIndex: 10,
                   }"
+                  @mousedown="startDrag($event, idx)"
                 >
                   <span
                     class="box-label"
@@ -503,6 +523,21 @@ const detailHeaders = [
   { title: "L. SPK", key: "lebar_spk", align: "end" as const },
   { title: "Orientasi", key: "orientasi", width: "130px" },
   { title: "Pad(cm)", key: "padding", width: "70px" },
+  { title: "Jumlah", key: "jumlah", width: "70px" },
+  {
+    title: "Total Cetak",
+    key: "totalcetak",
+    width: "60px",
+    align: "end" as const,
+  },
+  {
+    title: "Kurang Cetak",
+    key: "kurangcetak",
+    width: "60px",
+    align: "end" as const,
+  },
+  { title: "Luas/Pcs (m²)", key: "luas_satuan", align: "end", width: "100px" }, // Kolom Baru
+  { title: "Total Luas (m²)", key: "total_luas", align: "end", width: "120px" }, // Kolom Baru
   { title: "Tile", key: "tile", width: "60px" },
   // Cetak 1 sampai 7
   ...Array.from({ length: 7 }, (_, i) => ({
@@ -510,7 +545,7 @@ const detailHeaders = [
     key: `cetak${i + 1}`,
     width: "50px",
   })),
-  { title: "Total", key: "totalcetak", width: "60px", align: "end" as const },
+
   { title: "", key: "actions", width: "40px" },
 ];
 
@@ -534,6 +569,72 @@ const displayPanjangTerpakai = computed(() => {
   return totalPanjangTerpakai.value;
 });
 
+const manualOffsets = reactive<Record<number, { x: number; y: number }>>({});
+
+// Fungsi untuk memulai Drag
+
+// Fungsi menghitung sisa (Panjang & Lebar) berdasarkan posisi kotak
+const updateSisaFromLayout = () => {
+  let maxRight = 0; // Untuk Panjang (X)
+  let maxBottom = 0; // Untuk Lebar (Y)
+
+  layoutRows.value.forEach((item, idx) => {
+    // Ambil posisi dari offset manual (hasil drag) atau posisi default sistem
+    const posX = manualOffsets[idx]?.x ?? item.x;
+    const posY = manualOffsets[idx]?.y ?? item.y;
+
+    const rightEdge = posX + item.w;
+    const bottomEdge = posY + item.h;
+
+    if (rightEdge > maxRight) maxRight = rightEdge;
+    if (bottomEdge > maxBottom) maxBottom = bottomEdge;
+  });
+
+  // 1. Update Sisa Panjang (Horizontal)
+  formData.sisa_panjang_manual = Number(
+    Math.max(0, formData.Panjang_bahan - maxRight).toFixed(2),
+  );
+
+  // 2. Update Sisa Lebar (Vertical)
+  // Sisa lebar adalah Lebar Bahan Roll dikurangi posisi kotak paling bawah
+  formData.sisa_lebar_manual = Number(
+    Math.max(0, formData.Lebar_bahan - maxBottom).toFixed(2),
+  );
+};
+
+// Pastikan fungsi ini dipanggil di dalam onMouseMove pada startDrag
+const startDrag = (event: MouseEvent, idx: number) => {
+  const item = layoutRows.value[idx];
+  const startX = event.clientX;
+  const startY = event.clientY;
+
+  const initialX = manualOffsets[idx]?.x ?? item.x;
+  const initialY = manualOffsets[idx]?.y ?? item.y;
+
+  const onMouseMove = (e: MouseEvent) => {
+    // Hitung perubahan posisi dalam satuan meter
+    const dx = (e.clientX - startX) / SCALE;
+    const dy = (e.clientY - startY) / SCALE;
+
+    // Simpan koordinat baru
+    manualOffsets[idx] = {
+      x: initialX + dx,
+      y: initialY + dy,
+    };
+
+    // Jalankan sinkronisasi ke field Sisa Panjang & Sisa Lebar
+    updateSisaFromLayout();
+  };
+
+  const onMouseUp = () => {
+    document.removeEventListener("mousemove", onMouseMove);
+    document.removeEventListener("mouseup", onMouseUp);
+  };
+
+  document.addEventListener("mousemove", onMouseMove);
+  document.addEventListener("mouseup", onMouseUp);
+};
+
 const isFormValid = computed(
   () =>
     formData.operator &&
@@ -542,21 +643,15 @@ const isFormValid = computed(
     detailData.length > 0,
 );
 
-// --- Core Logic & Calculations ---
-
-/**
- * Menghitung ulang total cetak per baris dan posisi visual layout
- */
 const recalculateCombine = () => {
   totalPanjangTerpakai.value = 0;
   totalLebarGabungan.value = 0;
   lebarSisaLayoutGanjil.value = 0;
   panjangSisaLayoutGanjil.value = 0;
 
-  if (detailData.length === 0 || formData.Lebar_bahan <= 0) return;
+  if (!detailData.length || Number(formData.Lebar_bahan) <= 0) return;
 
-  const maxRollHeight = formData.Lebar_bahan;
-  const TOLERANSI_SISA = 0.3;
+  const maxRollHeight = Number(formData.Lebar_bahan);
   const MIN_LEBAR_AFAL = 0.5;
 
   let currentXOffset = 0;
@@ -564,24 +659,63 @@ const recalculateCombine = () => {
   let currentUsedHeight = 0;
 
   detailData.forEach((d) => {
-    // Hitung total cetak dari C1 - C7
-    d.totalcetak = 0;
+    let totalCetak = 0;
+
     for (let i = 1; i <= 7; i++) {
-      d.totalcetak += d[`cetak${i}`] || 0;
+      totalCetak += parseFloat(d[`cetak${i}`]) || 0;
     }
 
-    if (d.totalcetak <= 0 || d.tile <= 0) return;
+    d.totalcetak = totalCetak;
 
-    const padM = (d.padding * 2) / 100;
+    if (totalCetak <= 0 || (parseFloat(d.tile) || 0) <= 0) {
+      d.luas_satuan = 0;
+      d.total_luas = 0;
+      return;
+    }
+    d.kurangcetak = Math.max(0, (parseFloat(d.jumlah) || 0) - totalCetak);
+
+    if (totalCetak <= 0 || (parseFloat(d.tile) || 0) <= 0) {
+      d.luas_satuan = 0;
+      d.total_luas = 0;
+      return;
+    }
+
+    if (d.jumlah > 0 && d.totalcetak > d.jumlah) {
+      toast.error(
+        `SPK ${d.nomor_spk}: Total cetak (${d.totalcetak}) melebihi order (${d.jumlah})!`,
+      );
+    }
+
+    const panjang = parseFloat(d.panjang_spk) || 0;
+    const lebar = parseFloat(d.lebar_spk) || 0;
+    const tile = parseFloat(d.tile) || 0;
+    const jumlah = parseFloat(d.jumlah) || 0;
+    const padding = parseFloat(d.padding) || 0;
+
+    const padM = (padding * 2) / 100;
+
     const dimMenyamping =
-      d.orientasi === "lebar" ? d.lebar_spk + padM : d.panjang_spk + padM;
+      d.orientasi === "lebar" ? lebar + padM : panjang + padM;
+
     const dimMemanjang =
-      d.orientasi === "lebar" ? d.panjang_spk + padM : d.lebar_spk + padM;
+      d.orientasi === "lebar" ? panjang + padM : lebar + padM;
 
-    const totalHeightSPK = d.tile * dimMenyamping;
-    const totalWidthSPK = Math.ceil(d.totalcetak / d.tile) * dimMemanjang;
+    // ================================
+    // 3️⃣ HITUNG LUAS PCS & TOTAL
+    // ================================
+    const luasSatuan = (panjang + padM) * (lebar + padM);
+    const totalLuas = luasSatuan * totalCetak;
 
-    // Logic Baris Baru (Wrap layout jika lebar bahan tidak cukup)
+    // simpan sebagai NUMBER (bukan string)
+    d.luas_satuan = Number(luasSatuan.toFixed(3));
+    d.total_luas = Number(totalLuas.toFixed(2));
+
+    // ================================
+    // 4️⃣ LOGIKA LAYOUT
+    // ================================
+    const totalHeightSPK = tile * dimMenyamping;
+    const totalWidthSPK = Math.ceil(totalCetak / tile) * dimMemanjang;
+
     if (currentUsedHeight + totalHeightSPK > maxRollHeight + 0.01) {
       currentXOffset = nextXOffset;
       currentUsedHeight = 0;
@@ -590,16 +724,21 @@ const recalculateCombine = () => {
     currentUsedHeight += totalHeightSPK;
     nextXOffset = Math.max(nextXOffset, currentXOffset + totalWidthSPK);
 
-    if (currentUsedHeight > totalLebarGabungan.value) {
-      totalLebarGabungan.value = currentUsedHeight;
-    }
+    totalLebarGabungan.value = Math.max(
+      totalLebarGabungan.value,
+      currentUsedHeight,
+    );
 
-    // Logic Sisa Afal/Nyempil
-    const sisaItem = d.totalcetak % d.tile;
+    // ================================
+    // 5️⃣ HITUNG SISA AFAL
+    // ================================
+    const sisaItem = totalCetak % tile;
+
     let tempLebarSisa =
       sisaItem > 0
-        ? (d.tile - sisaItem) * dimMenyamping
+        ? (tile - sisaItem) * dimMenyamping
         : maxRollHeight - currentUsedHeight;
+
     let tempPanjangSisa = sisaItem > 0 ? dimMemanjang : totalWidthSPK;
 
     if (tempLebarSisa >= MIN_LEBAR_AFAL) {
@@ -617,21 +756,31 @@ const loaddataall = async (nomor: string) => {
     const response = await api.get(`${API_BASE_URL}/lookup/${nomor}`);
     const res = response.data.data || response.data;
 
-    if (res?.header) {
+    if (res && res.header) {
       const h = res.header;
+
+      // Sinkronisasi field header
       formData.nomor = h.Nomor;
-      formData.tanggal =
-        h.Tanggal?.substring(0, 10) || format(new Date(), "yyyy-MM-dd");
+      if (h.Tanggal) {
+        formData.tanggal = h.Tanggal.split("T")[0].substring(0, 10);
+      } else {
+        formData.tanggal = format(new Date(), "yyyy-MM-dd");
+      }
       formData.shift = h.Shift || 1;
       formData.operator = h.Operator || "";
       formData.mesin = h.Mesin || "";
       formData.kode_bahan_aktif = h.Kode_bahan || "";
       formData.barcode_input = h.lbarcode_roll || "";
 
+      // Ambil data BS jika ada
+      formData.panjang_bs = h.PanjangBS || 0;
+      formData.lebar_bs = h.LebarBS || 0;
+
       detailData.splice(0, detailData.length);
 
       if (Array.isArray(res.details)) {
         res.details.forEach((d: any, index: number) => {
+          // Ambil informasi bahan dari detail pertama
           if (index === 0) {
             formData.Panjang_bahan = parseFloat(d.AmbilBahanPanjang || 0);
             formData.Lebar_bahan = parseFloat(d.AmbilBahanLebar || 0);
@@ -640,16 +789,17 @@ const loaddataall = async (nomor: string) => {
           }
 
           const detailObj: any = {
-            nomor_spk: d.ld_spk_nomor || h.NomorSPK,
-            nama_spk: d.NamaOrder || h.NamaOrder || "",
-            panjang_spk: parseFloat(d.spk_panjang || h.spk_panjang || 0),
-            lebar_spk: parseFloat(d.spk_lebar || h.spk_lebar || 0),
-            padding: d.Padding || 3,
+            nomor_spk: d.ld_spk_nomor,
+            nama_spk: d.NamaOrder || "",
+            panjang_spk: parseFloat(d.spk_panjang || 0),
+            lebar_spk: parseFloat(d.spk_lebar || 0),
+            padding: d.Padding || 3, // Pastikan field ini ada di SELECT backend
             tile: d.Tile || 1,
+            jumlah: d.JumlahOrder || 0,
             orientasi: d.Orientasi || "lebar",
           };
 
-          // Map C1 - C7 dari API
+          // Map J_Cetak1...7 dari API ke cetak1...7 frontend
           for (let i = 1; i <= 7; i++) {
             detailObj[`cetak${i}`] = d[`J_Cetak${i}`] || 0;
           }
@@ -657,19 +807,28 @@ const loaddataall = async (nomor: string) => {
           detailData.push(detailObj);
         });
       }
+
+      // Jalankan kalkulasi layout setelah data masuk
       recalculateCombine();
+    } else {
+      toast.error("Struktur data tidak valid");
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error("Load Error:", error);
-    toast.error("Gagal memuat data.");
+    toast.error(error.message || "Gagal memuat data.");
   } finally {
     isSaving.value = false;
   }
 };
 
+const grandTotalLuasBahan = computed(() => {
+  return detailData
+    .reduce((sum, item) => sum + Number(item.total_luas || 0), 0)
+    .toFixed(2);
+});
+
 const layoutRows = computed(() => {
   const blocks: any[] = [];
-
   if (detailData.length === 0 || formData.Lebar_bahan <= 0) return blocks;
 
   const maxRollHeight = formData.Lebar_bahan;
@@ -873,6 +1032,9 @@ const handleSave = async (statusValue: "DRAFT" | "POSTED" = "DRAFT") => {
         const detailEntry: any = {
           nomor_spk: d.nomor_spk,
           tile: d.tile,
+          jumlah: d.jumlah,
+          luasm2: d.total_luas,
+
           padding: d.padding,
           ambilBahanPanjang: formData.Panjang_bahan,
           ambilBahanLebar: formData.Lebar_bahan,
@@ -921,7 +1083,10 @@ const handleSpkSelect = (spk: any) => {
     padding: 3,
     tile: 1,
     orientasi: "lebar",
+    jumlah: spk.Jumlah,
     totalcetak: 0,
+    luas_satuan: 0, // Wajib ada agar reaktif
+    total_luas: 0, // Wajib ada agar reaktif
   };
   // Init C1 - C7
   for (let i = 1; i <= 7; i++) newEntry[`cetak${i}`] = 0;
@@ -1071,5 +1236,20 @@ onMounted(() => {
   z-index: 2;
 
   border-top: 2px solid #ddd !important;
+}
+
+.product-unit {
+  transition: none; /* Matikan transisi agar pergerakan halus saat drag */
+  user-select: none;
+  touch-action: none;
+}
+
+.roll-material {
+  /* Pastikan area roll cukup luas untuk menampung geseran */
+  min-width: v-bind('formData.Panjang_bahan * SCALE + "px"');
+  background-image:
+    linear-gradient(90deg, #f0f0f0 1px, transparent 1px),
+    linear-gradient(#f0f0f0 1px, transparent 1px);
+  background-size: 10px 10px; /* Opsional: Grid bantu */
 }
 </style>
