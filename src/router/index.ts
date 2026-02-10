@@ -57,6 +57,8 @@ import LhkMesinCetakView from '../views/LhkMesinCetakView.vue';
 import LhkCetakMmtView from '@/views/LhkCetakMmtView.vue';
 import PlanningProduksiView from '@/views/PlanningProduksiView.vue';
 import CreateBarcodeView from '@/views/CreateBarcodeView.vue';
+import LhkTekstilView from '@/views/LhkTekstilView.vue';
+import LhkTekstilMmtView from '@/views/LhkTekstilMmtView.vue';
 
 
 // 2. Definisikan Rute (Jalan)
@@ -294,7 +296,7 @@ const routes: RouteRecordRaw[] = [
             { path: 'mmt/daftar/retur-permintaan-produksi', name: 'Retur Permintaan Produksi MMT', component: ComingSoon },
             { path: 'mmt/daftar/planning-produksi', name: 'Planning Produksi MMT', component: ComingSoon },
             { path: 'mmt/daftar/stbj', name: 'STBJ MMT', component: ComingSoon },
-            { path: 'mmt/lhk/kain', name: 'LHK Kain MMT', component: ComingSoon },
+            { path: 'mmt/lhk/kain', name: 'tekstilMMT', component: LhkTekstilMmtView },
             { path: 'mmt/lhk/proof', name: 'LHK Proof MMT', component: ComingSoon },
             { path: 'mmt/lhk/sublim', name: 'LHK Sublim MMT', component: ComingSoon },
             { path: 'mmt/lhk/rtr', name: 'LHK RTR MMT', component: ComingSoon },

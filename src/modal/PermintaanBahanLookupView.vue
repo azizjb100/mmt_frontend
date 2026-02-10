@@ -196,7 +196,6 @@ const headers = [
   { title: "Nomor Permintaan", key: "Nomor", width: "200px" },
   { title: "Tanggal", key: "Tanggal", width: "120px" },
   { title: "Gudang Tujuan", key: "NamaGudang", width: "200px" },
-  { title: "Keterangan", key: "Keterangan", width: "450px" },
   { title: "ACC Status", key: "ACC", width: "100px", align: "center" as const },
   {
     title: "Status Permintaan",

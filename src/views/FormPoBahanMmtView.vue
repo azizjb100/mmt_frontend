@@ -274,7 +274,11 @@
 
               <template #[`item.m2`]="{ item }">
                 <div class="text-right cell-text px-2 font-weight-bold">
-                  {{ item.m2 ? item.m2.toFixed(2) : "-" }}
+                  {{
+                    item.satuan?.toUpperCase() === "ROLL"
+                      ? item.m2.toFixed(2)
+                      : "-"
+                  }}
                 </div>
               </template>
 
@@ -801,13 +805,25 @@ const calculateTotal = (item: DetailItem): number => {
   const harga = Number(item.harga) || 0;
   const diskon = Number(item.diskon) || 0;
 
+  // 1. Hitung Harga Bersih (DPP) jika PPN aktif (Asumsi Harga Include PPN)
   let hargaBersih = harga;
-
   if (formData.isPpn && formData.ppnRate > 0) {
     hargaBersih = harga / (1 + formData.ppnRate / 100);
   }
 
-  const bruto = qty * m2 * hargaBersih;
+  // 2. Logika Perhitungan Spesifik
+  let bruto = 0;
+  const satuan = (item.satuan || "").toUpperCase().trim();
+
+  if (satuan === "ROLL") {
+    // KHUSUS ROLL: Qty x M2 x Harga
+    bruto = qty * m2 * hargaBersih;
+  } else {
+    // SEMUA SATUAN LAIN (Pcs, Mtr, Kg, dll): Qty x Harga
+    bruto = qty * hargaBersih;
+  }
+
+  // 3. Potong Diskon
   const net = bruto * (1 - diskon / 100);
 
   return net;

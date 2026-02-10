@@ -1005,6 +1005,43 @@ const handleBarcodeScan = async () => {
   }
 };
 
+const generateNextAfalBarcode = (originalBarcode: string) => {
+  if (!originalBarcode) return "";
+
+  // 1. Bersihkan barcode dari suffix yang sudah ada untuk mendapatkan base barcode
+  // Mencari apakah sudah ada pola -A, -B, dst di akhir
+  const regex = /-(?:[A-Z])$/;
+  const hasSuffix = regex.test(originalBarcode);
+
+  let baseBarcode = originalBarcode;
+  let lastChar = "";
+
+  if (hasSuffix) {
+    // Ambil huruf terakhir (A-Z)
+    lastChar = originalBarcode.slice(-1).toUpperCase();
+    // Ambil barcode dasar tanpa -A
+    baseBarcode = originalBarcode.slice(0, -2);
+  }
+
+  // 2. Tentukan huruf berikutnya
+  let nextSuffix = "";
+  if (!lastChar) {
+    nextSuffix = "-A";
+  } else {
+    // Mengubah huruf ke kode ASCII, tambah 1, lalu kembalikan ke karakter
+    // A (65) -> B (66), dst.
+    const nextCharCode = lastChar.charCodeAt(0) + 1;
+    if (nextCharCode > 90) {
+      // Jika sudah lewat Z
+      nextSuffix = "-A1"; // Atau logika penanganan jika lebih dari 26 afal
+    } else {
+      nextSuffix = `-${String.fromCharCode(nextCharCode)}`;
+    }
+  }
+
+  return baseBarcode + nextSuffix;
+};
+
 const handleSave = async (statusValue: "DRAFT" | "POSTED" = "DRAFT") => {
   recalculateCombine();
 
@@ -1034,6 +1071,8 @@ const handleSave = async (statusValue: "DRAFT" | "POSTED" = "DRAFT") => {
         luser_create: "ADMIN",
         lpanjang_bs: formData.panjang_bs || 0,
         llebar_bs: formData.lebar_bs || 0,
+        lpanjang_afal_sistem: panjangSisaLayoutGanjil.value,
+        llebar_afal_sistem: lebarSisaLayoutGanjil.value,
       },
       details: detailData.map((d) => {
         const detailEntry: any = {
