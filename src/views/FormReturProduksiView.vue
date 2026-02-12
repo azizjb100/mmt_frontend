@@ -151,53 +151,35 @@ const removeDetail = (index: number) => {
   }
 };
 
-// frontend - <script setup>
-
 const handleBarcodeScan = async (index: number) => {
   const targetItem = formData.detail[index];
   const barcodeValue = targetItem.barcode;
 
   if (!barcodeValue) return;
 
-  // 1. Validasi: Pastikan Gudang Asal sudah dipilih di header
-  if (!formData.gudangKode) {
-    toast.error("Silahkan pilih Gudang Asal terlebih dahulu.");
-    targetItem.barcode = "";
-    return;
-  }
-
-  // 2. Cek Duplikasi di Tabel (Input manual/scan ulang di list yang sama)
   const isDuplicate = formData.detail.some(
     (d, i) => d.barcode === barcodeValue && i !== index,
   );
 
   if (isDuplicate) {
-    toast.warning(`Barcode ${barcodeValue} sudah ada di daftar input.`);
+    toast.warning(`Barcode ${barcodeValue} sudah digunakan.`);
     targetItem.barcode = "";
     return;
   }
 
   try {
-    // 3. Kirim barcode DAN gudangKode ke API
     const response = await api.get(
       `${API_URL}/stok-barcode/${encodeURIComponent(barcodeValue)}`,
-      {
-        params: { gudang: formData.gudangKode }, // Mengirim kode gudang
-      },
     );
 
     const bahan = response.data.data;
 
-    // 4. Jika backend mengembalikan null (karena gudang beda atau stok habis)
     if (!bahan) {
-      toast.error(
-        `Barcode ${barcodeValue} tidak ditemukan atau sudah tidak berada di ${formData.gudangNama}.`,
-      );
+      toast.error("Data barcode tidak ditemukan.");
       targetItem.barcode = "";
       return;
     }
 
-    // Isi data ke baris tabel
     targetItem.barcode = bahan.Barcode;
     targetItem.sku = bahan.Kode;
     targetItem.Nama_Bahan = bahan.Nama_Bahan;
@@ -209,14 +191,15 @@ const handleBarcodeScan = async (index: number) => {
     targetItem.spk =
       bahan.Nomor_SPK && bahan.Nomor_SPK !== "0" ? bahan.Nomor_SPK : "";
 
+    // Logika Tambah Baris Otomatis & Pindah Fokus
     if (index === formData.detail.length - 1) {
       addDetail();
     }
 
     focusNextBarcode(index);
-    toast.success("Barcode valid.");
+    toast.success("Barcode berhasil ditambahkan.");
   } catch (err: any) {
-    toast.error(err.response?.data?.message || "Gagal memverifikasi barcode.");
+    toast.error(err.response?.data?.message || "Gagal mengambil data barcode.");
     targetItem.barcode = "";
   }
 };

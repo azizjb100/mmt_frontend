@@ -473,11 +473,10 @@ import { useRoute, useRouter } from "vue-router";
 import { format } from "date-fns";
 import api from "@/services/api";
 import { useToast } from "vue-toastification";
-
-// Modals & Components
 import MesinLookupView from "@/modal/MesinLookupModal.vue";
 import SpkLookupView from "@/modal/SpkLookupModal.vue";
 import PageLayout from "../components/PageLayout.vue";
+import { useAuthStore } from "@/stores/authStore";
 
 // --- Configuration & Constants ---
 const route = useRoute();
@@ -491,6 +490,7 @@ const isSaving = ref(false);
 const isEditMode = ref(false);
 const isMesinLookupVisible = ref(false);
 const isSpkLookupVisible = ref(false);
+const authStore = useAuthStore();
 
 const formData = reactive({
   nomor: "AUTO",
@@ -1028,8 +1028,6 @@ const generateNextAfalBarcode = (originalBarcode: string) => {
   if (!lastChar) {
     nextSuffix = "-A";
   } else {
-    // Mengubah huruf ke kode ASCII, tambah 1, lalu kembalikan ke karakter
-    // A (65) -> B (66), dst.
     const nextCharCode = lastChar.charCodeAt(0) + 1;
     if (nextCharCode > 90) {
       // Jika sudah lewat Z
@@ -1058,6 +1056,8 @@ const handleSave = async (statusValue: "DRAFT" | "POSTED" = "DRAFT") => {
 
   isSaving.value = true;
   try {
+    const currentUser =
+      authStore.user?.username || authStore.user?.nama || "SYSTEM";
     const payload = {
       header: {
         ltanggal: formData.tanggal,
@@ -1068,11 +1068,12 @@ const handleSave = async (statusValue: "DRAFT" | "POSTED" = "DRAFT") => {
         lbahan: formData.kode_bahan_aktif,
         lbarcode_roll: formData.barcode_input,
         lstatus: statusValue,
-        luser_create: "ADMIN",
+        luser_create: currentUser,
+        luser_modified: currentUser,
         lpanjang_bs: formData.panjang_bs || 0,
         llebar_bs: formData.lebar_bs || 0,
-        lpanjang_afal_sistem: panjangSisaLayoutGanjil.value,
-        llebar_afal_sistem: lebarSisaLayoutGanjil.value,
+        lpanjang_afal: panjangSisaLayoutGanjil.value,
+        llebar_afal: lebarSisaLayoutGanjil.value,
       },
       details: detailData.map((d) => {
         const detailEntry: any = {
@@ -1080,7 +1081,6 @@ const handleSave = async (statusValue: "DRAFT" | "POSTED" = "DRAFT") => {
           tile: d.tile,
           jumlah: d.jumlah,
           luasm2: d.total_luas,
-
           padding: d.padding,
           ambilBahanPanjang: formData.Panjang_bahan,
           ambilBahanLebar: formData.Lebar_bahan,

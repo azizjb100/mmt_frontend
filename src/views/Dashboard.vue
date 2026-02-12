@@ -181,6 +181,8 @@ const allMenuGroups = [
       { name: "Penerimaan Bahan", path: "/mmt/penerimaan-bahan" },
       { name: "Invoice", path: "/mmt/invoice" },
       { name: "Retur Beli", path: "/mmt/retur-beli" },
+      { name: "Retur Produksi", path: "/mmt/retur-produksi" },
+      { name: "Mutasi Bahan", path: "/mmt/mutasi-bahan" },
       { name: "Koreksi Stok", path: "/mmt/koreksi-stok" },
       { name: "Permintaan Produksi", path: "/mmt/permintaan-produksi" },
       { name: "Realisasi Produksi", path: "/mmt/realisasi-produksi" },

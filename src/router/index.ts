@@ -59,6 +59,11 @@ import PlanningProduksiView from '@/views/PlanningProduksiView.vue';
 import CreateBarcodeView from '@/views/CreateBarcodeView.vue';
 import LhkTekstilView from '@/views/LhkTekstilView.vue';
 import LhkTekstilMmtView from '@/views/LhkTekstilMmtView.vue';
+import SupplierView from '@/views/SupplierView.vue';
+import FormSupplierView from '@/views/FormSupplierView.vue';
+import FormReturProduksiView from '@/views/FormReturProduksiView.vue';
+import { Form } from 'lucide-vue-next';
+import ReturProduksiView from '@/views/ReturProduksiView.vue';
 
 
 // 2. Definisikan Rute (Jalan)
@@ -227,11 +232,25 @@ const routes: RouteRecordRaw[] = [
                 component: FormMutasiProduksiView,
                 props: { isEditMode: false }
             },
-            // 3. Ubah (Edit Existing)
             {
                 path: 'mmt/realisasi-produksi/edit/:nomor',
                 name: 'MutasiProduksiEdit',
                 component: FormMutasiProduksiView,
+                props: true
+            },
+            
+            { path: 'mmt/retur-produksi', name: 'ReturProduksiBrowse', component: ReturProduksiView },
+            {
+                path: 'mmt/retur-produksi/new',
+                name: 'ReturProduksiNew',
+                component: FormReturProduksiView,
+                props: { isEditMode: false }
+            },
+            // 3. Ubah (Edit Existing)
+            {
+                path: 'mmt/realisasi-produksi/edit/:nomor',
+                name: 'ReturProduksiEdit',
+                component: FormReturProduksiView,
                 props: true
             },
             { path: 'mmt/planning-produksi', name: 'PlanningProduksiBrowse', component: PlanningProduksiView },
@@ -240,7 +259,8 @@ const routes: RouteRecordRaw[] = [
             { path: 'file/user', name: 'User', component: ComingSoon },
             { path: 'file/perusahaan', name: 'Identitas Perusahaan', component: ComingSoon },
             { path: 'file/ganti-password', name: 'Ganti Password', component: ComingSoon },
-            { path: 'daftar/supplier', name: 'Supplier', component: ComingSoon },
+            { path: 'daftar/supplier', name: 'Supplier', component: SupplierView },            
+            { path: 'daftar/supplier/new', name: 'SupplierNew', component: FormSupplierView },
             { path: 'daftar/kode-bayar', name: 'Kode Bayar', component: ComingSoon },
             { path: 'daftar/jenis-barang', name: 'Jenis Barang', component: ComingSoon },
             { path: 'daftar/gudang', name: 'Gudang', component: ComingSoon },
