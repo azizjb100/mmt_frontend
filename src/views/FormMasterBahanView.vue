@@ -394,7 +394,7 @@ const formData = reactive<MasterBarang>({
 
 // --- Computed ---
 const formTitle = computed(() =>
-  isEditMode.value ? `Ubah Barang: ${formData.kode}` : "Master Barang Baru"
+  isEditMode.value ? `Ubah Barang: ${formData.kode}` : "Master Barang Baru",
 );
 
 const isFormValid = computed(() => {

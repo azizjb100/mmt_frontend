@@ -64,6 +64,7 @@ import FormSupplierView from '@/views/FormSupplierView.vue';
 import FormReturProduksiView from '@/views/FormReturProduksiView.vue';
 import { Form } from 'lucide-vue-next';
 import ReturProduksiView from '@/views/ReturProduksiView.vue';
+import FormMasterBahanView from '@/views/FormMasterBahanView.vue';
 
 
 // 2. Definisikan Rute (Jalan)
@@ -167,7 +168,7 @@ const routes: RouteRecordRaw[] = [
                 path: 'mmt/po-bahan-mmt/print/:nomor',
                 name: 'PoPrint', // <--- NAMA INI HARUS SAMA PERSIS
                 component: PoPrintView,
-                props: true // Menerima props
+                props: true 
             },
             { path: 'mmt/penerimaan-bahan', name: 'PenerimaanBahanBrowse', component: penerimaanBahanView },
 
@@ -312,6 +313,7 @@ const routes: RouteRecordRaw[] = [
             // --- GRUP MMT (LANJUTAN) ---
 
             { path: 'mmt/daftar/bahan', name: 'Master Bahan', component: MasterBahanView },
+            { path: 'mmt/daftar/bahan/new', name: 'MasterBahanNew', component: FormMasterBahanView },
             { path: 'mmt/daftar/operator', name: 'Operator', component: OperatorView },
             { path: 'mmt/daftar/retur-permintaan-produksi', name: 'Retur Permintaan Produksi MMT', component: ComingSoon },
             { path: 'mmt/daftar/planning-produksi', name: 'Planning Produksi MMT', component: ComingSoon },

@@ -150,7 +150,7 @@ import PageLayout from "../components/PageLayout.vue";
 // --- State & Config ---
 const router = useRouter();
 const toast = useToast();
-const API_BASE_URL = "/mmt/lhk-cetak";
+const API_BASE_URL = "/mmt/lhk-cetak-mmt";
 
 const masterData = ref([]);
 const details = ref<Record<string, any[]>>({});
@@ -183,7 +183,9 @@ const detailHeaders = [
   {
     title: "Ukuran",
     key: "Ukuran",
-    value: (item: any) => `${item.Panjang}x${item.Lebar}`,
+    // Gunakan pengecekan null agar tidak error jika data belum dimuat
+    value: (item) =>
+      item.Panjang && item.Lebar ? `${item.Panjang}x${item.Lebar}` : "-",
   },
   { title: "Qty Cetak", key: "Jml_Cetak", align: "end" },
   { title: "Operator", key: "Operator" },

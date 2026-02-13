@@ -154,7 +154,7 @@ const filters = reactive({
 const isSingleSelected = computed(() => selected.value.length === 1);
 
 const selectedKode = computed(() =>
-  isSingleSelected.value ? selected.value[0].KODE : null
+  isSingleSelected.value ? selected.value[0].KODE : null,
 );
 
 // FILTER LOGIC — SELALU RETURN ARRAY
@@ -168,7 +168,7 @@ const filteredMasterData = computed<MasterBarang[]>(() => {
   return list.filter(
     (i) =>
       (i.KODE ?? "").toLowerCase().includes(kw) ||
-      (i.NAMA_BARANG ?? "").toLowerCase().includes(kw)
+      (i.NAMA_BARANG ?? "").toLowerCase().includes(kw),
   );
 });
 
@@ -254,6 +254,17 @@ const handleDelete = async () => {
     btnRefreshClick();
   } catch (e) {
     toast.error("Gagal menghapus data.");
+  }
+};
+
+const handleNewEdit = (mode) => {
+  if (mode === "new") {
+    router.push({ name: "MasterBahanNew" });
+  } else if (mode === "edit" && selectedNomor.value) {
+    router.push({
+      name: "PengajuanPermintaanEdit",
+      params: { nomor: selectedNomor.value },
+    });
   }
 };
 
