@@ -24,7 +24,6 @@
     </template>
 
     <div class="form-grid-container">
-      <!-- Kolom Kiri: Kode, Nama, Satuan, Harga -->
       <div class="left-column">
         <v-card class="desktop-form-section" flat>
           <v-card-title class="text-subtitle-1">Data Utama</v-card-title>
