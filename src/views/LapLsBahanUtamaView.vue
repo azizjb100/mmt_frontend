@@ -296,7 +296,7 @@ const authStore = useAuthStore();
 const canSeeNominal = computed(() => {
   const jabatan = authStore.user?.jabat?.toUpperCase() || "";
   const bagian = authStore.user?.bagian?.toUpperCase() || "";
-  return bagian === "ACCOUNTING" || bagian === "AUDIT" || jabatan === "MANAGER";
+  return bagian === "FINANCE" || bagian === "AUDIT" || jabatan === "MANAGER";
 });
 
 // Utility functions
