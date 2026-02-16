@@ -246,11 +246,39 @@
                 />
               </template>
 
-              <template #[`item.totalcetak`]="{ item }"
-                ><div class="text-end font-weight-bold text-primary">
+              <template #[`item.totalcetak`]="{ item }">
+                <div
+                  :class="
+                    item.totalcetak > item.kurangcetak_asli
+                      ? 'text-red-bold'
+                      : 'text-primary'
+                  "
+                >
                   {{ item.totalcetak }}
-                </div></template
-              >
+                  <v-tooltip
+                    v-if="item.totalcetak > item.kurangcetak_asli"
+                    activator="parent"
+                  >
+                    Melebihi sisa order (Sisa: {{ item.kurangcetak_asli }})
+                  </v-tooltip>
+                </div>
+              </template>
+              <template #[`item.sudahcetak`]="{ item }">
+                <div class="text-end text-blue-darken-2 font-weight-bold">
+                  {{ item.sudahcetak || 0 }}
+                </div>
+              </template>
+
+              <template #[`item.kurangcetak`]="{ item }">
+                <div
+                  class="text-end font-weight-bold"
+                  :class="
+                    item.kurangcetak < 0 ? 'text-red' : 'text-grey-darken-3'
+                  "
+                >
+                  {{ item.kurangcetak }}
+                </div>
+              </template>
 
               <template #[`item.actions`]="{ index }"
                 ><v-btn
@@ -523,23 +551,14 @@ const detailHeaders = [
   { title: "L. SPK", key: "lebar_spk", align: "end" as const },
   { title: "Orientasi", key: "orientasi", width: "130px" },
   { title: "Pad(cm)", key: "padding", width: "70px" },
-  { title: "Jumlah", key: "jumlah", width: "70px" },
-  {
-    title: "Total Cetak",
-    key: "totalcetak",
-    width: "60px",
-    align: "end" as const,
-  },
-  {
-    title: "Kurang Cetak",
-    key: "kurangcetak",
-    width: "60px",
-    align: "end" as const,
-  },
+  { title: "Order", key: "jumlah", align: "end", width: "70px" },
+  { title: "Sdh Cetak", key: "sudahcetak", align: "end", width: "80px" }, // Dari akumulasi DB
+  { title: "Kurang", key: "kurangcetak_asli", align: "end", width: "80px" }, // Sisa sebelum input sekarang
+  { title: "Total Input", key: "totalcetak", align: "end", width: "90px" },
   { title: "Luas/Pcs (m²)", key: "luas_satuan", align: "end", width: "100px" }, // Kolom Baru
   { title: "Total Luas (m²)", key: "total_luas", align: "end", width: "120px" }, // Kolom Baru
   { title: "Tile", key: "tile", width: "60px" },
-  // Cetak 1 sampai 7
+
   ...Array.from({ length: 7 }, (_, i) => ({
     title: `C${i + 1}`,
     key: `cetak${i + 1}`,
@@ -672,7 +691,21 @@ const recalculateCombine = () => {
       d.total_luas = 0;
       return;
     }
-    d.kurangcetak = Math.max(0, (parseFloat(d.jumlah) || 0) - totalCetak);
+
+    let totalCetakInput = 0;
+
+    // 1. Hitung total dari kolom C1 sampai C7
+    for (let i = 1; i <= 7; i++) {
+      totalCetakInput += parseFloat(d[`cetak${i}`]) || 0;
+    }
+
+    // 2. Simpan ke property totalcetak (untuk kolom Total Input)
+    d.totalcetak = totalCetakInput;
+
+    d.kurangcetak =
+      (parseFloat(d.jumlah) || 0) -
+      (parseFloat(d.sudahcetak) || 0) -
+      totalCetakInput;
 
     if (totalCetak <= 0 || (parseFloat(d.tile) || 0) <= 0) {
       d.luas_satuan = 0;
@@ -758,64 +791,78 @@ const loaddataall = async (nomor: string) => {
 
     if (res && res.header) {
       const h = res.header;
-
-      // Sinkronisasi field header
+      // ... (Sinkronisasi header tetap sama)
       formData.nomor = h.Nomor;
-      if (h.Tanggal) {
-        formData.tanggal = h.Tanggal.split("T")[0].substring(0, 10);
-      } else {
-        formData.tanggal = format(new Date(), "yyyy-MM-dd");
-      }
+      formData.tanggal = h.Tanggal
+        ? h.Tanggal.split("T")[0]
+        : format(new Date(), "yyyy-MM-dd");
       formData.shift = h.Shift || 1;
       formData.operator = h.Operator || "";
       formData.mesin = h.Mesin || "";
       formData.kode_bahan_aktif = h.Kode_bahan || "";
       formData.barcode_input = h.lbarcode_roll || "";
 
-      // Ambil data BS jika ada
-      formData.panjang_bs = h.PanjangBS || 0;
-      formData.lebar_bs = h.LebarBS || 0;
-
       detailData.splice(0, detailData.length);
 
       if (Array.isArray(res.details)) {
-        res.details.forEach((d: any, index: number) => {
-          // Ambil informasi bahan dari detail pertama
-          if (index === 0) {
+        for (const d of res.details) {
+          // Sync bahan dari baris pertama
+          if (detailData.length === 0) {
             formData.Panjang_bahan = parseFloat(d.AmbilBahanPanjang || 0);
             formData.Lebar_bahan = parseFloat(d.AmbilBahanLebar || 0);
             formData.sisa_panjang_manual = d.Sisa_Panjang || null;
             formData.sisa_lebar_manual = d.Sisa_Lebar || null;
           }
 
+          // AMBIL SISA TERBARU DARI DATABASE
+          let infoSisaFromDb = { sudah_cetak_db: 0, kurang_cetak_db: 0 };
+          try {
+            const resSpk = await api.get(`/mmt/SPK/${d.ld_spk_nomor}`);
+            const s = resSpk.data.data || resSpk.data;
+            infoSisaFromDb.sudah_cetak_db = parseFloat(s.Sudah_Cetak || 0);
+            infoSisaFromDb.kurang_cetak_db = parseFloat(s.Kurang_Cetak || 0);
+          } catch (e) {
+            console.error("Gagal ambil info sisa SPK", e);
+          }
+
+          const currentTotalInput = parseFloat(d.TotalCetak || 0);
+
           const detailObj: any = {
             nomor_spk: d.ld_spk_nomor,
             nama_spk: d.NamaOrder || "",
             panjang_spk: parseFloat(d.spk_panjang || 0),
             lebar_spk: parseFloat(d.spk_lebar || 0),
-            padding: d.Padding || 3, // Pastikan field ini ada di SELECT backend
+            padding: d.Padding || 3,
             tile: d.Tile || 1,
-            jumlah: d.JumlahOrder || 0,
+            jumlah: parseFloat(d.JumlahOrder || 0),
             orientasi: d.Orientasi || "lebar",
+
+            // Logika Sdh Cetak: Akumulasi DB dikurangi input baris ini agar tidak double count
+            sudahcetak: infoSisaFromDb.sudah_cetak_db - currentTotalInput,
+
+            // Logika Kurang Asli: Sisa DB + Input baris ini (Batas Maksimal)
+            kurangcetak_asli:
+              infoSisaFromDb.kurang_cetak_db + currentTotalInput,
+
+            // Inisialisasi awal
+            kurangcetak: 0,
+            totalcetak: 0,
           };
 
-          // Map J_Cetak1...7 dari API ke cetak1...7 frontend
+          // Map J_Cetak1...7
           for (let i = 1; i <= 7; i++) {
             detailObj[`cetak${i}`] = d[`J_Cetak${i}`] || 0;
           }
 
           detailData.push(detailObj);
-        });
+        }
       }
-
-      // Jalankan kalkulasi layout setelah data masuk
+      // Pemicu kalkulasi otomatis agar 'kurangcetak' dan 'totalcetak' terisi
       recalculateCombine();
-    } else {
-      toast.error("Struktur data tidak valid");
     }
   } catch (error: any) {
     console.error("Load Error:", error);
-    toast.error(error.message || "Gagal memuat data.");
+    toast.error("Gagal memuat data.");
   } finally {
     isSaving.value = false;
   }
@@ -1043,6 +1090,26 @@ const generateNextAfalBarcode = (originalBarcode: string) => {
 const handleSave = async (statusValue: "DRAFT" | "POSTED" = "DRAFT") => {
   recalculateCombine();
 
+  let isOverProduction = false;
+  let overMessages = "";
+
+  detailData.forEach((d) => {
+    if (d.totalcetak > d.kurangcetak_asli) {
+      isOverProduction = true;
+      overMessages += `\n- SPK ${d.nomor_spk}: Input ${d.totalcetak} > Sisa ${d.kurangcetak_asli}`;
+    }
+  });
+
+  if (isOverProduction && statusValue === "POSTED") {
+    // Gunakan confirm browser atau dialog vuetify
+    const projut = confirm(
+      `PERHATIAN: Ada kelebihan jumlah cetak:${overMessages}\n\nTetap lanjutkan simpan?`,
+    );
+    if (!projut) {
+      isSaving.value = false;
+      return;
+    }
+  }
   if (!isFormValid.value) {
     toast.error("Mohon lengkapi data wajib (Operator, Mesin, Barcode, SPK)");
     return;
@@ -1056,8 +1123,7 @@ const handleSave = async (statusValue: "DRAFT" | "POSTED" = "DRAFT") => {
 
   isSaving.value = true;
   try {
-    const currentUser =
-      authStore.user?.username || authStore.user?.nama || "SYSTEM";
+    const currentUser = authStore.user?.kdUser || "SYSTEM";
     const payload = {
       header: {
         ltanggal: formData.tanggal,
@@ -1113,8 +1179,6 @@ const handleSave = async (statusValue: "DRAFT" | "POSTED" = "DRAFT") => {
   }
 };
 
-// --- UI Handlers ---
-
 const handleSpkSelect = (spk: any) => {
   if (detailData.some((d) => d.nomor_spk === spk.Spk)) {
     toast.warning(`SPK ${spk.Spk} sudah ada dalam daftar!`);
@@ -1126,13 +1190,15 @@ const handleSpkSelect = (spk: any) => {
     nama_spk: spk.Nama,
     panjang_spk: spk.Panjang || 0,
     lebar_spk: spk.Lebar || 0,
+    jumlah: spk.Jumlah, // Target Order
+    sudahcetak: spk.Sudah_Cetak || 0, // Akumulasi dari DB
+    kurangcetak_asli: spk.Kurang_Cetak || 0,
     padding: 3,
     tile: 1,
     orientasi: "lebar",
-    jumlah: spk.Jumlah,
     totalcetak: 0,
-    luas_satuan: 0, // Wajib ada agar reaktif
-    total_luas: 0, // Wajib ada agar reaktif
+    luas_satuan: 0,
+    total_luas: 0,
   };
   // Init C1 - C7
   for (let i = 1; i <= 7; i++) newEntry[`cetak${i}`] = 0;
