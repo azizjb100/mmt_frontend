@@ -196,6 +196,7 @@ const allMenuGroups = [
         path: "/mmt/lhk/browse",
         items: [
           { name: "LHK Mesin Cetak", path: "/mmt/lhk/cetak" },
+          { name: "LHK Cetak Mmt", path: "/mmt/lhk/cetak-mmt" },
           { name: "LHK Kain", path: "/mmt/lhk/kain" },
           { name: "LHK Finishing", path: "/mmt/lhk/finishing" },
           { name: "LHK Proof", path: "/mmt/lhk/proof" },

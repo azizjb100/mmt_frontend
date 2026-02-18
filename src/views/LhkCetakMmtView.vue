@@ -209,20 +209,33 @@ const fetchMasterData = async () => {
   }
 };
 
-const loadDetails = async ({ item, value }: { item: any; value: boolean }) => {
-  if (!value) return; // Jika row ditutup, abaikan
-  if (details.value[item.Nomor]) return; // Jika sudah pernah di-load
+// frontend - LhkCetakMmtView.vue
 
-  loadingDetails.value.add(item.Nomor);
-  try {
-    const res = await api.get(`${API_BASE_URL}/details`, {
-      params: { nomor: item.Nomor },
-    });
-    details.value[item.Nomor] = res.data || [];
-  } catch (e) {
-    toast.error("Gagal memuat detail");
-  } finally {
-    loadingDetails.value.delete(item.Nomor);
+const loadDetails = async (expandedKeys: any[]) => {
+  if (expandedKeys.length === 0) return;
+
+  const lastItem = expandedKeys[expandedKeys.length - 1];
+  const nomor = typeof lastItem === "object" ? lastItem.Nomor : lastItem;
+
+  if (!nomor) return;
+
+  if (!details.value[nomor]) {
+    loadingDetails.value.add(nomor);
+    try {
+      // Pastikan URL ini sesuai dengan route yang didefinisikan di backend
+      // Jika route backend adalah /api/mmt/lhk-cetak-mmt/detail/:nomor
+      const response = await api.get(`${API_BASE_URL}/detail/${nomor}`);
+
+      // Ambil data dari response.data.data (karena di controller kita bungkus {data: rows})
+      details.value[nomor] = response.data.data || [];
+
+      console.log("Detail Berhasil Dimuat:", details.value[nomor]);
+    } catch (error) {
+      toast.error("Gagal memuat detail");
+      console.error("Error Fetch Detail:", error);
+    } finally {
+      loadingDetails.value.delete(nomor);
+    }
   }
 };
 
@@ -231,8 +244,8 @@ const handleRowClick = (event: any, { item }: any) => {
 };
 
 const handleNewEdit = (mode: "new" | "edit") => {
-  if (mode === "new") router.push("/mmt/lhk-cetak/create");
-  else router.push(`/mmt/lhk-cetak/edit/${selected.value[0].Nomor}`);
+  if (mode === "new") router.push("/mmt/lhk/cetak-mmt/new");
+  else router.push(`/mmt/lhk/cetak-mmt/edit/${selected.value[0].Nomor}`);
 };
 
 const handleEditClick = () => handleNewEdit("edit");
@@ -293,48 +306,76 @@ onMounted(fetchMasterData);
 </script>
 
 <style scoped>
+/* Container Layout */
 .browse-content {
-  height: calc(100vh - 120px);
-  display: flex;
-  flex-direction: column;
+  background-color: #f0f4f8; /* Background abu kebiruan tipis */
+  padding: 8px;
 }
 
-.table-container {
-  flex-grow: 1;
+/* Custom Styling untuk Tabel Biru */
+.custom-blue-table :deep(.v-data-table-header) {
+  background-color: #1976d2 !important; /* Biru Utama */
+}
+
+.custom-blue-table :deep(.v-data-table-header th) {
+  color: white !important; /* Teks Header Putih */
+  font-weight: 600 !important;
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  letter-spacing: 0.5px;
+}
+
+/* Efek Hover pada baris */
+.custom-blue-table :deep(tbody tr:hover) {
+  background-color: #e3f2fd !important; /* Biru sangat muda saat hover */
+  cursor: pointer;
+}
+
+/* Warna saat baris dipilih (Selected) */
+.custom-blue-table :deep(tr.v-data-table__selected) {
+  background-color: #bbdefb !important; /* Biru muda saat dipilih */
+}
+
+/* Styling Detail (Expanded) */
+.detail-container {
+  background-color: #f8f9fa;
+  padding: 12px;
+  border-left: 4px solid #1976d2; /* Garis aksen biru di sebelah kiri detail */
+}
+
+.detail-table :deep(.v-data-table-header) {
+  background-color: #455a64 !important; /* Warna kontras (biru gelap/abu) untuk detail */
+}
+
+/* Border Tabel */
+.desktop-table {
+  border: 1px solid #bbdefb;
+  border-radius: 4px;
   overflow: hidden;
 }
 
-/* Custom Table Styling */
-:deep(.v-data-table) {
-  height: 100%;
-}
-
-:deep(.v-data-table__th) {
-  background-color: #f5f5f5 !important;
-  font-weight: bold !important;
-  user-select: none;
-}
-
-/* Logic Resizer Line */
-:deep(.resizer) {
+/* Resizer Line Styling */
+.resizer {
   position: absolute;
   right: 0;
   top: 0;
   height: 100%;
-  width: 5px;
+  width: 4px;
   cursor: col-resize;
-  z-index: 10;
+  background-color: rgba(255, 255, 255, 0.1);
 }
 
-:deep(.resizer:hover) {
-  border-right: 2px solid #2196f3;
+.resizer:hover {
+  background-color: #ffeb3b; /* Kuning saat di-resize agar terlihat jelas */
 }
 
-.detail-wrapper {
-  background-color: #fafafa;
+/* Warna teks khusus untuk status Belum Lengkap */
+.text-red {
+  color: #d32f2f !important;
 }
 
-.text-error {
-  color: #ff5252;
+/* Toolbar Style */
+.v-card {
+  border-top: 3px solid #1976d2; /* Garis aksen biru di atas filter */
 }
 </style>

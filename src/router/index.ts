@@ -65,6 +65,7 @@ import FormReturProduksiView from '@/views/FormReturProduksiView.vue';
 import { Form } from 'lucide-vue-next';
 import ReturProduksiView from '@/views/ReturProduksiView.vue';
 import FormMasterBahanView from '@/views/FormMasterBahanView.vue';
+import FormLhkCetakMmtView from '@/views/FormLhkCetakMmtView.vue';
 
 
 // 2. Definisikan Rute (Jalan)
@@ -87,10 +88,12 @@ const routes: RouteRecordRaw[] = [
             // Rute yang sudah dibuat (PATH DIBUAT RELATIF - TANPA '/')
             { path: 'garmen/permintaan-material', name: 'Permintaan Material', component: MaterialRequestForm },
             { path: 'mmt/lhk/cetak-mmt', name: 'LHKCetakMMT', component: LhkCetakMmtView },
+            { path: 'mmt/lhk/cetak-mmt/new', name: 'LhkCetakMmtNew', component: FormLhkCetakMmtView },
+            { path: 'mmt/lhk/cetak-mmt/edit/:nomor', name: 'LhkCetakMmtEdit', component: FormLhkCetakMmtView, props: { isEditMode: false } },
+
             { path: 'mmt/lhk/cetak', name: 'LHKMesinCetakView', component: LhkMesinCetakView },
             { path: 'mmt/lhk/cetak/new', name: 'LhkCetakCreate', component: FormLhkMesinCetakView },
             { path: 'mmt/lhk/cetak/edit/:nomor', name: 'LhkCetakEdit', component: FormLhkMesinCetakView, props: { isEditMode: false } },
-            { path: 'mmt/lhk/cetak/neww', name: 'LHK Cetak', component: FormLhkCetakViewNew },
             { path: 'mmt/lhk/finishing', name: 'LHK Finishing MMT', component: LhkFinishingView },{
                 path: 'mmt/lhk/finishing/new',
                 name: 'LhkFinishingNew',
@@ -338,6 +341,7 @@ const routes: RouteRecordRaw[] = [
             { path: 'laporan/mmt/ls-bahan-utama', name: 'LS Bahan Utama', component: LapLsBahanUtamaView },
             { path: 'laporan/mmt/ls-bahan-penolong', name: 'LS Bahan Penolong', component: LapLsBahanPenolongView },
             { path: 'laporan/mmt/lap-mon-lmkp-mmt', name: 'lapMonLmkpMmt', component: LapMonLmkpMmtView },
+            { path: 'laporan/mmt/lap-mon-cetak', name: 'lapMonCetak', component: LapMonCetakView },
             { path: 'laporan/mmt/lap-spk-mmt', name: 'lapSpkMmt', component: LapSpkMmtView },
             { path: 'laporan/mmt/lap-plan-produksi', name: 'lapPlanProduksi', component: LapPlanProdView },
             { path: 'laporan/mmt/lap-barang-jadi', name: 'lapBarangJadi', component: LapBarangJadiView },

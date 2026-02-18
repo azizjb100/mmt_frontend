@@ -66,6 +66,18 @@
               style="max-width: 150px"
             />
 
+            <v-text-field
+              v-model="filters.search"
+              prepend-inner-icon="mdi-magnify"
+              label="Cari Nama SPK / Nomor"
+              density="compact"
+              hide-details
+              variant="outlined"
+              clearable
+              style="max-width: 300px"
+              @keyup.enter="fetchMasterData"
+            />
+
             <v-btn variant="text" size="x-small" @click="fetchMasterData">
               <v-icon>mdi-refresh</v-icon> Refresh
             </v-btn>
@@ -220,7 +232,10 @@ const gudangList = ref<{ kode: string; nama: string }[]>([]);
 const filters = reactive({
   startDate: format(subDays(new Date(), 30), "yyyy-MM-dd"),
   endDate: format(new Date(), "yyyy-MM-dd"),
+  search: "",
 });
+
+// --- API calls ---
 
 // --- Computed ---
 const isSingleSelected = computed(() => selected.value.length === 1);
@@ -414,6 +429,7 @@ const fetchMasterData = async () => {
       params: {
         startDate: filters.startDate,
         endDate: filters.endDate,
+        search: filters.search,
       },
     });
     masterData.value = response.data || [];
