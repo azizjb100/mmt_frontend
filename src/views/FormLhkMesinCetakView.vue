@@ -791,22 +791,30 @@ const loaddataall = async (nomor: string) => {
 
     if (res && res.header) {
       const h = res.header;
-      // ... (Sinkronisasi header tetap sama)
+      // Sinkronisasi field header (Pastikan menggunakan properti hasil query Backend)
       formData.nomor = h.Nomor;
-      formData.tanggal = h.Tanggal
-        ? h.Tanggal.split("T")[0]
-        : format(new Date(), "yyyy-MM-dd");
+      formData.tanggal = h.Tanggal; // Query backend sudah memformat DATE_FORMAT
       formData.shift = h.Shift || 1;
       formData.operator = h.Operator || "";
       formData.mesin = h.Mesin || "";
       formData.kode_bahan_aktif = h.Kode_bahan || "";
       formData.barcode_input = h.lbarcode_roll || "";
+      formData.panjang_bs = h.PanjangBS || 0;
+      formData.lebar_bs = h.LebarBS || 0;
 
       detailData.splice(0, detailData.length);
 
       if (Array.isArray(res.details)) {
         for (const d of res.details) {
-          // Sync bahan dari baris pertama
+          // --- PERBAIKAN DI SINI ---
+          // Backend getLookupByNomor menggunakan alias 'spk_nomor'
+          const currentSpkId = d.spk_nomor;
+
+          if (!currentSpkId) {
+            console.warn("Melewati baris karena spk_nomor kosong:", d);
+            continue;
+          }
+
           if (detailData.length === 0) {
             formData.Panjang_bahan = parseFloat(d.AmbilBahanPanjang || 0);
             formData.Lebar_bahan = parseFloat(d.AmbilBahanLebar || 0);
@@ -814,50 +822,45 @@ const loaddataall = async (nomor: string) => {
             formData.sisa_lebar_manual = d.Sisa_Lebar || null;
           }
 
-          // AMBIL SISA TERBARU DARI DATABASE
           let infoSisaFromDb = { sudah_cetak_db: 0, kurang_cetak_db: 0 };
           try {
-            const resSpk = await api.get(`/mmt/SPK/${d.ld_spk_nomor}`);
+            // Memanggil API detail SPK dengan ID yang valid (bukan undefined)
+            const resSpk = await api.get(`/mmt/SPK/${currentSpkId}`);
             const s = resSpk.data.data || resSpk.data;
             infoSisaFromDb.sudah_cetak_db = parseFloat(s.Sudah_Cetak || 0);
             infoSisaFromDb.kurang_cetak_db = parseFloat(s.Kurang_Cetak || 0);
           } catch (e) {
-            console.error("Gagal ambil info sisa SPK", e);
+            console.error(`Gagal ambil info sisa SPK untuk ${currentSpkId}`, e);
           }
 
-          const currentTotalInput = parseFloat(d.TotalCetak || 0);
+          // totalcetak di preview JSON Anda menggunakan nama 'totalcetak' (huruf kecil)
+          const currentTotalInput = parseFloat(d.totalcetak || 0);
 
           const detailObj: any = {
-            nomor_spk: d.ld_spk_nomor,
-            nama_spk: d.NamaOrder || "",
+            nomor_spk: currentSpkId,
+            nama_spk: d.nama_spk || "",
             panjang_spk: parseFloat(d.spk_panjang || 0),
             lebar_spk: parseFloat(d.spk_lebar || 0),
             padding: d.Padding || 3,
             tile: d.Tile || 1,
-            jumlah: parseFloat(d.JumlahOrder || 0),
+            jumlah: parseFloat(d.jumlah || 0),
             orientasi: d.Orientasi || "lebar",
-
-            // Logika Sdh Cetak: Akumulasi DB dikurangi input baris ini agar tidak double count
             sudahcetak: infoSisaFromDb.sudah_cetak_db - currentTotalInput,
-
-            // Logika Kurang Asli: Sisa DB + Input baris ini (Batas Maksimal)
             kurangcetak_asli:
               infoSisaFromDb.kurang_cetak_db + currentTotalInput,
-
-            // Inisialisasi awal
             kurangcetak: 0,
-            totalcetak: 0,
+            totalcetak: currentTotalInput,
           };
 
-          // Map J_Cetak1...7
+          // Mapping J_Cetak1...7 (Pastikan sesuai dengan alias di Backend)
           for (let i = 1; i <= 7; i++) {
+            // Gunakan alias 'J_Cetak' sesuai preview data JSON Anda
             detailObj[`cetak${i}`] = d[`J_Cetak${i}`] || 0;
           }
 
           detailData.push(detailObj);
         }
       }
-      // Pemicu kalkulasi otomatis agar 'kurangcetak' dan 'totalcetak' terisi
       recalculateCombine();
     }
   } catch (error: any) {
