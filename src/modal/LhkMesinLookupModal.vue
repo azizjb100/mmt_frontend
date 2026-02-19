@@ -2,15 +2,25 @@
   <v-dialog
     :model-value="isVisible"
     @update:modelValue="emit('close')"
-    max-width="900px"
+    max-width="1000px"
     persistent
   >
     <v-card>
       <v-toolbar color="primary" density="compact">
-        <v-toolbar-title class="text-subtitle-1"
-          >🔍 Pilih LHK Mesin (Produksi)</v-toolbar-title
-        >
+        <v-toolbar-title class="text-subtitle-1">
+          🔍 Pilih LHK Mesin (Produksi)
+        </v-toolbar-title>
         <v-spacer></v-spacer>
+        <v-btn
+          v-if="selectedItems.length > 0"
+          color="white"
+          variant="elevated"
+          size="small"
+          class="text-primary mr-2 font-weight-bold"
+          @click="submitSelection"
+        >
+          Ambil ({{ selectedItems.length }})
+        </v-btn>
         <v-btn icon="mdi-close" @click="emit('close')" variant="text"></v-btn>
       </v-toolbar>
 
@@ -48,39 +58,70 @@
         <v-divider class="mb-4"></v-divider>
 
         <v-data-table
+          v-model="selectedItems"
           :headers="headers"
           :items="lhkList"
           :loading="loading"
+          item-value="Nomor"
+          show-select
           density="compact"
           hover
           fixed-header
           height="400px"
           class="clickable-table"
-          @dblclick:row="handleDoubleClick"
         >
           <template #[`item.Tanggal`]="{ item }">
             {{ format(new Date(item.Tanggal), "dd/MM/yyyy") }}
           </template>
 
-          <template #[`item.TotalCetak`]="{ item }">
-            <v-chip size="x-small" color="blue" label
-              >{{ item.TotalCetak }} Pcs</v-chip
-            >
+          <template #[`item.NomorSPK`]="{ item }">
+            <v-tooltip v-if="item.JumlahSPK > 1" text="Multiple SPK detected">
+              <template v-slot:activator="{ props }">
+                <span
+                  v-bind="props"
+                  class="font-weight-bold text-orange-darken-2"
+                  >RETAIL</span
+                >
+              </template>
+            </v-tooltip>
+            <span v-else>
+              {{ truncateString(item.NomorSPK, 20) }}
+            </span>
           </template>
 
-          <template #[`item.actions`]="{ item }">
-            <v-btn size="x-small" color="success" @click="selectLhk(item)"
-              >Pilih</v-btn
-            >
+          <template #[`item.NamaOrder`]="{ item }">
+            <span :title="item.NamaOrder">
+              {{ truncateString(item.NamaOrder || "-", 25) }}
+            </span>
+          </template>
+
+          <template #[`item.TotalCetak`]="{ item }">
+            <v-chip size="x-small" color="blue" label>
+              {{ item.TotalCetak }} Pcs
+            </v-chip>
           </template>
 
           <template #no-data>
             <div class="text-center pa-4">
-              Tidak ada LHK Mesin yang tersedia untuk direkap.
+              Tidak ada LHK Mesin yang tersedia.
             </div>
           </template>
         </v-data-table>
       </v-card-text>
+
+      <v-divider></v-divider>
+      <v-card-actions class="pa-4" v-if="selectedItems.length > 0">
+        <span class="text-caption grey--text"
+          >Terpilih: {{ selectedItems.length }} item</span
+        >
+        <v-spacer></v-spacer>
+        <v-btn color="error" variant="text" @click="selectedItems = []"
+          >Batal</v-btn
+        >
+        <v-btn color="primary" variant="elevated" @click="submitSelection"
+          >Ambil LHK</v-btn
+        >
+      </v-card-actions>
     </v-card>
   </v-dialog>
 </template>
@@ -97,35 +138,39 @@ const toast = useToast();
 
 const loading = ref(false);
 const lhkList = ref([]);
+const selectedItems = ref([]); // State untuk menampung item yang dipilih
 
 const filters = reactive({
-  startDate: format(subDays(new Date(), 7), "yyyy-MM-dd"), // Default 7 hari ke belakang
+  startDate: format(subDays(new Date(), 7), "yyyy-MM-dd"),
   endDate: format(new Date(), "yyyy-MM-dd"),
 });
 
 const headers = [
-  { title: "Nomor LHK", key: "Nomor", width: "150px" },
-  { title: "Tanggal", key: "Tanggal", width: "110px" },
-  { title: "Mesin", key: "Mesin", width: "100px" },
-  { title: "Operator", key: "Operator", width: "130px" },
-  { title: "Nomor SPK", key: "NomorSPK", width: "150px" },
-  { title: "Qty Cetak", key: "TotalCetak", align: "end", width: "100px" },
-  { title: "", key: "actions", sortable: false, align: "center" },
+  { title: "Nomor LHK", key: "Nomor", width: "130px" },
+  { title: "Tanggal", key: "Tanggal", width: "100px" },
+  { title: "Shift", key: "Shift", width: "80px" },
+  { title: "Mesin", key: "Mesin", width: "90px" },
+  { title: "Nomor SPK", key: "NomorSPK", width: "160px" },
+  { title: "Nama SPK / Pekerjaan", key: "NamaOrder", width: "200px" },
+  { title: "Qty", key: "TotalCetak", align: "end", width: "90px" },
+  { title: "Operator", key: "Operator", width: "120px" },
 ];
+
+const truncateString = (str: string, num: number) => {
+  if (str?.length > num) return str.slice(0, num) + "...";
+  return str;
+};
 
 const fetchLhkData = async () => {
   loading.value = true;
+  selectedItems.value = []; // Reset pilihan setiap kali filter/refresh
   try {
-    // Memanggil API getAllHeaders yang ada di backend service Anda
     const response = await api.get("/mmt/lhk-cetak/lookup", {
       params: {
         startDate: filters.startDate,
         endDate: filters.endDate,
       },
     });
-
-    // Logika Delphi: Saring LHK yang Fixed='Y' dan belum pernah direkap
-    // Note: Biasanya filter "belum direkap" dilakukan di SQL backend (WHERE lnomor NOT IN...)
     lhkList.value = response.data.data || response.data;
   } catch (error) {
     toast.error("Gagal memuat daftar LHK Mesin");
@@ -134,25 +179,39 @@ const fetchLhkData = async () => {
   }
 };
 
+const submitSelection = () => {
+  if (selectedItems.value.length === 0) {
+    toast.warning("Pilih minimal satu LHK");
+    return;
+  }
+
+  // Kita kirim daftar nomor yang dipilih ke parent
+  // selectedItems berisi array dari 'Nomor' karena item-value="Nomor" pada v-data-table
+  emit("select", selectedItems.value);
+
+  // Close modal dan reset
+  emit("close");
+  selectedItems.value = [];
+};
+
 const selectLhk = (item: any) => {
-  emit("select", item);
+  // Pastikan item.Nomor tidak undefined
+  if (!item.Nomor) {
+    console.error("Data LHK tidak memiliki Nomor:", item);
+    return;
+  }
+  // Jika Multiple Choice, kita kirim array.
+  // Jika single, pastikan parent menerima objek yang benar.
+  emit("select", [item]);
 };
 
-const handleDoubleClick = (event: any, { item }: any) => {
-  selectLhk(item);
-};
-
-// Ambil data setiap kali modal dibuka
 watch(
   () => props.isVisible,
   (val) => {
-    if (val) fetchLhkData();
+    if (val) {
+      fetchLhkData();
+      selectedItems.value = [];
+    }
   },
 );
 </script>
-
-<style scoped>
-.clickable-table :deep(tbody tr) {
-  cursor: pointer;
-}
-</style>

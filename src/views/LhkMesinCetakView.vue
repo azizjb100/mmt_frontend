@@ -130,6 +130,12 @@
             }}</span>
           </template>
 
+          <template #item.NomorSPK="{ item }">
+            <span :title="item.NomorSPK" :class="getRowTextColor(item)">
+              {{ truncateString(item.NomorSPK || "", 20) }}
+            </span>
+          </template>
+
           <template #expanded-row="{ columns, item }">
             <tr>
               <td :colspan="columns.length">
@@ -339,6 +345,12 @@ const detailHeaders = [
   { title: "Sisa Bahan", key: "Sisa_Meter", align: "end" },
 ] as any[];
 
+const truncateString = (str: string, num: number) => {
+  if (str?.length > num) {
+    return str.slice(0, num) + "...";
+  }
+  return str;
+};
 // --- API calls ---
 const resizeTable = (tableSelector: string) => {
   // 1. Dapatkan referensi ke tabel

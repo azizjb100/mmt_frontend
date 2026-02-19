@@ -122,10 +122,20 @@
                       hide-default-footer
                       class="detail-table"
                     >
-                      <template #loading>
-                        <div class="pa-4 text-caption">
-                          Memuat rincian produksi...
-                        </div>
+                      <template #[`item.Nomor_SPK`]="{ value }">
+                        <span :title="value">
+                          {{
+                            value?.length > 20
+                              ? value.substring(0, 20) + "..."
+                              : value
+                          }}
+                        </span>
+                      </template>
+
+                      <template #[`item.m2_cetak`]="{ value }">
+                        <span class="font-weight-bold text-blue-darken-2">
+                          {{ Number(value || 0).toFixed(2) }} m²
+                        </span>
                       </template>
                     </v-data-table>
                   </v-card>
@@ -183,11 +193,16 @@ const detailHeaders = [
   {
     title: "Ukuran",
     key: "Ukuran",
-    // Gunakan pengecekan null agar tidak error jika data belum dimuat
     value: (item) =>
       item.Panjang && item.Lebar ? `${item.Panjang}x${item.Lebar}` : "-",
   },
   { title: "Qty Cetak", key: "Jml_Cetak", align: "end" },
+  {
+    title: "Total (m²)",
+    key: "m2_cetak", // Sesuai dengan alias di SQL backend
+    align: "end",
+    width: "100px",
+  },
   { title: "Operator", key: "Operator" },
 ];
 

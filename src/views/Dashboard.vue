@@ -307,6 +307,7 @@ const allMenuGroups = [
           },
           { name: "Laporan SPK MMT", path: "/laporan/mmt/lap-spk-mmt" },
           { name: "Lap. Mon LMKP MMT", path: "/laporan/mmt/lap-mon-lmkp-mmt" },
+          { name: "Lap. Mon Cetak", path: "/laporan/mmt/lap-mon-cetak" },
           {
             name: "Lap. Plan Produksi",
             path: "/laporan/mmt/lap-plan-produksi",
