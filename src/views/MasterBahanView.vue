@@ -1,99 +1,62 @@
 <template>
-  <PageLayout title="Data Master Bahan MMT" icon="mdi-cube-outline">
-    <!-- Header Actions -->
-    <template #header-actions>
-      <v-btn size="x-small" color="success" @click="handleNewEdit('new')">
-        <v-icon start>mdi-plus</v-icon> Baru
-      </v-btn>
-      <v-btn
-        size="x-small"
-        color="warning"
-        :disabled="!isSingleSelected"
-        @click="handleEditClick"
-      >
-        <v-icon start>mdi-pencil</v-icon> Ubah
-      </v-btn>
-      <v-btn
-        size="x-small"
-        color="error"
-        :disabled="!isSingleSelected"
-        @click="handleDelete"
-      >
-        <v-icon start>mdi-trash-can</v-icon> Hapus
-      </v-btn>
+    <PageLayout title="Data Master Barang" icon="mdi-cube-outline">
+        <template #header-actions>
+            <v-btn size="x-small" color="success" @click="handleNew">
+                <v-icon start>mdi-plus</v-icon> Baru
+            </v-btn>
+            <v-btn
+                size="x-small"
+                color="warning"
+                :disabled="!isSingleSelected"
+                @click="handleEditClick"
+            >
+                <v-icon start>mdi-pencil</v-icon> Ubah
+            </v-btn>
+            <v-btn size="x-small" color="info" @click="btnRefreshClick">
+                <v-icon start>mdi-refresh</v-icon> Refresh
+            </v-btn>
+        </template>
 
-      <v-divider vertical class="mx-2" />
+        <div class="browse-content">
+            <v-card flat class="mb-4">
+                <v-card-text>
+                    <div
+                        class="filter-section d-flex align-center flex-wrap ga-4"
+                    >
+                        <v-text-field
+                            v-model="filters.keyword"
+                            label="Cari Kode / Nama Barang"
+                            density="compact"
+                            hide-details
+                            variant="outlined"
+                            style="max-width: 340px"
+                            prepend-inner-icon="mdi-magnify"
+                        />
+                        <v-spacer />
+                    </div>
+                </v-card-text>
+            </v-card>
 
-      <v-btn
-        size="x-small"
-        color="info"
-        :disabled="!isSingleSelected"
-        @click="handlePrint"
-      >
-        <v-icon start>mdi-printer</v-icon> Cetak Slip
-      </v-btn>
-      <v-btn
-        size="x-small"
-        color="info"
-        :disabled="!isSingleSelected"
-        @click="handleExportDetail"
-      >
-        <v-icon start>mdi-download</v-icon> Export Detail
-      </v-btn>
-    </template>
-
-    <!-- FILTER SECTION -->
-    <div class="browse-content">
-      <v-card flat class="mb-4">
-        <v-card-text>
-          <div class="filter-section d-flex align-center flex-wrap ga-4">
-            <v-text-field
-              v-model="filters.keyword"
-              label="Cari Kode / Nama"
-              density="compact"
-              hide-details
-              variant="outlined"
-              style="max-width: 300px"
-            />
-            <v-spacer />
-          </div>
-        </v-card-text>
-      </v-card>
-
-      <!-- DATA TABLE -->
-      <div class="table-container">
-        <v-data-table
-          v-model:selected="selected"
-          :headers="headers"
-          :items="filteredMasterData"
-          :loading="loading"
-          item-value="KODE"
-          density="compact"
-          fixed-header
-          class="desktop-table elevation-1"
-          return-object
-          show-select
-        >
-          <!-- FORMATTER PANJANG -->
-          <template #item.PANJANG="{ item }">
-            {{ Number(item.PANJANG ?? 0).toFixed(2) }}
-          </template>
-
-          <!-- FORMATTER LEBAR -->
-          <template #item.LEBAR="{ item }">
-            {{ Number(item.LEBAR ?? 0).toFixed(2) }}
-          </template>
-
-          <!-- FORMATTER STOK -->
-          <template #item.STOK="{ item }">
-            <span :class="{ 'text-error': (item.STOK ?? 0) < 0 }">
-              {{ Number(item.STOK ?? 0).toFixed(2) }}
-            </span>
-          </template>
-        </v-data-table>
-      </div>
-    </div>
-  </PageLayout>
+            <div class="table-container">
+                <v-data-table
+                    v-model:selected="selected"
+                    :headers="headers"
+                    :items="filteredMasterData"
+                    :loading="loading"
+                    :row-props="rowProps"
+                    item-value="Kode"
+                    density="compact"
+                    fixed-header
+                    class="desktop-table elevation-1"
+                    return-object
+                    show-select
+                    select-strategy="single"
+                    @click:row="handleRowClick"
+                >
+                </v-data-table>
+            </div>
+        </div>
+    </PageLayout>
 </template>
 
 <script setup lang="ts">
@@ -104,174 +67,184 @@ import { useAuthStore } from "../stores/authStore";
 import api from "@/services/api";
 import PageLayout from "../components/PageLayout.vue";
 
-// ===================================
-// Interfaces
-// ===================================
 interface MasterBarang {
-  KTGORI: string;
-  KODE: string;
-  NAMA_BARANG: string;
-  JENIS: string;
-  SUPPLIER: string;
-  KONSTRUKSI: string;
-  PANJANG: number;
-  LEBAR: number;
-  SATUAN: string;
-  STATUS: string;
-  STOK: number;
-  GUDANG: string;
-  DIVISI: string;
-  [key: string]: any;
+    Kode: string;
+    Nama: string;
+    GudangDefault: string;
+    Jenis?: string;
+    Satuan?: string;
+    Panjang?: number | string;
+    Lebar?: number | string;
+    [key: string]: any;
 }
 
-// ===================================
-// Constants
-// ===================================
-const API_MASTERBAHAN_MMT = "http://localhost:8003/api/master/bahan/mmt";
-const MENU_ID = "MMT_MASTER_BAHAN";
+const API_MASTER_BARANG = "/master/bahan";
+const FORM_NAME = "frmBrowBarang";
 
-// ===================================
-// Utils & Stores
-// ===================================
 const router = useRouter();
 const toast = useToast();
 const authStore = useAuthStore();
 
-// ===================================
-// State
-// ===================================
 const masterData = ref<MasterBarang[]>([]);
 const selected = ref<MasterBarang[]>([]);
 const loading = ref(true);
 
 const filters = reactive({
-  keyword: "",
+    keyword: "",
 });
 
-// ===================================
-// Computed
-// ===================================
-const isSingleSelected = computed(() => selected.value.length === 1);
-
-const selectedKode = computed(() =>
-  isSingleSelected.value ? selected.value[0].KODE : null,
-);
-
-// FILTER LOGIC — SELALU RETURN ARRAY
-const filteredMasterData = computed<MasterBarang[]>(() => {
-  const list = Array.isArray(masterData.value) ? masterData.value : [];
-
-  if (!filters.keyword) return list;
-
-  const kw = filters.keyword.toLowerCase();
-
-  return list.filter(
-    (i) =>
-      (i.KODE ?? "").toLowerCase().includes(kw) ||
-      (i.NAMA_BARANG ?? "").toLowerCase().includes(kw),
-  );
-});
-
-// ===================================
-// Headers
-// ===================================
-
-type VHeader = {
-  readonly key?: string; // key/value field (nama kolom)
-  readonly value?: string; // kadang Vuetify memakai 'value' alias 'key'
-  readonly title?: string; // label header
-  readonly minWidth?: string;
-  readonly align?: "start" | "center" | "end";
-  readonly sortable?: boolean;
-  readonly fixed?: boolean;
-  readonly children?: readonly any[];
-};
-
-// Sekarang headers punya tipe yang sesuai -> TypeScript happy
-const headers: VHeader[] = [
-  //{ title: 'Kategori', key: 'KTGORI', minWidth: '100px' },
-  { title: "Kode", key: "Kode", minWidth: "100px", fixed: true },
-  { title: "Nama Barang", key: "Nama", minWidth: "250px" },
-  { title: "Jenis", key: "Jenis", minWidth: "100px" },
-  { title: "Supplier", key: "Supplier", minWidth: "150px" },
-  { title: "Konstruksi", key: "Konstruksi", minWidth: "100px" },
-  { title: "Pjg", key: "Panjang", minWidth: "70px", align: "end" },
-  { title: "Lbr", key: "Lebar", minWidth: "70px", align: "end" },
-  { title: "Satuan", key: "Satuan", minWidth: "80px" },
-  { title: "Status", key: "Status", minWidth: "120px" },
-  { title: "Stok", key: "Stok", minWidth: "80px", align: "end" },
-  { title: "Gudang", key: "Gudang", minWidth: "100px" },
-  { title: "Divisi", key: "Divisi", minWidth: "60px" },
+const headers = [
+    { title: "Kode", key: "Kode", width: "120px", fixed: true },
+    { title: "Nama", key: "Nama", width: "300px" },
+    { title: "Gudang Default", key: "GudangDefault", width: "140px" },
+    { title: "Jenis", key: "Jenis", width: "100px" },
+    { title: "Satuan", key: "Satuan", width: "100px" },
+    { title: "Panjang", key: "Panjang", width: "100px", align: "end" as const },
+    { title: "Lebar", key: "Lebar", width: "100px", align: "end" as const },
 ];
-// ===================================
-// API: Get Data
-// ===================================
+
+const isSingleSelected = computed(() => selected.value.length === 1);
+const selectedKode = computed(() => {
+    if (!selected.value.length) return "";
+    const first: any = selected.value[0];
+    return String(first?.Kode ?? first?.raw?.Kode ?? first?.value?.Kode ?? "");
+});
+
 const btnRefreshClick = async () => {
-  loading.value = true;
-
-  try {
-    const response = await api.get(API_MASTERBAHAN_MMT);
-
-    const res = response.data;
-
-    // VALIDASI AMAN
-    masterData.value =
-      (Array.isArray(res) && res) ||
-      (Array.isArray(res.data) && res.data) ||
-      (Array.isArray(res.result) && res.result) ||
-      [];
-  } catch (error) {
-    toast.error("Gagal mengambil data Master Bahan.");
-  } finally {
-    loading.value = false;
-  }
+    loading.value = true;
+    try {
+        const response = await api.get(API_MASTER_BARANG);
+        const res = response.data;
+        masterData.value =
+            (Array.isArray(res) && res) ||
+            (Array.isArray(res.data) && res.data) ||
+            (Array.isArray(res.result) && res.result) ||
+            [];
+        selected.value = [];
+    } catch (error) {
+        toast.error("Gagal mengambil data Master Barang.");
+    } finally {
+        loading.value = false;
+    }
 };
 
-// ===================================
-// Actions
-// ===================================
+const hasAccess = (type: "insert" | "edit") => {
+    const permissions = (authStore.permissions as any) ?? [];
+
+    if (!Array.isArray(permissions) || permissions.length === 0) return true;
+
+    const found = permissions.find(
+        (p: any) => String(p?.form ?? p?.module ?? p?.menu ?? "") === FORM_NAME,
+    );
+
+    if (!found) return true;
+
+    if (type === "insert") {
+        return Boolean(found.insert ?? found.canInsert ?? found.tambah ?? true);
+    }
+
+    return Boolean(found.edit ?? found.canEdit ?? found.ubah ?? true);
+};
+
 const handleNew = () => {
-  router.push({ name: "MasterBarangMmtCreate" });
-};
-
-const handleEdit = () => {
-  if (!selectedKode.value) return;
-  router.push({
-    name: "MasterBarangMmtEdit",
-    params: { kode: selectedKode.value },
-  });
-};
-
-const handleDelete = async () => {
-  if (!selectedKode.value) return;
-
-  if (!confirm(`Yakin ingin hapus Master Barang ${selectedKode.value}?`))
-    return;
-
-  try {
-    await api.delete(`${API_MASTERBAHAN_MMT}/${selectedKode.value}`);
-    toast.success("Data berhasil dihapus.");
-    btnRefreshClick();
-  } catch (e) {
-    toast.error("Gagal menghapus data.");
-  }
-};
-
-const handleNewEdit = (mode) => {
-  if (mode === "new") {
+    if (!hasAccess("insert")) {
+        toast.warning("Anda tidak berhak menambah data di modul ini.");
+        return;
+    }
     router.push({ name: "MasterBahanNew" });
-  } else if (mode === "edit" && selectedNomor.value) {
-    router.push({
-      name: "PengajuanPermintaanEdit",
-      params: { nomor: selectedNomor.value },
-    });
-  }
 };
 
-// ===================================
-// Mounted
-// ===================================
+const handleEditClick = async () => {
+    if (!selectedKode.value) return;
+
+    if (!hasAccess("edit")) {
+        toast.warning("Anda tidak berhak mengubah data di modul ini.");
+        return;
+    }
+
+    try {
+        await api.get(
+            `${API_MASTER_BARANG}/${encodeURIComponent(selectedKode.value)}`,
+        );
+    } catch (error) {
+        toast.error(
+            "Data barang tidak ditemukan atau gagal dimuat untuk mode ubah.",
+        );
+        return;
+    }
+
+    router.push({
+        name: "MasterBahanNew",
+        query: { kode: selectedKode.value, mode: "edit" },
+    });
+};
+
+const handleRowClick = (_event: unknown, payload: any) => {
+    const row = payload?.item ?? payload;
+    const raw = row?.raw ?? row;
+    if (!raw?.Kode) return;
+    selected.value = [raw];
+};
+
+const rowProps = ({ item }: any) => {
+    const raw = item?.raw ?? item;
+    const kode = String(raw?.Kode ?? "");
+    const isActive = kode && kode === selectedKode.value;
+
+    return {
+        class: isActive ? "row-selected" : "",
+    };
+};
+
+const filteredMasterData = computed(() => {
+    const keyword = filters.keyword.trim().toLowerCase();
+    if (!keyword) return masterData.value;
+    return masterData.value.filter((item) => {
+        return (
+            String(item.Kode).toLowerCase().includes(keyword) ||
+            String(item.Nama).toLowerCase().includes(keyword) ||
+            String(item.GudangDefault ?? "")
+                .toLowerCase()
+                .includes(keyword) ||
+            String(item.Jenis ?? "")
+                .toLowerCase()
+                .includes(keyword) ||
+            String(item.Satuan ?? "")
+                .toLowerCase()
+                .includes(keyword) ||
+            String(item.Panjang ?? "")
+                .toLowerCase()
+                .includes(keyword) ||
+            String(item.Lebar ?? "")
+                .toLowerCase()
+                .includes(keyword)
+        );
+    });
+});
+
 onMounted(() => {
-  btnRefreshClick();
+    btnRefreshClick();
 });
 </script>
+
+<style scoped>
+.browse-content {
+    padding: 12px;
+}
+
+.table-container {
+    height: calc(100vh - 220px);
+}
+
+:deep(.v-data-table) {
+    height: 100%;
+}
+
+:deep(.v-data-table .row-selected) {
+    background-color: #e8eaf6 !important;
+}
+
+:deep(.v-data-table .row-selected:hover) {
+    background-color: #dfe4fb !important;
+}
+</style>

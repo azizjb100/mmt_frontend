@@ -1,4 +1,3 @@
-// src/config/appConfig.ts
 import type { RoundingPolicy as RP } from "@/utils/numberUtils";
 
 // Vite uses import.meta.env, not process.env

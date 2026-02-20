@@ -262,6 +262,7 @@ const routes: RouteRecordRaw[] = [
             { path: 'file/ganti-password', name: 'Ganti Password', component: ComingSoon },
             { path: 'daftar/supplier', name: 'Supplier', component: SupplierView },            
             { path: 'daftar/supplier/new', name: 'SupplierNew', component: FormSupplierView },
+            { path: 'daftar/supplier/edit/:kode', name: 'SupplierEdit', component: FormSupplierView, props: true },
             { path: 'daftar/kode-bayar', name: 'Kode Bayar', component: ComingSoon },
             { path: 'daftar/jenis-barang', name: 'Jenis Barang', component: ComingSoon },
             { path: 'daftar/gudang', name: 'Gudang', component: ComingSoon },
