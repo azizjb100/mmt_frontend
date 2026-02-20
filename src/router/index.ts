@@ -66,6 +66,7 @@ import { Form } from 'lucide-vue-next';
 import ReturProduksiView from '@/views/ReturProduksiView.vue';
 import FormMasterBahanView from '@/views/FormMasterBahanView.vue';
 import FormLhkCetakMmtView from '@/views/FormLhkCetakMmtView.vue';
+import StokOpnameView from '@/views/StokOpnameView.vue';
 
 
 // 2. Definisikan Rute (Jalan)
@@ -207,6 +208,7 @@ const routes: RouteRecordRaw[] = [
             },
             { path: 'mmt/create-barcode', name: 'CreateBarcode', component: CreateBarcodeView },
             { path: 'mmt/create-barcode/new', name: 'CreateBarcodeNew', component: FormRecreateBarcode },
+            { path: 'mmt/stok-opname', name: 'StokOpnameBrowse', component: StokOpnameView },
             { path: 'mmt/koreksi-stok', name: 'KoreksiStokBrowse', component: KoreksiStokMMTView },
             {
                 path: 'mmt/koreksi-stok/new',
