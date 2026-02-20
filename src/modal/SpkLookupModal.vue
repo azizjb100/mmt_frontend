@@ -111,6 +111,8 @@ interface SPKItem {
   Bahan?: string;
   Gramasi?: string;
   Jumlah_jadi?: number;
+  Sudah_Cetak: number; // Hasil akumulasi dari Backend
+  Kurang_Cetak: number; // Sisa yang belum diproduksi
   [key: string]: any;
 }
 
@@ -136,7 +138,19 @@ const headers = [
   { title: "Nomor SPK", key: "SPK", width: "200px" },
   { title: "Nama Proyek/SPK", key: "Nama", width: "450px" },
   { title: "Tanggal", key: "Tanggal", width: "120px" },
-  { title: "Jumlah", key: "Jumlah", width: "80px" },
+  { title: "Target", key: "Jumlah", width: "90px", align: "end" as const },
+  {
+    title: "Sdh Cetak",
+    key: "Sudah_Cetak",
+    width: "90px",
+    align: "end" as const,
+  },
+  {
+    title: "Kurang",
+    key: "Kurang_Cetak",
+    width: "90px",
+    align: "end" as const,
+  },
   {
     title: "Aksi",
     key: "actions",
@@ -151,14 +165,23 @@ const headers = [
 const fetchSPKData = async () => {
   loading.value = true;
   try {
-    const response = await api.get<SPKItem[]>(API_URL, {
-      params: { keyword: searchKeyword.value },
-    });
-    const allData = response.data || [];
+    // 1. Sesuaikan Tipe Generic Axios untuk menangkap { success, data }
+    const response = await api.get<{ success: boolean; data: SPKItem[] }>(
+      API_URL,
+      {
+        params: { keyword: searchKeyword.value },
+      },
+    );
+
+    // 2. Ambil data dari properti .data (sesuai struktur controller backend)
+    const allData = response.data.data || [];
+
+    // 3. Simpan ke state
     SPKList.value = !searchKeyword.value ? allData.slice(0, 200) : allData;
   } catch (error) {
     const err = error as AxiosError;
-    toast.error("Gagal memuat daftar SPK.");
+    console.error("Fetch SPK Error:", err); // Log untuk debug
+    toast.error("Gagal memuat daftar SPK. Periksa koneksi backend.");
     SPKList.value = [];
   } finally {
     loading.value = false;
@@ -171,7 +194,7 @@ const selectSPK = (SPK: SPKItem) => {
     return;
   }
 
-  // Mapping data sesuai kebutuhan parent
+  // 4. Pastikan Sudah_Cetak dan Kurang_Cetak ikut dikirim ke Parent
   emit("select", {
     Spk: SPK.SPK,
     Nama: SPK.Nama,
@@ -183,6 +206,8 @@ const selectSPK = (SPK: SPKItem) => {
     Gramasi: SPK.Gramasi,
     Jumlah: SPK.Jumlah,
     Jumlah_jadi: SPK.Jumlah_jadi,
+    Sudah_Cetak: SPK.Sudah_Cetak || 0,
+    Kurang_Cetak: SPK.Kurang_Cetak || 0,
   });
 
   emit("close");

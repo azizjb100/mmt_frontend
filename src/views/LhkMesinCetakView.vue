@@ -66,6 +66,18 @@
               style="max-width: 150px"
             />
 
+            <v-text-field
+              v-model="filters.search"
+              prepend-inner-icon="mdi-magnify"
+              label="Cari Nama SPK / Nomor"
+              density="compact"
+              hide-details
+              variant="outlined"
+              clearable
+              style="max-width: 300px"
+              @keyup.enter="fetchMasterData"
+            />
+
             <v-btn variant="text" size="x-small" @click="fetchMasterData">
               <v-icon>mdi-refresh</v-icon> Refresh
             </v-btn>
@@ -116,6 +128,12 @@
             <span :class="getRowTextColor(item)">{{
               formatMeter(Number(item.cetak_meter || 0))
             }}</span>
+          </template>
+
+          <template #item.NomorSPK="{ item }">
+            <span :title="item.NomorSPK" :class="getRowTextColor(item)">
+              {{ truncateString(item.NomorSPK || "", 20) }}
+            </span>
           </template>
 
           <template #expanded-row="{ columns, item }">
@@ -220,7 +238,10 @@ const gudangList = ref<{ kode: string; nama: string }[]>([]);
 const filters = reactive({
   startDate: format(subDays(new Date(), 30), "yyyy-MM-dd"),
   endDate: format(new Date(), "yyyy-MM-dd"),
+  search: "",
 });
+
+// --- API calls ---
 
 // --- Computed ---
 const isSingleSelected = computed(() => selected.value.length === 1);
@@ -324,6 +345,12 @@ const detailHeaders = [
   { title: "Sisa Bahan", key: "Sisa_Meter", align: "end" },
 ] as any[];
 
+const truncateString = (str: string, num: number) => {
+  if (str?.length > num) {
+    return str.slice(0, num) + "...";
+  }
+  return str;
+};
 // --- API calls ---
 const resizeTable = (tableSelector: string) => {
   // 1. Dapatkan referensi ke tabel
@@ -414,6 +441,7 @@ const fetchMasterData = async () => {
       params: {
         startDate: filters.startDate,
         endDate: filters.endDate,
+        search: filters.search,
       },
     });
     masterData.value = response.data || [];

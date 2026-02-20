@@ -196,6 +196,7 @@ const allMenuGroups = [
         path: "/mmt/lhk/browse",
         items: [
           { name: "LHK Mesin Cetak", path: "/mmt/lhk/cetak" },
+          { name: "LHK Cetak Mmt", path: "/mmt/lhk/cetak-mmt" },
           { name: "LHK Kain", path: "/mmt/lhk/kain" },
           { name: "LHK Finishing", path: "/mmt/lhk/finishing" },
           { name: "LHK Proof", path: "/mmt/lhk/proof" },
@@ -306,6 +307,7 @@ const allMenuGroups = [
           },
           { name: "Laporan SPK MMT", path: "/laporan/mmt/lap-spk-mmt" },
           { name: "Lap. Mon LMKP MMT", path: "/laporan/mmt/lap-mon-lmkp-mmt" },
+          { name: "Lap. Mon Cetak", path: "/laporan/mmt/lap-mon-cetak" },
           {
             name: "Lap. Plan Produksi",
             path: "/laporan/mmt/lap-plan-produksi",

@@ -206,6 +206,7 @@ interface PermintaanProduksiDetail {
   Nomor: string;
   Kode: string;
   Nama_Bahan: string;
+  Barcode: string;
   Panjang: number | null;
   Lebar: number | null;
   Satuan: string;
@@ -257,7 +258,7 @@ const endDate = ref<string>(today);
 
 const isSingleSelected = computed(() => selected.value.length === 1);
 const selectedNomor = computed<string | null>(() =>
-  isSingleSelected.value ? selected.value[0].Nomor : null
+  isSingleSelected.value ? selected.value[0].Nomor : null,
 );
 
 // --- Konfigurasi Tabel (Headers) ---
@@ -276,6 +277,7 @@ const detailHeaders = [
   { title: "Nomor", key: "Nomor", minWidth: "140px", fixed: true },
   { title: "Kode", key: "Kode", minWidth: "100px" },
   { title: "Nama Bahan", key: "Nama_Bahan", minWidth: "200px" },
+  { title: "Barcode", key: "Barcode", minWidth: "150px" },
   { title: "Panjang", key: "Panjang", minWidth: "80px", align: "end" },
   { title: "Lebar", key: "Lebar", minWidth: "80px", align: "end" },
   { title: "Satuan", key: "Satuan", minWidth: "80px" },
@@ -308,7 +310,7 @@ const parseCustomDate = (dateString: string): Date | null => {
       "December",
     ];
     const monthIndex = months.findIndex((m) =>
-      m.toLowerCase().startsWith(monthName.toLowerCase())
+      m.toLowerCase().startsWith(monthName.toLowerCase()),
     );
 
     if (monthIndex === -1) return null;
@@ -360,7 +362,7 @@ const fetchData = async () => {
   } catch (error) {
     const err = error as AxiosError;
     toast.error(
-      `Gagal memuat data: ${err.message || "Terjadi kesalahan jaringan."}`
+      `Gagal memuat data: ${err.message || "Terjadi kesalahan jaringan."}`,
     );
   } finally {
     loading.value = false;
@@ -369,12 +371,12 @@ const fetchData = async () => {
 
 const loadDetails = (newlyExpandedKeys: string[]) => {
   const newlyExpandedNomor = newlyExpandedKeys.find(
-    (nomor) => !details.value[nomor]
+    (nomor) => !details.value[nomor],
   );
 
   if (newlyExpandedNomor) {
     console.warn(
-      `Detail for ${newlyExpandedNomor} not found in cache. Simulating load...`
+      `Detail for ${newlyExpandedNomor} not found in cache. Simulating load...`,
     );
     loadingDetails.value.add(newlyExpandedNomor);
     setTimeout(() => {
@@ -414,7 +416,7 @@ const handleDelete = async () => {
     toast.error(
       `Gagal Hapus: ${
         err.response?.data?.message ?? err.message ?? "Terjadi kesalahan."
-      }`
+      }`,
     );
   }
 };
@@ -441,7 +443,7 @@ const fetchPendingLoans = async () => {
 
 const handleApproveLoan = async (loan: any) => {
   const confirmOk = confirm(
-    `Proses Mutasi Barcode ${loan.barcode} dari WH-16 ke GPM sekarang?`
+    `Proses Mutasi Barcode ${loan.barcode} dari WH-16 ke GPM sekarang?`,
   );
 
   if (confirmOk) {
@@ -453,7 +455,7 @@ const handleApproveLoan = async (loan: any) => {
       });
 
       toast.success(
-        `Stok Barcode ${loan.barcode} telah berpindah ke Produksi.`
+        `Stok Barcode ${loan.barcode} telah berpindah ke Produksi.`,
       );
       fetchPendingLoans(); // Refresh notif
       fetchData(); // Refresh table utama
