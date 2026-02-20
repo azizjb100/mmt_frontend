@@ -36,41 +36,73 @@
     <div class="browse-content">
       <v-card flat class="mb-4 border">
         <v-card-text>
-          <div class="filter-section d-flex align-center flex-wrap ga-4">
-            <v-label class="text-caption font-weight-bold">Periode:</v-label>
-            <v-text-field
-              v-model="filters.startDate"
-              type="date"
-              density="compact"
-              hide-details
-              variant="outlined"
-              style="max-width: 160px"
-            />
-            <v-label>s/d</v-label>
-            <v-text-field
-              v-model="filters.endDate"
-              type="date"
-              density="compact"
-              hide-details
-              variant="outlined"
-              style="max-width: 160px"
-            />
-            <v-btn
-              variant="tonal"
-              size="small"
-              color="primary"
-              @click="fetchMasterData"
-            >
-              <v-icon start>mdi-refresh</v-icon> Refresh
-            </v-btn>
+          <v-card-text>
+            <div class="filter-section d-flex align-center flex-wrap ga-4">
+              <v-label class="text-caption font-weight-bold">Periode:</v-label>
+              <v-text-field
+                v-model="filters.startDate"
+                type="date"
+                density="compact"
+                hide-details
+                variant="outlined"
+                style="max-width: 160px"
+              />
+              <v-label>s/d</v-label>
+              <v-text-field
+                v-model="filters.endDate"
+                type="date"
+                density="compact"
+                hide-details
+                variant="outlined"
+                style="max-width: 160px"
+              />
 
-            <v-spacer />
+              <v-label class="text-caption font-weight-bold ml-2"
+                >Mesin:</v-label
+              >
+              <v-select
+                v-model="filters.mesin"
+                :items="listMesin"
+                placeholder="Semua Mesin"
+                multiple
+                chips
+                closable-chips
+                density="compact"
+                variant="outlined"
+                hide-details
+                style="min-width: 250px; max-width: 400px"
+                class="bg-white"
+              >
+                <template v-slot:selection="{ item, index }">
+                  <v-chip v-if="index < 2" size="x-small">
+                    <span>{{ item.title }}</span>
+                  </v-chip>
+                  <span
+                    v-if="index === 2"
+                    class="text-grey text-caption align-self-center"
+                  >
+                    (+{{ filters.mesin.length - 2 }} lainnya)
+                  </span>
+                </template>
+              </v-select>
 
-            <div class="d-flex align-center ga-2 text-caption">
-              <v-icon color="red" size="x-small">mdi-square</v-icon>
-              <span>Belum Lengkap</span>
+              <v-btn
+                variant="tonal"
+                size="small"
+                color="primary"
+                @click="fetchMasterData"
+              >
+                <v-icon start>mdi-refresh</v-icon> Refresh
+              </v-btn>
+
+              <v-spacer />
+
+              <div class="d-flex align-center ga-2 text-caption">
+                <v-icon color="red" size="x-small">mdi-square</v-icon>
+                <span>Belum Lengkap</span>
+              </div>
             </div>
-          </div>
+          </v-card-text>
         </v-card-text>
       </v-card>
 
@@ -172,7 +204,10 @@ const expanded = ref([]);
 const filters = reactive({
   startDate: format(subDays(new Date(), 7), "yyyy-MM-dd"),
   endDate: format(new Date(), "yyyy-MM-dd"),
+  mesin: [],
 });
+
+const listMesin = ref(["MT01", "MT02", "MT03", "MT04", "MT05"]);
 
 // --- Headers ---
 const masterHeaders = [
@@ -209,23 +244,31 @@ const detailHeaders = [
 // --- Computed ---
 const isSingleSelected = computed(() => selected.value.length === 1);
 
-// --- Methods ---
 const fetchMasterData = async () => {
   loading.value.headers = true;
+  // Kosongkan detail yang tersimpan agar tidak menampilkan data lama saat di-expand
+  details.value = {};
+  expanded.value = []; // Opsional: tutup semua row yang sedang terbuka
+
   try {
-    const res = await api.get(API_BASE_URL, { params: filters });
+    const payload = {
+      startDate: filters.startDate,
+      endDate: filters.endDate,
+      mesin: filters.mesin.length > 0 ? filters.mesin.join(",") : undefined,
+    };
+    const res = await api.get(API_BASE_URL, { params: payload });
     masterData.value = res.data || [];
     await nextTick();
     initResizer();
   } catch (e) {
     toast.error("Gagal memuat data master");
+    console.error(e);
   } finally {
     loading.value.headers = false;
   }
 };
 
 // frontend - LhkCetakMmtView.vue
-
 const loadDetails = async (expandedKeys: any[]) => {
   if (expandedKeys.length === 0) return;
 
@@ -234,23 +277,22 @@ const loadDetails = async (expandedKeys: any[]) => {
 
   if (!nomor) return;
 
-  if (!details.value[nomor]) {
-    loadingDetails.value.add(nomor);
-    try {
-      // Pastikan URL ini sesuai dengan route yang didefinisikan di backend
-      // Jika route backend adalah /api/mmt/lhk-cetak-mmt/detail/:nomor
-      const response = await api.get(`${API_BASE_URL}/detail/${nomor}`);
+  // Hapus pengecekan cache (details.value[nomor]) jika Anda ingin detail
+  // selalu terupdate setiap kali filter mesin diubah
+  loadingDetails.value.add(nomor);
+  try {
+    const response = await api.get(`${API_BASE_URL}/detail/${nomor}`, {
+      params: {
+        // Kirimkan filter mesin yang sedang aktif ke API detail
+        mesin: filters.mesin.length > 0 ? filters.mesin.join(",") : undefined,
+      },
+    });
 
-      // Ambil data dari response.data.data (karena di controller kita bungkus {data: rows})
-      details.value[nomor] = response.data.data || [];
-
-      console.log("Detail Berhasil Dimuat:", details.value[nomor]);
-    } catch (error) {
-      toast.error("Gagal memuat detail");
-      console.error("Error Fetch Detail:", error);
-    } finally {
-      loadingDetails.value.delete(nomor);
-    }
+    details.value[nomor] = response.data.data || [];
+  } catch (error) {
+    toast.error("Gagal memuat detail");
+  } finally {
+    loadingDetails.value.delete(nomor);
   }
 };
 
