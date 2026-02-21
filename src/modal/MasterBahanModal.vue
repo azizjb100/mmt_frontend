@@ -123,9 +123,11 @@ const titleText = computed(() => {
 
 // --- API berdasarkan mode ---
 const API_URL = computed(() => {
+  // Jika mode produksi ke /mmt/produksi
+  // Jika mode mmt (biasa), arahkan ke root '/' untuk memanggil getMasterBahan
   return props.mode === "produksi"
     ? "/master/bahan/mmt/produksi"
-    : "/master/bahan/mmt";
+    : "/master/bahan";
 });
 
 // --- State ---
@@ -177,7 +179,7 @@ const selectBahan = (bahan: MasterBahan) => {
 // --- Fungsi Baru: Handle Double Click pada Baris ---
 const handleDoubleClick = (
   _event: MouseEvent,
-  { item }: { item: MasterBahan }
+  { item }: { item: MasterBahan },
 ) => {
   selectBahan(item);
 };
@@ -192,7 +194,7 @@ watch(
     } else {
       poList.value = [];
     }
-  }
+  },
 );
 </script>
 
