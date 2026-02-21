@@ -6,7 +6,7 @@
         <span class="font-heading">MyApp</span>
       </div>
 
-      <ul class="navbar-menu">
+      <ul class="navbar-menu" @click="handleMenuClick">
         <li
           v-for="group in menuGroups"
           :key="group.name"
@@ -88,6 +88,7 @@ const activeMenu = ref(null);
 
 const rolePermissions = {
   1: [
+    "Daftar",
     "Daftar Permintaan Pembelian",
     "Purchase Order (PR)",
     "Penerimaan Bahan",
@@ -114,6 +115,13 @@ const handleLogout = () => {
 // LOGIC TOGGLE MENU
 const toggleMenu = (menuName) => {
   activeMenu.value = activeMenu.value === menuName ? null : menuName;
+};
+
+const handleMenuClick = (e) => {
+  const target = e.target.closest("a");
+  if (target && !target.classList.contains("dropdown-toggle")) {
+    activeMenu.value = null;
+  }
 };
 
 // LOGIC KLIK DI LUAR UNTUK MENUTUP
@@ -144,18 +152,18 @@ const allMenuGroups = [
     name: "Daftar",
     items: [
       { name: "Supplier", path: "/daftar/supplier" },
-      { name: "Kode Bayar", path: "/daftar/kode-bayar" },
-      { name: "Jenis Barang", path: "/daftar/jenis-barang" },
-      { name: "Gudang", path: "/daftar/gudang" },
-      { name: "Jasa", path: "/daftar/jasa" },
-      { name: "Gudang Produksi", path: "/daftar/gudang-produksi" },
-      { name: "Komponen SPK", path: "/daftar/komponen-spk" },
-      { name: "Customer", path: "/daftar/customer" },
-      { name: "Tanda Terima", path: "/daftar/tanda-terima" },
-      { name: "Jenis Order", path: "/daftar/jenis-order" },
-      { name: "Sales", path: "/daftar/sales" },
-      { name: "Barang", path: "/daftar/barang" },
-      { name: "Jenis Potongan", path: "/daftar/jenis-potongan" },
+      // { name: "Kode Bayar", path: "/daftar/kode-bayar" },
+      // { name: "Jenis Barang", path: "/daftar/jenis-barang" },
+      // { name: "Gudang", path: "/daftar/gudang" },
+      // { name: "Jasa", path: "/daftar/jasa" },
+      // { name: "Gudang Produksi", path: "/daftar/gudang-produksi" },
+      // { name: "Komponen SPK", path: "/daftar/komponen-spk" },
+      // { name: "Customer", path: "/daftar/customer" },
+      // { name: "Tanda Terima", path: "/daftar/tanda-terima" },
+      // { name: "Jenis Order", path: "/daftar/jenis-order" },
+      // { name: "Sales", path: "/daftar/sales" },
+      // { name: "Barang", path: "/daftar/barang" },
+      // { name: "Jenis Potongan", path: "/daftar/jenis-potongan" },
     ],
   },
   {
@@ -306,6 +314,7 @@ const allMenuGroups = [
             path: "/laporan/mmt/kartu-stok-produksi",
           },
           { name: "Laporan SPK MMT", path: "/laporan/mmt/lap-spk-mmt" },
+          { name: "Laporan LHK", path: "/laporan/mmt/lap-lhk" },
           { name: "Lap. Mon LMKP MMT", path: "/laporan/mmt/lap-mon-lmkp-mmt" },
           { name: "Lap. Mon Cetak", path: "/laporan/mmt/lap-mon-cetak" },
           {

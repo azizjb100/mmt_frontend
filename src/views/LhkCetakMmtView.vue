@@ -25,11 +25,11 @@
 
       <v-btn
         size="x-small"
-        color="info"
-        :disabled="!isSingleSelected"
-        @click="handlePrint"
+        color="secondary"
+        :disabled="masterData.length === 0"
+        @click="exportToExcel"
       >
-        <v-icon start>mdi-printer</v-icon> Cetak Slip
+        <v-icon start>mdi-file-excel</v-icon> Export Excel
       </v-btn>
     </template>
 
@@ -188,6 +188,7 @@ import { useToast } from "vue-toastification";
 import { format, subDays, parseISO, isValid } from "date-fns";
 import api from "@/services/api";
 import PageLayout from "../components/PageLayout.vue";
+import * as XLSX from "xlsx";
 
 // --- State & Config ---
 const router = useRouter();
@@ -277,8 +278,6 @@ const loadDetails = async (expandedKeys: any[]) => {
 
   if (!nomor) return;
 
-  // Hapus pengecekan cache (details.value[nomor]) jika Anda ingin detail
-  // selalu terupdate setiap kali filter mesin diubah
   loadingDetails.value.add(nomor);
   try {
     const response = await api.get(`${API_BASE_URL}/detail/${nomor}`, {
@@ -329,6 +328,81 @@ const safeFormatDate = (d: string) =>
 const handlePrint = () => {
   toast.info(`Mencetak Slip: ${selected.value[0].Nomor}`);
   // Logic cetak panggil API atau Window.print
+};
+
+const exportToExcel = async () => {
+  loading.value.headers = true;
+  try {
+    const payload = {
+      startDate: filters.startDate,
+      endDate: filters.endDate,
+      mesin: filters.mesin.length > 0 ? filters.mesin.join(",") : undefined,
+    };
+
+    const res = await api.get(`${API_BASE_URL}/export`, { params: payload });
+
+    // 🔥 FIX DI SINI
+    const rawData = Array.isArray(res.data)
+      ? res.data
+      : Array.isArray(res.data?.data)
+        ? res.data.data
+        : [];
+
+    if (!Array.isArray(rawData) || rawData.length === 0) {
+      toast.warning("Tidak ada data untuk diekspor");
+      return;
+    }
+
+    const exportData: any[] = [];
+    let lastNomor = "";
+
+    rawData.forEach((row: any) => {
+      if (row.Nomor_LHK !== lastNomor) {
+        exportData.push({
+          "Nomor LHK / SPK": row.Nomor_LHK,
+          "Tanggal / Order": row.Tanggal,
+          "Operator / Mesin": row.Operator_LHK,
+          Shift: row.Shift_LHK,
+          Gudang: row.Gudang,
+          "Total m²": "",
+          Status: "HEADER",
+        });
+        lastNomor = row.Nomor_LHK;
+      }
+
+      exportData.push({
+        "Nomor LHK / SPK": `   ${row.Nomor_SPK}`,
+        "Tanggal / Order": row.Nama_Order,
+        "Operator / Mesin": row.Mesin,
+        Shift: "",
+        Gudang: "",
+        "Total m²": Number(row.m2_cetak || 0).toFixed(2),
+        Status: "DETAIL",
+      });
+    });
+
+    const ws = XLSX.utils.json_to_sheet(exportData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "LHK_Lengkap");
+
+    ws["!cols"] = [
+      { wch: 25 },
+      { wch: 35 },
+      { wch: 25 },
+      { wch: 8 },
+      { wch: 15 },
+      { wch: 12 },
+      { wch: 10 },
+    ];
+
+    XLSX.writeFile(wb, `LHK_MMT_Export_${filters.startDate}.xlsx`);
+    toast.success("Excel berhasil diunduh");
+  } catch (error) {
+    console.error("Export Error:", error);
+    toast.error("Gagal mengekspor data ke Excel.");
+  } finally {
+    loading.value.headers = false;
+  }
 };
 
 // --- Logic Resizer (Mirip Excel/Delphi) ---

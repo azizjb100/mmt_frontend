@@ -67,6 +67,7 @@ import ReturProduksiView from '@/views/ReturProduksiView.vue';
 import FormMasterBahanView from '@/views/FormMasterBahanView.vue';
 import FormLhkCetakMmtView from '@/views/FormLhkCetakMmtView.vue';
 import StokOpnameView from '@/views/StokOpnameView.vue';
+import LapLHKView from '@/views/LapLHKView.vue';
 
 
 // 2. Definisikan Rute (Jalan)
@@ -350,6 +351,7 @@ const routes: RouteRecordRaw[] = [
             { path: 'laporan/mmt/lap-barang-jadi', name: 'lapBarangJadi', component: LapBarangJadiView },
             { path: 'laporan/mmt/lap-stok-tinta', name: 'lapStokTinta', component: LapStokTintaMmtView },
             { path: 'laporan/mmt/lap-output-mesin', name: 'lapOutputMesin', component: LapOutputMesinView },
+            { path: 'laporan/mmt/lap-lhk', name: 'LapLHK', component: LapLHKView },
 
             { path: 'produksi-mmt/ls-tinta', name: 'LS Tinta', component: ComingSoon },
             { path: 'produksi-mmt/ls-bahan-kain', name: 'LS Bahan Kain', component: ComingSoon },

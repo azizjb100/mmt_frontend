@@ -6,6 +6,8 @@ import api from "@/services/api";
 import { useToast } from "vue-toastification";
 import PageLayout from "../components/PageLayout.vue";
 import LhkMesinLookupModal from "@/modal/LhkMesinLookupModal.vue";
+import MesinLookupView from "@/modal/MesinLookupModal.vue";
+import SpkLookupView from "@/modal/SpkLookupModal.vue";
 import { useAuthStore } from "@/stores/authStore";
 
 const toast = useToast();
@@ -18,6 +20,12 @@ const isSaving = ref(false);
 const isLoadingDetails = ref(false);
 const isEditMode = ref(false);
 const isLhkLookupVisible = ref(false);
+const isMesinLookupVisible = ref(false);
+const isSpkLookupVisible = ref(false);
+
+// State untuk melacak baris mana yang sedang melakukan lookup (Mesin/SPK)
+// Jika null, berarti lookup dilakukan untuk Header Utama
+const activeRowIndex = ref<number | null>(null);
 
 const formData = reactive({
   nomor: "AUTO",
@@ -25,6 +33,7 @@ const formData = reactive({
   gdg_kode: "GPM",
   shift: 1,
   operator: "",
+  mesin: "",
 });
 
 const detailData = ref<any[]>([]);
@@ -34,104 +43,147 @@ const detailHeaders = [
   { title: "No", key: "no", width: "50px", sortable: false },
   { title: "No. LHK Mesin", key: "lhkmesin", width: "160px" },
   { title: "Shift", key: "shift", width: "80px" },
-  { title: "Mesin", key: "mesin", width: "90px" },
+  { title: "Mesin", key: "mesin", width: "120px" },
   { title: "No. SPK", key: "spk_nomor", width: "160px" },
   { title: "Nama Produk / Order", key: "spk_nama", minWidth: "250px" },
   { title: "Operator", key: "operator", width: "130px" },
-  { title: "Qty Cetak", key: "jumlah_cetak", width: "100px", align: "end" },
+  { title: "Qty Cetak", key: "jumlah_cetak", width: "110px", align: "end" },
   { title: "Total (m²)", key: "total_m2", width: "100px", align: "end" },
   { title: "", key: "actions", width: "50px", sortable: false },
 ];
 
-// --- Computed ---
-const formTitle = computed(() =>
-  isEditMode.value
-    ? `Edit Rekap Cetak: ${formData.nomor}`
-    : "Input Rekap Cetak MMT",
-);
-
-const grandTotalQty = computed(() =>
-  detailData.value.reduce((s, i) => s + (Number(i.jumlah_cetak) || 0), 0),
-);
-
-const grandTotalM2 = computed(() =>
-  detailData.value.reduce((s, i) => s + (Number(i.total_m2) || 0), 0),
-);
-
-// --- Handlers ---
+// --- Handlers Open Modal ---
 const openLhkLookup = () => (isLhkLookupVisible.value = true);
 
-const truncateString = (str: string, num: number) => {
-  if (!str) return "-";
-  return str.length > num ? str.slice(0, num) + "..." : str;
+const openMesinSearch = (index: number | null = null) => {
+  activeRowIndex.value = index;
+  isMesinLookupVisible.value = true;
 };
 
-/**
- * Multiple Choice Handler
- * Mengambil detail untuk setiap LHK yang dipilih dari modal
- */
+const openSpkSearch = (index: number | null = null) => {
+  activeRowIndex.value = index;
+  isSpkLookupVisible.value = true;
+};
+
+// --- Handlers Select Data ---
+const handleMesinSelect = (mesin: any) => {
+  const kodeMesin = mesin.Kode || mesin.msn_kode;
+
+  if (activeRowIndex.value !== null) {
+    // Input ke baris tabel
+    detailData.value[activeRowIndex.value].mesin = kodeMesin;
+  } else {
+    // Input ke header utama
+    formData.mesin = kodeMesin;
+  }
+
+  isMesinLookupVisible.value = false;
+  activeRowIndex.value = null;
+};
+
+const handleSpkSelect = (spk: any) => {
+  const nomorSpk = spk.Spk || spk.spk_nomor;
+  const namaSpk = spk.Nama || spk.spk_nama;
+  const p = parseFloat(spk.Panjang || 0);
+  const l = parseFloat(spk.Lebar || 0);
+
+  if (activeRowIndex.value !== null) {
+    const row = detailData.value[activeRowIndex.value];
+    row.spk_nomor = nomorSpk;
+    row.spk_nama = namaSpk;
+    row.panjang_spk = p; // Simpan panjang untuk perhitungan
+    row.lebar_spk = l; // Simpan lebar untuk perhitungan
+    calculateRowM2(activeRowIndex.value); // Hitung awal
+  } else {
+    // Tambah baris baru dengan dimensi
+    detailData.value.push({
+      lhkmesin: "MANUAL",
+      shift: formData.shift,
+      mesin: formData.mesin,
+      spk_nomor: nomorSpk,
+      spk_nama: namaSpk,
+      panjang_spk: p,
+      lebar_spk: l,
+      jumlah_cetak: 0,
+      total_m2: 0,
+      isManual: true,
+    });
+  }
+
+  isSpkLookupVisible.value = false;
+  activeRowIndex.value = null;
+};
+
 const handleLhkSelect = async (selectedNomors: string[]) => {
   if (!Array.isArray(selectedNomors) || selectedNomors.length === 0) return;
-
   isLoadingDetails.value = true;
   try {
-    // 1. Gabungkan nomor menjadi string: "LHK01,LHK02,LHK03"
     const queryNomor = selectedNomors.join(",");
-
-    // 2. Panggil API Multiple Lookup (Hanya 1x request ke server)
     const response = await api.get(`/mmt/lhk-cetak/detail-lookup`, {
       params: { nomor: queryNomor },
     });
-
     const res = response.data.data;
 
     if (res && Array.isArray(res.details)) {
-      let addCount = 0;
-
       res.details.forEach((d: any) => {
-        // Cek duplikasi berdasarkan LHK Nomor + SPK Nomor
-        const isExist = detailData.value.some((ex) => {
-          return (
+        const isExist = detailData.value.some(
+          (ex) =>
             `${ex.lhkmesin}-${ex.spk_nomor}`.toUpperCase() ===
-            `${d.referensi_lhk}-${d.spk_nomor}`.toUpperCase()
-          );
-        });
+            `${d.referensi_lhk}-${d.spk_nomor}`.toUpperCase(),
+        );
 
         if (!isExist) {
           detailData.value.push({
-            lhkmesin: d.referensi_lhk, // Dari backend: d.ld_lnomor AS referensi_lhk
-            shift: d.shift,
+            lhkmesin: d.referensi_lhk,
+            shift: d.shift || formData.shift,
             mesin: d.mesin || "-",
             spk_nomor: d.spk_nomor,
             spk_nama: d.nama_spk,
             operator: d.operator || "",
             jumlah_cetak: Number(d.totalcetak) || 0,
             total_m2: Number(d.ld_luas_m2) || 0,
+            isManual: false,
           });
-          addCount++;
         }
       });
-
-      if (addCount > 0) {
-        toast.success(
-          `Berhasil menarik ${addCount} baris data dari ${selectedNomors.length} LHK.`,
-        );
-      } else {
-        toast.info("Data rincian sudah ada di tabel.");
-      }
     }
   } catch (error: any) {
-    console.error("Error Detail Lookup:", error);
-    toast.error(error.response?.data?.error || "Gagal menarik rincian data");
+    toast.error("Gagal menarik rincian data");
   } finally {
     isLoadingDetails.value = false;
     isLhkLookupVisible.value = false;
   }
 };
 
-const removeRow = (idx: number) => {
-  detailData.value.splice(idx, 1);
+const calculateRowM2 = (index: number) => {
+  const row = detailData.value[index];
+  if (!row) return;
+
+  // Pastikan angka valid (konversi dari cm ke meter jika perlu)
+  // Asumsi: panjang_spk dan lebar_spk dalam satuan meter.
+  // Jika dalam cm, bagi 100 dulu.
+  const p = Number(row.panjang_spk) || 0;
+  const l = Number(row.lebar_spk) || 0;
+  const qty = Number(row.jumlah_cetak) || 0;
+
+  row.total_m2 = Number((p * l * qty).toFixed(2));
 };
+
+const addRow = (spkNo = "", spkName = "") => {
+  detailData.value.push({
+    lhkmesin: "MANUAL",
+    shift: formData.shift,
+    mesin: formData.mesin, // Ambil default dari header
+    spk_nomor: spkNo,
+    spk_nama: spkName,
+    operator: formData.operator,
+    jumlah_cetak: 0,
+    total_m2: 0,
+    isManual: true,
+  });
+};
+
+const removeRow = (idx: number) => detailData.value.splice(idx, 1);
 
 const handleSave = async (status: string) => {
   if (detailData.value.length === 0) {
@@ -139,16 +191,18 @@ const handleSave = async (status: string) => {
     return;
   }
 
-  if (!confirm("Simpan data rekap cetak ini?")) return;
+  if (!window.confirm("Simpan data rekap cetak ini?")) return;
 
   isSaving.value = true;
+
   try {
     const payload = {
       header: {
         lch_tanggal: formData.tanggal,
         lch_gdg_prod: formData.gdg_kode,
         lch_shift: formData.shift,
-        // lch_operator akan diisi otomatis oleh backend dari gabungan rincian
+        lch_operator: formData.operator,
+        lch_mesin: formData.mesin,
         luser_modified: authStore.user?.kdUser || "SYSTEM",
         lstatus: status,
       },
@@ -157,19 +211,25 @@ const handleSave = async (status: string) => {
     };
 
     const res = await api.post("/mmt/lhk-cetak-mmt", payload);
-    if (res.data.success) {
-      toast.success("Data berhasil disimpan");
-      handleClose();
+
+    if (res.data?.data?.success) {
+      toast.success(res.data.message);
+      await router.replace({ name: "LHKCetakMMT" });
+    } else {
+      toast.error(res.data?.message || "Gagal menyimpan data");
     }
-  } catch (e: any) {
-    toast.error(e.response?.data?.message || "Gagal menyimpan data");
+  } catch (error: any) {
+    console.error("Save Error:", error);
+    toast.error(
+      error.response?.data?.message || "Terjadi kesalahan saat menyimpan",
+    );
   } finally {
     isSaving.value = false;
   }
 };
 
 const handleClose = () => {
-  router.push({ name: "LhkCetakMmtView" });
+  router.replace({ name: "LHKCetakMMT" });
 };
 
 // --- Keyboard Shortcut (F1) ---
@@ -190,99 +250,119 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <PageLayout :title="formTitle" icon="mdi-printer-eye">
+  <PageLayout
+    :title="isEditMode ? 'Edit Rekap' : 'Input Rekap Cetak'"
+    icon="mdi-printer-eye"
+  >
     <template #header-actions>
       <v-btn
         size="small"
         color="primary"
         @click="handleSave('POSTED')"
         :loading="isSaving"
+        :disabled="isSaving"
         class="mr-2"
       >
         <v-icon start>mdi-content-save</v-icon> Simpan Rekap
       </v-btn>
-      <v-btn size="small" variant="outlined" color="error" @click="handleClose">
-        <v-icon start>mdi-exit-to-app</v-icon> Keluar
+
+      <v-btn
+        size="small"
+        variant="outlined"
+        color="error"
+        @click="handleClose"
+        :disabled="isSaving"
+      >
+        <v-icon start>mdi-exit-to-app</v-icon> Batal
       </v-btn>
     </template>
 
     <v-row dense>
       <v-col cols="12">
-        <v-card flat border class="bg-grey-lighten-5">
-          <v-card-text class="pa-3">
-            <v-row dense>
-              <v-col cols="12" md="2">
-                <v-text-field
-                  v-model="formData.nomor"
-                  label="Nomor Rekap"
-                  readonly
-                  density="compact"
-                  variant="solo-filled"
-                  hide-details
-                  flat
-                />
-              </v-col>
-              <v-col cols="12" md="2">
-                <v-text-field
-                  v-model="formData.tanggal"
-                  type="date"
-                  label="Tanggal"
-                  variant="outlined"
-                  density="compact"
-                  hide-details
-                />
-              </v-col>
-              <v-col cols="12" md="2">
-                <v-text-field
-                  v-model="formData.gdg_kode"
-                  label="Gudang"
-                  readonly
-                  variant="outlined"
-                  density="compact"
-                  hide-details
-                />
-              </v-col>
-              <v-col cols="12" md="1">
-                <v-text-field
-                  v-model.number="formData.shift"
-                  type="number"
-                  label="Shift"
-                  variant="outlined"
-                  density="compact"
-                  hide-details
-                />
-              </v-col>
-              <v-col cols="12" md="5">
-                <v-text-field
-                  v-model="formData.operator"
-                  label="Operator Rekap / Admin"
-                  variant="outlined"
-                  density="compact"
-                  hide-details
-                  placeholder="Nama operator yang merekap..."
-                />
-              </v-col>
-            </v-row>
-          </v-card-text>
+        <v-card flat border class="bg-grey-lighten-5 pa-3">
+          <v-row dense align="center">
+            <v-col cols="12" md="2">
+              <v-text-field
+                v-model="formData.nomor"
+                label="No. Rekap"
+                readonly
+                density="compact"
+                variant="solo-filled"
+                flat
+                hide-details
+              />
+            </v-col>
+            <v-col cols="12" md="2">
+              <v-text-field
+                v-model="formData.tanggal"
+                type="date"
+                label="Tanggal"
+                variant="outlined"
+                density="compact"
+                hide-details
+              />
+            </v-col>
+            <v-col cols="12" md="3">
+              <v-text-field
+                v-model="formData.mesin"
+                label="Mesin Utama (Default)"
+                readonly
+                density="compact"
+                variant="outlined"
+                append-inner-icon="mdi-magnify"
+                @click="openMesinSearch(null)"
+                hide-details
+              />
+            </v-col>
+            <v-col cols="12" md="1">
+              <v-text-field
+                v-model.number="formData.shift"
+                label="Shift"
+                type="number"
+                variant="outlined"
+                density="compact"
+                hide-details
+              />
+            </v-col>
+            <v-col cols="12" md="4">
+              <v-text-field
+                v-model="formData.operator"
+                label="Operator/Admin"
+                variant="outlined"
+                density="compact"
+                hide-details
+              />
+            </v-col>
+          </v-row>
         </v-card>
       </v-col>
 
       <v-col cols="12">
-        <v-card flat border :loading="isLoadingDetails">
+        <v-card flat border>
           <v-toolbar density="compact" color="primary" flat>
             <v-icon start class="ml-2 text-white"
               >mdi-format-list-bulleted</v-icon
             >
-            <v-toolbar-title class="text-subtitle-2 text-white">
-              Rincian LHK Mesin yang Direkap
-            </v-toolbar-title>
+            <v-toolbar-title class="text-subtitle-2 text-white"
+              >Daftar Rekap Pekerjaan</v-toolbar-title
+            >
             <v-spacer />
+            <v-btn
+              size="small"
+              color="success"
+              variant="elevated"
+              prepend-icon="mdi-plus"
+              class="mr-2"
+              @click="openSpkSearch(null)"
+            >
+              Tambah SPK Manual
+            </v-btn>
             <v-btn
               size="small"
               color="white"
               variant="elevated"
-              prepend-icon="mdi-plus"
-              class="mr-2 text-primary font-weight-bold"
+              prepend-icon="mdi-layers-search"
+              class="text-primary"
               @click="openLhkLookup"
             >
               Pilih LHK (F1)
@@ -293,44 +373,79 @@ onUnmounted(() => {
             :headers="detailHeaders"
             :items="detailData"
             density="compact"
-            class="rekap-table border-t"
-            hide-default-footer
             height="450px"
             fixed-header
+            hide-default-footer
           >
-            <template #[`item.Nomor`]="{ index }">
-              {{ index + 1 }}
-            </template>
+            <template #[`item.no`]="{ index }">{{ index + 1 }}</template>
 
             <template #[`item.lhkmesin`]="{ item }">
-              <span class="lhk-chip">{{ item.lhkmesin }}</span>
-            </template>
-
-            <template #[`item.spk_nomor`]="{ item }">
-              <span :title="item.spk_nomor">
-                {{ truncateString(item.spk_nomor, 20) }}
+              <span
+                :class="
+                  item.isManual ? 'text-grey-lighten-1 italic' : 'lhk-chip'
+                "
+              >
+                {{ item.lhkmesin || "MANUAL" }}
               </span>
             </template>
-
-            <template #[`item.spk_nama`]="{ item }">
-              <span :title="item.spk_nama" class="text-caption">
-                {{ truncateString(item.spk_nama, 40) }}
-              </span>
+            <template #[`item.shift`]="{ item }">
+              <v-text-field
+                v-if="item.isManual"
+                v-model.number="item.shift"
+                type="number"
+                density="compact"
+                hide-details
+                variant="underlined"
+                class="text-center"
+                style="width: 50px"
+              />
+              <span v-else>{{ item.shift }}</span>
             </template>
 
-            <template #[`item.jumlah_cetak`]="{ item }">
-              <span class="font-weight-bold">{{ item.jumlah_cetak }}</span>
+            <template #[`item.mesin`]="{ item, index }">
+              <v-text-field
+                v-if="item.isManual"
+                v-model="item.mesin"
+                density="compact"
+                hide-details
+                variant="underlined"
+                append-inner-icon="mdi-magnify"
+                @click="openMesinSearch(index)"
+                readonly
+              />
+              <span v-else>{{ item.mesin }}</span>
             </template>
 
-            <template #[`item.total_m2`]="{ item }">
-              <span class="text-blue-darken-2 font-weight-bold">
-                {{ Number(item.total_m2).toFixed(2) }}
-              </span>
+            <template #[`item.spk_nomor`]="{ item, index }">
+              <v-text-field
+                v-if="item.isManual"
+                v-model="item.spk_nomor"
+                density="compact"
+                hide-details
+                variant="underlined"
+                append-inner-icon="mdi-magnify"
+                @click="openSpkSearch(index)"
+                readonly
+                placeholder="Cari SPK..."
+              />
+              <span v-else class="font-weight-bold">{{ item.spk_nomor }}</span>
+            </template>
+
+            <template #[`item.jumlah_cetak`]="{ item, index }">
+              <v-text-field
+                v-model.number="item.jumlah_cetak"
+                type="number"
+                density="compact"
+                hide-details
+                variant="underlined"
+                class="text-right"
+                @update:model-value="calculateRowM2(index)"
+              />
             </template>
 
             <template #[`item.actions`]="{ index }">
               <v-btn
-                icon="mdi-close-circle"
+                icon="mdi-delete"
                 size="x-small"
                 color="error"
                 variant="text"
@@ -340,29 +455,40 @@ onUnmounted(() => {
 
             <template #body.append v-if="detailData.length > 0">
               <tr class="bg-blue-lighten-5 font-weight-bold">
-                <td colspan="6" class="text-end">GRAND TOTAL :</td>
-                <td class="text-end">{{ grandTotalQty.toLocaleString() }}</td>
+                <td colspan="6" class="text-end">TOTAL :</td>
+                <td class="text-end text-primary">
+                  {{
+                    detailData
+                      .reduce((s, i) => s + (Number(i.jumlah_cetak) || 0), 0)
+                      .toLocaleString()
+                  }}
+                </td>
                 <td class="text-end text-blue-darken-3">
-                  {{ grandTotalM2.toFixed(2) }} m²
+                  {{
+                    detailData
+                      .reduce((s, i) => s + (Number(i.total_m2) || 0), 0)
+                      .toFixed(2)
+                  }}
+                  m²
                 </td>
                 <td></td>
               </tr>
-            </template>
-
-            <template #no-data>
-              <div class="text-center pa-10 text-grey">
-                <v-icon size="40" class="mb-2">mdi-database-off</v-icon>
-                <p>
-                  Belum ada LHK yang dipilih. Gunakan tombol 'Pilih LHK' atau
-                  tekan F1.
-                </p>
-              </div>
             </template>
           </v-data-table>
         </v-card>
       </v-col>
     </v-row>
 
+    <MesinLookupView
+      :isVisible="isMesinLookupVisible"
+      @close="isMesinLookupVisible = false"
+      @select="handleMesinSelect"
+    />
+    <SpkLookupView
+      :isVisible="isSpkLookupVisible"
+      @close="isSpkLookupVisible = false"
+      @select="handleSpkSelect"
+    />
     <LhkMesinLookupModal
       :is-visible="isLhkLookupVisible"
       @close="isLhkLookupVisible = false"

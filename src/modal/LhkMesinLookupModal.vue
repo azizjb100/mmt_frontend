@@ -2,7 +2,8 @@
   <v-dialog
     :model-value="isVisible"
     @update:modelValue="emit('close')"
-    max-width="1000px"
+    max-width="1400px"
+    width="95vw"
     persistent
   >
     <v-card>
