@@ -7,9 +7,12 @@ import type {
     GridReadyEvent,
 } from "ag-grid-community";
 import { AgGridVue } from "ag-grid-vue3";
+import { ModuleRegistry, AllCommunityModule } from "ag-grid-community";
 import api from "@/services/api";
 import PageLayout from "../components/PageLayout.vue";
 import { format, parseISO, isValid } from "date-fns";
+
+ModuleRegistry.registerModules([AllCommunityModule]);
 
 import "ag-grid-community/styles/ag-grid.css";
 import "ag-grid-community/styles/ag-theme-alpine.css";
@@ -18,8 +21,13 @@ const loading = ref({ report: false });
 const allData = ref<any[]>([]);
 const gridApi = ref<GridApi | null>(null);
 
-const startDate = ref(new Date().toISOString().slice(0, 10));
-const endDate = ref(new Date().toISOString().slice(0, 10));
+const toISODate = (d: Date) => d.toISOString().slice(0, 10);
+const today = new Date();
+const defaultStart = new Date(today);
+defaultStart.setDate(defaultStart.getDate() - 30);
+
+const startDate = ref(toISODate(defaultStart));
+const endDate = ref(toISODate(today));
 const searchQuery = ref("");
 
 const formatNumber = (val: any, dec = 0) => {
@@ -43,6 +51,12 @@ const statusCellRenderer = (params: any) => {
     return `<span class="status-chip ${cls}">${value}</span>`;
 };
 
+const tooltipFromValue = (p: any) => {
+    const v = p?.valueFormatted ?? p?.value;
+    if (v === null || v === undefined || v === "") return null;
+    return String(v);
+};
+
 const nCol = (
     headerName: string,
     field: string,
@@ -58,9 +72,22 @@ const nCol = (
 });
 
 const columnDefs = ref<(ColDef | ColGroupDef)[]>([
-    { headerName: "NOMOR SPK", field: "NOMOR", pinned: "left", width: 130 },
-    { headerName: "NAMA ORDER", field: "spk_nama", pinned: "left", width: 210 },
-    { headerName: "DIVISI", field: "DIVISI", width: 90 },
+    {
+        headerName: "",
+        field: "__select",
+        width: 44,
+        minWidth: 44,
+        maxWidth: 44,
+        pinned: "left",
+        sortable: false,
+        resizable: false,
+        filter: false,
+        checkboxSelection: true,
+        headerCheckboxSelection: false,
+        suppressMovable: true,
+    },
+    { headerName: "NAMA ORDER", field: "spk_nama", pinned: "left", width: 310 },
+    { headerName: "NOMOR SPK", field: "NOMOR", width: 130 },
     {
         headerName: "TGL SPK",
         field: "spk_tanggal",
@@ -80,51 +107,157 @@ const columnDefs = ref<(ColDef | ColGroupDef)[]>([
         width: 100,
         cellRenderer: statusCellRenderer,
     },
-    nCol("GRAMASI", "spk_gramasi", 90, 0),
-    nCol("PANJANG", "PANJANG", 85, 0),
-    nCol("LEBAR", "LEBAR", 75, 0),
-    { headerName: "KAIN", field: "KAIN", width: 120 },
-    { headerName: "FINISHING", field: "FINISHING", width: 150 },
-
+    { headerName: "GRAMASI", field: "spk_gramasi", width: 100 },
     {
-        headerName: "JML ORDER",
-        children: [nCol("PCS", "spk_jumlah", 80, 0)],
+        ...nCol("PANJANG", "PANJANG", 85, 0),
+        cellClass: ["text-center", "panjang-cell"],
     },
     {
-        headerName: "JML CETAK",
+        ...nCol("LEBAR", "LEBAR", 75, 0),
+        cellClass: ["text-center", "lebar-cell"],
+    },
+    { headerName: "KAIN", field: "KAIN", width: 120 },
+    { headerName: "FINISHING", field: "FINISHING", width: 350 },
+
+    {
+        headerName: "ORDER",
+        field: "spk_jumlah",
+        cellClass: "text-center",
+        width: 80,
+        valueFormatter: (p) => formatNumber(p.value, 0),
+    },
+
+    {
+        headerName: "JUMLAH CETAK",
+        headerClass: "jml-cetak-group",
+        marryChildren: true,
         children: [
-            nCol("MT01", "mt01", 75, 0),
-            nCol("MT02", "mt02", 75, 0),
-            nCol("MT03", "mt03", 75, 0),
-            nCol("MT04", "mt04", 75, 0),
-            nCol("MT05", "mt05", 75, 0),
-            nCol("TOTAL", "JML_CETAK", 85, 0),
+            {
+                headerName: "PCS",
+                headerClass: "mesin-cetak-group",
+                marryChildren: true,
+                children: [
+                    {
+                        ...nCol("MT01", "mt01", 75, 0),
+                        headerClass: "mesin-cetak-col",
+                        cellClass: ["text-right", "mesin-cetak-cell"],
+                    },
+                    {
+                        ...nCol("MT02", "mt02", 75, 0),
+                        headerClass: "mesin-cetak-col",
+                        cellClass: ["text-right", "mesin-cetak-cell"],
+                    },
+                    {
+                        ...nCol("MT03", "mt03", 75, 0),
+                        headerClass: "mesin-cetak-col",
+                        cellClass: ["text-right", "mesin-cetak-cell"],
+                    },
+                    {
+                        ...nCol("MT04", "mt04", 75, 0),
+                        headerClass: "mesin-cetak-col",
+                        cellClass: ["text-right", "mesin-cetak-cell"],
+                    },
+                    {
+                        ...nCol("MT05", "mt05", 75, 0),
+                        headerClass: "mesin-cetak-col",
+                        cellClass: ["text-right", "mesin-cetak-cell"],
+                    },
+                ],
+            },
+            {
+                ...nCol("TOTAL", "JML_CETAK", 85, 0),
+                headerClass: "mesin-cetak-total-col",
+                cellClass: ["text-right", "mesin-cetak-total"],
+            },
         ],
     },
-    nCol("JML SEAMING", "JML_seaming", 95, 0),
-    nCol("JML MATA AYAM", "JML_mataayam", 110, 0),
-    nCol("JML COLY", "JML_coly", 90, 0),
-    nCol("JML JADI", "JML_JADI", 90, 0),
-    nCol("JML KIRIM", "JML_KIRIM", 95, 0),
+    {
+        ...nCol("JUMLAH\nSEAMING", "JML_seaming", 95, 0),
+        wrapHeaderText: true,
+        headerClass: "jml-seaming-header",
+        cellClass: ["text-right", "jml-seaming-cell"],
+    },
+    {
+        ...nCol("JUMLAH\nMATA AYAM", "JML_mataayam", 110, 0),
+        wrapHeaderText: true,
+        headerClass: "jml-mataayam-header",
+        cellClass: ["text-right", "jml-mataayam-cell"],
+    },
+    {
+        ...nCol("JUMLAH\nCOLY", "JML_coly", 90, 0),
+        wrapHeaderText: true,
+        headerClass: "jml-coly-header",
+        cellClass: ["text-right", "jml-coly-cell"],
+    },
+    {
+        ...nCol("JUMLAH\nJADI", "JML_JADI", 90, 0),
+        wrapHeaderText: true,
+        headerClass: "jml-jadi-header",
+        cellClass: ["text-right", "jml-jadi-cell"],
+    },
+    {
+        ...nCol("JUMLAH\nKIRIM", "JML_KIRIM", 95, 0),
+        wrapHeaderText: true,
+        headerClass: "jml-kirim-header",
+        cellClass: ["text-right", "jml-kirim-cell"],
+    },
 
     {
-        headerName: "CETAK METER",
+        headerName: "MESIN CETAK",
+        headerClass: "mesin-meter-group",
+        marryChildren: true,
         children: [
-            nCol("MT01", "mt01_m", 80, 2),
-            nCol("MT02", "mt02_m", 80, 2),
-            nCol("MT03", "mt03_m", 80, 2),
-            nCol("MT04", "mt04_m", 80, 2),
-            nCol("MT05", "mt05_m", 80, 2),
-            nCol("TOTAL", "M_CETAK", 90, 2),
+            {
+                ...nCol("MT01", "mt01_m", 80, 2),
+                headerClass: "mesin-meter-col",
+                cellClass: ["text-right", "mesin-meter-cell"],
+            },
+            {
+                ...nCol("MT02", "mt02_m", 80, 2),
+                headerClass: "mesin-meter-col",
+                cellClass: ["text-right", "mesin-meter-cell"],
+            },
+            {
+                ...nCol("MT03", "mt03_m", 80, 2),
+                headerClass: "mesin-meter-col",
+                cellClass: ["text-right", "mesin-meter-cell"],
+            },
+            {
+                ...nCol("MT04", "mt04_m", 80, 2),
+                headerClass: "mesin-meter-col",
+                cellClass: ["text-right", "mesin-meter-cell"],
+            },
+            {
+                ...nCol("MT05", "mt05_m", 80, 2),
+                headerClass: "mesin-meter-col",
+                cellClass: ["text-right", "mesin-meter-cell"],
+            },
+            {
+                ...nCol("TOTAL", "M_CETAK", 90, 2),
+                headerClass: "mesin-meter-total-col",
+                cellClass: ["text-right", "mesin-meter-total"],
+            },
         ],
     },
     {
         headerName: "SEAMING",
-        children: [nCol("METER", "m_seaming", 95, 2)],
+        headerClass: "seaming-group-header",
+        children: [
+            {
+                ...nCol("METER", "m_seaming", 95, 2),
+                headerClass: "meter-sub-header",
+            },
+        ],
     },
     {
         headerName: "KIRIM",
-        children: [nCol("METER", "JML_meter_KIRIM", 110, 2)],
+        headerClass: "kirim-group-header",
+        children: [
+            {
+                ...nCol("METER", "JML_meter_KIRIM", 110, 2),
+                headerClass: "meter-sub-header",
+            },
+        ],
     },
 ]);
 
@@ -133,6 +266,8 @@ const defaultColDef: ColDef = {
     resizable: true,
     filter: false,
     headerClass: "mmt-header-cell",
+    cellClass: "mmt-cell",
+    tooltipValueGetter: tooltipFromValue,
 };
 
 const totals = computed(() => {
@@ -170,9 +305,11 @@ const totals = computed(() => {
 
 const pinnedBottomRowData = computed(() => [
     {
-        NOMOR: "TOTAL",
+        spk_nama: "TOTAL",
+        STATUS: "-",
+        PANJANG: "-",
+        LEBAR: "-",
         ...totals.value,
-        status: "",
     },
 ]);
 
@@ -188,13 +325,31 @@ watch(searchQuery, (val) => {
 const fetchReport = async () => {
     loading.value.report = true;
     try {
-        const res = await api.get("mmt/laporan-spk-mmt", {
-            params: { startDate: startDate.value, endDate: endDate.value },
+        const requestStart =
+            startDate.value <= endDate.value ? startDate.value : endDate.value;
+        const requestEnd =
+            startDate.value <= endDate.value ? endDate.value : startDate.value;
+
+        const res = await api.get("/mmt/laporan-spk-mmt", {
+            params: { startDate: requestStart, endDate: requestEnd },
         });
-        allData.value = res.data.data || [];
+        allData.value = Array.isArray(res?.data?.data) ? res.data.data : [];
+
+        console.log("[LapSpkMmt] request", {
+            startDate: requestStart,
+            endDate: requestEnd,
+        });
+        console.log("[LapSpkMmt] rows", allData.value.length);
     } finally {
         loading.value.report = false;
     }
+};
+
+const setTodayRange = async () => {
+    const todayStr = toISODate(new Date());
+    startDate.value = todayStr;
+    endDate.value = todayStr;
+    await fetchReport();
 };
 
 onMounted(fetchReport);
@@ -203,7 +358,7 @@ onMounted(fetchReport);
 <template>
     <PageLayout title="Laporan SPK MMT" icon="mdi-file-chart">
         <div class="spk-mmt-wrapper">
-            <v-card flat class="mb-4 pa-3 filter-card">
+            <v-card class="mb-3 pa-3 filter-card rounded-strong transition-smooth">
                 <div class="d-flex align-center flex-wrap ga-3">
                     <v-label class="text-caption font-weight-bold"
                         >Periode:</v-label
@@ -233,6 +388,15 @@ onMounted(fetchReport);
                         @click="fetchReport"
                         :loading="loading.report"
                     />
+                    <v-btn
+                        color="primary"
+                        variant="outlined"
+                        size="small"
+                        @click="setTodayRange"
+                        :disabled="loading.report"
+                    >
+                        Hari Ini
+                    </v-btn>
 
                     <v-spacer />
 
@@ -248,13 +412,19 @@ onMounted(fetchReport);
                 </div>
             </v-card>
 
-            <v-card class="table-container" elevation="2">
+            <v-card class="table-container rounded-strong" elevation="0">
                 <AgGridVue
-                    class="ag-theme-alpine mmt-ag-grid"
+                    class="ag-theme-alpine mmt-ag-grid font-body"
                     :columnDefs="columnDefs"
                     :defaultColDef="defaultColDef"
                     :rowData="allData"
                     :pinnedBottomRowData="pinnedBottomRowData"
+                    :enableBrowserTooltips="true"
+                    :tooltipShowDelay="150"
+                    :tooltipHideDelay="2500"
+                    :rowHeight="34"
+                    :headerHeight="20"
+                    :groupHeaderHeight="20"
                     :rowClassRules="{
                         'row-closed': (p: any) => p?.data?.status === 'Closed',
                         'row-pending': (p: any) =>
@@ -262,6 +432,7 @@ onMounted(fetchReport);
                             p?.node?.rowPinned !== 'bottom',
                     }"
                     :suppressCellFocus="true"
+                    :suppressRowHoverHighlight="true"
                     :animateRows="false"
                     rowSelection="single"
                     @grid-ready="onGridReady"
@@ -273,49 +444,248 @@ onMounted(fetchReport);
 
 <style scoped>
 .spk-mmt-wrapper {
-    padding: 12px;
-    background-color: #f5f5f5;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-height: 100%;
+    padding: 0;
+    background: transparent;
+    font-family: var(--font-family-primary);
 }
 
 .filter-card {
-    border-radius: 8px;
-    border: 1px solid #ddd;
+    border: var(--content-border, 1px solid #dcdcdc);
+    border-radius: var(--border-radius-lg) !important;
+    box-shadow: var(--shadow-sm) !important;
+}
+
+.filter-card:hover {
+    transform: none !important;
+    box-shadow: var(--shadow-sm) !important;
 }
 
 .table-container {
     height: calc(100vh - 220px);
     overflow: hidden;
+    border: var(--content-border, 1px solid #dcdcdc);
+    border-radius: var(--border-radius-lg) !important;
+    box-shadow: var(--shadow-sm) !important;
+    background: var(--content-bg, #ffffff);
 }
 
 .mmt-ag-grid {
     width: 100%;
     height: 100%;
-    --ag-header-background-color: #64a9df;
+    --ag-background-color: #e5e5e5;
+    --ag-foreground-color: #0f172a;
+    --ag-header-background-color: #74addc;
     --ag-header-foreground-color: #ffffff;
-    --ag-header-column-separator-color: #8ec0e8;
-    --ag-borders: solid 1px #dbe7f2;
-    --ag-row-border-color: #eef2f6;
+    --ag-header-column-separator-color: #93bddf;
+    --ag-odd-row-background-color: #e5e5e5;
+    --ag-row-hover-color: #e5e5e5;
+    --ag-selected-row-background-color: #d7dde3;
+    --ag-borders: solid 1px #c3c8ce;
+    --ag-border-color: #c3c8ce;
+    --ag-row-border-color: #c9cfd6;
     --ag-font-size: 12px;
-    --ag-header-height: 30px;
-    --ag-group-header-height: 28px;
+    --ag-font-family: "Segoe UI", Tahoma, Arial, sans-serif;
+    --ag-header-height: 22px;
+    --ag-group-header-height: 20px;
+    --ag-row-height: 34px;
+}
+
+.mmt-ag-grid :deep(.ag-root-wrapper),
+.mmt-ag-grid :deep(.ag-root-wrapper-body),
+.mmt-ag-grid :deep(.ag-header),
+.mmt-ag-grid :deep(.ag-body-viewport),
+.mmt-ag-grid :deep(.ag-cell),
+.mmt-ag-grid :deep(.ag-cell-value),
+.mmt-ag-grid :deep(.ag-pinned-row),
+.mmt-ag-grid :deep(.ag-header-cell),
+.mmt-ag-grid :deep(.ag-header-group-cell) {
+    font-size: 12px !important;
+}
+
+.mmt-ag-grid :deep(.ag-header) {
+    background: #74addc;
 }
 
 .mmt-ag-grid :deep(.ag-header-cell-label) {
-    justify-content: center;
+    justify-content: flex-start;
+    font-weight: 600;
+    text-transform: none;
+    font-size: 12px;
+    line-height: 1;
+    color: #ffffff;
+}
+
+.mmt-ag-grid :deep(.ag-header-group-cell-label) {
+    color: #ffffff !important;
     font-weight: 700;
-    text-transform: uppercase;
-    font-size: 11px;
+    font-size: 12px !important;
+}
+
+.mmt-ag-grid :deep(.ag-header-group-text) {
+    color: #ffffff !important;
+    font-size: 12px !important;
+    white-space: pre-line;
+    line-height: 1.1;
+}
+
+.mmt-ag-grid :deep(.ag-header-group-cell.jml-cetak-group),
+.mmt-ag-grid :deep(.ag-header-group-cell.mesin-cetak-group),
+.mmt-ag-grid :deep(.ag-header-group-cell.mesin-meter-group) {
+    border-left: 2px solid #8fb2d1 !important;
+    border-right: 2px solid #8fb2d1 !important;
+}
+
+.mmt-ag-grid
+    :deep(.ag-header-group-cell.jml-cetak-group .ag-header-group-cell-label),
+.mmt-ag-grid
+    :deep(.ag-header-group-cell.mesin-cetak-group .ag-header-group-cell-label),
+.mmt-ag-grid
+    :deep(.ag-header-group-cell.mesin-meter-group .ag-header-group-cell-label),
+.mmt-ag-grid :deep(.ag-header-cell.mesin-cetak-col .ag-header-cell-label),
+.mmt-ag-grid :deep(.ag-header-cell.mesin-cetak-total-col .ag-header-cell-label),
+.mmt-ag-grid :deep(.ag-header-cell.mesin-meter-col .ag-header-cell-label),
+.mmt-ag-grid
+    :deep(.ag-header-cell.mesin-meter-total-col .ag-header-cell-label) {
+    justify-content: center !important;
+}
+
+.mmt-ag-grid :deep(.ag-header-cell.mesin-cetak-total-col) {
+    border-left: 2px solid #8fb2d1 !important;
+}
+
+.mmt-ag-grid :deep(.ag-header-cell.mesin-meter-total-col) {
+    border-left: 2px solid #8fb2d1 !important;
+}
+
+.mmt-ag-grid :deep(.ag-header-cell.jml-seaming-header .ag-header-cell-label),
+.mmt-ag-grid :deep(.ag-header-cell.jml-mataayam-header .ag-header-cell-label) {
+    justify-content: center !important;
+}
+.mmt-ag-grid :deep(.ag-header-cell.jml-coly-header .ag-header-cell-label),
+.mmt-ag-grid :deep(.ag-header-cell.jml-coly-header .ag-header-cell-label) {
+    justify-content: center !important;
+}
+.mmt-ag-grid :deep(.ag-header-cell.jml-jadi-header .ag-header-cell-label),
+.mmt-ag-grid :deep(.ag-header-cell.jml-jadi-header .ag-header-cell-label) {
+    justify-content: center !important;
+}
+.mmt-ag-grid :deep(.ag-header-cell.jml-kirim-header .ag-header-cell-label),
+.mmt-ag-grid :deep(.ag-header-cell.jml-kirim-header .ag-header-cell-label) {
+    justify-content: center !important;
+}
+
+.mmt-ag-grid :deep(.ag-header-cell.jml-seaming-header .ag-header-cell-text),
+.mmt-ag-grid :deep(.ag-header-cell.jml-mataayam-header .ag-header-cell-text) {
+    white-space: pre-line !important;
+    text-align: center;
+    line-height: 1.1;
+}
+.mmt-ag-grid :deep(.ag-header-cell.jml-coly-header .ag-header-cell-text),
+.mmt-ag-grid :deep(.ag-header-cell.jml-coly-header .ag-header-cell-text) {
+    white-space: pre-line !important;
+    text-align: center;
+    line-height: 1.1;
+}
+.mmt-ag-grid :deep(.ag-header-cell.jml-jadi-header .ag-header-cell-text),
+.mmt-ag-grid :deep(.ag-header-cell.jml-jadi-header .ag-header-cell-text) {
+    white-space: pre-line !important;
+    text-align: center;
+    line-height: 1.1;
+}
+.mmt-ag-grid :deep(.ag-header-cell.jml-kirim-header .ag-header-cell-text),
+.mmt-ag-grid :deep(.ag-header-cell.jml-kirim-header .ag-header-cell-text) {
+    white-space: pre-line !important;
+    text-align: center;
+    line-height: 1.1;
+}
+
+.mmt-ag-grid
+    :deep(
+        .ag-header-group-cell.seaming-group-header .ag-header-group-cell-label
+    ),
+.mmt-ag-grid
+    :deep(
+        .ag-header-group-cell.kirim-group-header .ag-header-group-cell-label
+    ) {
+    justify-content: center !important;
+}
+
+.mmt-ag-grid :deep(.ag-header-cell.meter-sub-header .ag-header-cell-label) {
+    justify-content: center !important;
+}
+.mmt-ag-grid :deep(.ag-header-cell.jml-coly-header .ag-header-cell-text),
+.mmt-ag-grid :deep(.ag-header-cell.jml-coly-header .ag-header-cell-text) {
+    white-space: pre-line !important;
+    text-align: center;
+    line-height: 1.1;
+}
+
+.mmt-ag-grid :deep(.ag-header-cell) {
+    border-right: 1px solid #95bcdd;
+}
+
+.mmt-ag-grid :deep(.ag-header-cell:last-child) {
+    border-right: none;
+}
+
+.mmt-ag-grid :deep(.ag-row .ag-cell) {
+    background-color: #e5e5e5;
+    border-right: 1px solid #c9cfd6;
+    border-bottom: 1px solid #c9cfd6;
+    padding-top: 4px;
+    padding-bottom: 4px;
+}
+
+.mmt-ag-grid :deep(.ag-row .ag-cell:last-child) {
+    border-right: none;
+}
+
+.mmt-ag-grid :deep(.ag-cell-value) {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.mmt-ag-grid :deep(.ag-cell.mesin-cetak-cell) {
+    border-right: 1px solid #9bb8d1 !important;
+}
+
+.mmt-ag-grid :deep(.ag-cell.mesin-cetak-total) {
+    border-left: 2px solid #8fb2d1 !important;
+    font-weight: 600;
+}
+
+.mmt-ag-grid :deep(.ag-cell.mesin-meter-cell) {
+    border-right: 1px solid #9bb8d1 !important;
+}
+
+.mmt-ag-grid :deep(.ag-cell.mesin-meter-total) {
+    border-left: 2px solid #8fb2d1 !important;
+    font-weight: 600;
 }
 
 .mmt-ag-grid :deep(.ag-cell.text-right) {
     text-align: right;
 }
 
+.mmt-ag-grid :deep(.ag-cell.panjang-cell),
+.mmt-ag-grid :deep(.ag-cell.lebar-cell) {
+    font-size: 12px !important;
+}
+
+.mmt-ag-grid :deep(.mmt-cell) {
+    font-size: 12px;
+}
+
 .mmt-ag-grid :deep(.status-chip) {
     display: inline-block;
     padding: 2px 8px;
     border-radius: 999px;
-    font-size: 10px;
+    font-size: 12px;
     font-weight: 700;
     color: #fff;
 }
@@ -329,7 +699,11 @@ onMounted(fetchReport);
 }
 
 .mmt-ag-grid :deep(.ag-row.row-closed .ag-cell) {
-    background-color: #e8f5e9 !important;
+    background-color: #d7ebd8 !important;
+}
+
+.mmt-ag-grid :deep(.ag-row.ag-row-selected .ag-cell) {
+    background-color: #cfe5ff !important;
 }
 
 .mmt-ag-grid :deep(.ag-row.row-pending .ag-cell) {
@@ -338,8 +712,8 @@ onMounted(fetchReport);
 }
 
 .mmt-ag-grid :deep(.ag-row-pinned .ag-cell) {
-    background-color: #f5f5f5 !important;
+    background-color: #d2d9e0 !important;
     font-weight: 700;
-    border-top: 2px solid #283593 !important;
+    border-top: 2px solid #8293a6 !important;
 }
 </style>
