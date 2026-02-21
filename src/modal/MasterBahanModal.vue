@@ -127,7 +127,7 @@ const API_URL = computed(() => {
   // Jika mode mmt (biasa), arahkan ke root '/' untuk memanggil getMasterBahan
   return props.mode === "produksi"
     ? "/master/bahan/mmt/produksi"
-    : "/master/bahan";
+    : "/master/bahan/mmt";
 });
 
 // --- State ---
