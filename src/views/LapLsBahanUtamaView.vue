@@ -169,9 +169,7 @@
 
                     <template v-slot:item="{ item }">
                         <tr class="data-row">
-                            <td
-                                class="text-left sticky-col-1 bg-white font-weight-bold"
-                            >
+                            <td class="text-left sticky-col-1 bg-white">
                                 {{ item.kode }}
                             </td>
                             <td class="text-left sticky-col-2 bg-white">
@@ -625,6 +623,7 @@ onMounted(fetchReport);
     padding: 6px 8px !important;
     white-space: nowrap;
     background-color: #ffffff;
+    border-bottom: 2px solid #8dbde3 !important;
 }
 
 .desktop-table :deep(tbody td:nth-child(1)) {
@@ -633,7 +632,6 @@ onMounted(fetchReport);
     z-index: 10;
     background-color: #ffffff !important;
     font-weight: 600;
-    border-right: 2px solid #95bcdd !important;
 }
 
 .desktop-table :deep(tbody td:nth-child(2)) {
@@ -641,7 +639,6 @@ onMounted(fetchReport);
     left: 100px;
     z-index: 10;
     background-color: #ffffff !important;
-    border-right: 2px solid #95bcdd !important;
 }
 
 .desktop-table :deep(tbody tr:hover td) {
