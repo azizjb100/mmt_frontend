@@ -95,6 +95,7 @@ const rolePermissions = {
     "Permintaan Produksi",
     "Realisasi Produksi",
     "Planning Produksi",
+    "Koreksi Stok",
     "LHK",
     "LHK Mesin Cetak",
     "LHK Kain",
