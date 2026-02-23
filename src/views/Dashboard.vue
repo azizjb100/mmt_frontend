@@ -95,6 +95,7 @@ const rolePermissions = {
     "Permintaan Produksi",
     "Realisasi Produksi",
     "Planning Produksi",
+    "Koreksi Stok",
     "LHK",
     "LHK Mesin Cetak",
     "LHK Kain",
@@ -181,14 +182,26 @@ const allMenuGroups = [
         ],
       },
       {
+        name: "Finance",
+        isSubGroup: true,
+        path: "/mmt/Finance/browse",
+        items: [
+          { name: "PO Bahan MMT", path: "/mmt/po-bahan-mmt" },
+          { name: "Invoice", path: "/mmt/invoice" },
+          { name: "Retur Beli", path: "/mmt/retur-beli" },
+          { name: "Pelunasan Pembelian", path: "/mmt/pelunasan-pembelian" },
+          { name: "Laporan Outstanding", path: "/laporan/mmt/lap-hutang" },
+        ],
+      },
+
+      {
         name: "Daftar Permintaan Pembelian",
         path: "/mmt/pengajuan-permintaan",
       },
       { name: "Purchase Order (PR)", path: "/mmt/permintaan-bahan" },
-      { name: "PO Bahan MMT", path: "/mmt/po-bahan-mmt" },
+
       { name: "Penerimaan Bahan", path: "/mmt/penerimaan-bahan" },
-      { name: "Invoice", path: "/mmt/invoice" },
-      { name: "Retur Beli", path: "/mmt/retur-beli" },
+
       { name: "Retur Produksi", path: "/mmt/retur-produksi" },
       { name: "Mutasi Bahan", path: "/mmt/mutasi-bahan" },
       { name: "Koreksi Stok", path: "/mmt/koreksi-stok" },

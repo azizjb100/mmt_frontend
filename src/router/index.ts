@@ -68,6 +68,10 @@ import FormMasterBahanView from '@/views/FormMasterBahanView.vue';
 import FormLhkCetakMmtView from '@/views/FormLhkCetakMmtView.vue';
 import StokOpnameView from '@/views/StokOpnameView.vue';
 import LapLHKView from '@/views/LapLHKView.vue';
+import PelunasanPembelianView from '@/views/PelunasanPembelianView.vue';
+import FormPelunasanPembelianView from '@/views/FormPelunasanPembelianView.vue';
+import LapHutangView from '@/views/LapHutangView.vue';
+
 
 
 // 2. Definisikan Rute (Jalan)
@@ -152,6 +156,8 @@ const routes: RouteRecordRaw[] = [
                     layout: "PrintLayout", // Nama Layout yang akan digunakan
                 },
             },
+            { path: 'mmt/pelunasan-pembelian', name: 'PelunasanPembelianBrowse', component: PelunasanPembelianView },
+            { path: 'mmt/pelunasan-pembelian/new', name: 'PelunasanPembelianNew', component: FormPelunasanPembelianView },
             { path: 'mmt/po-bahan-mmt', name: 'POBahanMmtBrowse', component: POBahanMmtView },
             {
                 // 2. Rute untuk Halaman Input Baru
@@ -224,7 +230,7 @@ const routes: RouteRecordRaw[] = [
                 component: FormPermintaanProduksiView,
                 props: { isEditMode: false }
             },
-            // 3. Ubah (Edit Existing)
+
             {
                 path: 'mmt/permintaan-produksi/edit/:nomor',
                 name: 'PermintaanProduksiEdit',
@@ -352,6 +358,7 @@ const routes: RouteRecordRaw[] = [
             { path: 'laporan/mmt/lap-stok-tinta', name: 'lapStokTinta', component: LapStokTintaMmtView },
             { path: 'laporan/mmt/lap-output-mesin', name: 'lapOutputMesin', component: LapOutputMesinView },
             { path: 'laporan/mmt/lap-lhk', name: 'LapLHK', component: LapLHKView },
+            { path: 'laporan/mmt/lap-hutang', name: 'LapHutang', component: LapHutangView },
 
             { path: 'produksi-mmt/ls-tinta', name: 'LS Tinta', component: ComingSoon },
             { path: 'produksi-mmt/ls-bahan-kain', name: 'LS Bahan Kain', component: ComingSoon },
@@ -389,20 +396,16 @@ router.beforeEach((to, from, next) => {
     const requiresAuth = Boolean(to.meta?.requiresAuth);
 
     if (requiresAuth && !loggedIn) {
-        // A. Jika rute memerlukan auth TAPI pengguna belum login (atau token expired)
 
-        // Panggil action handleSessionExpired untuk membersihkan data lokal
         if (authStore.isTokenExpired) {
             authStore.handleSessionExpired();
         }
 
-        // Redirect ke Login, simpan tujuan awal di query
         return next({ name: 'Login', query: { redirect: to.fullPath } });
     }
 
     if (to.name === 'Login' && loggedIn) {
-        // B. Jika pengguna SUDAH login TAPI mencoba mengakses halaman Login
-        // Redirect ke halaman utama (Home)
+
         return next({ name: 'Home' });
     }
 
