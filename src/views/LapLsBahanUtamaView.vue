@@ -43,17 +43,24 @@
 
                     <v-divider vertical class="mx-2" />
                     <span class="text-caption font-weight-bold">Gudang:</span>
-                    <v-select
-                        v-model="selectedGudang"
-                        :items="gudangOptions"
-                        item-title="text"
-                        item-value="value"
+                    <v-text-field
+                        :model-value="selectedGudangDisplay"
                         density="compact"
                         hide-details
                         variant="outlined"
-                        style="max-width: 200px"
-                        @update:model-value="fetchReport"
+                        readonly
+                        prepend-inner-icon="mdi-warehouse"
+                        style="max-width: 280px"
+                        @click="showGudangLookup = true"
                     />
+                    <v-btn
+                        size="small"
+                        variant="outlined"
+                        color="primary"
+                        @click="showGudangLookup = true"
+                    >
+                        Lookup
+                    </v-btn>
 
                     <v-spacer />
 
@@ -359,6 +366,12 @@
                     >Total {{ filteredData.length }} data</span
                 >
             </div>
+
+            <GudangLookupView
+                :is-visible="showGudangLookup"
+                @close="showGudangLookup = false"
+                @select="onSelectGudang"
+            />
         </div>
     </PageLayout>
 </template>
@@ -366,6 +379,7 @@
 <script setup>
 import { ref, reactive, onMounted, computed } from "vue";
 import PageLayout from "../components/PageLayout.vue";
+import GudangLookupView from "../modal/GudangLookupView.vue";
 import api from "@/services/api";
 import * as XLSX from "xlsx";
 import { useAuthStore } from "@/stores/authStore";
@@ -404,10 +418,21 @@ const allData = ref([]);
 const loading = ref({ report: false });
 const searchQuery = ref("");
 const selectedGudang = ref("WH-16");
-const gudangOptions = [
-    { text: "Gudang Utama (WH-16)", value: "WH-16" },
-    { text: "Gudang Produksi (GPM)", value: "GPM" },
-];
+const selectedGudangNama = ref("Gudang Utama");
+const showGudangLookup = ref(false);
+
+const selectedGudangDisplay = computed(() =>
+    selectedGudang.value
+        ? `${selectedGudangNama.value} (${selectedGudang.value})`
+        : "Pilih Gudang",
+);
+
+const onSelectGudang = (gudang) => {
+    selectedGudang.value = gudang?.Kode || "";
+    selectedGudangNama.value = gudang?.Nama || "";
+    showGudangLookup.value = false;
+    fetchReport();
+};
 
 // Pagination State
 const currentPage = ref(1);
