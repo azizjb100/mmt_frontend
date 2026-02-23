@@ -65,7 +65,7 @@
                     class="desktop-table elevation-1"
                     :items-per-page="itemsPerPage"
                     :items-per-page-options="[
-                        15,
+                        10,
                         25,
                         50,
                         100,
@@ -455,7 +455,7 @@
                                 colspan="4"
                                 class="text-right font-weight-bold sticky-footer-title"
                             >
-                                GRAND TOTAL:
+                                TOTAL:
                             </td>
                             <td colspan="3"></td>
                             <td class="text-end font-weight-bold">
@@ -530,7 +530,7 @@ const endDate = ref(formatDate(new Date()));
 const startDate = ref(formatDate(getStartOfMonth(new Date())));
 const allData = ref([]);
 const loading = ref({ report: false });
-const itemsPerPage = ref(15);
+const itemsPerPage = ref(10);
 const searchQuery = ref("");
 
 // Logika Resize
