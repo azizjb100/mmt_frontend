@@ -230,18 +230,20 @@ onMounted(fetchReport);
 
         <div class="sticky-stats-wrapper">
           <table class="stats-table">
-            <tr>
-              <td class="stats-label">Kekurangan :</td>
-              <td class="stats-value text-error">{{ formatNumber(totals.krg_Cetak_meter, 2) }}</td>
-              <td class="stats-label">Output/Hari:</td>
-              <td class="stats-value">{{ formatNumber(summary.outputPerHari, 2) }}</td>
-              <td class="stats-value">2.700,00</td>
-            </tr>
-            <tr>
-              <td class="stats-label">Waiting List Kerja:</td>
-              <td class="stats-value">{{ formatNumber(waitingListKerja, 2) }}</td>
-              <td colspan="3" class="stats-value text-center">{{ formatNumber(waitingListTetap, 2) }}</td>
-            </tr>
+            <tbody>
+              <tr>
+                <td class="stats-label">Kekurangan :</td>
+                <td class="stats-value text-error">{{ formatNumber(totals.krg_Cetak_meter, 2) }}</td>
+                <td class="stats-label">Output/Hari:</td>
+                <td class="stats-value">{{ formatNumber(summary.outputPerHari, 2) }}</td>
+                <td class="stats-value">2.700,00</td>
+              </tr>
+              <tr>
+                <td class="stats-label">Waiting List Kerja:</td>
+                <td class="stats-value">{{ formatNumber(waitingListKerja, 2) }}</td>
+                <td colspan="3" class="stats-value text-center">{{ formatNumber(waitingListTetap, 2) }}</td>
+              </tr>
+            </tbody>
           </table>
         </div>
       </div>

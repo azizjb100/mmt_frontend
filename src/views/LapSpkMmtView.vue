@@ -91,13 +91,13 @@ const columnDefs = ref<(ColDef | ColGroupDef)[]>([
     {
         headerName: "TGL SPK",
         field: "spk_tanggal",
-        width: 110,
+        width: 100,
         valueFormatter: (p) => formatDateDisplay(p.value),
     },
     {
         headerName: "DEADLINE",
         field: "deadline",
-        width: 110,
+        width: 100,
         valueFormatter: (p) => formatDateDisplay(p.value),
     },
     { headerName: "JENIS", field: "jo_nama", width: 130 },
@@ -140,7 +140,11 @@ const columnDefs = ref<(ColDef | ColGroupDef)[]>([
                     {
                         ...nCol("MT01", "mt01", 75, 0),
                         headerClass: "mesin-cetak-col",
-                        cellClass: ["text-right", "mesin-cetak-cell"],
+                        cellClass: [
+                            "text-right",
+                            "mesin-cetak-cell",
+                            "mesin-cetak-first",
+                        ],
                     },
                     {
                         ...nCol("MT02", "mt02", 75, 0),
@@ -167,7 +171,11 @@ const columnDefs = ref<(ColDef | ColGroupDef)[]>([
             {
                 ...nCol("TOTAL", "JML_CETAK", 85, 0),
                 headerClass: "mesin-cetak-total-col",
-                cellClass: ["text-right", "mesin-cetak-total"],
+                cellClass: [
+                    "text-center",
+                    "mesin-cetak-total",
+                    "mesin-cetak-last",
+                ],
             },
         ],
     },
@@ -175,31 +183,31 @@ const columnDefs = ref<(ColDef | ColGroupDef)[]>([
         ...nCol("JUMLAH\nSEAMING", "JML_seaming", 95, 0),
         wrapHeaderText: true,
         headerClass: "jml-seaming-header",
-        cellClass: ["text-right", "jml-seaming-cell"],
+        cellClass: ["text-center", "jml-seaming-cell"],
     },
     {
         ...nCol("JUMLAH\nMATA AYAM", "JML_mataayam", 110, 0),
         wrapHeaderText: true,
         headerClass: "jml-mataayam-header",
-        cellClass: ["text-right", "jml-mataayam-cell"],
+        cellClass: ["text-center", "jml-mataayam-cell"],
     },
     {
         ...nCol("JUMLAH\nCOLY", "JML_coly", 90, 0),
         wrapHeaderText: true,
         headerClass: "jml-coly-header",
-        cellClass: ["text-right", "jml-coly-cell"],
+        cellClass: ["text-center", "jml-coly-cell"],
     },
     {
         ...nCol("JUMLAH\nJADI", "JML_JADI", 90, 0),
         wrapHeaderText: true,
         headerClass: "jml-jadi-header",
-        cellClass: ["text-right", "jml-jadi-cell"],
+        cellClass: ["text-center", "jml-jadi-cell"],
     },
     {
         ...nCol("JUMLAH\nKIRIM", "JML_KIRIM", 95, 0),
         wrapHeaderText: true,
         headerClass: "jml-kirim-header",
-        cellClass: ["text-right", "jml-kirim-cell"],
+        cellClass: ["text-center", "jml-kirim-cell"],
     },
 
     {
@@ -210,7 +218,11 @@ const columnDefs = ref<(ColDef | ColGroupDef)[]>([
             {
                 ...nCol("MT01", "mt01_m", 80, 2),
                 headerClass: "mesin-meter-col",
-                cellClass: ["text-right", "mesin-meter-cell"],
+                cellClass: [
+                    "text-right",
+                    "mesin-meter-cell",
+                    "mesin-meter-first",
+                ],
             },
             {
                 ...nCol("MT02", "mt02_m", 80, 2),
@@ -235,7 +247,11 @@ const columnDefs = ref<(ColDef | ColGroupDef)[]>([
             {
                 ...nCol("TOTAL", "M_CETAK", 90, 2),
                 headerClass: "mesin-meter-total-col",
-                cellClass: ["text-right", "mesin-meter-total"],
+                cellClass: [
+                    "text-right",
+                    "mesin-meter-total",
+                    "mesin-meter-last",
+                ],
             },
         ],
     },
@@ -358,7 +374,9 @@ onMounted(fetchReport);
 <template>
     <PageLayout title="Laporan SPK MMT" icon="mdi-file-chart">
         <div class="spk-mmt-wrapper">
-            <v-card class="mb-3 pa-3 filter-card rounded-strong transition-smooth">
+            <v-card
+                class="mb-3 pa-3 filter-card rounded-strong transition-smooth"
+            >
                 <div class="d-flex align-center flex-wrap ga-3">
                     <v-label class="text-caption font-weight-bold"
                         >Periode:</v-label
@@ -425,12 +443,6 @@ onMounted(fetchReport);
                     :rowHeight="34"
                     :headerHeight="20"
                     :groupHeaderHeight="20"
-                    :rowClassRules="{
-                        'row-closed': (p: any) => p?.data?.status === 'Closed',
-                        'row-pending': (p: any) =>
-                            Number(p?.data?.JML_CETAK || 0) === 0 &&
-                            p?.node?.rowPinned !== 'bottom',
-                    }"
                     :suppressCellFocus="true"
                     :suppressRowHoverHighlight="true"
                     :animateRows="false"
@@ -553,6 +565,13 @@ onMounted(fetchReport);
     justify-content: center !important;
 }
 
+.mmt-ag-grid
+    :deep(.ag-header-group-cell.jml-cetak-group .ag-header-group-text) {
+    white-space: nowrap !important;
+    word-break: keep-all;
+    text-align: center !important;
+}
+
 .mmt-ag-grid :deep(.ag-header-cell.mesin-cetak-total-col) {
     border-left: 2px solid #8fb2d1 !important;
 }
@@ -633,7 +652,6 @@ onMounted(fetchReport);
 }
 
 .mmt-ag-grid :deep(.ag-row .ag-cell) {
-    background-color: #e5e5e5;
     border-right: 1px solid #c9cfd6;
     border-bottom: 1px solid #c9cfd6;
     padding-top: 4px;
@@ -655,8 +673,16 @@ onMounted(fetchReport);
 }
 
 .mmt-ag-grid :deep(.ag-cell.mesin-cetak-total) {
-    border-left: 2px solid #8fb2d1 !important;
+    border-right: 2px solid #8fb2d1 !important;
     font-weight: 600;
+}
+
+.mmt-ag-grid :deep(.ag-cell.mesin-cetak-first) {
+    border-left: 2px solid #8fb2d1 !important;
+}
+
+.mmt-ag-grid :deep(.ag-cell.mesin-cetak-last) {
+    border-right: 2px solid #8fb2d1 !important;
 }
 
 .mmt-ag-grid :deep(.ag-cell.mesin-meter-cell) {
@@ -664,8 +690,16 @@ onMounted(fetchReport);
 }
 
 .mmt-ag-grid :deep(.ag-cell.mesin-meter-total) {
-    border-left: 2px solid #8fb2d1 !important;
+    border-right: 2px solid #8fb2d1 !important;
     font-weight: 600;
+}
+
+.mmt-ag-grid :deep(.ag-cell.mesin-meter-first) {
+    border-left: 2px solid #8fb2d1 !important;
+}
+
+.mmt-ag-grid :deep(.ag-cell.mesin-meter-last) {
+    border-right: 2px solid #8fb2d1 !important;
 }
 
 .mmt-ag-grid :deep(.ag-cell.text-right) {
@@ -696,19 +730,6 @@ onMounted(fetchReport);
 
 .mmt-ag-grid :deep(.chip-open) {
     background: #ef6c00;
-}
-
-.mmt-ag-grid :deep(.ag-row.row-closed .ag-cell) {
-    background-color: #d7ebd8 !important;
-}
-
-.mmt-ag-grid :deep(.ag-row.ag-row-selected .ag-cell) {
-    background-color: #cfe5ff !important;
-}
-
-.mmt-ag-grid :deep(.ag-row.row-pending .ag-cell) {
-    color: #d32f2f !important;
-    font-weight: 700;
 }
 
 .mmt-ag-grid :deep(.ag-row-pinned .ag-cell) {

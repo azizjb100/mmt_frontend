@@ -93,22 +93,24 @@ onMounted(() => {
       </div>
       <div class="document-info">
         <table>
-          <tr>
-            <td>Nomor</td>
-            <td>: {{ printData.Nomor }}</td>
-          </tr>
-          <tr>
-            <td>Tanggal</td>
-            <td>: {{ printData.Tanggal }}</td>
-          </tr>
-          <tr>
-            <td>Supplier</td>
-            <td>: {{ printData.Supplier }}</td>
-          </tr>
-          <tr>
-            <td>No. PO</td>
-            <td>: {{ printData.NoPO }}</td>
-          </tr>
+          <tbody>
+            <tr>
+              <td>Nomor</td>
+              <td>: {{ printData.Nomor }}</td>
+            </tr>
+            <tr>
+              <td>Tanggal</td>
+              <td>: {{ printData.Tanggal }}</td>
+            </tr>
+            <tr>
+              <td>Supplier</td>
+              <td>: {{ printData.Supplier }}</td>
+            </tr>
+            <tr>
+              <td>No. PO</td>
+              <td>: {{ printData.NoPO }}</td>
+            </tr>
+          </tbody>
         </table>
       </div>
     </div>
