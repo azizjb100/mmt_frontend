@@ -29,6 +29,14 @@ defaultStart.setDate(defaultStart.getDate() - 30);
 const startDate = ref(toISODate(defaultStart));
 const endDate = ref(toISODate(today));
 const searchQuery = ref("");
+const itemsPerPage = ref(10);
+const itemsPerPageOptions = [
+    { title: "10", value: 10 },
+    { title: "25", value: 25 },
+    { title: "50", value: 50 },
+    { title: "100", value: 100 },
+    { title: "ALL", value: -1 },
+];
 
 const formatNumber = (val: any, dec = 0) => {
     const num = Number(val ?? 0);
@@ -332,10 +340,34 @@ const pinnedBottomRowData = computed(() => [
 const onGridReady = (e: GridReadyEvent) => {
     gridApi.value = e.api;
     e.api.setGridOption("quickFilterText", searchQuery.value);
+    applyPaginationSize();
+};
+
+const getEffectivePageSize = () => {
+    if (itemsPerPage.value === -1) {
+        return Math.max(allData.value.length, 1);
+    }
+    return itemsPerPage.value;
+};
+
+const applyPaginationSize = () => {
+    const pageSize = getEffectivePageSize();
+    gridApi.value?.setGridOption("paginationPageSize", pageSize);
+    gridApi.value?.paginationGoToFirstPage();
 };
 
 watch(searchQuery, (val) => {
     gridApi.value?.setGridOption("quickFilterText", val);
+});
+
+watch(itemsPerPage, () => {
+    applyPaginationSize();
+});
+
+watch(allData, () => {
+    if (itemsPerPage.value === -1) {
+        applyPaginationSize();
+    }
 });
 
 const fetchReport = async () => {
@@ -418,6 +450,18 @@ onMounted(fetchReport);
 
                     <v-spacer />
 
+                    <v-select
+                        v-model="itemsPerPage"
+                        :items="itemsPerPageOptions"
+                        item-title="title"
+                        item-value="value"
+                        label="Item / page"
+                        density="compact"
+                        hide-details
+                        variant="outlined"
+                        style="max-width: 140px"
+                    />
+
                     <v-text-field
                         v-model="searchQuery"
                         prepend-inner-icon="mdi-magnify"
@@ -446,6 +490,13 @@ onMounted(fetchReport);
                     :suppressCellFocus="true"
                     :suppressRowHoverHighlight="true"
                     :animateRows="false"
+                    :pagination="true"
+                    :paginationPageSize="
+                        itemsPerPage === -1
+                            ? Math.max(allData.length, 1)
+                            : itemsPerPage
+                    "
+                    :paginationPageSizeSelector="false"
                     rowSelection="single"
                     @grid-ready="onGridReady"
                 />
