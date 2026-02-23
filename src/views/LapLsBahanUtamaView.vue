@@ -49,19 +49,11 @@
                         hide-details
                         variant="outlined"
                         readonly
-                        prepend-inner-icon="mdi-warehouse"
-                        style="max-width: 280px"
+                        style="max-width: 250px"
                         @click="showGudangLookup = true"
+                        icon="mdi-magnify-plus-outline"
+                        prepend-inner-icon="mdi-magnify-plus-outline"
                     />
-                    <v-btn
-                        size="small"
-                        variant="outlined"
-                        color="primary"
-                        @click="showGudangLookup = true"
-                    >
-                        Lookup
-                    </v-btn>
-
                     <v-spacer />
 
                     <v-text-field
@@ -78,14 +70,21 @@
 
             <v-card class="table-container rounded-strong" elevation="0">
                 <v-data-table
-                    :items="paginatedData"
+                    :items="filteredData"
                     :loading="loading.report"
                     :headers="[]"
                     item-value="kode"
                     density="compact"
                     class="desktop-table elevation-1"
-                    hide-default-footer
-                    :items-per-page="-1"
+                    :items-per-page="itemsPerPage"
+                    :items-per-page-options="[
+                        15,
+                        25,
+                        50,
+                        100,
+                        { title: 'ALL', value: -1 },
+                    ]"
+                    @update:items-per-page="itemsPerPage = Number($event)"
                 >
                     <template #thead>
                         <thead>
@@ -118,7 +117,10 @@
                                 </th>
                                 <th rowspan="2" class="text-center">JENIS</th>
                                 <th rowspan="2" class="text-center">STATUS</th>
-                                <th colspan="3" class="text-center bg-blue-sub">
+                                <th
+                                    colspan="3"
+                                    class="text-center bg-blue-sub spesifikasi-header"
+                                >
                                     SPESIFIKASI
                                 </th>
                                 <th
@@ -129,29 +131,33 @@
                                 </th>
                                 <th
                                     :colspan="canSeeNominal ? 3 : 2"
-                                    class="text-center bg-blue-sub"
+                                    class="text-center bg-blue-sub spesifikasi-header"
                                 >
                                     TERIMA
                                 </th>
                                 <th
                                     :colspan="canSeeNominal ? 3 : 2"
-                                    class="text-center bg-blue-sub"
+                                    class="text-center bg-blue-sub spesifikasi-header"
                                 >
                                     KELUAR
                                 </th>
                                 <th
                                     :colspan="canSeeNominal ? 3 : 2"
-                                    class="text-center bg-blue-sub"
+                                    class="text-center bg-blue-sub spesifikasi-header"
                                 >
                                     STOCK AKHIR
                                 </th>
                             </tr>
                             <tr class="header-row-2">
+                                <th class="text-center spesifikasi-child">
+                                    PANJANG
+                                </th>
                                 <th class="text-center">LEBAR</th>
-                                <th class="text-center">PANJANG</th>
                                 <th class="text-center">M2/ROLL</th>
                                 <th class="text-center">ROLL</th>
-                                <th class="text-center">M2</th>
+                                <th class="text-center spesifikasi-child">
+                                    M2
+                                </th>
                                 <th v-if="canSeeNominal" class="text-center">
                                     NOMINAL (Rp)
                                 </th>
@@ -161,11 +167,15 @@
                                     NOMINAL (Rp)
                                 </th>
                                 <th class="text-center">ROLL</th>
-                                <th class="text-center">M2</th>
+                                <th class="text-center spesifikasi-child">
+                                    M2
+                                </th>
                                 <th v-if="canSeeNominal" class="text-center">
                                     NOMINAL (Rp)
                                 </th>
-                                <th class="text-center">ROLL</th>
+                                <th class="text-center spesifikasi-child">
+                                    ROLL
+                                </th>
                                 <th class="text-center">M2</th>
                                 <th v-if="canSeeNominal" class="text-center">
                                     NOMINAL (Rp)
@@ -184,19 +194,19 @@
                             </td>
                             <td class="text-left">{{ item.jb_nama }}</td>
                             <td class="text-left">{{ item.status_barang }}</td>
-                            <td class="text-right">
-                                {{ formatNumber(item.Lebar, 2) }}
-                            </td>
-                            <td class="text-right">
+                            <td class="text-right spesifikasi-panjang">
                                 {{ formatNumber(item.Panjang, 2) }}
                             </td>
                             <td class="text-right">
+                                {{ formatNumber(item.Lebar, 2) }}
+                            </td>
+                            <td class="text-right spesifikasi-m2roll">
                                 {{ formatNumber(item.m2, 2) }}
                             </td>
-                            <td class="text-right">
+                            <td class="text-center">
                                 {{ formatNumber(item.stok_awal_q, 0) }}
                             </td>
-                            <td class="text-right">
+                            <td class="text-right spesifikasi-m2roll">
                                 {{ formatNumber(item.stok_awal_m, 2) }}
                             </td>
                             <td
@@ -205,10 +215,10 @@
                             >
                                 {{ formatNumber(item.stok_awal_nominal, 0) }}
                             </td>
-                            <td class="text-right">
+                            <td class="text-center">
                                 {{ formatNumber(item.terima_q, 0) }}
                             </td>
-                            <td class="text-right">
+                            <td class="text-right spesifikasi-m2roll">
                                 {{ formatNumber(item.terima_m, 2) }}
                             </td>
                             <td
@@ -217,10 +227,10 @@
                             >
                                 {{ formatNumber(item.terima_nominal, 0) }}
                             </td>
-                            <td class="text-right">
+                            <td class="text-center">
                                 {{ formatNumber(item.keluar_q, 0) }}
                             </td>
-                            <td class="text-right">
+                            <td class="text-right spesifikasi-m2roll">
                                 {{ formatNumber(item.keluar_m, 2) }}
                             </td>
                             <td
@@ -229,7 +239,7 @@
                             >
                                 {{ formatNumber(item.keluar_nominal, 0) }}
                             </td>
-                            <td class="text-right">
+                            <td class="text-center">
                                 {{ formatNumber(item.stok_akhir_q, 0) }}
                             </td>
                             <td class="text-right">
@@ -320,53 +330,6 @@
                 </v-data-table>
             </v-card>
 
-            <div
-                class="d-flex justify-space-between align-center mt-3"
-                v-if="filteredData.length > 0"
-            >
-                <div class="d-flex align-center ga-2 text-caption">
-                    <v-label>Baris per halaman:</v-label>
-                    <v-select
-                        v-model.number="itemsPerPage"
-                        :items="[
-                            15,
-                            25,
-                            50,
-                            100,
-                            { title: 'Semua', value: -1 },
-                        ]"
-                        density="compact"
-                        hide-details
-                        variant="outlined"
-                        style="max-width: 120px"
-                        @update:model-value="currentPage = 1"
-                    />
-                </div>
-                <div class="d-flex align-center ga-2 text-caption">
-                    <v-btn
-                        size="x-small"
-                        icon="mdi-chevron-left"
-                        @click="prevPage"
-                        :disabled="currentPage === 1 || itemsPerPage === -1"
-                    />
-                    <span v-if="itemsPerPage !== -1"
-                        >Halaman {{ currentPage }} dari {{ totalPages }}</span
-                    >
-                    <span v-else>Menampilkan Semua Data</span>
-                    <v-btn
-                        size="x-small"
-                        icon="mdi-chevron-right"
-                        @click="nextPage"
-                        :disabled="
-                            currentPage === totalPages || itemsPerPage === -1
-                        "
-                    />
-                </div>
-                <span class="text-caption"
-                    >Total {{ filteredData.length }} data</span
-                >
-            </div>
-
             <GudangLookupView
                 :is-visible="showGudangLookup"
                 @close="showGudangLookup = false"
@@ -418,7 +381,7 @@ const allData = ref([]);
 const loading = ref({ report: false });
 const searchQuery = ref("");
 const selectedGudang = ref("WH-16");
-const selectedGudangNama = ref("Gudang Utama");
+const selectedGudangNama = ref("GUDANG UTAMA MMT");
 const showGudangLookup = ref(false);
 
 const selectedGudangDisplay = computed(() =>
@@ -435,7 +398,6 @@ const onSelectGudang = (gudang) => {
 };
 
 // Pagination State
-const currentPage = ref(1);
 const itemsPerPage = ref(15);
 
 // Logic Resize
@@ -527,22 +489,6 @@ const reportTotals = computed(() => {
         },
     );
 });
-
-const paginatedData = computed(() => {
-    if (itemsPerPage.value === -1) return filteredData.value;
-    const start = (currentPage.value - 1) * itemsPerPage.value;
-    return filteredData.value.slice(start, start + itemsPerPage.value);
-});
-
-const totalPages = computed(() =>
-    Math.ceil(filteredData.value.length / itemsPerPage.value),
-);
-const nextPage = () => {
-    if (currentPage.value < totalPages.value) currentPage.value++;
-};
-const prevPage = () => {
-    if (currentPage.value > 1) currentPage.value--;
-};
 
 const exportToExcel = () => {
     const data = filteredData.value.map((row) => ({
@@ -648,7 +594,7 @@ onMounted(fetchReport);
     padding: 6px 8px !important;
     white-space: nowrap;
     background-color: #ffffff;
-    border-bottom: 2px solid #8dbde3 !important;
+    border-bottom: 1px solid #8dbde3 !important;
 }
 
 .desktop-table :deep(tbody td:nth-child(1)) {
@@ -720,5 +666,17 @@ onMounted(fetchReport);
 .desktop-table :deep(thead.v-data-table__thead),
 .desktop-table :deep(thead.v-data-table__thead tr) {
     display: none !important;
+}
+
+.desktop-table :deep(th.spesifikasi-header, th.spesifikasi-child) {
+    border-right: 2px solid #95bcdd !important;
+    border-left: 2px solid #95bcdd !important;
+}
+
+.desktop-table :deep(td.spesifikasi-panjang) {
+    border-left: 2px solid #95bcdd !important;
+}
+.desktop-table :deep(td.spesifikasi-m2roll) {
+    border-right: 2px solid #95bcdd !important;
 }
 </style>
