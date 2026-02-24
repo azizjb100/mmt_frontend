@@ -76,6 +76,7 @@
                     item-value="kode"
                     density="compact"
                     class="desktop-table elevation-1"
+                    :page="currentPage"
                     :items-per-page="itemsPerPage"
                     :items-per-page-options="[
                         10,
@@ -84,6 +85,7 @@
                         100,
                         { title: 'ALL', value: -1 },
                     ]"
+                    @update:page="currentPage = Number($event)"
                     @update:items-per-page="itemsPerPage = Number($event)"
                 >
                     <template #thead>
@@ -328,6 +330,8 @@
                         </tr>
                     </template>
                 </v-data-table>
+
+                <div class="page-of-indicator">{{ pageInfoLabel }}</div>
             </v-card>
 
             <GudangLookupView
@@ -340,7 +344,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, computed } from "vue";
+import { ref, reactive, onMounted, computed, watch } from "vue";
 import PageLayout from "../components/PageLayout.vue";
 import GudangLookupView from "../modal/GudangLookupView.vue";
 import api from "@/services/api";
@@ -399,6 +403,7 @@ const onSelectGudang = (gudang) => {
 
 // Pagination State
 const itemsPerPage = ref(10);
+const currentPage = ref(1);
 
 // Logic Resize
 const colWidths = reactive({ kode: 100, Nama: 300, jb_nama: 100, status: 80 });
@@ -455,9 +460,26 @@ const filteredData = computed(() => {
     );
 });
 
-// TOTALS (Calculated from filtered data, not just paginated)
+const paginatedData = computed(() => {
+    if (itemsPerPage.value === -1) return filteredData.value;
+
+    const perPage = Number(itemsPerPage.value) || 10;
+    const page = Math.max(1, Number(currentPage.value) || 1);
+    const start = (page - 1) * perPage;
+    return filteredData.value.slice(start, start + perPage);
+});
+
+watch(itemsPerPage, () => {
+    currentPage.value = 1;
+});
+
+watch(searchQuery, () => {
+    currentPage.value = 1;
+});
+
+// TOTALS (Calculated from current page)
 const reportTotals = computed(() => {
-    return filteredData.value.reduce(
+    return paginatedData.value.reduce(
         (acc, row) => {
             acc.stok_awal_q += parseFloat(row.stok_awal_q || 0);
             acc.stok_awal_m += parseFloat(row.stok_awal_m || 0);
@@ -544,12 +566,24 @@ onMounted(fetchReport);
 }
 
 .table-container {
+    position: relative;
     border: var(--content-border, 1px solid #dcdcdc);
     border-radius: var(--border-radius-lg) !important;
     box-shadow: var(--shadow-sm) !important;
     background: var(--content-bg, #ffffff);
     overflow: auto;
     max-height: calc(100vh - 220px);
+}
+
+.page-of-indicator {
+    position: absolute;
+    right: 150px;
+    bottom: 12px;
+    z-index: 5;
+    pointer-events: none;
+    font-size: 12px;
+    color: #334155;
+    font-weight: 500;
 }
 
 .desktop-table :deep(table) {

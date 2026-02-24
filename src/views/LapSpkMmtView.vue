@@ -30,13 +30,6 @@ const startDate = ref(toISODate(defaultStart));
 const endDate = ref(toISODate(today));
 const searchQuery = ref("");
 const itemsPerPage = ref(10);
-const itemsPerPageOptions = [
-    { title: "10", value: 10 },
-    { title: "25", value: 25 },
-    { title: "50", value: 50 },
-    { title: "100", value: 100 },
-    { title: "ALL", value: -1 },
-];
 
 const formatNumber = (val: any, dec = 0) => {
     const num = Number(val ?? 0);
@@ -343,6 +336,14 @@ const onGridReady = (e: GridReadyEvent) => {
     applyPaginationSize();
 };
 
+const onPaginationChanged = () => {
+    if (!gridApi.value) return;
+    const size = gridApi.value.paginationGetPageSize();
+    if (size && size !== itemsPerPage.value) {
+        itemsPerPage.value = size;
+    }
+};
+
 const getEffectivePageSize = () => {
     if (itemsPerPage.value === -1) {
         return Math.max(allData.value.length, 1);
@@ -405,62 +406,53 @@ onMounted(fetchReport);
 
 <template>
     <PageLayout title="Laporan SPK MMT" icon="mdi-file-chart">
+        <template #header-actions>
+            <v-btn
+                size="x-small"
+                color="info"
+                variant="text"
+                @click="fetchReport"
+                :loading="loading.report"
+            >
+                <v-icon start>mdi-refresh</v-icon> Refresh
+            </v-btn>
+
+            <v-btn
+                size="x-small"
+                color="primary"
+                variant="outlined"
+                @click="setTodayRange"
+                :disabled="loading.report"
+            >
+                Hari Ini
+            </v-btn>
+        </template>
+
         <div class="spk-mmt-wrapper">
             <v-card
                 class="mb-3 pa-3 filter-card rounded-strong transition-smooth"
             >
-                <div class="d-flex align-center flex-wrap ga-3">
-                    <v-label class="text-caption font-weight-bold"
-                        >Periode:</v-label
-                    >
+                <div class="filter-section d-flex align-center flex-wrap ga-3">
+                    <span class="text-caption font-weight-bold">Periode:</span>
                     <v-text-field
                         v-model="startDate"
                         type="date"
                         density="compact"
                         hide-details
                         variant="outlined"
-                        style="max-width: 160px"
+                        style="max-width: 140px"
                     />
-                    <v-label>s.d</v-label>
+                    <v-label class="mx-1">s/d</v-label>
                     <v-text-field
                         v-model="endDate"
                         type="date"
                         density="compact"
                         hide-details
                         variant="outlined"
-                        style="max-width: 160px"
-                    />
-
-                    <v-btn
-                        color="success"
-                        icon="mdi-refresh"
-                        size="small"
-                        @click="fetchReport"
-                        :loading="loading.report"
-                    />
-                    <v-btn
-                        color="primary"
-                        variant="outlined"
-                        size="small"
-                        @click="setTodayRange"
-                        :disabled="loading.report"
-                    >
-                        Hari Ini
-                    </v-btn>
-
-                    <v-spacer />
-
-                    <v-select
-                        v-model="itemsPerPage"
-                        :items="itemsPerPageOptions"
-                        item-title="title"
-                        item-value="value"
-                        label="Item / page"
-                        density="compact"
-                        hide-details
-                        variant="outlined"
                         style="max-width: 140px"
                     />
+
+                    <v-spacer />
 
                     <v-text-field
                         v-model="searchQuery"
@@ -496,9 +488,10 @@ onMounted(fetchReport);
                             ? Math.max(allData.length, 1)
                             : itemsPerPage
                     "
-                    :paginationPageSizeSelector="false"
+                    :paginationPageSizeSelector="[10, 25, 50, 100]"
                     rowSelection="single"
                     @grid-ready="onGridReady"
+                    @pagination-changed="onPaginationChanged"
                 />
             </v-card>
         </div>
@@ -787,5 +780,41 @@ onMounted(fetchReport);
     background-color: #d2d9e0 !important;
     font-weight: 700;
     border-top: 2px solid #8293a6 !important;
+}
+
+.mmt-ag-grid :deep(.ag-paging-panel) {
+    min-height: 40px;
+    padding: 6px 12px;
+    border-top: 1px solid #d7dde3;
+    background: #ffffff;
+    justify-content: flex-end;
+    gap: 10px;
+    font-size: 12px;
+    color: #334155;
+}
+
+.mmt-ag-grid :deep(.ag-paging-page-size) {
+    margin-right: 8px;
+}
+
+.mmt-ag-grid :deep(.ag-paging-row-summary-panel) {
+    font-weight: 500;
+    color: #334155;
+}
+
+.mmt-ag-grid :deep(.ag-picker-field-wrapper) {
+    min-height: 28px;
+    min-width: 96px;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    background: #ffffff;
+}
+
+.mmt-ag-grid :deep(.ag-paging-button) {
+    color: #334155;
+}
+
+.mmt-ag-grid :deep(.ag-paging-button:hover) {
+    background: #eef2f7;
 }
 </style>
