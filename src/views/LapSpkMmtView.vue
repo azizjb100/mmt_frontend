@@ -30,6 +30,13 @@ const startDate = ref(toISODate(defaultStart));
 const endDate = ref(toISODate(today));
 const searchQuery = ref("");
 const itemsPerPage = ref(10);
+const itemsPerPageOptions = [
+    { title: "10", value: 10 },
+    { title: "25", value: 25 },
+    { title: "50", value: 50 },
+    { title: "100", value: 100 },
+    { title: "ALL", value: -1 },
+];
 
 const formatNumber = (val: any, dec = 0) => {
     const num = Number(val ?? 0);
@@ -406,52 +413,48 @@ onMounted(fetchReport);
 
 <template>
     <PageLayout title="Laporan SPK MMT" icon="mdi-file-chart">
-        <template #header-actions>
-            <v-btn
-                size="x-small"
-                color="info"
-                variant="text"
-                @click="fetchReport"
-                :loading="loading.report"
-            >
-                <v-icon start>mdi-refresh</v-icon> Refresh
-            </v-btn>
-
-            <v-btn
-                size="x-small"
-                color="primary"
-                variant="outlined"
-                @click="setTodayRange"
-                :disabled="loading.report"
-            >
-                Hari Ini
-            </v-btn>
-        </template>
-
         <div class="spk-mmt-wrapper">
             <v-card
                 class="mb-3 pa-3 filter-card rounded-strong transition-smooth"
-                elevation="0"
             >
-                <div class="filter-section d-flex align-center flex-wrap ga-3">
-                    <span class="text-caption font-weight-bold">Periode:</span>
+                <div class="d-flex align-center flex-wrap ga-3">
+                    <v-label class="text-caption font-weight-bold"
+                        >Periode:</v-label
+                    >
                     <v-text-field
                         v-model="startDate"
                         type="date"
                         density="compact"
                         hide-details
                         variant="outlined"
-                        style="max-width: 140px"
+                        style="max-width: 160px"
                     />
-                    <v-label class="mx-1">s/d</v-label>
+                    <v-label>s.d</v-label>
                     <v-text-field
                         v-model="endDate"
                         type="date"
                         density="compact"
                         hide-details
                         variant="outlined"
-                        style="max-width: 140px"
+                        style="max-width: 160px"
                     />
+
+                    <v-btn
+                        color="success"
+                        icon="mdi-refresh"
+                        size="small"
+                        @click="fetchReport"
+                        :loading="loading.report"
+                    />
+                    <v-btn
+                        color="primary"
+                        variant="outlined"
+                        size="small"
+                        @click="setTodayRange"
+                        :disabled="loading.report"
+                    >
+                        Hari Ini
+                    </v-btn>
 
                     <v-spacer />
 
@@ -522,9 +525,8 @@ onMounted(fetchReport);
 }
 
 .table-container {
-    position: relative;
-    max-height: calc(100vh - 220px);
-    overflow: auto;
+    height: calc(100vh - 220px);
+    overflow: hidden;
     border: var(--content-border, 1px solid #dcdcdc);
     border-radius: var(--border-radius-lg) !important;
     box-shadow: var(--shadow-sm) !important;
@@ -533,10 +535,10 @@ onMounted(fetchReport);
 
 .mmt-ag-grid {
     width: 100%;
-    min-height: 100%;
+    height: 100%;
     --ag-background-color: #e5e5e5;
     --ag-foreground-color: #0f172a;
-    --ag-header-background-color: #74addc;
+    --ag-header-background-color: #74a83c6fcddc;
     --ag-header-foreground-color: #ffffff;
     --ag-header-column-separator-color: #93bddf;
     --ag-odd-row-background-color: #e5e5e5;
@@ -546,7 +548,7 @@ onMounted(fetchReport);
     --ag-border-color: #c3c8ce;
     --ag-row-border-color: #c9cfd6;
     --ag-font-size: 12px;
-    --ag-font-family: var(--font-family-primary);
+    --ag-font-family: "Segoe UI", Tahoma, Arial, sans-serif;
     --ag-header-height: 22px;
     --ag-group-header-height: 20px;
     --ag-row-height: 34px;
@@ -565,7 +567,7 @@ onMounted(fetchReport);
 }
 
 .mmt-ag-grid :deep(.ag-header) {
-    background: #74addc;
+    background: #83c6fc;
 }
 
 .mmt-ag-grid :deep(.ag-header-cell-label) {
@@ -782,41 +784,5 @@ onMounted(fetchReport);
     background-color: #d2d9e0 !important;
     font-weight: 700;
     border-top: 2px solid #8293a6 !important;
-}
-
-.mmt-ag-grid :deep(.ag-paging-panel) {
-    min-height: 40px;
-    padding: 6px 12px;
-    border-top: 1px solid #d7dde3;
-    background: #ffffff;
-    justify-content: flex-end;
-    gap: 10px;
-    font-size: 12px;
-    color: #334155;
-}
-
-.mmt-ag-grid :deep(.ag-paging-page-size) {
-    margin-right: 8px;
-}
-
-.mmt-ag-grid :deep(.ag-paging-row-summary-panel) {
-    font-weight: 500;
-    color: #334155;
-}
-
-.mmt-ag-grid :deep(.ag-picker-field-wrapper) {
-    min-height: 28px;
-    min-width: 96px;
-    border: 1px solid #cbd5e1;
-    border-radius: 6px;
-    background: #ffffff;
-}
-
-.mmt-ag-grid :deep(.ag-paging-button) {
-    color: #334155;
-}
-
-.mmt-ag-grid :deep(.ag-paging-button:hover) {
-    background: #eef2f7;
 }
 </style>
