@@ -431,6 +431,7 @@ onMounted(fetchReport);
         <div class="spk-mmt-wrapper">
             <v-card
                 class="mb-3 pa-3 filter-card rounded-strong transition-smooth"
+                elevation="0"
             >
                 <div class="filter-section d-flex align-center flex-wrap ga-3">
                     <span class="text-caption font-weight-bold">Periode:</span>
@@ -521,8 +522,9 @@ onMounted(fetchReport);
 }
 
 .table-container {
-    height: calc(100vh - 220px);
-    overflow: hidden;
+    position: relative;
+    max-height: calc(100vh - 220px);
+    overflow: auto;
     border: var(--content-border, 1px solid #dcdcdc);
     border-radius: var(--border-radius-lg) !important;
     box-shadow: var(--shadow-sm) !important;
@@ -531,7 +533,7 @@ onMounted(fetchReport);
 
 .mmt-ag-grid {
     width: 100%;
-    height: 100%;
+    min-height: 100%;
     --ag-background-color: #e5e5e5;
     --ag-foreground-color: #0f172a;
     --ag-header-background-color: #74addc;
@@ -544,7 +546,7 @@ onMounted(fetchReport);
     --ag-border-color: #c3c8ce;
     --ag-row-border-color: #c9cfd6;
     --ag-font-size: 12px;
-    --ag-font-family: "Segoe UI", Tahoma, Arial, sans-serif;
+    --ag-font-family: var(--font-family-primary);
     --ag-header-height: 22px;
     --ag-group-header-height: 20px;
     --ag-row-height: 34px;
