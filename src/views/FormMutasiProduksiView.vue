@@ -250,15 +250,15 @@ const saveForm = async (saveAndNew: boolean) => {
     // SESUAIKAN DENGAN CONTROLLER: { header, details, isEditMode }
     const payload = {
       header: {
-        nomor: formData.nomor, // Controller butuh 'nomor' huruf kecil
+        nomor: formData.nomor,
         tanggal: formData.tanggal,
-        mnt_gdg_kode: formData.gudangKode, // Controller butuh 'mnt_gdg_kode'
+        mnt_gdg_kode: formData.gudangKode,
         mnt_lokasiproduksi: formData.lokasiProduksiKode,
         mnt_keterangan: formData.keteranganHeader,
+        // Tetap kirim sebagai cadangan, tapi Controller akan prioritaskan req.user
         user_create: authStore.KDUSER || "Unknown",
       },
       details: validDetails.map((d) => ({
-        // Controller butuh 'details' huruf kecil
         sku: d.sku,
         barcode: d.barcode,
         qty: Number(d.qty),

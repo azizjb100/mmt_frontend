@@ -341,61 +341,96 @@ const exportToExcel = async () => {
 
     const res = await api.get(`${API_BASE_URL}/export`, { params: payload });
 
-    // 🔥 FIX DI SINI
-    const rawData = Array.isArray(res.data)
-      ? res.data
-      : Array.isArray(res.data?.data)
-        ? res.data.data
-        : [];
+    // Ambil data dari response (pastikan mengambil res.data.data sesuai format JSON Anda)
+    const rawData = res.data && res.data.data ? res.data.data : [];
 
-    if (!Array.isArray(rawData) || rawData.length === 0) {
+    if (rawData.length === 0) {
       toast.warning("Tidak ada data untuk diekspor");
       return;
     }
 
-    const exportData: any[] = [];
-    let lastNomor = "";
+    // 1. Inisialisasi susunan data (Array of Arrays)
+    const worksheetData = [];
 
-    rawData.forEach((row: any) => {
-      if (row.Nomor_LHK !== lastNomor) {
-        exportData.push({
-          "Nomor LHK / SPK": row.Nomor_LHK,
-          "Tanggal / Order": row.Tanggal,
-          "Operator / Mesin": row.Operator_LHK,
-          Shift: row.Shift_LHK,
-          Gudang: row.Gudang,
-          "Total m²": "",
-          Status: "HEADER",
-        });
-        lastNomor = row.Nomor_LHK;
+    // 2. Tambahkan Judul dan Periode (Baris 1 & 2)
+    worksheetData.push(["Browse Hasil Kerja Cetak MMT"]);
+    worksheetData.push([
+      `Tanggal :${format(parseISO(filters.startDate), "dd/MM/yyyy")} s.d ${format(parseISO(filters.endDate), "dd/MM/yyyy")}`,
+    ]);
+
+    // 3. Header Kolom Utama (Baris 3)
+    const headers = [
+      "Tanggal",
+      "Shift",
+      "cetak_meter",
+      "Mesin",
+      "Nomor_SPK",
+      "Nama_SPK",
+      "Panjang",
+      "Lebar",
+      "Jml_Order",
+      "Jml_Cetak",
+    ];
+    worksheetData.push(headers);
+
+    // 4. Grouping Data berdasarkan Nomor_LHK
+    const grouped = rawData.reduce((acc, item) => {
+      if (!acc[item.Nomor_LHK]) {
+        acc[item.Nomor_LHK] = {
+          items: [],
+          totalM2: 0,
+          tanggal: item.Tanggal,
+          shift: item.Shift_LHK,
+        };
       }
+      acc[item.Nomor_LHK].items.push(item);
+      acc[item.Nomor_LHK].totalM2 += Number(item.m2_cetak || 0);
+      return acc;
+    }, {});
 
-      exportData.push({
-        "Nomor LHK / SPK": `   ${row.Nomor_SPK}`,
-        "Tanggal / Order": row.Nama_Order,
-        "Operator / Mesin": row.Mesin,
-        Shift: "",
-        Gudang: "",
-        "Total m²": Number(row.m2_cetak || 0).toFixed(2),
-        Status: "DETAIL",
+    // 5. Masukkan data ke worksheet
+    Object.keys(grouped).forEach((nomorLhk) => {
+      const group = grouped[nomorLhk];
+
+      group.items.forEach((row, index) => {
+        const isFirstRow = index === 0;
+
+        worksheetData.push([
+          isFirstRow ? group.tanggal : "", // Kolom Tanggal
+          isFirstRow ? group.shift : "", // Kolom Shift
+          isFirstRow ? group.totalM2.toFixed(3) : "", // Kolom cetak_meter (Total per LHK)
+          row.Mesin || "", // Kolom Mesin
+          row.Nomor_SPK || "", // Kolom Nomor_SPK
+          row.Nama_Order || "", // Kolom Nama_SPK
+          row.Panjang || 0, // Kolom Panjang
+          row.Lebar || 0, // Kolom Lebar
+          0, // Jml_Order (placeholder 0)
+          row.Qty_Cetak || 0, // Jml_Cetak
+        ]);
       });
     });
 
-    const ws = XLSX.utils.json_to_sheet(exportData);
+    // 6. Proses Pembuatan File Excel
+    const ws = XLSX.utils.aoa_to_sheet(worksheetData);
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "LHK_Lengkap");
+    XLSX.utils.book_append_sheet(wb, ws, "LHK_Cetak");
 
+    // 7. Styling Lebar Kolom
     ws["!cols"] = [
-      { wch: 25 },
-      { wch: 35 },
-      { wch: 25 },
-      { wch: 8 },
-      { wch: 15 },
-      { wch: 12 },
-      { wch: 10 },
+      { wch: 12 }, // Tanggal
+      { wch: 6 }, // Shift
+      { wch: 15 }, // cetak_meter
+      { wch: 8 }, // Mesin
+      { wch: 18 }, // Nomor SPK
+      { wch: 45 }, // Nama SPK
+      { wch: 8 }, // Panjang
+      { wch: 8 }, // Lebar
+      { wch: 10 }, // Jml Order
+      { wch: 10 }, // Jml Cetak
     ];
 
-    XLSX.writeFile(wb, `LHK_MMT_Export_${filters.startDate}.xlsx`);
+    // 8. Download
+    XLSX.writeFile(wb, `LHK_Cetak_MMT_${filters.startDate}.xlsx`);
     toast.success("Excel berhasil diunduh");
   } catch (error) {
     console.error("Export Error:", error);

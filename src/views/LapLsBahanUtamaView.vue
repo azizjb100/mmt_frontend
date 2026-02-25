@@ -76,7 +76,6 @@
                     item-value="kode"
                     density="compact"
                     class="desktop-table elevation-1"
-                    :page="currentPage"
                     :items-per-page="itemsPerPage"
                     :items-per-page-options="[
                         10,
@@ -85,7 +84,6 @@
                         100,
                         { title: 'ALL', value: -1 },
                     ]"
-                    @update:page="currentPage = Number($event)"
                     @update:items-per-page="itemsPerPage = Number($event)"
                 >
                     <template #thead>
@@ -330,8 +328,6 @@
                         </tr>
                     </template>
                 </v-data-table>
-
-                <div class="page-of-indicator">{{ pageInfoLabel }}</div>
             </v-card>
 
             <GudangLookupView
@@ -479,7 +475,7 @@ watch(searchQuery, () => {
 
 // TOTALS (Calculated from current page)
 const reportTotals = computed(() => {
-    return paginatedData.value.reduce(
+    return filteredData.value.reduce(
         (acc, row) => {
             acc.stok_awal_q += parseFloat(row.stok_awal_q || 0);
             acc.stok_awal_m += parseFloat(row.stok_awal_m || 0);
@@ -513,31 +509,129 @@ const reportTotals = computed(() => {
 });
 
 const exportToExcel = () => {
-    const data = filteredData.value.map((row) => ({
-        Kode: row.kode,
-        "Nama Bahan": row.Nama,
-        Jenis: row.jb_nama,
-        Status: row.status_barang,
-        Lebar: row.Lebar,
-        Panjang: row.Panjang,
-        M2: row.m2,
-        "Awal (Roll)": row.stok_awal_q,
-        "Awal (M2)": row.stok_awal_m,
-        ...(canSeeNominal.value && { "Awal (Nom)": row.stok_awal_nominal }),
-        "Terima (Roll)": row.terima_q,
-        "Terima (M2)": row.terima_m,
-        ...(canSeeNominal.value && { "Terima (Nom)": row.terima_nominal }),
-        "Keluar (Roll)": row.keluar_q,
-        "Keluar (M2)": row.keluar_m,
-        ...(canSeeNominal.value && { "Keluar (Nom)": row.keluar_nominal }),
-        "Akhir (Roll)": row.stok_akhir_q,
-        "Akhir (M2)": row.stok_akhir_m,
-        ...(canSeeNominal.value && { "Akhir (Nom)": row.stok_akhir_nominal }),
-    }));
-    const ws = XLSX.utils.json_to_sheet(data);
+    // 1. Definisikan Header Baris 1 (Header Utama / Merge)
+    const header1 = [
+        "KODE",
+        "NAMA BAHAN",
+        "JENIS",
+        "STATUS",
+        "SPESIFIKASI",
+        "",
+        "", // 3 kolom untuk Spesifikasi
+        "STOCK AWAL",
+        "",
+        canSeeNominal.value ? "" : null, // 3 atau 2 kolom
+        "TERIMA",
+        "",
+        canSeeNominal.value ? "" : null,
+        "KELUAR",
+        "",
+        canSeeNominal.value ? "" : null,
+        "STOCK AKHIR",
+        "",
+        canSeeNominal.value ? "" : null,
+    ].filter((x) => x !== null);
+
+    // 2. Definisikan Header Baris 2 (Sub-Header)
+    const header2 = [
+        "",
+        "",
+        "",
+        "", // Kosongkan bawah Kode, Nama, Jenis, Status (karena akan di-rowmerge)
+        "PANJANG",
+        "LEBAR",
+        "M2/ROLL",
+        "ROLL",
+        "M2",
+        canSeeNominal.value ? "NOMINAL (RP)" : null,
+        "ROLL",
+        "M2",
+        canSeeNominal.value ? "NOMINAL (RP)" : null,
+        "ROLL",
+        "M2",
+        canSeeNominal.value ? "NOMINAL (RP)" : null,
+        "ROLL",
+        "M2",
+        canSeeNominal.value ? "NOMINAL (RP)" : null,
+    ].filter((x) => x !== null);
+
+    // 3. Mapping Data Body
+    const body = filteredData.value.map((row) => {
+        const base = [
+            row.kode,
+            row.Nama,
+            row.jb_nama,
+            row.status_barang,
+            row.Panjang,
+            row.Lebar,
+            row.m2,
+            row.stok_awal_q,
+            row.stok_awal_m,
+        ];
+        if (canSeeNominal.value) base.push(row.stok_awal_nominal);
+
+        base.push(row.terima_q, row.terima_m);
+        if (canSeeNominal.value) base.push(row.terima_nominal);
+
+        base.push(row.keluar_q, row.keluar_m);
+        if (canSeeNominal.value) base.push(row.keluar_nominal);
+
+        base.push(row.stok_akhir_q, row.stok_akhir_m);
+        if (canSeeNominal.value) base.push(row.stok_akhir_nominal);
+
+        return base;
+    });
+
+    // 4. Gabungkan semua menjadi satu sheet
+    const ws = XLSX.utils.aoa_to_sheet([header1, header2, ...body]);
+
+    // 5. Konfigurasi Merge Cells (Sangat Penting)
+    // s = start, e = end, r = row, c = col
+    const merges = [
+        // Merge Vertikal untuk kolom identitas
+        { s: { r: 0, c: 0 }, e: { r: 1, c: 0 } }, // KODE
+        { s: { r: 0, c: 1 }, e: { r: 1, c: 1 } }, // NAMA BAHAN
+        { s: { r: 0, c: 2 }, e: { r: 1, c: 2 } }, // JENIS
+        { s: { r: 0, c: 3 }, e: { r: 1, c: 3 } }, // STATUS
+
+        // Merge Horizontal untuk Grouping
+        { s: { r: 0, c: 4 }, e: { r: 0, c: 6 } }, // SPESIFIKASI (P, L, M2)
+    ];
+
+    // Merge untuk Stock Awal, Terima, Keluar, Akhir (dinamis jika nominal ada)
+    const colStep = canSeeNominal.value ? 3 : 2;
+    let currentColumn = 7;
+
+    for (let i = 0; i < 4; i++) {
+        merges.push({
+            s: { r: 0, c: currentColumn },
+            e: { r: 0, c: currentColumn + colStep - 1 },
+        });
+        currentColumn += colStep;
+    }
+
+    ws["!merges"] = merges;
+
+    // 6. Atur Lebar Kolom (Optional)
+    ws["!cols"] = [
+        { wch: 15 },
+        { wch: 35 },
+        { wch: 15 },
+        { wch: 15 }, // Identitas
+        { wch: 10 },
+        { wch: 10 },
+        { wch: 10 }, // Spesifikasi
+        { wch: 8 },
+        { wch: 12 },
+        { wch: 15 }, // Pengulangan (Roll, M2, Nom)
+    ];
+
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Laporan");
-    XLSX.writeFile(wb, `Laporan_Stok_${startDate.value}.xlsx`);
+    XLSX.utils.book_append_sheet(wb, ws, "Laporan Stok");
+    XLSX.writeFile(
+        wb,
+        `Laporan_Stok_Bahan_${startDate.value}_sd_${endDate.value}.xlsx`,
+    );
 };
 
 onMounted(fetchReport);
@@ -566,7 +660,6 @@ onMounted(fetchReport);
 }
 
 .table-container {
-    position: relative;
     border: var(--content-border, 1px solid #dcdcdc);
     border-radius: var(--border-radius-lg) !important;
     box-shadow: var(--shadow-sm) !important;
