@@ -253,7 +253,7 @@ const loadDetailSpk = async (expandedKeys) => {
 
   loadingDetail.value = true;
   try {
-    const res = await api.get("/mmt/lhk-cetak-mmt/rekap-detail-mesin", {
+    const res = await api.get("/mmt/lhk-cetak/rekap-detail-mesin", {
       params: {
         startDate: filters.start,
         endDate: filters.end,
@@ -275,7 +275,7 @@ const loadRekap = async () => {
   expanded.value = [];
 
   try {
-    const response = await api.get("/mmt/lhk-cetak-mmt/rekap", {
+    const response = await api.get("/mmt/lhk-cetak/rekap", {
       params: {
         startDate: filters.start,
         endDate: filters.end,

@@ -1,23 +1,48 @@
 <template>
   <div class="opname-container">
     <div class="header-top">
-      <h1>Stok Opname Gudang</h1>
+      <div class="brand-section">
+        <div class="icon-box">
+          <i class="fas fa-boxes"></i>
+        </div>
+        <div class="title-meta">
+          <h1>Stok Opname</h1>
+          <span class="badge-session" v-if="sessionID"
+            >Sesi Aktif: {{ sessionID }}</span
+          >
+          <span class="badge-offline" v-else>Sesi Belum Dimulai</span>
+        </div>
+      </div>
+
       <div class="scan-wrapper">
-        <input
-          v-if="sessionID"
-          v-model="scanInput"
-          @keyup.enter="handleScan"
-          ref="barcodeInput"
-          placeholder="Scan Barcode di sini..."
-          class="input-scan"
-        />
-        <div v-else class="start-actions">
-          <select v-model="form.gdgKode" class="select-gdg">
-            <option value="">Pilih Gudang</option>
-            <option value="WH-16">WH-16</option>
-            <option value="GPM">GPM</option>
-          </select>
-          <button @click="startOpname" class="btn-start">Mulai Sesi</button>
+        <div v-if="sessionID" class="input-group-modern">
+          <div class="scan-icon-animate">
+            <span class="beam"></span>
+            🔍
+          </div>
+          <input
+            v-model="scanInput"
+            @keyup.enter="handleScan"
+            ref="barcodeInput"
+            placeholder="Siap memindai barcode..."
+            class="input-scan-modern"
+            autofocus
+          />
+          <div class="input-hint">Tekan Enter untuk memproses</div>
+        </div>
+
+        <div v-else class="start-actions-modern">
+          <div class="select-wrapper">
+            <select v-model="form.gdgKode" class="select-gdg-modern">
+              <option value="" disabled>Pilih Lokasi Gudang</option>
+              <option value="WH-16">WH-16 (Warehouse Utama)</option>
+              <option value="GPM">GPM (Gudang Bahan)</option>
+            </select>
+            <span class="select-arrow">▼</span>
+          </div>
+          <button @click="startOpname" class="btn-start-modern">
+            <span class="btn-icon">🚀</span> Mulai Sesi Baru
+          </button>
         </div>
       </div>
     </div>
@@ -98,6 +123,13 @@
             <span>ID Sesi</span>
             <span class="val-id">{{ sessionID }}</span>
           </div>
+          <button
+            @click="generateReport"
+            class="btn-view-report"
+            v-if="sessionID"
+          >
+            Lihat Laporan Sesi
+          </button>
           <button @click="resetSession" class="btn-end-session">
             Selesaikan Sesi
           </button>
@@ -128,7 +160,9 @@
       </div>
 
       <div class="column col-done">
-        <h3>List Barcode yang <span class="txt-green">sudah</span> di scan</h3>
+        <h3>
+          List Barcode yang <span class="txt-green">SUDAH</span> Ditemukan
+        </h3>
         <div class="list-container">
           <div
             v-for="item in finishedItems"
@@ -137,12 +171,12 @@
           >
             <div class="done-header">
               <span class="barcode-text">{{ item.Barcode }}</span>
-              <span class="qty-badge">{{ item.opn_stok_fisik }} m</span>
+              <span class="qty-badge-match">VERIFIED</span>
             </div>
             <span class="item-name">{{ item.Nama_Bahan }}</span>
-          </div>
-          <div v-if="finishedItems.length === 0" class="empty-state">
-            Belum ada barang di-scan
+            <span class="item-kode-small"
+              >{{ item.Kode }} | {{ item.Stok_Sistem }} m</span
+            >
           </div>
         </div>
       </div>
@@ -158,7 +192,6 @@
             Stok Sistem: <strong>{{ scannedItem?.Stok_Sistem }} m</strong>
           </p>
         </div>
-
         <div class="modal-body">
           <label>Panjang Fisik (Meter)</label>
           <input
@@ -169,11 +202,72 @@
             class="input-fisik"
           />
         </div>
-
         <div class="modal-footer">
           <button @click="showModal = false" class="btn-cancel">Batal</button>
           <button @click="submitUpdate" class="btn-save">Simpan Data</button>
         </div>
+      </div>
+    </div>
+
+    <div class="report-section" v-if="showReport">
+      <div class="report-header">
+        <div class="report-title">
+          <h2>Ringkasan Hasil Opname</h2>
+          <p>Sesi: {{ sessionID }} | Petugas: {{ form.user }}</p>
+        </div>
+        <div class="report-actions">
+          <button @click="exportToExcel" class="btn-export">
+            📊 Ekspor ke Excel
+          </button>
+          <button @click="showReport = false" class="btn-close-report">
+            Tutup
+          </button>
+        </div>
+      </div>
+
+      <div class="table-responsive">
+        <table class="report-table">
+          <thead>
+            <tr>
+              <th>Kode</th>
+              <th>Nama Barang</th>
+              <th class="txt-center">Total Roll</th>
+              <th class="txt-center">Ditemukan</th>
+              <th class="txt-center">Hilang</th>
+              <th class="txt-right">Sistem (m)</th>
+              <th class="txt-right">Fisik (m)</th>
+              <th class="txt-right">Selisih (m)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr
+              v-for="row in reportData"
+              :key="row.Kode_Barang"
+              :class="{ 'row-warning': row.Barcode_Hilang > 0 }"
+            >
+              <td>
+                <strong>{{ row.Kode_Barang }}</strong>
+              </td>
+              <td>{{ row.Nama_Barang }}</td>
+              <td class="txt-center">{{ row.Total_Barcode_Sistem }}</td>
+              <td class="txt-center txt-green">{{ row.Barcode_Ditemukan }}</td>
+              <td
+                class="txt-center"
+                :class="{ 'txt-bold-red': row.Barcode_Hilang > 0 }"
+              >
+                {{ row.Barcode_Hilang }}
+              </td>
+              <td class="txt-right">{{ row.Total_Stok_Sistem }}</td>
+              <td class="txt-right">{{ row.Total_Stok_Fisik }}</td>
+              <td
+                class="txt-right txt-bold"
+                :class="row.Selisih_Meter < 0 ? 'txt-red' : 'txt-green'"
+              >
+                {{ row.Selisih_Meter }}
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </div>
     </div>
   </div>
@@ -182,6 +276,7 @@
 <script setup>
 import { ref, reactive, computed, onMounted, nextTick } from "vue";
 import axios from "axios";
+import * as XLSX from "xlsx";
 
 // Config & State
 const API_BASE = "http://localhost:8003/api/mmt/stok-opname";
@@ -198,6 +293,8 @@ const isDropdownOpen = ref(false);
 
 const barcodeInput = ref(null);
 const fisikInput = ref(null);
+const showReport = ref(false);
+const reportData = ref([]);
 
 const form = reactive({
   gdgKode: "",
@@ -254,49 +351,46 @@ const startOpname = async () => {
 // LOGIC: Menangani Scan Barcode
 const handleScan = async () => {
   if (!scanInput.value) return;
+
+  const barcodeScanned = scanInput.value;
+
   try {
+    // 1. Validasi dulu apakah barcode ada di sesi ini
     const res = await axios.get(`${API_BASE}/scan`, {
-      params: { barcode: scanInput.value, sessionID: sessionID.value },
+      params: { barcode: barcodeScanned, sessionID: sessionID.value },
     });
 
     const item = res.data.data;
 
-    // Pastikan property name 'opn_status' sesuai dengan yang dikirim backend
-    if (item.opn_status !== "PENDING") {
-      alert(`⚠️ Barcode ${scanInput.value} SUDAH PERNAH DI-SCAN sebelumnya!`);
+    if (!item) {
+      alert(
+        `❌ Barcode ${barcodeScanned} tidak ditemukan dalam daftar sesi ini!`,
+      );
       scanInput.value = "";
       return;
     }
 
-    scannedItem.value = item;
-    form.fisik = item.Stok_Sistem;
-    showModal.value = true;
-    scanInput.value = "";
+    if (item.opn_status !== "PENDING") {
+      alert(`⚠️ Barcode ${barcodeScanned} SUDAH PERNAH DI-SCAN!`);
+      scanInput.value = "";
+      return;
+    }
 
-    await nextTick();
-    document.querySelector(".input-fisik").focus();
-  } catch (e) {
-    alert("❌ Barcode tidak terdaftar dalam sesi ini!");
-    scanInput.value = "";
-  }
-};
-
-// LOGIC: Simpan Hasil Opname ke DB
-const submitUpdate = async () => {
-  if (form.fisik === null) return alert("Input fisik tidak boleh kosong");
-  try {
+    // 2. Langsung Update ke Database (Tanpa Modal)
     await axios.put(`${API_BASE}/update`, {
       sessionID: sessionID.value,
-      barcode: scannedItem.value.Barcode,
-      fisik: form.fisik,
+      barcode: barcodeScanned,
+      // Kita tidak kirim 'fisik' lagi karena backend sudah handle
     });
-    showModal.value = false;
+
+    // 3. Refresh data & bersihkan input
+    scanInput.value = "";
     await loadData();
-    // Auto focus kembali ke input scan utama
-    await nextTick();
-    if (barcodeInput.value) barcodeInput.value.focus();
+
+    // Opsional: Tambahkan feedback suara atau toast kecil di sini
   } catch (e) {
-    alert("Gagal simpan data");
+    alert("❌ Error saat memproses barcode.");
+    scanInput.value = "";
   }
 };
 
@@ -354,6 +448,58 @@ const resetSession = () => {
   }
 };
 
+const generateReport = async () => {
+  try {
+    const res = await axios.get(`${API_BASE}/report/${sessionID.value}`);
+    reportData.value = res.data.data.details;
+    showReport.value = true;
+  } catch (e) {
+    alert("Gagal memuat laporan: " + e.message);
+  }
+};
+
+// Fungsi Ekspor ke Excel
+const exportToExcel = () => {
+  // 1. Ambil data details dari state reportData
+  // Kita mapping agar nama kolom di Excel lebih rapi
+  const dataExport = reportData.value.map((item) => ({
+    "ID Sesi": item.SessionID,
+    Gudang: item.Gudang,
+    "Kode Barang": item.Kode_Barang,
+    "Nama Barang": item.Nama_Barang,
+    "Total Roll (Sistem)": item.Total_Barcode_Sistem,
+    "Roll Ditemukan": item.Barcode_Ditemukan,
+    "Roll Hilang": item.Barcode_Hilang,
+    "Stok Sistem (m)": item.Total_Stok_Sistem,
+    "Stok Fisik (m)": item.Total_Stok_Fisik,
+    "Selisih (m)": item.Selisih_Meter,
+  }));
+
+  // 2. Buat Worksheet
+  const worksheet = XLSX.utils.json_to_sheet(dataExport);
+
+  // 3. Atur lebar kolom agar tidak terpotong (Opsional)
+  const wscols = [
+    { wch: 20 },
+    { wch: 10 },
+    { wch: 15 },
+    { wch: 30 },
+    { wch: 15 },
+    { wch: 15 },
+    { wch: 15 },
+    { wch: 15 },
+    { wch: 15 },
+    { wch: 15 },
+  ];
+  worksheet["!cols"] = wscols;
+
+  // 4. Proses Download
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, "Laporan Opname");
+
+  XLSX.writeFile(workbook, `Report_Opname_${sessionID.value}.xlsx`);
+};
+
 onMounted(async () => {
   // Ambil data gudang dari localStorage jika ada
   const savedGdg = localStorage.getItem("opn_gdg");
@@ -377,10 +523,228 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+/* Style Tambahan untuk Tombol & Laporan */
+.btn-view-report {
+  width: 100%;
+  margin-top: 10px;
+  background: #3b82f6;
+  border: none;
+  color: white;
+  padding: 10px;
+  border-radius: 8px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.report-section {
+  margin-top: 30px;
+  background: white;
+  border-radius: 12px;
+  padding: 25px;
+  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+  border-top: 5px solid #2563eb;
+}
+
+.report-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  align-items: center;
+}
+
+.report-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.report-table th {
+  background: #f8fafc;
+  padding: 12px;
+  border-bottom: 2px solid #e2e8f0;
+}
+
+.report-table td {
+  padding: 12px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.row-warning {
+  background-color: #fffbeb;
+}
+.txt-bold-red {
+  color: #b91c1c;
+  font-weight: 800;
+}
+.txt-red {
+  color: #dc2626;
+}
+.btn-export {
+  background: #10b981;
+  color: white;
+  border: none;
+  padding: 10px 15px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: bold;
+}
+.btn-close-report {
+  background: #f1f5f9;
+  border: none;
+  padding: 10px 15px;
+  border-radius: 6px;
+  cursor: pointer;
+  margin-left: 10px;
+}
+.header-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 30px;
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
+  margin-bottom: 25px;
+  border: 1px solid #f0f0f0;
+}
+
+/* Bagian Judul */
+.brand-section {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.icon-box {
+  background: #eef2ff;
+  color: #2563eb;
+  padding: 12px;
+  border-radius: 12px;
+  font-size: 24px;
+}
+
+.title-meta h1 {
+  font-size: 20px;
+  font-weight: 800;
+  margin: 0;
+  color: #1e293b;
+  letter-spacing: -0.5px;
+}
+
+.badge-session {
+  font-size: 11px;
+  background: #dcfce7;
+  color: #15803d;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-weight: 600;
+}
+
+/* Input Scan Modern */
+.input-group-modern {
+  position: relative;
+  width: 400px;
+}
+
+.input-scan-modern {
+  width: 100%;
+  padding: 14px 20px 14px 50px;
+  font-size: 16px;
+  border: 2px solid #e2e8f0;
+  border-radius: 12px;
+  transition: all 0.3s ease;
+  background: #f8fafc;
+}
+
+.input-scan-modern:focus {
+  border-color: #3b82f6;
+  background: white;
+  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
+  outline: none;
+}
+
+.scan-icon-animate {
+  position: absolute;
+  left: 18px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 2;
+  font-size: 18px;
+}
+
+.input-hint {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 10px;
+  color: #94a3b8;
+  background: #f1f5f9;
+  padding: 4px 8px;
+  border-radius: 4px;
+  pointer-events: none;
+}
+
+/* Form Mulai Sesi */
+.start-actions-modern {
+  display: flex;
+  gap: 12px;
+}
+
+.select-wrapper {
+  position: relative;
+}
+
+.select-gdg-modern {
+  appearance: none;
+  padding: 12px 40px 12px 16px;
+  border-radius: 10px;
+  border: 2px solid #e2e8f0;
+  background: white;
+  font-weight: 600;
+  color: #475569;
+  cursor: pointer;
+}
+
+.btn-start-modern {
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 10px;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    transform 0.2s,
+    box-shadow 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-start-modern:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+}
 .filter-actions {
   display: flex;
   gap: 5px;
   margin-bottom: 10px;
+}
+
+.qty-badge-match {
+  background: #e6fffa;
+  border: 1px solid #38b2ac;
+  color: #2c7a7b;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-weight: bold;
+  font-size: 11px;
+}
+
+/* Tambahkan feedback visual saat scan sukses (opsional) */
+.item-row.done {
+  border-left: 5px solid #52c41a;
+  background: #f6ffed;
 }
 .btn-mini {
   font-size: 11px;

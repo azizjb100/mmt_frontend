@@ -2,15 +2,14 @@
   <v-dialog
     :model-value="isVisible"
     @update:modelValue="emit('close')"
-    max-width="900px"
+    max-width="950px"
     persistent
   >
-    <v-card class="dialog-card d-flex flex-column" style="height: 80vh">
+    <v-card class="dialog-card d-flex flex-column" style="height: 85vh">
       <v-toolbar color="primary" density="compact">
         <v-toolbar-title class="text-subtitle-1 font-weight-bold">
           🔍 {{ titleText }}
         </v-toolbar-title>
-
         <v-spacer></v-spacer>
         <v-btn
           icon="mdi-close"
@@ -23,7 +22,7 @@
       <v-card-text class="pa-4 d-flex flex-column flex-grow-1">
         <v-text-field
           v-model="searchKeyword"
-          label="Cari Kode atau Nama Bahan..."
+          :label="searchLabel"
           prepend-inner-icon="mdi-magnify"
           variant="outlined"
           density="compact"
@@ -31,11 +30,12 @@
           class="mb-4 flex-shrink-0"
           hide-details
           @keyup.enter="fetchBahanData"
+          autofocus
         ></v-text-field>
 
         <v-data-table
           :headers="headers"
-          :items="poList"
+          :items="listData"
           :loading="loading"
           hover
           class="desktop-table flex-grow-1 clickable-row"
@@ -45,34 +45,66 @@
           :items-per-page="15"
           @dblclick:row="handleDoubleClick"
         >
+          <template #item.Kode="{ item }">
+            <span
+              :class="item.Aktif === 'N' ? 'text-error font-weight-bold' : ''"
+            >
+              {{ item.Kode }}
+            </span>
+          </template>
+
+          <template #item.Nama="{ item }">
+            <span :class="item.Aktif === 'N' ? 'text-error' : ''">
+              {{ item.Nama }}
+            </span>
+          </template>
+
+          <template #item.Stok="{ item }">
+            <v-chip
+              :color="item.Stok && item.Stok > 0 ? 'success' : 'error'"
+              size="x-small"
+              label
+              variant="flat"
+            >
+              {{ item.Stok?.toLocaleString() || 0 }}
+            </v-chip>
+          </template>
+
           <template #item.actions="{ item }">
-            <div class="text-center">
-              <v-btn
-                color="success"
-                size="x-small"
-                @click.stop="selectBahan(item as MasterBahan)"
-                variant="tonal"
-              >
-                Pilih
-              </v-btn>
-            </div>
+            <v-btn
+              color="primary"
+              size="x-small"
+              @click.stop="selectBahan(item as MasterBahan)"
+              variant="elevated"
+              prepend-icon="mdi-check-circle"
+            >
+              Pilih
+            </v-btn>
           </template>
 
           <template #no-data>
-            <div class="text-center pa-4">Tidak ada data bahan ditemukan.</div>
+            <div class="text-center pa-10">
+              <v-icon size="large" color="grey">mdi-database-off</v-icon>
+              <div class="text-grey mt-2">
+                Data tidak ditemukan atau gudang belum dipilih.
+              </div>
+            </div>
           </template>
 
           <template #loading>
-            <v-progress-linear
-              indeterminate
-              color="primary"
-            ></v-progress-linear>
+            <v-skeleton-loader type="table-row-divider@5"></v-skeleton-loader>
           </template>
         </v-data-table>
       </v-card-text>
 
-      <v-card-actions class="d-flex justify-end">
-        <v-btn @click="emit('close')" color="secondary" variant="flat"
+      <v-divider></v-divider>
+      <v-card-actions class="pa-3">
+        <v-spacer />
+        <v-btn
+          @click="emit('close')"
+          color="secondary"
+          variant="outlined"
+          size="small"
           >Tutup</v-btn
         >
       </v-card-actions>
@@ -81,8 +113,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, defineProps, defineEmits, computed } from "vue";
-import axios, { AxiosError } from "axios";
+import { ref, watch, computed } from "vue";
+import { AxiosError } from "axios";
 import api from "@/services/api";
 import { useToast } from "vue-toastification";
 
@@ -94,17 +126,18 @@ interface MasterBahan {
   Panjang: number;
   Lebar: number;
   Stok?: number;
+  Aktif?: string; // Untuk indikator obat (Y/N)
 }
 
 interface ApiResponse {
-  message: string;
+  success: boolean;
   data: MasterBahan[];
 }
 
-// --- Props ---
+// --- Props & Emits ---
 const props = defineProps<{
   isVisible: boolean;
-  mode: "mmt" | "produksi"; // <── MODE BARU
+  mode: "mmt" | "produksi" | "obat"; // <── Tambah mode obat
 }>();
 
 const emit = defineEmits<{
@@ -114,69 +147,100 @@ const emit = defineEmits<{
 
 const toast = useToast();
 
-// --- Dynamic Title ---
+// --- Computed State ---
 const titleText = computed(() => {
-  return props.mode === "produksi"
-    ? "Pencarian Bahan Produksi (GPM)"
-    : "Pencarian Master Bahan MMT (WH-16)";
+  switch (props.mode) {
+    case "produksi":
+      return "Pencarian Sisa Produksi (GUDANG GPM)";
+    case "obat":
+      return "Pencarian Master Tinta / Obat (TABLE TOBAT)";
+    default:
+      return "Pencarian Master Bahan MMT (WH-16)";
+  }
 });
 
-// --- API berdasarkan mode ---
+const searchLabel = computed(() => {
+  return props.mode === "obat"
+    ? "Cari Nama Tinta atau Kode Obat..."
+    : "Cari Kode atau Nama Bahan...";
+});
+
+// Mapping API URL sesuai struktur index.js Express Anda
 const API_URL = computed(() => {
-  // Jika mode produksi ke /mmt/produksi
-  // Jika mode mmt (biasa), arahkan ke root '/' untuk memanggil getMasterBahan
-  return props.mode === "produksi"
-    ? "/master/bahan/mmt/produksi"
-    : "/master/bahan/mmt";
+  // Debug: Cek apakah mode yang diterima sudah benar "obat" saat pilih WH-20
+  console.log("Mode Modal Aktif:", props.mode);
+
+  switch (props.mode) {
+    case "obat":
+      // Sesuaikan dengan route di index.js Anda: app.use("/api/mmt/master-obat", ...)
+      return "/master/bahan/obat";
+    case "produksi":
+      return "/master/bahan/mmt/produksi";
+    default:
+      // Inilah kenapa Anda selalu mendapatkan data MMT (WH-16)
+      return "/master/bahan/mmt";
+  }
 });
 
-// --- State ---
-const poList = ref<MasterBahan[]>([]);
+// --- Data State ---
+const listData = ref<MasterBahan[]>([]);
 const searchKeyword = ref("");
 const loading = ref(false);
 
-// --- Header Table ---
 const headers = [
-  { title: "Kode", key: "Kode", width: "150px" },
-  { title: "Nama Bahan", key: "Nama", width: "250px" },
-  { title: "Panjang", key: "Panjang", width: "80px" },
-  { title: "Lebar", key: "Lebar", width: "80px" },
-  { title: "Stok", key: "Stok", width: "80px" },
-  { title: "Satuan", key: "Satuan", width: "80px" },
-  { title: "Aksi", key: "actions", width: "100px", sortable: false },
+  { title: "Kode", key: "Kode", width: "130px", sortable: true },
+  {
+    title: "Nama Barang / Bahan",
+    key: "Nama",
+    minWidth: "250px",
+    sortable: true,
+  },
+  { title: "Satuan", key: "Satuan", width: "90px" },
+  { title: "P (m)", key: "Panjang", width: "80px", align: "end" as const },
+  { title: "L (m)", key: "Lebar", width: "80px", align: "end" as const },
+  { title: "Stok", key: "Stok", width: "100px", align: "end" as const },
+  {
+    title: "Aksi",
+    key: "actions",
+    width: "100px",
+    sortable: false,
+    align: "center" as const,
+  },
 ];
 
-// --- Fetch Data ---
+// --- Methods ---
 const fetchBahanData = async () => {
+  if (!props.isVisible) return;
   loading.value = true;
 
   try {
     const response = await api.get<ApiResponse>(API_URL.value, {
       params: { q: searchKeyword.value },
     });
-
-    poList.value = response.data.data || [];
+    listData.value = response.data.data || [];
   } catch (error) {
     const err = error as AxiosError;
-    toast.error(err.response?.data?.message || "Gagal mengambil data bahan.");
-    poList.value = [];
+    const msg =
+      (err.response?.data as any)?.message || "Gagal mengambil data master.";
+    toast.error(msg);
+    listData.value = [];
   } finally {
     loading.value = false;
   }
 };
 
-// --- Pilih Data ---
 const selectBahan = (bahan: MasterBahan) => {
-  if (!bahan.Kode) {
-    toast.error("Kode bahan tidak ditemukan.");
-    return;
+  if (!bahan.Kode) return toast.error("Data tidak valid.");
+
+  // Jika obat non-aktif, beri peringatan tapi tetap izinkan atau blokir sesuai kebutuhan bisnis
+  if (bahan.Aktif === "N") {
+    if (!confirm("Bahan ini berstatus NON-AKTIF. Tetap pilih?")) return;
   }
 
   emit("select", bahan);
   emit("close");
 };
 
-// --- Fungsi Baru: Handle Double Click pada Baris ---
 const handleDoubleClick = (
   _event: MouseEvent,
   { item }: { item: MasterBahan },
@@ -184,48 +248,52 @@ const handleDoubleClick = (
   selectBahan(item);
 };
 
-// --- Watch Modal Open ---
+// --- Watchers ---
 watch(
   () => props.isVisible,
-  (v) => {
-    if (v) {
+  (newVal) => {
+    if (newVal) {
       searchKeyword.value = "";
       fetchBahanData();
     } else {
-      poList.value = [];
+      listData.value = [];
     }
   },
 );
 </script>
 
 <style scoped>
-/* Styling disesuaikan dengan Vuetify 3 */
 .dialog-card {
   font-size: 13px;
 }
 .desktop-table {
   font-size: 12px;
 }
-.desktop-table :deep(td),
-.desktop-table :deep(th) {
-  padding: 0 8px !important;
-  height: 35px !important;
+/* Styling Row & Header Vuetify 3 */
+.desktop-table :deep(td) {
+  padding: 0 12px !important;
+  height: 40px !important;
+  border-bottom: 1px solid #eee !important;
 }
 .desktop-table :deep(thead th) {
-  background-color: #f5f5f5 !important;
-  font-weight: bold;
+  background-color: #f8f9fa !important;
+  font-weight: 700 !important;
   color: #333 !important;
+  text-transform: uppercase;
+  font-size: 11px;
+  letter-spacing: 0.5px;
 }
 
-/* Tambahkan ini untuk efek kursor dan hover */
 .clickable-row :deep(tbody tr):hover {
   cursor: pointer !important;
+  background-color: #f1f5f9 !important;
 }
 
 .clickable-row :deep(tbody tr):active {
-  background-color: #e3f2fd !important;
+  background-color: #e2e8f0 !important;
 }
-.flex-grow-1 {
-  height: 100%;
+
+.text-error {
+  color: #d32f2f !important;
 }
 </style>

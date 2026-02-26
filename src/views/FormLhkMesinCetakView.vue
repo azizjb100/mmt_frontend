@@ -19,6 +19,16 @@
       >
         <v-icon start>mdi-content-save-check</v-icon> Simpan Hasil
       </v-btn>
+      <v-btn
+        v-if="isEditMode"
+        size="small"
+        color="success"
+        @click="handleApprove"
+        :loading="isSaving"
+        class="mr-2"
+      >
+        <v-icon start>mdi-check-decagram</v-icon> ACC Admin
+      </v-btn>
 
       <v-btn size="small" @click="handleCancel" :disabled="isSaving">
         <v-icon start>mdi-close</v-icon> Batal (F7)
@@ -1032,6 +1042,72 @@ const getTileInRow = (item: any, currentRow: number) => {
   }
 
   return item.tile;
+};
+
+const handleApprove = async () => {
+  // 1. Validasi awal
+  if (!formData.nomor || formData.nomor === "AUTO") {
+    toast.error("Data belum tersimpan. Simpan sebagai Draft terlebih dahulu.");
+    return;
+  }
+
+  // 2. Konfirmasi
+  const confirmAcc = confirm(
+    `Apakah Anda yakin ingin melakukan ACC pada LHK No: ${formData.nomor}?\nData akan otomatis direkap ke Admin.`,
+  );
+
+  if (!confirmAcc) return;
+
+  isSaving.value = true;
+  try {
+    const currentUser = authStore.user?.kdUser || "SYSTEM";
+
+    // Kita panggil handleSave dengan status 'APPROVED' atau status lain sesuai standar backend Anda
+    // Jika backend sudah mendukung auto-rekap saat POSTED, Anda bisa langsung panggil handleSave('POSTED')
+
+    const payload = {
+      header: {
+        ltanggal: formData.tanggal,
+        lgdg_prod: "GPM",
+        lmesin: formData.mesin,
+        lshift: formData.shift,
+        loperator: formData.operator,
+        lbahan: formData.kode_bahan_aktif,
+        lbarcode_roll: formData.barcode_input,
+        lstatus: "APPROVED", // Status khusus untuk trigger rekap
+        luser_modified: currentUser,
+        lpanjang_afal: panjangSisaLayoutGanjil.value,
+        llebar_afal: lebarSisaLayoutGanjil.value,
+      },
+      details: detailData.map((d) => ({
+        nomor_spk: d.nomor_spk,
+        tile: d.tile,
+        jumlah: d.jumlah,
+        luasm2: d.total_luas,
+        padding: d.padding,
+        // ... sisa mapping detail seperti handleSave ...
+        cetak1: d.cetak1,
+        cetak2: d.cetak2,
+        cetak3: d.cetak3,
+        cetak4: d.cetak4,
+        cetak5: d.cetak5,
+        cetak6: d.cetak6,
+        cetak7: d.cetak7,
+      })),
+      existingNomor: formData.nomor,
+    };
+
+    const response = await api.post("/mmt/lhk-cetak", payload);
+
+    if (response.data.success) {
+      toast.success("LHK Berhasil di-ACC. Rekap otomatis telah dibuat.");
+      router.push("/mmt/lhk/cetak"); // Kembali ke list
+    }
+  } catch (error: any) {
+    toast.error(error.response?.data?.message || "Gagal memproses ACC.");
+  } finally {
+    isSaving.value = false;
+  }
 };
 
 const handleBarcodeScan = async () => {
