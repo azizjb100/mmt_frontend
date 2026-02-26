@@ -343,6 +343,14 @@ const onGridReady = (e: GridReadyEvent) => {
     applyPaginationSize();
 };
 
+const onPaginationChanged = () => {
+    if (!gridApi.value) return;
+    const size = gridApi.value.paginationGetPageSize();
+    if (size && size !== itemsPerPage.value) {
+        itemsPerPage.value = size;
+    }
+};
+
 const getEffectivePageSize = () => {
     if (itemsPerPage.value === -1) {
         return Math.max(allData.value.length, 1);
@@ -450,18 +458,6 @@ onMounted(fetchReport);
 
                     <v-spacer />
 
-                    <v-select
-                        v-model="itemsPerPage"
-                        :items="itemsPerPageOptions"
-                        item-title="title"
-                        item-value="value"
-                        label="Item / page"
-                        density="compact"
-                        hide-details
-                        variant="outlined"
-                        style="max-width: 140px"
-                    />
-
                     <v-text-field
                         v-model="searchQuery"
                         prepend-inner-icon="mdi-magnify"
@@ -496,9 +492,10 @@ onMounted(fetchReport);
                             ? Math.max(allData.length, 1)
                             : itemsPerPage
                     "
-                    :paginationPageSizeSelector="false"
+                    :paginationPageSizeSelector="[10, 25, 50, 100]"
                     rowSelection="single"
                     @grid-ready="onGridReady"
+                    @pagination-changed="onPaginationChanged"
                 />
             </v-card>
         </div>
@@ -541,7 +538,7 @@ onMounted(fetchReport);
     height: 100%;
     --ag-background-color: #e5e5e5;
     --ag-foreground-color: #0f172a;
-    --ag-header-background-color: #74addc;
+    --ag-header-background-color: #74a83c6fcddc;
     --ag-header-foreground-color: #ffffff;
     --ag-header-column-separator-color: #93bddf;
     --ag-odd-row-background-color: #e5e5e5;
@@ -570,7 +567,7 @@ onMounted(fetchReport);
 }
 
 .mmt-ag-grid :deep(.ag-header) {
-    background: #74addc;
+    background: #83c6fc;
 }
 
 .mmt-ag-grid :deep(.ag-header-cell-label) {
