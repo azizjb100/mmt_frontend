@@ -46,6 +46,16 @@ const kategoriOptions = ref([]);
 const jenisOptions = ref([]);
 const gudangOptions = ref([]);
 const supplierOptions = ref([]);
+const satuanOptions = ref([
+    "ROLL",
+    "M",
+    "Y",
+    "PCS",
+    "PACK",
+    "BOTOL",
+    "MILILITER",
+    "BOX",
+]);
 
 const isGudangLookupOpen = ref(false);
 const isSupplierLookupOpen = ref(false);
@@ -57,6 +67,7 @@ function createExtraRow() {
     return {
         kode: "",
         nama: "",
+        satuan: "ROLL",
         gudangKode: "WH-16",
         gudangNama: "",
         supplierKode: null,
@@ -103,6 +114,28 @@ function syncSupplierNama() {
     );
     formData.value.supplierNama =
         found?.Nama ?? formData.value.supplierNama ?? "";
+}
+
+async function ensureSupplierNamaFromKode() {
+    const kode = normalizeLookupCode(formData.value.supplierKode);
+    if (!kode || formData.value.supplierNama) return;
+
+    try {
+        const res = await api.get(`${API_MASTERBAHAN}/lookup/supplier`, {
+            params: { q: kode },
+        });
+
+        const items = Array.isArray(res.data?.data) ? res.data.data : [];
+        const exact = items.find((x) => String(x?.Kode ?? "") === String(kode));
+        const found = exact ?? items[0];
+
+        if (found?.Nama) {
+            formData.value.supplierNama = String(found.Nama);
+            supplierOptions.value = [found];
+        }
+    } catch {
+        // biarkan kosong jika lookup gagal
+    }
 }
 
 function resetForm() {
@@ -196,7 +229,7 @@ function buildPayloadFromRow(row, editMode = false) {
     return {
         Kode: String(row?.kode || "").trim(),
         Nama: String(row?.nama || "").trim(),
-        Satuan: "ROLL",
+        Satuan: String(row?.satuan || formData.value.satuan || "ROLL").trim(),
         Panjang: Number(row?.panjang || 0),
         Lebar: Number(row?.lebar || 0),
         Stok: 0,
@@ -225,7 +258,11 @@ async function loadMasterData() {
         ]);
 
         divisiOptions.value = Array.isArray(divisi.data?.data)
-            ? divisi.data.data
+            ? divisi.data.data.map((item) => ({
+                  ...item,
+                  // Samakan tipe dengan v-model (string) agar label yang tampil adalah Nama, bukan Kode
+                  Kode: String(item?.Kode ?? ""),
+              }))
             : [];
         kategoriOptions.value = Array.isArray(kategori.data?.data)
             ? kategori.data.data
@@ -258,7 +295,7 @@ async function loadFormData(kode) {
         ...formData.value,
         kode: String(data.Kode ?? kode),
         nama: String(data.Nama ?? ""),
-        satuan: "ROLL",
+        satuan: String(data.Satuan ?? "ROLL"),
         panjang: Number(data.Panjang ?? 0),
         lebar: Number(data.Lebar ?? 0),
         gudangKode: normalizeLookupCode(data.GdgDefault) ?? "WH-16",
@@ -283,6 +320,7 @@ async function loadFormData(kode) {
         ];
     }
 
+    await ensureSupplierNamaFromKode();
     syncGudangNama();
 }
 
@@ -304,6 +342,7 @@ async function saveForm(andNew) {
                 {
                     kode: formData.value.kode,
                     nama: formData.value.nama,
+                    satuan: formData.value.satuan,
                     gudangKode: formData.value.gudangKode,
                     supplierKode: formData.value.supplierKode,
                     panjang: formData.value.panjang,
@@ -320,6 +359,7 @@ async function saveForm(andNew) {
                 {
                     kode: formData.value.kode,
                     nama: formData.value.nama,
+                    satuan: formData.value.satuan,
                     gudangKode: formData.value.gudangKode,
                     supplierKode: formData.value.supplierKode,
                     panjang: formData.value.panjang,
@@ -538,11 +578,7 @@ onBeforeUnmount(() => {});
                             <!-- supplier -->
                             <v-col cols="2" class="px-1 td-col">
                                 <v-text-field
-                                    :model-value="
-                                        formData.supplierNama ||
-                                        formData.supplierKode ||
-                                        ''
-                                    "
+                                    :model-value="formData.supplierNama || ''"
                                     placeholder="Cari supplier..."
                                     variant="plain"
                                     density="compact"
@@ -556,15 +592,13 @@ onBeforeUnmount(() => {});
 
                             <!-- satuan -->
                             <v-col cols="1" class="px-1 td-col">
-                                <v-text-field
-                                    model-value="ROLL"
-                                    variant="outlined"
-                                    bg-color="grey-lighten-2"
+                                <v-select
+                                    v-model="formData.satuan"
+                                    :items="satuanOptions"
+                                    variant="plain"
                                     density="compact"
                                     hide-details
-                                    class="plain-input text-center readonly-roll"
-                                    style="text-align: center"
-                                    readonly
+                                    class="plain-input text-center"
                                 />
                             </v-col>
 
@@ -671,14 +705,13 @@ onBeforeUnmount(() => {});
                             </v-col>
 
                             <v-col cols="1" class="px-1 td-col">
-                                <v-text-field
-                                    model-value="ROLL"
-                                    variant="outlined"
-                                    bg-color="grey-lighten-3"
+                                <v-select
+                                    v-model="row.satuan"
+                                    :items="satuanOptions"
+                                    variant="plain"
                                     density="compact"
                                     hide-details
-                                    class="plain-input text-center readonly-roll"
-                                    readonly
+                                    class="plain-input text-center"
                                 />
                             </v-col>
 
