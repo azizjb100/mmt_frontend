@@ -78,7 +78,7 @@ interface MasterBarang {
     [key: string]: any;
 }
 
-const API_MASTER_BARANG = "/master/bahan";
+const API_MASTER_BARANG = "/master/bahan/mmt";
 const FORM_NAME = "frmBrowBarang";
 
 const router = useRouter();

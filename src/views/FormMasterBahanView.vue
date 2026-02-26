@@ -247,7 +247,9 @@ async function loadMasterData() {
 
 async function loadFormData(kode) {
     if (!kode) return;
-    const res = await api.get(`${API_MASTERBAHAN}/${encodeURIComponent(kode)}`);
+    const res = await api.get(
+        `${API_MASTERBAHAN}/mmt/${encodeURIComponent(kode)}`,
+    );
     const data = res.data?.data;
     if (!data?.Kode) return;
 
