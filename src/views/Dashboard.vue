@@ -106,6 +106,24 @@ const rolePermissions = {
     "Lap. Mon LMKP MMT",
   ],
   2: ["File", "Ganti Password", "Customer", "Sales", "Laporan", "Penjualan"],
+  4: [
+    "Daftar",
+    "Daftar Permintaan Pembelian",
+    "Purchase Order (PR)",
+    "Penerimaan Bahan",
+    "Permintaan Produksi",
+    "Realisasi Produksi",
+    "Stok Opname",
+    "Koreksi Stok",
+    "LHK",
+    "LHK Mesin Cetak",
+    "LHK Kain",
+    "Laporan",
+    "Produksi MMT",
+    "LS Bahan Utama",
+    "LS Bahan Penolong",
+    "Lap. Mon LMKP MMT",
+  ],
 };
 
 const handleLogout = () => {

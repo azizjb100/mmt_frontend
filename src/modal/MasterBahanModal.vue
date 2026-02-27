@@ -214,12 +214,33 @@ const fetchBahanData = async () => {
   loading.value = true;
 
   try {
-    const response = await api.get<ApiResponse>(API_URL.value, {
-      params: { q: searchKeyword.value },
+    // 1. Kirim request ke API
+    const response = await api.get<any>(API_URL.value, {
+      params: {
+        q: searchKeyword.value, // Untuk mode pencarian obat/mmt
+        keyword: searchKeyword.value, // Beberapa backend menggunakan 'keyword'
+      },
     });
-    listData.value = response.data.data || [];
+
+    // 2. Ambil array data (asumsi struktur response: { data: [...] } atau { data: { data: [...] } })
+    const rawData = response.data.data || response.data || [];
+
+    // 3. Normalisasi Data (Mapping)
+    // Ini memastikan apapun nama kolom dari DB, frontend tetap menerima properti yang sama
+    listData.value = rawData.map((item: any) => ({
+      ...item,
+      // Cek semua kemungkinan nama kolom dari backend (tobat vs tbarang_mmt)
+      Kode: item.Kode || item.brg_kode || item.o_kode || item.sku,
+      Nama: item.Nama || item.brg_nama || item.o_nama || item.namaBarang,
+      Satuan: item.Satuan || item.brg_satuan || item.o_satuan || "-",
+      Panjang: Number(item.Panjang || item.brg_panjang || 0),
+      Lebar: Number(item.Lebar || item.brg_lebar || 0),
+      Stok: Number(item.Stok || item.brg_stok || 0),
+      Aktif: item.Aktif || item.o_aktif || item.brg_isaktif || "Y",
+    }));
   } catch (error) {
     const err = error as AxiosError;
+    // Ambil pesan error dari backend jika ada
     const msg =
       (err.response?.data as any)?.message || "Gagal mengambil data master.";
     toast.error(msg);
