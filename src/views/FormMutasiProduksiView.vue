@@ -232,7 +232,6 @@ const handleBarcodeScan = async (index: number) => {
   }
 
   try {
-    // 2. Ambil data stok fisik dari API
     const response = await api.get(
       `${API_URL_REALISASI}/stok-barcode/${encodeURIComponent(barcodeValue)}`,
       { params: { gudang: formData.gudangKode } },
@@ -246,51 +245,51 @@ const handleBarcodeScan = async (index: number) => {
       return;
     }
 
-    // 3. LOGIKA PENCOCOKAN (Matching)
-    // Cari baris yang memiliki SKU sama (380GRF3270) DAN Barcode-nya masih kosong
     const matchIndex = formData.detail.findIndex(
       (d) => d.sku === bahan.Kode && (!d.barcode || d.barcode === ""),
     );
 
     if (matchIndex !== -1) {
-      // JIKA DITEMUKAN: Update baris tersebut
       const matchedRow = formData.detail[matchIndex];
 
       matchedRow.barcode = bahan.Barcode;
       matchedRow.Nama_Bahan = bahan.Nama_Bahan;
       matchedRow.satuan = bahan.Satuan;
-      matchedRow.Panjang = bahan.Panjang || 0;
-      matchedRow.Lebar = bahan.Lebar || 0;
-      matchedRow.stok = bahan.Stok || 0;
 
-      // PENTING: matchedRow.spk TIDAK BOLEH diubah agar tetap "MD-MX-000299"
+      // DISINI PERBAIKANNYA:
+      matchedRow.Panjang = Number(bahan.Panjang); // Ini akan jadi 4.5
+      matchedRow.Lebar = Number(bahan.Lebar);
+      matchedRow.stok = Number(bahan.Stok);
 
-      // Jika scan dilakukan di baris baru/paling bawah, kosongkan lagi baris tersebut
-      // agar operator bisa terus scan di baris yang sama.
+      // Qty tetap 1 sesuai permintaanmu
+      matchedRow.qty = 1;
+
       if (index !== matchIndex) {
         targetItem.barcode = "";
       }
 
-      toast.success(`Barcode cocok dengan SPK ${matchedRow.spk}`);
+      toast.success(`Barcode cocok! Sisa: ${bahan.Panjang}m`);
       focusNextBarcode(index - 1);
     } else {
-      // JIKA TIDAK ADA DI DAFTAR PERMINTAAN: Tambahkan sebagai baris baru
+      // Untuk item di luar daftar permintaan
       targetItem.barcode = bahan.Barcode;
       targetItem.sku = bahan.Kode;
       targetItem.Nama_Bahan = bahan.Nama_Bahan;
       targetItem.satuan = bahan.Satuan;
-      targetItem.Panjang = bahan.Panjang || 0;
-      targetItem.Lebar = bahan.Lebar || 0;
-      targetItem.stok = bahan.Stok || 0;
+      targetItem.Panjang = Number(bahan.Panjang);
+      targetItem.Lebar = Number(bahan.Lebar);
+      targetItem.stok = Number(bahan.Stok);
+
+      // Qty tetap 1
       targetItem.qty = 1;
-      // Hanya gunakan SPK dari stok jika bukan "0"
-      targetItem.spk = bahan.Nomor_SPK !== "0" ? bahan.Nomor_SPK : "";
+
+      targetItem.spk =
+        bahan.Nomor_SPK && bahan.Nomor_SPK !== "0" ? bahan.Nomor_SPK : "";
 
       if (index === formData.detail.length - 1) {
         addDetail();
       }
       focusNextBarcode(index);
-      toast.info("Item baru ditambahkan (di luar permintaan).");
     }
   } catch (err: any) {
     toast.error("Gagal verifikasi barcode.");
