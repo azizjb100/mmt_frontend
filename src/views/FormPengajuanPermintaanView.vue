@@ -344,8 +344,11 @@ const handlePabrikSelect = (pabrik: { Kode: string; Nama: string }) => {
 };
 
 const handleGudangAsalSelect = (gudang: { Kode: string; Nama: string }) => {
-  formData.gudangKode = gudang.Kode;
-  formData.gudangNama = gudang.Nama;
+  // Kita petakan ke field pabrikKode/pabrikNama agar konsisten dengan struktur payload Anda
+  // atau ganti labelnya saja di UI
+  formData.pabrikKode = gudang.Kode;
+  formData.pabrikNama = gudang.Nama;
+  formData.cabang = gudang.Nama;
   isGudangModalVisible.value = false;
 };
 
@@ -441,8 +444,8 @@ onMounted(() => {
               </v-col>
               <v-col cols="6">
                 <v-text-field
-                  label="Untuk Gudang"
-                  v-model="formData.gudangKode"
+                  label="Gudang Asal (Permintaan Ke)"
+                  v-model="formData.pabrikKode"
                   @click="!isLocked && (isGudangModalVisible = true)"
                   :append-inner-icon="isLocked ? '' : 'mdi-magnify'"
                   readonly
@@ -451,10 +454,11 @@ onMounted(() => {
                   hide-details
                 />
               </v-col>
-              <v-col cols="12">
+
+              <v-col cols="6">
                 <v-text-field
-                  label="Nama Gudang"
-                  v-model="formData.gudangNama"
+                  label="Gudang Tujuan"
+                  v-model="formData.gudangKode"
                   readonly
                   bg-color="grey-lighten-4"
                   density="compact"
@@ -463,6 +467,17 @@ onMounted(() => {
                 />
               </v-col>
 
+              <v-col cols="12">
+                <v-text-field
+                  label="Nama Gudang Asal"
+                  v-model="formData.pabrikNama"
+                  readonly
+                  bg-color="grey-lighten-4"
+                  density="compact"
+                  variant="outlined"
+                  hide-details
+                />
+              </v-col>
               <v-col cols="12">
                 <v-select
                   label="Jenis"

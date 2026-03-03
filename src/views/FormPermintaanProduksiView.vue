@@ -5,10 +5,10 @@ import api from "@/services/api";
 import PageLayout from "../components/PageLayout.vue";
 import MasterBahanModal from "@/modal/MasterBahanModal.vue";
 import SPKLookupModal from "@/modal/SpkLookupModal.vue";
+import GudangLookupModal from "@/modal/GudangLookupView.vue"; // Pastikan path benar
 import { format } from "date-fns";
 import { useToast } from "vue-toastification";
 
-// Interface disesuaikan dengan kebutuhan payload backend
 interface DetailPermintaan {
   sku: string;
   namaBahan: string;
@@ -16,13 +16,14 @@ interface DetailPermintaan {
   satuan: string;
   spk: string;
   keterangan: string;
-  barcode?: string; // Tambahan jika ada logic barcode
 }
 
 interface FormDataState {
   nomor: string;
   tanggal: string;
-  departemenPeminta: string;
+  departemenPeminta: string; // Lokasi Produksi/Unit
+  gudangAsalKode: string; // Tambahan untuk backend mnt_gdg_kode
+  gudangAsalNama: string; // Untuk tampilan UI
   keteranganHeader: string;
   detail: DetailPermintaan[];
 }
@@ -38,6 +39,7 @@ const isEditMode = ref(!!route.params.nomor);
 const isSaving = ref(false);
 const isBahanModalVisible = ref(false);
 const isSPKModalVisible = ref(false);
+const isGudangModalVisible = ref(false);
 const currentDetailIndex = ref<number | null>(null);
 
 const createEmptyDetail = (): DetailPermintaan => ({
@@ -53,13 +55,18 @@ const formData = reactive<FormDataState>({
   nomor: "AUTO",
   tanggal: format(new Date(), "yyyy-MM-dd"),
   departemenPeminta: "PRODUKSI MMT",
+  gudangAsalKode: "",
+  gudangAsalNama: "",
   keteranganHeader: "",
   detail: [createEmptyDetail()],
 });
 
 // --- Computed ---
 const isFormValid = computed(() => {
-  return formData.detail.some((d) => d.sku && d.qtyMinta > 0);
+  return (
+    formData.gudangAsalKode !== "" &&
+    formData.detail.some((d) => d.sku && d.qtyMinta > 0)
+  );
 });
 
 const detailHeaders = [
@@ -74,6 +81,7 @@ const detailHeaders = [
 ] as const;
 
 // --- Methods ---
+
 const addDetail = () => formData.detail.push(createEmptyDetail());
 
 const removeDetail = (index: number) => {
@@ -95,7 +103,6 @@ const handleBahanSelect = (bahan: any) => {
     item.sku = bahan.Kode;
     item.namaBahan = bahan.Nama;
     item.satuan = bahan.Satuan;
-    // item.barcode = bahan.Barcode; // Aktifkan jika backend butuh mntd_barcode
   }
   isBahanModalVisible.value = false;
 };
@@ -112,6 +119,42 @@ const handleSPKSelect = (spk: any) => {
   isSPKModalVisible.value = false;
 };
 
+const bahanModalMode = computed(() => {
+  const kode = formData.gudangAsalKode?.toUpperCase(); // Di sini sebelumnya 'header'
+  const nama = formData.gudangAsalNama?.toLowerCase() || "";
+
+  if (kode === "WH-20" || nama.includes("tinta") || nama.includes("obat")) {
+    return "obat";
+  }
+  if (kode === "GPM" || nama.includes("produksi")) {
+    return "produksi";
+  }
+  return "mmt";
+});
+
+// 2. Perbaiki handleGudangSelect (Ganti 'header' dan 'details' menjadi 'formData')
+const handleGudangSelect = (gudang: any) => {
+  // Cek jika sudah ada detail barang (sku tidak kosong)
+  const hasItems = formData.detail.some((d) => d.sku !== "");
+
+  if (hasItems && formData.gudangAsalKode !== gudang.Kode) {
+    if (
+      !confirm(
+        "Gudang diubah, daftar barang sebelumnya akan dikosongkan. Lanjutkan?",
+      )
+    ) {
+      isGudangModalVisible.value = false;
+      return;
+    }
+    // Reset detail
+    formData.detail = [createEmptyDetail()];
+  }
+
+  formData.gudangAsalKode = gudang.Kode;
+  formData.gudangAsalNama = gudang.Nama;
+  isGudangModalVisible.value = false;
+};
+
 const saveForm = async () => {
   if (!isFormValid.value) return;
 
@@ -121,9 +164,9 @@ const saveForm = async () => {
       Nomor: formData.nomor,
       Tanggal: formData.tanggal,
       Departemen: formData.departemenPeminta,
+      GudangKode: formData.gudangAsalKode, // Dikirim ke backend mnt_gdg_kode
       Keterangan: formData.keteranganHeader,
       User: "ADMIN_PROD",
-      // isUpdate jangan ditaruh di dalam payload jika backend memisahkan argumen
       Details: formData.detail
         .filter((d) => d.sku !== "")
         .map((d) => ({
@@ -135,8 +178,6 @@ const saveForm = async () => {
         })),
     };
 
-    // Pastikan Controller Backend Anda memanggil service dengan (payload, isUpdate)
-    // Jika API Anda menggunakan POST untuk save dan PUT untuk update:
     const response = isEditMode.value
       ? await api.put(`${API_URL}/${formData.nomor}`, payload)
       : await api.post(API_URL, payload);
@@ -146,7 +187,6 @@ const saveForm = async () => {
       router.push({ name: "PermintaanProduksiBrowse" });
     }
   } catch (error: any) {
-    console.error("Detail Error:", error.response?.data); // Cek console log untuk error SQL detail
     const errorMsg =
       error.response?.data?.message || "Gagal menyimpan permintaan.";
     toast.error(errorMsg);
@@ -155,7 +195,6 @@ const saveForm = async () => {
   }
 };
 
-// Hook untuk Edit Mode
 onMounted(async () => {
   if (isEditMode.value) {
     try {
@@ -163,23 +202,23 @@ onMounted(async () => {
       const response = await api.get(`${API_URL}/${nomor}`);
       const data = response.data;
 
-      // Mapping data dari backend ke form state
       formData.nomor = data.Nomor;
       formData.tanggal = data.Tanggal;
       formData.departemenPeminta = data.Lokasi;
+      formData.gudangAsalKode = data.GudangKode; // Pastikan backend mengirim ini
+      formData.gudangAsalNama = data.GudangNama;
       formData.keteranganHeader = data.Keterangan;
 
-      // Mapping detail (sesuaikan nama field dari query getPermintaanProduksiDataByNomor)
       formData.detail = data.Details.map((d: any) => ({
         sku: d.SKU,
-        namaBahan: "", // Jika perlu nama, backend harus JOIN ke tbarang
+        namaBahan: d.NamaBahan || "",
         qtyMinta: d.qtyMinta,
         satuan: d.satuan,
         spk: d.spk,
         keterangan: d.keterangan,
       }));
     } catch (error) {
-      toast.error("Gagal mengambil data detail untuk edit.");
+      toast.error("Gagal mengambil data detail.");
     }
   }
 });
@@ -227,11 +266,24 @@ onMounted(async () => {
           />
 
           <v-text-field
-            label="Lokasi Produksi / Unit"
+            label="Permintaan Ke Gudang (Asal)"
+            v-model="formData.gudangAsalNama"
+            readonly
+            density="compact"
+            variant="outlined"
+            placeholder="Pilih Gudang Sumber..."
+            prepend-inner-icon="mdi-warehouse"
+            append-inner-icon="mdi-magnify"
+            @click="isGudangModalVisible = true"
+            class="mb-2"
+            persistent-placeholder
+          />
+
+          <v-text-field
+            label="Lokasi Produksi (Peminta)"
             v-model="formData.departemenPeminta"
             density="compact"
             variant="outlined"
-            placeholder="Contoh: PRODUKSI MMT"
             class="mb-2"
           />
 
@@ -264,12 +316,10 @@ onMounted(async () => {
                 placeholder="Cari Bahan..."
                 readonly
                 append-inner-icon="mdi-magnify"
-                @click:append-inner="openBahanSearch(index)"
                 @click="openBahanSearch(index)"
                 density="compact"
                 variant="underlined"
                 hide-details
-                class="mt-0 pt-0"
               />
             </template>
 
@@ -280,7 +330,7 @@ onMounted(async () => {
                 density="compact"
                 variant="underlined"
                 hide-details
-                text-align="right"
+                class="text-right-input"
               />
             </template>
 
@@ -291,16 +341,6 @@ onMounted(async () => {
                 readonly
                 append-inner-icon="mdi-card-search-outline"
                 @click="openSPKSearch(index)"
-                density="compact"
-                variant="underlined"
-                hide-details
-              />
-            </template>
-
-            <template #[`item.keterangan`]="{ item }">
-              <v-text-field
-                v-model="item.keterangan"
-                placeholder="Catatan..."
                 density="compact"
                 variant="underlined"
                 hide-details
@@ -321,11 +361,11 @@ onMounted(async () => {
               <v-divider />
               <v-btn
                 block
-                color="blue-grey-lighten-4"
+                color="blue-grey-lighten-5"
                 variant="flat"
                 prepend-icon="mdi-plus"
-                class="rounded-0"
                 @click="addDetail"
+                class="rounded-0"
               >
                 Tambah Baris
               </v-btn>
@@ -336,10 +376,18 @@ onMounted(async () => {
     </v-row>
 
     <MasterBahanModal
-      :isVisible="isBahanModalVisible"
+      :is-visible="isBahanModalVisible"
+      :mode="bahanModalMode"
       @close="isBahanModalVisible = false"
       @select="handleBahanSelect"
     />
+
+    <GudangLookupModal
+      :isVisible="isGudangModalVisible"
+      @close="isGudangModalVisible = false"
+      @select="handleGudangSelect"
+    />
+
     <SPKLookupModal
       :isVisible="isSPKModalVisible"
       @close="isSPKModalVisible = false"
@@ -347,3 +395,9 @@ onMounted(async () => {
     />
   </PageLayout>
 </template>
+
+<style scoped>
+:deep(.text-right-input input) {
+  text-align: right !important;
+}
+</style>

@@ -74,13 +74,28 @@ const summaryTotals = computed(() => {
     (acc, item) => {
       acc.awalQ += Number(item.stok_awal || 0);
       acc.awalM += Number(item.stok_Awal2 || 0);
-      acc.terimaQ += Number(item.terima || 0); // Tambahan
-      acc.keluarQ += Number(item.keluar || 0); // Tambahan
+      acc.terimaQ += Number(item.terima || 0);
+      acc.terimaM += Number(item.terima2 || 0);
+      acc.keluarQ += Number(item.keluar || 0);
+      acc.keluarM += Number(item.keluar2 || 0);
+      acc.returQ += Number(item.Retur_Prod || 0);
+      acc.returM += Number(item.retur_prod2 || 0);
       acc.akhirQ += Number(item.Stok_Akhir || 0);
       acc.akhirM += Number(item.stok_akhir2 || 0);
       return acc;
     },
-    { awalQ: 0, awalM: 0, terimaQ: 0, keluarQ: 0, akhirQ: 0, akhirM: 0 },
+    {
+      awalQ: 0,
+      awalM: 0,
+      terimaQ: 0,
+      terimaM: 0,
+      keluarQ: 0,
+      keluarM: 0,
+      returQ: 0,
+      returM: 0,
+      akhirQ: 0,
+      akhirM: 0,
+    },
   );
 });
 
@@ -195,13 +210,35 @@ onMounted(fetchReport);
           <template #tfoot>
             <tr class="footer-summary bg-grey-lighten-3">
               <td colspan="5" class="text-right font-weight-bold">TOTAL</td>
+
               <td class="text-right font-weight-bold">
                 {{ nFormat(summaryTotals.awalQ) }}
               </td>
               <td class="text-right font-weight-bold">
                 {{ nFormat(summaryTotals.awalM) }}
               </td>
-              <td colspan="6"></td>
+
+              <td class="text-right font-weight-bold">
+                {{ nFormat(summaryTotals.terimaQ) }}
+              </td>
+              <td class="text-right font-weight-bold">
+                {{ nFormat(summaryTotals.terimaM) }}
+              </td>
+
+              <td class="text-right font-weight-bold">
+                {{ nFormat(summaryTotals.keluarQ) }}
+              </td>
+              <td class="text-right font-weight-bold">
+                {{ nFormat(summaryTotals.keluarM) }}
+              </td>
+
+              <td class="text-right font-weight-bold">
+                {{ nFormat(summaryTotals.returQ) }}
+              </td>
+              <td class="text-right font-weight-bold">
+                {{ nFormat(summaryTotals.returM) }}
+              </td>
+
               <td class="text-right font-weight-bold">
                 {{ nFormat(summaryTotals.akhirQ) }}
               </td>

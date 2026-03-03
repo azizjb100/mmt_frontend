@@ -300,7 +300,7 @@
                 <v-text-field
                   v-model.number="item.harga"
                   type="number"
-                  :disabled="!user.canSeePrice"
+                  :suffix="item.satuanHarga === 'm2' ? '/m²' : '/qty'"
                   @update:modelValue="hitung"
                   variant="plain"
                   density="compact"
@@ -598,6 +598,7 @@ interface MasterBahan {
   Satuan: string;
   Panjang: number;
   Lebar: number;
+  brg_satuan_harga?: string;
   [key: string]: string | number | undefined;
 }
 
@@ -619,6 +620,7 @@ interface DetailItem {
   total: number;
   spk: string;
   mb_nomor?: string;
+  satuanHarga: string;
 }
 
 interface CommitmentItem {
@@ -801,32 +803,27 @@ const handleAccManager = async () => {
 
 const calculateTotal = (item: DetailItem): number => {
   const qty = Number(item.jumlah) || 0;
-  const m2 = Number(item.m2) || 0;
+  const m2Total = Number(item.m2) || 0;
   const harga = Number(item.harga) || 0;
   const diskon = Number(item.diskon) || 0;
 
-  // 1. Hitung Harga Bersih (DPP) jika PPN aktif (Asumsi Harga Include PPN)
   let hargaBersih = harga;
   if (formData.isPpn && formData.ppnRate > 0) {
     hargaBersih = harga / (1 + formData.ppnRate / 100);
   }
 
-  // 2. Logika Perhitungan Spesifik
   let bruto = 0;
-  const satuan = (item.satuan || "").toUpperCase().trim();
+  const modeHarga = (item.satuanHarga || "").toLowerCase().trim();
 
-  if (satuan === "ROLL") {
-    // KHUSUS ROLL: Qty x M2 x Harga
-    bruto = qty * m2 * hargaBersih;
+  if (modeHarga === "m2") {
+    // Qty * (P*L) * Harga
+    bruto = qty * m2Total * hargaBersih;
   } else {
-    // SEMUA SATUAN LAIN (Pcs, Mtr, Kg, dll): Qty x Harga
+    // Qty * Harga
     bruto = qty * hargaBersih;
   }
 
-  // 3. Potong Diskon
-  const net = bruto * (1 - diskon / 100);
-
-  return net;
+  return bruto * (1 - diskon / 100);
 };
 
 const hitung = () => {
@@ -1165,8 +1162,6 @@ const handleSelectPermintaan = async (permintaanItem: LookupItem) => {
       `${API_UNFULFILLED_MB_DETAIL}/${encodeURIComponent(nomorPermintaan)}`,
     );
 
-    // 1. Ambil data dengan aman.
-    // Jika Postman return [ { Nomor: ... } ], maka kita ambil index 0.
     const rawData = response.data;
     const resData = Array.isArray(rawData) ? rawData[0] : rawData;
 
@@ -1175,44 +1170,55 @@ const handleSelectPermintaan = async (permintaanItem: LookupItem) => {
       return;
     }
 
-    // 2. Mapping ke formData
     formData.nomorPermintaan = nomorPermintaan;
 
     // Bersihkan detail lama, isi dengan yang baru
     formData.detail = resData.Detail.map((d: any) => {
-      const p = parseFloat(d.Panjang) || 0;
-      const l = parseFloat(d.Lebar) || 0;
-      const qty = parseFloat(d.Jumlah) || 0; // ✅ ini qty roll
+      const p = parseFloat(d.Panjang || d.brg_panjang) || 0;
+      const l = parseFloat(d.Lebar || d.brg_lebar) || 0;
+      const qty = parseFloat(d.Jumlah) || 0; // Ini qty roll
 
-      const m2 = p * l;
-
-      return {
+      // Objek item baru
+      const newItem = {
         ...createEmptyDetail(),
         kode: d.Kode,
         nama: d.Nama_Bahan,
+        // FIX NAMA: Harus diisi ke namaext agar tampil di tabel
         namaext: d.Nama_Bahan,
         satuan: d.Satuan,
 
+        // FIX PERKALIAN: Ambil satuan harga dari database (M2 atau ROLL)
+        // d.brg_satuan_harga harus dikirim oleh API backend
+        satuanHarga: (d.brg_satuan_harga || "roll").toLowerCase(),
+
         panjang: p,
         lebar: l,
-        m2: m2,
+        m2: p * l, // Hitung luas per roll
 
-        jumlah: qty, // ✅ qty roll (BUKAN m2)
-
+        jumlah: qty, // Qty Roll
         spk: d.Nomor_SPK || "",
         mb_nomor: nomorPermintaan,
-        harga: 0,
+
+        // Harga biasanya 0 atau ambil dari master
+        harga: parseFloat(d.Harga_Master || d.brg_hrgbeli) || 0,
         total: 0,
       };
+
+      // Hitung total awal untuk baris ini
+      newItem.total = calculateTotal(newItem as DetailItem);
+
+      return newItem;
     });
 
-    // Tambahkan baris kosong di akhir
+    // Tambahkan baris kosong di akhir untuk input baru
     formData.detail.push(createEmptyDetail());
 
-    hitung(); // Trigger hitung grand total
-    toast.success("Data berhasil ditarik.");
+    // Trigger hitung grand total
+    hitung();
+
+    toast.success("Data permintaan berhasil ditarik.");
   } catch (error) {
-    console.error("Error Load Detail:", error);
+    console.error("Error Load Detail Permintaan:", error);
     toast.error("Gagal memuat detail permintaan.");
   }
   isPermintaanSearchVisible.value = false;
@@ -1414,59 +1420,67 @@ const closeBahanModal = () => {
   isBahanModalVisible.value = false;
 };
 
-// Sekitar baris 840 (Fungsi handleBahanSelect)
-
 const handleBahanSelect = async (bahan: MasterBahan) => {
   const index = currentDetailIndex.value;
 
-  // FIX 1: Validasi Kritis - Pastikan index valid dan array detail memiliki elemen di index tersebut.
+  // 1. Validasi Kritis
   if (index === null || !bahan.Kode || formData.detail.length === 0) {
-    toast.error(
-      "Gagal memproses data bahan: Baris tidak ditemukan atau Kode Bahan kosong.",
-    );
+    toast.error("Gagal memproses data bahan: Baris tidak ditemukan.");
     closeBahanModal();
     return;
   }
 
-  // FIX 2: Akses elemen array dengan aman (menggunakan index yang sudah divalidasi)
+  // 2. Akses elemen array
   const currentItem = formData.detail[index];
-
   let targetIndex = index;
 
-  // Logic Override/Add: Jika baris saat ini sudah terisi dan kodenya berbeda,
-  // tambahkan baris baru untuk menampung item baru.
+  // Jika baris yang diklik sudah ada isinya (kode berbeda), tambah baris baru
   if (currentItem.kode && currentItem.kode !== bahan.Kode) {
     addDetail();
     targetIndex = formData.detail.length - 1;
   }
 
-  // Pastikan baris yang akan diisi ada
   const targetItem = formData.detail[targetIndex];
-  if (!targetItem) return; // Guard tambahan jika terjadi error pada addDetail
+  if (!targetItem) return;
 
-  // 3. Isi Data Form
+  // 3. Isi Data Form (Sinkronisasi property agar Nama tampil & Perhitungan M2 jalan)
   targetItem.kode = bahan.Kode;
-  targetItem.nama = bahan.Nama || ""; // Ambil dari modal
+  targetItem.nama = bahan.Nama || "";
+
+  // FIX NAMA: Isi namaext karena template menggunakan v-model="item.namaext"
   targetItem.namaext =
     formData.jenisPo === 1 ? `GREIGE ${bahan.Nama || ""}` : bahan.Nama || "";
+
   targetItem.satuan = bahan.Satuan || "";
-  targetItem.gramasi = bahan.Gramasi || "";
-  targetItem.seting = bahan.Setting || "";
-  // Harga Beli harus disesuaikan jika modal Bahan MMT sudah mengembalikan 'Harga'
-  targetItem.harga = (bahan as any).Harga || 0;
 
-  targetItem.jumlah = 1;
+  // FIX PERHITUNGAN: Ambil mode harga dari database (M2 atau ROLL)
+  // Ini yang menentukan apakah nanti dikali Luas (P*L) atau cuma kali Qty
+  targetItem.satuanHarga = (bahan as any).brg_satuan_harga || "roll";
+
+  // Dimensi untuk perhitungan M2
+  targetItem.panjang = Number(bahan.Panjang) || 0;
+  targetItem.lebar = Number(bahan.Lebar) || 0;
+  targetItem.m2 = targetItem.panjang * targetItem.lebar; // Luas per roll
+
+  // Info tambahan
+  targetItem.gramasi = (bahan as any).Gramasi || "";
+  targetItem.seting = (bahan as any).Setting || "";
+
+  // Harga & Qty
+  targetItem.harga = (bahan as any).Harga || (bahan as any).HrgBeli || 0;
+  targetItem.jumlah = 1; // Default 1 roll
   targetItem.diskon = 0;
-  targetItem.total = calculateTotal(targetItem); // Recalculate total for the item
 
-  // 4. Final Validation dan Cleanup
+  // 4. Hitung Total (Fungsi ini sekarang akan otomatis cek targetItem.satuanHarga)
+  targetItem.total = calculateTotal(targetItem);
+
+  // 5. Cleanup baris terakhir
   if (targetIndex === formData.detail.length - 1 && targetItem.kode) {
-    // Jika mengisi baris terakhir, tambahkan baris kosong baru.
     addDetail();
   }
 
   currentDetailIndex.value = targetIndex;
-  toast.success(`Bahan ${bahan.Nama} ditambahkan.`);
+  toast.success(`Bahan ${bahan.Nama} berhasil ditambahkan.`);
   closeBahanModal();
 };
 

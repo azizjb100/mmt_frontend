@@ -44,6 +44,8 @@ interface FormDataState {
   lokasiProduksiNama: string;
   keteranganHeader: string;
   detail: DetailItem[];
+  detailPermintaan: any[];
+  detailRealisasi: DetailItem[];
 }
 
 // --- Setup ---
@@ -92,6 +94,8 @@ const formData = reactive<FormDataState>({
   lokasiProduksiNama: "Gudang Produksi",
   keteranganHeader: "",
   detail: [createEmptyDetail()],
+  detailPermintaan: [],
+  detailRealisasi: [createEmptyDetail()],
 });
 
 // --- Focus Logic ---
@@ -164,44 +168,25 @@ const openPermintaanSearch = () => {
 const handlePermintaanSelect = async (permintaan: any) => {
   isPermintaanModalVisible.value = false;
   isSaving.value = true;
-
   try {
     const res = await api.get(`${API_URL_PERMINTAAN}/${permintaan.Nomor}`);
     const data = res.data.data || res.data;
 
     if (data) {
-      // 1. Masukkan nomor referensi
       formData.permintaanNomor = data.Nomor;
+      formData.gudangKode = data.Gudang || "";
+      formData.gudangNama =
+        data.Gudang === "WH-20" ? "Gudang Obat/Tinta" : "Gudang Bahan MMT";
 
-      // 2. Pertahankan Gudang Asal (opsional, jika ingin tetap WH-16)
-      // formData.gudangKode = data.Gudang || "WH-16";
+      // MASUKKAN KE TABEL REFERENSI
+      formData.detailPermintaan = data.Details || [];
 
-      // 3. LOCK LOKASI PRODUKSI (Agar tidak berubah ke Produksi MMT)
-      formData.lokasiProduksiKode = "GPM";
-      formData.lokasiProduksiNama = "Gudang Produksi";
+      // RESET TABEL REALISASI (MULAI SCAN DARI AWAL)
+      formData.detailRealisasi = [createEmptyDetail()];
 
-      // 4. Keterangan Header
-      formData.keteranganHeader = `Realisasi dari: ${data.Nomor}`;
-
-      // 5. Mapping Detail
-      const detailSource = data.Details || data.Detail || [];
-      formData.detail = detailSource.map((d: any) => ({
-        barcode: "",
-        sku: d.SKU || d.Kode,
-        Nama_Bahan: d.Nama_Bahan || "",
-        qty: d.qtyMinta || d.Jumlah || 0,
-        satuan: d.satuan || d.Satuan,
-        Panjang: d.Panjang || 0,
-        Lebar: d.Lebar || 0,
-        keterangan: d.keterangan || "",
-        operator: "",
-        spk: d.spk || d.Nomor_SPK || "",
-        stok: 0,
-      }));
-
-      toast.success(`Berhasil menarik data ${data.Nomor}`);
+      toast.success(`Data permintaan ${data.Nomor} berhasil dimuat.`);
     }
-  } catch (error: any) {
+  } catch (error) {
     toast.error("Gagal memuat detail permintaan.");
   } finally {
     isSaving.value = false;
@@ -464,7 +449,8 @@ onMounted(() => {
                   variant="outlined"
                   density="compact"
                   hide-details
-                  readonly
+                  :readonly="!!formData.permintaanNomor"
+                  :filled="!!formData.permintaanNomor"
                 />
               </v-col>
               <v-col cols="12">
@@ -541,154 +527,170 @@ onMounted(() => {
       </div>
 
       <div class="right-column">
-        <v-card
-          class="desktop-form-section flex-grow-1 d-flex flex-column"
-          flat
-          border
-        >
-          <v-card-title class="text-subtitle-1 pb-0"
-            >Detail Permintaan</v-card-title
+        <v-card class="mb-4" elevation="1" rounded="lg" border>
+          <v-toolbar color="blue-darken-2" density="compact" flat>
+            <v-icon start class="ml-4">mdi-clipboard-list-outline</v-icon>
+            <v-toolbar-title class="text-body-2 font-weight-bold">
+              Daftar Item yang Diminta
+            </v-toolbar-title>
+            <v-spacer></v-spacer>
+            <v-chip
+              size="x-small"
+              color="white"
+              variant="flat"
+              class="mr-4 text-primary font-weight-bold"
+            >
+              {{ formData.detailPermintaan.length }} Item
+            </v-chip>
+          </v-toolbar>
+
+          <v-data-table
+            :headers="[
+              {
+                title: 'SKU',
+                key: 'SKU',
+                width: '150px',
+                class: 'bg-grey-lighten-4',
+              },
+              {
+                title: 'Nama Bahan',
+                key: 'Nama_Bahan',
+                class: 'bg-grey-lighten-4',
+              },
+              {
+                title: 'Qty Minta',
+                key: 'qtyMinta',
+                align: 'end',
+                width: '120px',
+                class: 'bg-grey-lighten-4',
+              },
+              {
+                title: 'Satuan',
+                key: 'satuan',
+                width: '100px',
+                class: 'bg-grey-lighten-4',
+              },
+            ]"
+            :items="formData.detailPermintaan"
+            density="compact"
+            hide-default-footer
+            class="rounded-0"
           >
-          <v-card-text class="pa-0 flex-grow-1">
-            <div class="detail-table-wrapper">
-              <v-data-table
-                :headers="detailHeaders"
-                :items="formData.detail"
-                :items-per-page="-1"
-                class="elevation-0 detail-entry-table"
-                hide-default-footer
+            <template #[`item.qtyMinta`]="{ value }">
+              <span class="font-weight-bold text-blue-darken-4">{{
+                value
+              }}</span>
+            </template>
+          </v-data-table>
+        </v-card>
+
+        <v-card elevation="1" rounded="lg" border class="d-flex flex-column">
+          <v-toolbar color="teal-darken-1" density="compact" flat>
+            <v-icon start class="ml-4">mdi-barcode-scan</v-icon>
+            <v-toolbar-title class="text-body-2 font-weight-bold">
+              Scan Realisasi Pengambilan
+            </v-toolbar-title>
+            <v-spacer></v-spacer>
+            <v-btn
+              prepend-icon="mdi-plus"
+              size="x-small"
+              variant="elevated"
+              color="white"
+              class="mr-4 text-teal-darken-1 font-weight-bold"
+              @click="addDetail"
+            >
+              Baris Baru
+            </v-btn>
+          </v-toolbar>
+
+          <v-data-table
+            :headers="detailHeaders"
+            :items="formData.detail"
+            :items-per-page="-1"
+            density="compact"
+            class="elevation-0 detail-entry-table"
+            hide-default-footer
+          >
+            <template #[`item.index`]="{ index }">
+              <div class="d-flex justify-center align-center">
+                <v-avatar
+                  color="grey-lighten-3"
+                  size="24"
+                  class="text-caption font-weight-bold"
+                >
+                  {{ index + 1 }}
+                </v-avatar>
+              </div>
+            </template>
+
+            <template #[`item.sku`]="{ item, index }">
+              <v-text-field
+                :ref="(el) => setBarcodeRef(el, index)"
+                v-model="item.barcode"
+                placeholder="Fokus Scan..."
+                prepend-inner-icon="mdi-barcode"
+                variant="outlined"
+                density="compact"
+                hide-details
+                class="my-1 scan-input-styled"
+                @keyup.enter="handleBarcodeScan(index)"
+              />
+            </template>
+
+            <template #[`item.qty`]="{ item }">
+              <v-text-field
+                v-model.number="item.qty"
+                type="number"
+                variant="outlined"
+                bg-color="teal-lighten-5"
+                density="compact"
+                hide-details
+                class="text-right-input my-1 font-weight-bold"
+              />
+            </template>
+
+            <template
+              v-for="col in [
+                'Nama_Bahan',
+                'satuan',
+                'Panjang',
+                'Lebar',
+                'stok',
+              ]"
+              #[`item.${col}`]="{ item }"
+            >
+              <div class="readonly-cell">
+                {{ item[col] || "-" }}
+              </div>
+            </template>
+
+            <template #[`item.spk`]="{ item, index }">
+              <v-btn
+                variant="tonal"
+                size="small"
+                block
+                color="indigo-darken-1"
+                class="text-none"
+                prepend-icon="mdi-magnify"
+                @click="openSPKSearch(index)"
               >
-                <template #[`item.index`]="{ index }">
-                  <span class="text-caption">{{ index + 1 }}</span>
-                </template>
+                {{ item.spk || "Lookup" }}
+              </v-btn>
+            </template>
 
-                <template #[`item.sku`]="{ item, index }">
-                  <v-text-field
-                    :ref="(el) => setBarcodeRef(el, index)"
-                    v-model="item.barcode"
-                    placeholder="Scan Barcode..."
-                    prepend-inner-icon="mdi-barcode-scan"
-                    variant="underlined"
-                    density="compact"
-                    hide-details
-                    @keyup.enter="handleBarcodeScan(index)"
-                  />
-                </template>
-
-                <template #[`item.Nama_Bahan`]="{ item }">
-                  <v-text-field
-                    v-model="item.Nama_Bahan"
-                    readonly
-                    variant="filled"
-                    density="compact"
-                    hide-details
-                  />
-                </template>
-
-                <template #[`item.qty`]="{ item }">
-                  <v-text-field
-                    v-model.number="item.qty"
-                    type="number"
-                    variant="underlined"
-                    density="compact"
-                    hide-details
-                    class="text-right-input"
-                  />
-                </template>
-
-                <template #[`item.satuan`]="{ item }">
-                  <v-text-field
-                    v-model="item.satuan"
-                    readonly
-                    variant="filled"
-                    density="compact"
-                    hide-details
-                  />
-                </template>
-
-                <template #[`item.Panjang`]="{ item }">
-                  <v-text-field
-                    v-model="item.Panjang"
-                    readonly
-                    variant="filled"
-                    density="compact"
-                    hide-details
-                    class="text-right-input"
-                  />
-                </template>
-
-                <template #[`item.Lebar`]="{ item }">
-                  <v-text-field
-                    v-model="item.Lebar"
-                    readonly
-                    variant="filled"
-                    density="compact"
-                    hide-details
-                    class="text-right-input"
-                  />
-                </template>
-
-                <template #[`item.spk`]="{ item, index }">
-                  <v-text-field
-                    v-model="item.spk"
-                    @click:append-inner="openSPKSearch(index)"
-                    append-inner-icon="mdi-magnify"
-                    variant="underlined"
-                    density="compact"
-                    hide-details
-                    readonly
-                  />
-                </template>
-
-                <template #[`item.stok`]="{ item }">
-                  <v-text-field
-                    :model-value="item.stok"
-                    readonly
-                    variant="filled"
-                    density="compact"
-                    hide-details
-                    class="text-right-input"
-                  />
-                </template>
-
-                <template #[`item.keterangan`]="{ item }">
-                  <v-text-field
-                    v-model="item.keterangan"
-                    variant="underlined"
-                    density="compact"
-                    hide-details
-                  />
-                </template>
-
-                <template #[`item.actions`]="{ index }">
-                  <v-btn
-                    icon="mdi-delete"
-                    size="x-small"
-                    variant="text"
-                    color="error"
-                    @click="removeDetail(index)"
-                    :disabled="
-                      formData.detail.length === 1 &&
-                      !formData.detail[0].barcode
-                    "
-                  />
-                </template>
-
-                <template #bottom>
-                  <div class="pa-2 d-flex justify-end">
-                    <v-btn
-                      size="x-small"
-                      color="primary"
-                      variant="tonal"
-                      @click="addDetail"
-                      prepend-icon="mdi-plus"
-                      >Baris Baru</v-btn
-                    >
-                  </div>
-                </template>
-              </v-data-table>
-            </div>
-          </v-card-text>
+            <template #[`item.actions`]="{ index }">
+              <v-btn
+                icon="mdi-trash-can-outline"
+                size="x-small"
+                color="red-darken-1"
+                variant="text"
+                @click="removeDetail(index)"
+                :disabled="
+                  formData.detail.length === 1 && !formData.detail[0].barcode
+                "
+              />
+            </template>
+          </v-data-table>
         </v-card>
       </div>
     </div>
@@ -741,5 +743,41 @@ onMounted(() => {
 }
 :deep(.v-text-field--readonly .v-field) {
   background-color: #f5f5f5 !important;
+}
+
+.readonly-cell {
+  background-color: #f5f5f5;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  padding: 4px 8px;
+  min-height: 32px;
+  display: flex;
+  align-items: center;
+  font-size: 0.75rem;
+  color: #616161;
+  font-weight: 500;
+}
+
+/* Styling khusus untuk input scan agar lebih menonjol */
+.scan-input-styled :deep(.v-field__outline) {
+  --v-field-border-opacity: 0.4;
+}
+
+.scan-input-styled :deep(.v-field--focused .v-field__outline) {
+  --v-field-border-opacity: 1;
+  color: #00796b; /* Warna teal saat fokus */
+}
+
+.text-right-input :deep(input) {
+  text-align: right !important;
+  color: #004d40;
+}
+
+.detail-entry-table :deep(.v-data-table__td) {
+  padding: 4px 8px !important;
+}
+
+.detail-table-wrapper {
+  overflow-x: auto;
 }
 </style>
