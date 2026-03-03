@@ -117,14 +117,13 @@ const saveForm = async () => {
 
   isSaving.value = true;
   try {
-    // MAPPING PAYLOAD ke format yang diterima Service Backend
     const payload = {
       Nomor: formData.nomor,
       Tanggal: formData.tanggal,
       Departemen: formData.departemenPeminta,
       Keterangan: formData.keteranganHeader,
-      User: "ADMIN_PROD", // Idealnya ambil dari store user/auth
-      isUpdate: isEditMode.value,
+      User: "ADMIN_PROD",
+      // isUpdate jangan ditaruh di dalam payload jika backend memisahkan argumen
       Details: formData.detail
         .filter((d) => d.sku !== "")
         .map((d) => ({
@@ -133,17 +132,21 @@ const saveForm = async () => {
           satuan: d.satuan,
           spk: d.spk,
           keterangan: d.keterangan,
-          barcode: d.barcode || null,
         })),
     };
 
-    const response = await api.post(API_URL, payload);
+    // Pastikan Controller Backend Anda memanggil service dengan (payload, isUpdate)
+    // Jika API Anda menggunakan POST untuk save dan PUT untuk update:
+    const response = isEditMode.value
+      ? await api.put(`${API_URL}/${formData.nomor}`, payload)
+      : await api.post(API_URL, payload);
 
     if (response.data.success) {
       toast.success(`Permintaan ${response.data.nomor} berhasil disimpan.`);
       router.push({ name: "PermintaanProduksiBrowse" });
     }
   } catch (error: any) {
+    console.error("Detail Error:", error.response?.data); // Cek console log untuk error SQL detail
     const errorMsg =
       error.response?.data?.message || "Gagal menyimpan permintaan.";
     toast.error(errorMsg);
@@ -155,7 +158,29 @@ const saveForm = async () => {
 // Hook untuk Edit Mode
 onMounted(async () => {
   if (isEditMode.value) {
-    // Logic fetch data by nomor jika diperlukan untuk edit
+    try {
+      const nomor = route.params.nomor;
+      const response = await api.get(`${API_URL}/${nomor}`);
+      const data = response.data;
+
+      // Mapping data dari backend ke form state
+      formData.nomor = data.Nomor;
+      formData.tanggal = data.Tanggal;
+      formData.departemenPeminta = data.Lokasi;
+      formData.keteranganHeader = data.Keterangan;
+
+      // Mapping detail (sesuaikan nama field dari query getPermintaanProduksiDataByNomor)
+      formData.detail = data.Details.map((d: any) => ({
+        sku: d.SKU,
+        namaBahan: "", // Jika perlu nama, backend harus JOIN ke tbarang
+        qtyMinta: d.qtyMinta,
+        satuan: d.satuan,
+        spk: d.spk,
+        keterangan: d.keterangan,
+      }));
+    } catch (error) {
+      toast.error("Gagal mengambil data detail untuk edit.");
+    }
   }
 });
 </script>

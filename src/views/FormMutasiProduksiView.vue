@@ -9,6 +9,7 @@ import SPKLookupModal from "@/modal/SpkLookupModal.vue";
 import { format } from "date-fns";
 import { useToast } from "vue-toastification";
 import { useAuthStore } from "../stores/authStore";
+import PermintaanLookupModal from "@/modal/PermintaanProduksiLookupModal.vue";
 
 interface DetailItem {
   barcode: string;
@@ -35,6 +36,7 @@ interface MasterBahan {
 
 interface FormDataState {
   nomor: string;
+  permintaanNomor: string;
   tanggal: string;
   gudangKode: string;
   gudangNama: string;
@@ -50,7 +52,8 @@ const route = useRoute();
 const toast = useToast();
 const authStore = useAuthStore();
 
-const API_URL = "/mmt/permintaan-produksi";
+const API_URL_PERMINTAAN = "/mmt/permintaan-produksi-bahan";
+const API_URL_REALISASI = "/mmt/permintaan-produksi";
 
 // --- State ---
 const isEditMode = ref(!!route.params.nomor);
@@ -60,6 +63,7 @@ const isGudangModalVisible = ref(false);
 const isLokasiProdModalVisible = ref(false);
 const isSPKModalVisible = ref(false);
 const currentDetailIndex = ref<number | null>(null);
+const isPermintaanModalVisible = ref(false);
 
 // Template Refs untuk Auto Focus
 const barcodeInputs = ref<any[]>([]);
@@ -81,6 +85,7 @@ const createEmptyDetail = (): DetailItem => ({
 const formData = reactive<FormDataState>({
   nomor: "AUTO",
   tanggal: format(new Date(), "yyyy-MM-dd"),
+  permintaanNomor: "",
   gudangKode: "WH-16",
   gudangNama: "Gudang Bahan MMT",
   lokasiProduksiKode: "GPM",
@@ -152,71 +157,142 @@ const removeDetail = (index: number) => {
 };
 
 // frontend - <script setup>
+const openPermintaanSearch = () => {
+  isPermintaanModalVisible.value = true;
+};
+
+const handlePermintaanSelect = async (permintaan: any) => {
+  isPermintaanModalVisible.value = false;
+  isSaving.value = true;
+
+  try {
+    const res = await api.get(`${API_URL_PERMINTAAN}/${permintaan.Nomor}`);
+    const data = res.data.data || res.data;
+
+    if (data) {
+      // 1. Masukkan nomor referensi
+      formData.permintaanNomor = data.Nomor;
+
+      // 2. Pertahankan Gudang Asal (opsional, jika ingin tetap WH-16)
+      // formData.gudangKode = data.Gudang || "WH-16";
+
+      // 3. LOCK LOKASI PRODUKSI (Agar tidak berubah ke Produksi MMT)
+      formData.lokasiProduksiKode = "GPM";
+      formData.lokasiProduksiNama = "Gudang Produksi";
+
+      // 4. Keterangan Header
+      formData.keteranganHeader = `Realisasi dari: ${data.Nomor}`;
+
+      // 5. Mapping Detail
+      const detailSource = data.Details || data.Detail || [];
+      formData.detail = detailSource.map((d: any) => ({
+        barcode: "",
+        sku: d.SKU || d.Kode,
+        Nama_Bahan: d.Nama_Bahan || "",
+        qty: d.qtyMinta || d.Jumlah || 0,
+        satuan: d.satuan || d.Satuan,
+        Panjang: d.Panjang || 0,
+        Lebar: d.Lebar || 0,
+        keterangan: d.keterangan || "",
+        operator: "",
+        spk: d.spk || d.Nomor_SPK || "",
+        stok: 0,
+      }));
+
+      toast.success(`Berhasil menarik data ${data.Nomor}`);
+    }
+  } catch (error: any) {
+    toast.error("Gagal memuat detail permintaan.");
+  } finally {
+    isSaving.value = false;
+  }
+};
 
 const handleBarcodeScan = async (index: number) => {
   const targetItem = formData.detail[index];
-  const barcodeValue = targetItem.barcode;
+  const barcodeValue = targetItem.barcode.trim();
 
   if (!barcodeValue) return;
 
-  // 1. Validasi: Pastikan Gudang Asal sudah dipilih di header
   if (!formData.gudangKode) {
     toast.error("Silahkan pilih Gudang Asal terlebih dahulu.");
     targetItem.barcode = "";
     return;
   }
 
-  // 2. Cek Duplikasi di Tabel (Input manual/scan ulang di list yang sama)
+  // 1. Validasi duplikasi scan di tabel
   const isDuplicate = formData.detail.some(
     (d, i) => d.barcode === barcodeValue && i !== index,
   );
 
   if (isDuplicate) {
-    toast.warning(`Barcode ${barcodeValue} sudah ada di daftar input.`);
+    toast.warning(`Barcode ${barcodeValue} sudah di-scan.`);
     targetItem.barcode = "";
     return;
   }
 
   try {
-    // 3. Kirim barcode DAN gudangKode ke API
     const response = await api.get(
-      `${API_URL}/stok-barcode/${encodeURIComponent(barcodeValue)}`,
-      {
-        params: { gudang: formData.gudangKode }, // Mengirim kode gudang
-      },
+      `${API_URL_REALISASI}/stok-barcode/${encodeURIComponent(barcodeValue)}`,
+      { params: { gudang: formData.gudangKode } },
     );
 
     const bahan = response.data.data;
 
-    // 4. Jika backend mengembalikan null (karena gudang beda atau stok habis)
     if (!bahan) {
-      toast.error(
-        `Barcode ${barcodeValue} tidak ditemukan atau sudah tidak berada di ${formData.gudangNama}.`,
-      );
+      toast.error(`Barcode ${barcodeValue} tidak ditemukan.`);
       targetItem.barcode = "";
       return;
     }
 
-    // Isi data ke baris tabel
-    targetItem.barcode = bahan.Barcode;
-    targetItem.sku = bahan.Kode;
-    targetItem.Nama_Bahan = bahan.Nama_Bahan;
-    targetItem.satuan = bahan.Satuan;
-    targetItem.Panjang = bahan.Panjang || 0;
-    targetItem.Lebar = bahan.Lebar || 0;
-    targetItem.stok = bahan.Stok || 0;
-    targetItem.qty = 1;
-    targetItem.spk =
-      bahan.Nomor_SPK && bahan.Nomor_SPK !== "0" ? bahan.Nomor_SPK : "";
+    const matchIndex = formData.detail.findIndex(
+      (d) => d.sku === bahan.Kode && (!d.barcode || d.barcode === ""),
+    );
 
-    if (index === formData.detail.length - 1) {
-      addDetail();
+    if (matchIndex !== -1) {
+      const matchedRow = formData.detail[matchIndex];
+
+      matchedRow.barcode = bahan.Barcode;
+      matchedRow.Nama_Bahan = bahan.Nama_Bahan;
+      matchedRow.satuan = bahan.Satuan;
+
+      // DISINI PERBAIKANNYA:
+      matchedRow.Panjang = Number(bahan.Panjang); // Ini akan jadi 4.5
+      matchedRow.Lebar = Number(bahan.Lebar);
+      matchedRow.stok = Number(bahan.Stok);
+
+      // Qty tetap 1 sesuai permintaanmu
+      matchedRow.qty = 1;
+
+      if (index !== matchIndex) {
+        targetItem.barcode = "";
+      }
+
+      toast.success(`Barcode cocok! Sisa: ${bahan.Panjang}m`);
+      focusNextBarcode(index - 1);
+    } else {
+      // Untuk item di luar daftar permintaan
+      targetItem.barcode = bahan.Barcode;
+      targetItem.sku = bahan.Kode;
+      targetItem.Nama_Bahan = bahan.Nama_Bahan;
+      targetItem.satuan = bahan.Satuan;
+      targetItem.Panjang = Number(bahan.Panjang);
+      targetItem.Lebar = Number(bahan.Lebar);
+      targetItem.stok = Number(bahan.Stok);
+
+      // Qty tetap 1
+      targetItem.qty = 1;
+
+      targetItem.spk =
+        bahan.Nomor_SPK && bahan.Nomor_SPK !== "0" ? bahan.Nomor_SPK : "";
+
+      if (index === formData.detail.length - 1) {
+        addDetail();
+      }
+      focusNextBarcode(index);
     }
-
-    focusNextBarcode(index);
-    toast.success("Barcode valid.");
   } catch (err: any) {
-    toast.error(err.response?.data?.message || "Gagal memverifikasi barcode.");
+    toast.error("Gagal verifikasi barcode.");
     targetItem.barcode = "";
   }
 };
@@ -255,6 +331,7 @@ const saveForm = async (saveAndNew: boolean) => {
         mnt_gdg_kode: formData.gudangKode,
         mnt_lokasiproduksi: formData.lokasiProduksiKode,
         mnt_keterangan: formData.keteranganHeader,
+        mnt_permintaan: formData.permintaanNomor,
         // Tetap kirim sebagai cadangan, tapi Controller akan prioritaskan req.user
         user_create: authStore.KDUSER || "Unknown",
       },
@@ -270,14 +347,14 @@ const saveForm = async (saveAndNew: boolean) => {
     };
 
     // Pastikan menggunakan axios.post atau api.post
-    const response = await api.post(API_URL, payload);
+    const response = await api.post(API_URL_REALISASI, payload);
 
     toast.success(response.data.message || "Data berhasil disimpan.");
 
     if (saveAndNew) {
       await refreshData();
     } else {
-      router.push({ name: "PermintaanProduksiBrowse" });
+      router.push({ name: "MutasiProduksiBrowse" });
     }
   } catch (error: any) {
     console.error("Save Error:", error.response?.data);
@@ -420,6 +497,21 @@ onMounted(() => {
                   variant="filled"
                   density="compact"
                   hide-details
+                />
+              </v-col>
+              <v-col cols="12">
+                <v-text-field
+                  label="Cari Dokumen Permintaan"
+                  v-model="formData.permintaanNomor"
+                  placeholder="Klik untuk tarik data..."
+                  readonly
+                  @click="openPermintaanSearch"
+                  append-inner-icon="mdi-magnify"
+                  variant="outlined"
+                  density="compact"
+                  hide-details
+                  color="primary"
+                  persistent-placeholder
                 />
               </v-col>
               <v-col cols="12">
@@ -615,6 +707,11 @@ onMounted(() => {
       :isVisible="isSPKModalVisible"
       @close="isSPKModalVisible = false"
       @select="handleSPKSelect"
+    />
+    <PermintaanLookupModal
+      :isVisible="isPermintaanModalVisible"
+      @close="isPermintaanModalVisible = false"
+      @select="handlePermintaanSelect"
     />
   </PageLayout>
 </template>

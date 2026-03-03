@@ -63,6 +63,22 @@ const isGudangModalVisible = ref(false);
 const showBarcodePreview = ref(false);
 const itemsToRender = ref<any[]>([]);
 
+const bahanModalMode = computed(() => {
+  const kode = header.GudangKode?.toUpperCase();
+  const nama = header.GudangNama?.toLowerCase() || "";
+
+  // Tambahkan pengecekan spesifik untuk WH-20
+  if (kode === "WH-20" || nama.includes("tinta") || nama.includes("obat")) {
+    return "obat";
+  }
+
+  if (kode === "GPM" || nama.includes("produksi")) {
+    return "produksi";
+  }
+
+  return "mmt"; // Default kembali ke WH-16
+});
+
 // --- Table Headers ---
 const tableHeaders = [
   { title: "No", key: "index", width: "50px" },
@@ -105,8 +121,25 @@ const openGudangSearch = () => {
 };
 
 const handleGudangSelect = (gudang: any) => {
+  // Cek jika sudah ada detail barang, tanyakan user sebelum hapus
+  if (
+    details.value.some((d) => d.SKU !== "") &&
+    header.GudangKode !== gudang.Kode
+  ) {
+    if (
+      !confirm(
+        "Gudang diubah, daftar barang sebelumnya akan dikosongkan. Lanjutkan?",
+      )
+    ) {
+      isGudangModalVisible.value = false;
+      return;
+    }
+    details.value = []; // Kosongkan daftar
+    addRow(); // Tambah baris kosong baru
+  }
+
   header.GudangKode = gudang.Kode;
-  header.GudangNama = gudang.Nama; // Mengisi nama gudang agar user tahu apa yang dipilih
+  header.GudangNama = gudang.Nama;
   isGudangModalVisible.value = false;
 };
 
@@ -455,6 +488,13 @@ onMounted(() => {
   <MasterBahanModal
     :is-visible="isBahanModalVisible"
     mode="mmt"
+    @close="isBahanModalVisible = false"
+    @select="handleBahanSelect"
+  />
+
+  <MasterBahanModal
+    :is-visible="isBahanModalVisible"
+    :mode="bahanModalMode"
     @close="isBahanModalVisible = false"
     @select="handleBahanSelect"
   />

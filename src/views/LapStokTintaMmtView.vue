@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted } from "vue";
 import { format } from "date-fns";
 import api from "@/services/api";
 import PageLayout from "../components/PageLayout.vue";
@@ -18,40 +18,40 @@ const tableHeaders = [
     title: "STOCK AWAL",
     align: "center",
     children: [
-      { title: "PCS", key: "stok_awal", width: "90px", align: 'end' },
-      { title: "KET", key: "stok_Awal2", width: "90px", align: 'end' },
+      { title: "PCS", key: "stok_awal", width: "90px", align: "end" },
+      { title: "KET", key: "stok_Awal2", width: "90px", align: "end" },
     ],
   },
   {
     title: "MASUK",
     align: "center",
     children: [
-      { title: "PCS", key: "terima", width: "90px", align: 'end' },
-      { title: "KET", key: "terima2", width: "90px", align: 'end' },
+      { title: "PCS", key: "terima", width: "90px", align: "end" },
+      { title: "KET", key: "terima2", width: "90px", align: "end" },
     ],
   },
   {
     title: "KELUAR",
     align: "center",
     children: [
-      { title: "PCS", key: "keluar", width: "90px", align: 'end' },
-      { title: "KET", key: "keluar2", width: "90px", align: 'end' },
+      { title: "PCS", key: "keluar", width: "90px", align: "end" },
+      { title: "KET", key: "keluar2", width: "90px", align: "end" },
     ],
   },
   {
     title: "RETUR/SISA PRODUKSI",
     align: "center",
     children: [
-      { title: "PCS", key: "Retur_Prod", width: "90px", align: 'end' },
-      { title: "KET", key: "retur_prod2", width: "90px", align: 'end' },
+      { title: "PCS", key: "Retur_Prod", width: "90px", align: "end" },
+      { title: "KET", key: "retur_prod2", width: "90px", align: "end" },
     ],
   },
   {
     title: "STOCK AKHIR",
     align: "center",
     children: [
-      { title: "PCS", key: "Stok_Akhir", width: "100px", align: 'end' },
-      { title: "KET", key: "stok_akhir2", width: "100px", align: 'end' },
+      { title: "PCS", key: "Stok_Akhir", width: "100px", align: "end" },
+      { title: "KET", key: "stok_akhir2", width: "100px", align: "end" },
     ],
   },
 ];
@@ -60,27 +60,36 @@ const tableHeaders = [
 const loading = ref(false);
 const allData = ref([]);
 const searchQuery = ref("");
-const startDate = ref(format(new Date(new Date().getFullYear(), new Date().getMonth(), 1), 'yyyy-MM-dd'));
-const endDate = ref(format(new Date(), 'yyyy-MM-dd'));
+const startDate = ref(
+  format(
+    new Date(new Date().getFullYear(), new Date().getMonth(), 1),
+    "yyyy-MM-dd",
+  ),
+);
+const endDate = ref(format(new Date(), "yyyy-MM-dd"));
 
 /** --- COMPUTED: TOTALS (Sesuai baris bawah di gambar) --- */
 const summaryTotals = computed(() => {
-  return allData.value.reduce((acc, item) => {
-    acc.awalQ  += Number(item.stok_awal || 0);
-    acc.awalM  += Number(item.stok_Awal2 || 0);
-    acc.akhirQ += Number(item.Stok_Akhir || 0);
-    acc.akhirM += Number(item.stok_akhir2 || 0);
-    // Tambahkan mutasi lain jika ingin ditampilkan di footer
-    return acc;
-  }, { awalQ: 0, awalM: 0, akhirQ: 0, akhirM: 0 });
+  return allData.value.reduce(
+    (acc, item) => {
+      acc.awalQ += Number(item.stok_awal || 0);
+      acc.awalM += Number(item.stok_Awal2 || 0);
+      acc.terimaQ += Number(item.terima || 0); // Tambahan
+      acc.keluarQ += Number(item.keluar || 0); // Tambahan
+      acc.akhirQ += Number(item.Stok_Akhir || 0);
+      acc.akhirM += Number(item.stok_akhir2 || 0);
+      return acc;
+    },
+    { awalQ: 0, awalM: 0, terimaQ: 0, keluarQ: 0, akhirQ: 0, akhirM: 0 },
+  );
 });
 
 /** --- METHODS --- */
 const fetchReport = async () => {
   loading.value = true;
   try {
-    const { data } = await api.get('mmt/laporan-stok-tinta', {
-      params: { startDate: startDate.value, endDate: endDate.value }
+    const { data } = await api.get("mmt/laporan-ls-tinta", {
+      params: { startDate: startDate.value, endDate: endDate.value },
     });
     allData.value = data.data || [];
   } catch (error) {
@@ -91,9 +100,9 @@ const fetchReport = async () => {
 };
 
 const nFormat = (val: any, dec = 2) => {
-  return Number(val || 0).toLocaleString('id-ID', { 
-    minimumFractionDigits: dec, 
-    maximumFractionDigits: dec 
+  return Number(val || 0).toLocaleString("id-ID", {
+    minimumFractionDigits: dec,
+    maximumFractionDigits: dec,
   });
 };
 
@@ -101,19 +110,50 @@ onMounted(fetchReport);
 </script>
 
 <template>
-  <PageLayout title="Laporan Stok Tinta MMT" icon="mdi-format-list-bulleted-type">
+  <PageLayout
+    title="Laporan Stok Tinta MMT"
+    icon="mdi-format-list-bulleted-type"
+  >
     <v-container fluid class="pa-4 bg-grey-lighten-4">
-      
       <v-card flat class="mb-4 pa-4 border-sm rounded-lg">
         <v-row dense align="center">
           <v-col cols="12" sm="auto" class="d-flex align-center ga-3">
-            <v-text-field v-model="startDate" label="Mulai" type="date" density="compact" variant="outlined" hide-details class="date-input" />
-            <v-text-field v-model="endDate" label="Selesai" type="date" density="compact" variant="outlined" hide-details class="date-input" />
-            <v-btn color="primary" icon="mdi-magnify" size="small" @click="fetchReport" :loading="loading" />
+            <v-text-field
+              v-model="startDate"
+              label="Mulai"
+              type="date"
+              density="compact"
+              variant="outlined"
+              hide-details
+              class="date-input"
+            />
+            <v-text-field
+              v-model="endDate"
+              label="Selesai"
+              type="date"
+              density="compact"
+              variant="outlined"
+              hide-details
+              class="date-input"
+            />
+            <v-btn
+              color="primary"
+              icon="mdi-magnify"
+              size="small"
+              @click="fetchReport"
+              :loading="loading"
+            />
           </v-col>
           <v-spacer />
           <v-col cols="12" sm="3">
-            <v-text-field v-model="searchQuery" placeholder="Cari Bahan..." density="compact" variant="outlined" hide-details prepend-inner-icon="mdi-filter" />
+            <v-text-field
+              v-model="searchQuery"
+              placeholder="Cari Bahan..."
+              density="compact"
+              variant="outlined"
+              hide-details
+              prepend-inner-icon="mdi-filter"
+            />
           </v-col>
         </v-row>
       </v-card>
@@ -129,9 +169,25 @@ onMounted(fetchReport);
           height="calc(100vh - 300px)"
           class="inventory-table"
         >
-          <template v-for="col in ['stok_awal', 'stok_Awal2', 'terima', 'terima2', 'keluar', 'keluar2', 'Retur_Prod', 'retur_prod2', 'Stok_Akhir', 'stok_akhir2']" 
-                    :key="col" v-slot:[`item.${col}`]="{ value }">
-            <span :class="value > 0 ? 'font-weight-medium' : 'text-grey-lighten-1'">
+          <template
+            v-for="col in [
+              'stok_awal',
+              'stok_Awal2',
+              'terima',
+              'terima2',
+              'keluar',
+              'keluar2',
+              'Retur_Prod',
+              'retur_prod2',
+              'Stok_Akhir',
+              'stok_akhir2',
+            ]"
+            :key="col"
+            v-slot:[`item.${col}`]="{ value }"
+          >
+            <span
+              :class="value > 0 ? 'font-weight-medium' : 'text-grey-lighten-1'"
+            >
               {{ nFormat(value, 2) }}
             </span>
           </template>
@@ -139,15 +195,23 @@ onMounted(fetchReport);
           <template #tfoot>
             <tr class="footer-summary bg-grey-lighten-3">
               <td colspan="5" class="text-right font-weight-bold">TOTAL</td>
-              <td class="text-right font-weight-bold">{{ nFormat(summaryTotals.awalQ) }}</td>
-              <td class="text-right font-weight-bold">{{ nFormat(summaryTotals.awalM) }}</td>
-              <td colspan="6"></td> <td class="text-right font-weight-bold">{{ nFormat(summaryTotals.akhirQ) }}</td>
-              <td class="text-right font-weight-bold">{{ nFormat(summaryTotals.akhirM) }}</td>
+              <td class="text-right font-weight-bold">
+                {{ nFormat(summaryTotals.awalQ) }}
+              </td>
+              <td class="text-right font-weight-bold">
+                {{ nFormat(summaryTotals.awalM) }}
+              </td>
+              <td colspan="6"></td>
+              <td class="text-right font-weight-bold">
+                {{ nFormat(summaryTotals.akhirQ) }}
+              </td>
+              <td class="text-right font-weight-bold">
+                {{ nFormat(summaryTotals.akhirM) }}
+              </td>
             </tr>
           </template>
         </v-data-table>
       </v-card>
-      
     </v-container>
   </PageLayout>
 </template>
@@ -178,5 +242,7 @@ onMounted(fetchReport);
   font-size: 0.8rem;
 }
 
-.date-input { max-width: 160px; }
+.date-input {
+  max-width: 160px;
+}
 </style>

@@ -81,6 +81,27 @@
               <template #[`item.Total_Meter`]="{ value }">
                 <b class="text-primary">{{ formatNumber(value, 2) }} m²</b>
               </template>
+              <template #[`item.Kapasitas`]="{ value }">
+                {{ formatNumber(value, 0) }} m²
+              </template>
+
+              <template #[`item.Total_Meter`]="{ value }">
+                <b class="text-primary">{{ formatNumber(value, 2) }} m²</b>
+              </template>
+
+              <template #[`item.Persentase`]="{ item }">
+                <v-chip
+                  size="small"
+                  :color="
+                    calculatePercent(item.Total_Meter, item.Kapasitas) > 100
+                      ? 'error'
+                      : 'success'
+                  "
+                  variant="flat"
+                >
+                  {{ calculatePercent(item.Total_Meter, item.Kapasitas) }}%
+                </v-chip>
+              </template>
 
               <template #[`item.Jml_SPK`]="{ value }">
                 {{ formatNumber(value, 0) }}
@@ -230,9 +251,11 @@ const dataRekap = ref({
 // --- HEADERS ---
 const headersMesin = [
   { title: "MESIN", key: "Mesin", align: "start", sortable: true },
-  { title: "JML SPK", key: "Jml_SPK", align: "end", sortable: true },
+  { title: "KAPASITAS (M²)", key: "Kapasitas", align: "end", sortable: true }, // Kolom Baru
   { title: "TOTAL PCS", key: "Total_Pcs", align: "end", sortable: true },
   { title: "TOTAL M²", key: "Total_Meter", align: "end", sortable: true },
+  { title: "LOAD (%)", key: "Persentase", align: "center", sortable: true }, // Kolom Baru
+  { title: "JML SPK", key: "Jml_SPK", align: "end", sortable: true },
   { title: "", key: "data-table-expand" },
 ];
 
@@ -244,6 +267,12 @@ const formatNumber = (val: any, decimal = 0) => {
   });
 };
 
+const calculatePercent = (total: number, kapasitas: number) => {
+  if (!kapasitas || kapasitas === 0) return 0;
+  const percent = (total / kapasitas) * 100;
+  return percent.toFixed(1); // Mengambil 1 angka di belakang koma
+};
+
 const loadDetailSpk = async (expandedKeys) => {
   if (expandedKeys.length === 0) return;
 
@@ -253,7 +282,7 @@ const loadDetailSpk = async (expandedKeys) => {
 
   loadingDetail.value = true;
   try {
-    const res = await api.get("/mmt/lhk-cetak-mmt/rekap-detail-mesin", {
+    const res = await api.get("/mmt/lhk-cetak/rekap-detail-mesin", {
       params: {
         startDate: filters.start,
         endDate: filters.end,
@@ -275,7 +304,7 @@ const loadRekap = async () => {
   expanded.value = [];
 
   try {
-    const response = await api.get("/mmt/lhk-cetak-mmt/rekap", {
+    const response = await api.get("/mmt/lhk-cetak/rekap", {
       params: {
         startDate: filters.start,
         endDate: filters.end,
