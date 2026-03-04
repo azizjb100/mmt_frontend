@@ -242,7 +242,7 @@ import SpkLookupView from "@/modal/SpkLookupModal.vue";
 
 const toast = useToast();
 const formTitle = computed(() =>
-  isEditMode.value ? "Edit LHK Finishing" : "Input LHK Finishing"
+  isEditMode.value ? "Edit LHK Finishing" : "Input LHK Finishing",
 );
 
 // --- States ---
@@ -279,10 +279,10 @@ const detailHeaders = [
 
 // --- Computed ---
 const totalSeaming = computed(() =>
-  detailData.value.reduce((acc, row) => acc + (row.j_seaming || 0), 0)
+  detailData.value.reduce((acc, row) => acc + (row.j_seaming || 0), 0),
 );
 const isFormValid = computed(
-  () => formData.gdg_kode && detailData.value.length > 0
+  () => formData.gdg_kode && detailData.value.length > 0,
 );
 
 // --- Handlers ---
