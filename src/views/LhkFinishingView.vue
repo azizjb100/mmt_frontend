@@ -301,7 +301,6 @@ const fetchGudangList = async () => {
 };
 
 const fetchHeaders = async () => {
-<<<<<<< HEAD
     loading.value.headers = true;
     try {
         const response = await api.get<LhkFinishingHeader[]>(API_BASE_URL, {
@@ -346,48 +345,6 @@ const loadDetails = async (newlyExpandedItems: LhkFinishingItem[]) => {
         loadingDetails.value.delete(itemToLoad.Nomor);
         loading.value.details = false;
     }
-=======
-  loading.value.headers = true;
-  try {
-    const response = await api.get(API_BASE_URL, {
-      params: {
-        startDate: filters.startDate,
-        endDate: filters.endDate,
-      },
-    });
-    headers.value = response.data.data || [];
-
-    selected.value = [];
-    expanded.value = [];
-  } catch (err) {
-    console.error("Fetch error:", err);
-    toast.error("Gagal mengambil data LHK Finishing.");
-  } finally {
-    loading.value.headers = false;
-  }
-};
-
-const loadDetails = async (newlyExpandedItems: LhkFinishingItem[]) => {
-  // Ambil item terakhir yang di-expand
-  const itemToLoad = newlyExpandedItems[newlyExpandedItems.length - 1];
-
-  if (!itemToLoad || details.value[itemToLoad.Nomor]) return;
-
-  loadingDetails.value.add(itemToLoad.Nomor);
-  try {
-    const res = await api.get(`${API_BASE_URL}/details`, {
-      params: { nomor: itemToLoad.Nomor },
-    });
-
-    // PERBAIKAN DI SINI: sesuaikan dengan struktur { success: true, data: [...] }
-    details.value[itemToLoad.Nomor] = res.data.data || [];
-  } catch (err) {
-    toast.error(`Gagal memuat detail untuk ${itemToLoad.Nomor}`);
-    details.value[itemToLoad.Nomor] = [];
-  } finally {
-    loadingDetails.value.delete(itemToLoad.Nomor);
-  }
->>>>>>> 12ef6b8 (ok)
 };
 
 // --- Actions ---
