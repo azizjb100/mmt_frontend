@@ -190,28 +190,28 @@ import PageLayout from "../components/PageLayout.vue";
 
 // --- Interfaces ---
 interface LhkFinishingHeader {
-    Nomor: string;
-    Tanggal?: string;
-    Gudang?: string;
-    Nama_Gudang?: string;
-    Shift?: string;
-    Operator?: string;
-    Lengkap?: "Y" | "N";
-    [key: string]: any;
+  Nomor: string;
+  Tanggal?: string;
+  Gudang?: string;
+  Nama_Gudang?: string;
+  Shift?: string;
+  Operator?: string;
+  Lengkap?: "Y" | "N";
+  [key: string]: any;
 }
 
 interface LhkFinishingDetail {
-    Nomor_SPK?: string;
-    Nama_SPK?: string;
-    J_Order?: number;
-    J_Seaming?: number;
-    J_MataAyam?: number;
-    J_Coly?: number;
-    J_Bs?: number;
-    Mata_Ayam?: number;
-    XBanner?: number;
-    Plastik?: number;
-    [key: string]: any;
+  Nomor_SPK?: string;
+  Nama_SPK?: string;
+  J_Order?: number;
+  J_Seaming?: number;
+  J_MataAyam?: number;
+  J_Coly?: number;
+  J_Bs?: number;
+  Mata_Ayam?: number;
+  XBanner?: number;
+  Plastik?: number;
+  [key: string]: any;
 }
 
 type LhkFinishingItem = LhkFinishingHeader;
@@ -233,8 +233,8 @@ const selected = ref<LhkFinishingHeader[]>([]);
 const expanded = ref<LhkFinishingHeader[]>([]);
 
 const filters = reactive({
-    startDate: format(subDays(new Date(), 30), "yyyy-MM-dd"),
-    endDate: format(new Date(), "yyyy-MM-dd"),
+  startDate: format(subDays(new Date(), 30), "yyyy-MM-dd"),
+  endDate: format(new Date(), "yyyy-MM-dd"),
 });
 
 // --- Computed ---
@@ -245,58 +245,58 @@ const selectedRow = computed<LhkFinishingItem | null>(() =>
 
 // --- Helpers ---
 const safeFormatDate = (dateString: string | undefined): string => {
-    if (!dateString) return "";
-    try {
-        const parsedDate = parseISO(dateString);
-        if (isValid(parsedDate)) {
-            return format(parsedDate, "dd/MM/yyyy");
-        }
-        return "";
-    } catch (e) {
-        return "";
+  if (!dateString) return "";
+  try {
+    const parsedDate = parseISO(dateString);
+    if (isValid(parsedDate)) {
+      return format(parsedDate, "dd/MM/yyyy");
     }
+    return "";
+  } catch (e) {
+    return "";
+  }
 };
 
 const isLoadingDetails = (nomor: string) => loadingDetails.value.has(nomor);
 
 const getRowTextColor = (item: LhkFinishingItem) => {
-    return item.Lengkap !== "Y" ? "text-red font-weight-bold" : "";
+  return item.Lengkap !== "Y" ? "text-red font-weight-bold" : "";
 };
 
 // --- Headers (Vuetify accepts arrays of objects with `title` and `key`) ---
 const masterHeaders = [
-    { title: "Nomor", key: "Nomor", minWidth: "180px", fixed: true },
-    { title: "Tanggal", key: "Tanggal", minWidth: "120px" },
-    { title: "Gudang", key: "Gudang", minWidth: "100px" },
-    { title: "Nama Gudang", key: "Nama_Gudang", minWidth: "150px" },
-    { title: "Shift", key: "Shift", minWidth: "80px" },
-    { title: "Lengkap", key: "Lengkap", minWidth: "100px", align: "center" },
-    { title: "Operator", key: "Operator", minWidth: "150px" },
-    { title: "", key: "data-table-expand", minWidth: "40px" },
+  { title: "Nomor", key: "Nomor", minWidth: "180px", fixed: true },
+  { title: "Tanggal", key: "Tanggal", minWidth: "120px" },
+  { title: "Gudang", key: "Gudang", minWidth: "100px" },
+  { title: "Nama Gudang", key: "Nama_Gudang", minWidth: "150px" },
+  { title: "Shift", key: "Shift", minWidth: "80px" },
+  { title: "Lengkap", key: "Lengkap", minWidth: "100px", align: "center" },
+  { title: "Operator", key: "Operator", minWidth: "150px" },
+  { title: "", key: "data-table-expand", minWidth: "40px" },
 ] as any[];
 
 const detailHeaders = [
-    { title: "Nomor SPK", key: "Nomor_SPK", minWidth: "150px" },
-    { title: "Nama SPK", key: "Nama_SPK", minWidth: "250px" },
-    { title: "Jml Order", key: "J_Order", align: "end" },
-    { title: "Jml Seaming", key: "J_Seaming", align: "end" },
-    { title: "Jml Mata Ayam", key: "J_MataAyam", align: "end" },
-    { title: "Jml Coly", key: "J_Coly", align: "end" },
-    { title: "Jml BS", key: "J_Bs", align: "end" },
-    { title: "Qty Mata Ayam", key: "Mata_Ayam", align: "end" },
-    { title: "Qty XBanner", key: "XBanner", align: "end" },
-    { title: "Qty Plastik", key: "Plastik", align: "end" },
+  { title: "Nomor SPK", key: "Nomor_SPK", minWidth: "150px" },
+  { title: "Nama SPK", key: "Nama_SPK", minWidth: "250px" },
+  { title: "Jml Order", key: "J_Order", align: "end" },
+  { title: "Jml Seaming", key: "J_Seaming", align: "end" },
+  { title: "Jml Mata Ayam", key: "J_MataAyam", align: "end" },
+  { title: "Jml Coly", key: "J_Coly", align: "end" },
+  { title: "Jml BS", key: "J_Bs", align: "end" },
+  { title: "Qty Mata Ayam", key: "Mata_Ayam", align: "end" },
+  { title: "Qty XBanner", key: "XBanner", align: "end" },
+  { title: "Qty Plastik", key: "Plastik", align: "end" },
 ] as any[];
 
 // --- API calls ---
 
 // Mengatasi ReferenceError: fetchGudangList is not defined
 const fetchGudangList = async () => {
-    try {
-        console.log("INFO: Simulating fetching Gudang List.");
-    } catch (error) {
-        console.error("Error fetching gudang list:", error);
-    }
+  try {
+    console.log("INFO: Simulating fetching Gudang List.");
+  } catch (error) {
+    console.error("Error fetching gudang list:", error);
+  }
 };
 
 const fetchHeaders = async () => {
@@ -308,6 +308,10 @@ const fetchHeaders = async () => {
         endDate: filters.endDate,
       },
     });
+
+    // PERBAIKAN DI SINI:
+    // response.data adalah body dari API { success: true, data: [...] }
+    // Jadi kita butuh response.data.data
     headers.value = response.data.data || [];
 
     selected.value = [];
@@ -344,13 +348,13 @@ const loadDetails = async (newlyExpandedItems: LhkFinishingItem[]) => {
 
 // --- Actions ---
 const handleNew = () => {
-    router.push({ name: "LhkFinishingCreate" });
+  router.push({ name: "LhkFinishingCreate" });
 };
 
 const handleEdit = () => {
-    if (!selectedRow.value) return;
-    const nomor = selectedRow.value.Nomor;
-    router.push({ name: "LhkFinishingEdit", params: { nomor } });
+  if (!selectedRow.value) return;
+  const nomor = selectedRow.value.Nomor;
+  router.push({ name: "LhkFinishingEdit", params: { nomor } });
 };
 
 const handleDelete = async () => {
@@ -367,22 +371,23 @@ const handleDelete = async () => {
     } catch (error) {
       toast.error("Gagal menghapus data.");
     }
+  }
 };
 
 const handleBahan = () => {
-    if (!selectedRow.value) return;
-    alert(`TODO: Buka form Bahan untuk LHK ${selectedRow.value.Nomor}`);
+  if (!selectedRow.value) return;
+  alert(`TODO: Buka form Bahan untuk LHK ${selectedRow.value.Nomor}`);
 };
 
 const handlePrint = () => {
-    if (!selectedRow.value) return;
-    alert(`TODO: Cetak LHK ${selectedRow.value.Nomor}`);
+  if (!selectedRow.value) return;
+  alert(`TODO: Cetak LHK ${selectedRow.value.Nomor}`);
 };
 
 // --- Lifecycle ---
 onMounted(() => {
-    fetchGudangList(); // Dipanggil di onMounted
-    fetchHeaders();
+  fetchGudangList(); // Dipanggil di onMounted
+  fetchHeaders();
 });
 
 watch(filters, fetchHeaders, { deep: true });
