@@ -5,10 +5,11 @@ import api from "@/services/api";
 import PageLayout from "../components/PageLayout.vue";
 import MasterBahanModal from "@/modal/MasterBahanModal.vue";
 import SPKLookupModal from "@/modal/SpkLookupModal.vue";
-import GudangLookupModal from "@/modal/GudangLookupView.vue"; // Pastikan path benar
+import GudangLookupModal from "@/modal/GudangLookupView.vue";
 import { format } from "date-fns";
 import { useToast } from "vue-toastification";
 
+// --- Types ---
 interface DetailPermintaan {
   sku: string;
   namaBahan: string;
@@ -21,12 +22,17 @@ interface DetailPermintaan {
 interface FormDataState {
   nomor: string;
   tanggal: string;
-  departemenPeminta: string; // Lokasi Produksi/Unit
-  gudangAsalKode: string; // Tambahan untuk backend mnt_gdg_kode
-  gudangAsalNama: string; // Untuk tampilan UI
+  departemenPeminta: string;
+  gudangAsalKode: string;
+  gudangAsalNama: string;
   keteranganHeader: string;
   detail: DetailPermintaan[];
 }
+
+// --- Props & Emits ---
+const props = defineProps<{
+  tipe: "MMT" | "OBAT";
+}>();
 
 const router = useRouter();
 const route = useRoute();
@@ -54,9 +60,9 @@ const createEmptyDetail = (): DetailPermintaan => ({
 const formData = reactive<FormDataState>({
   nomor: "AUTO",
   tanggal: format(new Date(), "yyyy-MM-dd"),
-  departemenPeminta: "PRODUKSI MMT",
-  gudangAsalKode: "",
-  gudangAsalNama: "",
+  departemenPeminta: props.tipe === "MMT" ? "PRODUKSI MMT" : "PRODUKSI",
+  gudangAsalKode: props.tipe === "MMT" ? "WH-16" : "WH-20",
+  gudangAsalNama: props.tipe === "MMT" ? "GUDANG MMT" : "Pilih Gudang",
   keteranganHeader: "",
   detail: [createEmptyDetail()],
 });
@@ -67,6 +73,16 @@ const isFormValid = computed(() => {
     formData.gudangAsalKode !== "" &&
     formData.detail.some((d) => d.sku && d.qtyMinta > 0)
   );
+});
+
+const bahanModalMode = computed(() => {
+  const kode = formData.gudangAsalKode?.toUpperCase() || "";
+  const nama = formData.gudangAsalNama?.toLowerCase() || "";
+
+  if (kode === "WH-20" || nama.includes("tinta") || nama.includes("obat")) {
+    return "obat";
+  }
+  return "mmt";
 });
 
 const detailHeaders = [
@@ -81,7 +97,6 @@ const detailHeaders = [
 ] as const;
 
 // --- Methods ---
-
 const addDetail = () => formData.detail.push(createEmptyDetail());
 
 const removeDetail = (index: number) => {
@@ -92,6 +107,24 @@ const removeDetail = (index: number) => {
   }
 };
 
+const handleGudangSelect = (gudang: any) => {
+  const hasItems = formData.detail.some((d) => d.sku !== "");
+  if (hasItems && formData.gudangAsalKode !== gudang.Kode) {
+    if (
+      !confirm(
+        "Gudang diubah, daftar barang sebelumnya akan dikosongkan. Lanjutkan?",
+      )
+    ) {
+      isGudangModalVisible.value = false;
+      return;
+    }
+    formData.detail = [createEmptyDetail()];
+  }
+  formData.gudangAsalKode = gudang.Kode;
+  formData.gudangAsalNama = gudang.Nama;
+  isGudangModalVisible.value = false;
+};
+
 const openBahanSearch = (index: number) => {
   currentDetailIndex.value = index;
   isBahanModalVisible.value = true;
@@ -100,9 +133,9 @@ const openBahanSearch = (index: number) => {
 const handleBahanSelect = (bahan: any) => {
   if (currentDetailIndex.value !== null) {
     const item = formData.detail[currentDetailIndex.value];
-    item.sku = bahan.Kode;
-    item.namaBahan = bahan.Nama;
-    item.satuan = bahan.Satuan;
+    item.sku = bahan.Kode || bahan.kode;
+    item.namaBahan = bahan.Nama || bahan.nama;
+    item.satuan = bahan.Satuan || bahan.sat;
   }
   isBahanModalVisible.value = false;
 };
@@ -119,63 +152,21 @@ const handleSPKSelect = (spk: any) => {
   isSPKModalVisible.value = false;
 };
 
-const bahanModalMode = computed(() => {
-  const kode = formData.gudangAsalKode?.toUpperCase(); // Di sini sebelumnya 'header'
-  const nama = formData.gudangAsalNama?.toLowerCase() || "";
-
-  if (kode === "WH-20" || nama.includes("tinta") || nama.includes("obat")) {
-    return "obat";
-  }
-  if (kode === "GPM" || nama.includes("produksi")) {
-    return "produksi";
-  }
-  return "mmt";
-});
-
-// 2. Perbaiki handleGudangSelect (Ganti 'header' dan 'details' menjadi 'formData')
-const handleGudangSelect = (gudang: any) => {
-  // Cek jika sudah ada detail barang (sku tidak kosong)
-  const hasItems = formData.detail.some((d) => d.sku !== "");
-
-  if (hasItems && formData.gudangAsalKode !== gudang.Kode) {
-    if (
-      !confirm(
-        "Gudang diubah, daftar barang sebelumnya akan dikosongkan. Lanjutkan?",
-      )
-    ) {
-      isGudangModalVisible.value = false;
-      return;
-    }
-    // Reset detail
-    formData.detail = [createEmptyDetail()];
-  }
-
-  formData.gudangAsalKode = gudang.Kode;
-  formData.gudangAsalNama = gudang.Nama;
-  isGudangModalVisible.value = false;
-};
-
 const saveForm = async () => {
   if (!isFormValid.value) return;
-
   isSaving.value = true;
   try {
     const payload = {
+      tipe: props.tipe,
       Nomor: formData.nomor,
       Tanggal: formData.tanggal,
       Departemen: formData.departemenPeminta,
-      GudangKode: formData.gudangAsalKode, // Dikirim ke backend mnt_gdg_kode
+      GudangKode: formData.gudangAsalKode,
       Keterangan: formData.keteranganHeader,
       User: "ADMIN_PROD",
       Details: formData.detail
         .filter((d) => d.sku !== "")
-        .map((d) => ({
-          sku: d.sku,
-          qtyMinta: d.qtyMinta,
-          satuan: d.satuan,
-          spk: d.spk,
-          keterangan: d.keterangan,
-        })),
+        .map((d) => ({ ...d })),
     };
 
     const response = isEditMode.value
@@ -183,13 +174,13 @@ const saveForm = async () => {
       : await api.post(API_URL, payload);
 
     if (response.data.success) {
-      toast.success(`Permintaan ${response.data.nomor} berhasil disimpan.`);
+      toast.success(
+        `Permintaan ${response.data.nomor || ""} berhasil disimpan.`,
+      );
       router.push({ name: "PermintaanProduksiBrowse" });
     }
   } catch (error: any) {
-    const errorMsg =
-      error.response?.data?.message || "Gagal menyimpan permintaan.";
-    toast.error(errorMsg);
+    toast.error(error.response?.data?.message || "Gagal menyimpan permintaan.");
   } finally {
     isSaving.value = false;
   }
@@ -198,27 +189,23 @@ const saveForm = async () => {
 onMounted(async () => {
   if (isEditMode.value) {
     try {
-      const nomor = route.params.nomor;
-      const response = await api.get(`${API_URL}/${nomor}`);
-      const data = response.data;
-
+      const { data } = await api.get(`${API_URL}/${route.params.nomor}`);
       formData.nomor = data.Nomor;
       formData.tanggal = data.Tanggal;
       formData.departemenPeminta = data.Lokasi;
-      formData.gudangAsalKode = data.GudangKode; // Pastikan backend mengirim ini
+      formData.gudangAsalKode = data.GudangKode || data.Gudang;
       formData.gudangAsalNama = data.GudangNama;
       formData.keteranganHeader = data.Keterangan;
-
       formData.detail = data.Details.map((d: any) => ({
-        sku: d.SKU,
-        namaBahan: d.NamaBahan || "",
+        sku: d.SKU || d.sku,
+        namaBahan: d.NamaBahan || d.namaBahan || "",
         qtyMinta: d.qtyMinta,
         satuan: d.satuan,
         spk: d.spk,
         keterangan: d.keterangan,
       }));
-    } catch (error) {
-      toast.error("Gagal mengambil data detail.");
+    } catch (e) {
+      toast.error("Gagal mengambil data.");
     }
   }
 });
@@ -226,7 +213,7 @@ onMounted(async () => {
 
 <template>
   <PageLayout
-    title="Form Permintaan Bahan Produksi"
+    :title="`Form Permintaan ${props.tipe}`"
     icon="mdi-file-document-edit"
   >
     <template #header-actions>
@@ -245,8 +232,7 @@ onMounted(async () => {
     <v-row>
       <v-col cols="12" md="4">
         <v-card variant="outlined" class="pa-4 border-opacity-50">
-          <div class="text-subtitle-2 mb-4 color-grey">Informasi Header</div>
-
+          <div class="text-subtitle-2 mb-4 text-grey">Informasi Header</div>
           <v-text-field
             label="Nomor Dokumen"
             v-model="formData.nomor"
@@ -255,7 +241,6 @@ onMounted(async () => {
             variant="filled"
             class="mb-2"
           />
-
           <v-text-field
             label="Tanggal Permintaan"
             v-model="formData.tanggal"
@@ -264,31 +249,26 @@ onMounted(async () => {
             variant="outlined"
             class="mb-2"
           />
-
           <v-text-field
-            label="Permintaan Ke Gudang (Asal)"
+            label="Gudang Asal"
             v-model="formData.gudangAsalNama"
             readonly
             density="compact"
             variant="outlined"
-            placeholder="Pilih Gudang Sumber..."
             prepend-inner-icon="mdi-warehouse"
             append-inner-icon="mdi-magnify"
             @click="isGudangModalVisible = true"
             class="mb-2"
-            persistent-placeholder
           />
-
           <v-text-field
-            label="Lokasi Produksi (Peminta)"
+            label="Lokasi Produksi"
             v-model="formData.departemenPeminta"
             density="compact"
             variant="outlined"
             class="mb-2"
           />
-
           <v-textarea
-            label="Keterangan Tambahan"
+            label="Keterangan"
             v-model="formData.keteranganHeader"
             rows="3"
             density="compact"
@@ -307,7 +287,7 @@ onMounted(async () => {
             class="elevation-0"
           >
             <template #[`item.index`]="{ index }">
-              <span class="text-caption grey--text">{{ index + 1 }}</span>
+              <span class="text-caption text-grey">{{ index + 1 }}</span>
             </template>
 
             <template #[`item.sku`]="{ item, index }">
@@ -381,13 +361,11 @@ onMounted(async () => {
       @close="isBahanModalVisible = false"
       @select="handleBahanSelect"
     />
-
     <GudangLookupModal
       :isVisible="isGudangModalVisible"
       @close="isGudangModalVisible = false"
       @select="handleGudangSelect"
     />
-
     <SPKLookupModal
       :isVisible="isSPKModalVisible"
       @close="isSPKModalVisible = false"

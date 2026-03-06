@@ -216,7 +216,7 @@ const allMenuGroups = [
         name: "Daftar Permintaan Pembelian",
         path: "/mmt/pengajuan-permintaan",
       },
-      { name: "Purchase Order (PR)", path: "/mmt/permintaan-bahan" },
+      { name: "Purchase Request (PR)", path: "/mmt/permintaan-bahan" },
 
       { name: "Penerimaan Bahan", path: "/mmt/penerimaan-bahan" },
 

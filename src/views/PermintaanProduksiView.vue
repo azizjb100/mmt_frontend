@@ -289,36 +289,21 @@ const detailHeaders = [
 // --- Utility Functions ---
 
 const parseCustomDate = (dateString: string): Date | null => {
-  // Logika parseCustomDate tetap sama
   if (!dateString) return null;
   try {
-    const [day, monthName, year] = dateString.split("-");
-    const months = [
-      "January",
-      "February",
-      "March",
-      "April",
-      "May",
-      "June",
-      "July",
-      "August",
-      "September",
-      "October",
-      "November",
-      "December",
-    ];
-    const monthIndex = months.findIndex((m) =>
-      m.toLowerCase().startsWith(monthName.toLowerCase()),
-    );
+    // Format API: "25-02-2026"
+    const [day, month, year] = dateString.split("-");
 
-    if (monthIndex === -1) return null;
+    // Urutan Date adalah (Tahun, IndexBulan, Tanggal)
+    // IndexBulan dimulai dari 0 (Januari = 0)
+    const date = new Date(Number(year), Number(month) - 1, Number(day));
 
-    const date = new Date(Number(year), monthIndex, Number(day));
-
-    if (isNaN(date.getTime()) || date.getDate() !== Number(day)) return null;
+    // Validasi apakah hasilnya valid date
+    if (isNaN(date.getTime())) return null;
 
     return date;
   } catch (e) {
+    console.error("Error parsing date:", dateString);
     return null;
   }
 };

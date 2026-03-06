@@ -71,6 +71,9 @@ import LapLHKView from '@/views/LapLHKView.vue';
 import PelunasanPembelianView from '@/views/PelunasanPembelianView.vue';
 import FormPelunasanPembelianView from '@/views/FormPelunasanPembelianView.vue';
 import LapHutangView from '@/views/LapHutangView.vue';
+import FormLhkFinishingBuildView from '@/views/FormLhkFinishingBuildView.vue';
+import PenerimaanPoExtMmtView from '@/views/PenerimaanPoExtMmtView.vue';
+import FormPenerimaanPoExtMmtView from '@/views/FormPenerimaanPoExtMmtView.vue';
 
 
 
@@ -100,10 +103,17 @@ const routes: RouteRecordRaw[] = [
             { path: 'mmt/lhk/cetak', name: 'LHKMesinCetakView', component: LhkMesinCetakView },
             { path: 'mmt/lhk/cetak/new', name: 'LhkCetakCreate', component: FormLhkMesinCetakView },
             { path: 'mmt/lhk/cetak/edit/:nomor', name: 'LhkCetakEdit', component: FormLhkMesinCetakView, props: { isEditMode: false } },
-            { path: 'mmt/lhk/finishing', name: 'LHK Finishing MMT', component: LhkFinishingView },{
+            { path: 'mmt/lhk/finishing', name: 'LHK Finishing MMT', component: LhkFinishingView },
+            {
                 path: 'mmt/lhk/finishing/new',
                 name: 'LhkFinishingNew',
                 component: FormLhkFinishingView,
+                props: { isEditMode: false }
+            },
+            {
+                path: 'mmt/lhk/finishing/build',
+                name: 'LhkFinishingBuild',
+                component: FormLhkFinishingBuildView,
                 props: { isEditMode: false }
             },
             { path: 'mmt/daftar/stbj', name: 'STBJ MMT', component: StbjMmtBiew },
@@ -323,7 +333,6 @@ const routes: RouteRecordRaw[] = [
             { path: 'spanduk/mon-lipat', name: 'Mon Lipat Spanduk', component: ComingSoon },
             { path: 'spanduk/mon-quiring', name: 'Mon Quiring Spanduk', component: ComingSoon },
 
-            // --- GRUP MMT (LANJUTAN) ---
 
             { path: 'mmt/daftar/bahan', name: 'Master Bahan', component: MasterBahanView },
             { path: 'mmt/daftar/bahan/new', name: 'MasterBahanNew', component: FormMasterBahanView },
@@ -339,7 +348,8 @@ const routes: RouteRecordRaw[] = [
             { path: 'mmt/bs-tekstil', name: 'BS & Sisa Tekstil', component: ComingSoon },
             { path: 'mmt/bahan-sisa', name: 'Bahan Sisa MMT', component: ComingSoon },
             { path: 'mmt/po-paperprint', name: 'PO Paperprint MMT', component: POPaperprintView },
-            { path: 'mmt/penerimaan-po-external', name: 'Penerimaan PO External MMT', component: ComingSoon },
+            { path: 'mmt/penerimaan-po-external', name: 'Penerimaan PO External MMT', component: PenerimaanPoExtMmtView },
+            { path: 'mmt/penerimaan-po-external/new', name: 'PenerimaanPOExternalMmmtNew', component: FormPenerimaanPoExtMmtView },
 
             // Rute untuk "Produksi MMT"
             { path: 'produksi-mmt/mon/cetak', name: 'Monitoring Cetak MMT', component: ComingSoon },

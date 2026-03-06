@@ -272,7 +272,11 @@ const filters = reactive({
 // --- Computed ---
 const isSingleSelected = computed(() => selected.value.length === 1);
 const selectedRow = computed<LhkFinishingItem | null>(() =>
+<<<<<<< HEAD
     isSingleSelected.value ? (selected.value[0] as LhkFinishingItem) : null,
+=======
+  isSingleSelected.value ? (selected.value[0] as LhkFinishingItem) : null,
+>>>>>>> 12ef6b8 (ok)
 );
 
 // --- Helpers ---
@@ -332,6 +336,7 @@ const fetchGudangList = async () => {
 };
 
 const fetchHeaders = async () => {
+<<<<<<< HEAD
     loading.value.headers = true;
     try {
         const response = await api.get<LhkFinishingHeader[]>(API_BASE_URL, {
@@ -376,6 +381,48 @@ const loadDetails = async (newlyExpandedItems: LhkFinishingItem[]) => {
         loadingDetails.value.delete(itemToLoad.Nomor);
         loading.value.details = false;
     }
+=======
+  loading.value.headers = true;
+  try {
+    const response = await api.get(API_BASE_URL, {
+      params: {
+        startDate: filters.startDate,
+        endDate: filters.endDate,
+      },
+    });
+    headers.value = response.data.data || [];
+
+    selected.value = [];
+    expanded.value = [];
+  } catch (err) {
+    console.error("Fetch error:", err);
+    toast.error("Gagal mengambil data LHK Finishing.");
+  } finally {
+    loading.value.headers = false;
+  }
+};
+
+const loadDetails = async (newlyExpandedItems: LhkFinishingItem[]) => {
+  // Ambil item terakhir yang di-expand
+  const itemToLoad = newlyExpandedItems[newlyExpandedItems.length - 1];
+
+  if (!itemToLoad || details.value[itemToLoad.Nomor]) return;
+
+  loadingDetails.value.add(itemToLoad.Nomor);
+  try {
+    const res = await api.get(`${API_BASE_URL}/details`, {
+      params: { nomor: itemToLoad.Nomor },
+    });
+
+    // PERBAIKAN DI SINI: sesuaikan dengan struktur { success: true, data: [...] }
+    details.value[itemToLoad.Nomor] = res.data.data || [];
+  } catch (err) {
+    toast.error(`Gagal memuat detail untuk ${itemToLoad.Nomor}`);
+    details.value[itemToLoad.Nomor] = [];
+  } finally {
+    loadingDetails.value.delete(itemToLoad.Nomor);
+  }
+>>>>>>> 12ef6b8 (ok)
 };
 
 // --- Actions ---
@@ -390,6 +437,7 @@ const handleEdit = () => {
 };
 
 const handleDelete = async () => {
+<<<<<<< HEAD
     if (!selectedRow.value) return;
     if (
         confirm(
@@ -403,6 +451,20 @@ const handleDelete = async () => {
         } catch (error) {
             toast.error("Gagal menghapus data.");
         }
+=======
+  if (!selectedRow.value) return;
+  if (
+    confirm(
+      `Yakin ingin menghapus LHK Finishing nomor ${selectedRow.value.Nomor}?`,
+    )
+  ) {
+    try {
+      await api.delete(`${API_BASE_URL}/${selectedRow.value.Nomor}`);
+      toast.success(`LHK ${selectedRow.value.Nomor} berhasil dihapus.`);
+      await fetchHeaders();
+    } catch (error) {
+      toast.error("Gagal menghapus data.");
+>>>>>>> 12ef6b8 (ok)
     }
 };
 

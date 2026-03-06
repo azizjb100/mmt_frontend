@@ -1183,14 +1183,9 @@ const handleSelectPermintaan = async (permintaanItem: LookupItem) => {
         ...createEmptyDetail(),
         kode: d.Kode,
         nama: d.Nama_Bahan,
-        // FIX NAMA: Harus diisi ke namaext agar tampil di tabel
         namaext: d.Nama_Bahan,
         satuan: d.Satuan,
-
-        // FIX PERKALIAN: Ambil satuan harga dari database (M2 atau ROLL)
-        // d.brg_satuan_harga harus dikirim oleh API backend
         satuanHarga: (d.brg_satuan_harga || "roll").toLowerCase(),
-
         panjang: p,
         lebar: l,
         m2: p * l, // Hitung luas per roll

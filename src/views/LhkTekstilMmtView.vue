@@ -173,6 +173,7 @@ import { ref, reactive, computed, onMounted, watch } from "vue";
 import { useRouter } from "vue-router";
 import { useToast } from "vue-toastification";
 //import Swal from "sweetalert2";
+import PageLayout from "../components/PageLayout.vue";
 import api from "@/services/api";
 import { format, subDays } from "date-fns";
 

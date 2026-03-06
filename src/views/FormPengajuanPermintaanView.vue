@@ -316,6 +316,23 @@ const loaddataall = async (nomor: string) => {
   }
 };
 
+const bahanModalMode = computed(() => {
+  const kode = formData.gudangKode?.toUpperCase() || "";
+  const nama = formData.gudangNama?.toLowerCase() || "";
+
+  // Jika gudang WH-20 atau mengandung kata 'tinta'/'obat'
+  if (kode === "WH-20" || nama.includes("tinta") || nama.includes("obat")) {
+    return "obat";
+  }
+
+  // Jika gudang produksi
+  if (kode === "GPM" || nama.includes("produksi")) {
+    return "produksi";
+  }
+
+  return "mmt"; // Default mode
+});
+
 const handleBahanSelect = (bahan: MasterBahan) => {
   if (currentDetailIndex.value === null) return;
   const isDuplicate = formData.detail.some(
@@ -344,11 +361,23 @@ const handlePabrikSelect = (pabrik: { Kode: string; Nama: string }) => {
 };
 
 const handleGudangAsalSelect = (gudang: { Kode: string; Nama: string }) => {
-  // Kita petakan ke field pabrikKode/pabrikNama agar konsisten dengan struktur payload Anda
-  // atau ganti labelnya saja di UI
-  formData.pabrikKode = gudang.Kode;
-  formData.pabrikNama = gudang.Nama;
-  formData.cabang = gudang.Nama;
+  // Cek jika sudah ada item di detail
+  const hasItems = formData.detail.some((d) => d.sku !== "");
+
+  if (hasItems && formData.gudangKode !== gudang.Kode) {
+    if (
+      !confirm(
+        "Gudang diubah, daftar barang sebelumnya mungkin tidak sesuai. Kosongkan daftar barang?",
+      )
+    ) {
+      isGudangModalVisible.value = false;
+      return;
+    }
+    formData.detail = [createEmptyDetail()];
+  }
+
+  formData.gudangKode = gudang.Kode;
+  formData.gudangNama = gudang.Nama;
   isGudangModalVisible.value = false;
 };
 
@@ -444,8 +473,8 @@ onMounted(() => {
               </v-col>
               <v-col cols="6">
                 <v-text-field
-                  label="Gudang Asal (Permintaan Ke)"
-                  v-model="formData.pabrikKode"
+                  label="Untuk Gudang"
+                  v-model="formData.gudangKode"
                   @click="!isLocked && (isGudangModalVisible = true)"
                   :append-inner-icon="isLocked ? '' : 'mdi-magnify'"
                   readonly
@@ -454,23 +483,10 @@ onMounted(() => {
                   hide-details
                 />
               </v-col>
-
-              <v-col cols="6">
-                <v-text-field
-                  label="Gudang Tujuan"
-                  v-model="formData.gudangKode"
-                  readonly
-                  bg-color="grey-lighten-4"
-                  density="compact"
-                  variant="outlined"
-                  hide-details
-                />
-              </v-col>
-
               <v-col cols="12">
                 <v-text-field
-                  label="Nama Gudang Asal"
-                  v-model="formData.pabrikNama"
+                  label="Nama Gudang"
+                  v-model="formData.gudangNama"
                   readonly
                   bg-color="grey-lighten-4"
                   density="compact"
@@ -478,6 +494,7 @@ onMounted(() => {
                   hide-details
                 />
               </v-col>
+
               <v-col cols="12">
                 <v-select
                   label="Jenis"
@@ -690,7 +707,7 @@ onMounted(() => {
     />
     <MasterBahanModal
       :isVisible="isBahanModalVisible"
-      mode="mmt"
+      :mode="bahanModalMode"
       @close="isBahanModalVisible = false"
       @select="handleBahanSelect"
     />
