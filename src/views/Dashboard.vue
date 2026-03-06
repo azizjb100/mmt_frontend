@@ -347,7 +347,10 @@ const allMenuGroups = [
           },
           { name: "Laporan SPK MMT", path: "/laporan/mmt/lap-spk-mmt" },
           { name: "Laporan LHK", path: "/laporan/mmt/lap-lhk" },
-          { name: "Lap. Mon LMKP MMT", path: "/laporan/mmt/lap-mon-lmkp-mmt" },
+          {
+            name: "Lap. Monitoring Kurang Produksi MMT",
+            path: "/laporan/mmt/lap-mon-lmkp-mmt",
+          },
           { name: "Lap. Mon Cetak", path: "/laporan/mmt/lap-mon-cetak" },
           {
             name: "Lap. Plan Produksi",
