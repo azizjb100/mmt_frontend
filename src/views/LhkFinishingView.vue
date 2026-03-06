@@ -1,213 +1,181 @@
 <template>
-    <PageLayout title="LHK Finishing MMT" icon="mdi-printer-3d">
-        <template #header-actions>
-            <v-btn size="small" color="success" @click="handleNewEdit('new')">
-                <v-icon start>mdi-plus</v-icon> Baru
+  <PageLayout title="LHK Finishing MMT" icon="mdi-printer-3d">
+    <template #header-actions>
+      <v-btn size="small" color="success" @click="handleNewEdit('new')">
+        <v-icon start>mdi-plus</v-icon> Baru
+      </v-btn>
+      <v-btn
+        size="small"
+        color="warning"
+        :disabled="!isSingleSelected"
+        @click="handleEditClick"
+      >
+        <v-icon start>mdi-pencil</v-icon> Ubah
+      </v-btn>
+      <v-btn
+        size="small"
+        color="error"
+        :disabled="!isSingleSelected"
+        @click="handleDelete"
+      >
+        <v-icon start>mdi-trash-can</v-icon> Hapus
+      </v-btn>
+
+      <v-divider vertical class="mx-2" />
+
+      <v-btn
+        size="small"
+        color="info"
+        :disabled="!isSingleSelected"
+        @click="handlePrint"
+      >
+        <v-icon start>mdi-printer</v-icon> Cetak Slip
+      </v-btn>
+      <v-btn
+        size="small"
+        color="info"
+        :disabled="!isSingleSelected"
+        @click="handleExportDetail"
+      >
+        <v-icon start>mdi-download</v-icon> Export Detail
+      </v-btn>
+    </template>
+
+    <div class="browse-content">
+      <v-card flat class="mb-4">
+        <v-card-text>
+          <div class="filter-section d-flex align-center flex-wrap ga-4">
+            <v-label class="filter-label">Periode Mulai:</v-label>
+            <v-text-field
+              v-model="filters.startDate"
+              type="date"
+              density="compact"
+              hide-details
+              variant="outlined"
+              style="max-width: 150px"
+            />
+
+            <v-label class="mx-2">s/d</v-label>
+
+            <v-text-field
+              v-model="filters.endDate"
+              type="date"
+              density="compact"
+              hide-details
+              variant="outlined"
+              style="max-width: 150px"
+            />
+
+            <v-btn variant="text" size="small" @click="fetchHeaders">
+              <v-icon>mdi-refresh</v-icon> Refresh
             </v-btn>
-            <v-btn
-                size="small"
-                color="warning"
-                :disabled="!isSingleSelected"
-                @click="handleEditClick"
-            >
-                <v-icon start>mdi-pencil</v-icon> Ubah
-            </v-btn>
-            <v-btn
-                size="small"
-                color="error"
-                :disabled="!isSingleSelected"
-                @click="handleDelete"
-            >
-                <v-icon start>mdi-trash-can</v-icon> Hapus
-            </v-btn>
+            <v-spacer />
 
-            <v-divider vertical class="mx-2" />
-
-            <v-btn
-                size="small"
-                color="info"
-                :disabled="!isSingleSelected"
-                @click="handlePrint"
-            >
-                <v-icon start>mdi-printer</v-icon> Cetak Slip
-            </v-btn>
-            <v-btn
-                size="small"
-                color="info"
-                :disabled="!isSingleSelected"
-                @click="handleExportDetail"
-            >
-                <v-icon start>mdi-download</v-icon> Export Detail
-            </v-btn>
-        </template>
-
-        <div class="browse-content">
-            <v-card flat class="mb-4">
-                <v-card-text>
-                    <div
-                        class="filter-section d-flex align-center flex-wrap ga-4"
-                    >
-                        <v-label class="filter-label">Periode Mulai:</v-label>
-                        <v-text-field
-                            v-model="filters.startDate"
-                            type="date"
-                            density="compact"
-                            hide-details
-                            variant="outlined"
-                            style="max-width: 150px"
-                        />
-
-                        <v-label class="mx-2">s/d</v-label>
-
-                        <v-text-field
-                            v-model="filters.endDate"
-                            type="date"
-                            density="compact"
-                            hide-details
-                            variant="outlined"
-                            style="max-width: 150px"
-                        />
-
-                        <v-btn
-                            variant="text"
-                            size="small"
-                            @click="fetchHeaders"
-                        >
-                            <v-icon>mdi-refresh</v-icon> Refresh
-                        </v-btn>
-                        <v-spacer />
-
-                        <div class="d-flex align-center ga-2 text-caption">
-                            <v-icon color="red" size="small"
-                                >mdi-square-rounded</v-icon
-                            >
-                            <span class="ml-1"
-                                ><strong>LENGKAP: TIDAK</strong></span
-                            >
-                        </div>
-                    </div>
-                </v-card-text>
-            </v-card>
-
-            <div class="table-container">
-                <v-data-table
-                    v-model:selected="selected"
-                    :headers="masterHeaders"
-                    :items="headers || []"
-                    :loading="loading.headers"
-                    item-value="Nomor"
-                    density="compact"
-                    class="desktop-table elevation-1"
-                    fixed-header
-                    show-select
-                    return-object
-                    show-expand
-                    @update:expanded="loadDetails"
-                >
-                    <template #item.Tanggal="{ item }">
-                        {{ safeFormatDate(item.Tanggal) }}
-                    </template>
-
-                    <template #item.Lengkap="{ item }">
-                        <v-chip
-                            size="x-small"
-                            :color="item.Lengkap === 'Y' ? 'success' : 'error'"
-                        >
-                            {{ item.Lengkap === "Y" ? "YA" : "TIDAK" }}
-                        </v-chip>
-                    </template>
-
-                    <template #item.Nomor="{ item }">
-                        <span :class="getRowTextColor(item)">{{
-                            item.Nomor
-                        }}</span>
-                    </template>
-
-                    <template #expanded-row="{ columns, item }">
-                        <tr>
-                            <td :colspan="columns.length">
-                                <div class="detail-container">
-                                    <div class="detail-table-wrapper">
-                                        <div
-                                            v-if="
-                                                loading.details ||
-                                                isLoadingDetails(item.Nomor)
-                                            "
-                                            class="text-center pa-4 text-caption"
-                                        >
-                                            Memuat detail...
-                                        </div>
-
-                                        <v-data-table
-                                            v-else
-                                            :headers="detailHeaders"
-                                            :items="details[item.Nomor] || []"
-                                            density="compact"
-                                            class="detail-table"
-                                            :items-per-page="-1"
-                                            hide-default-footer
-                                        >
-                                            <template
-                                                #[`item.J_Order`]="{ item: d }"
-                                                >{{ d.J_Order }}</template
-                                            >
-                                            <template
-                                                #[`item.J_Seaming`]="{
-                                                    item: d,
-                                                }"
-                                                >{{ d.J_Seaming }}</template
-                                            >
-                                            <template
-                                                #[`item.J_MataAyam`]="{
-                                                    item: d,
-                                                }"
-                                                >{{ d.J_MataAyam }}</template
-                                            >
-                                            <template
-                                                #[`item.J_Coly`]="{ item: d }"
-                                                >{{ d.J_Coly }}</template
-                                            >
-                                            <template
-                                                #[`item.J_Bs`]="{ item: d }"
-                                                >{{ d.J_Bs }}</template
-                                            >
-                                            <template
-                                                #[`item.Mata_Ayam`]="{
-                                                    item: d,
-                                                }"
-                                                >{{ d.Mata_Ayam }}</template
-                                            >
-                                            <template
-                                                #[`item.XBanner`]="{ item: d }"
-                                                >{{ d.XBanner }}</template
-                                            >
-                                            <template
-                                                #[`item.Plastik`]="{ item: d }"
-                                                >{{ d.Plastik }}</template
-                                            >
-                                        </v-data-table>
-
-                                        <div
-                                            v-if="
-                                                !isLoadingDetails(item.Nomor) &&
-                                                !(
-                                                    details[item.Nomor] &&
-                                                    details[item.Nomor].length
-                                                )
-                                            "
-                                            class="text-center pa-4 text-caption"
-                                        >
-                                            Tidak ada data detail.
-                                        </div>
-                                    </div>
-                                </div>
-                            </td>
-                        </tr>
-                    </template>
-                </v-data-table>
+            <div class="d-flex align-center ga-2 text-caption">
+              <v-icon color="red" size="small">mdi-square-rounded</v-icon>
+              <span class="ml-1"><strong>LENGKAP: TIDAK</strong></span>
             </div>
-        </div>
-    </PageLayout>
+          </div>
+        </v-card-text>
+      </v-card>
+
+      <div class="table-container">
+        <v-data-table
+          v-model:selected="selected"
+          :headers="masterHeaders"
+          :items="headers || []"
+          :loading="loading.headers"
+          item-value="Nomor"
+          density="compact"
+          class="desktop-table elevation-1"
+          fixed-header
+          show-select
+          return-object
+          show-expand
+          @update:expanded="loadDetails"
+        >
+          <template #item.Tanggal="{ item }">
+            {{ safeFormatDate(item.Tanggal) }}
+          </template>
+
+          <template #item.Lengkap="{ item }">
+            <v-chip
+              size="x-small"
+              :color="item.Lengkap === 'Y' ? 'success' : 'error'"
+            >
+              {{ item.Lengkap === "Y" ? "YA" : "TIDAK" }}
+            </v-chip>
+          </template>
+
+          <template #item.Nomor="{ item }">
+            <span :class="getRowTextColor(item)">{{ item.Nomor }}</span>
+          </template>
+
+          <template #expanded-row="{ columns, item }">
+            <tr>
+              <td :colspan="columns.length">
+                <div class="detail-container">
+                  <div class="detail-table-wrapper">
+                    <div
+                      v-if="loading.details || isLoadingDetails(item.Nomor)"
+                      class="text-center pa-4 text-caption"
+                    >
+                      Memuat detail...
+                    </div>
+
+                    <v-data-table
+                      v-else
+                      :headers="detailHeaders"
+                      :items="details[item.Nomor] || []"
+                      density="compact"
+                      class="detail-table"
+                      :items-per-page="-1"
+                      hide-default-footer
+                    >
+                      <template #[`item.J_Order`]="{ item: d }">{{
+                        d.J_Order
+                      }}</template>
+                      <template #[`item.J_Seaming`]="{ item: d }">{{
+                        d.J_Seaming
+                      }}</template>
+                      <template #[`item.J_MataAyam`]="{ item: d }">{{
+                        d.J_MataAyam
+                      }}</template>
+                      <template #[`item.J_Coly`]="{ item: d }">{{
+                        d.J_Coly
+                      }}</template>
+                      <template #[`item.J_Bs`]="{ item: d }">{{
+                        d.J_Bs
+                      }}</template>
+                      <template #[`item.Mata_Ayam`]="{ item: d }">{{
+                        d.Mata_Ayam
+                      }}</template>
+                      <template #[`item.XBanner`]="{ item: d }">{{
+                        d.XBanner
+                      }}</template>
+                      <template #[`item.Plastik`]="{ item: d }">{{
+                        d.Plastik
+                      }}</template>
+                    </v-data-table>
+
+                    <div
+                      v-if="
+                        !isLoadingDetails(item.Nomor) &&
+                        !(details[item.Nomor] && details[item.Nomor].length)
+                      "
+                      class="text-center pa-4 text-caption"
+                    >
+                      Tidak ada data detail.
+                    </div>
+                  </div>
+                </div>
+              </td>
+            </tr>
+          </template>
+        </v-data-table>
+      </div>
+    </div>
+  </PageLayout>
 </template>
 
 <script setup lang="ts">
@@ -272,11 +240,8 @@ const filters = reactive({
 // --- Computed ---
 const isSingleSelected = computed(() => selected.value.length === 1);
 const selectedRow = computed<LhkFinishingItem | null>(() =>
-<<<<<<< HEAD
     isSingleSelected.value ? (selected.value[0] as LhkFinishingItem) : null,
-=======
-  isSingleSelected.value ? (selected.value[0] as LhkFinishingItem) : null,
->>>>>>> 12ef6b8 (ok)
+
 );
 
 // --- Helpers ---
