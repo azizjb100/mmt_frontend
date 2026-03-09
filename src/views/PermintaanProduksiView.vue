@@ -406,7 +406,9 @@ const handleDelete = async () => {
 
 const handlePrint = () => {
   if (selectedNomor.value) {
-    alert(`TODO: Mencetak slip untuk ${selectedNomor.value}`);
+    // Arahkan ke endpoint backend khusus cetak
+    const url = `${api.defaults.baseURL}/mmt/permintaan-produksi/print/${selectedNomor.value}`;
+    window.open(url, "_blank");
   }
 };
 

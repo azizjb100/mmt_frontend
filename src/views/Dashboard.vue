@@ -22,22 +22,33 @@
               <li
                 v-if="item.isSubGroup"
                 class="sub-dropdown"
-                :class="{ 'item-disabled': item.isDisabled }"
+                :class="{
+                  'item-disabled': item.isDisabled,
+                  'is-sub-active': activeSubMenu === item.name,
+                }"
               >
-                <router-link
+                <a
                   v-if="!item.isDisabled"
-                  :to="item.path"
                   class="sub-dropdown-toggle"
+                  @click.prevent.stop="toggleSubMenu(item.name)"
                 >
-                  {{ item.name }} <span class="icon-arrow">&raquo;</span>
-                </router-link>
+                  {{ item.name }}
+                  <span
+                    class="icon-arrow"
+                    :class="{ rotate: activeSubMenu === item.name }"
+                    >&raquo;</span
+                  >
+                </a>
                 <span v-else class="disabled-link">
                   {{ item.name }} <span class="mdi mdi-lock-outline"></span>
                 </span>
 
-                <ul v-if="!item.isDisabled" class="dropdown-menu sub-menu">
+                <ul
+                  v-if="!item.isDisabled && activeSubMenu === item.name"
+                  class="dropdown-menu sub-menu is-visible"
+                >
                   <li v-for="subItem in item.items" :key="subItem.name">
-                    <router-link :to="subItem.path">
+                    <router-link :to="subItem.path" @click="closeAllMenus">
                       {{ subItem.name }}
                     </router-link>
                   </li>
@@ -84,7 +95,8 @@ const currentUser = authStore.user;
 const router = useRouter();
 
 // State untuk menu aktif
-const activeMenu = ref(null);
+const activeMenu = ref(null); // Untuk Level 1 (Transaksi, Laporan, dll)
+const activeSubMenu = ref(null);
 
 const rolePermissions = {
   1: [
@@ -133,7 +145,14 @@ const handleLogout = () => {
 
 // LOGIC TOGGLE MENU
 const toggleMenu = (menuName) => {
+  if (activeMenu.value !== menuName) {
+    activeSubMenu.value = null; // Reset sub-menu jika pindah menu utama
+  }
   activeMenu.value = activeMenu.value === menuName ? null : menuName;
+};
+
+const toggleSubMenu = (subName) => {
+  activeSubMenu.value = activeSubMenu.value === subName ? null : subName;
 };
 
 const handleMenuClick = (e) => {
@@ -233,7 +252,7 @@ const allMenuGroups = [
       {
         name: "LHK",
         isSubGroup: true,
-        path: "/mmt/lhk/browse",
+        path: null,
         items: [
           { name: "LHK Mesin Cetak", path: "/mmt/lhk/cetak" },
           { name: "LHK Cetak Mmt", path: "/mmt/lhk/cetak-mmt" },
@@ -566,11 +585,43 @@ const menuGroups = computed(() => {
   z-index: 1200;
 }
 
-/* Memastikan area hover tetap aktif saat kursor di area padding */
-.sub-dropdown:hover > .sub-menu {
-  display: block;
+.sub-menu.is-visible {
+  display: block !important;
+  animation: fadeIn 0.2s ease;
 }
 
+.sub-dropdown-toggle {
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px;
+}
+
+/* Beri tanda warna jika sub-menu sedang terbuka */
+.is-sub-active > .sub-dropdown-toggle {
+  background-color: #f0f7ff;
+  color: #1e78c8;
+}
+
+.icon-arrow {
+  transition: transform 0.2s;
+}
+
+.icon-arrow.rotate {
+  transform: rotate(90deg);
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateX(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
 /* Styling tambahan untuk link di Level 3 agar lebih rapat dan mudah dijangkau */
 .sub-menu li {
   background-color: white; /* Beri background agar area klik jelas */

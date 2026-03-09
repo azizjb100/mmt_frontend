@@ -548,13 +548,13 @@ onMounted(() => {
             :headers="[
               {
                 title: 'SKU',
-                key: 'SKU',
+                key: 'sku',
                 width: '150px',
                 class: 'bg-grey-lighten-4',
               },
               {
                 title: 'Nama Bahan',
-                key: 'Nama_Bahan',
+                key: 'namaBahan',
                 class: 'bg-grey-lighten-4',
               },
               {
