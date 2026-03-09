@@ -248,7 +248,7 @@ const allMenuGroups = [
       { name: "Planning Produksi", path: "/mmt/planning-produksi" },
       { name: "BS & Sisa Digital Print", path: "/mmt/bs-digital" },
       { name: "BS & Sisa Tekstil", path: "/mmt/bs-tekstil" },
-      { name: "Bahan Sisa", path: "/mmt/bahan-sisa" },
+      { name: "STBJ", path: "/mmt/stbj" },
       {
         name: "LHK",
         isSubGroup: true,
