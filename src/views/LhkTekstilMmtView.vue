@@ -200,7 +200,6 @@ const masterHeaders = [
   { title: "Gudang", key: "Nama_Gudang" },
   { title: "Shift", key: "Shift", width: "80px" },
   { title: "Cetak (m)", key: "cetak_meter", align: "end" },
-  { title: "Lengkap", key: "Lengkap", align: "center" },
 ];
 
 const detailHeaders = [
@@ -238,7 +237,7 @@ watch(expanded, async (newVal) => {
   if (lastExpanded && !details.value[lastExpanded]) {
     loadingDetails.value.add(lastExpanded);
     try {
-      const res = await api.get(`/lhk-tekstil-mmt/detail/${lastExpanded}`);
+      const res = await api.get(`mmt/lhk-tekstil-mmt/detail/${lastExpanded}`);
       details.value[lastExpanded] = res.data;
     } catch (e) {
       toast.error("Gagal memuat detail");
@@ -254,7 +253,7 @@ const handleRowClick = (event: any, { item }: any) => {
 
 const handleCreate = () => {
   // cxButton2Click logic
-  router.push({ name: "LhkTekstilForm" });
+  router.push({ name: "tekstilMMTNew" });
 };
 
 const handleEdit = () => {

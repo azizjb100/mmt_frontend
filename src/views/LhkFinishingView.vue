@@ -4,6 +4,9 @@
       <v-btn size="small" color="success" @click="handleNewEdit('new')">
         <v-icon start>mdi-plus</v-icon> Baru
       </v-btn>
+      <v-btn size="small" color="success" @click="handleNewEdit('rekap')">
+        <v-icon start>mdi-plus</v-icon> Rekap
+      </v-btn>
       <v-btn
         size="small"
         color="warning"
@@ -270,7 +273,6 @@ const masterHeaders = [
   { title: "Gudang", key: "Gudang", minWidth: "100px" },
   { title: "Nama Gudang", key: "Nama_Gudang", minWidth: "150px" },
   { title: "Shift", key: "Shift", minWidth: "80px" },
-  { title: "Lengkap", key: "Lengkap", minWidth: "100px", align: "center" },
   { title: "Operator", key: "Operator", minWidth: "150px" },
   { title: "", key: "data-table-expand", minWidth: "40px" },
 ] as any[];
@@ -347,14 +349,18 @@ const loadDetails = async (newlyExpandedItems: LhkFinishingItem[]) => {
 };
 
 // --- Actions ---
-const handleNew = () => {
-  router.push({ name: "LhkFinishingCreate" });
-};
-
-const handleEdit = () => {
-  if (!selectedRow.value) return;
-  const nomor = selectedRow.value.Nomor;
-  router.push({ name: "LhkFinishingEdit", params: { nomor } });
+const handleNewEdit = (mode: "new" | "edit" | "rekap") => {
+  if (mode === "new") {
+    router.push({ name: "LhkFinishingNew" });
+  } else if (mode === "edit" && selectedRow.value) {
+    router.push({
+      name: "LhkCetakEdit", // Pastikan nama route ini sudah benar di router
+      params: { nomor: selectedRow.value.Nomor },
+    });
+  } else if (mode === "rekap") {
+    // Navigasi ke halaman Rekap Finishing
+    router.push({ name: "LhkFinishingRekap" });
+  }
 };
 
 const handleDelete = async () => {

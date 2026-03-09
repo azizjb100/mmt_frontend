@@ -53,9 +53,27 @@
 
       <v-col cols="12" md="9">
         <v-card variant="outlined">
-          <v-card-title class="d-flex align-center bg-grey-lighten-4">
-            Rincian Pekerjaan - {{ formData.proses }}
+          <v-card-title class="d-flex align-center bg-grey-lighten-4 py-2 px-4">
+            <span class="text-subtitle-1 font-weight-bold"
+              >Rincian Pekerjaan - {{ formData.proses }}</span
+            >
             <v-spacer />
+
+            <!-- INPUT SCAN BARCODE -->
+            <v-text-field
+              v-model="barcodeInput"
+              label="Scan Barcode SPK"
+              prepend-inner-icon="mdi-barcode-scan"
+              variant="outlined"
+              density="compact"
+              hide-details
+              class="mx-2"
+              style="max-width: 250px"
+              @keyup.enter="handleBarcodeScan"
+              placeholder="Tekan Enter setelah scan"
+              :loading="isScanning"
+            />
+
             <v-btn
               color="success"
               size="small"
@@ -72,14 +90,20 @@
             density="compact"
             no-data-text="Belum ada SPK yang dipilih"
           >
-            <template #[`item.qty`]="{ item }">
+            <!-- Kolom Ukuran -->
+            <template #[`item.ukuran`]="{ item }">
+              {{ item.panjang }} x {{ item.lebar }}
+            </template>
+
+            <!-- Kolom Input Qty Hasil -->
+            <template #[`item.qty_hasil`]="{ item }">
               <v-text-field
                 v-model.number="item.qty_hasil"
                 type="number"
                 density="compact"
                 variant="underlined"
                 hide-details
-                class="text-end"
+                class="text-end custom-input-qty"
               />
             </template>
 
@@ -110,16 +134,18 @@ import { ref, reactive, computed } from "vue";
 import { useToast } from "vue-toastification";
 import api from "@/services/api";
 import PageLayout from "../components/PageLayout.vue";
-import SpkLookupModal from "@/modal/SpkLookupModal.vue"; // Pastikan path benar
+import SpkLookupModal from "@/modal/SpkLookupModal.vue";
 
 const toast = useToast();
 const isSaving = ref(false);
+const isScanning = ref(false);
 const isSpkModalVisible = ref(false);
+const barcodeInput = ref("");
 
 const daftarProses = [
   { title: "POTONG", value: "POTONG" },
   { title: "SEAMING", value: "SEAMING" },
-  { title: "MATA AYAM", value: "MATA_AYAM" }, // Tampilan pakai spasi, value pakai underscore
+  { title: "MATA AYAM", value: "MATA_AYAM" },
   { title: "KOLI", value: "KOLI" },
 ];
 
@@ -131,14 +157,16 @@ const formData = reactive({
 
 const detailData = ref<any[]>([]);
 
-// Header tabel yang dinamis mengikuti jenis proses yang dipilih
+// Headers diperbarui dengan Ukuran dan Qty Order
 const dynamicHeaders = computed(() => [
   { title: "No SPK", key: "spk_nomor", width: "150px" },
   { title: "Nama Produk", key: "spk_nama" },
+  { title: "Ukuran (PxL)", key: "ukuran", width: "120px" },
+  { title: "Order", key: "qty_order", width: "100px", align: "end" },
   {
     title: `Hasil ${formData.proses}`,
-    key: "qty",
-    width: "150px",
+    key: "qty_hasil",
+    width: "130px",
     align: "end",
   },
   { title: "", key: "actions", width: "50px", sortable: false },
@@ -146,26 +174,79 @@ const dynamicHeaders = computed(() => [
 
 const openSpkSearch = () => (isSpkModalVisible.value = true);
 
-// Fungsi untuk menangkap data dari SpkLookupModal
 const addSpk = (spk: any) => {
-  // Cek agar SPK yang sama tidak diinput dua kali dalam satu sesi input
-  const isExist = detailData.value.some(
-    (d) => d.spk_nomor === (spk.Spk || spk.spk_nomor),
-  );
+  // Debug untuk memastikan data yang masuk
+  console.log("Data SPK Masuk:", spk);
 
-  if (isExist) {
-    toast.warning("SPK ini sudah ada di daftar rincian");
+  // 1. Ambil Nomor SPK (Menangani: SPK, Spk, spk_nomor, NoSpk)
+  const nomorSpk =
+    spk.SPK || spk.Spk || spk.spk_nomor || spk.NoSpk || spk.No_Pesanan;
+
+  // 2. Ambil Nama Produk (Menangani: Nama, spk_nama, NamaBarang)
+  const namaSpk = spk.Nama || spk.spk_nama || spk.NamaBarang || spk.Nama_Barang;
+
+  // 3. Ambil Qty Order (Menangani: Jumlah, Qty, qty_order)
+  const qtyOrder =
+    spk.Jumlah || spk.Qty || spk.qty_order || spk.Jumlah_Order || 0;
+
+  // 4. Ambil Ukuran
+  const p = spk.Panjang || spk.panjang || 0;
+  const l = spk.Lebar || spk.lebar || 0;
+
+  // VALIDASI: Jika nomorSpk tetap tidak ditemukan setelah pengecekan di atas
+  if (!nomorSpk) {
+    console.error("Gagal mendapatkan Nomor SPK dari data:", spk);
+    toast.error("Format data SPK tidak dikenali oleh sistem");
     return;
   }
 
+  // Cek duplikasi di tabel agar tidak ada baris ganda
+  const isExist = detailData.value.some((d) => d.spk_nomor === nomorSpk);
+  if (isExist) {
+    toast.warning(`SPK ${nomorSpk} sudah ada dalam daftar`);
+    barcodeInput.value = "";
+    return;
+  }
+
+  // Masukkan ke dalam tabel rincian
   detailData.value.push({
-    spk_nomor: spk.Spk || spk.spk_nomor, // Mengambil data dari modal
-    spk_nama: spk.Nama || spk.spk_nama,
+    spk_nomor: nomorSpk,
+    spk_nama: namaSpk,
+    panjang: p,
+    lebar: l,
+    qty_order: qtyOrder,
     qty_hasil: 0,
     qty_bs: 0,
   });
 
+  // Reset input scan dan tutup modal jika sedang terbuka
+  barcodeInput.value = "";
   isSpkModalVisible.value = false;
+};
+
+// Fungsi Handle Scan Barcode
+const handleBarcodeScan = async () => {
+  if (!barcodeInput.value) return;
+
+  isScanning.value = true;
+  try {
+    const response = await api.get(`/mmt/spk/${barcodeInput.value}`);
+    const res = response.data;
+
+    if (res.success && res.data) {
+      // Kirim isinya saja ke fungsi addSpk
+      addSpk(res.data);
+    } else {
+      toast.error(res.message || "Data SPK tidak ditemukan");
+    }
+  } catch (e: any) {
+    console.error("Scan Error:", e);
+    toast.error(e.response?.data?.message || "Gagal memproses barcode");
+  } finally {
+    isScanning.value = false;
+    barcodeInput.value = "";
+    // Fokuskan kembali ke input barcode jika perlu (opsional)
+  }
 };
 
 const handleSaveDraft = async () => {
@@ -176,7 +257,6 @@ const handleSaveDraft = async () => {
 
   isSaving.value = true;
   try {
-    // Mapping data agar sesuai dengan struktur kolom tabel tpra_lhk_finishing di backend
     const payload = {
       details: detailData.value.map((item) => ({
         spk_nomor: item.spk_nomor,
@@ -190,14 +270,12 @@ const handleSaveDraft = async () => {
       })),
     };
 
-    // Pastikan endpoint ini sesuai dengan route POST /pra yang kita buat di backend
     await api.post("/mmt/lhk-finishing/pra", payload);
 
     toast.success("Berhasil menyimpan ke Pra-LHK");
-    detailData.value = []; // Bersihkan tabel setelah berhasil
+    detailData.value = [];
   } catch (e: any) {
-    console.error("Save Error:", e);
-    toast.error(e.response?.data?.message || "Gagal menyimpan draft pekerjaan");
+    toast.error(e.response?.data?.message || "Gagal menyimpan");
   } finally {
     isSaving.value = false;
   }
@@ -207,6 +285,9 @@ const handleSaveDraft = async () => {
 <style scoped>
 .v-card-title {
   font-size: 0.95rem !important;
+}
+.custom-input-qty :deep(input) {
   font-weight: bold;
+  color: #1976d2;
 }
 </style>

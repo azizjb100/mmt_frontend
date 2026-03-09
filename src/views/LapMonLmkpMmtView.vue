@@ -1,12 +1,13 @@
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue';
+import { ref, reactive, computed, onMounted } from "vue";
 import api from "@/services/api";
 import PageLayout from "../components/PageLayout.vue";
 import { format, parseISO, isValid } from "date-fns";
+import * as XLSX from "xlsx";
 
 const loading = ref({ report: false });
 const allData = ref([]);
-const jenisIndex = ref('0');
+const jenisIndex = ref("0");
 const startDate = ref(new Date().toISOString().substr(0, 10));
 const endDate = ref(new Date().toISOString().substr(0, 10));
 const searchQuery = ref("");
@@ -25,27 +26,37 @@ const colWidths = reactive({
   // ... sub kolom lainnya dikelola via CSS width standar
 });
 
-
 // --- LOGIKA PERHITUNGAN TOTAL (FOOTER) ---
 const totals = computed(() => {
-  return allData.value.reduce((acc, item: any) => {
-    acc.spk_jumlah += Number(item.spk_jumlah || 0);
-    acc.spk_jumlah_kirim += Number(item.spk_jumlah_kirim || 0);
-    acc.krg_kirim += Number(item.krg_kirim || 0);
-    acc.krg_Seaming += Number(item.krg_Seaming || 0);
-    acc.krg_mataayam += Number(item.krg_mataayam || 0);
-    acc.krg_Cetak += Number(item.krg_Cetak || 0);
-    acc.krg_coly += Number(item.krg_coly || 0);
-    acc.cetak_luarx += Number(item.cetak_luarx || 0);
-    acc.krg_kirim_meter += Number(item.krg_kirim_meter || 0);
-    acc.krg_Cetak_meter += Number(item.krg_Cetak_meter || 0);
-    acc.krg_coly_meter += Number(item.krg_coly_meter || 0);
-    return acc;
-  }, {
-    spk_jumlah: 0, spk_jumlah_kirim: 0, krg_kirim: 0, krg_Seaming: 0,
-    krg_mataayam: 0, krg_Cetak: 0, krg_coly: 0, cetak_luarx: 0,
-    krg_kirim_meter: 0, krg_Cetak_meter: 0, krg_coly_meter: 0
-  });
+  return allData.value.reduce(
+    (acc, item: any) => {
+      acc.spk_jumlah += Number(item.spk_jumlah || 0);
+      acc.spk_jumlah_kirim += Number(item.spk_jumlah_kirim || 0);
+      acc.krg_kirim += Number(item.krg_kirim || 0);
+      acc.krg_Seaming += Number(item.krg_Seaming || 0);
+      acc.krg_mataayam += Number(item.krg_mataayam || 0);
+      acc.krg_Cetak += Number(item.krg_Cetak || 0);
+      acc.krg_coly += Number(item.krg_coly || 0);
+      acc.cetak_luarx += Number(item.cetak_luarx || 0);
+      acc.krg_kirim_meter += Number(item.krg_kirim_meter || 0);
+      acc.krg_Cetak_meter += Number(item.krg_Cetak_meter || 0);
+      acc.krg_coly_meter += Number(item.krg_coly_meter || 0);
+      return acc;
+    },
+    {
+      spk_jumlah: 0,
+      spk_jumlah_kirim: 0,
+      krg_kirim: 0,
+      krg_Seaming: 0,
+      krg_mataayam: 0,
+      krg_Cetak: 0,
+      krg_coly: 0,
+      cetak_luarx: 0,
+      krg_kirim_meter: 0,
+      krg_Cetak_meter: 0,
+      krg_coly_meter: 0,
+    },
+  );
 });
 
 // --- LOGIKA RINGKASAN (OUTPUT & WAITING LIST) ---
@@ -58,10 +69,15 @@ const waitingListKerja = computed(() => {
 
 // Penyesuaian nilai default (mengikuti Delphi '2700')
 const outputHariTetap = 2700;
-const waitingListTetap = computed(() => totals.value.krg_Cetak_meter / outputHariTetap);
+const waitingListTetap = computed(
+  () => totals.value.krg_Cetak_meter / outputHariTetap,
+);
 
 const formatNumber = (val: any, dec = 0) => {
-  return Number(val || 0).toLocaleString('id-ID', { minimumFractionDigits: dec, maximumFractionDigits: dec });
+  return Number(val || 0).toLocaleString("id-ID", {
+    minimumFractionDigits: dec,
+    maximumFractionDigits: dec,
+  });
 };
 
 const formatDateDisplay = (dateStr: string) => {
@@ -73,8 +89,12 @@ const formatDateDisplay = (dateStr: string) => {
 const fetchReport = async () => {
   loading.value.report = true;
   try {
-    const res = await api.get('mmt/monitoring/laporan-lmkp/lmkp', {
-      params: { jenisIndex: jenisIndex.value, startDate: startDate.value, endDate: endDate.value }
+    const res = await api.get("mmt/monitoring/laporan-lmkp/lmkp", {
+      params: {
+        jenisIndex: jenisIndex.value,
+        startDate: startDate.value,
+        endDate: endDate.value,
+      },
     });
     allData.value = res.data.data || [];
     summary.value = res.data.summary || summary.value;
@@ -83,67 +103,231 @@ const fetchReport = async () => {
   }
 };
 
+const exportToExcel = () => {
+  // 1. Siapkan data yang akan diekspor (mapping data agar header-nya rapi)
+  const reportData = allData.value.map((item) => ({
+    "NOMOR SPK": item.NOMOR,
+    "NAMA ORDER": item.spk_nama,
+    TANGGAL: formatDateDisplay(item.spk_tanggal),
+    DEADLINE: formatDateDisplay(item.deadline),
+    STATUS: item.spk_statuskerja,
+    DIVISI: item.DIVISI,
+    "JENIS ORDER": item.jo_nama,
+    BAHAN: `${item.KAIN} ${item.spk_gramasi}`,
+    "ORD (PCS)": item.spk_jumlah,
+    "KRM (PCS)": item.spk_jumlah_kirim,
+    "K-KRM (PCS)": item.krg_kirim,
+    "SEAM (PCS)": item.krg_Seaming,
+    "M.AYM (PCS)": item.krg_mataayam,
+    "CETAK (PCS)": item.krg_Cetak,
+    "COLY (PCS)": item.krg_coly,
+    "CTK L.": item.cetak_luarx,
+    MT01: item.mt01 || 0,
+    MT02: item.mt02 || 0,
+    MT03: item.mt03 || 0,
+    MI: item.mi || 0,
+    "KRG-KRM (MTR)": item.krg_kirim_meter,
+    "KRG-CTK (MTR)": item.krg_Cetak_meter,
+    "KRG-CLY (MTR)": item.krg_coly_meter,
+  }));
+
+  // 2. Tambahkan baris TOTAL di paling bawah
+  const footerRow = {
+    "NOMOR SPK": "TOTAL",
+    "NAMA ORDER": "",
+    TANGGAL: "",
+    DEADLINE: "",
+    STATUS: "",
+    DIVISI: "",
+    "JENIS ORDER": "",
+    BAHAN: "",
+    "ORD (PCS)": totals.value.spk_jumlah,
+    "KRM (PCS)": totals.value.spk_jumlah_kirim,
+    "K-KRM (PCS)": totals.value.krg_kirim,
+    "SEAM (PCS)": totals.value.krg_Seaming,
+    "M.AYM (PCS)": totals.value.krg_mataayam,
+    "CETAK (PCS)": totals.value.krg_Cetak,
+    "COLY (PCS)": totals.value.krg_coly,
+    "CTK L.": totals.value.cetak_luarx,
+    MT01: "",
+    MT02: "",
+    MT03: "",
+    MI: "",
+    "KRG-KRM (MTR)": totals.value.krg_kirim_meter,
+    "KRG-CTK (MTR)": totals.value.krg_Cetak_meter,
+    "KRG-CLY (MTR)": totals.value.krg_coly_meter,
+  };
+
+  reportData.push(footerRow);
+
+  // 3. Proses menjadi file Excel
+  const worksheet = XLSX.utils.json_to_sheet(reportData);
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, "Laporan LMKP");
+
+  // 4. Download file
+  const fileName = `Laporan_LMKP_${startDate.value}_sd_${endDate.value}.xlsx`;
+  XLSX.writeFile(workbook, fileName);
+};
+
 onMounted(fetchReport);
 </script>
 
 <template>
   <PageLayout title="Monitoring LMKP" icon="mdi-monitor-dashboard">
-    <div class="browse-content" :style="{
-      '--w-col-1': colWidths.NOMOR + 'px',
-      '--w-col-2': colWidths.spk_nama + 'px',
-      '--w-col-3': colWidths.spk_tanggal + 'px'
-    }">
-
+    <div
+      class="browse-content"
+      :style="{
+        '--w-col-1': colWidths.NOMOR + 'px',
+        '--w-col-2': colWidths.spk_nama + 'px',
+        '--w-col-3': colWidths.spk_tanggal + 'px',
+      }"
+    >
       <v-card flat class="border-bottom mb-1">
         <v-card-text class="py-2 px-3">
           <div class="filter-section d-flex align-center flex-wrap ga-3">
             <v-label class="text-caption font-weight-bold">Kategori:</v-label>
-            <v-select v-model="jenisIndex" :items="[{ title: 'MT', value: '0' }, { title: 'MX', value: '1' }]"
-              density="compact" hide-details variant="outlined" style="max-width: 80px" />
+            <v-select
+              v-model="jenisIndex"
+              :items="[
+                { title: 'MT', value: '0' },
+                { title: 'MX', value: '1' },
+              ]"
+              density="compact"
+              hide-details
+              variant="outlined"
+              style="max-width: 80px"
+            />
 
-            <v-label class="text-caption font-weight-bold ml-2">Periode:</v-label>
-            <v-text-field v-model="startDate" type="date" density="compact" hide-details variant="outlined"
-              style="max-width: 140px" />
+            <v-label class="text-caption font-weight-bold ml-2"
+              >Periode:</v-label
+            >
+            <v-text-field
+              v-model="startDate"
+              type="date"
+              density="compact"
+              hide-details
+              variant="outlined"
+              style="max-width: 140px"
+            />
             <v-label class="mx-1">s/d</v-label>
-            <v-text-field v-model="endDate" type="date" density="compact" hide-details variant="outlined"
-              style="max-width: 140px" />
+            <v-text-field
+              v-model="endDate"
+              type="date"
+              density="compact"
+              hide-details
+              variant="outlined"
+              style="max-width: 140px"
+            />
 
-            <v-btn variant="text" size="x-small" @click="fetchReport" :loading="loading.report">
+            <v-btn
+              variant="text"
+              size="x-small"
+              @click="fetchReport"
+              :loading="loading.report"
+            >
               <v-icon start size="16">mdi-refresh</v-icon> Muat
             </v-btn>
 
+            <v-btn
+              variant="flat"
+              color="success"
+              size="x-small"
+              class="ml-2"
+              @click="exportToExcel"
+              :disabled="allData.length === 0"
+            >
+              <v-icon start size="16">mdi-file-excel</v-icon> Ekspor Excel
+            </v-btn>
+
             <v-spacer />
-            <v-text-field v-model="searchQuery" label="Cari SPK..." prepend-inner-icon="mdi-magnify" density="compact"
-              hide-details variant="outlined" style="max-width: 250px" />
+            <v-text-field
+              v-model="searchQuery"
+              label="Cari SPK..."
+              prepend-inner-icon="mdi-magnify"
+              density="compact"
+              hide-details
+              variant="outlined"
+              style="max-width: 250px"
+            />
           </div>
         </v-card-text>
       </v-card>
 
       <div class="table-container">
-        <v-data-table :headers="[]" :items="allData" :search="searchQuery" density="compact"
-          class="desktop-table header-browse-blue elevation-1" fixed-header hide-default-footer :items-per-page="-1">
+        <v-data-table
+          :headers="[]"
+          :items="allData"
+          :search="searchQuery"
+          density="compact"
+          class="desktop-table header-browse-blue elevation-1"
+          fixed-header
+          hide-default-footer
+          :items-per-page="-1"
+        >
           <template #thead>
             <thead>
               <tr class="header-row-1">
-                <th rowspan="2" class="text-center sticky-col-1 bg-blue-main"
-                  :style="{ width: colWidths.NOMOR + 'px' }">NOMOR SPK</th>
-                <th rowspan="2" class="text-center sticky-col-2 bg-blue-main"
-                  :style="{ width: colWidths.spk_nama + 'px' }">NAMA ORDER</th>
-                <th rowspan="2" class="text-center bg-blue-main" :style="{ width: colWidths.spk_tanggal + 'px' }">
-                  TANGGAL</th>
-                <th rowspan="2" class="text-center bg-blue-main" :style="{ width: colWidths.deadline + 'px' }">DEADLINE
+                <th
+                  rowspan="2"
+                  class="text-center sticky-col-1 bg-blue-main"
+                  :style="{ width: colWidths.NOMOR + 'px' }"
+                >
+                  NOMOR SPK
                 </th>
-                <th rowspan="2" class="text-center bg-blue-main" :style="{ width: colWidths.status + 'px' }">STATUS</th>
-                <th rowspan="2" class="text-center bg-blue-main" :style="{ width: colWidths.divisi + 'px' }">DIVISI</th>
-                <th rowspan="2" class="text-center bg-blue-main" :style="{ width: colWidths.jo_nama + 'px' }">JENIS
-                  ORDER</th>
-                <th rowspan="2" class="text-center bg-blue-main" :style="{ width: colWidths.bahan + 'px' }">BAHAN</th>
+                <th
+                  rowspan="2"
+                  class="text-center sticky-col-2 bg-blue-main"
+                  :style="{ width: colWidths.spk_nama + 'px' }"
+                >
+                  NAMA ORDER
+                </th>
+                <th
+                  rowspan="2"
+                  class="text-center bg-blue-main"
+                  :style="{ width: colWidths.spk_tanggal + 'px' }"
+                >
+                  TANGGAL
+                </th>
+                <th
+                  rowspan="2"
+                  class="text-center bg-blue-main"
+                  :style="{ width: colWidths.deadline + 'px' }"
+                >
+                  DEADLINE
+                </th>
+                <th
+                  rowspan="2"
+                  class="text-center bg-blue-main"
+                  :style="{ width: colWidths.status + 'px' }"
+                >
+                  STATUS
+                </th>
+                <th
+                  rowspan="2"
+                  class="text-center bg-blue-main"
+                  :style="{ width: colWidths.divisi + 'px' }"
+                >
+                  DIVISI
+                </th>
+                <th
+                  rowspan="2"
+                  class="text-center bg-blue-main"
+                  :style="{ width: colWidths.jo_nama + 'px' }"
+                >
+                  JENIS ORDER
+                </th>
+                <th
+                  rowspan="2"
+                  class="text-center bg-blue-main"
+                  :style="{ width: colWidths.bahan + 'px' }"
+                >
+                  BAHAN
+                </th>
                 <th colspan="7" class="text-center bg-blue-sub group-pcs">
                   PRODUKSI (PCS)
                 </th>
-                <th rowspan="2" class="text-center bg-blue-main">
-                  CTK L.
-                </th>
+                <th rowspan="2" class="text-center bg-blue-main">CTK L.</th>
 
                 <th colspan="4" class="text-center bg-blue-sub group-mesin">
                   MESIN
@@ -176,54 +360,108 @@ onMounted(fetchReport);
 
           <template v-slot:item="{ item }">
             <tr class="data-row">
-              <td class="text-left sticky-col-1 bg-white font-weight-bold">{{ item.NOMOR }}</td>
-              <td class="text-left sticky-col-2 bg-white">{{ item.spk_nama }}</td>
-              <td class="text-center">{{ formatDateDisplay(item.spk_tanggal) }}</td>
-              <td class="text-center"><span class="deadline">{{ formatDateDisplay(item.deadline) }}</span></td>
+              <td class="text-left sticky-col-1 bg-white font-weight-bold">
+                {{ item.NOMOR }}
+              </td>
+              <td class="text-left sticky-col-2 bg-white">
+                {{ item.spk_nama }}
+              </td>
               <td class="text-center">
-                <v-chip size="x-small" label :color="item.spk_statuskerja === 'TOP URGENT' ? 'error' : 'warning'"
-                  variant="flat">
+                {{ formatDateDisplay(item.spk_tanggal) }}
+              </td>
+              <td class="text-center">
+                <span class="deadline">{{
+                  formatDateDisplay(item.deadline)
+                }}</span>
+              </td>
+              <td class="text-center">
+                <v-chip
+                  size="x-small"
+                  label
+                  :color="
+                    item.spk_statuskerja === 'TOP URGENT' ? 'error' : 'warning'
+                  "
+                  variant="flat"
+                >
                   {{ item.spk_statuskerja }}
                 </v-chip>
               </td>
               <td class="text-center">{{ item.DIVISI }}</td>
               <td class="text-left">{{ item.jo_nama }}</td>
               <td class="text-left">
-                <strong>{{ item.KAIN }}</strong><br /><small>{{ item.spk_gramasi }}</small>
+                <strong>{{ item.KAIN }}</strong
+                ><br /><small>{{ item.spk_gramasi }}</small>
               </td>
               <td class="text-right">{{ formatNumber(item.spk_jumlah) }}</td>
-              <td class="text-right text-success font-weight-bold">{{ formatNumber(item.spk_jumlah_kirim) }}</td>
+              <td class="text-right text-success font-weight-bold">
+                {{ formatNumber(item.spk_jumlah_kirim) }}
+              </td>
               <td class="text-right">{{ formatNumber(item.krg_kirim) }}</td>
               <td class="text-right">{{ formatNumber(item.krg_Seaming) }}</td>
               <td class="text-right">{{ formatNumber(item.krg_mataayam) }}</td>
-              <td class="text-right text-error font-weight-bold">{{ formatNumber(item.krg_Cetak) }}</td>
+              <td class="text-right text-error font-weight-bold">
+                {{ formatNumber(item.krg_Cetak) }}
+              </td>
               <td class="text-right">{{ formatNumber(item.krg_coly) }}</td>
               <td class="text-right">{{ formatNumber(item.cetak_luarx) }}</td>
               <td class="text-center">{{ item.mt01 || 0 }}</td>
               <td class="text-center">{{ item.mt02 || 0 }}</td>
               <td class="text-center">{{ item.mt03 || 0 }}</td>
               <td class="text-center">{{ item.mi || 0 }}</td>
-              <td class="text-right">{{ formatNumber(item.krg_kirim_meter, 2) }}</td>
-              <td class="text-right text-error font-weight-bold">{{ formatNumber(item.krg_Cetak_meter, 2) }}</td>
-              <td class="text-right">{{ formatNumber(item.krg_coly_meter, 2) }}</td>
+              <td class="text-right">
+                {{ formatNumber(item.krg_kirim_meter, 2) }}
+              </td>
+              <td class="text-right text-error font-weight-bold">
+                {{ formatNumber(item.krg_Cetak_meter, 2) }}
+              </td>
+              <td class="text-right">
+                {{ formatNumber(item.krg_coly_meter, 2) }}
+              </td>
             </tr>
           </template>
 
           <template #tfoot>
             <tr class="table-footer">
-              <td colspan="8" class="text-right font-weight-bold sticky-footer-title">TOTAL</td>
-              <td class="text-right font-weight-bold">{{ formatNumber(totals.spk_jumlah) }}</td>
-              <td class="text-right font-weight-bold text-success">{{ formatNumber(totals.spk_jumlah_kirim) }}</td>
-              <td class="text-right font-weight-bold">{{ formatNumber(totals.krg_kirim) }}</td>
-              <td class="text-right font-weight-bold">{{ formatNumber(totals.krg_Seaming) }}</td>
-              <td class="text-right font-weight-bold">{{ formatNumber(totals.krg_mataayam) }}</td>
-              <td class="text-right font-weight-bold text-error">{{ formatNumber(totals.krg_Cetak) }}</td>
-              <td class="text-right font-weight-bold">{{ formatNumber(totals.krg_coly) }}</td>
-              <td class="text-right font-weight-bold">{{ formatNumber(totals.cetak_luarx) }}</td>
+              <td
+                colspan="8"
+                class="text-right font-weight-bold sticky-footer-title"
+              >
+                TOTAL
+              </td>
+              <td class="text-right font-weight-bold">
+                {{ formatNumber(totals.spk_jumlah) }}
+              </td>
+              <td class="text-right font-weight-bold text-success">
+                {{ formatNumber(totals.spk_jumlah_kirim) }}
+              </td>
+              <td class="text-right font-weight-bold">
+                {{ formatNumber(totals.krg_kirim) }}
+              </td>
+              <td class="text-right font-weight-bold">
+                {{ formatNumber(totals.krg_Seaming) }}
+              </td>
+              <td class="text-right font-weight-bold">
+                {{ formatNumber(totals.krg_mataayam) }}
+              </td>
+              <td class="text-right font-weight-bold text-error">
+                {{ formatNumber(totals.krg_Cetak) }}
+              </td>
+              <td class="text-right font-weight-bold">
+                {{ formatNumber(totals.krg_coly) }}
+              </td>
+              <td class="text-right font-weight-bold">
+                {{ formatNumber(totals.cetak_luarx) }}
+              </td>
               <td colspan="4" class="bg-blue-light"></td>
-              <td class="text-right font-weight-bold">{{ formatNumber(totals.krg_kirim_meter, 2) }}</td>
-              <td class="text-right font-weight-bold text-error">{{ formatNumber(totals.krg_Cetak_meter, 2) }}</td>
-              <td class="text-right font-weight-bold">{{ formatNumber(totals.krg_coly_meter, 2) }}</td>
+              <td class="text-right font-weight-bold">
+                {{ formatNumber(totals.krg_kirim_meter, 2) }}
+              </td>
+              <td class="text-right font-weight-bold text-error">
+                {{ formatNumber(totals.krg_Cetak_meter, 2) }}
+              </td>
+              <td class="text-right font-weight-bold">
+                {{ formatNumber(totals.krg_coly_meter, 2) }}
+              </td>
             </tr>
           </template>
         </v-data-table>
@@ -233,21 +471,28 @@ onMounted(fetchReport);
             <tbody>
               <tr>
                 <td class="stats-label">Kekurangan :</td>
-                <td class="stats-value text-error">{{ formatNumber(totals.krg_Cetak_meter, 2) }}</td>
+                <td class="stats-value text-error">
+                  {{ formatNumber(totals.krg_Cetak_meter, 2) }}
+                </td>
                 <td class="stats-label">Output/Hari:</td>
-                <td class="stats-value">{{ formatNumber(summary.outputPerHari, 2) }}</td>
+                <td class="stats-value">
+                  {{ formatNumber(summary.outputPerHari, 2) }}
+                </td>
                 <td class="stats-value">2.700,00</td>
               </tr>
               <tr>
                 <td class="stats-label">Waiting List Kerja:</td>
-                <td class="stats-value">{{ formatNumber(waitingListKerja, 2) }}</td>
-                <td colspan="3" class="stats-value text-center">{{ formatNumber(waitingListTetap, 2) }}</td>
+                <td class="stats-value">
+                  {{ formatNumber(waitingListKerja, 2) }}
+                </td>
+                <td colspan="3" class="stats-value text-center">
+                  {{ formatNumber(waitingListTetap, 2) }}
+                </td>
               </tr>
             </tbody>
           </table>
         </div>
       </div>
-
     </div>
   </PageLayout>
 </template>
@@ -459,7 +704,7 @@ td.meter-sub {
 .group-pcs,
 .group-mesin,
 .group-meter {
-  letter-spacing: .5px;
+  letter-spacing: 0.5px;
   font-weight: 800;
 }
 

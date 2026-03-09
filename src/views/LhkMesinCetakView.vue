@@ -101,7 +101,6 @@
           density="compact"
           class="desktop-table elevation-1"
           fixed-header
-          show-select
           return-object
           show-expand
           @click:row="handleRowClick"
@@ -138,35 +137,37 @@
 
           <template #expanded-row="{ columns, item }">
             <tr>
-              <td :colspan="columns.length">
+              <td :colspan="columns.length" class="pa-0">
                 <div class="detail-container">
                   <div class="detail-table-wrapper">
+                    <!-- Loader -->
                     <div
-                      v-if="loading.details || isLoadingDetails(item.Nomor)"
-                      class="text-center pa-4 text-caption"
+                      v-if="isLoadingDetails(item.Nomor)"
+                      class="text-center pa-4"
                     >
-                      Memuat detail...
+                      <v-progress-circular indeterminate size="20" />
+                      <span class="ml-2 text-caption">Memuat data...</span>
                     </div>
 
+                    <!-- Tabel Detail -->
                     <v-data-table
-                      v-if="details[item.Nomor]?.length"
+                      v-else-if="
+                        details[item.Nomor] && details[item.Nomor].length
+                      "
                       :headers="detailHeaders"
-                      :items="details[item.Nomor] || []"
+                      :items="details[item.Nomor]"
                       density="compact"
-                      class="detail-table"
-                      :items-per-page="-1"
                       hide-default-footer
+                      class="detail-table border"
                     >
+                      <template #item.totalcetak="{ value }">
+                        <strong class="total-bold">{{ value }}</strong>
+                      </template>
                     </v-data-table>
 
-                    <div
-                      v-if="
-                        !isLoadingDetails(item.Nomor) &&
-                        !(details[item.Nomor] && details[item.Nomor].length)
-                      "
-                      class="text-center pa-4 text-caption"
-                    >
-                      Tidak ada data detail.
+                    <!-- Alert Jika Kosong -->
+                    <div v-else class="text-center pa-4 text-caption">
+                      Data detail tidak ditemukan atau gagal dimuat.
                     </div>
                   </div>
                 </div>
@@ -298,6 +299,15 @@ const formatMeter = (value: number) => {
   return Number.isNaN(num) ? "0.00" : num.toFixed(2);
 };
 
+const selectedNomor = computed(() => selected.value[0]?.Nomor || null);
+
+// Tambahkan Helper fungsi ini
+const getRowProps = ({ item }: any) => {
+  return {
+    class: item?.Nomor === selectedNomor.value ? "row-selected" : "",
+  };
+};
+
 const isLoadingDetails = (nomor: string) => loadingDetails.value.has(nomor);
 
 const getRowTextColor = (item: LhkCetakItem) => {
@@ -325,24 +335,28 @@ const masterHeaders = [
   { title: "Jml Cetak", key: "TotalCetak", align: "end" },
   { title: "Bahan", key: "Kode_bahan" },
   { title: "Nama Bahan", key: "nama_Bahan" },
-  { title: "Tile", key: "Tile" },
-  { title: "Ukuran Cetak", key: "UkuranCetak" },
-  { title: "Lengkap", key: "Lengkap" },
+  // { title: "Tile", key: "Tile" },
+  // { title: "Ukuran Cetak", key: "UkuranCetak" },
 ] as any[];
 
 const detailHeaders = [
-  { title: "No", key: "NoUrut" },
-  { title: "Ambil Bahan", key: "AmbilBahan", minWidth: "100px" },
-  { title: "Catak 1", key: "J_Cetak1", align: "end" },
-  { title: "Cetak 2", key: "J_Cetak2", align: "end" },
-  { title: "Cetak 3", key: "J_Cetak3", align: "end" },
-  { title: "Cetak 4", key: "J_Cetak4", align: "end" },
-  { title: "Cetak 5", key: "J_Cetak5", align: "end" },
-  { title: "Cetak 6", key: "J_Cetak6", align: "end" },
-  { title: "Total Cetak", key: "TotalCetak", align: "end" },
-  { title: "Cetak Meter", key: "Total_Cetak_Meter", align: "end" },
-  { title: "Sisa BS", key: "BS_Meter", align: "end" },
-  { title: "Sisa Bahan", key: "Sisa_Meter", align: "end" },
+  { title: "No", key: "urut", width: "50px" },
+  { title: "Nomor SPK", key: "nomor_spk", minWidth: "150px" },
+  { title: "Nama SPK", key: "nama_spk", minWidth: "250px" },
+  { title: "Cetak 1", key: "cetak1", align: "end" },
+  { title: "Cetak 2", key: "cetak2", align: "end" },
+  { title: "Cetak 3", key: "cetak3", align: "end" },
+  { title: "Cetak 4", key: "cetak4", align: "end" },
+  { title: "Cetak 5", key: "cetak5", align: "end" },
+  {
+    title: "Total Cetak",
+    key: "totalcetak",
+    align: "end",
+    class: "font-weight-bold",
+  },
+  // { title: "Cetak Meter", key: "cetakmeter", align: "end" },
+  // { title: "M2", key: "luasm2", align: "end" },
+  // { title: "Sisa Bahan", key: "sisabahan", align: "end" },
 ] as any[];
 
 const truncateString = (str: string, num: number) => {
@@ -464,19 +478,31 @@ const loadDetails = async (newlyExpandedItems: LhkCetakItem[]) => {
     (it) =>
       it && !details.value[it.Nomor] && !loadingDetails.value.has(it.Nomor),
   );
+
   if (!itemToLoad) return;
 
   loadingDetails.value.add(itemToLoad.Nomor);
   loading.value.details = true;
+
   try {
-    const res = await api.get<LhkCetakDetail[]>(`${API_BASE_URL}/details`, {
+    const res = await api.get(`${API_BASE_URL}/details`, {
       params: { nomor: itemToLoad.Nomor },
     });
-    details.value[itemToLoad.Nomor] = res.data || [];
+
+    // Pastikan mengambil properti .details jika API mengembalikan Object {header, details}
+    // Jika API langsung mengembalikan Array, gunakan res.data
+    if (res.data && res.data.details) {
+      details.value[itemToLoad.Nomor] = res.data.details;
+    } else {
+      details.value[itemToLoad.Nomor] = res.data || [];
+    }
   } catch (err) {
+    // WAJIB ADA: Menangani jika request gagal
+    console.error("Error Fetch Detail:", err);
     toast.error(`Gagal memuat detail untuk ${itemToLoad.Nomor}`);
     details.value[itemToLoad.Nomor] = [];
   } finally {
+    // WAJIB ADA (ATAU CATCH): Membersihkan status loading
     loadingDetails.value.delete(itemToLoad.Nomor);
     loading.value.details = false;
   }
@@ -579,6 +605,88 @@ body.col-resize-active {
 }
 .font-weight-bold {
   font-weight: bold !important;
+}
+
+.table-container {
+  height: 100%;
+}
+.detail-container {
+  padding: 8px 0; /* Mengurangi padding vertikal */
+  background-color: #f7f7f7;
+  border-top: 1px solid #ddd;
+}
+
+.detail-table-wrapper {
+  /* Ubah padding dari 40px ke 12px agar tabel detail melebar ke samping */
+  padding: 0 12px;
+  width: 100%;
+  overflow-x: auto; /* Memastikan jika layar sangat sempit, tabel bisa di-scroll secara internal */
+}
+
+/* Font tabel detail disamakan dengan modul lain (0.8rem) */
+.detail-table {
+  background-color: white !important;
+  font-size: 0.8rem;
+  width: 100% !important; /* Memaksa tabel detail selebar container */
+}
+
+/* Menghilangkan whitespace berlebih di kolom detail */
+:deep(.detail-table .v-data-table__td) {
+  white-space: nowrap;
+  padding: 0 8px !important; /* Mengecilkan padding antar kolom detail */
+}
+
+/* Warna biru saat baris master diklik */
+:deep(.row-selected) {
+  background-color: rgb(216, 239, 255) !important;
+}
+
+/* Hover effect */
+:deep(.v-data-table tbody tr:hover) {
+  background-color: #f1f8ff;
+  cursor: pointer;
+}
+
+.total-bold {
+  font-weight: 700;
+  color: #1976d2;
+}
+/* Gaya Header dan Kolom Master */
+.desktop-table :deep(.v-data-table-header__th),
+.desktop-table :deep(tbody tr td) {
+  position: relative;
+  white-space: nowrap;
+  overflow: hidden;
+  min-width: 50px !important;
+}
+
+/* Hover effect pada baris */
+:deep(.v-data-table tbody tr:hover) {
+  background-color: #f1f8ff;
+  cursor: pointer;
+}
+
+.resizer {
+  position: absolute;
+  right: 0;
+  top: 0;
+  height: 100%;
+  width: 8px;
+  cursor: col-resize;
+  z-index: 10;
+}
+
+.text-red {
+  color: #f44336 !important;
+}
+
+.font-weight-bold {
+  font-weight: bold !important;
+}
+
+.total-bold {
+  font-weight: 700;
+  color: #1976d2;
 }
 
 .table-container {

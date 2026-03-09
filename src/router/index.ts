@@ -74,6 +74,9 @@ import LapHutangView from '@/views/LapHutangView.vue';
 import FormLhkFinishingBuildView from '@/views/FormLhkFinishingBuildView.vue';
 import PenerimaanPoExtMmtView from '@/views/PenerimaanPoExtMmtView.vue';
 import FormPenerimaanPoExtMmtView from '@/views/FormPenerimaanPoExtMmtView.vue';
+import FormLhkTekstilView from '@/views/FormLhkTekstilView.vue';
+import StbjMmtView from '@/views/StbjMmtView.vue';
+import StbjView from '@/views/StbjView.vue';
 
 
 
@@ -111,12 +114,13 @@ const routes: RouteRecordRaw[] = [
                 props: { isEditMode: false }
             },
             {
-                path: 'mmt/lhk/finishing/build',
-                name: 'LhkFinishingBuild',
+                path: 'mmt/lhk/finishing/',
+                name: 'LhkFinishingRekap',
                 component: FormLhkFinishingBuildView,
                 props: { isEditMode: false }
             },
-            { path: 'mmt/daftar/stbj', name: 'STBJ MMT', component: StbjMmtBiew },
+            { path: 'mmt/stbj', name: 'BrowseStbj', component: StbjView },
+            { path: 'mmt/daftar/stbj', name: 'STBJMMT', component: StbjMmtView },
             { path: 'mmt/pengajuan-permintaan', name: 'PengajuanPermintaanBrowse', component: PengajuanPermintaanView },
             {
                 path: 'mmt/pengajuan-permintaan/new',
@@ -340,7 +344,8 @@ const routes: RouteRecordRaw[] = [
             { path: 'mmt/daftar/retur-permintaan-produksi', name: 'Retur Permintaan Produksi MMT', component: ComingSoon },
             { path: 'mmt/daftar/planning-produksi', name: 'Planning Produksi MMT', component: ComingSoon },
             { path: 'mmt/daftar/stbj', name: 'STBJ MMT', component: ComingSoon },
-            { path: 'mmt/lhk/kain', name: 'tekstilMMT', component: LhkTekstilMmtView },
+            { path: 'mmt/lhk/tekstil', name: 'tekstilMMT', component: LhkTekstilMmtView },
+            { path: 'mmt/lhk/tekstil-new', name: 'tekstilMMTNew', component: FormLhkTekstilView },
             { path: 'mmt/lhk/proof', name: 'LHK Proof MMT', component: ComingSoon },
             { path: 'mmt/lhk/sublim', name: 'LHK Sublim MMT', component: ComingSoon },
             { path: 'mmt/lhk/rtr', name: 'LHK RTR MMT', component: ComingSoon },

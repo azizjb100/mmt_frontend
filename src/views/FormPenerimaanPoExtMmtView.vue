@@ -3,7 +3,7 @@ import { ref, onMounted, computed, reactive } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import api from "@/services/api";
 import PageLayout from "../components/PageLayout.vue";
-import POLookupModal from "@/modal/POLookupModal.vue"; // Modal baru untuk cari PO
+import POLookupModal from "@/modal/PoExternalMmtLookupModal.vue"; // Modal baru untuk cari PO
 // import GudangProduksiLookupModal from "@/modal/GudangProduksiLookupModal.vue"; // Modal baru untuk tujuan
 import { format } from "date-fns";
 import { useToast } from "vue-toastification";
@@ -46,7 +46,8 @@ const router = useRouter();
 const route = useRoute();
 const toast = useToast();
 
-const API_URL = "/mmt/bpb-po-external";
+const API_URL = "/mmt/po-ext-mmt";
+const API_PENERIMAAN_URL = "/mmt/penerimaan-po-ext-mmt";
 
 const isEditMode = ref(!!route.params.nomor);
 const isSaving = ref(false);
@@ -125,17 +126,22 @@ const isFormValid = computed(() => {
 const handlePoSelect = async (po: any) => {
   isSaving.value = true;
   try {
-    // Replikasi logika edtnopoExit
-    const response = await api.get(`/mmt/po-external/${po.Nomor}`, {
-      headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
-    });
+    const response = await api.get(`/mmt/po-ext-mmt/lookup-bpb/${po.Nomor}`);
 
-    const d = response.data;
+    // PERBAIKAN: Ambil properti 'data' di dalam response.data
+    const d = response.data.data;
+
+    if (!d) {
+      toast.error("Data PO tidak ditemukan dalam respon server");
+      return;
+    }
+
+    // Mapping Data ke Form
     formData.nomorPo = d.poe_nomor;
     formData.dateline = d.poe_dateline;
     formData.nomorSpk = d.poe_spk_nomor;
     formData.namaSpk = d.spk_nama;
-    formData.divisi = d.divisi;
+    formData.divisi = d.nama_divisi;
     formData.joKode = d.spk_jo_kode;
     formData.joNama = d.jo_nama;
     formData.bahan = d.spk_kain;
@@ -153,7 +159,10 @@ const handlePoSelect = async (po: any) => {
     formData.jmlPo = d.poe_jumlah;
     formData.bahanSendiri = d.poe_bahansendiri === "Y";
 
-    // Logika penentuan gudang otomatis berdasarkan cabang
+    // AMBIL LANGSUNG dari d (Sudah ada di respon API Anda)
+    formData.sudahTerima = d.totalTerima || 0;
+
+    // Logika penentuan gudang otomatis
     if (formData.cabang === "P02") {
       formData.gpTujuanKode = "GP020";
       formData.gpTujuanNama = "06.GD KOLI P1";
@@ -162,14 +171,9 @@ const handlePoSelect = async (po: any) => {
       formData.gpTujuanNama = "06.GD KOLI P4";
     }
 
-    // Ambil akumulasi BPB sebelumnya (getsudahbpb)
-    const resBPB = await api.get(
-      `/mmt/po-external/sudah-terima/${d.poe_nomor}`,
-    );
-    formData.sudahTerima = resBPB.data.jml || 0;
-
     toast.success(`Berhasil memuat data PO ${d.poe_nomor}`);
   } catch (error: any) {
+    console.error("Error Detail PO:", error);
     toast.error("Gagal memuat detail PO.");
   } finally {
     isSaving.value = false;
@@ -220,9 +224,9 @@ const saveForm = async (saveAndNew: boolean) => {
     };
 
     if (isEditMode.value) {
-      await api.put(`${API_URL}/${formData.nomor}`, payload);
+      await api.put(`${API_PENERIMAAN_URL}/${formData.nomor}`, payload);
     } else {
-      await api.post(API_URL, payload);
+      await api.post(API_PENERIMAAN_URL, payload);
     }
 
     toast.success("Data BPB berhasil disimpan!");
