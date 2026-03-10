@@ -114,7 +114,7 @@ const routes: RouteRecordRaw[] = [
                 props: { isEditMode: false }
             },
             {
-                path: 'mmt/lhk/finishing/',
+                path: 'mmt/lhk/finishing/rekap',
                 name: 'LhkFinishingRekap',
                 component: FormLhkFinishingBuildView,
                 props: { isEditMode: false }
