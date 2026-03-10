@@ -102,7 +102,7 @@ const rolePermissions = {
   1: [
     "Daftar",
     "Daftar Permintaan Pembelian",
-    "Purchase Order (PR)",
+    "Purchase Request (PR)",
     "Penerimaan Bahan",
     "Permintaan Produksi",
     "Realisasi Produksi",
@@ -121,7 +121,7 @@ const rolePermissions = {
   4: [
     "Daftar",
     "Daftar Permintaan Pembelian",
-    "Purchase Order (PR)",
+    "Purchase Request (PR)",
     "Penerimaan Bahan",
     "Permintaan Produksi",
     "Realisasi Produksi",
