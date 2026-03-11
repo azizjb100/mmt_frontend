@@ -81,25 +81,37 @@
               <template #[`item.Total_Meter`]="{ value }">
                 <b class="text-primary">{{ formatNumber(value, 2) }} m²</b>
               </template>
-              <template #[`item.Kapasitas`]="{ value }">
-                {{ formatNumber(value, 0) }} m²
-              </template>
 
               <template #[`item.Total_Meter`]="{ value }">
                 <b class="text-primary">{{ formatNumber(value, 2) }} m²</b>
+              </template>
+
+              <!-- Di dalam v-data-table -->
+
+              <template #[`item.Kapasitas`]="{ item }">
+                <!-- item.Kapasitas adalah kapasitas per hari dari DB, dikali jumlah hari -->
+                {{ formatNumber(item.Kapasitas * selectedDaysCount, 0) }} m²
               </template>
 
               <template #[`item.Persentase`]="{ item }">
                 <v-chip
                   size="small"
                   :color="
-                    calculatePercent(item.Total_Meter, item.Kapasitas) > 100
+                    calculatePercent(
+                      item.Total_Meter,
+                      item.Kapasitas * selectedDaysCount,
+                    ) > 100
                       ? 'error'
                       : 'success'
                   "
                   variant="flat"
                 >
-                  {{ calculatePercent(item.Total_Meter, item.Kapasitas) }}%
+                  {{
+                    calculatePercent(
+                      item.Total_Meter,
+                      item.Kapasitas * selectedDaysCount,
+                    )
+                  }}%
                 </v-chip>
               </template>
 
@@ -225,7 +237,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from "vue";
 import { useToast } from "vue-toastification";
-import { format, subDays } from "date-fns";
+import { format, subDays, differenceInCalendarDays } from "date-fns";
 import api from "@/services/api";
 import ExcelJS from "exceljs";
 import { saveAs } from "file-saver";
@@ -249,15 +261,20 @@ const dataRekap = ref({
 });
 
 // --- HEADERS ---
-const headersMesin = [
+const headersMesin = computed(() => [
   { title: "MESIN", key: "Mesin", align: "start", sortable: true },
-  { title: "KAPASITAS (M²)", key: "Kapasitas", align: "end", sortable: true }, // Kolom Baru
+  {
+    title: `KAPASITAS (${selectedDaysCount.value} hr) (M²)`, // Label dinamis
+    key: "Kapasitas",
+    align: "end",
+    sortable: true,
+  },
   { title: "TOTAL PCS", key: "Total_Pcs", align: "end", sortable: true },
   { title: "TOTAL M²", key: "Total_Meter", align: "end", sortable: true },
-  { title: "LOAD (%)", key: "Persentase", align: "center", sortable: true }, // Kolom Baru
+  { title: "LOAD (%)", key: "Persentase", align: "center", sortable: true },
   { title: "JML SPK", key: "Jml_SPK", align: "end", sortable: true },
   { title: "", key: "data-table-expand" },
-];
+]);
 
 // --- METHODS ---
 const formatNumber = (val: any, decimal = 0) => {
@@ -266,6 +283,17 @@ const formatNumber = (val: any, decimal = 0) => {
     maximumFractionDigits: decimal,
   });
 };
+
+const selectedDaysCount = computed(() => {
+  if (!filters.start || !filters.end) return 1;
+
+  const start = new Date(filters.start);
+  const end = new Date(filters.end);
+
+  // +1 agar jika tgl yang sama (misal 1 Mar ke 1 Mar) dihitung 1 hari
+  const diff = differenceInCalendarDays(end, start) + 1;
+  return diff > 0 ? diff : 1;
+});
 
 const calculatePercent = (total: number, kapasitas: number) => {
   if (!kapasitas || kapasitas === 0) return 0;
@@ -339,21 +367,26 @@ const exportToExcel = async () => {
 
   worksheet.columns = [
     { header: "Mesin", key: "Mesin", width: 15 },
-    { header: "Jml SPK", key: "Jml_SPK", width: 15 },
-    { header: "Total Pcs", key: "Total_Pcs", width: 15 },
+    {
+      header: `Kapasitas (${selectedDaysCount.value} hr)`,
+      key: "KapasitasDinamis",
+      width: 20,
+    },
     { header: "Total Meter (M²)", key: "Total_Meter", width: 20 },
+    { header: "Load (%)", key: "Load", width: 15 },
   ];
 
   dataRekap.value.perMesin.forEach((item) => {
-    worksheet.addRow(item);
-  });
+    const kapTotal = item.Kapasitas * selectedDaysCount.value;
+    const persen = calculatePercent(item.Total_Meter, kapTotal);
 
-  // Tambah baris total
-  worksheet.addRow({
-    Mesin: "GRAND TOTAL",
-    Total_Meter: totalAllMeter.value,
+    worksheet.addRow({
+      Mesin: item.Mesin,
+      KapasitasDinamis: kapTotal,
+      Total_Meter: item.Total_Meter,
+      Load: persen + "%",
+    });
   });
-
   const buffer = await workbook.xlsx.writeBuffer();
   saveAs(
     new Blob([buffer]),

@@ -46,14 +46,66 @@
           <template #item.actions="{ item }">
             <div class="text-center">
               <v-btn
-                color="success"
+                :color="
+                  item.Status === 'OPEN' || item.Status === 'ONPROSES'
+                    ? 'success'
+                    : 'grey'
+                "
                 size="x-small"
                 @click.stop="selectPO(item as PoHeader)"
                 variant="tonal"
+                :disabled="item.Status === 'CLOSED' || item.Status === 'CLOSE'"
               >
-                Pilih
+                {{
+                  item.Status === "CLOSED" || item.Status === "CLOSE"
+                    ? "Selesai"
+                    : "Pilih"
+                }}
               </v-btn>
             </div>
+          </template>
+
+          <template #item="{ item }">
+            <tr
+              :class="{
+                'row-closed':
+                  item.Status === 'CLOSED' || item.Status === 'CLOSE',
+                'clickable-row':
+                  item.Status !== 'CLOSED' && item.Status !== 'CLOSE',
+              }"
+              @dblclick="handleDoubleClick(item as PoHeader)"
+            >
+              <td>{{ item.Nomor }}</td>
+              <td>{{ item.Tanggal }}</td>
+              <td>{{ item.NamaSupplier }}</td>
+              <td>{{ item.NomorRequest }}</td>
+              <td>
+                <v-chip
+                  :color="getStatusColor(item.Status)"
+                  size="x-small"
+                  label
+                >
+                  {{ item.Status }}
+                </v-chip>
+              </td>
+              <td class="text-center">
+                <v-btn
+                  :color="
+                    item.Status === 'OPEN' || item.Status === 'ONPROSES'
+                      ? 'success'
+                      : 'grey'
+                  "
+                  size="x-small"
+                  @click.stop="selectPO(item as PoHeader)"
+                  variant="tonal"
+                  :disabled="
+                    item.Status === 'CLOSED' || item.Status === 'CLOSE'
+                  "
+                >
+                  Pilih
+                </v-btn>
+              </td>
+            </tr>
           </template>
 
           <template #no-data>
@@ -116,7 +168,9 @@ const loading = ref(false);
 const headers = [
   { title: "Nomor PO", key: "Nomor", width: "180px" },
   { title: "Tanggal", key: "Tanggal", width: "120px" },
-  { title: "Supplier", key: "Supplier", width: "400px" },
+  { title: "Nama Supplier", key: "NamaSupplier", width: "400px" },
+  { title: "Nomor Permintaan", key: "NomorRequest", width: "150px" },
+  { title: "Status", key: "Status", width: "100px" },
   {
     title: "Aksi",
     key: "actions",
@@ -126,21 +180,59 @@ const headers = [
   },
 ];
 
-// --- API & Logic ---
+const handleDoubleClick = (item: PoHeader) => {
+  // Cegah pengambilan data jika statusnya CLOSED atau CLOSE
+  if (item.Status === "CLOSED" || item.Status === "CLOSE") {
+    toast.warning("PO ini sudah selesai/ditutup dan tidak dapat dipilih.");
+    return;
+  }
+
+  // Jika status OK, panggil fungsi selectPO yang sudah ada
+  selectPO(item);
+};
+
+// --- Tambahkan helper color di dalam script setup ---
+const getStatusColor = (status: string) => {
+  switch (status) {
+    case "OPEN":
+      return "primary";
+    case "ONPROSES":
+      return "warning";
+    case "CLOSED":
+    case "CLOSE":
+      return "error";
+    default:
+      return "grey";
+  }
+};
 
 const fetchPOData = async (query: string) => {
   loading.value = true;
   try {
     const response = await api.get<ApiResponse>(API_URL, {
-      params: { q: query }, // Menggunakan q untuk mencari di backend
+      params: { q: query },
     });
 
-    // Mengambil data dari response.data.data (sesuai struktur Postman Anda)
-    poList.value = response.data.data || [];
+    const rawData = response.data.data || [];
+
+    // --- LOGIKA SORTING ---
+    // Status OPEN/ONPROSES naik ke atas (priority 0), CLOSED/CLOSE turun (priority 1)
+    poList.value = rawData.sort((a, b) => {
+      const priority = (status: string) =>
+        status === "OPEN" || status === "ONPROSES" ? 0 : 1;
+
+      const diff = priority(a.Status as string) - priority(b.Status as string);
+
+      // Jika prioritas sama, urutkan berdasarkan Nomor PO terbaru
+      if (diff === 0) {
+        return b.Nomor.localeCompare(a.Nomor);
+      }
+      return diff;
+    });
   } catch (error) {
     const err = error as AxiosError;
     toast.error(
-      (err.response?.data as any)?.message || "Gagal mengambil daftar PO."
+      (err.response?.data as any)?.message || "Gagal mengambil daftar PO.",
     );
     poList.value = [];
   } finally {
@@ -174,7 +266,7 @@ watch(
       poList.value = [];
     }
   },
-  { immediate: true }
+  { immediate: true },
 );
 
 // Watcher untuk memicu debounced search saat user mengetik
@@ -203,5 +295,30 @@ watch(searchTerm, (newQuery) => {
 }
 .flex-grow-1 {
   height: 100%;
+}
+
+.row-closed {
+  background-color: #fafafa;
+  color: #9e9e9e;
+}
+
+/* Membuat baris closed sedikit redup */
+.row-closed :deep(td) {
+  opacity: 0.7;
+}
+
+.clickable-row {
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.clickable-row:hover {
+  background-color: rgba(var(--v-theme-primary), 0.05) !important;
+}
+
+.row-closed {
+  background-color: #fafafa;
+  color: #9e9e9e;
+  cursor: not-allowed; /* Memberi tanda visual bahwa ini tidak bisa diklik */
 }
 </style>

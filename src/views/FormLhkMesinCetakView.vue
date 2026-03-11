@@ -451,7 +451,29 @@
             class="text-subtitle-2 bg-grey-lighten-3 pa-2 d-flex align-center"
           >
             <v-icon start size="small">mdi-eye-outline</v-icon>
-            Estimasi Layout Produksi (Horizontal Scroll)
+            Estimasi Layout Produksi
+            <v-spacer />
+            <!-- Tombol Auto Fill -->
+            <v-btn
+              size="x-small"
+              color="indigo"
+              variant="elevated"
+              prepend-icon="mdi-auto-fix"
+              class="mr-2"
+              @click="autoFillLayout"
+            >
+              Auto Optimize
+            </v-btn>
+
+            <v-btn
+              size="x-small"
+              color="grey-darken-1"
+              variant="outlined"
+              prepend-icon="mdi-refresh"
+              @click="resetManualLayout"
+            >
+              Reset
+            </v-btn>
           </v-card-title>
 
           <v-card-text class="pa-4 bg-white">
@@ -465,8 +487,10 @@
                     width: `${item.w * SCALE}px`,
                     height: `${item.h * SCALE}px`,
                     position: 'absolute',
-                    left: `${(manualOffsets[idx]?.x ?? item.x) * SCALE}px`,
-                    top: `${(manualOffsets[idx]?.y ?? item.y) * SCALE}px`,
+                    left: `${(manualOffsets[idx]?.x !== undefined ? manualOffsets[idx].x : item.x) * SCALE}px`,
+                    top: `${(manualOffsets[idx]?.y !== undefined ? manualOffsets[idx].y : item.y) * SCALE}px`,
+                    transform: `rotate(${manualOffsets[idx]?.rotation ?? 0}deg)`,
+                    transition: 'transform 0.3s ease', // Agar putaran halus
                     backgroundColor: '#e3f2fd',
                     border: '1px solid #2196f3',
                     display: 'flex',
@@ -476,6 +500,7 @@
                     zIndex: 10,
                   }"
                   @mousedown="startDrag($event, idx)"
+                  @dblclick="handleDoubleClick(idx)"
                 >
                   <span
                     class="box-label"
@@ -529,6 +554,9 @@ const isEditMode = ref(false);
 const isMesinLookupVisible = ref(false);
 const isSpkLookupVisible = ref(false);
 const authStore = useAuthStore();
+const manualOffsets = reactive<
+  Record<number, { x: number; y: number; rotation: number }>
+>({});
 
 const formData = reactive({
   nomor: "AUTO",
@@ -598,8 +626,6 @@ const displayPanjangTerpakai = computed(() => {
   return totalPanjangTerpakai.value;
 });
 
-const manualOffsets = reactive<Record<number, { x: number; y: number }>>({});
-
 // Fungsi untuk memulai Drag
 
 // Fungsi menghitung sisa (Panjang & Lebar) berdasarkan posisi kotak
@@ -631,37 +657,63 @@ const updateSisaFromLayout = () => {
   );
 };
 
-// Pastikan fungsi ini dipanggil di dalam onMouseMove pada startDrag
 const startDrag = (event: MouseEvent, idx: number) => {
   const item = layoutRows.value[idx];
   const startX = event.clientX;
   const startY = event.clientY;
 
+  // Ambil posisi terakhir yang ada di manualOffsets, jika belum ada gunakan posisi default dari sistem
   const initialX = manualOffsets[idx]?.x ?? item.x;
   const initialY = manualOffsets[idx]?.y ?? item.y;
+  const currentRot = manualOffsets[idx]?.rotation ?? 0;
 
   const onMouseMove = (e: MouseEvent) => {
     // Hitung perubahan posisi dalam satuan meter
     const dx = (e.clientX - startX) / SCALE;
     const dy = (e.clientY - startY) / SCALE;
 
-    // Simpan koordinat baru
+    // Simpan koordinat baru ke dalam reactive state
     manualOffsets[idx] = {
       x: initialX + dx,
       y: initialY + dy,
+      rotation: currentRot, // Jaga rotasi agar tidak hilang saat geser
     };
 
-    // Jalankan sinkronisasi ke field Sisa Panjang & Sisa Lebar
     updateSisaFromLayout();
   };
 
   const onMouseUp = () => {
     document.removeEventListener("mousemove", onMouseMove);
     document.removeEventListener("mouseup", onMouseUp);
+
+    // Opsional: Tambahkan toast atau log untuk memastikan data tersimpan
+    console.log(`Item ${idx} terkunci di:`, manualOffsets[idx]);
   };
 
   document.addEventListener("mousemove", onMouseMove);
   document.addEventListener("mouseup", onMouseUp);
+};
+
+const resetManualLayout = () => {
+  Object.keys(manualOffsets).forEach((key) => delete manualOffsets[key]);
+  toast.info("Layout dikembalikan ke posisi otomatis");
+};
+
+const handleDoubleClick = (idx: number) => {
+  // Ambil data offset saat ini atau buat baru jika belum ada
+  if (!manualOffsets[idx]) {
+    manualOffsets[idx] = {
+      x: layoutRows.value[idx].x,
+      y: layoutRows.value[idx].y,
+      rotation: 0,
+    };
+  }
+
+  // Tambah rotasi 90 derajat
+  manualOffsets[idx].rotation = (manualOffsets[idx].rotation || 0) + 90;
+
+  // Opsional: Jalankan kalkulasi sisa jika rotasi mempengaruhi area terpakai
+  updateSisaFromLayout();
 };
 
 const isFormValid = computed(
@@ -881,6 +933,77 @@ const loaddataall = async (nomor: string) => {
   }
 };
 
+const autoFillLayout = () => {
+  // 1. Reset offsets agar bersih
+  Object.keys(manualOffsets).forEach((key) => delete manualOffsets[key]);
+
+  if (detailData.length === 0 || formData.Lebar_bahan <= 0) return;
+
+  const maxRollHeight = formData.Lebar_bahan;
+  let allUnits: any[] = [];
+  let unitCounter = 0;
+
+  detailData.forEach((spk, spkIdx) => {
+    const totalCetak =
+      (spk.cetak1 || 0) +
+      (spk.cetak2 || 0) +
+      (spk.cetak3 || 0) +
+      (spk.cetak4 || 0) +
+      (spk.cetak5 || 0) +
+      (spk.cetak6 || 0) +
+      (spk.cetak7 || 0);
+
+    const padM = (spk.padding * 2) / 100;
+    const w =
+      spk.orientasi === "lebar" ? spk.panjang_spk + padM : spk.lebar_spk + padM;
+    const h =
+      spk.orientasi === "lebar" ? spk.lebar_spk + padM : spk.panjang_spk + padM;
+
+    for (let i = 0; i < totalCetak; i++) {
+      allUnits.push({
+        originalIndex: unitCounter++, // Kunci agar tidak tertukar saat render
+        w,
+        h,
+      });
+    }
+  });
+
+  // 3. Urutkan berdasarkan Lebar (W) dahulu, lalu Tinggi (H)
+  // Ini memastikan barang yang lebar menjadi 'dasar' kolom yang stabil
+  allUnits.sort((a, b) => b.w - a.w || b.h - a.h);
+
+  let currentX = 0;
+  let currentY = 0;
+  let nextX = 0;
+
+  // 4. Penempatan dengan pengisian kolom (Vertical Shelf)
+  allUnits.forEach((unit) => {
+    // Jika ditambahkan ke bawah tidak muat, buat kolom baru di sampingnya
+    if (currentY + unit.h > maxRollHeight + 0.01) {
+      currentY = 0;
+      currentX = nextX;
+    }
+
+    // Pasang koordinat menggunakan originalIndex agar pas dengan v-for di template
+    manualOffsets[unit.originalIndex] = {
+      x: currentX,
+      y: currentY,
+      rotation: 0,
+    };
+
+    // Update posisi Y untuk item berikutnya di kolom yang sama
+    currentY += unit.h;
+
+    // Update batas X terjauh agar kolom berikutnya tidak menabrak
+    if (currentX + unit.w > nextX) {
+      nextX = currentX + unit.w;
+    }
+  });
+
+  updateSisaFromLayout();
+  toast.success("Efisiensi layout maksimal diterapkan!");
+};
+
 const grandTotalLuasBahan = computed(() => {
   return detailData
     .reduce((sum, item) => sum + Number(item.total_luas || 0), 0)
@@ -891,18 +1014,8 @@ const layoutRows = computed(() => {
   const blocks: any[] = [];
   if (detailData.length === 0 || formData.Lebar_bahan <= 0) return blocks;
 
-  const maxRollHeight = formData.Lebar_bahan;
-
-  const TOLERANSI_SISA = 0.3;
-
-  let currentXOffset = 0;
-
-  let nextXOffset = 0;
-
-  let currentUsedHeight = 0;
-
   detailData.forEach((spk, spkIdx) => {
-    spk.totalcetak =
+    const totalCetak =
       (spk.cetak1 || 0) +
       (spk.cetak2 || 0) +
       (spk.cetak3 || 0) +
@@ -910,65 +1023,25 @@ const layoutRows = computed(() => {
       (spk.cetak5 || 0) +
       (spk.cetak6 || 0) +
       (spk.cetak7 || 0);
-
-    if (spk.totalcetak <= 0 || spk.tile <= 0) return;
+    if (totalCetak <= 0 || spk.tile <= 0) return;
 
     const padM = (spk.padding * 2) / 100;
-
-    // Visual W (Lebar di layar/X) dan H (Tinggi di layar/Y)
-
     const visualW =
       spk.orientasi === "lebar" ? spk.panjang_spk + padM : spk.lebar_spk + padM;
-
     const visualH =
       spk.orientasi === "lebar" ? spk.lebar_spk + padM : spk.panjang_spk + padM;
 
-    const totalHeightSPK = spk.tile * visualH;
-
-    const totalWidthSPK = Math.ceil(spk.totalcetak / spk.tile) * visualW;
-
-    const sisaLebarTersedia = maxRollHeight - currentUsedHeight;
-
-    if (
-      sisaLebarTersedia < TOLERANSI_SISA ||
-      currentUsedHeight + totalHeightSPK > maxRollHeight + 0.01
-    ) {
-      currentXOffset = nextXOffset;
-
-      currentUsedHeight = 0;
+    for (let i = 0; i < totalCetak; i++) {
+      blocks.push({
+        label: `SPK ${spkIdx + 1}`,
+        w: visualW,
+        h: visualH,
+        x: 0, // Default, akan ditimpa manualOffsets
+        y: 0, // Default, akan ditimpa manualOffsets
+        rotated: spk.orientasi === "panjang",
+      });
     }
-
-    const pcsPerRow = Math.ceil(spk.totalcetak / spk.tile);
-
-    for (let t = 0; t < spk.tile; t++) {
-      const yPos = currentUsedHeight + t * visualH;
-
-      for (let c = 0; c < pcsPerRow; c++) {
-        const indexCetak = t + c * spk.tile;
-
-        if (indexCetak < spk.totalcetak) {
-          blocks.push({
-            label: `SPK ${spkIdx + 1}`,
-
-            w: visualW,
-
-            h: visualH,
-
-            x: currentXOffset + c * visualW,
-
-            y: yPos,
-
-            rotated: spk.orientasi === "panjang", // Penanda rotasi untuk CSS
-          });
-        }
-      }
-    }
-
-    currentUsedHeight += totalHeightSPK;
-
-    nextXOffset = Math.max(nextXOffset, currentXOffset + totalWidthSPK);
   });
-
   return blocks;
 });
 
@@ -1332,9 +1405,17 @@ onMounted(() => {
 }
 
 .product-unit {
-  transition: all 0.2s ease;
+  transition: transform 0.3s ease; /* Transisi untuk rotasi */
+  user-select: none;
+  touch-action: none;
+  /* Memastikan titik pusat rotasi ada di tengah kotak */
+  transform-origin: center center;
 }
 
+/* Pastikan label tetap di tengah meskipun kotak berputar */
+.box-label {
+  pointer-events: none; /* Agar tidak mengganggu drag/click */
+}
 /* Bagian CSS */
 
 .label-rotated {
