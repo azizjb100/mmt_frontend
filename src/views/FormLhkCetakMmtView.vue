@@ -34,6 +34,10 @@ const formData = reactive({
   shift: 1,
   operator: "",
   mesin: "",
+  ink_c: 0,
+  ink_m: 0,
+  ink_y: 0,
+  ink_k: 0,
 });
 
 const detailData = ref<any[]>([]);
@@ -203,6 +207,10 @@ const handleSave = async (status: string) => {
         lch_shift: formData.shift,
         lch_operator: formData.operator,
         lch_mesin: formData.mesin,
+        lch_ink_c: formData.ink_c,
+        lch_ink_m: formData.ink_m,
+        lch_ink_y: formData.ink_y,
+        lch_ink_k: formData.ink_k,
         luser_modified: authStore.user?.kdUser || "SYSTEM",
         lstatus: status,
       },
@@ -331,6 +339,69 @@ onUnmounted(() => {
                 variant="outlined"
                 density="compact"
                 hide-details
+              />
+            </v-col>
+          </v-row>
+
+          <v-row dense class="mt-2 pt-2 border-top">
+            <v-col cols="12">
+              <div
+                class="text-caption font-weight-bold mb-1 text-uppercase text-blue-darken-3"
+              >
+                <v-icon size="small">mdi-invert-colors</v-icon> Pemakaian Tinta
+                (ml) / Bahan
+              </div>
+            </v-col>
+
+            <v-col cols="6" md="3">
+              <v-text-field
+                v-model.number="formData.ink_c"
+                label="Cyan (C)"
+                type="number"
+                variant="outlined"
+                density="compact"
+                hide-details
+                color="cyan-darken-2"
+                prepend-inner-icon="mdi-drop"
+              />
+            </v-col>
+
+            <v-col cols="6" md="3">
+              <v-text-field
+                v-model.number="formData.ink_m"
+                label="Magenta (M)"
+                type="number"
+                variant="outlined"
+                density="compact"
+                hide-details
+                color="pink-darken-2"
+                prepend-inner-icon="mdi-drop"
+              />
+            </v-col>
+
+            <v-col cols="6" md="3">
+              <v-text-field
+                v-model.number="formData.ink_y"
+                label="Yellow (Y)"
+                type="number"
+                variant="outlined"
+                density="compact"
+                hide-details
+                color="amber-darken-2"
+                prepend-inner-icon="mdi-drop"
+              />
+            </v-col>
+
+            <v-col cols="6" md="3">
+              <v-text-field
+                v-model.number="formData.ink_k"
+                label="Black (K)"
+                type="number"
+                variant="outlined"
+                density="compact"
+                hide-details
+                color="grey-darken-4"
+                prepend-inner-icon="mdi-drop"
               />
             </v-col>
           </v-row>

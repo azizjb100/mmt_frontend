@@ -46,6 +46,10 @@ const selected = ref<PenerimaanBahan[]>([]);
 const expanded = ref<string[]>([]);
 const showQRDialog = ref(false);
 const itemsToPrint = ref<PrintItem[]>([]);
+const selectedItemsToPrint = ref<number[]>([]); // Menyimpan index label yang dicentang
+const printCopies = ref<number>(1); // Default 1 copy per barcode
+const emptyLabelsOffset = ref<number>(0);
+const printerType = ref<"postek" | "xprinter">("xprinter");
 
 const startDate = ref(format(subDays(new Date(), 30), "yyyy-MM-dd"));
 const endDate = ref(format(new Date(), "yyyy-MM-dd"));
@@ -145,23 +149,19 @@ const handlePrintQR = async () => {
         : [];
 
       for (const val of barcodes) {
-        // Generate QR Code as DataURL
         const qrImage = await QRCode.toDataURL(val, {
           width: 300,
           margin: 0,
           errorCorrectionLevel: "H",
         });
 
-        // Loop 2x per Barcode
-        for (let i = 0; i < 2; i++) {
-          tempPrintList.push({
-            Nama_Bahan: item.Nama_Bahan,
-            qrValue: val,
-            qrImage,
-            Panjang: item.Panjang,
-            Lebar: item.Lebar,
-          });
-        }
+        tempPrintList.push({
+          Nama_Bahan: item.Nama_Bahan,
+          qrValue: val,
+          qrImage,
+          Panjang: item.Panjang,
+          Lebar: item.Lebar,
+        });
       }
     }
 
@@ -171,6 +171,8 @@ const handlePrintQR = async () => {
     }
 
     itemsToPrint.value = tempPrintList;
+    // Otomatis centang semua di awal
+    selectedItemsToPrint.value = tempPrintList.map((_, index) => index);
     showQRDialog.value = true;
   } catch (e) {
     console.error(e);
@@ -192,140 +194,111 @@ const printContent = () => {
   const doc = iframe.contentWindow?.document;
   if (!doc) return;
 
-  const labelHtml = itemsToPrint.value
-    .map(
-      (item) => `
-    <div class="label-box">
-      <div class="border-inner">
-        <div class="top-row">
-          <div class="qr-wrapper">
-             <img src="${item.qrImage}" class="qr-img" />
+  const isXprinter = printerType.value === "xprinter";
+
+  // Konfigurasi dinamis berdasarkan printer
+  const pageConfig = {
+    size: isXprinter ? "76.2mm 101mm" : "100mm 101mm",
+    justify: isXprinter ? "flex-start" : "center",
+    // Gunakan margin negatif untuk Xprinter agar 'memaksa' konten ke pojok kiri atas kertas
+    bodyMargin: isXprinter ? "1mm 0 0 0mm" : "0",
+    // Padding dalam kotak label (dikurangi agar konten mepet ke border)
+    boxPadding: isXprinter ? "1mm" : "1mm",
+  };
+
+  let finalLabels: string[] = [];
+
+  // Tambahkan label kosong untuk "Offset"
+  for (let i = 0; i < emptyLabelsOffset.value; i++) {
+    finalLabels.push(`<div class="label-box empty-label"></div>`);
+  }
+
+  itemsToPrint.value.forEach((item, index) => {
+    if (selectedItemsToPrint.value.includes(index)) {
+      for (let c = 0; c < printCopies.value; c++) {
+        finalLabels.push(`
+          <div class="label-box">
+            <div class="border-inner">
+              <div class="top-row">
+                <div class="qr-wrapper"><img src="${item.qrImage}" class="qr-img" /></div>
+                <div class="info-column">
+                  <div class="qr-text">${item.qrValue}</div>
+                  <div class="dimens-text">${item.Panjang} x ${item.Lebar}</div>
+                </div>
+              </div>
+              <div class="divider"></div>
+              <div class="product-name">${item.Nama_Bahan}</div>
+            </div>
           </div>
-          <div class="info-column">
-            <div class="qr-text">${item.qrValue}</div>
-            <div class="dimens-text">${item.Panjang} x ${item.Lebar}</div>
-          </div>
-        </div>
-        <div class="divider"></div>
-        <div class="product-name">${item.Nama_Bahan}</div>
-      </div>
-    </div>
-  `,
-    )
-    .join("");
+        `);
+      }
+    }
+  });
+
+  const labelHtml = finalLabels.join("");
 
   doc.open();
   doc.write(`
-<html>
-  <head>
-    <title>Print Label</title>
-    <style>
-      /* 1. Setting ukuran kertas */
-      @page { 
-        size: 76.2mm 101mm portrait; 
-        margin: 0; 
-      }
+    <html>
+      <head>
+        <style>
+          @page { 
+            size: ${pageConfig.size} portrait; 
+            margin: 0; 
+          }
+          body { 
+            margin: ${pageConfig.bodyMargin}; 
+            padding: 0; 
+            display: flex; 
+            flex-wrap: wrap; 
+            justify-content: ${pageConfig.justify}; 
+            font-family: Arial, sans-serif;
+            font-weight: bold
+          }
+          
+          .label-box { 
+            width: 67mm; 
+            height: 45mm; 
+            padding: ${pageConfig.boxPadding}; 
+            box-sizing: border-box; 
+            page-break-inside: avoid;
+            margin-bottom: 5mm;
+          }
 
-      /* 2. Body sebagai container utama yang mengetengahkan isi */
-      body { 
-        margin: 0; 
-        padding: 0; 
-        font-family: Arial, sans-serif; 
-        display: flex; 
-        flex-direction: column; 
-        align-items: center;    /* Center Horizontal */
-        justify-content: center; /* Center Vertikal */
-        min-height: 100vh;      /* Memastikan body setinggi layar/kertas */
-      }
+          .empty-label { visibility: hidden; }
+          .label-box:nth-child(2n) { page-break-after: always; }
+          
+          .border-inner { 
+            border: 1pt solid black; 
+            height: 100%; 
+            padding: ${pageConfig.boxPadding}; 
+            display: flex; 
+            flex-direction: column; 
+            box-sizing: border-box; 
+          }
 
-      /* 3. Box Label */
-      .label-box {
-        width: 70mm;
-        height: 50mm;
-        padding: 2mm;
-        box-sizing: border-box;
-        display: flex;
-        flex-direction: column;
-      }
+          .top-row { display: flex; gap: 8px; align-items: flex-start; }
+          .qr-img { width: 1.6cm; height: 1.6cm; }
+          .qr-text { font-weight: bold; font-size: 8pt; line-height: 1.1; }
+          .dimens-text { font-size: 9pt; margin-top: 2px; }
 
-      /* Page break setiap 2 label */
-      .label-box:nth-child(2n) {
-        page-break-after: always;
-      }
+          .product-name { 
+            font-size: 12pt; 
+            font-weight: bold; 
+            text-align: left; 
+            flex-grow: 1; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center;
+            line-height: 1.2;
+          }
 
-      .border-inner {
-        border: 1pt solid black;
-        height: 100%;
-        width: 100%;
-        padding: 2mm;
-        display: flex;
-        flex-direction: column;
-        box-sizing: border-box;
-      }
-
-      .top-row { 
-        display: flex; 
-        gap: 10px; 
-        align-items: flex-start; 
-        height: auto; 
-        margin-bottom: 4px;
-      }
-
-      .qr-img { 
-        width: 1.5cm; 
-        height: 1.5cm; 
-        display: block;
-        object-fit: contain;
-      } 
-
-      .info-column {
-        display: flex;
-        flex-direction: column;
-        text-align: left;
-        flex-grow: 1;
-      }
-
-      .qr-text { 
-        font-weight: bold; 
-        font-size: 8pt; 
-        line-height: 1.1;
-        word-break: break-all;
-      }
-
-      .dimens-text { 
-        font-size: 11pt; 
-        font-weight: bold;
-        margin-top: 2px;
-      }
-
-      .divider { 
-        border-top: 1pt solid #000;
-        width: 100%;
-        margin-bottom: 4px;
-      }
-
-      .product-name { 
-        font-size: 13pt; 
-        font-weight: bold; 
-        text-align: center;
-        line-height: 1.1;
-        flex-grow: 1; 
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        overflow: hidden;
-        /* Menangani teks panjang agar tidak merusak layout */
-        display: -webkit-box;
-        -webkit-line-clamp: 2;
-        -webkit-box-orient: vertical;
-      }
-    </style>
-  </head>
-  <body>
-    ${labelHtml}
-  </body>
-</html>
-`);
+          .divider { border-top: 1pt dashed black; margin: 2px 0; }
+        </style>
+      </head>
+      <body>${labelHtml}</body>
+    </html>
+  `);
   doc.close();
 
   setTimeout(() => {
@@ -482,9 +455,7 @@ watch([startDate, endDate], fetchData);
           <v-btn icon @click="showQRDialog = false"
             ><v-icon>mdi-close</v-icon></v-btn
           >
-          <v-toolbar-title
-            >Preview Cetak ({{ itemsToPrint.length }} Label)</v-toolbar-title
-          >
+          <v-toolbar-title>Pengaturan Cetak Label</v-toolbar-title>
           <v-spacer></v-spacer>
           <v-btn
             color="white"
@@ -496,25 +467,122 @@ watch([startDate, endDate], fetchData);
           </v-btn>
         </v-toolbar>
 
-        <v-card-text class="d-flex flex-column align-center pa-4">
-          <div class="print-wrapper">
+        <v-card-text class="pa-6">
+          <!-- PANEL KONTROL MODERN -->
+          <v-card variant="flat" border class="mb-6 d-print-none bg-white">
+            <v-card-text>
+              <v-row align="center">
+                <!-- Pilihan Printer dengan Toggle Button -->
+                <v-col cols="12" md="4">
+                  <div
+                    class="text-caption font-weight-bold mb-2 text-uppercase text-grey-darken-1"
+                  >
+                    <v-icon size="small" class="mr-1"
+                      >mdi-printer-settings</v-icon
+                    >
+                    Jenis Printer
+                  </div>
+                  <v-btn-toggle
+                    v-model="printerType"
+                    color="primary"
+                    variant="outlined"
+                    divided
+                    mandatory
+                    density="compact"
+                  >
+                    <v-btn
+                      value="xprinter"
+                      prepend-icon="mdi-align-horizontal-left"
+                      class="px-4"
+                    >
+                      XPrinter
+                    </v-btn>
+                    <v-btn
+                      value="postek"
+                      prepend-icon="mdi-align-horizontal-center"
+                      class="px-4"
+                    >
+                      Postek
+                    </v-btn>
+                  </v-btn-toggle>
+                </v-col>
+
+                <!-- Input Jumlah Copy -->
+                <v-col cols="12" sm="6" md="3">
+                  <v-text-field
+                    v-model.number="printCopies"
+                    label="Jumlah Per Barcode"
+                    type="number"
+                    min="1"
+                    density="compact"
+                    variant="outlined"
+                    prepend-inner-icon="mdi-content-copy"
+                    hide-details
+                  ></v-text-field>
+                </v-col>
+
+                <!-- Input Offset -->
+                <v-col cols="12" sm="6" md="3">
+                  <v-text-field
+                    v-model.number="emptyLabelsOffset"
+                    label="Lewati Label (Offset)"
+                    type="number"
+                    min="0"
+                    density="compact"
+                    variant="outlined"
+                    prepend-inner-icon="mdi-step-forward"
+                    hide-details
+                  ></v-text-field>
+                </v-col>
+
+                <!-- Status Info Ringkas -->
+                <v-col cols="12" md="2" class="text-right">
+                  <v-chip color="info" size="small" variant="flat">
+                    Total: {{ selectedItemsToPrint.length * printCopies }} Label
+                  </v-chip>
+                </v-col>
+              </v-row>
+            </v-card-text>
+          </v-card>
+
+          <!-- GRID PREVIEW -->
+          <div class="print-wrapper preview-grid">
             <div
               v-for="(item, index) in itemsToPrint"
               :key="index"
-              class="label-box"
+              class="label-card"
+              :class="{
+                'label-disabled': !selectedItemsToPrint.includes(index),
+              }"
             >
-              <div class="border-inner">
-                <div class="top-row">
-                  <img :src="item.qrImage" class="qr-img" />
-                  <div class="spec-info">
-                    <div class="qr-text">{{ item.qrValue }}</div>
-                    <div class="dimens-text">
-                      Dimensi: {{ item.Panjang }}x{{ item.Lebar }}
+              <!-- Area Checkbox di atas kartu -->
+              <div class="label-checkbox-wrapper">
+                <v-checkbox
+                  v-model="selectedItemsToPrint"
+                  :value="index"
+                  density="compact"
+                  color="primary"
+                  hide-details
+                >
+                  <template v-slot:label>
+                    <span class="text-caption font-weight-bold">Cetak</span>
+                  </template>
+                </v-checkbox>
+              </div>
+
+              <!-- Kotak Label Fisik -->
+              <div class="label-box elevation-3">
+                <div class="border-inner">
+                  <div class="top-row">
+                    <img :src="item.qrImage" class="qr-img" />
+                    <div class="spec-info">
+                      <div class="qr-text">{{ item.qrValue }}</div>
+                      <div class="dimens-text">
+                        {{ item.Panjang }}x{{ item.Lebar }}
+                      </div>
                     </div>
                   </div>
-                </div>
-                <div class="divider"></div>
-                <div class="bottom-row">
+                  <div class="divider"></div>
                   <div class="product-name">{{ item.Nama_Bahan }}</div>
                 </div>
               </div>
@@ -527,33 +595,63 @@ watch([startDate, endDate], fetchData);
 </template>
 
 <style scoped>
-/* CSS UNTUK PREVIEW DI LAYAR */
-.print-wrapper {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+.preview-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 24px;
+  justify-items: center;
 }
 
+.label-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transition: all 0.3s ease;
+  padding: 10px;
+  background: #fdfdfd;
+  border-radius: 12px;
+  border: 1px solid #eee;
+}
+
+.label-checkbox-wrapper {
+  margin-bottom: 8px;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+/* Menggelapkan label yang tidak dipilih */
+.label-disabled {
+  opacity: 0.4;
+  filter: grayscale(1);
+  transform: scale(0.95);
+}
+
+/* Ukuran Label Fisik di Layar (disesuaikan agar pas di grid) */
 .label-box {
-  width: 7cm;
-  height: 5cm;
+  width: 67mm;
+  height: 45mm;
   background-color: white;
-  padding: 2mm;
+  padding: 1mm;
   box-sizing: border-box;
+  cursor: pointer;
+  border-radius: 4px; /* Sedikit lengkung di preview agar manis */
 }
 
 .border-inner {
-  border: 1px solid black;
+  border: 1.5pt solid black;
   height: 100%;
   display: flex;
   flex-direction: column;
   padding: 2mm;
+  box-sizing: border-box;
+  font-family: Arial, sans-serif;
 }
 
 .top-row {
   display: flex;
-  gap: 10px;
-  align-items: center;
+  gap: 8px;
+  align-items: flex-start;
 }
 
 .qr-img {
@@ -563,71 +661,36 @@ watch([startDate, endDate], fetchData);
 
 .qr-text {
   font-weight: bold;
-  font-size: 10pt;
+  font-size: 8pt;
+  line-height: 1.1;
+  word-break: break-all;
 }
 
 .dimens-text {
   font-size: 9pt;
+  font-weight: bold;
+  margin-top: 2px;
 }
 
 .divider {
-  border-top: 1px dashed #000;
-  margin: 2mm 0;
+  border-top: 1.5pt dashed black;
+  margin: 4px 0;
 }
 
 .product-name {
   font-size: 11pt;
   font-weight: bold;
   text-align: center;
-  word-wrap: break-word;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
+  flex-grow: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1.2;
+  text-transform: uppercase;
 }
 
-/* CSS KHUSUS PRINT */
-@media print {
-  /* Paksa semua kontainer Vuetify untuk tidak membatasi konten */
-  :deep(.v-application),
-  :deep(.v-application--wrap),
-  :deep(.v-dialog),
-  :deep(.v-card),
-  :deep(.v-card-text) {
-    display: block !important;
-    overflow: visible !important;
-    height: auto !important;
-    min-height: 0 !important;
-    position: static !important;
-    margin: 0 !important;
-    padding: 0 !important;
-  }
-
-  /* Reset body */
-  body {
-    overflow: visible !important;
-    height: auto !important;
-  }
-
-  .print-wrapper {
-    display: block !important;
-  }
-
-  .label-box {
-    display: flex !important;
-    width: 7cm !important;
-    height: 5cm !important;
-    /* Pastikan setiap label memaksa halaman baru */
-    page-break-after: always !important;
-    page-break-inside: avoid !important;
-    break-after: page !important;
-    margin: 0 !important;
-  }
-
-  /* Hilangkan border atau shadow preview layar saat cetak */
-  .label-box {
-    box-shadow: none !important;
-    border: none !important;
-  }
+/* Mematikan hover effect pada checkbox Vuetify agar bersih */
+:deep(.v-selection-control) {
+  min-height: auto !important;
 }
 </style>

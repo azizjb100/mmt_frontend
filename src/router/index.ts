@@ -77,10 +77,12 @@ import FormPenerimaanPoExtMmtView from '@/views/FormPenerimaanPoExtMmtView.vue';
 import FormLhkTekstilView from '@/views/FormLhkTekstilView.vue';
 import StbjMmtView from '@/views/StbjMmtView.vue';
 import StbjView from '@/views/StbjView.vue';
+import SpkView from '@/views/SpkView.vue';
+import LapPemakaianBahanView from '@/views/LapPemakaianBahanView.vue';
 
 
 
-// 2. Definisikan Rute (Jalan)
+
 const routes: RouteRecordRaw[] = [
     {
         path: '/login',
@@ -119,6 +121,7 @@ const routes: RouteRecordRaw[] = [
                 component: FormLhkFinishingBuildView,
                 props: { isEditMode: false }
             },
+            { path: 'mmt/spk', name: 'BrowseSpk', component: SpkView },
             { path: 'mmt/stbj', name: 'BrowseStbj', component: StbjView },
             { path: 'mmt/daftar/stbj', name: 'STBJMMT', component: StbjMmtView },
             { path: 'mmt/pengajuan-permintaan', name: 'PengajuanPermintaanBrowse', component: PengajuanPermintaanView },
@@ -367,7 +370,8 @@ const routes: RouteRecordRaw[] = [
             { path: 'laporan/mmt/ls-bahan-penolong', name: 'LS Bahan Penolong', component: LapLsBahanPenolongView },
             { path: 'laporan/mmt/lap-mon-lmkp-mmt', name: 'lapMonLmkpMmt', component: LapMonLmkpMmtView },
             { path: 'laporan/mmt/lap-mon-cetak', name: 'lapMonCetak', component: LapMonCetakView },
-            { path: 'laporan/mmt/lap-spk-mmt', name: 'lapSpkMmt', component: LapSpkMmtView },
+            { path: 'laporan/mmt/lap-spk-mmt', name: 'lapSpkMmt', component: LapSpkMmtView },            
+            { path: 'laporan/mmt/lap-pemakaian-bahan', name: 'LapPemakaianBahan', component: LapPemakaianBahanView },
             { path: 'laporan/mmt/lap-plan-produksi', name: 'lapPlanProduksi', component: LapPlanProdView },
             { path: 'laporan/mmt/lap-barang-jadi', name: 'lapBarangJadi', component: LapBarangJadiView },
             { path: 'laporan/mmt/lap-stok-tinta', name: 'lapStokTinta', component: LapStokTintaMmtView },
