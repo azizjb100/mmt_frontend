@@ -170,13 +170,36 @@
 
             <v-spacer />
 
-            <v-btn
-              size="small"
-              color="success"
-              prepend-icon="mdi-plus"
-              @click="openSpkSearch"
-              >Tambah SPK</v-btn
+            <v-card-title
+              class="text-subtitle-1 d-flex align-center pa-2 bg-blue-grey-lighten-5"
             >
+              <v-spacer></v-spacer>
+
+              <div class="d-flex align-center ga-2">
+                <v-btn
+                  size="small"
+                  color="success"
+                  prepend-icon="mdi-plus"
+                  style="height: 30px !important; text-transform: none"
+                  @click="openSpkSearch"
+                >
+                  Tambah SPK
+                </v-btn>
+
+                <v-text-field
+                  v-model="formData.barcode_spk"
+                  placeholder="Scan Barcode SPK"
+                  prepend-inner-icon="mdi-barcode-scan"
+                  variant="outlined"
+                  density="compact"
+                  hide-details
+                  flat
+                  class="custom-scan-input"
+                  style="width: 200px"
+                  @keyup.enter="handleSpkScan"
+                />
+              </div>
+            </v-card-title>
           </v-card-title>
 
           <v-card-text class="pa-0">
@@ -577,6 +600,7 @@ const formData = reactive({
   panjang_bs: null as number | null,
   lebar_bs: null as number | null,
   manual_panjang_pakai: null as number | null,
+  barcode_spk: "",
 });
 
 const detailData = reactive<any[]>([]);
@@ -1075,6 +1099,70 @@ const getTileInRow = (item: any, currentRow: number) => {
   }
 
   return item.tile;
+};
+
+const handleSpkScan = async () => {
+  const code = formData.barcode_spk?.trim();
+
+  // 1. Validasi Input Kosong
+  if (!code) return;
+
+  // 2. Cek Duplikat (Agar tidak input SPK yang sama dua kali)
+  if (detailData.some((d) => d.nomor_spk === code)) {
+    toast.warning(`SPK ${code} sudah ada dalam daftar!`);
+    formData.barcode_spk = "";
+    return;
+  }
+
+  try {
+    isSaving.value = true;
+
+    // 3. Ambil Data SPK dari API berdasarkan nomor yang discan
+    const res = await api.get(`/mmt/SPK/${code}`);
+    const spk = res.data.data || res.data;
+
+    if (spk) {
+      // 4. Mapping data sesuai struktur tabel detailData Anda
+      const newEntry: any = {
+        nomor_spk: spk.Spk || spk.Nomor || code,
+        nama_spk: spk.Nama || spk.Nama_Produk || "",
+        panjang_spk: parseFloat(spk.Panjang || 0),
+        lebar_spk: parseFloat(spk.Lebar || 0),
+        jumlah: parseFloat(spk.Jumlah || 0),
+        sudahcetak: parseFloat(spk.Sudah_Cetak || 0),
+        kurangcetak_asli: parseFloat(spk.Kurang_Cetak || 0),
+        padding: 3,
+        tile: 1,
+        orientasi: "lebar",
+        totalcetak: 0,
+        luas_satuan: 0,
+        total_luas: 0,
+      };
+
+      // Inisialisasi kolom C1 sampai C7
+      for (let i = 1; i <= 7; i++) {
+        newEntry[`cetak${i}`] = 0;
+      }
+
+      // 5. Masukkan ke tabel dan hitung ulang layout
+      detailData.push(newEntry);
+      recalculateCombine();
+
+      toast.success(`Berhasil menambahkan SPK ${code}`);
+
+      // 6. Reset field scan agar siap untuk scan berikutnya
+      formData.barcode_spk = "";
+    } else {
+      toast.error("Nomor SPK tidak ditemukan");
+      formData.barcode_spk = "";
+    }
+  } catch (e: any) {
+    console.error("Scan SPK Error:", e);
+    toast.error(e.response?.data?.message || "Gagal mengambil data SPK");
+    formData.barcode_spk = "";
+  } finally {
+    isSaving.value = false;
+  }
 };
 
 const handleApprove = async () => {
