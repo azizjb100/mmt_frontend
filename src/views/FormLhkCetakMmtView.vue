@@ -85,6 +85,55 @@ const handleMesinSelect = (mesin: any) => {
   activeRowIndex.value = null;
 };
 
+const loaddataall = async (nomor: string) => {
+  isLoadingDetails.value = true; // Gunakan loading state agar user tahu data sedang diambil
+  try {
+    // 1. Panggil API gabungan Header + Detail
+    const response = await api.get(`/mmt/lhk-cetak-mmt/${nomor}`);
+    const res = response.data.data;
+
+    if (res) {
+      isEditMode.value = true;
+
+      // 2. Mapping Header (Sesuaikan dengan Alias SQL Backend Anda)
+      formData.nomor = res.Nomor;
+      formData.tanggal = res.Tanggal; // Backend sudah pakai DATE_FORMAT
+      formData.shift = res.Shift;
+      formData.operator = res.Operator;
+      formData.mesin = res.Mesin;
+      formData.gdg_kode = res.Gdg_Kode;
+
+      // Mapping Tinta
+      formData.ink_c = res.Ink_C || 0;
+      formData.ink_m = res.Ink_M || 0;
+      formData.ink_y = res.Ink_Y || 0;
+      formData.ink_k = res.Ink_K || 0;
+
+      // 3. Mapping Detail ke Tabel
+      if (Array.isArray(res.details)) {
+        detailData.value = res.details.map((d: any) => ({
+          lhkmesin: d.Nomor_lhk_mesin || "MANUAL",
+          shift: d.Shift || res.Shift,
+          mesin: d.Mesin,
+          spk_nomor: d.Nomor_SPK,
+          spk_nama: d.Nama_SPK,
+          operator: d.Operator || "",
+          jumlah_cetak: Number(d.Jml_Cetak) || 0,
+          total_m2: Number(d.m2_cetak) || 0,
+          panjang_spk: d.Panjang,
+          lebar_spk: d.Lebar,
+          isManual: !d.Nomor_lhk_mesin || d.Nomor_lhk_mesin === "MANUAL",
+        }));
+      }
+    }
+  } catch (error: any) {
+    console.error("Load Error:", error);
+    toast.error("Gagal memuat data edit.");
+  } finally {
+    isLoadingDetails.value = false;
+  }
+};
+
 const handleSpkSelect = (spk: any) => {
   const nomorSpk = spk.Spk || spk.spk_nomor;
   const namaSpk = spk.Nama || spk.spk_nama;
@@ -250,6 +299,14 @@ const handleKeyDown = (e: KeyboardEvent) => {
 
 onMounted(() => {
   window.addEventListener("keydown", handleKeyDown);
+
+  // Ambil ID dari URL (pastikan namanya sesuai dengan yang di router/index.ts)
+  const idFromUrl = route.params.id || route.params.nomor;
+
+  if (idFromUrl && idFromUrl !== "new" && idFromUrl !== "create") {
+    isEditMode.value = true;
+    loaddataall(idFromUrl as string);
+  }
 });
 
 onUnmounted(() => {
