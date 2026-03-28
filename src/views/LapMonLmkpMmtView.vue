@@ -110,9 +110,6 @@ const exportToExcel = () => {
     "NAMA ORDER": item.spk_nama,
     TANGGAL: formatDateDisplay(item.spk_tanggal),
     DEADLINE: formatDateDisplay(item.deadline),
-    STATUS: item.spk_statuskerja,
-    DIVISI: item.DIVISI,
-    "JENIS ORDER": item.jo_nama,
     BAHAN: `${item.KAIN} ${item.spk_gramasi}`,
     "ORD (PCS)": item.spk_jumlah,
     "KRM (PCS)": item.spk_jumlah_kirim,
@@ -137,9 +134,6 @@ const exportToExcel = () => {
     "NAMA ORDER": "",
     TANGGAL: "",
     DEADLINE: "",
-    STATUS: "",
-    DIVISI: "",
-    "JENIS ORDER": "",
     BAHAN: "",
     "ORD (PCS)": totals.value.spk_jumlah,
     "KRM (PCS)": totals.value.spk_jumlah_kirim,
@@ -296,27 +290,7 @@ onMounted(fetchReport);
                 >
                   DEADLINE
                 </th>
-                <th
-                  rowspan="2"
-                  class="text-center bg-blue-main"
-                  :style="{ width: colWidths.status + 'px' }"
-                >
-                  STATUS
-                </th>
-                <th
-                  rowspan="2"
-                  class="text-center bg-blue-main"
-                  :style="{ width: colWidths.divisi + 'px' }"
-                >
-                  DIVISI
-                </th>
-                <th
-                  rowspan="2"
-                  class="text-center bg-blue-main"
-                  :style="{ width: colWidths.jo_nama + 'px' }"
-                >
-                  JENIS ORDER
-                </th>
+
                 <th
                   rowspan="2"
                   class="text-center bg-blue-main"

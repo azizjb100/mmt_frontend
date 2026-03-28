@@ -87,9 +87,29 @@ const getRowProps = ({ item }: any) => {
 };
 
 const handlePrint = () => {
-  if (!selectedItem.value) return;
-  const url = `${import.meta.env.VITE_API_URL}/mmt/spk/print/${selectedItem.value.SPK}`;
-  window.open(url, "_blank");
+  // 1. Validasi apakah ada data yang dipilih
+  if (!selectedItem.value) {
+    toast.error("Pilih satu SPK terlebih dahulu.");
+    return;
+  }
+
+  const nomorSpk = selectedItem.value.SPK;
+  const statusAcc = selectedItem.value.Ngedit; // Mengambil status dari kolom Ngedit
+
+  // 2. Cek apakah sudah ACC (berdasarkan logika backend Anda)
+  // Berdasarkan backend: 'ACC' berarti pin sudah disetujui
+  if (statusAcc !== "ACC" && statusAcc !== "") {
+    toast.warning(
+      `SPK ${nomorSpk} belum di-ACC atau masih ${statusAcc}, tidak bisa cetak.`,
+    );
+    return;
+  }
+
+  toast.info(`Membuka Print Preview SPK ${nomorSpk}`);
+  router.push({
+    name: "SpkPrint",
+    params: { nomor: nomorSpk },
+  });
 };
 
 const handleCreate = () => router.push({ name: "spk-form" });

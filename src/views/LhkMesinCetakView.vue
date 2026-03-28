@@ -82,11 +82,6 @@
               <v-icon>mdi-refresh</v-icon> Refresh
             </v-btn>
             <v-spacer />
-
-            <div class="d-flex align-center ga-2 text-caption">
-              <v-icon color="red" size="x-small">mdi-square-rounded</v-icon>
-              <span class="ml-1"><strong>LENGKAP: TIDAK</strong></span>
-            </div>
           </div>
         </v-card-text>
       </v-card>
@@ -127,6 +122,30 @@
             <span :class="getRowTextColor(item)">{{
               formatMeter(Number(item.cetak_meter || 0))
             }}</span>
+          </template>
+          <template #item.pemakaian_bahan="{ item }">
+            <span>{{ formatMeter(item.TotalCetak || 0) }} m</span>
+          </template>
+          <template #item.SisaMeterAkhir="{ item }">
+            <span>{{ Number(item.SisaMeterAkhir || 0).toFixed(1) }}</span>
+          </template>
+
+          <template #item.status_bahan="{ item }">
+            <span
+              v-if="item.SisaMeterAkhir < 0"
+              class="text-success font-weight-bold"
+            >
+              SURPLUS {{ Math.abs(item.SisaMeterAkhir).toFixed(1) }}m
+            </span>
+
+            <span
+              v-else-if="item.SisaMeterAkhir > 0"
+              class="text-orange font-weight-bold"
+            >
+              SISA {{ item.SisaMeterAkhir.toFixed(1) }}m
+            </span>
+
+            <span v-else class="text-grey font-weight-bold"> PAS </span>
           </template>
 
           <template #item.NomorSPK="{ item }">
@@ -311,7 +330,8 @@ const getRowProps = ({ item }: any) => {
 const isLoadingDetails = (nomor: string) => loadingDetails.value.has(nomor);
 
 const getRowTextColor = (item: LhkCetakItem) => {
-  return item.Lengkap !== "Y" ? "text-red font-weight-bold" : "";
+  // Kosongkan return agar tidak memberikan class warna merah
+  return "";
 };
 
 // --- Headers (Sesuai SQL Delphi) ---
@@ -333,6 +353,9 @@ const masterHeaders = [
   { title: "Lebar", key: "spk_lebar", align: "end" },
   { title: "Jml Order", key: "JumlahOrder", align: "end" },
   { title: "Jml Cetak", key: "TotalCetak", align: "end" },
+  { title: "Bahan Awal", key: "PanjangBahanAwal", align: "end" },
+  { title: "Sisa", key: "SisaMeterAkhir", align: "end" },
+  { title: "Status Bahan", key: "status_bahan", align: "center" },
   { title: "Bahan", key: "Kode_bahan" },
   { title: "Nama Bahan", key: "nama_Bahan" },
   // { title: "Tile", key: "Tile" },
@@ -446,6 +469,30 @@ const fetchGudangList = async () => {
   } catch (error) {
     console.error("Error fetching gudang list:", error);
   }
+};
+
+// Fungsi untuk menghitung angka selisih
+const calculateSelisih = (item: LhkCetakHeader) => {
+  const real = Number(item.TotalCetak || 0);
+  const target = Number(item.spk_panjang || 0); // Asumsi spk_panjang adalah standar bahan 70m
+  return real - target;
+};
+
+// Fungsi untuk menampilkan teks (Surplus 2.00m / Minus 1.50m)
+const calculateSelisihText = (item: LhkCetakHeader) => {
+  const diff = calculateSelisih(item);
+  const absDiff = Math.abs(diff).toFixed(2);
+
+  if (diff > 0) return `Surplus ${absDiff} m`;
+  if (diff < 0) return `Minus ${absDiff} m`;
+  return "Pas";
+};
+
+// Fungsi untuk warna (Surplus = Hijau, Minus = Merah)
+const getSelisihClass = (diff: number) => {
+  if (diff > 0) return "text-success font-weight-bold";
+  if (diff < 0) return "text-error font-weight-bold";
+  return "text-grey";
 };
 
 const fetchMasterData = async () => {
@@ -691,5 +738,18 @@ body.col-resize-active {
 
 .table-container {
   height: 100%;
+}
+
+.text-success {
+  color: #4caf50 !important;
+}
+.text-orange {
+  color: #fb8c00 !important;
+}
+.text-grey {
+  color: #757575 !important;
+}
+.font-weight-bold {
+  font-weight: bold !important;
 }
 </style>

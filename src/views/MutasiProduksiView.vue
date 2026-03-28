@@ -1,6 +1,6 @@
 <template>
-  <PageLayout title="Data Permintaan Produksi" icon="mdi-factory">
-    <v-expand-transition>
+  <PageLayout title="Data Realisasi Produksi" icon="mdi-factory">
+    <!-- <v-expand-transition>
       <div v-if="pendingLoans.length > 0" class="mx-4 mt-2">
         <v-alert
           type="warning"
@@ -35,7 +35,7 @@
           </div>
         </v-alert>
       </div>
-    </v-expand-transition>
+    </v-expand-transition> -->
     <template #header-actions>
       <v-btn size="x-small" color="success" @click="handleNewEdit('new')">
         <v-icon start>mdi-plus</v-icon> Baru

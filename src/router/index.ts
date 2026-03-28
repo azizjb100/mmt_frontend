@@ -79,6 +79,9 @@ import StbjMmtView from '@/views/StbjMmtView.vue';
 import StbjView from '@/views/StbjView.vue';
 import SpkView from '@/views/SpkView.vue';
 import LapPemakaianBahanView from '@/views/LapPemakaianBahanView.vue';
+import MutasiGudangView from '@/views/MutasiGudangView.vue';
+import FormMutasiGudangView from '@/views/FormMutasiGudangView.vue';
+import SpkPrintView from '@/views/SpkPrintView.vue';
 
 
 
@@ -122,6 +125,12 @@ const routes: RouteRecordRaw[] = [
                 props: { isEditMode: false }
             },
             { path: 'mmt/spk', name: 'BrowseSpk', component: SpkView },
+            {
+                path: 'mmt/spk/print/:nomor',
+                name: 'SpkPrint', 
+                component: SpkPrintView,
+                props: true 
+            },
             { path: 'mmt/stbj', name: 'BrowseStbj', component: StbjView },
             { path: 'mmt/daftar/stbj', name: 'STBJMMT', component: StbjMmtView },
             { path: 'mmt/pengajuan-permintaan', name: 'PengajuanPermintaanBrowse', component: PengajuanPermintaanView },
@@ -252,6 +261,19 @@ const routes: RouteRecordRaw[] = [
                 path: 'mmt/permintaan-produksi/edit/:nomor',
                 name: 'PermintaanProduksiEdit',
                 component: FormPermintaanProduksiView,
+                props: true
+            },
+            { path: 'mmt/mutasi-gudang', name: 'MutasiGudangBrowse', component: MutasiGudangView },
+            {
+                path: 'mmt/realisasi-gudang/new',
+                name: 'MutasiGudangNew',
+                component: FormMutasiGudangView,
+                props: { isEditMode: false }
+            },
+            {
+                path: 'mmt/realisasi-gudang/edit/:nomor',
+                name: 'MutasigudangEdit',
+                component: MutasiGudangView,
                 props: true
             },
 

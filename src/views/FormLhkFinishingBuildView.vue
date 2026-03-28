@@ -95,7 +95,7 @@
             :loading="isLoading"
             show-select
             select-strategy="page"
-            item-value="id"
+            item-value="ids"
             density="compact"
             height="500px"
             fixed-header

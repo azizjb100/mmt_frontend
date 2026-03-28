@@ -89,16 +89,31 @@
             <v-row dense>
               <v-col cols="12">
                 <v-text-field
-                  label="Cari Bahan"
-                  v-model="formData.brg_nama"
-                  append-inner-icon="mdi-magnify"
-                  readonly
+                  label="Scan Barcode Roll"
+                  v-model="formData.barcode_input"
+                  placeholder="Scan di sini..."
+                  prepend-inner-icon="mdi-barcode-scan"
                   variant="outlined"
                   density="compact"
-                  @click:append-inner="openBahanLookup"
+                  color="primary"
+                  @keyup.enter="handleBarcodeScan"
+                  autocomplete="off"
+                  class="mb-1"
                 />
               </v-col>
-              <v-col cols="6">
+              <v-col cols="6" class="mt-2">
+                <v-text-field
+                  label="P. Bahan (Sisa)"
+                  v-model.number="formData.panjang_bahan"
+                  readonly
+                  variant="filled"
+                  density="compact"
+                  hide-details
+                  suffix="M"
+                  class="text-end"
+                />
+              </v-col>
+              <v-col cols="6" class="mt-2">
                 <v-text-field
                   label="Lebar (m)"
                   v-model.number="formData.lebar_bahan"
@@ -106,6 +121,7 @@
                   variant="filled"
                   density="compact"
                   hide-details
+                  suffix="M"
                   class="text-end"
                 />
               </v-col>
@@ -280,16 +296,18 @@ import SpkLookupView from "@/modal/SpkLookupModal.vue";
 const toast = useToast();
 const isSaving = ref(false);
 const activeRow = ref(-1);
-const SCALE = 50; // Visual scale
+const SCALE = 50;
 
 const formData = reactive({
   nomor: "AUTO",
   tanggal: format(new Date(), "yyyy-MM-dd"),
   shift: 1,
   gdgKode: "GPM",
+  barcode_input: "",
   brg_nama: "",
   brg_kode: "",
   lebar_bahan: 0,
+  panjang_bahan: 0,
 });
 
 const detailData = ref<any[]>([]);
@@ -377,10 +395,50 @@ const handleSpkSelect = (spk: any) => {
   lookup.spk = false;
 };
 
+// --- Fungsi Handler Barcode Scan ---
+const handleBarcodeScan = async () => {
+  if (!formData.barcode_input) return;
+
+  try {
+    // Gunakan endpoint yang sama dengan LHK Mesin
+    const res = await api.get(`/mmt/stok-gudang/${formData.barcode_input}`);
+    const resData = res.data.data;
+
+    if (resData.status === "READY") {
+      // Petakan data dari API (sesuaikan dengan struktur respon API stok Anda)
+      formData.brg_nama = resData.data.Nama_Barang || resData.data.Nama;
+      formData.brg_kode = resData.data.Kode_Barang || resData.data.Kode;
+      formData.lebar_bahan = parseFloat(resData.data.Lebar) || 0;
+      formData.panjang_bahan = parseFloat(resData.data.Sisa_Panjang) || 0;
+
+      toast.success("Material berhasil di-scan");
+      // Kosongkan input barcode agar siap untuk scan berikutnya jika salah
+      // formData.barcode_input = "";
+    } else {
+      toast.error("Barcode tidak tersedia atau sudah terpakai");
+      clearBahan();
+    }
+  } catch (e: any) {
+    console.error(e);
+    toast.error("Gagal scan barcode: Data tidak ditemukan");
+    clearBahan();
+  }
+};
+
+const clearBahan = () => {
+  formData.brg_nama = "";
+  formData.brg_kode = "";
+  formData.lebar_bahan = 0;
+  formData.panjang_bahan = 0;
+};
+
+// Update handleBahanSelect jika user masih menggunakan cara manual (lookup)
 const handleBahanSelect = (b: any) => {
   formData.brg_nama = b.brg_nama;
   formData.brg_kode = b.brg_kode;
   formData.lebar_bahan = b.lebar || 0;
+  formData.panjang_bahan = b.sisa_panjang || 0;
+  formData.barcode_input = b.barcode || ""; // Set barcode jika pilih manual
   lookup.bahan = false;
 };
 
@@ -473,7 +531,7 @@ const getBlockStyle = (b: any) => ({
 }
 
 .detail-entry-table :deep(thead th) {
-  background-color: #eceff1 !important;
+  background-color: #81cdff !important;
   font-weight: bold !important;
 }
 

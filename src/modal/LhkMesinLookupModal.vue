@@ -26,33 +26,39 @@
       </v-toolbar>
 
       <v-card-text class="pa-4">
-        <v-row dense class="mb-2">
+        <v-row dense class="mb-2 align-center">
           <v-col cols="12" md="5">
             <v-text-field
-              v-model="filters.startDate"
-              label="Dari Tanggal"
+              v-model="filters.date"
+              label="Pilih Tanggal"
               type="date"
               density="compact"
               variant="outlined"
+              hide-details
             ></v-text-field>
           </v-col>
+
           <v-col cols="12" md="5">
-            <v-text-field
-              v-model="filters.endDate"
-              label="Sampai Tanggal"
-              type="date"
+            <v-select
+              v-model="filters.shift"
+              :items="['1', '2', '3']"
+              label="Pilih Shift"
               density="compact"
               variant="outlined"
-            ></v-text-field>
+              hide-details
+            ></v-select>
           </v-col>
+
           <v-col cols="12" md="2">
             <v-btn
               color="primary"
               block
               @click="fetchLhkData"
               :loading="loading"
-              >Filter</v-btn
+              prepend-icon="mdi-magnify"
             >
+              Cari
+            </v-btn>
           </v-col>
         </v-row>
 
@@ -60,66 +66,153 @@
 
         <v-data-table
           v-model="selectedItems"
+          v-model:expanded="expanded"
           :headers="headers"
           :items="lhkList"
           :loading="loading"
           item-value="Nomor"
+          show-expand
           show-select
           density="compact"
           hover
           fixed-header
-          height="400px"
-          class="clickable-table"
+          height="450px"
+          class="custom-table"
         >
+          <template v-slot:expanded-row="{ columns, item }">
+            <tr>
+              <td :colspan="columns.length" class="bg-grey-lighten-5 pa-0">
+                <v-expand-transition>
+                  <div v-if="expanded.includes(item.Nomor)">
+                    <v-linear-progress
+                      v-if="!lhkDetailsCache[item.Nomor]"
+                      indeterminate
+                      color="primary"
+                    ></v-linear-progress>
+
+                    <v-card v-else variant="flat" class="ma-3 border">
+                      <v-table
+                        density="compact"
+                        class="bg-transparent detail-table"
+                      >
+                        <thead>
+                          <tr class="bg-grey-lighten-3">
+                            <th>Nomor SPK</th>
+                            <th>Nama Pekerjaan</th>
+                            <th class="text-right">Qty Order</th>
+                            <th class="text-right">Qty Produksi LHK</th>
+                            <th class="text-right">Kurang Cetak</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr
+                            v-for="spk in lhkDetailsCache[item.Nomor]"
+                            :key="spk.urut"
+                          >
+                            <td class="font-weight-bold text-primary">
+                              {{ truncateString(spk.nomor_spk, 12) }}
+                            </td>
+                            <td>
+                              {{ truncateString(spk.nama_spk || "-", 40) }}
+                            </td>
+                            <td class="text-right">{{ spk.qty_order }} Pcs</td>
+                            <td class="text-right font-weight-bold">
+                              {{ spk.totalcetak }} Pcs
+                            </td>
+                            <td class="text-right font-weight-bold">
+                              <span
+                                :class="
+                                  spk.kurang_cetak > 0
+                                    ? 'text-red'
+                                    : 'text-green'
+                                "
+                              >
+                                {{ spk.kurang_cetak }} Pcs
+                              </span>
+                            </td>
+                          </tr>
+                        </tbody>
+                      </v-table>
+                    </v-card>
+                  </div>
+                </v-expand-transition>
+              </td>
+            </tr>
+          </template>
+
           <template #[`item.Tanggal`]="{ item }">
-            {{ format(new Date(item.Tanggal), "dd/MM/yyyy") }}
+            {{
+              item.Tanggal ? format(new Date(item.Tanggal), "dd/MM/yyyy") : "-"
+            }}
           </template>
 
           <template #[`item.NomorSPK`]="{ item }">
-            <v-tooltip v-if="item.JumlahSPK > 1" text="Multiple SPK detected">
-              <template v-slot:activator="{ props }">
-                <span
-                  v-bind="props"
-                  class="font-weight-bold text-orange-darken-2"
-                  >RETAIL</span
+            <div class="d-flex align-center">
+              <template v-if="item.JumlahSPK > 1">
+                <v-chip
+                  size="x-small"
+                  color="orange-darken-3"
+                  variant="flat"
+                  class="font-weight-bold"
                 >
+                  RETAIL ({{ item.JumlahSPK }})
+                </v-chip>
               </template>
-            </v-tooltip>
-            <span v-else>
-              {{ truncateString(item.NomorSPK, 20) }}
-            </span>
+              <span v-else class="font-weight-medium">
+                {{ truncateString(item.NomorSPK, 12) }}
+              </span>
+            </div>
           </template>
 
           <template #[`item.NamaOrder`]="{ item }">
             <span :title="item.NamaOrder">
-              {{ truncateString(item.NamaOrder || "-", 25) }}
+              {{ truncateString(item.NamaOrder || "-", 30) }}
             </span>
           </template>
 
           <template #[`item.TotalCetak`]="{ item }">
-            <v-chip size="x-small" color="blue" label>
+            <v-chip
+              size="x-small"
+              color="blue-darken-1"
+              label
+              class="font-weight-bold"
+            >
               {{ item.TotalCetak }} Pcs
             </v-chip>
           </template>
 
-          <template #no-data>
-            <div class="text-center pa-4">
-              Tidak ada LHK Mesin yang tersedia.
-            </div>
+          <template #[`item.KurangCetak`]="{ item }">
+            <v-chip
+              size="x-small"
+              :color="item.KurangCetak > 0 ? 'error' : 'success'"
+              variant="tonal"
+              class="font-weight-bold"
+            >
+              {{ item.KurangCetak }} Pcs
+            </v-chip>
           </template>
         </v-data-table>
       </v-card-text>
 
       <v-divider></v-divider>
-      <v-card-actions class="pa-4" v-if="selectedItems.length > 0">
+      <v-card-actions class="pa-4">
         <span class="text-caption grey--text"
           >Terpilih: {{ selectedItems.length }} item</span
         >
         <v-spacer></v-spacer>
-        <v-btn color="error" variant="text" @click="selectedItems = []"
+        <v-btn
+          color="error"
+          variant="text"
+          size="small"
+          @click="selectedItems = []"
           >Batal</v-btn
         >
-        <v-btn color="primary" variant="elevated" @click="submitSelection"
+        <v-btn
+          color="primary"
+          variant="elevated"
+          size="small"
+          @click="submitSelection"
+          :disabled="selectedItems.length === 0"
           >Ambil LHK</v-btn
         >
       </v-card-actions>
@@ -139,22 +232,26 @@ const toast = useToast();
 
 const loading = ref(false);
 const lhkList = ref([]);
-const selectedItems = ref([]); // State untuk menampung item yang dipilih
+const selectedItems = ref([]);
+const expanded = ref([]);
+const lhkDetailsCache = reactive({});
 
 const filters = reactive({
-  startDate: format(subDays(new Date(), 7), "yyyy-MM-dd"),
-  endDate: format(new Date(), "yyyy-MM-dd"),
+  date: format(new Date(), "yyyy-MM-dd"), // Default hari ini
+  shift: "1", // Default shift 1
 });
 
 const headers = [
+  { title: "", key: "data-table-expand", width: "40px" },
   { title: "Nomor LHK", key: "Nomor", width: "130px" },
-  { title: "Tanggal", key: "Tanggal", width: "100px" },
-  { title: "Shift", key: "Shift", width: "80px" },
-  { title: "Mesin", key: "Mesin", width: "90px" },
-  { title: "Nomor SPK", key: "NomorSPK", width: "160px" },
-  { title: "Nama SPK / Pekerjaan", key: "NamaOrder", width: "200px" },
+  { title: "Shift", key: "Shift", width: "70px" },
+  { title: "Mesin", key: "Mesin", width: "80px" },
+  { title: "Nomor SPK", key: "NomorSPK", width: "150px" },
+  { title: "Nama SPK / Pekerjaan", key: "NamaOrder", width: "220px" },
+  { title: "Jml. Order", key: "JumlahOrder", width: "80px" },
   { title: "Qty", key: "TotalCetak", align: "end", width: "90px" },
-  { title: "Operator", key: "Operator", width: "120px" },
+  { title: "Sisa SPK", key: "KurangCetak", align: "end", width: "90px" },
+  { title: "Operator", key: "Operator", width: "100px" },
 ];
 
 const truncateString = (str: string, num: number) => {
@@ -162,57 +259,92 @@ const truncateString = (str: string, num: number) => {
   return str;
 };
 
+const loadDetail = async (nomor: string) => {
+  if (lhkDetailsCache[nomor]) return;
+  try {
+    const response = await api.get("/mmt/lhk-cetak/details", {
+      params: { nomor },
+    });
+    lhkDetailsCache[nomor] = response.data.details || [];
+  } catch (error) {
+    toast.error("Gagal mengambil detail SPK");
+  }
+};
+
+watch(expanded, (newVal) => {
+  if (newVal.length > 0) {
+    loadDetail(newVal[newVal.length - 1]);
+  }
+});
+
 const fetchLhkData = async () => {
   loading.value = true;
-  selectedItems.value = []; // Reset pilihan setiap kali filter/refresh
+  selectedItems.value = [];
+
   try {
+    // Kirim tanggal yang sama ke startDate dan endDate agar filter jadi "per hari"
     const response = await api.get("/mmt/lhk-cetak/lookup", {
       params: {
-        startDate: filters.startDate,
-        endDate: filters.endDate,
+        startDate: filters.date, // Diambil dari v-model="filters.date"
+        endDate: filters.date, // Diambil dari v-model="filters.date" juga
+        shift: filters.shift, // Tambahan filter shift jika backend mendukung
       },
     });
+
     lhkList.value = response.data.data || response.data;
   } catch (error) {
-    toast.error("Gagal memuat daftar LHK Mesin");
+    console.error("Fetch Error:", error);
+    toast.error("Gagal memuat daftar LHK");
   } finally {
     loading.value = false;
   }
 };
 
 const submitSelection = () => {
-  if (selectedItems.value.length === 0) {
-    toast.warning("Pilih minimal satu LHK");
-    return;
-  }
-
-  // Kita kirim daftar nomor yang dipilih ke parent
-  // selectedItems berisi array dari 'Nomor' karena item-value="Nomor" pada v-data-table
+  if (selectedItems.value.length === 0) return;
   emit("select", selectedItems.value);
-
-  // Close modal dan reset
   emit("close");
-  selectedItems.value = [];
-};
-
-const selectLhk = (item: any) => {
-  // Pastikan item.Nomor tidak undefined
-  if (!item.Nomor) {
-    console.error("Data LHK tidak memiliki Nomor:", item);
-    return;
-  }
-  // Jika Multiple Choice, kita kirim array.
-  // Jika single, pastikan parent menerima objek yang benar.
-  emit("select", [item]);
 };
 
 watch(
   () => props.isVisible,
   (val) => {
-    if (val) {
-      fetchLhkData();
-      selectedItems.value = [];
-    }
+    if (val) fetchLhkData();
   },
 );
 </script>
+
+<style scoped>
+/* Standarisasi Font Size 11px untuk semua elemen tabel */
+:deep(.v-data-table .v-table__wrapper table th),
+:deep(.v-data-table .v-table__wrapper table td),
+:deep(.detail-table thead th),
+:deep(.detail-table tbody td) {
+  font-size: 11px !important;
+  height: 36px !important; /* Baris lebih padat */
+  white-space: nowrap;
+}
+
+/* Header styling */
+:deep(.v-data-table-header th) {
+  background-color: #f5f5f5 !important;
+  font-weight: 700 !important;
+  color: #333 !important;
+}
+
+/* Header detail styling */
+:deep(.detail-table thead tr) {
+  background-color: #eeeeee !important;
+}
+
+:deep(.detail-table thead th) {
+  font-weight: 700 !important;
+  color: #555 !important;
+}
+
+/* Chip Font Size */
+:deep(.v-chip) {
+  font-size: 10px !important;
+  height: 20px !important;
+}
+</style>

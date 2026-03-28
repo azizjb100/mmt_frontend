@@ -240,7 +240,7 @@ const allMenuGroups = [
       { name: "Penerimaan Bahan", path: "/mmt/penerimaan-bahan" },
 
       { name: "Retur Produksi", path: "/mmt/retur-produksi" },
-      { name: "Mutasi Bahan", path: "/mmt/mutasi-bahan" },
+      { name: "Mutasi Bahan", path: "/mmt/mutasi-gudang" },
       { name: "Koreksi Stok", path: "/mmt/koreksi-stok" },
       { name: "Stok Opname", path: "/mmt/stok-opname" },
       { name: "Permintaan Produksi", path: "/mmt/permintaan-produksi" },
@@ -254,8 +254,8 @@ const allMenuGroups = [
         isSubGroup: true,
         path: null,
         items: [
-          { name: "LHK Mesin Cetak", path: "/mmt/lhk/cetak" },
-          { name: "LHK Cetak Mmt", path: "/mmt/lhk/cetak-mmt" },
+          { name: "LHK Cetak (Mesin)", path: "/mmt/lhk/cetak" },
+          { name: "LHK Approval Cetak", path: "/mmt/lhk/cetak-mmt" },
           { name: "LHK Tekstil", path: "/mmt/lhk/tekstil" },
           { name: "LHK Finishing", path: "/mmt/lhk/finishing" },
           { name: "LHK Proof", path: "/mmt/lhk/proof" },

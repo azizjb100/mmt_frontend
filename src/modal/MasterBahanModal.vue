@@ -177,7 +177,6 @@ const API_URL = computed(() => {
     case "produksi":
       return "/master/bahan/mmt/produksi";
     default:
-      // Inilah kenapa Anda selalu mendapatkan data MMT (WH-16)
       return "/master/bahan/mmt";
   }
 });

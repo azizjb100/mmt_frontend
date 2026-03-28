@@ -443,6 +443,7 @@ onUnmounted(() => {
           <v-data-table
             :headers="detailHeaders"
             :items="detailData"
+            :items-per-page="-1"
             density="compact"
             height="450px"
             fixed-header
@@ -452,9 +453,10 @@ onUnmounted(() => {
 
             <template #[`item.lhkmesin`]="{ item }">
               <span
-                :class="
-                  item.isManual ? 'text-grey-lighten-1 italic' : 'lhk-chip'
-                "
+                :class="{
+                  'text-grey-lighten-1 italic': item.isManual,
+                  'font-weight-medium text-dark': !item.isManual,
+                }"
               >
                 {{ item.lhkmesin || "MANUAL" }}
               </span>
@@ -569,45 +571,59 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
-/* Toolbar Tabel ala Desktop */
-.v-toolbar {
-  border-bottom: 1px solid #ddd;
+/* Container Tabel */
+:deep(.v-data-table) {
+  font-family:
+    "Inter", sans-serif !important; /* Gunakan font standar yang bersih */
 }
 
-/* Header Tabel */
-.rekap-table :deep(thead th) {
-  background-color: #f5f5f5 !important;
+/* Header Tabel: Samakan dengan gambar (Background Biru Muda) */
+:deep(thead th) {
+  background-color: #87cefa !important; /* Warna biru muda seperti di gambar */
+  color: white !important;
+  font-weight: 600 !important;
+  font-size: 11px !important;
+  height: 48px !important;
+  text-transform: capitalize !important;
+}
+
+/* Standarisasi semua sel dalam tabel */
+:deep(tbody td) {
+  font-size: 11px !important; /* Ukuran font seragam */
   color: #333 !important;
-  font-weight: 700 !important;
-  border-right: 1px solid #e0e0e0 !important;
-  font-size: 0.75rem !important;
-  text-transform: uppercase;
+  height: 40px !important;
+  border-bottom: 1px solid #f0f0f0 !important;
 }
 
-/* Chip style untuk LHK agar menonjol */
+/* Menyamakan Font Input (v-text-field) dengan Teks Biasa */
+:deep(.v-field__input) {
+  font-size: 11px !important;
+  min-height: 32px !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  font-family: inherit !important;
+}
+
+/* Styling Khusus Kolom No. LHK (Agar seperti kotak kuning di gambar) */
 .lhk-chip {
   background-color: #fff9c4;
   border: 1px solid #fbc02d;
-  padding: 2px 6px;
+  padding: 2px 8px;
   border-radius: 4px;
-  font-family: "Courier New", Courier, monospace;
-  font-weight: bold;
+  font-weight: 500;
   color: #5d4037;
-  font-size: 0.8rem;
+  display: inline-block;
+  font-size: 0.75rem !important; /* Sedikit lebih kecil agar muat */
 }
 
-/* Row Hover */
-.rekap-table :deep(tbody tr:hover) {
-  background-color: #f1f8ff !important;
+/* Menghilangkan border bawah input agar terlihat seperti teks biasa saat tidak fokus */
+:deep(.v-field--variant-underlined .v-field__outline::before) {
+  border-bottom-width: 1px !important;
+  opacity: 0.2;
 }
 
-/* Footer Custom */
-.bg-blue-lighten-5 {
-  background-color: #e3f2fd !important;
-  font-size: 0.85rem;
-}
-
-.text-caption {
-  line-height: 1.2;
+/* Utility untuk teks miring manual */
+.italic {
+  font-style: italic;
 }
 </style>

@@ -626,9 +626,22 @@ onMounted(() => {
                   color="orange-darken-3"
                   prepend-inner-icon="mdi-file-find"
                   hide-details
-                  @click="!isLocked && (isPengajuanModalVisible = true)"
-                  :disabled="isEditMode"
+                  @click="
+                    !isLocked &&
+                    formData.gudangKode !== 'WH-20' &&
+                    (isPengajuanModalVisible = true)
+                  "
+                  :disabled="isEditMode || formData.gudangKode === 'WH-20'"
                 >
+                  <template
+                    v-slot:details
+                    v-if="formData.gudangKode === 'WH-20'"
+                  >
+                    <span class="text-caption text-error"
+                      >WH-20: Langsung pilih bahan di tabel</span
+                    >
+                  </template>
+
                   <template
                     v-slot:append-inner
                     v-if="noPengajuan && !isEditMode"

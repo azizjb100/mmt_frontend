@@ -183,6 +183,7 @@
             <v-data-table
               :headers="detailHeaders"
               :items="detailData"
+              :items-per-page="-1"
               class="detail-entry-table"
               hide-default-footer
               density="compact"
@@ -531,7 +532,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from "vue";
+import { ref, reactive, computed, onMounted, nextTick } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { format } from "date-fns";
 import api from "@/services/api";
@@ -628,33 +629,105 @@ const displayPanjangTerpakai = computed(() => {
 
 // Fungsi untuk memulai Drag
 
-// Fungsi menghitung sisa (Panjang & Lebar) berdasarkan posisi kotak
 const updateSisaFromLayout = () => {
-  let maxRight = 0; // Untuk Panjang (X)
-  let maxBottom = 0; // Untuk Lebar (Y)
+  let maxRight = 0;
+  let maxBottom = 0;
 
   layoutRows.value.forEach((item, idx) => {
-    // Ambil posisi dari offset manual (hasil drag) atau posisi default sistem
     const posX = manualOffsets[idx]?.x ?? item.x;
     const posY = manualOffsets[idx]?.y ?? item.y;
+    const edgeRight = posX + item.w;
+    const edgeBottom = posY + item.h;
 
-    const rightEdge = posX + item.w;
-    const bottomEdge = posY + item.h;
-
-    if (rightEdge > maxRight) maxRight = rightEdge;
-    if (bottomEdge > maxBottom) maxBottom = bottomEdge;
+    if (edgeRight > maxRight) maxRight = edgeRight;
+    if (edgeBottom > maxBottom) maxBottom = edgeBottom;
   });
 
-  // 1. Update Sisa Panjang (Horizontal)
-  formData.sisa_panjang_manual = Number(
-    Math.max(0, formData.Panjang_bahan - maxRight).toFixed(2),
-  );
+  // UPDATE DISPLAY SAJA (Jangan timpa formData manual)
+  totalPanjangTerpakai.value = maxRight;
+  totalLebarGabungan.value = maxBottom;
 
-  // 2. Update Sisa Lebar (Vertical)
-  // Sisa lebar adalah Lebar Bahan Roll dikurangi posisi kotak paling bawah
-  formData.sisa_lebar_manual = Number(
-    Math.max(0, formData.Lebar_bahan - maxBottom).toFixed(2),
-  );
+  // HITUNG AFAL SISTEM (Untuk kotak orange)
+  const sisaLebar = formData.Lebar_bahan - maxBottom;
+  if (sisaLebar > 0.1) {
+    lebarSisaLayoutGanjil.value = sisaLebar;
+    panjangSisaLayoutGanjil.value = maxRight; // Atau panjang kolom terakhir
+  }
+};
+
+const autoFillLayout = (isSilent = false) => {
+  // 1. Reset posisi
+  Object.keys(manualOffsets).forEach((key) => delete manualOffsets[key]);
+
+  if (detailData.length === 0 || formData.Lebar_bahan <= 0) return;
+
+  const maxBahanLebar = Number(formData.Lebar_bahan);
+  let unitGlobalIdx = 0;
+
+  let currentStartX = 0; // Titik X untuk kolom saat ini
+  let currentY = 0; // Titik Y untuk baris saat ini
+  let maxColumnWidth = 0; // Lebar kolom terlebar dalam barisan vertikal ini
+  let maxOverallX = 0; // Titik X terjauh yang pernah dicapai (untuk SPK berikutnya)
+
+  // 2. Iterasi tiap SPK
+  detailData.forEach((spk) => {
+    const totalCetak = Number(spk.totalcetak) || 0;
+    const tile = Number(spk.tile) || 1;
+    if (totalCetak <= 0) return;
+
+    const padM = (spk.padding * 2) / 100;
+    const w =
+      spk.orientasi === "lebar" ? spk.panjang_spk + padM : spk.lebar_spk + padM;
+    const h =
+      spk.orientasi === "lebar" ? spk.lebar_spk + padM : spk.panjang_spk + padM;
+
+    const totalKolomSPK = Math.ceil(totalCetak / tile);
+    let unitsPlaced = 0;
+
+    for (let col = 0; col < totalKolomSPK; col++) {
+      const tinggiBlokIni = tile * h;
+
+      // CEK: Apakah blok SPK ini (berdasarkan Tile-nya) muat di sisa Lebar Bahan (Y)?
+      if (currentY + tinggiBlokIni > maxBahanLebar + 0.01) {
+        // Jika tidak muat, pindah ke titik X terjauh yang pernah ada, balik ke Y=0
+        currentStartX = maxOverallX;
+        currentY = 0;
+        maxColumnWidth = 0;
+      }
+
+      for (let row = 0; row < tile; row++) {
+        if (unitsPlaced < totalCetak) {
+          const posX = currentStartX + col * w;
+          const posY = currentY + row * h;
+
+          manualOffsets[unitGlobalIdx] = {
+            x: posX,
+            y: posY,
+            rotation: 0,
+          };
+
+          // Update titik X terjauh agar SPK selanjutnya tidak menumpuk
+          if (posX + w > maxOverallX) {
+            maxOverallX = posX + w;
+          }
+
+          unitGlobalIdx++;
+          unitsPlaced++;
+        }
+      }
+
+      // Update lebar kolom jika SPK ini lebih lebar
+      if (w > maxColumnWidth) maxColumnWidth = w;
+
+      // Jika sudah kolom terakhir dari SPK ini, update currentY untuk SPK selanjutnya
+      if (col === totalKolomSPK - 1) {
+        currentY += tinggiBlokIni;
+      }
+    }
+  });
+
+  updateSisaFromLayout();
+  if (!isSilent) toast.success("Layout diperbarui!");
 };
 
 const startDrag = (event: MouseEvent, idx: number) => {
@@ -740,28 +813,11 @@ const recalculateCombine = () => {
   let currentUsedHeight = 0;
 
   detailData.forEach((d) => {
-    let totalCetak = 0;
-
-    for (let i = 1; i <= 7; i++) {
-      totalCetak += parseFloat(d[`cetak${i}`]) || 0;
-    }
-
-    d.totalcetak = totalCetak;
-
-    if (totalCetak <= 0 || (parseFloat(d.tile) || 0) <= 0) {
-      d.luas_satuan = 0;
-      d.total_luas = 0;
-      return;
-    }
-
+    // --- Logika Perhitungan Angka ---
     let totalCetakInput = 0;
-
-    // 1. Hitung total dari kolom C1 sampai C7
     for (let i = 1; i <= 7; i++) {
       totalCetakInput += parseFloat(d[`cetak${i}`]) || 0;
     }
-
-    // 2. Simpan ke property totalcetak (untuk kolom Total Input)
     d.totalcetak = totalCetakInput;
 
     d.kurangcetak =
@@ -769,80 +825,47 @@ const recalculateCombine = () => {
       (parseFloat(d.sudahcetak) || 0) -
       totalCetakInput;
 
-    if (totalCetak <= 0 || (parseFloat(d.tile) || 0) <= 0) {
+    if (totalCetakInput <= 0 || (parseFloat(d.tile) || 0) <= 0) {
       d.luas_satuan = 0;
       d.total_luas = 0;
       return;
     }
 
-    if (d.jumlah > 0 && d.totalcetak > d.jumlah) {
-      toast.error(
-        `SPK ${d.nomor_spk}: Total cetak (${d.totalcetak}) melebihi order (${d.jumlah})!`,
-      );
-    }
-
     const panjang = parseFloat(d.panjang_spk) || 0;
     const lebar = parseFloat(d.lebar_spk) || 0;
     const tile = parseFloat(d.tile) || 0;
-    const jumlah = parseFloat(d.jumlah) || 0;
     const padding = parseFloat(d.padding) || 0;
-
     const padM = (padding * 2) / 100;
 
     const dimMenyamping =
       d.orientasi === "lebar" ? lebar + padM : panjang + padM;
-
     const dimMemanjang =
       d.orientasi === "lebar" ? panjang + padM : lebar + padM;
 
-    // ================================
-    // 3️⃣ HITUNG LUAS PCS & TOTAL
-    // ================================
+    // Hitung Luas
     const luasSatuan = (panjang + padM) * (lebar + padM);
-    const totalLuas = luasSatuan * totalCetak;
-
-    // simpan sebagai NUMBER (bukan string)
     d.luas_satuan = Number(luasSatuan.toFixed(3));
-    d.total_luas = Number(totalLuas.toFixed(2));
+    d.total_luas = Number((luasSatuan * totalCetakInput).toFixed(2));
 
-    // ================================
-    // 4️⃣ LOGIKA LAYOUT
-    // ================================
+    // Logika Estimasi Layout (untuk angka di footer)
     const totalHeightSPK = tile * dimMenyamping;
-    const totalWidthSPK = Math.ceil(totalCetak / tile) * dimMemanjang;
+    const totalWidthSPK = Math.ceil(totalCetakInput / tile) * dimMemanjang;
 
     if (currentUsedHeight + totalHeightSPK > maxRollHeight + 0.01) {
       currentXOffset = nextXOffset;
       currentUsedHeight = 0;
     }
-
     currentUsedHeight += totalHeightSPK;
     nextXOffset = Math.max(nextXOffset, currentXOffset + totalWidthSPK);
-
-    totalLebarGabungan.value = Math.max(
-      totalLebarGabungan.value,
-      currentUsedHeight,
-    );
-
-    // ================================
-    // 5️⃣ HITUNG SISA AFAL
-    // ================================
-    const sisaItem = totalCetak % tile;
-
-    let tempLebarSisa =
-      sisaItem > 0
-        ? (tile - sisaItem) * dimMenyamping
-        : maxRollHeight - currentUsedHeight;
-
-    let tempPanjangSisa = sisaItem > 0 ? dimMemanjang : totalWidthSPK;
-
-    if (tempLebarSisa >= MIN_LEBAR_AFAL) {
-      lebarSisaLayoutGanjil.value = tempLebarSisa;
-      panjangSisaLayoutGanjil.value = tempPanjangSisa;
-    }
   });
 
   totalPanjangTerpakai.value = nextXOffset;
+
+  // 🔥 PAKSA SISTEM MENATA BARISAN SECARA OTOMATIS
+  // Menggunakan nextTick agar Vue selesai merender elemen kotak baru dulu
+  nextTick(() => {
+    autoFillLayout(true); // true agar tidak muncul notifikasi terus-menerus
+  });
 };
 
 const loaddataall = async (nomor: string) => {
@@ -933,75 +956,12 @@ const loaddataall = async (nomor: string) => {
   }
 };
 
-const autoFillLayout = () => {
-  // 1. Reset offsets agar bersih
-  Object.keys(manualOffsets).forEach((key) => delete manualOffsets[key]);
-
-  if (detailData.length === 0 || formData.Lebar_bahan <= 0) return;
-
-  const maxRollHeight = formData.Lebar_bahan;
-  let allUnits: any[] = [];
-  let unitCounter = 0;
-
-  detailData.forEach((spk, spkIdx) => {
-    const totalCetak =
-      (spk.cetak1 || 0) +
-      (spk.cetak2 || 0) +
-      (spk.cetak3 || 0) +
-      (spk.cetak4 || 0) +
-      (spk.cetak5 || 0) +
-      (spk.cetak6 || 0) +
-      (spk.cetak7 || 0);
-
-    const padM = (spk.padding * 2) / 100;
-    const w =
-      spk.orientasi === "lebar" ? spk.panjang_spk + padM : spk.lebar_spk + padM;
-    const h =
-      spk.orientasi === "lebar" ? spk.lebar_spk + padM : spk.panjang_spk + padM;
-
-    for (let i = 0; i < totalCetak; i++) {
-      allUnits.push({
-        originalIndex: unitCounter++, // Kunci agar tidak tertukar saat render
-        w,
-        h,
-      });
-    }
-  });
-
-  // 3. Urutkan berdasarkan Lebar (W) dahulu, lalu Tinggi (H)
-  // Ini memastikan barang yang lebar menjadi 'dasar' kolom yang stabil
-  allUnits.sort((a, b) => b.w - a.w || b.h - a.h);
-
-  let currentX = 0;
-  let currentY = 0;
-  let nextX = 0;
-
-  // 4. Penempatan dengan pengisian kolom (Vertical Shelf)
-  allUnits.forEach((unit) => {
-    // Jika ditambahkan ke bawah tidak muat, buat kolom baru di sampingnya
-    if (currentY + unit.h > maxRollHeight + 0.01) {
-      currentY = 0;
-      currentX = nextX;
-    }
-
-    // Pasang koordinat menggunakan originalIndex agar pas dengan v-for di template
-    manualOffsets[unit.originalIndex] = {
-      x: currentX,
-      y: currentY,
-      rotation: 0,
-    };
-
-    // Update posisi Y untuk item berikutnya di kolom yang sama
-    currentY += unit.h;
-
-    // Update batas X terjauh agar kolom berikutnya tidak menabrak
-    if (currentX + unit.w > nextX) {
-      nextX = currentX + unit.w;
-    }
-  });
-
-  updateSisaFromLayout();
-  toast.success("Efisiensi layout maksimal diterapkan!");
+// Helper untuk menghitung total semua cetakan dari semua SPK
+const getGrandTotalCetak = () => {
+  return detailData.reduce(
+    (sum, spk) => sum + (Number(spk.totalcetak) || 0),
+    0,
+  );
 };
 
 const grandTotalLuasBahan = computed(() => {
