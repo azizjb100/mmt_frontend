@@ -264,7 +264,10 @@ const handleSave = async (status: string) => {
         lstatus: status,
       },
       details: detailData.value,
-      existingNomor: isEditMode.value ? formData.nomor : null,
+      // PERBAIKAN DI SINI:
+      // Hanya kirim nomor jika isEditMode TRUE DAN nomor bukan "AUTO"
+      existingNomor:
+        isEditMode.value && formData.nomor !== "AUTO" ? formData.nomor : null,
     };
 
     const res = await api.post("/mmt/lhk-cetak-mmt", payload);
