@@ -195,6 +195,7 @@ watch([startDate, endDate], fetchData);
           :headers="masterHeaders"
           :items="masterData"
           :loading="loading"
+          :items-per-page="-1"
           item-value="Nomor"
           density="compact"
           class="elevation-1 border"

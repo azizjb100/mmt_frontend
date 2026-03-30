@@ -808,6 +808,7 @@ const calculateTotal = (item: DetailItem): number => {
   const diskon = Number(item.diskon) || 0;
 
   let hargaBersih = harga;
+  // Jika PPN include (seperti logika Delphi), harga dibagi (1 + rate)
   if (formData.isPpn && formData.ppnRate > 0) {
     hargaBersih = harga / (1 + formData.ppnRate / 100);
   }
@@ -816,7 +817,7 @@ const calculateTotal = (item: DetailItem): number => {
   const modeHarga = (item.satuanHarga || "").toLowerCase().trim();
 
   if (modeHarga === "m2") {
-    // Qty * (P*L) * Harga
+    // Perbaikan: Qty * Luas * Harga
     bruto = qty * m2Total * hargaBersih;
   } else {
     // Qty * Harga
@@ -1533,6 +1534,7 @@ const loaddataall = async (nomor: string) => {
       return isValid(d) ? format(d, "yyyy-MM-dd") : "";
     };
 
+    // --- Header Data ---
     formData.nomor = data.Nomor;
     formData.tanggal = safeDate(data.Tanggal);
     formData.supKode = data.KodeSup;
@@ -1549,48 +1551,68 @@ const loaddataall = async (nomor: string) => {
     formData.note = data.Note || "";
     formData.keterangan = data.Keterangan || "";
 
-    formData.isPpn = data.IsPpn === 1;
+    formData.isPpn = data.IsPpn === 1 || data.isPpn === true;
     formData.ppnRate = data.PpnRate || user.defaultPpn;
 
     formData.status = data.Status;
     formData.poAcc = data.po_acc || data.PoAcc || "N";
 
-    // DETAIL
+    // --- DETAIL ITEM ---
     formData.detail = (data.Detail || []).map((d: any) => {
       const p = Number(d.panjang || d.Panjang || 0);
       const l = Number(d.lebar || d.Lebar || 0);
-      const m2 = d.m2 || p * l;
+
+      // Hitung ulang M2 untuk memastikan presisi
+      const m2Calculated = p * l;
+      const m2Value = Number(d.m2 || d.M2) || m2Calculated;
+
+      // LOGIKA PENENTU SATUAN HARGA (Sangat Penting)
+      // Kita cek database, jika kosong tapi m2 > 0, paksa ke 'm2'
+      let sHrg = (d.satuanHarga || d.brg_satuan_harga || d.sat_hrg || "")
+        .toLowerCase()
+        .trim();
+      if (!sHrg && m2Value > 0) {
+        sHrg = "m2";
+      }
 
       const item: DetailItem = {
         ...createEmptyDetail(),
         ...d,
+        satuanHarga: sHrg || "roll", // Default ke roll jika benar-benar buntu
         panjang: p,
         lebar: l,
-        m2: m2,
+        m2: m2Value,
+        jumlah: Number(d.jumlah || d.Jumlah || 0),
+        harga: Number(d.harga || d.Harga || 0),
+        diskon: Number(d.diskon || d.Diskon || 0),
       };
 
+      // Hitung total per baris dengan state yang sudah di-fix
       item.total = calculateTotal(item);
       return item;
     });
 
+    // Tambahkan baris kosong di akhir
     formData.detail.push(createEmptyDetail());
 
-    // COMMITMENT
+    // --- COMMITMENT & ROLL ---
     formData.commitments = [
       {
         no: 1,
-        tanggal: safeDate(data.Dateline || data.po_dateline),
+        tanggal: safeDate(
+          data.Dateline || data.po_dateline || data.po_tglkirim,
+        ),
         jumlah: 0,
       },
     ];
-
-    // ROLL
     formData.rolls = data.Rolls || [];
 
     isEditMode.value = true;
+
+    // RE-CALCULATE ALL (Terutama untuk PPN dan Grand Total)
     hitung();
   } catch (err) {
-    console.error(err);
+    console.error("Load Data Error:", err);
     toast.error("Gagal memuat data PO.");
     router.push({ name: "PoBahanBrowse" });
   }
