@@ -1,4 +1,4 @@
-<template>
+<!-- <template>
   <v-dialog
     :model-value="isVisible"
     @update:modelValue="emit('close')"
@@ -205,4 +205,4 @@ onMounted(() => {
 .flex-grow-1 {
   height: 100%;
 }
-</style>
+</style> -->

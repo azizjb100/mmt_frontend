@@ -1450,7 +1450,7 @@ const handleBahanSelect = async (bahan: MasterBahan) => {
 
   // FIX PERHITUNGAN: Ambil mode harga dari database (M2 atau ROLL)
   // Ini yang menentukan apakah nanti dikali Luas (P*L) atau cuma kali Qty
-  targetItem.satuanHarga = (bahan as any).brg_satuan_harga || "roll";
+  targetItem.satuanHarga = bahan.brg_satuan_harga;
 
   // Dimensi untuk perhitungan M2
   targetItem.panjang = Number(bahan.Panjang) || 0;

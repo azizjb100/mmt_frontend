@@ -391,7 +391,7 @@ const getRowTextColor = (item: PermintaanProduksiHeader) => {
 
 const handleNewEdit = (mode: "new" | "edit") => {
   if (mode === "new") {
-    router.push({ name: "MutasiProduksiNew" });
+    router.push({ name: "ReturProduksiNew" });
   } else if (mode === "edit" && selectedNomor.value) {
     router.push({
       name: "MutasiProduksiEdit",

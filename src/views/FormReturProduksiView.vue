@@ -118,30 +118,34 @@ const handleBarcodeScan = async (index: number) => {
   if (!targetItem.barcode) return;
 
   try {
-    // Tetap gunakan API stok existing untuk mencari data barang
+    // UBAH: Parameter gudang dikunci (hardcoded) ke 'GPM'
     const response = await api.get(
-      `/mmt/permintaan-produksi/stok-barcode/${encodeURIComponent(targetItem.barcode)}?gudang=${formData.gudangKode}`,
+      `/mmt/permintaan-produksi/stok-barcode/${encodeURIComponent(targetItem.barcode)}?gudang=GPM`,
     );
+
     const bahan = response.data.data;
 
     if (!bahan) {
-      toast.error("Data barang tidak ditemukan di stok gudang.");
+      // Pesan error lebih spesifik agar user tidak bingung
+      toast.error("Barang tidak ditemukan di Gudang GPM.");
       return;
     }
 
+    // Isi data ke baris tabel
     targetItem.sku = bahan.Kode;
     targetItem.Nama_Bahan = bahan.Nama_Bahan;
     targetItem.satuan = bahan.Satuan;
     targetItem.stok = bahan.Stok || 0;
-    targetItem.qty = 1;
+    targetItem.qty = 1; // Default qty retur
     targetItem.spk = bahan.Nomor_SPK || "";
 
+    // Otomatis tambah baris baru jika scan di baris terakhir
     if (index === formData.detail.length - 1) addDetail();
 
     await nextTick();
     barcodeInputs.value[index + 1]?.focus();
   } catch (err) {
-    toast.error("Gagal scan barcode.");
+    toast.error("Gagal scan barcode atau koneksi terputus.");
   }
 };
 
