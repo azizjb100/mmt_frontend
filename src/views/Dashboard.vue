@@ -108,6 +108,7 @@ const rolePermissions = {
     "Realisasi Produksi",
     "Planning Produksi",
     "Stok Opname",
+    "Koreksi Stok",
     "LHK",
     "LHK Mesin Cetak",
     "LHK Tekstil",
