@@ -135,14 +135,15 @@
 
 <script setup>
 import { ref, computed, onMounted } from "vue";
-import axios from "axios";
+// Hapus import axios from "axios";
+import api from "@/services/api"; // Gunakan ini
 
 // Config
 const API_URL = "/mmt/search-barcode";
 const scanInput = ref("");
 const listSearchQuery = ref("");
 const selectedBrgKode = ref("");
-const selectedGdg = ref(""); // State baru untuk Gudang
+const selectedGdg = ref("");
 const lastScanned = ref(null);
 const fullInventory = ref([]);
 const barcodeInput = ref(null);
@@ -156,47 +157,46 @@ const uniqueBrgCodes = computed(() => {
 // Logic Filter Local (Search bar mini)
 const filteredList = computed(() => {
   return fullInventory.value.filter((item) => {
+    const query = listSearchQuery.value.toLowerCase();
     return (
-      item.Barcode.toLowerCase().includes(
-        listSearchQuery.value.toLowerCase(),
-      ) ||
-      item.Nama_Bahan.toLowerCase().includes(
-        listSearchQuery.value.toLowerCase(),
-      ) ||
-      item.Kode.toLowerCase().includes(listSearchQuery.value.toLowerCase())
+      item.Barcode.toLowerCase().includes(query) ||
+      item.Nama_Bahan.toLowerCase().includes(query) ||
+      item.Kode.toLowerCase().includes(query)
     );
   });
 });
 
-// Ambil data dari backend dengan parameter filter
+// Ambil semua data menggunakan instance 'api'
 const fetchInventoryList = async () => {
   try {
-    const res = await axios.get(`${API_URL}/list`, {
+    // Menggunakan api.get bukan axios.get
+    const res = await api.get(`${API_URL}/list`, {
       params: {
         brg_kode: selectedBrgKode.value,
-        gdg_kode: selectedGdg.value, // Kirim filter gudang ke backend
+        gdg_kode: selectedGdg.value,
       },
     });
+    // Jika res adalah response axios standar, data ada di res.data.data
     fullInventory.value = res.data.data;
   } catch (e) {
     console.error("Gagal memuat list", e);
   }
 };
 
-// Handle Scan Barcode
+// Handle Scan Barcode menggunakan instance 'api'
 const handleCheck = async () => {
   if (!scanInput.value) return;
   const barcode = scanInput.value.trim();
 
   try {
-    const res = await axios.get(`${API_URL}/quick-check`, {
+    const res = await api.get(`${API_URL}/quick-check`, {
       params: { barcode: barcode },
     });
 
     if (res.data.success) {
       lastScanned.value = res.data.data;
 
-      // Jika barcode ada di gudang/kode berbeda dari filter aktif, reset filter agar item muncul di list
+      // Cek apakah barcode ada di list yang sedang tampil
       const itemExists = fullInventory.value.find((i) => i.Barcode === barcode);
       if (!itemExists) {
         selectedBrgKode.value = "";
@@ -205,10 +205,11 @@ const handleCheck = async () => {
       }
     }
   } catch (e) {
+    // Error handling menggunakan data dari interceptor api
     alert(e.response?.data?.message || "Barcode tidak ditemukan");
   } finally {
     scanInput.value = "";
-    barcodeInput.value.focus();
+    if (barcodeInput.value) barcodeInput.value.focus();
   }
 };
 
