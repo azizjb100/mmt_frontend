@@ -218,50 +218,13 @@ const dynamicHeaders = computed(() => {
     },
   ];
 
-  if (formData.proses === "MATA_AYAM") {
-    // 1. DAFTARKAN KEY PENGALI (Wajib agar slot bisa muncul/diinput)
-    baseHeaders.push({
-      title: "MA per Pcs",
-      key: "pengali_mata_ayam",
-      width: "110px",
-      align: "center",
-      sortable: false,
-    });
-
-    // 2. DAFTARKAN KEY TOTAL
-    baseHeaders.push({
-      title: "Total Mata Ayam",
-      key: "jml_mata_ayam",
-      width: "130px",
-      align: "end",
-    });
-  }
-
-  if (formData.proses === "KOLI") {
-    baseHeaders.push(
-      {
-        title: "Isi/Koli",
-        key: "pengali_koli",
-        width: "110px",
-        align: "center",
-      },
-      { title: "Total Koli", key: "jml_koli", width: "130px", align: "end" },
-    );
-  }
-  if (formData.proses === "X_BANNER" || formData.proses === "ROLLUP_BANNER") {
-    baseHeaders.push({
-      title: "Status Tiang",
-      key: "status_tiang",
-      width: "120px",
-    });
-  }
-
   baseHeaders.push({
     title: "",
     key: "actions",
     width: "50px",
     sortable: false,
   });
+
   return baseHeaders;
 });
 
@@ -285,8 +248,6 @@ const addSpk = (spk: any) => {
   // 4. Ambil Ukuran
   const p = spk.Panjang || spk.panjang || 0;
   const l = spk.Lebar || spk.lebar || 0;
-
-  // VALIDASI: Jika nomorSpk tetap tidak ditemukan setelah pengecekan di atas
   if (!nomorSpk) {
     console.error("Gagal mendapatkan Nomor SPK dari data:", spk);
     toast.error("Format data SPK tidak dikenali oleh sistem");

@@ -82,6 +82,7 @@ import LapPemakaianBahanView from '@/views/LapPemakaianBahanView.vue';
 import MutasiGudangView from '@/views/MutasiGudangView.vue';
 import FormMutasiGudangView from '@/views/FormMutasiGudangView.vue';
 import SpkPrintView from '@/views/SpkPrintView.vue';
+import SearchBarcodeView from '@/views/SearchBarcodeView.vue';
 
 
 
@@ -242,6 +243,7 @@ const routes: RouteRecordRaw[] = [
             { path: 'mmt/create-barcode', name: 'CreateBarcode', component: CreateBarcodeView },
             { path: 'mmt/create-barcode/new', name: 'CreateBarcodeNew', component: FormRecreateBarcode },
             { path: 'mmt/stok-opname', name: 'StokOpnameBrowse', component: StokOpnameView },
+            { path: 'mmt/search-barcode', name: 'SearchBarcodeBrowse', component: SearchBarcodeView },
             { path: 'mmt/koreksi-stok', name: 'KoreksiStokBrowse', component: KoreksiStokMMTView },
             {
                 path: 'mmt/koreksi-stok/new',
