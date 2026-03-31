@@ -138,7 +138,7 @@ import { ref, computed, onMounted } from "vue";
 import axios from "axios";
 
 // Config
-const API_URL = "http://localhost:8003/api/mmt/search-barcode";
+const API_URL = "/mmt/search-barcode";
 const scanInput = ref("");
 const listSearchQuery = ref("");
 const selectedBrgKode = ref("");
