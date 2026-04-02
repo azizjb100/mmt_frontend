@@ -74,7 +74,10 @@
                   AMBIL BAHAN / SISA
                 </th>
                 <th colspan="6" class="bg-waste-header">TOTAL WASTE / LOST</th>
-                <th colspan="4" class="bg-ink-header">TINTA (MT 02)</th>
+                <th colspan="4" class="bg-ink-header">TINTA MT 02</th>
+                <th colspan="4" class="bg-ink-header-alt">TINTA MT 03</th>
+                <th colspan="4" class="bg-ink-header">TINTA MT 04</th>
+                <th colspan="4" class="bg-ink-header-alt">TINTA MT 05</th>
               </tr>
               <tr class="header-row-2">
                 <th class="bg-orange-sub">S 1,2</th>
@@ -103,6 +106,18 @@
                 <th class="bg-ink-sub">M</th>
                 <th class="bg-ink-sub">Y</th>
                 <th class="bg-ink-sub">K</th>
+                <th class="bg-ink-sub-alt">C</th>
+                <th class="bg-ink-sub-alt">M</th>
+                <th class="bg-ink-sub-alt">Y</th>
+                <th class="bg-ink-sub-alt">K</th>
+                <th class="bg-ink-sub">C</th>
+                <th class="bg-ink-sub">M</th>
+                <th class="bg-ink-sub">Y</th>
+                <th class="bg-ink-sub">K</th>
+                <th class="bg-ink-sub-alt">C</th>
+                <th class="bg-ink-sub-alt">M</th>
+                <th class="bg-ink-sub-alt">Y</th>
+                <th class="bg-ink-sub-alt">K</th>
               </tr>
             </thead>
           </template>
@@ -167,10 +182,58 @@
               <td class="text-right font-weight-bold">
                 {{ formatNumber(item.totalWastePersen, 1) }}%
               </td>
-              <td class="text-right ink-c">{{ formatNumber(item.inkC, 1) }}</td>
-              <td class="text-right ink-m">{{ formatNumber(item.inkM, 1) }}</td>
-              <td class="text-right ink-y">{{ formatNumber(item.inkY, 1) }}</td>
-              <td class="text-right ink-k">{{ formatNumber(item.inkK, 1) }}</td>
+
+              <td class="text-right ink-c">
+                {{ formatNumber(item.inkC_MT02, 1) }}
+              </td>
+              <td class="text-right ink-m">
+                {{ formatNumber(item.inkM_MT02, 1) }}
+              </td>
+              <td class="text-right ink-y">
+                {{ formatNumber(item.inkY_MT02, 1) }}
+              </td>
+              <td class="text-right ink-k">
+                {{ formatNumber(item.inkK_MT02, 1) }}
+              </td>
+
+              <td class="text-right ink-c">
+                {{ formatNumber(item.inkC_MT03, 1) }}
+              </td>
+              <td class="text-right ink-m">
+                {{ formatNumber(item.inkM_MT03, 1) }}
+              </td>
+              <td class="text-right ink-y">
+                {{ formatNumber(item.inkY_MT03, 1) }}
+              </td>
+              <td class="text-right ink-k">
+                {{ formatNumber(item.inkK_MT03, 1) }}
+              </td>
+
+              <td class="text-right ink-c">
+                {{ formatNumber(item.inkC_MT04, 1) }}
+              </td>
+              <td class="text-right ink-m">
+                {{ formatNumber(item.inkM_MT04, 1) }}
+              </td>
+              <td class="text-right ink-y">
+                {{ formatNumber(item.inkY_MT04, 1) }}
+              </td>
+              <td class="text-right ink-k">
+                {{ formatNumber(item.inkK_MT04, 1) }}
+              </td>
+
+              <td class="text-right ink-c">
+                {{ formatNumber(item.inkC_MT05, 1) }}
+              </td>
+              <td class="text-right ink-m">
+                {{ formatNumber(item.inkM_MT05, 1) }}
+              </td>
+              <td class="text-right ink-y">
+                {{ formatNumber(item.inkY_MT05, 1) }}
+              </td>
+              <td class="text-right ink-k">
+                {{ formatNumber(item.inkK_MT05, 1) }}
+              </td>
             </tr>
           </template>
         </v-data-table>
@@ -183,6 +246,7 @@
 import { ref, computed, onMounted } from "vue";
 import PageLayout from "../components/PageLayout.vue";
 import api from "@/services/api";
+import * as XLSX from "xlsx";
 
 const startDate = ref(new Date().toISOString().substr(0, 10));
 const endDate = ref(new Date().toISOString().substr(0, 10));
@@ -225,7 +289,43 @@ const formatNumber = (val, dec = 1) => {
 };
 
 const exportToExcel = () => {
-  console.log("Export...");
+  if (productionData.value.length === 0) {
+    alert("Tidak ada data untuk diexport");
+    return;
+  }
+
+  // 2. Map data agar nama kolom di Excel rapi
+  const dataToExport = filteredData.value.map((item) => ({
+    Tanggal: item.tgl,
+    Shift: item.shift,
+    "No. SPK": item.noSpk,
+    "Nama Order": item.namaOrder,
+    Mesin: item.kodeMesin,
+    "Hasil Qty": item.hasilQty,
+    "Hasil Luas (M2)": item.hasilLuas,
+    "Waste (M2)": item.wasteM2,
+    "Lost (M2)": item.lostM2,
+    // Tinta MT02
+    MT02_C: item.inkC_MT02,
+    MT02_M: item.inkM_MT02,
+    MT02_Y: item.inkY_MT02,
+    MT02_K: item.inkK_MT02,
+    // Tinta MT03
+    MT03_C: item.inkC_MT03,
+    MT03_M: item.inkM_MT03,
+    MT03_Y: item.inkY_MT03,
+    MT03_K: item.inkK_MT03,
+    // Tambahkan mesin lain jika perlu...
+  }));
+
+  // 3. Proses Pembuatan File Excel
+  const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, "Laporan Produksi");
+
+  // 4. Download File
+  const fileName = `Laporan_Produksi_${startDate.value}_to_${endDate.value}.xlsx`;
+  XLSX.writeFile(workbook, fileName);
 };
 
 onMounted(() => {
@@ -263,15 +363,17 @@ onMounted(() => {
   position: sticky !important;
 }
 
+/* Sticky Header Adjustment */
 .desktop-table :deep(.header-row-1) th {
   top: 0;
   z-index: 20;
 }
 .desktop-table :deep(.header-row-2) th {
-  top: 29px;
+  top: 29px; /* Jarak dari atas untuk row kedua */
   z-index: 15;
 }
 
+/* Color Sections */
 .bg-orange-header {
   background-color: #fce4d6 !important;
 }
@@ -310,11 +412,21 @@ onMounted(() => {
 .bg-waste-sub {
   background-color: #bfbfbf !important;
 }
+
+/* Ink Colors MT02 & MT04 */
 .bg-ink-header {
   background-color: #ffff00 !important;
 }
 .bg-ink-sub {
   background-color: #e2e200 !important;
+}
+
+/* Ink Colors MT03 & MT05 (Alt untuk pembeda visual) */
+.bg-ink-header-alt {
+  background-color: #fef9c3 !important;
+}
+.bg-ink-sub-alt {
+  background-color: #fde047 !important;
 }
 
 .bg-orange-light {
@@ -327,6 +439,7 @@ onMounted(() => {
   background-color: #fffde7;
 }
 
+/* Font Colors Tinta */
 .ink-c {
   color: #00aeef;
   font-weight: bold;
@@ -338,25 +451,20 @@ onMounted(() => {
 .ink-y {
   color: #ca8a04;
   font-weight: bold;
-  text-shadow: 0.5px 0.5px 0px #999;
+  text-shadow: 0.2px 0.2px 0px #999;
 }
 .ink-k {
   color: #000000;
   font-weight: bold;
 }
 
-.row-total-style td {
-  color: red !important;
-  font-weight: bold;
-  background-color: #fff5f5 !important;
-  border-top: 2px solid #ef4444 !important;
-}
 .sticky-col-1 {
   position: sticky;
   left: 0;
   z-index: 10;
   border-right: 2px solid #74addc !important;
 }
+
 .desktop-table :deep(td) {
   font-size: 11px !important;
   border-right: 1px solid #e2e8f0 !important;

@@ -76,10 +76,17 @@
             </div>
           </div>
         </div>
-
         <div v-else class="empty-detail-state">
           <p>Scan barcode untuk melihat detail instan di sini</p>
         </div>
+
+        <button
+          v-if="scannedBarcodes.size > 0"
+          @click="resetAllScans"
+          class="btn-reset-all"
+        >
+          Reset Status Scan (Mulai Ulang)
+        </button>
       </div>
 
       <div class="history-panel">
@@ -99,6 +106,7 @@
 
         <div class="list-container">
           <div class="table-header">
+            <span class="th-status">Status</span>
             <span class="th-barcode">Barcode</span>
             <span class="th-name">Nama Barang</span>
             <span class="th-qty text-right">Stok</span>
@@ -109,8 +117,19 @@
               v-for="item in filteredList"
               :key="item.Barcode"
               class="history-card"
-              :class="{ 'is-active': lastScanned?.Barcode === item.Barcode }"
+              :class="{
+                'is-active': lastScanned?.Barcode === item.Barcode,
+                'is-scanned': scannedBarcodes.has(item.Barcode),
+              }"
             >
+              <div class="card-status">
+                <span
+                  v-if="scannedBarcodes.has(item.Barcode)"
+                  class="check-mark"
+                  >✅</span
+                >
+                <span v-else class="pending-mark">⭕</span>
+              </div>
               <div class="card-left">
                 <span class="history-barcode">{{ item.Barcode }}</span>
                 <span class="history-name">
@@ -135,10 +154,8 @@
 
 <script setup>
 import { ref, computed, onMounted } from "vue";
-// Hapus import axios from "axios";
-import api from "@/services/api"; // Gunakan ini
+import api from "@/services/api";
 
-// Config
 const API_URL = "/mmt/search-barcode";
 const scanInput = ref("");
 const listSearchQuery = ref("");
@@ -148,13 +165,14 @@ const lastScanned = ref(null);
 const fullInventory = ref([]);
 const barcodeInput = ref(null);
 
-// Ambil list unik kode barang untuk dropdown filter
+// Simpan daftar barcode yang sudah di-scan (Set agar unik)
+const scannedBarcodes = ref(new Set());
+
 const uniqueBrgCodes = computed(() => {
   const codes = fullInventory.value.map((i) => i.Kode);
   return [...new Set(codes)].sort();
 });
 
-// Logic Filter Local (Search bar mini)
 const filteredList = computed(() => {
   return fullInventory.value.filter((item) => {
     const query = listSearchQuery.value.toLowerCase();
@@ -166,24 +184,20 @@ const filteredList = computed(() => {
   });
 });
 
-// Ambil semua data menggunakan instance 'api'
 const fetchInventoryList = async () => {
   try {
-    // Menggunakan api.get bukan axios.get
     const res = await api.get(`${API_URL}/list`, {
       params: {
         brg_kode: selectedBrgKode.value,
         gdg_kode: selectedGdg.value,
       },
     });
-    // Jika res adalah response axios standar, data ada di res.data.data
     fullInventory.value = res.data.data;
   } catch (e) {
     console.error("Gagal memuat list", e);
   }
 };
 
-// Handle Scan Barcode menggunakan instance 'api'
 const handleCheck = async () => {
   if (!scanInput.value) return;
   const barcode = scanInput.value.trim();
@@ -196,7 +210,9 @@ const handleCheck = async () => {
     if (res.data.success) {
       lastScanned.value = res.data.data;
 
-      // Cek apakah barcode ada di list yang sedang tampil
+      // TAMBAHKAN: Masukkan ke daftar barcode yang sudah di-scan
+      scannedBarcodes.value.add(barcode);
+
       const itemExists = fullInventory.value.find((i) => i.Barcode === barcode);
       if (!itemExists) {
         selectedBrgKode.value = "";
@@ -205,11 +221,18 @@ const handleCheck = async () => {
       }
     }
   } catch (e) {
-    // Error handling menggunakan data dari interceptor api
     alert(e.response?.data?.message || "Barcode tidak ditemukan");
   } finally {
     scanInput.value = "";
     if (barcodeInput.value) barcodeInput.value.focus();
+  }
+};
+
+// Tombol Reset Status (BARU)
+const resetAllScans = () => {
+  if (confirm("Reset semua tanda scan? Riwayat centang akan hilang.")) {
+    scannedBarcodes.value.clear();
+    lastScanned.value = null;
   }
 };
 
@@ -227,28 +250,9 @@ onMounted(() => {
 </script>
 
 <style scoped>
-/* Tambahan Style untuk Filter Gudang */
-.gdg-select {
-  border-color: #10b981 !important;
-  color: #047857 !important;
-  background-color: #f0fdf4 !important;
-}
-
-.badge-gdg {
-  background: #fbbf24;
-  color: #78350f;
-  padding: 4px 12px;
-  border-radius: 6px;
-  font-weight: bold;
-}
-
-.txt-gdg {
-  color: #10b981;
-  font-weight: bold;
-  margin-right: 5px;
-}
-
-/* Style original yang dipertahankan */
+/* ==========================================================================
+   1. Container & Layout Utama
+   ========================================================================== */
 .check-stok-container {
   padding: 25px;
   background: #f4f7fa;
@@ -256,6 +260,15 @@ onMounted(() => {
   font-family: "Inter", sans-serif;
 }
 
+.content-layout {
+  display: grid;
+  grid-template-columns: 1fr 1.7fr; /* Panel kanan diperlebar sedikit */
+  gap: 25px;
+}
+
+/* ==========================================================================
+   2. Header & Search Area
+   ========================================================================== */
 .header-search {
   background: white;
   padding: 20px 30px;
@@ -284,6 +297,12 @@ onMounted(() => {
   min-width: 140px;
 }
 
+.gdg-select {
+  border-color: #10b981 !important;
+  color: #047857 !important;
+  background-color: #f0fdf4 !important;
+}
+
 .input-main {
   width: 250px;
   padding: 12px 15px;
@@ -292,66 +311,9 @@ onMounted(() => {
   font-size: 16px;
 }
 
-.input-main:focus {
-  border-color: #3b82f6;
-  background: white;
-}
-
-.content-layout {
-  display: grid;
-  grid-template-columns: 1fr 1.5fr;
-  gap: 25px;
-}
-
-.empty-detail-state {
-  height: 200px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: 2px dashed #cbd5e1;
-  border-radius: 20px;
-  color: #94a3b8;
-  text-align: center;
-}
-
-.card-highlight {
-  background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
-  color: white;
-  padding: 30px;
-  border-radius: 20px;
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
-}
-
-.barcode-title {
-  font-size: 28px;
-  font-family: monospace;
-  color: #fbbf24;
-  margin: 15px 0;
-}
-
-.info-grid {
-  display: grid;
-  gap: 20px;
-}
-
-.info-item label {
-  display: block;
-  font-size: 12px;
-  opacity: 0.8;
-  margin-bottom: 4px;
-}
-
-.info-item span {
-  font-size: 18px;
-  font-weight: 600;
-  display: block;
-}
-
-.qty-focus {
-  font-size: 28px !important;
-  color: #fbbf24;
-}
-
+/* ==========================================================================
+   3. Table / List Styling (PENYEBAB TIDAK RAPI)
+   ========================================================================== */
 .history-panel {
   background: white;
   border-radius: 15px;
@@ -359,51 +321,54 @@ onMounted(() => {
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
 }
 
-.panel-header {
+/* Base struktur untuk Header dan Row agar sejajar lurus */
+.table-header,
+.history-card {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
-}
-
-.input-mini-search {
-  padding: 8px 12px;
-  border: 1px solid #e2e8f0;
-  border-radius: 6px;
-  font-size: 13px;
+  gap: 15px;
+  padding: 12px 15px;
 }
 
 .table-header {
-  display: flex;
-  padding: 10px 15px;
   background: #f8fafc;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 800;
   color: #64748b;
   text-transform: uppercase;
+  border-radius: 8px;
+  margin-bottom: 5px;
 }
 
-.th-barcode {
-  flex: 1.5;
-}
-.th-name {
-  flex: 3;
-}
-.th-qty {
-  flex: 1;
-  text-align: right;
-}
-
-.list-container {
-  max-height: 65vh;
-  overflow-y: auto;
-}
-
-.history-card {
+/* Kolom Status (Icon Bulat) - Dibuat Fixed Width */
+.th-status,
+.card-status {
+  width: 40px;
+  flex-shrink: 0;
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 12px 15px;
+  justify-content: center;
+}
+
+/* Kolom Barcode & Name - Dibuat Flexible */
+.th-barcode,
+.card-left {
+  flex: 1; /* Mengambil sisa ruang */
+  display: flex;
+  flex-direction: column;
+  min-width: 0; /* Mencegah overflow */
+}
+
+/* Kolom Qty / Stok - Dibuat Fixed Width */
+.th-qty,
+.card-right {
+  width: 80px;
+  flex-shrink: 0;
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* Row Styling */
+.history-card {
   border-bottom: 1px solid #f1f5f9;
   transition: all 0.2s;
 }
@@ -413,15 +378,32 @@ onMounted(() => {
   border-left: 4px solid #3b82f6;
 }
 
+.history-card.is-scanned {
+  background-color: #f0fdf4;
+  border-left: 4px solid #10b981;
+}
+
+/* Text Styling di dalam list */
 .history-barcode {
   font-family: monospace;
   font-weight: bold;
   color: #1e293b;
+  font-size: 14px;
 }
 
 .history-name {
-  font-size: 13px;
+  font-size: 12px;
   color: #64748b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.txt-gdg {
+  color: #10b981;
+  font-weight: bold;
+  font-size: 10px;
+  margin-left: 4px;
 }
 
 .stok-tag {
@@ -430,7 +412,61 @@ onMounted(() => {
   padding: 4px 10px;
   border-radius: 6px;
   font-weight: bold;
-  font-size: 14px;
+  font-size: 13px;
+  min-width: 65px;
+  text-align: center;
+}
+
+/* ==========================================================================
+   4. Detail Panel (Highlight)
+   ========================================================================== */
+.card-highlight {
+  background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+  color: white;
+  padding: 30px;
+  border-radius: 20px;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  position: sticky;
+  top: 20px;
+}
+
+.badge-gdg {
+  background: #fbbf24;
+  color: #78350f;
+  padding: 4px 12px;
+  border-radius: 6px;
+  font-weight: bold;
+  font-size: 12px;
+}
+
+/* ==========================================================================
+   5. Buttons & Utilities
+   ========================================================================== */
+.btn-reset-all {
+  width: 100%;
+  margin-top: 15px;
+  padding: 12px;
+  background-color: #ef4444;
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.btn-reset-all:hover {
+  opacity: 0.9;
+}
+
+.btn-clear {
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  padding: 10px 15px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  color: #475569;
 }
 
 .count-badge {
@@ -438,10 +474,10 @@ onMounted(() => {
   color: white;
   padding: 2px 8px;
   border-radius: 5px;
-  font-size: 12px;
-  margin-left: 5px;
+  font-size: 11px;
 }
 
+/* Animations */
 .animate-pop {
   animation: pop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
@@ -455,19 +491,5 @@ onMounted(() => {
     opacity: 1;
     transform: scale(1);
   }
-}
-
-.btn-clear {
-  background: #f1f5f9;
-  border: 1px solid #e2e8f0;
-  padding: 10px 15px;
-  border-radius: 8px;
-  cursor: pointer;
-  font-weight: 600;
-  color: #475569;
-}
-
-.btn-clear:hover {
-  background: #e2e8f0;
 }
 </style>

@@ -55,15 +55,14 @@ const fetchPrintData = async (nomor: string) => {
   try {
     const response = await api.get(`mmt/po-bahan-mmt/print/${nomor}`);
 
-    // 🔥 CEK ACC DULU
-    if (response.data?.Header?.IsAcc !== "Y") {
-      alert("PO belum di-ACC, tidak dapat dicetak.");
-      window.close(); // atau router.back()
-      return;
-    }
-
+    // Kita tetap simpan datanya agar bisa tampil di layar
     printData.value = response.data;
     document.title = `PO - ${response.data.Header?.Nomor || "PO"}`;
+
+    // Opsional: Beri peringatan di console/notifikasi tanpa menutup halaman
+    if (response.data?.Header?.IsAcc !== "Y") {
+      console.warn("PO ini belum di-ACC oleh Manager.");
+    }
   } catch (error) {
     console.error("Error fetching print data:", error);
     alert("Gagal memuat data untuk dicetak.");
@@ -106,6 +105,9 @@ onMounted(() => {
     </div>
 
     <div v-if="printData" class="po-page">
+      <div v-if="printData.Header.IsAcc !== 'Y'" class="watermark">
+        DRAFT / BELUM ACC
+      </div>
       <header class="po-header">
         <div class="company-section">
           <h1 class="company-name">CV. KENCANA PRINT</h1>
@@ -237,25 +239,63 @@ onMounted(() => {
 <style scoped>
 /* =================================================================
    BASE & PAGE STYLES
-   (Tidak berubah)
    ================================================================= */
 .po-print-container {
   padding: 20px 0;
 }
 
 .po-page {
+  position: relative; /* Penting agar watermark tetap di dalam halaman */
   font-family: Arial, sans-serif;
   font-size: 10pt;
   background: white;
   margin: 0 auto;
   width: 210mm;
+  min-height: 297mm;
   padding: 10mm 15mm;
   box-sizing: border-box;
   box-shadow: 0 0 8px rgba(0, 0, 0, 0.1);
+  overflow: hidden; /* Mencegah watermark keluar dari batas kertas */
 }
 
 /* =================================================================
-   HEADER & VENDOR (Tidak berubah)
+   WATERMARK (DIPERBAIKI)
+   ================================================================= */
+.watermark {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) rotate(-45deg);
+
+  /* Ukuran diperkecil agar proporsional */
+  font-size: 45pt;
+  color: rgba(255, 0, 0, 0.12); /* Merah sangat tipis */
+  font-weight: bold;
+  z-index: 0;
+  pointer-events: none;
+  white-space: nowrap;
+  text-transform: uppercase;
+
+  /* Border disesuaikan */
+  border: 6px solid rgba(255, 0, 0, 0.12);
+  padding: 10px 30px;
+
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+/* Pastikan konten utama tetap di atas watermark */
+.po-header,
+.vendor-section,
+.items-table-wrapper,
+.summary-area,
+.signature-footer {
+  position: relative;
+  z-index: 1;
+}
+
+/* =================================================================
+   HEADER & VENDOR
    ================================================================= */
 .po-header {
   display: flex;
@@ -316,7 +356,7 @@ onMounted(() => {
 }
 
 /* =================================================================
-   ITEMS TABLE (Tidak berubah)
+   ITEMS TABLE
    ================================================================= */
 .items-table {
   width: 100%;
@@ -327,7 +367,6 @@ onMounted(() => {
   border: 1px solid black;
   padding: 6px 8px;
   vertical-align: top;
-  height: 15pt;
 }
 .items-table thead th {
   background-color: #000080;
@@ -337,17 +376,16 @@ onMounted(() => {
   text-transform: uppercase;
 }
 .items-table td.text-right {
-  font-size: 10pt;
+  text-align: right;
 }
 .items-table .empty-row td {
-  height: 15pt;
+  height: 20pt;
 }
 
 /* =================================================================
-   SUMMARY, NOTES & SIGNATURE (Perbaikan Layout CSS)
+   SUMMARY & NOTES
    ================================================================= */
 .summary-area {
-  /* Mengatur Notes dan Total Box agar berdampingan */
   display: flex;
   justify-content: space-between;
   margin-top: 10px;
@@ -355,7 +393,6 @@ onMounted(() => {
 }
 
 .notes-section {
-  /* Mengambil ruang yang tersisa setelah total box */
   width: 60%;
   border: 1px solid black;
 }
@@ -373,20 +410,13 @@ onMounted(() => {
   margin: 0;
   font-size: 9pt;
 }
-.delivery-address {
-  padding-top: 5px;
-  font-style: italic;
-  font-size: 9pt;
-}
 
 .total-summary-wrapper {
-  /* Wrapper untuk memastikan total box berada di kanan */
   width: 35%;
 }
 
 .total-summary-box {
   border: 1px solid black;
-  font-size: 10pt;
 }
 
 .total-row {
@@ -399,21 +429,16 @@ onMounted(() => {
 .total-row:first-child {
   border-top: none;
 }
-.total-row .label {
-  font-weight: bold;
-}
-.total-row .amount {
-  font-weight: bold;
-}
 
 .total-row.grand-total-line {
   background-color: #f0f0f0;
   border-top: 2px solid black;
   font-weight: bold;
-  font-size: 11pt;
 }
 
-/* Footer Tanda Tangan */
+/* =================================================================
+   SIGNATURE
+   ================================================================= */
 .signature-footer {
   display: flex;
   justify-content: flex-end;
@@ -425,43 +450,25 @@ onMounted(() => {
 .signature-box {
   width: 150px;
 }
-.signer-role {
-  font-size: 9pt;
-  margin-top: -5px;
-}
 .signature-line {
   border-top: 1px solid black;
-  margin-top: 35px;
+  margin-top: 40px;
 }
 
 /* =================================================================
-   PRINT MEDIA QUERIES (Tidak berubah)
+   PRINT MEDIA QUERIES
    ================================================================= */
 @media print {
   @page {
     size: A4 portrait;
-    margin: 0; /* Margin nol karena kita sudah pakai padding di .po-page */
+    margin: 0;
   }
 
-  /* Reset Global Vuetify yang sering merusak cetakan */
   :global(html),
   :global(body) {
     height: auto !important;
     overflow: visible !important;
     background-color: white !important;
-  }
-
-  /* Sembunyikan elemen Vuetify */
-  :global(.v-application) {
-    background: none !important;
-  }
-  :global(.v-main) {
-    padding: 0 !important;
-  }
-  :global(.v-navigation-drawer),
-  :global(.v-app-bar),
-  :global(.v-footer) {
-    display: none !important;
   }
 
   .po-print-container {
@@ -474,14 +481,15 @@ onMounted(() => {
     border: none !important;
     box-shadow: none !important;
     width: 210mm !important;
-    height: 297mm !important;
     padding: 15mm !important;
-    position: absolute;
-    top: 0;
-    left: 0;
   }
 
-  /* Memastikan background warna biru tabel tetap muncul */
+  .watermark {
+    /* Gunakan warna abu-abu tipis saat print agar tidak boros tinta */
+    color: rgba(150, 150, 150, 0.15) !important;
+    border-color: rgba(150, 150, 150, 0.15) !important;
+  }
+
   .items-table thead th,
   .notes-header,
   .vendor-header {

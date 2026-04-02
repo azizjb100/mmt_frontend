@@ -33,12 +33,19 @@ const formData = reactive({
   gdg_kode: "GPM",
   shift: 1,
   operator: "",
-  mesin: "",
-  ink_c: 0,
-  ink_m: 0,
-  ink_y: 0,
-  ink_k: 0,
+  // Hapus ink_c, ink_m, dll dari sini karena sudah pindah ke array
 });
+const inkDetails = ref<any[]>([
+  { msn_kode: "", c: 0, m: 0, y: 0, k: 0 }, // Default satu baris kosong
+]);
+
+const addInkRow = () => {
+  inkDetails.value.push({ msn_kode: "", c: 0, m: 0, y: 0, k: 0 });
+};
+
+const removeInkRow = (index: number) => {
+  if (inkDetails.value.length > 1) inkDetails.value.splice(index, 1);
+};
 
 const detailData = ref<any[]>([]);
 
@@ -48,11 +55,14 @@ const detailHeaders = [
   { title: "No. LHK Mesin", key: "lhkmesin", width: "160px" },
   { title: "Shift", key: "shift", width: "80px" },
   { title: "Mesin", key: "mesin", width: "120px" },
+  // Kolom Tinta Baru
+  { title: "C", key: "ink_c", width: "70px", align: "center" },
+  { title: "M", key: "ink_m", width: "70px", align: "center" },
+  { title: "Y", key: "ink_y", width: "70px", align: "center" },
+  { title: "K", key: "ink_k", width: "70px", align: "center" },
   { title: "No. SPK", key: "spk_nomor", width: "160px" },
-  { title: "Nama Produk / Order", key: "spk_nama", minWidth: "250px" },
-  { title: "Operator", key: "operator", width: "130px" },
-  { title: "Qty Cetak", key: "jumlah_cetak", width: "110px", align: "end" },
-  { title: "Total (m²)", key: "total_m2", width: "100px", align: "end" },
+  { title: "Nama Produk", key: "spk_nama", minWidth: "200px" },
+  { title: "Qty", key: "jumlah_cetak", width: "100px", align: "end" },
   { title: "", key: "actions", width: "50px", sortable: false },
 ];
 
@@ -71,13 +81,18 @@ const openSpkSearch = (index: number | null = null) => {
 
 // --- Handlers Select Data ---
 const handleMesinSelect = (mesin: any) => {
-  const kodeMesin = mesin.Kode || mesin.msn_kode;
+  const kodeMesin = mesin.msn_kode || mesin.Kode;
 
   if (activeRowIndex.value !== null) {
-    // Input ke baris tabel
-    detailData.value[activeRowIndex.value].mesin = kodeMesin;
+    if (activeRowIndex.value >= 1000) {
+      // Input untuk baris TINTA
+      const inkIdx = activeRowIndex.value - 1000;
+      inkDetails.value[inkIdx].msn_kode = kodeMesin;
+    } else {
+      // Input untuk baris SPK
+      detailData.value[activeRowIndex.value].mesin = kodeMesin;
+    }
   } else {
-    // Input ke header utama
     formData.mesin = kodeMesin;
   }
 
@@ -86,30 +101,38 @@ const handleMesinSelect = (mesin: any) => {
 };
 
 const loaddataall = async (nomor: string) => {
-  isLoadingDetails.value = true; // Gunakan loading state agar user tahu data sedang diambil
+  isLoadingDetails.value = true;
   try {
-    // 1. Panggil API gabungan Header + Detail
     const response = await api.get(`/mmt/lhk-cetak-mmt/${nomor}`);
     const res = response.data.data;
 
     if (res) {
       isEditMode.value = true;
 
-      // 2. Mapping Header (Sesuaikan dengan Alias SQL Backend Anda)
+      // 1. Mapping Header Utama
       formData.nomor = res.Nomor;
-      formData.tanggal = res.Tanggal; // Backend sudah pakai DATE_FORMAT
+      formData.tanggal = res.Tanggal;
       formData.shift = res.Shift;
       formData.operator = res.Operator;
-      formData.mesin = res.Mesin;
+      formData.mesin = res.Mesin; // Mesin Default
       formData.gdg_kode = res.Gdg_Kode;
 
-      // Mapping Tinta
-      formData.ink_c = res.Ink_C || 0;
-      formData.ink_m = res.Ink_M || 0;
-      formData.ink_y = res.Ink_Y || 0;
-      formData.ink_k = res.Ink_K || 0;
+      // 2. Mapping Tinta Per Mesin (inkDetails)
+      // Pastikan backend mengirimkan array 'inks'
+      if (Array.isArray(res.inks) && res.inks.length > 0) {
+        inkDetails.value = res.inks.map((i: any) => ({
+          msn_kode: i.Msn_Kode || i.msn_kode, // Sesuaikan case sensitif dari backend
+          c: Number(i.Ink_C ?? i.c) || 0,
+          m: Number(i.Ink_M ?? i.m) || 0,
+          y: Number(i.Ink_Y ?? i.y) || 0,
+          k: Number(i.Ink_K ?? i.k) || 0,
+        }));
+      } else {
+        // Jika data tinta di DB kosong, sediakan satu baris inputan kosong
+        inkDetails.value = [{ msn_kode: "", c: 0, m: 0, y: 0, k: 0 }];
+      }
 
-      // 3. Mapping Detail ke Tabel
+      // 3. Mapping Detail Pengerjaan SPK (detailData)
       if (Array.isArray(res.details)) {
         detailData.value = res.details.map((d: any) => ({
           lhkmesin: d.Nomor_lhk_mesin || "MANUAL",
@@ -128,7 +151,7 @@ const loaddataall = async (nomor: string) => {
     }
   } catch (error: any) {
     console.error("Load Error:", error);
-    toast.error("Gagal memuat data edit.");
+    toast.error("Gagal memuat data rincian rekap.");
   } finally {
     isLoadingDetails.value = false;
   }
@@ -239,8 +262,20 @@ const addRow = (spkNo = "", spkName = "") => {
 const removeRow = (idx: number) => detailData.value.splice(idx, 1);
 
 const handleSave = async (status: string) => {
+  // 1. Validasi: Minimal harus ada pengerjaan SPK
   if (detailData.value.length === 0) {
-    toast.error("Daftar rincian masih kosong!");
+    toast.error("Daftar rincian pengerjaan masih kosong!");
+    return;
+  }
+
+  // 2. Validasi Tinta: Pastikan mesin di inputan tinta sudah dipilih jika ada nilai tintanya
+  const invalidInk = inkDetails.value.find(
+    (ink) =>
+      (ink.c > 0 || ink.m > 0 || ink.y > 0 || ink.k > 0) && !ink.msn_kode,
+  );
+
+  if (invalidInk) {
+    toast.error("Ada pemakaian tinta tapi mesin belum dipilih!");
     return;
   }
 
@@ -249,23 +284,34 @@ const handleSave = async (status: string) => {
   isSaving.value = true;
 
   try {
+    // 3. Susun Payload sesuai struktur tabel baru
     const payload = {
       header: {
         lch_tanggal: formData.tanggal,
         lch_gdg_prod: formData.gdg_kode,
         lch_shift: formData.shift,
         lch_operator: formData.operator,
+        // lch_mesin tetap dikirim jika Anda ingin simpan 'Mesin Utama' di header
         lch_mesin: formData.mesin,
-        lch_ink_c: formData.ink_c,
-        lch_ink_m: formData.ink_m,
-        lch_ink_y: formData.ink_y,
-        lch_ink_k: formData.ink_k,
         luser_modified: authStore.user?.kdUser || "SYSTEM",
         lstatus: status,
       },
-      details: detailData.value,
-      // PERBAIKAN DI SINI:
-      // Hanya kirim nomor jika isEditMode TRUE DAN nomor bukan "AUTO"
+      // Data pengerjaan SPK (tabel tlhk_cetakmmt_dtl)
+      details: detailData.value.map((d) => ({
+        ...d,
+        // Pastikan field matching dengan backend (misal: msn_kode)
+        mesin: d.mesin,
+      })),
+      // Data Tinta (tabel tlhk_cetakmmt_ink) - Filter yang mesinnya diisi saja
+      inkData: inkDetails.value
+        .filter((ink) => ink.msn_kode !== "")
+        .map((ink) => ({
+          msn_kode: ink.msn_kode,
+          c: Number(ink.c) || 0,
+          m: Number(ink.m) || 0,
+          y: Number(ink.y) || 0,
+          k: Number(ink.k) || 0,
+        })),
       existingNomor:
         isEditMode.value && formData.nomor !== "AUTO" ? formData.nomor : null,
     };
@@ -273,7 +319,7 @@ const handleSave = async (status: string) => {
     const res = await api.post("/mmt/lhk-cetak-mmt", payload);
 
     if (res.data?.data?.success) {
-      toast.success(res.data.message);
+      toast.success(res.data.message || "Data berhasil disimpan");
       await router.replace({ name: "LHKCetakMMT" });
     } else {
       toast.error(res.data?.message || "Gagal menyimpan data");
@@ -405,64 +451,98 @@ onUnmounted(() => {
 
           <v-row dense class="mt-2 pt-2 border-top">
             <v-col cols="12">
-              <div
-                class="text-caption font-weight-bold mb-1 text-uppercase text-blue-darken-3"
-              >
-                <v-icon size="small">mdi-invert-colors</v-icon> Pemakaian Tinta
-                (ml) / Bahan
-              </div>
-            </v-col>
+              <v-card flat border class="pa-3 bg-blue-grey-lighten-5">
+                <div class="text-subtitle-2 mb-2 d-flex align-center">
+                  <v-icon start color="primary">mdi-invert-colors</v-icon>
+                  PEMAKAIAN TINTA PER MESIN
+                  <v-spacer />
+                  <v-btn
+                    size="x-small"
+                    color="primary"
+                    @click="addInkRow"
+                    prepend-icon="mdi-plus"
+                    >Tambah Mesin</v-btn
+                  >
+                </div>
 
-            <v-col cols="6" md="3">
-              <v-text-field
-                v-model.number="formData.ink_c"
-                label="Cyan (C)"
-                type="number"
-                variant="outlined"
-                density="compact"
-                hide-details
-                color="cyan-darken-2"
-                prepend-inner-icon="mdi-drop"
-              />
-            </v-col>
+                <v-row
+                  v-for="(ink, idx) in inkDetails"
+                  :key="idx"
+                  dense
+                  align="center"
+                  class="mb-2"
+                >
+                  <v-col cols="12" md="3">
+                    <v-text-field
+                      v-model="ink.msn_kode"
+                      label="Pilih Mesin"
+                      readonly
+                      density="compact"
+                      variant="solo"
+                      flat
+                      append-inner-icon="mdi-magnify"
+                      @click="openMesinSearch(idx + 1000)"
+                      hide-details
+                    />
+                  </v-col>
 
-            <v-col cols="6" md="3">
-              <v-text-field
-                v-model.number="formData.ink_m"
-                label="Magenta (M)"
-                type="number"
-                variant="outlined"
-                density="compact"
-                hide-details
-                color="pink-darken-2"
-                prepend-inner-icon="mdi-drop"
-              />
-            </v-col>
+                  <v-col cols="2" md="2">
+                    <v-text-field
+                      v-model.number="ink.c"
+                      label="C"
+                      type="number"
+                      density="compact"
+                      variant="outlined"
+                      hide-details
+                      color="cyan"
+                    />
+                  </v-col>
+                  <v-col cols="2" md="2">
+                    <v-text-field
+                      v-model.number="ink.m"
+                      label="M"
+                      type="number"
+                      density="compact"
+                      variant="outlined"
+                      hide-details
+                      color="magenta"
+                    />
+                  </v-col>
+                  <v-col cols="2" md="2">
+                    <v-text-field
+                      v-model.number="ink.y"
+                      label="Y"
+                      type="number"
+                      density="compact"
+                      variant="outlined"
+                      hide-details
+                      color="amber-darken-2"
+                    />
+                  </v-col>
+                  <v-col cols="2" md="2">
+                    <v-text-field
+                      v-model.number="ink.k"
+                      label="K"
+                      type="number"
+                      density="compact"
+                      variant="outlined"
+                      hide-details
+                      color="black"
+                    />
+                  </v-col>
 
-            <v-col cols="6" md="3">
-              <v-text-field
-                v-model.number="formData.ink_y"
-                label="Yellow (Y)"
-                type="number"
-                variant="outlined"
-                density="compact"
-                hide-details
-                color="amber-darken-2"
-                prepend-inner-icon="mdi-drop"
-              />
-            </v-col>
-
-            <v-col cols="6" md="3">
-              <v-text-field
-                v-model.number="formData.ink_k"
-                label="Black (K)"
-                type="number"
-                variant="outlined"
-                density="compact"
-                hide-details
-                color="grey-darken-4"
-                prepend-inner-icon="mdi-drop"
-              />
+                  <v-col cols="1" md="1">
+                    <v-btn
+                      icon="mdi-close"
+                      size="x-small"
+                      color="error"
+                      variant="text"
+                      @click="removeInkRow(idx)"
+                      v-if="inkDetails.length > 1"
+                    />
+                  </v-col>
+                </v-row>
+              </v-card>
             </v-col>
           </v-row>
         </v-card>

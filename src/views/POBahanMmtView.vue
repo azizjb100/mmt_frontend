@@ -480,14 +480,16 @@ const handlePrint = () => {
     return;
   }
 
-  // 👉 cek ACC
+  // --- BAGIAN YANG DIUBAH ---
+  // Kita beri tahu user bahwa ini masih Draft, tapi JANGAN di-return (jangan dihentikan)
   if (selectedRow.value.Acc === "N") {
-    toast.warning("PO belum di-ACC Manager, belum bisa Print Preview.");
-    return;
+    toast.warning("PO belum di-ACC Manager. Membuka Preview Draft...");
+  } else {
+    toast.info(`Membuka Print Preview PO ${selectedNomor.value}`);
   }
+  // --------------------------
 
-  toast.info(`Membuka Print Preview PO ${selectedNomor.value}`);
-
+  // Langsung pindah ke halaman print tanpa peduli status ACC
   router.push({
     name: "PoPrint",
     params: { nomor: selectedNomor.value },
