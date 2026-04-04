@@ -110,32 +110,32 @@ const loaddataall = async (nomor: string) => {
       isEditMode.value = true;
 
       // 1. Mapping Header Utama
+      // Mengambil dari alias 'Nomor' (lch_nomor)
       formData.nomor = res.Nomor;
       formData.tanggal = res.Tanggal;
       formData.shift = res.Shift;
       formData.operator = res.Operator;
-      formData.mesin = res.Mesin; // Mesin Default
+      formData.mesin = res.Mesin;
       formData.gdg_kode = res.Gdg_Kode;
 
-      // 2. Mapping Tinta Per Mesin (inkDetails)
-      // Pastikan backend mengirimkan array 'inks'
+      // 2. Mapping Tinta Per Mesin
       if (Array.isArray(res.inks) && res.inks.length > 0) {
         inkDetails.value = res.inks.map((i: any) => ({
-          msn_kode: i.Msn_Kode || i.msn_kode, // Sesuaikan case sensitif dari backend
+          msn_kode: i.Msn_Kode || i.msn_kode,
           c: Number(i.Ink_C ?? i.c) || 0,
           m: Number(i.Ink_M ?? i.m) || 0,
           y: Number(i.Ink_Y ?? i.y) || 0,
           k: Number(i.Ink_K ?? i.k) || 0,
         }));
       } else {
-        // Jika data tinta di DB kosong, sediakan satu baris inputan kosong
         inkDetails.value = [{ msn_kode: "", c: 0, m: 0, y: 0, k: 0 }];
       }
 
-      // 3. Mapping Detail Pengerjaan SPK (detailData)
+      // 3. Mapping Detail Pengerjaan SPK
       if (Array.isArray(res.details)) {
         detailData.value = res.details.map((d: any) => ({
-          lhkmesin: d.Nomor_lhk_mesin || "MANUAL",
+          // Jika di bagian detail juga menggunakan alias 'Nomor' untuk lhk_mesin
+          lhkmesin: d.Nomor || d.Nomor_lhk_mesin || "MANUAL",
           shift: d.Shift || res.Shift,
           mesin: d.Mesin,
           spk_nomor: d.Nomor_SPK,
@@ -145,7 +145,8 @@ const loaddataall = async (nomor: string) => {
           total_m2: Number(d.m2_cetak) || 0,
           panjang_spk: d.Panjang,
           lebar_spk: d.Lebar,
-          isManual: !d.Nomor_lhk_mesin || d.Nomor_lhk_mesin === "MANUAL",
+          isManual:
+            !d.Nomor && (!d.Nomor_lhk_mesin || d.Nomor_lhk_mesin === "MANUAL"),
         }));
       }
     }
