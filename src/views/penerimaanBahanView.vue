@@ -257,16 +257,16 @@ const printContent = () => {
           }
           
           .label-box { 
-  width: 67mm; 
-  height: 45mm; 
-  padding: ${pageConfig.boxPadding}; 
-  box-sizing: border-box; 
-  page-break-inside: avoid;
-  margin-bottom: 7mm; /* Sesuaikan dengan jarak celah antar label fisik */
-}
+            width: 67mm; 
+            height: 45mm; 
+            padding: ${pageConfig.boxPadding}; 
+            box-sizing: border-box; 
+            page-break-inside: avoid;
+            margin-bottom: 5mm;
+          }
 
           .empty-label { visibility: hidden; }
-          /* .label-box:nth-child(2n) { page-break-after: always; } */
+          .label-box:nth-child(2n) { page-break-after: always; }
           
           .border-inner { 
             border: 1pt solid black; 
