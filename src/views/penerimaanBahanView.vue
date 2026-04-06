@@ -262,7 +262,7 @@ const printContent = () => {
             padding: ${pageConfig.boxPadding}; 
             box-sizing: border-box; 
             page-break-inside: avoid;
-            margin-bottom: 5mm;
+            margin-bottom: 10mm;
           }
 
           .empty-label { visibility: hidden; }

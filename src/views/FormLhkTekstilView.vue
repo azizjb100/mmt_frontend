@@ -9,7 +9,6 @@
       >
         <v-icon start>mdi-file-clock</v-icon> Simpan Sementara
       </v-btn>
-
       <v-btn
         size="small"
         color="primary"
@@ -19,11 +18,9 @@
       >
         <v-icon start>mdi-content-save-check</v-icon> Simpan Hasil
       </v-btn>
-
       <v-btn size="small" @click="handleCancel" :disabled="isSaving">
         <v-icon start>mdi-close</v-icon> Batal
       </v-btn>
-
       <v-btn size="small" color="error" @click="handleClose">
         <v-icon start>mdi-exit-to-app</v-icon> Keluar
       </v-btn>
@@ -32,74 +29,68 @@
     <div class="form-grid-container">
       <div class="left-column">
         <v-card class="mb-3" flat border>
-          <v-card-title class="text-subtitle-2 pa-2 bg-grey-lighten-4">
-            Informasi LHK Tekstil
-          </v-card-title>
+          <v-card-title class="text-subtitle-2 pa-2 bg-grey-lighten-4"
+            >Informasi LHK Tekstil</v-card-title
+          >
           <v-card-text class="pa-2">
             <v-row dense>
-              <v-col cols="12">
-                <v-text-field
+              <v-col cols="12"
+                ><v-text-field
                   label="Nomor LHK"
                   v-model="formData.nomor"
                   readonly
                   variant="outlined"
                   density="compact"
                   hide-details
-                />
-              </v-col>
-              <v-col cols="12">
-                <v-text-field
+              /></v-col>
+              <v-col cols="12"
+                ><v-text-field
                   label="Tanggal"
                   v-model="formData.tanggal"
                   type="date"
                   variant="outlined"
                   density="compact"
                   hide-details
-                />
-              </v-col>
-              <v-col cols="6">
-                <v-text-field
+              /></v-col>
+              <v-col cols="6"
+                ><v-text-field
                   label="Shift"
                   v-model.number="formData.shift"
                   type="number"
                   variant="outlined"
                   density="compact"
                   hide-details
-                />
-              </v-col>
-              <v-col cols="6">
-                <v-text-field
+              /></v-col>
+              <v-col cols="6"
+                ><v-text-field
                   label="Gudang"
                   v-model="formData.gdgKode"
                   readonly
                   variant="filled"
                   density="compact"
                   hide-details
-                />
-              </v-col>
+              /></v-col>
             </v-row>
           </v-card-text>
         </v-card>
 
         <v-card class="mb-3" flat border>
-          <v-card-title class="text-subtitle-2 pa-2 bg-blue-lighten-5">
-            Informasi Bahan (Media)
-          </v-card-title>
+          <v-card-title class="text-subtitle-2 pa-2 bg-blue-lighten-5"
+            >Informasi Bahan (Media)</v-card-title
+          >
           <v-card-text class="pa-2">
             <v-row dense>
               <v-col cols="12">
                 <v-text-field
                   label="Scan Barcode Roll"
                   v-model="formData.barcode_input"
-                  placeholder="Scan di sini..."
+                  @keyup.enter="handleBarcodeScan"
                   prepend-inner-icon="mdi-barcode-scan"
                   variant="outlined"
                   density="compact"
                   color="primary"
-                  @keyup.enter="handleBarcodeScan"
-                  autocomplete="off"
-                  class="mb-2"
                   hide-details
+                  class="mb-2"
                 />
               </v-col>
               <v-col cols="12">
@@ -109,14 +100,13 @@
                   readonly
                   variant="filled"
                   density="compact"
-                  placeholder="Nama bahan otomatis..."
                   hide-details
                   class="mb-2"
                 />
               </v-col>
-              <v-col cols="6">
-                <v-text-field
-                  label="P. Bahan (Sisa)"
+              <v-col cols="6"
+                ><v-text-field
+                  label="Stok (M)"
                   :model-value="formData.panjang_bahan"
                   readonly
                   variant="filled"
@@ -124,11 +114,10 @@
                   hide-details
                   suffix="M"
                   class="text-end"
-                />
-              </v-col>
-              <v-col cols="6">
-                <v-text-field
-                  label="Lebar (m)"
+              /></v-col>
+              <v-col cols="6"
+                ><v-text-field
+                  label="Lebar (M)"
                   :model-value="formData.lebar_bahan"
                   readonly
                   variant="filled"
@@ -136,18 +125,16 @@
                   hide-details
                   suffix="M"
                   class="text-end"
-                />
-              </v-col>
+              /></v-col>
             </v-row>
           </v-card-text>
         </v-card>
 
         <v-alert
-          v-if="formData.barcode_input"
+          v-if="formData.brg_kode"
           :type="sisaBahanSetelahProduksi < 0 ? 'error' : 'info'"
           variant="tonal"
           density="compact"
-          class="mt-2"
         >
           <div class="text-caption">Estimasi Sisa Akhir:</div>
           <div class="text-h6 font-weight-bold">
@@ -169,9 +156,8 @@
               prepend-icon="mdi-plus"
               @click="openSpkSearch"
               :disabled="!formData.brg_kode"
+              >Tambah SPK</v-btn
             >
-              Tambah SPK
-            </v-btn>
           </v-card-title>
 
           <v-data-table
@@ -181,9 +167,7 @@
             hide-default-footer
             class="detail-entry-table"
           >
-            <template #[`item.no`]="{ index }">
-              {{ index + 1 }}
-            </template>
+            <template #[`item.no`]="{ index }">{{ index + 1 }}</template>
 
             <template #[`item.mesin`]="{ item, index }">
               <v-text-field
@@ -192,28 +176,33 @@
                 variant="underlined"
                 density="compact"
                 hide-details
-                placeholder="Pilih"
                 append-inner-icon="mdi-dots-horizontal"
                 @click:append-inner="openMesinLookup(index)"
-                style="cursor: pointer"
               />
             </template>
 
-            <template #[`item.spk_info`]="{ item }">
-              <div class="d-flex flex-column py-1">
-                <span
-                  class="font-weight-bold text-primary"
-                  style="font-size: 0.75rem"
-                >
-                  {{ item.nomor_spk }}
-                </span>
-                <span
-                  class="text-caption text-grey-darken-2"
-                  style="line-height: 1.1"
-                >
-                  {{ item.nama_spk }}
-                </span>
+            <template #[`item.nomor_spk`]="{ item }">
+              <span class="font-weight-black text-blue-darken-4">{{
+                item.nomor_spk
+              }}</span>
+            </template>
+
+            <template #[`item.nama_spk`]="{ item }">
+              <div class="text-caption text-truncate" style="max-width: 180px">
+                {{ item.nama_spk }}
               </div>
+            </template>
+
+            <template #[`item.panjang_per_pcs`]="{ item }">
+              <v-text-field
+                v-model.number="item.panjang_per_pcs"
+                type="number"
+                variant="underlined"
+                density="compact"
+                hide-details
+                class="text-end"
+                color="primary"
+              />
             </template>
 
             <template #[`item.jumlah_cetak`]="{ item }">
@@ -223,14 +212,23 @@
                 variant="underlined"
                 density="compact"
                 hide-details
-                class="text-end font-weight-bold"
-                @update:model-value="recalculateLayout"
+                class="text-end"
               />
+            </template>
+
+            <template #[`item.total_panjang_baris`]="{ item }">
+              <div class="text-end font-weight-bold text-success">
+                {{
+                  (
+                    Number(item.panjang_per_pcs) * Number(item.jumlah_cetak)
+                  ).toFixed(2)
+                }}
+              </div>
             </template>
 
             <template #[`item.actions`]="{ index }">
               <v-btn
-                icon="mdi-delete"
+                icon="mdi-delete-outline"
                 size="x-small"
                 color="red"
                 variant="text"
@@ -239,24 +237,23 @@
             </template>
 
             <template #bottom>
-              <div class="pa-3 bg-grey-lighten-4 border-t d-flex align-center">
-                <span class="text-subtitle-2">Total Panjang Cetak:</span>
-                <span class="text-h6 ml-2 text-primary font-weight-black">
-                  {{ totalPanjangEstimasi.toFixed(2) }} M
-                </span>
+              <div
+                class="pa-3 bg-grey-lighten-4 border-t d-flex align-center justify-end"
+              >
+                <span class="text-subtitle-2 mr-4">Total Pemakaian:</span>
+                <span class="text-h6 text-primary font-weight-black"
+                  >{{ totalPanjangEstimasi.toFixed(2) }} M</span
+                >
               </div>
             </template>
           </v-data-table>
         </v-card>
 
         <v-card flat border>
-          <v-card-title
-            class="text-subtitle-2 bg-grey-lighten-3 pa-2 d-flex align-center"
+          <v-card-title class="text-subtitle-2 bg-grey-lighten-3 pa-2"
+            >Visualisasi Layout Produksi</v-card-title
           >
-            <v-icon start size="small">mdi-eye-outline</v-icon>
-            Estimasi Produksi pada Roll (Skala 1:{{ SCALE }})
-          </v-card-title>
-          <v-card-text class="pa-4 scroll-x-container">
+          <v-card-text class="pa-4 scroll-wrapper">
             <div class="roll-preview" :style="rollStyle">
               <div
                 v-for="(block, bIdx) in layoutBlocks"
@@ -292,8 +289,6 @@ import { useRouter } from "vue-router";
 import api from "@/services/api";
 import { useToast } from "vue-toastification";
 import PageLayout from "../components/PageLayout.vue";
-
-// Modals
 import MesinLookupView from "@/modal/MesinLookupModal.vue";
 import SpkLookupView from "@/modal/SpkLookupModal.vue";
 
@@ -301,7 +296,7 @@ const toast = useToast();
 const router = useRouter();
 const isSaving = ref(false);
 const activeRow = ref(-1);
-const SCALE = 50; // Skala pixel per meter
+const SCALE = 50;
 
 const formData = reactive({
   nomor: "AUTO",
@@ -316,19 +311,22 @@ const formData = reactive({
 });
 
 const detailData = ref<any[]>([]);
-
-const lookup = reactive({
-  mesin: false,
-  spk: false,
-});
+const lookup = reactive({ mesin: false, spk: false });
 
 const detailHeaders = [
-  { title: "No", key: "no", width: "50px" },
-  { title: "Mesin", key: "mesin", width: "120px" },
-  { title: "SPK / Nama", key: "spk_info", width: "200px" },
-  { title: "P. SPK (M)", key: "panjang_spk", align: "end" },
-  { title: "L. SPK (M)", key: "lebar_spk", align: "end" },
-  { title: "Qty Cetak", key: "jumlah_cetak", width: "100px", align: "end" },
+  { title: "No", key: "no", width: "50px", sortable: false },
+  { title: "Mesin", key: "mesin", width: "110px" },
+  { title: "Nomor SPK", key: "nomor_spk", width: "130px" }, // Kolom Nomor SPK eksplisit
+  { title: "Nama Pekerjaan", key: "nama_spk" },
+  { title: "L. SPK", key: "lebar_spk", align: "end", width: "80px" },
+  { title: "P/Pcs (M)", key: "panjang_per_pcs", align: "end", width: "100px" },
+  { title: "Qty", key: "jumlah_cetak", align: "end", width: "90px" },
+  {
+    title: "Subtotal",
+    key: "total_panjang_baris",
+    align: "end",
+    width: "100px",
+  },
   { title: "", key: "actions", width: "50px", sortable: false },
 ];
 
@@ -336,7 +334,9 @@ const detailHeaders = [
 
 const totalPanjangEstimasi = computed(() => {
   return detailData.value.reduce((acc, curr) => {
-    return acc + Number(curr.panjang_spk) * Number(curr.jumlah_cetak);
+    return (
+      acc + Number(curr.panjang_per_pcs || 0) * Number(curr.jumlah_cetak || 0)
+    );
   }, 0);
 });
 
@@ -349,36 +349,70 @@ const isFormValid = computed(() => {
     detailData.value.length > 0 &&
     formData.brg_kode !== "" &&
     sisaBahanSetelahProduksi.value >= 0 &&
-    detailData.value.every((d) => d.mesin)
+    detailData.value.every(
+      (d) => d.mesin && d.panjang_per_pcs > 0 && d.jumlah_cetak > 0,
+    )
   );
 });
 
-const recalculateLayout = () => {
-  // Triggered on qty change to force re-compute layoutBlocks
+// --- PERBAIKAN HANDLE SPK ---
+const handleSpkSelect = (spk: any) => {
+  console.log("Data mentah dari Modal:", spk);
+
+  // Sesuaikan dengan log console anda: 'Spk' (S besar)
+  const nomorTerdeteksi = spk.Spk || spk.SPK || spk.nomor_spk;
+  const namaTerdeteksi = spk.Nama || spk.nama || "Tanpa Nama";
+
+  if (!nomorTerdeteksi) {
+    toast.error("Gagal mendeteksi nomor SPK. Cek console.");
+    return;
+  }
+
+  if (detailData.value.some((d) => d.nomor_spk === nomorTerdeteksi)) {
+    toast.warning("SPK sudah ada dalam daftar");
+    return;
+  }
+
+  detailData.value.push({
+    nomor_spk: nomorTerdeteksi,
+    nama_spk: namaTerdeteksi,
+    panjang_spk_ori: parseFloat(spk.Panjang) || 0,
+    panjang_per_pcs: parseFloat(spk.Panjang) || 0,
+    lebar_spk: parseFloat(spk.Lebar) || 0,
+    jumlah_cetak: 1,
+    mesin: "",
+  });
+
+  lookup.spk = false;
 };
 
-// --- ACTION HANDLERS ---
+// --- TAMBAHKAN FUNGSI NAVIGASI YANG KURANG ---
+const handleCancel = () => {
+  // Reset data atau kembali
+  if (confirm("Batalkan perubahan?")) {
+    router.go(-1);
+  }
+};
+
+const handleClose = () => {
+  router.push("/mmt/lhk-tekstil"); // Sesuaikan route list anda
+};
 
 const handleBarcodeScan = async () => {
   if (!formData.barcode_input) return;
-
   try {
     const res = await api.get(`/mmt/stok-gudang/${formData.barcode_input}`);
-    const resData = res.data;
-
-    if (resData.status === "READY" || resData.success) {
-      const item = resData.data;
-      formData.brg_nama = item.Nama_Barang || item.Nama;
-      formData.brg_kode = item.Kode_Barang || item.Kode;
-      formData.lebar_bahan = parseFloat(item.Lebar) || 0;
-      formData.panjang_bahan = parseFloat(item.Sisa_Panjang) || 0;
-      toast.success("Bahan berhasil teridentifikasi");
-    } else {
-      toast.error("Barcode tidak ditemukan atau stok kosong");
-      clearBahan();
+    const resData = res.data.data;
+    if (resData) {
+      const info = resData.data || resData;
+      formData.brg_nama = info.Nama_Barang || info.Nama;
+      formData.brg_kode = info.Kode_Barang || info.Kode;
+      formData.lebar_bahan = parseFloat(info.Lebar) || 0;
+      formData.panjang_bahan = parseFloat(info.Sisa_Panjang) || 0;
+      toast.success("Material Ready");
     }
   } catch (e) {
-    toast.error("Gagal scan barcode");
+    toast.error("Barcode tidak terdaftar atau bermasalah");
     clearBahan();
   }
 };
@@ -390,47 +424,9 @@ const clearBahan = () => {
   formData.panjang_bahan = 0;
 };
 
-const handleSpkSelect = (spk: any) => {
-  if (detailData.value.some((d) => d.nomor_spk === spk.SPK)) {
-    toast.warning("SPK sudah ada dalam daftar");
-    return;
-  }
-
-  detailData.value.push({
-    nomor_spk: spk.SPK,
-    nama_spk: spk.Nama,
-    panjang_spk: parseFloat(spk.Panjang) || 0,
-    lebar_spk: parseFloat(spk.Lebar) || 0,
-    jumlah_cetak: 1,
-    mesin: "",
-    c_kode: "",
-    m_kode: "",
-    y_kode: "",
-    k_kode: "",
-  });
-  lookup.spk = false;
-};
-
-const openMesinLookup = (idx: number) => {
-  activeRow.value = idx;
-  lookup.mesin = true;
-};
-
-const handleMesinSelect = (m: any) => {
-  if (activeRow.value !== -1) {
-    detailData.value[activeRow.value].mesin = m.Kode;
-  }
-  lookup.mesin = false;
-};
-
-const removeRow = (idx: number) => {
-  detailData.value.splice(idx, 1);
-};
-
 const handleSave = async (status: string) => {
-  if (status === "POSTED" && !isFormValid.value) {
-    return toast.error("Data belum lengkap atau pemakaian melebihi stok!");
-  }
+  if (status === "POSTED" && !isFormValid.value)
+    return toast.error("Lengkapi data dan cek sisa stok.");
 
   isSaving.value = true;
   try {
@@ -439,50 +435,50 @@ const handleSave = async (status: string) => {
         ...formData,
         lstatus: status,
         total_pakai: totalPanjangEstimasi.value,
-        sisa_akhir: sisaBahanSetelahProduksi.value,
       },
-      details: detailData.value,
+      details: detailData.value.map((d) => ({
+        ...d,
+        total_panjang_baris: d.panjang_per_pcs * d.jumlah_cetak,
+      })),
     };
-    await api.post("/mmt/lhk-tekstil", payload);
-    toast.success(`Berhasil disimpan sebagai ${status}`);
+    await api.post("/mmt/lhk-tekstil-mmt", payload);
+    toast.success("Tersimpan sebagai " + status);
     if (status === "POSTED") router.push("/mmt/lhk-tekstil");
   } catch (e) {
-    toast.error("Gagal menyimpan data");
+    toast.error("Gagal mengirim data");
   } finally {
     isSaving.value = false;
   }
 };
 
-// --- VISUALISASI STYLES ---
-
-const rollStyle = computed(() => ({
-  height: `${formData.lebar_bahan * SCALE}px`,
-  minWidth: "100%",
-  width: `${Math.max(totalPanjangEstimasi.value, formData.panjang_bahan) * SCALE}px`,
-  backgroundColor: "#ffffff",
-  border: "2px solid #333",
-  position: "relative" as const,
-  backgroundImage: `linear-gradient(90deg, #e0e0e0 1px, transparent 1px)`,
-  backgroundSize: `${SCALE}px 100%`,
-}));
-
+// --- VISUALISASI ---
 const layoutBlocks = computed(() => {
   const blocks: any[] = [];
   let currentX = 0;
-  detailData.value.forEach((d, i) => {
+  detailData.value.forEach((d) => {
     for (let q = 0; q < d.jumlah_cetak; q++) {
       blocks.push({
-        label: `${d.nomor_spk}`,
+        label: d.nomor_spk,
         x: currentX,
         y: 0,
-        w: d.panjang_spk,
+        w: d.panjang_per_pcs,
         h: d.lebar_spk,
       });
-      currentX += d.panjang_spk;
+      currentX += d.panjang_per_pcs;
     }
   });
   return blocks;
 });
+
+const rollStyle = computed(() => ({
+  height: `${formData.lebar_bahan * SCALE}px`,
+  width: `${Math.max(totalPanjangEstimasi.value, formData.panjang_bahan) * SCALE}px`,
+  position: "relative" as const,
+  backgroundColor: "#ffffff",
+  border: "2px solid #2c3e50",
+  backgroundImage: `linear-gradient(90deg, #f1f1f1 1px, transparent 1px)`,
+  backgroundSize: `${SCALE}px 100%`,
+}));
 
 const getBlockStyle = (b: any) => ({
   position: "absolute" as const,
@@ -490,54 +486,60 @@ const getBlockStyle = (b: any) => ({
   top: `${b.y * SCALE}px`,
   width: `${b.w * SCALE}px`,
   height: `${b.h * SCALE}px`,
-  backgroundColor: "#bbdefb",
-  border: "1px solid #1976d2",
-  fontSize: "10px",
+  backgroundColor: "#e3f2fd",
+  border: "1px solid #2196f3",
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
+  fontSize: "10px",
   fontWeight: "bold",
+  color: "#1565c0",
   overflow: "hidden",
-  whiteSpace: "nowrap" as const,
 });
+
+const openSpkSearch = () => {
+  lookup.spk = true;
+};
+const openMesinLookup = (idx: number) => {
+  activeRow.value = idx;
+  lookup.mesin = true;
+};
+const handleMesinSelect = (m: any) => {
+  if (activeRow.value !== -1)
+    detailData.value[activeRow.value].mesin = m.Kode || m.kode;
+  lookup.mesin = false;
+};
+const removeRow = (idx: number) => {
+  detailData.value.splice(idx, 1);
+};
 </script>
 
 <style scoped>
 .form-grid-container {
   display: flex;
   gap: 16px;
-  height: calc(100vh - 160px);
+  height: calc(100vh - 120px);
 }
-
 .left-column {
-  width: 300px;
+  width: 320px;
   flex-shrink: 0;
 }
-
 .right-column {
   flex: 1;
   min-width: 0;
   display: flex;
   flex-direction: column;
 }
-
-.scroll-x-container {
+.scroll-wrapper {
   overflow-x: auto;
-  overflow-y: hidden;
-  background-color: #f5f5f5;
-  border-radius: 4px;
-  min-height: 200px;
-  display: flex;
-  align-items: center;
+  background-color: #f8f9fa;
+  min-height: 180px;
+  border: 1px inset #ddd;
 }
-
-.roll-preview {
-  margin: 10px 0;
-  transition: all 0.3s ease;
-}
-
 .detail-entry-table :deep(thead th) {
-  background-color: #1976d2 !important;
+  background-color: #1565c0 !important;
   color: white !important;
+  text-transform: uppercase;
+  font-size: 0.7rem;
 }
 </style>
