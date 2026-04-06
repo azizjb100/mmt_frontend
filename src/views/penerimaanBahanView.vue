@@ -262,11 +262,11 @@ const printContent = () => {
   padding: ${pageConfig.boxPadding}; 
   box-sizing: border-box; 
   page-break-inside: avoid;
-  margin-bottom: 2mm; /* Sesuaikan dengan jarak celah antar label fisik */
+  margin-bottom: 7mm; /* Sesuaikan dengan jarak celah antar label fisik */
 }
 
           .empty-label { visibility: hidden; }
-          .label-box:nth-child(2n) { page-break-after: always; }
+          /* .label-box:nth-child(2n) { page-break-after: always; } */
           
           .border-inner { 
             border: 1pt solid black; 
