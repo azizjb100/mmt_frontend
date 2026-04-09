@@ -73,6 +73,18 @@
               placeholder="Tekan Enter setelah scan"
               :loading="isScanning"
             />
+            <v-btn
+              v-if="formData.proses !== 'POTONG'"
+              color="orange-darken-2"
+              size="small"
+              variant="tonal"
+              prepend-icon="mdi-history"
+              class="mx-2"
+              @click="fetchPendingPotong"
+              :loading="isFetchingPotong"
+            >
+              Ambil dari Potong
+            </v-btn>
 
             <v-btn
               color="success"
@@ -174,7 +186,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed } from "vue";
+import { ref, reactive, computed, watch } from "vue";
 import { useToast } from "vue-toastification";
 import api from "@/services/api";
 import PageLayout from "../components/PageLayout.vue";
@@ -185,6 +197,7 @@ const isSaving = ref(false);
 const isScanning = ref(false);
 const isSpkModalVisible = ref(false);
 const barcodeInput = ref("");
+const isFetchingPotong = ref(false);
 
 const daftarProses = [
   { title: "POTONG", value: "POTONG" },
@@ -208,15 +221,31 @@ const dynamicHeaders = computed(() => {
   const baseHeaders = [
     { title: "No SPK", key: "spk_nomor", width: "150px" },
     { title: "Nama Produk", key: "spk_nama" },
-    { title: "Ukuran (PxL)", key: "ukuran", width: "120px" },
-    { title: "Order", key: "qty_order", width: "100px", align: "end" },
+    { title: "Ukuran", key: "ukuran", width: "120px" },
+    { title: "Order", key: "qty_order", width: "80px", align: "end" },
     {
       title: `Hasil ${formData.proses}`,
       key: "qty_hasil",
-      width: "130px",
+      width: "100px",
       align: "end",
     },
   ];
+
+  // Tambahkan kolom khusus Mata Ayam jika prosesnya MATA AYAM
+  // if (formData.proses === "MATA_AYAM") {
+  //   baseHeaders.push(
+  //     { title: "Isi/Pcs", key: "pengali_mata_ayam", width: "100px" },
+  //     { title: "Total MA", key: "jml_mata_ayam", width: "100px" },
+  //   );
+  // }
+
+  // // Tambahkan kolom khusus Koli jika prosesnya KOLI
+  // if (formData.proses === "KOLI") {
+  //   baseHeaders.push(
+  //     { title: "Isi/Koli", key: "pengali_koli", width: "100px" },
+  //     { title: "Jml Koli", key: "jml_koli", width: "100px" },
+  //   );
+  // }
 
   baseHeaders.push({
     title: "",
@@ -224,7 +253,6 @@ const dynamicHeaders = computed(() => {
     width: "50px",
     sortable: false,
   });
-
   return baseHeaders;
 });
 
@@ -306,6 +334,56 @@ const calculateKoli = (item: any) => {
   }
 };
 
+const fetchPendingPotong = async () => {
+  isFetchingPotong.value = true;
+  try {
+    // Memanggil route yang baru saja kita buat
+    const response = await api.get("/mmt/lhk-finishing/pra/pending-potong", {
+      params: {
+        targetProses: formData.proses, // Mengirim proses yang sedang dipilih (misal: SEAMING)
+      },
+    });
+
+    const res = response.data;
+    if (res.success && res.data.length > 0) {
+      res.data.forEach((item: any) => {
+        const isExist = detailData.value.some(
+          (d) => d.spk_nomor === item.spk_nomor,
+        );
+        if (!isExist) {
+          // Buat objek baru
+          const newItem = {
+            spk_nomor: item.spk_nomor,
+            spk_nama: item.spk_nama,
+            panjang: item.panjang || 0,
+            lebar: item.lebar || 0,
+            qty_order: item.qty_order || 0,
+            qty_hasil: item.qty_hasil,
+            qty_bs: 0,
+            pengali_mata_ayam: 4,
+            jml_mata_ayam: 0,
+            pengali_koli: 8,
+            jml_koli: 0,
+          };
+
+          // JALANKAN KALKULASI OTOMATIS SEBELUM PUSH
+          calculateMataAyam(newItem);
+          calculateKoli(newItem);
+
+          detailData.value.push(newItem);
+        }
+      });
+      toast.success(`${res.data.length} data berhasil ditarik.`);
+    } else {
+      toast.info("Tidak ada data 'Potong' yang tersedia untuk proses ini.");
+    }
+  } catch (e: any) {
+    toast.error("Gagal mengambil data potong.");
+  } finally {
+    isFetchingPotong.value = false;
+  }
+};
+
 const handleBarcodeScan = async () => {
   if (!barcodeInput.value) return;
 
@@ -328,6 +406,16 @@ const handleBarcodeScan = async () => {
     // Fokuskan kembali ke input barcode jika perlu (opsional)
   }
 };
+
+watch(
+  () => formData.proses,
+  () => {
+    if (detailData.value.length > 0) {
+      // Beri peringatan atau kosongkan jika dirasa perlu
+      // detailData.value = [];
+    }
+  },
+);
 
 const handleSaveDraft = async () => {
   if (detailData.value.length === 0) {

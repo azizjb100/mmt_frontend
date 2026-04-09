@@ -184,130 +184,93 @@ const handlePrintQR = async () => {
 const printContent = () => {
   const iframe = document.createElement("iframe");
   iframe.style.position = "fixed";
-  iframe.style.right = "0";
-  iframe.style.bottom = "0";
-  iframe.style.width = "0";
-  iframe.style.height = "0";
-  iframe.style.border = "0";
+  iframe.style.visibility = "hidden"; // Lebih bersih daripada width 0
   document.body.appendChild(iframe);
 
   const doc = iframe.contentWindow?.document;
   if (!doc) return;
 
-  const isXprinter = printerType.value === "xprinter";
-
-  // Konfigurasi dinamis berdasarkan printer
-  const pageConfig = {
-    size: isXprinter ? "76.2mm 101mm" : "100mm 101mm",
-    justify: isXprinter ? "flex-start" : "center",
-    // Gunakan margin negatif untuk Xprinter agar 'memaksa' konten ke pojok kiri atas kertas
-    bodyMargin: isXprinter ? "1mm 0 0 0mm" : "0",
-    // Padding dalam kotak label (dikurangi agar konten mepet ke border)
-    boxPadding: isXprinter ? "1mm" : "1mm",
-  };
-
-  let finalLabels: string[] = [];
-
-  // Tambahkan label kosong untuk "Offset"
-  for (let i = 0; i < emptyLabelsOffset.value; i++) {
-    finalLabels.push(`<div class="label-box empty-label"></div>`);
-  }
-
+  let allLabels: PrintItem[] = [];
   itemsToPrint.value.forEach((item, index) => {
     if (selectedItemsToPrint.value.includes(index)) {
       for (let c = 0; c < printCopies.value; c++) {
-        finalLabels.push(`
-          <div class="label-box">
-            <div class="border-inner">
-              <div class="top-row">
-                <div class="qr-wrapper"><img src="${item.qrImage}" class="qr-img" /></div>
-                <div class="info-column">
-                  <div class="qr-text">${item.qrValue}</div>
-                  <div class="dimens-text">${item.Panjang} x ${item.Lebar}</div>
-                </div>
-              </div>
-              <div class="divider"></div>
-              <div class="product-name">${item.Nama_Bahan}</div>
-            </div>
-          </div>
-        `);
+        allLabels.push(item);
       }
     }
   });
 
-  const labelHtml = finalLabels.join("");
+  let html = "";
+  for (let i = 0; i < allLabels.length; i += 2) {
+    const l1 = allLabels[i];
+    const l2 = allLabels[i + 1];
+
+    html += `
+      <div class="print-page">
+        <div class="label-box pos-top">
+          <div class="border-inner">
+            <div class="top-row">
+              <img src="${l1.qrImage}" class="qr-img" />
+              <div class="info-column"><div class="qr-text">${l1.qrValue}</div><div class="dimens-text">${l1.Panjang} x ${l1.Lebar}</div></div>
+            </div>
+            <div class="divider"></div>
+            <div class="product-name">${l1.Nama_Bahan}</div>
+          </div>
+        </div>
+        ${
+          l2
+            ? `
+        <div class="label-box pos-bottom">
+          <div class="border-inner">
+            <div class="top-row">
+              <img src="${l2.qrImage}" class="qr-img" />
+              <div class="info-column"><div class="qr-text">${l2.qrValue}</div><div class="dimens-text">${l2.Panjang} x ${l2.Lebar}</div></div>
+            </div>
+            <div class="divider"></div>
+            <div class="product-name">${l2.Nama_Bahan}</div>
+          </div>
+        </div>`
+            : ""
+        }
+      </div>
+    `;
+  }
 
   doc.open();
   doc.write(`
     <html>
       <head>
         <style>
-          @page { 
-            size: ${pageConfig.size} portrait; 
-            margin: 0; 
+          @page { size: 100mm 101mm; margin: 0; }
+          body { margin: 0; padding: 0; line-height: 0; }
+          .print-page { 
+            width: 100mm; height: 101mm; 
+            position: relative; page-break-after: always; 
+            overflow: hidden; 
           }
-          body { 
-            margin: ${pageConfig.bodyMargin}; 
-            padding: 0; 
-            display: flex; 
-            flex-wrap: wrap; 
-            justify-content: ${pageConfig.justify}; 
-            font-family: Arial, sans-serif;
-            font-weight: bold
-          }
-          
           .label-box { 
-            width: 67mm; 
-            height: 45mm; 
-            padding: ${pageConfig.boxPadding}; 
-            box-sizing: border-box; 
-            page-break-inside: avoid;
-            margin-bottom: 4mm;
-            margin-top: 3mm;
+            width: 67mm; height: 44.5mm; /* Pengurangan 0.5mm untuk safety */
+            position: absolute; left: 50%; transform: translateX(-50%); 
+            line-height: normal; /* Balikkan line height di dalam label */
           }
-
-          .empty-label { visibility: hidden; }
-          .label-box:nth-child(2n) { page-break-after: always; }
-          
-          .border-inner { 
-            border: 1pt solid black; 
-            height: 100%; 
-            padding: ${pageConfig.boxPadding}; 
-            display: flex; 
-            flex-direction: column; 
-            box-sizing: border-box; 
-          }
-
-          .top-row { display: flex; gap: 8px; align-items: flex-start; }
-          .qr-img { width: 1.6cm; height: 1.6cm; }
-          .qr-text { font-weight: bold; font-size: 8pt; line-height: 1.1; }
-          .dimens-text { font-size: 9pt; margin-top: 2px; }
-
-          .product-name { 
-            font-size: 12pt; 
-            font-weight: bold; 
-            text-align: left; 
-            flex-grow: 1; 
-            display: flex; 
-            align-items: center; 
-            justify-content: center;
-            line-height: 1.2;
-          }
-
-          .divider { border-top: 1pt dashed black; margin: 2px 0; }
+          .pos-top { top: 0mm; }
+          .pos-bottom { bottom: 0mm; }
+          .border-inner { border: 1pt solid black; height: 100%; padding: 2mm; display: flex; flex-direction: column; box-sizing: border-box; font-family: Arial; font-weight: bold; }
+          .top-row { display: flex; gap: 5px; }
+          .qr-img { width: 1.5cm; height: 1.5cm; }
+          .qr-text { font-size: 8pt; word-break: break-all; }
+          .dimens-text { font-size: 10pt; }
+          .divider { border-top: 1pt dashed black; margin: 2mm 0; }
+          .product-name { font-size: 11pt; text-align: center; flex-grow: 1; display: flex; align-items: center; justify-content: center; text-transform: uppercase; }
         </style>
       </head>
-      <body>${labelHtml}</body>
+      <body>${html}</body>
     </html>
   `);
   doc.close();
 
   setTimeout(() => {
-    iframe.contentWindow?.focus();
     iframe.contentWindow?.print();
-    setTimeout(() => {
-      document.body.removeChild(iframe);
-    }, 1000);
+    setTimeout(() => document.body.removeChild(iframe), 1000);
   }, 500);
 };
 
