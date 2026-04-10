@@ -394,6 +394,12 @@ const handleFinalize = async () => {
   if (selectedItems.value.length === 0) return;
   isSaving.value = true;
   try {
+    // Ambil user login dari localStorage
+    const userLogin =
+      localStorage.getItem("kdUser") ||
+      localStorage.getItem("user_kode") ||
+      "ADMIN";
+
     const selectedDetails = unassignedData.value
       .filter((item) => selectedItems.value.includes(item.id))
       .map((item) => ({
@@ -407,7 +413,7 @@ const handleFinalize = async () => {
         jml_koli: item.jml_koli,
         pengali_ma: item.pengali_ma,
         pengali_koli: item.pengali_koli,
-        material_kode: item.bahan_kode, // Map ke material_kode untuk backend
+        material_kode: item.bahan_kode,
       }));
 
     const payload = {
@@ -416,7 +422,7 @@ const handleFinalize = async () => {
         lfh_tanggal: formData.tanggal,
         lfh_shift: formData.shift,
         lfh_gdg_prod: formData.gdg_kode,
-        lfh_user_create: "ADMIN",
+        lfh_user_create: userLogin, // ✅ Sekarang dinamis mengambil userLogin
         lfh_total_ma: totalMataAyam.value,
         lfh_total_koli: totalKoli.value,
       },

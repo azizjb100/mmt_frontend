@@ -44,9 +44,10 @@
           <v-divider class="my-3" />
           <div class="text-caption font-weight-bold">Informasi:</div>
           <div class="text-body-2 text-grey">
-            Data ini akan tersimpan di tabel <strong>Pra-LHK (tpra)</strong>.
-            Admin akan melakukan bundling data ini untuk menerbitkan nomor LHK
-            resmi.
+            Operator: <strong>{{ userLogin }}</strong
+            ><br />
+            Data akan tersimpan di tabel <strong>Pra-LHK</strong> sebelum
+            dibundel admin.
           </div>
         </v-card>
       </v-col>
@@ -55,11 +56,10 @@
         <v-card variant="outlined">
           <v-card-title class="d-flex align-center bg-grey-lighten-4 py-2 px-4">
             <span class="text-subtitle-1 font-weight-bold"
-              >Rincian Pekerjaan - {{ formData.proses }}</span
+              >Rincian - {{ formData.proses }}</span
             >
             <v-spacer />
 
-            <!-- INPUT SCAN BARCODE -->
             <v-text-field
               v-model="barcodeInput"
               label="Scan Barcode SPK"
@@ -70,26 +70,28 @@
               class="mx-2"
               style="max-width: 250px"
               @keyup.enter="handleBarcodeScan"
-              placeholder="Tekan Enter setelah scan"
+              placeholder="Contoh: 10*BARCODE"
               :loading="isScanning"
             />
+
             <v-btn
               v-if="formData.proses !== 'POTONG'"
               color="orange-darken-2"
               size="small"
               variant="tonal"
               prepend-icon="mdi-history"
-              class="mx-2"
+              class="mx-1"
               @click="fetchPendingPotong"
               :loading="isFetchingPotong"
             >
-              Ambil dari Potong
+              Tarik Potong
             </v-btn>
 
             <v-btn
               color="success"
               size="small"
               prepend-icon="mdi-plus"
+              class="mx-1"
               @click="openSpkSearch"
             >
               Pilih SPK
@@ -102,7 +104,6 @@
             density="compact"
             no-data-text="Belum ada SPK yang dipilih"
           >
-            <!-- Kolom Ukuran -->
             <template #[`item.ukuran`]="{ item }">
               {{ item.panjang }} x {{ item.lebar }}
             </template>
@@ -115,9 +116,10 @@
                 variant="underlined"
                 hide-details
                 class="text-end custom-input-qty"
-                @input="calculateMataAyam(item)"
+                @input="handleInputCalculation(item)"
               />
             </template>
+
             <template #[`item.pengali_mata_ayam`]="{ item }">
               <v-text-field
                 v-model.number="item.pengali_mata_ayam"
@@ -126,22 +128,31 @@
                 variant="underlined"
                 hide-details
                 suffix="pcs"
-                class="text-center custom-input-pengali"
-                @input="calculateMataAyam(item)"
-                style="min-width: 80px"
+                class="text-center"
+                @input="handleInputCalculation(item)"
               />
             </template>
-
             <template #[`item.jml_mata_ayam`]="{ item }">
+              <div class="text-end font-weight-bold text-success">
+                {{ item.jml_mata_ayam }}
+              </div>
+            </template>
+
+            <template #[`item.pengali_koli`]="{ item }">
               <v-text-field
-                v-model.number="item.jml_mata_ayam"
+                v-model.number="item.pengali_koli"
                 type="number"
                 density="compact"
                 variant="underlined"
                 hide-details
-                class="text-end font-weight-bold"
-                color="success"
+                suffix="pcs"
+                @input="handleInputCalculation(item)"
               />
+            </template>
+            <template #[`item.jml_koli`]="{ item }">
+              <div class="text-end font-weight-bold text-purple">
+                {{ item.jml_koli }}
+              </div>
             </template>
 
             <template #[`item.actions`]="{ index }">
@@ -153,25 +164,6 @@
                 @click="detailData.splice(index, 1)"
               />
             </template>
-
-            <template #[`item.pengali_koli`]="{ item }">
-              <v-text-field
-                v-model.number="item.pengali_koli"
-                type="number"
-                variant="underlined"
-                suffix="pcs"
-                @input="calculateKoli(item)"
-              />
-            </template>
-
-            <template #[`item.jml_koli`]="{ item }">
-              <v-text-field
-                v-model.number="item.jml_koli"
-                readonly
-                class="font-weight-bold"
-                color="purple"
-              />
-            </template>
           </v-data-table>
         </v-card>
       </v-col>
@@ -179,14 +171,14 @@
 
     <SpkLookupModal
       :isVisible="isSpkModalVisible"
-      @select="addSpk"
+      @select="addFirstTimeSpk"
       @close="isSpkModalVisible = false"
     />
   </PageLayout>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, watch } from "vue";
+import { ref, reactive, computed, watch, onMounted } from "vue";
 import { useToast } from "vue-toastification";
 import api from "@/services/api";
 import PageLayout from "../components/PageLayout.vue";
@@ -198,7 +190,18 @@ const isScanning = ref(false);
 const isSpkModalVisible = ref(false);
 const barcodeInput = ref("");
 const isFetchingPotong = ref(false);
+const userLogin = ref("system");
 
+// --- 1. USER AUTH LOGIC ---
+const getCurrentUser = () => {
+  const savedUser =
+    localStorage.getItem("kdUser") ||
+    localStorage.getItem("user_kode") ||
+    localStorage.getItem("username");
+  if (savedUser) userLogin.value = savedUser;
+};
+
+// --- 2. CONFIG DATA ---
 const daftarProses = [
   { title: "POTONG", value: "POTONG" },
   { title: "SEAMING", value: "SEAMING" },
@@ -216,7 +219,23 @@ const formData = reactive({
 
 const detailData = ref<any[]>([]);
 
-// Headers diperbarui dengan Ukuran dan Qty Order
+// --- 3. CALCULATION LOGIC ---
+const handleInputCalculation = (item: any) => {
+  // Hitung Mata Ayam
+  item.jml_mata_ayam =
+    formData.proses === "MATA_AYAM"
+      ? (item.qty_hasil || 0) * (item.pengali_mata_ayam || 0)
+      : 0;
+
+  // Hitung Koli
+  if (formData.proses === "KOLI" && item.pengali_koli > 0) {
+    item.jml_koli = Math.ceil((item.qty_hasil || 0) / item.pengali_koli);
+  } else {
+    item.jml_koli = 0;
+  }
+};
+
+// --- 4. TABLE HEADERS ---
 const dynamicHeaders = computed(() => {
   const baseHeaders = [
     { title: "No SPK", key: "spk_nomor", width: "150px" },
@@ -226,26 +245,33 @@ const dynamicHeaders = computed(() => {
     {
       title: `Hasil ${formData.proses}`,
       key: "qty_hasil",
-      width: "100px",
+      width: "120px",
       align: "end",
     },
   ];
 
-  // Tambahkan kolom khusus Mata Ayam jika prosesnya MATA AYAM
-  // if (formData.proses === "MATA_AYAM") {
-  //   baseHeaders.push(
-  //     { title: "Isi/Pcs", key: "pengali_mata_ayam", width: "100px" },
-  //     { title: "Total MA", key: "jml_mata_ayam", width: "100px" },
-  //   );
-  // }
-
-  // // Tambahkan kolom khusus Koli jika prosesnya KOLI
-  // if (formData.proses === "KOLI") {
-  //   baseHeaders.push(
-  //     { title: "Isi/Koli", key: "pengali_koli", width: "100px" },
-  //     { title: "Jml Koli", key: "jml_koli", width: "100px" },
-  //   );
-  // }
+  if (formData.proses === "MATA_AYAM") {
+    baseHeaders.push(
+      {
+        title: "Mata/Pcs",
+        key: "pengali_mata_ayam",
+        width: "100px",
+        align: "center",
+      },
+      { title: "Total MA", key: "jml_mata_ayam", width: "100px", align: "end" },
+    );
+  }
+  if (formData.proses === "KOLI") {
+    baseHeaders.push(
+      {
+        title: "Isi/Koli",
+        key: "pengali_koli",
+        width: "100px",
+        align: "center",
+      },
+      { title: "Jml Koli", key: "jml_koli", width: "100px", align: "end" },
+    );
+  }
 
   baseHeaders.push({
     title: "",
@@ -256,208 +282,154 @@ const dynamicHeaders = computed(() => {
   return baseHeaders;
 });
 
-const openSpkSearch = () => (isSpkModalVisible.value = true);
+// --- 5. BARCODE & SPK LOGIC ---
+const addFirstTimeSpk = (spk: any) => addSpkWithQty(spk, 0);
 
-const addSpk = (spk: any) => {
-  // Debug untuk memastikan data yang masuk
-  console.log("Data SPK Masuk:", spk);
-
-  // 1. Ambil Nomor SPK (Menangani: SPK, Spk, spk_nomor, NoSpk)
+const addSpkWithQty = (spk: any, initialQty: number) => {
   const nomorSpk =
     spk.SPK || spk.Spk || spk.spk_nomor || spk.NoSpk || spk.No_Pesanan;
-
-  // 2. Ambil Nama Produk (Menangani: Nama, spk_nama, NamaBarang)
   const namaSpk = spk.Nama || spk.spk_nama || spk.NamaBarang || spk.Nama_Barang;
-
-  // 3. Ambil Qty Order (Menangani: Jumlah, Qty, qty_order)
   const qtyOrder =
     spk.Jumlah || spk.Qty || spk.qty_order || spk.Jumlah_Order || 0;
-
-  // 4. Ambil Ukuran
   const p = spk.Panjang || spk.panjang || 0;
   const l = spk.Lebar || spk.lebar || 0;
-  if (!nomorSpk) {
-    console.error("Gagal mendapatkan Nomor SPK dari data:", spk);
-    toast.error("Format data SPK tidak dikenali oleh sistem");
-    return;
-  }
 
-  // Cek duplikasi di tabel agar tidak ada baris ganda
-  const isExist = detailData.value.some((d) => d.spk_nomor === nomorSpk);
-  if (isExist) {
-    toast.warning(`SPK ${nomorSpk} sudah ada dalam daftar`);
-    barcodeInput.value = "";
-    return;
-  }
+  if (!nomorSpk) return toast.error("Data SPK tidak valid");
 
-  // Masukkan ke dalam tabel rincian
-  detailData.value.push({
+  const newItem = {
     spk_nomor: nomorSpk,
     spk_nama: namaSpk,
     panjang: p,
     lebar: l,
     qty_order: qtyOrder,
-    qty_hasil: 0,
+    qty_hasil: initialQty,
     qty_bs: 0,
     pengali_mata_ayam: 4,
     jml_mata_ayam: 0,
-    pengali_koli: 8, // Tambahkan default isi koli (misal 8)
+    pengali_koli: 50,
     jml_koli: 0,
-  });
+  };
 
-  // Reset input scan dan tutup modal jika sedang terbuka
-  barcodeInput.value = "";
+  handleInputCalculation(newItem);
+  detailData.value.push(newItem);
   isSpkModalVisible.value = false;
 };
 
-const calculateMataAyam = (item: any) => {
-  if (formData.proses === "MATA_AYAM") {
-    // Mengambil nilai pengali dari baris tersebut
-    const pengali = item.pengali_mata_ayam || 0;
-    const hasil = item.qty_hasil || 0;
+const handleBarcodeScan = async () => {
+  if (!barcodeInput.value) return;
+  isScanning.value = true;
 
-    item.jml_mata_ayam = hasil * pengali;
-  } else {
-    item.jml_mata_ayam = 0;
+  try {
+    let quantityToAdd = 1;
+    let finalBarcode = barcodeInput.value.trim();
+
+    // Support format: 10*BARCODE
+    if (finalBarcode.includes("*")) {
+      const parts = finalBarcode.split("*");
+      if (parts.length === 2) {
+        quantityToAdd = parseFloat(parts[0]) || 1;
+        finalBarcode = parts[1].trim();
+      }
+    }
+
+    const existingIndex = detailData.value.findIndex(
+      (d) => d.spk_nomor === finalBarcode,
+    );
+
+    if (existingIndex !== -1) {
+      detailData.value[existingIndex].qty_hasil += quantityToAdd;
+      handleInputCalculation(detailData.value[existingIndex]);
+      toast.info(`SPK ${finalBarcode} bertambah ${quantityToAdd}`);
+    } else {
+      const response = await api.get(`/mmt/spk/${finalBarcode}`);
+      if (response.data.success && response.data.data) {
+        addSpkWithQty(response.data.data, quantityToAdd);
+      } else {
+        toast.error("SPK tidak ditemukan");
+      }
+    }
+  } catch (e) {
+    toast.error("Gagal memproses barcode");
+  } finally {
+    isScanning.value = false;
+    barcodeInput.value = "";
   }
 };
 
-const calculateKoli = (item: any) => {
-  if (formData.proses === "KOLI") {
-    const isiPerKoli = item.pengali_koli || 1; // Default 1 agar tidak error division by zero
-    const hasilPcs = item.qty_hasil || 0;
-
-    // Rumus: Hasil / Isi per Koli, dibulatkan ke atas
-    item.jml_koli = Math.ceil(hasilPcs / isiPerKoli);
-  } else {
-    item.jml_koli = 0;
-  }
-};
-
+// --- 6. ACTIONS ---
 const fetchPendingPotong = async () => {
   isFetchingPotong.value = true;
   try {
-    // Memanggil route yang baru saja kita buat
-    const response = await api.get("/mmt/lhk-finishing/pra/pending-potong", {
-      params: {
-        targetProses: formData.proses, // Mengirim proses yang sedang dipilih (misal: SEAMING)
-      },
+    const res = await api.get("/mmt/lhk-finishing/pra/pending-potong", {
+      params: { targetProses: formData.proses },
     });
-
-    const res = response.data;
-    if (res.success && res.data.length > 0) {
-      res.data.forEach((item: any) => {
-        const isExist = detailData.value.some(
-          (d) => d.spk_nomor === item.spk_nomor,
-        );
-        if (!isExist) {
-          // Buat objek baru
+    if (res.data.success && res.data.data.length > 0) {
+      res.data.data.forEach((item: any) => {
+        if (!detailData.value.some((d) => d.spk_nomor === item.spk_nomor)) {
           const newItem = {
             spk_nomor: item.spk_nomor,
             spk_nama: item.spk_nama,
             panjang: item.panjang || 0,
             lebar: item.lebar || 0,
             qty_order: item.qty_order || 0,
-            qty_hasil: item.qty_hasil,
+            qty_hasil: item.qty_hasil || 0,
             qty_bs: 0,
             pengali_mata_ayam: 4,
             jml_mata_ayam: 0,
-            pengali_koli: 8,
+            pengali_koli: 50,
             jml_koli: 0,
           };
-
-          // JALANKAN KALKULASI OTOMATIS SEBELUM PUSH
-          calculateMataAyam(newItem);
-          calculateKoli(newItem);
-
+          handleInputCalculation(newItem);
           detailData.value.push(newItem);
         }
       });
-      toast.success(`${res.data.length} data berhasil ditarik.`);
-    } else {
-      toast.info("Tidak ada data 'Potong' yang tersedia untuk proses ini.");
+      toast.success(`${res.data.data.length} data ditarik.`);
     }
-  } catch (e: any) {
-    toast.error("Gagal mengambil data potong.");
   } finally {
     isFetchingPotong.value = false;
   }
 };
 
-const handleBarcodeScan = async () => {
-  if (!barcodeInput.value) return;
-
-  isScanning.value = true;
-  try {
-    const response = await api.get(`/mmt/spk/${barcodeInput.value}`);
-    const res = response.data;
-
-    if (res.success && res.data) {
-      addSpk(res.data);
-    } else {
-      toast.error(res.message || "Data SPK tidak ditemukan");
-    }
-  } catch (e: any) {
-    console.error("Scan Error:", e);
-    toast.error(e.response?.data?.message || "Gagal memproses barcode");
-  } finally {
-    isScanning.value = false;
-    barcodeInput.value = "";
-    // Fokuskan kembali ke input barcode jika perlu (opsional)
-  }
-};
-
-watch(
-  () => formData.proses,
-  () => {
-    if (detailData.value.length > 0) {
-      // Beri peringatan atau kosongkan jika dirasa perlu
-      // detailData.value = [];
-    }
-  },
-);
-
 const handleSaveDraft = async () => {
-  if (detailData.value.length === 0) {
-    toast.error("Rincian pekerjaan masih kosong");
-    return;
-  }
-
+  if (detailData.value.length === 0) return;
   isSaving.value = true;
   try {
     const payload = {
       details: detailData.value.map((item) => ({
-        spk_nomor: item.spk_nomor,
-        spk_nama: item.spk_nama,
+        ...item,
         proses_kategori: formData.proses,
-        qty_hasil: item.qty_hasil,
-        jml_mata_ayam: item.jml_mata_ayam,
-        jml_koli: item.jml_koli || 0,
-        qty_bs: item.qty_bs || 0,
         tgl_input: formData.tanggal,
         shift_input: formData.shift,
+        input_by: userLogin.value,
         is_bundled: false,
       })),
     };
-
     await api.post("/mmt/lhk-finishing/pra", payload);
-
-    toast.success("Berhasil menyimpan ke Pra-LHK");
+    toast.success("Berhasil simpan Pra-LHK");
     detailData.value = [];
   } catch (e: any) {
-    toast.error(e.response?.data?.message || "Gagal menyimpan");
+    toast.error(e.response?.data?.message || "Gagal simpan");
   } finally {
     isSaving.value = false;
   }
 };
+
+const openSpkSearch = () => (isSpkModalVisible.value = true);
+
+// Update kalkulasi jika proses berubah
+watch(
+  () => formData.proses,
+  () => {
+    detailData.value.forEach((d) => handleInputCalculation(d));
+  },
+);
+
+onMounted(getCurrentUser);
 </script>
 
 <style scoped>
-.v-card-title {
-  font-size: 0.95rem !important;
-}
 .custom-input-qty :deep(input) {
   font-weight: bold;
-  color: #1976d2;
+  color: #1976d2 !important;
 }
 </style>

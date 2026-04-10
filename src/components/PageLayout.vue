@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed } from "vue";
 
 // --- Props ---
 interface Props {
@@ -11,27 +11,27 @@ interface Props {
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  icon: 'mdi-file-document-outline',
+  icon: "mdi-file-document-outline",
   loading: false,
   desktopMode: true,
-  maxWidth: '100%' // Default ke lebar penuh, bisa di-override per halaman
+  maxWidth: "100%", // Default ke lebar penuh, bisa di-override per halaman
 });
 
 // --- Emits ---
 const emit = defineEmits<{
-  'update:loading': [value: boolean]
+  "update:loading": [value: boolean];
 }>();
 
 // --- Computed ---
 const containerClass = computed(() => ({
-  'page-container': true,
-  'desktop-mode': props.desktopMode,
-  'modern-mode': !props.desktopMode,
+  "page-container": true,
+  "desktop-mode": props.desktopMode,
+  "modern-mode": !props.desktopMode,
 }));
 
 const loadingModel = computed({
   get: () => props.loading,
-  set: (value: boolean) => emit('update:loading', value)
+  set: (value: boolean) => emit("update:loading", value),
 });
 </script>
 
@@ -50,20 +50,28 @@ const loadingModel = computed({
 
     <!-- Main Content Area -->
     <div class="content-area">
-        <!-- Loading Overlay -->
-        <v-overlay v-model="loadingModel" contained persistent class="d-flex align-center justify-center">
-            <v-progress-circular indeterminate color="primary"></v-progress-circular>
-        </v-overlay>
-        
-        <!-- Slot Konten Utama -->
-        <div class="content-wrapper">
-          <slot />
-        </div>
+      <!-- Loading Overlay -->
+      <v-overlay
+        v-model="loadingModel"
+        contained
+        persistent
+        class="d-flex align-center justify-center"
+      >
+        <v-progress-circular
+          indeterminate
+          color="primary"
+        ></v-progress-circular>
+      </v-overlay>
 
-        <!-- Slot Footer (untuk Status Bar) -->
-        <div v-if="$slots.footer" class="content-footer">
-          <slot name="footer" />
-        </div>
+      <!-- Slot Konten Utama -->
+      <div class="content-wrapper">
+        <slot />
+      </div>
+
+      <!-- Slot Footer (untuk Status Bar) -->
+      <div v-if="$slots.footer" class="content-footer">
+        <slot name="footer" />
+      </div>
     </div>
   </div>
 </template>
@@ -134,18 +142,18 @@ const loadingModel = computed({
   position: relative; /* Untuk v-overlay */
   display: flex;
   flex-direction: column;
-  
+
   /* Menerapkan style dari desktop-app.css jika dalam mode desktop */
   background: var(--content-bg, #ffffff);
   border: var(--content-border, 1px solid #e0e0e0);
   border-radius: var(--content-radius, 8px);
-  box-shadow: var(--content-shadow, 0 1px 3px rgba(0,0,0,0.05));
+  box-shadow: var(--content-shadow, 0 1px 3px rgba(0, 0, 0, 0.05));
 }
 .desktop-mode .content-area {
-   --content-bg: #ffffff;
-   --content-border: 1px solid #dcdcdc;
-   --content-radius: 4px;
-   --content-shadow: none;
+  --content-bg: #ffffff;
+  --content-border: 1px solid #dcdcdc;
+  --content-radius: 4px;
+  --content-shadow: none;
 }
 .content-wrapper {
   flex-grow: 1;
@@ -164,4 +172,3 @@ const loadingModel = computed({
   border-top: 1px solid #e0e0e0;
 }
 </style>
-

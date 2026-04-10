@@ -1,12 +1,30 @@
 <template>
   <div class="dashboard-layout-top font-body">
+    <div
+      v-if="isMobileMenuOpen"
+      class="menu-overlay"
+      @click="isMobileMenuOpen = false"
+    ></div>
+
     <nav class="top-navbar shadow-sm">
-      <div class="navbar-brand">
-        <span class="brand-icon mdi mdi-speedometer"></span>
-        <span class="font-heading">MyApp</span>
+      <div class="navbar-left">
+        <button
+          class="mobile-toggle"
+          @click="isMobileMenuOpen = !isMobileMenuOpen"
+        >
+          <span
+            class="mdi"
+            :class="isMobileMenuOpen ? 'mdi-close' : 'mdi-menu'"
+          ></span>
+        </button>
+
+        <div class="navbar-brand">
+          <span class="brand-icon mdi mdi-speedometer"></span>
+          <span class="font-heading">MyApp</span>
+        </div>
       </div>
 
-      <ul class="navbar-menu" @click="handleMenuClick">
+      <ul class="navbar-menu" :class="{ 'is-mobile-open': isMobileMenuOpen }">
         <li
           v-for="group in menuGroups"
           :key="group.name"
@@ -15,6 +33,7 @@
         >
           <a class="dropdown-toggle" @click.prevent="toggleMenu(group.name)">
             {{ group.name }}
+            <span class="mdi mdi-chevron-down hide-desktop"></span>
           </a>
 
           <ul class="dropdown-menu shadow-md">
@@ -30,24 +49,31 @@
                 <a
                   v-if="!item.isDisabled"
                   class="sub-dropdown-toggle"
+                  @mouseenter="activeSubMenu = item.name"
                   @click.prevent.stop="toggleSubMenu(item.name)"
                 >
                   {{ item.name }}
                   <span
                     class="icon-arrow"
                     :class="{ rotate: activeSubMenu === item.name }"
-                    >&raquo;</span
+                    >»</span
                   >
                 </a>
+
                 <span v-else class="disabled-link">
                   {{ item.name }} <span class="mdi mdi-lock-outline"></span>
                 </span>
 
                 <ul
                   v-if="!item.isDisabled && activeSubMenu === item.name"
-                  class="dropdown-menu sub-menu is-visible"
+                  class="sub-menu-popup shadow-md is-visible"
+                  @mouseleave="activeSubMenu = null"
                 >
-                  <li v-for="subItem in item.items" :key="subItem.name">
+                  <li
+                    v-for="subItem in item.items"
+                    :key="subItem.name"
+                    class="card-item"
+                  >
                     <router-link :to="subItem.path" @click="closeAllMenus">
                       {{ subItem.name }}
                     </router-link>
@@ -56,7 +82,11 @@
               </li>
 
               <li v-else :class="{ 'item-disabled': item.isDisabled }">
-                <router-link v-if="!item.isDisabled" :to="item.path">
+                <router-link
+                  v-if="!item.isDisabled"
+                  :to="item.path"
+                  @click="closeAllMenus"
+                >
                   {{ item.name }}
                 </router-link>
                 <span v-else class="disabled-link">
@@ -69,11 +99,14 @@
       </ul>
 
       <div class="navbar-user">
-        <span class="user-welcome">
+        <span class="user-welcome hide-mobile">
           Selamat datang,
           <b class="font-semibold">{{ currentUser?.nmUser || "UserAdmin" }}</b>
         </span>
-        <button @click="handleLogout" class="logout-button">Logout</button>
+        <button @click="handleLogout" class="logout-button">
+          <span class="mdi mdi-logout hide-desktop"></span>
+          <span class="hide-mobile">Logout</span>
+        </button>
       </div>
     </nav>
 
@@ -85,8 +118,8 @@
   </div>
 </template>
 
-<script setup>
-import { ref, computed, onMounted, onUnmounted } from "vue"; // PERBAIKAN: Tambah onUnmounted
+<script setup lang="ts">
+import { ref, computed, onMounted, onUnmounted } from "vue";
 import { useRouter } from "vue-router";
 import { useAuthStore } from "@/stores/authStore";
 
@@ -94,9 +127,58 @@ const authStore = useAuthStore();
 const currentUser = authStore.user;
 const router = useRouter();
 
-// State untuk menu aktif
-const activeMenu = ref(null); // Untuk Level 1 (Transaksi, Laporan, dll)
-const activeSubMenu = ref(null);
+// State Navigasi
+const isMobileMenuOpen = ref(false);
+const activeMenu = ref(null); // Level 1: File, Daftar, Transaksi, Laporan
+const activeSubMenu = ref(null); // Level 2: Daftar (Sub), Finance, LHK, dll
+
+// Fungsi Logout
+const handleLogout = () => {
+  authStore.logout();
+  router.push("/login");
+};
+
+// --- LOGIC TOGGLE MENU ---
+
+// Toggle Menu Utama (Level 1)
+const toggleMenu = (menuName: string) => {
+  if (activeMenu.value !== menuName) {
+    activeSubMenu.value = null; // Reset Level 2 jika pindah menu utama
+  }
+  activeMenu.value = activeMenu.value === menuName ? null : menuName;
+};
+
+// Toggle Sub-Group (Level 2 ke Level 3)
+// Menggunakan stop propagation agar klik tidak 'tembus' ke penutup menu
+const toggleSubMenu = (subName: string) => {
+  activeSubMenu.value = activeSubMenu.value === subName ? null : subName;
+};
+
+// Menutup semua menu saat link diklik (Navigasi Berhasil)
+const closeAllMenus = () => {
+  activeMenu.value = null;
+  activeSubMenu.value = null;
+  isMobileMenuOpen.value = false;
+};
+
+// Menutup menu jika klik di luar area navbar
+const handleClickOutside = (e: MouseEvent) => {
+  const target = e.target as HTMLElement;
+  if (!target.closest(".dropdown")) {
+    activeMenu.value = null;
+    activeSubMenu.value = null;
+  }
+};
+
+onMounted(() => {
+  window.addEventListener("click", handleClickOutside);
+});
+
+onUnmounted(() => {
+  window.removeEventListener("click", handleClickOutside);
+});
+
+// --- DATA & PERMISSIONS ---
 
 const rolePermissions = {
   1: [
@@ -138,45 +220,6 @@ const rolePermissions = {
     "Lap. Mon LMKP MMT",
   ],
 };
-
-const handleLogout = () => {
-  authStore.logout();
-  router.push("/login");
-};
-
-// LOGIC TOGGLE MENU
-const toggleMenu = (menuName) => {
-  if (activeMenu.value !== menuName) {
-    activeSubMenu.value = null; // Reset sub-menu jika pindah menu utama
-  }
-  activeMenu.value = activeMenu.value === menuName ? null : menuName;
-};
-
-const toggleSubMenu = (subName) => {
-  activeSubMenu.value = activeSubMenu.value === subName ? null : subName;
-};
-
-const handleMenuClick = (e) => {
-  const target = e.target.closest("a");
-  if (target && !target.classList.contains("dropdown-toggle")) {
-    activeMenu.value = null;
-  }
-};
-
-// LOGIC KLIK DI LUAR UNTUK MENUTUP
-const closeMenu = (e) => {
-  if (!e.target.closest(".dropdown")) {
-    activeMenu.value = null;
-  }
-};
-
-onMounted(() => {
-  window.addEventListener("click", closeMenu);
-});
-
-onUnmounted(() => {
-  window.removeEventListener("click", closeMenu);
-});
 
 const allMenuGroups = [
   {
@@ -407,24 +450,24 @@ const allMenuGroups = [
 ];
 
 const menuGroups = computed(() => {
-  const zdivisi = authStore.user?.divisi;
+  const zdivisi = authStore.user?.divisi as keyof typeof rolePermissions;
   const menus = JSON.parse(JSON.stringify(allMenuGroups));
   const allowedTitles = rolePermissions[zdivisi];
 
   if (!allowedTitles) return menus;
 
-  return menus.map((group) => {
+  return menus.map((group: any) => {
     return {
       ...group,
-      items: group.items.map((item) => {
+      items: group.items.map((item: any) => {
         let canAccess = allowedTitles.includes(item.name);
 
         if (item.isSubGroup && item.items) {
-          item.items = item.items.map((subItem) => ({
+          item.items = item.items.map((subItem: any) => ({
             ...subItem,
             isDisabled: !allowedTitles.includes(subItem.name),
           }));
-          const anySubAllowed = item.items.some((sub) => !sub.isDisabled);
+          const anySubAllowed = item.items.some((sub: any) => !sub.isDisabled);
           if (anySubAllowed) canAccess = true;
         }
 
@@ -439,69 +482,64 @@ const menuGroups = computed(() => {
 </script>
 
 <style scoped>
-/* Gunakan scoped agar tidak merusak style halaman lain */
-
-/* 1. VARIABLES */
-:root {
-  --font-family-primary: "Inter", sans-serif;
-  --font-family-heading: "Poppins", sans-serif;
+/* 1. THEME VARIABLES */
+.dashboard-layout-top {
   --color-primary: #1e78c8;
   --color-primary-dark: #155a9b;
-  --color-text-dark: #333333;
-  --color-text-secondary: #6c757d;
-  --color-bg-main: #ffffff;
-  --color-bg-page: #f8f9fa;
-  --color-bg-menu-hover: #e3f2fd;
+  --color-primary-light: #e3f2fd;
+  --color-text-main: #333333;
   --color-border: #e0e0e0;
-  --color-disabled: #999999;
-  --border-radius-sm: 8px;
-  --border-radius-md: 12px;
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.1);
-  --shadow-md: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
-  --transition-fast: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-}
+  --radius-md: 12px;
+  --transition: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 
-/* 2. LAYOUT */
-.dashboard-layout-top {
   display: flex;
   flex-direction: column;
   height: 100vh;
   width: 100%;
   overflow: hidden;
-  background-color: #f8f9fa;
+  background-color: #f7fafc;
 }
 
+/* 2. TOP NAVBAR */
 .top-navbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
   background-color: white;
   padding: 0 24px;
-  height: 64px;
-  border-bottom: 1px solid #e0e0e0;
-  z-index: 1000;
+  height: var(--navbar-height);
+  border-bottom: 1px solid var(--color-border);
+  z-index: 1100;
+  flex-shrink: 0;
+}
+
+.navbar-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
 }
 
 .navbar-brand {
+  color: var(--color-primary-dark);
   font-family: "Poppins", sans-serif;
-  font-size: 1.25rem;
   font-weight: 800;
-  color: #155a9b;
+  font-size: 1.2rem;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
 }
 
+/* 3. NAVIGATION MENU (DESKTOP) */
 .navbar-menu {
   display: flex;
   list-style: none;
   margin: 0;
-  padding: 0;
+  padding: 0 0 0 20px;
   height: 100%;
+  flex-grow: 1;
   gap: 4px;
 }
 
-/* 3. DROPDOWN CORE */
 .dropdown {
   position: relative;
   height: 100%;
@@ -512,44 +550,120 @@ const menuGroups = computed(() => {
   align-items: center;
   height: 100%;
   padding: 0 16px;
-  cursor: pointer;
-  color: #333;
+  color: var(--color-text-main);
   font-weight: 600;
-  font-size: 0.95rem;
-  transition: 0.2s;
+  font-size: 0.92rem;
   text-decoration: none;
+  transition: var(--transition);
+  cursor: pointer;
 }
 
-.dropdown.is-active .dropdown-toggle,
-.dropdown-toggle:hover {
-  background-color: #e3f2fd;
-  color: #1e78c8;
+.dropdown-toggle:hover,
+.dropdown.is-active .dropdown-toggle {
+  background-color: var(--color-primary-light);
+  color: var(--color-primary);
 }
 
+/* 4. DROPDOWN CONTENT (LEVEL 2) */
 .dropdown-menu {
   display: none;
   position: absolute;
   top: 100%;
   left: 0;
   background-color: white;
-  border: 1px solid #e0e0e0;
-  min-width: 240px;
+  min-width: 250px;
   list-style: none;
   padding: 8px;
-  border-radius: 12px;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-  z-index: 1100;
+  border: 1px solid var(--color-border);
+  border-radius: 0 0 var(--radius-md) var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  z-index: 1200;
 }
 
-.dropdown.is-active > .dropdown-menu {
-  display: block;
-  animation: slideIn 0.2s ease-out;
+/* Desktop Hover Logic */
+@media (min-width: 1025px) {
+  .dropdown:hover > .dropdown-menu {
+    display: block;
+    animation: fadeInQuick 0.15s ease-out;
+  }
 }
 
-@keyframes slideIn {
+.dropdown-menu li a,
+.sub-dropdown-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  color: var(--color-text-main);
+  text-decoration: none;
+  font-size: 0.88rem;
+  border-radius: 6px;
+  transition: var(--transition);
+  cursor: pointer;
+}
+
+.dropdown-menu li a:hover,
+.is-sub-active > .sub-dropdown-toggle {
+  background-color: var(--color-primary);
+  color: white !important;
+}
+
+/* 5. SUB-MENU (LEVEL 3) - Card Style & Pancingan */
+.sub-dropdown {
+  position: relative;
+}
+
+.sub-menu-popup {
+  position: absolute;
+  left: 100%;
+  top: 0;
+  min-width: 240px;
+  padding-left: 12px; /* Area jembatan mouse */
+  background: transparent;
+  z-index: 1300;
+  list-style: none;
+}
+
+.card-item {
+  background-color: white;
+  margin-bottom: 6px;
+  border: 1px solid #edf2f7;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  overflow: hidden;
+  transition: transform 0.2s;
+}
+
+.card-item:hover {
+  transform: translateX(4px);
+}
+
+.card-item a {
+  background-color: white !important;
+  color: var(--color-text-main) !important;
+}
+
+.card-item a:hover {
+  background-color: var(--color-primary) !important;
+  color: white !important;
+}
+
+/* 6. ICONS & ANIMATIONS */
+.icon-arrow {
+  display: inline-block;
+  transition: transform 0.3s ease;
+  font-size: 1rem;
+  margin-left: 8px;
+}
+
+.icon-arrow.rotate {
+  transform: rotate(90deg);
+}
+
+@keyframes fadeInQuick {
   from {
     opacity: 0;
-    transform: translateY(10px);
+    transform: translateY(-5px);
   }
   to {
     opacity: 1;
@@ -557,127 +671,115 @@ const menuGroups = computed(() => {
   }
 }
 
-.dropdown-menu a {
-  display: block;
-  padding: 5px;
-  color: #333;
-  text-decoration: none;
-  font-size: 0.9rem;
-  border-radius: 8px;
-}
-
-.dropdown-menu li:not(.item-disabled) > a:hover {
-  background-color: #1e78c8;
-  color: white !important;
-}
-.sub-dropdown {
-  position: relative;
-}
-
-.sub-menu {
+/* 7. MOBILE RESPONSIVE */
+.mobile-toggle {
   display: none;
-  position: absolute;
-  left: 100%; /* Tetap di kanan */
-  top: 0;
-  /* PERBAIKAN: Tambahkan padding/margin negatif agar tidak ada celah antara L2 dan L3 */
-  margin-left: 0;
-  padding-left: 10px; /* Area pancingan: Jarak visual tapi tetap dianggap satu area */
-  min-width: 220px;
-  z-index: 1200;
-}
-
-.sub-menu.is-visible {
-  display: block !important;
-  animation: fadeIn 0.2s ease;
-}
-
-.sub-dropdown-toggle {
+  background: none;
+  border: none;
+  font-size: 24px;
+  color: var(--color-primary);
   cursor: pointer;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 10px 14px;
 }
 
-/* Beri tanda warna jika sub-menu sedang terbuka */
-.is-sub-active > .sub-dropdown-toggle {
-  background-color: #f0f7ff;
-  color: #1e78c8;
-}
-
-.icon-arrow {
-  transition: transform 0.2s;
-}
-
-.icon-arrow.rotate {
-  transform: rotate(90deg);
-}
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateX(5px);
+@media (max-width: 1024px) {
+  .mobile-toggle {
+    display: block;
   }
-  to {
-    opacity: 1;
-    transform: translateX(0);
+  .hide-mobile {
+    display: none;
+  }
+
+  .navbar-menu {
+    position: fixed;
+    top: 0;
+    left: -100%;
+    width: 280px;
+    height: 100vh;
+    background: white;
+    flex-direction: column;
+    padding: 70px 20px 20px;
+    transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 4px 0 10px rgba(0, 0, 0, 0.1);
+    display: block;
+    overflow-y: auto;
+  }
+
+  .navbar-menu.is-mobile-open {
+    left: 0;
+  }
+
+  .dropdown {
+    height: auto;
+    display: block;
+    border-bottom: 1px solid #f1f5f9;
+  }
+
+  .dropdown-menu {
+    position: static;
+    display: none;
+    box-shadow: none;
+    border: none;
+    padding: 0 0 10px 15px;
+    background: #f8fafc;
+  }
+
+  .dropdown.is-active > .dropdown-menu {
+    display: block;
+  }
+
+  .sub-menu-popup {
+    position: static;
+    padding-left: 15px;
+    background: white;
+  }
+
+  .card-item {
+    box-shadow: none;
+    border: none;
+    border-left: 2px solid var(--color-primary);
+    border-radius: 0;
+    margin-bottom: 0;
   }
 }
-/* Styling tambahan untuk link di Level 3 agar lebih rapat dan mudah dijangkau */
-.sub-menu li {
-  background-color: white; /* Beri background agar area klik jelas */
-  border: 1px solid var(--color-border);
-  border-radius: var(--border-radius-sm);
-  margin-bottom: 2px;
-  box-shadow: var(--shadow-md);
-}
 
-.sub-menu li:first-child {
-  border-top-left-radius: var(--border-radius-md);
-  border-top-right-radius: var(--border-radius-md);
-}
-
-.sub-menu li:last-child {
-  border-bottom-left-radius: var(--border-radius-md);
-  border-bottom-right-radius: var(--border-radius-md);
-}
-/* 5. DISABLED */
-.item-disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.disabled-link {
-  display: flex;
-  justify-content: space-between;
-  padding: 10px 14px;
-  color: #999;
-  font-size: 0.9rem;
-}
-
+/* 8. USER SECTION */
 .navbar-user {
   display: flex;
   align-items: center;
-  gap: 15px;
+  gap: 16px;
+  min-width: 180px;
+  justify-content: flex-end;
 }
 
 .logout-button {
-  background-color: #1e78c8;
-  color: white;
-  border: none;
+  background-color: var(--color-danger-bg);
+  color: var(--color-danger);
+  border: 1px solid #fed7d7;
   padding: 8px 16px;
-  border-radius: 8px;
-  cursor: pointer;
+  border-radius: 6px;
   font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition);
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .logout-button:hover {
-  background-color: #155a9b;
+  background-color: var(--color-danger);
+  color: white;
+}
+
+.menu-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  z-index: 1080;
 }
 
 .main-content-top {
   flex-grow: 1;
   overflow-y: auto;
-  padding: 20px;
+  padding: 24px;
 }
 </style>
