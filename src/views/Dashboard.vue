@@ -590,6 +590,37 @@ const menuGroups = computed(() => {
   z-index: 1100;
 }
 
+.disabled-link {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px;
+  color: #94a3b8; /* Abu-abu lebih lembut */
+  font-size: 0.88rem; /* Samakan dengan link aktif */
+  font-weight: 500; /* Jangan gunakan bold yang terlalu tebal */
+  cursor: not-allowed;
+  background-color: #f8fafc; /* Beri sedikit background beda agar terlihat 'off' */
+  border-radius: 6px;
+  margin-bottom: 2px;
+}
+
+.disabled-link .mdi-lock-outline {
+  font-size: 0.9rem;
+  opacity: 0.7;
+  margin-left: 8px;
+}
+
+/* Pastikan item disabled tidak berubah warna saat di-hover */
+.item-disabled:hover {
+  background-color: transparent !important;
+}
+
+/* Menyesuaikan jarak agar teks tidak terlalu mepet ke ikon gembok */
+.item-disabled {
+  pointer-events: none; /* Mencegah interaksi */
+  user-select: none;
+}
+
 /* Desktop Hover Logic */
 @media (min-width: 1025px) {
   .dropdown:hover > .dropdown-menu {
