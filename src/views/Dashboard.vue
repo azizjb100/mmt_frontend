@@ -558,6 +558,12 @@ const menuGroups = computed(() => {
   cursor: pointer;
 }
 
+.dropdown.is-active > .dropdown-menu {
+  visibility: visible;
+  opacity: 1;
+  transform: translateY(0);
+}
+
 .dropdown-toggle:hover,
 .dropdown.is-active .dropdown-toggle {
   background-color: var(--color-primary-light);
@@ -566,18 +572,22 @@ const menuGroups = computed(() => {
 
 /* 4. DROPDOWN CONTENT (LEVEL 2) */
 .dropdown-menu {
-  display: none;
+  /* Hilangkan display: none, gunakan opacity & pointer-events agar transisi halus */
+  display: block;
+  visibility: hidden;
+  opacity: 0;
   position: absolute;
   top: 100%;
   left: 0;
   background-color: white;
-  min-width: 250px;
-  list-style: none;
+  min-width: 240px;
   padding: 8px;
   border: 1px solid var(--color-border);
   border-radius: 0 0 var(--radius-md) var(--radius-md);
-  box-shadow: var(--shadow-lg);
-  z-index: 1200;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+  transform: translateY(10px);
+  transition: all 0.2s ease;
+  z-index: 1100;
 }
 
 /* Desktop Hover Logic */
@@ -593,7 +603,7 @@ const menuGroups = computed(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 14px;
+  padding: 5px;
   color: var(--color-text-main);
   text-decoration: none;
   font-size: 0.88rem;

@@ -539,43 +539,27 @@ const handlePOSelect = async (po: any) => {
     const d = res.data.data;
 
     if (d && d.header) {
-      // 1. Set Nomor PO
-      formData.noPermintaan =
-        d.header.Nomor || d.header.no_po || d.header.no_permintaan;
+      // 1. Set Header Data
+      formData.noPermintaan = d.header.Nomor;
+      formData.supplierKode = d.header.Kode_Supplier;
 
-      // 2. Set Kode Supplier (Cek berbagai kemungkinan nama field dari backend)
-      const kodeSup =
-        d.header.Kode_Supplier ||
-        d.header.supplier_kode ||
-        d.header.kode_supplier ||
-        d.header.Supplier_Kode;
-      formData.supplierKode = kodeSup;
-      const namaSup =
-        d.header.Nama ||
-        d.header.Nama_Supplier ||
-        d.header.nama_supplier ||
-        d.header.Supplier_Nama;
-
-      if (namaSup) {
-        formData.supplier = namaSup;
-      } else if (kodeSup) {
-        // Panggil fungsi pembantu jika nama tidak disertakan di API PO
-        await fetchSupplierName(kodeSup);
+      // Karena di JSON header tidak ada nama supplier, kita fetch manual
+      if (d.header.Kode_Supplier) {
+        await fetchSupplierName(d.header.Kode_Supplier);
       }
 
-      // 4. Set Detail Barang
-      if (d.details) {
+      // 2. Set Detail Barang (Mapping sesuai JSON response)
+      if (d.details && d.details.length > 0) {
         formData.details = d.details.map((x: any) => ({
-          kode: x.SKU || x.Kode_Bahan || x.kode,
-          namaBahan: x.Nama_Bahan || x.nama_bahan || x.Nama,
-          qtyPO: Number(x.QTY_PO || x.qty || 0),
-          qtyTerima: Number(x.QTY_PO || 0), // default terima = PO
-
-          panjang: Number(x.Panjang || 0),
-          lebar: Number(x.Lebar || 0),
-          satuan: x.Satuan || "",
-          keterangan: "",
-          harga: Number(x.Harga_PO || x.harga || 0),
+          kode: x.kode, // Sesuai JSON: "kode"
+          namaBahan: x.nama, // Sesuai JSON: "nama"
+          qtyPO: Number(x.jumlah || 0), // Sesuai JSON: "jumlah"
+          qtyTerima: Number(x.jumlah || 0),
+          panjang: Number(x.panjang || 0),
+          lebar: Number(x.lebar || 0),
+          satuan: x.satuan || "",
+          keterangan: x.spk ? `SPK: ${x.spk}` : "", // Tambahan info SPK jika ada
+          harga: 0, // JSON tidak menyediakan harga, default ke 0
         }));
       }
     }
