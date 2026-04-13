@@ -100,6 +100,7 @@
                     @mousedown.stop="onResizeStart($event, 'kode')"
                   ></div>
                 </th>
+
                 <th
                   rowspan="2"
                   class="text-center sticky-col-2 bg-blue-main"
@@ -111,7 +112,44 @@
                     @mousedown.stop="onResizeStart($event, 'Nama')"
                   ></div>
                 </th>
-                <th rowspan="2" class="text-center">JENIS</th>
+
+                <th
+                  rowspan="2"
+                  class="text-center bg-blue-main"
+                  style="width: 150px"
+                >
+                  <div class="d-flex align-center justify-center ga-1">
+                    JENIS
+                    <v-menu :close-on-content-click="false" location="bottom">
+                      <template v-slot:activator="{ props }">
+                        <v-btn
+                          icon="mdi-filter-variant"
+                          variant="text"
+                          size="small"
+                          v-bind="props"
+                          :color="
+                            selectedJenis !== 'SEMUA' ? 'warning' : 'white'
+                          "
+                        ></v-btn>
+                      </template>
+                      <v-list
+                        density="compact"
+                        class="pa-2"
+                        style="min-width: 200px"
+                      >
+                        <v-radio-group v-model="selectedJenis" hide-details>
+                          <v-radio
+                            v-for="opt in jenisOptions"
+                            :key="opt"
+                            :label="opt"
+                            :value="opt"
+                            class="mb-1"
+                          ></v-radio>
+                        </v-radio-group>
+                      </v-list>
+                    </v-menu>
+                  </div>
+                </th>
 
                 <th
                   rowspan="2"
@@ -188,6 +226,7 @@
                     </v-menu>
                   </div>
                 </th>
+
                 <th
                   colspan="3"
                   class="text-center bg-blue-sub spesifikasi-header"
@@ -202,37 +241,38 @@
                 </th>
                 <th
                   :colspan="canSeeNominal ? 3 : 2"
-                  class="text-center bg-blue-sub spesifikasi-header"
+                  class="text-center bg-blue-sub"
                 >
                   TERIMA
                 </th>
                 <th
                   :colspan="canSeeNominal ? 3 : 2"
-                  class="text-center bg-blue-sub spesifikasi-header"
+                  class="text-center bg-blue-sub"
                 >
                   KELUAR
                 </th>
                 <th
                   :colspan="canSeeNominal ? 3 : 2"
-                  class="text-center bg-blue-sub spesifikasi-header"
+                  class="text-center bg-blue-sub"
                 >
                   STOCK AKHIR
                 </th>
               </tr>
+
               <tr class="header-row-2">
                 <th class="text-center spesifikasi-child">PANJANG</th>
                 <th class="text-center">LEBAR</th>
                 <th class="text-center">M2/ROLL</th>
                 <th class="text-center">ROLL</th>
-                <th class="text-center spesifikasi-child">M2</th>
+                <th class="text-center">M2</th>
                 <th v-if="canSeeNominal" class="text-center">NOMINAL (Rp)</th>
                 <th class="text-center">ROLL</th>
                 <th class="text-center">M2</th>
                 <th v-if="canSeeNominal" class="text-center">NOMINAL (Rp)</th>
                 <th class="text-center">ROLL</th>
-                <th class="text-center spesifikasi-child">M2</th>
+                <th class="text-center">M2</th>
                 <th v-if="canSeeNominal" class="text-center">NOMINAL (Rp)</th>
-                <th class="text-center spesifikasi-child">ROLL</th>
+                <th class="text-center">ROLL</th>
                 <th class="text-center">M2</th>
                 <th v-if="canSeeNominal" class="text-center">NOMINAL (Rp)</th>
               </tr>
@@ -408,6 +448,9 @@ const selectedGudangNama = ref("GUDANG UTAMA MMT");
 const showGudangLookup = ref(false);
 const selectedStatus = ref("SEMUA");
 const selectedType = ref("SEMUA");
+const selectedJenis = ref("SEMUA");
+
+// 3. Update logika filteredData (Tambahkan matchJenis)
 
 // Ambil list status unik untuk isi dropdown
 const statusOptions = computed(() => {
@@ -422,8 +465,13 @@ const typeOptions = computed(() => {
     .filter(Boolean);
   return ["SEMUA", ...new Set(types)];
 });
+const jenisOptions = computed(() => {
+  const values = allData.value
+    .map((item) => item.jb_nama || "-")
+    .filter(Boolean);
+  return ["SEMUA", ...new Set(values)];
+});
 
-// Update filteredData untuk menyaring berdasarkan status
 const filteredData = computed(() => {
   const query = searchQuery.value.toLowerCase();
   return allData.value.filter((row) => {
@@ -440,7 +488,11 @@ const filteredData = computed(() => {
       selectedType.value === "SEMUA" ||
       (row.type_barang || "-") === selectedType.value;
 
-    return matchSearch && matchStatus && matchType;
+    const matchJenis =
+      selectedJenis.value === "SEMUA" ||
+      (row.jb_nama || "-") === selectedJenis.value;
+
+    return matchSearch && matchStatus && matchType && matchJenis;
   });
 });
 
@@ -560,17 +612,19 @@ const reportTotals = computed(() => {
 
 const exportToExcel = () => {
   // 1. Definisikan Header Baris 1 (Header Utama / Merge)
+  // Tambahkan JENIS dan TYPE sebelum STATUS
   const header1 = [
     "KODE",
     "NAMA BAHAN",
     "JENIS",
+    "TYPE",
     "STATUS",
     "SPESIFIKASI",
     "",
-    "", // 3 kolom untuk Spesifikasi
+    "", // 3 kolom untuk Spesifikasi (P, L, M2)
     "STOCK AWAL",
     "",
-    canSeeNominal.value ? "" : null, // 3 atau 2 kolom
+    canSeeNominal.value ? "" : null,
     "TERIMA",
     "",
     canSeeNominal.value ? "" : null,
@@ -587,7 +641,8 @@ const exportToExcel = () => {
     "",
     "",
     "",
-    "", // Kosongkan bawah Kode, Nama, Jenis, Status (karena akan di-rowmerge)
+    "",
+    "", // Kosongkan bawah Kode, Nama, Jenis, Type, Status (rowmerge)
     "PANJANG",
     "LEBAR",
     "M2/ROLL",
@@ -611,6 +666,7 @@ const exportToExcel = () => {
       row.kode,
       row.Nama,
       row.jb_nama,
+      row.type_barang,
       row.status_barang,
       row.Panjang,
       row.Lebar,
@@ -632,25 +688,55 @@ const exportToExcel = () => {
     return base;
   });
 
-  // 4. Gabungkan semua menjadi satu sheet
-  const ws = XLSX.utils.aoa_to_sheet([header1, header2, ...body]);
+  // 4. Baris Total (Sinkronkan dengan footer tabel)
+  const totalRow = [
+    "TOTAL:",
+    "",
+    "",
+    "",
+    "", // Colspan 5 untuk identitas
+    "",
+    "",
+    "", // Kosongkan bawah Spesifikasi
+    reportTotals.value.stok_awal_q,
+    reportTotals.value.stok_awal_m,
+  ];
+  if (canSeeNominal.value) totalRow.push(reportTotals.value.stok_awal_nominal);
 
-  // 5. Konfigurasi Merge Cells (Sangat Penting)
-  // s = start, e = end, r = row, c = col
+  totalRow.push(reportTotals.value.terima_q, reportTotals.value.terima_m);
+  if (canSeeNominal.value) totalRow.push(reportTotals.value.terima_nominal);
+
+  totalRow.push(reportTotals.value.keluar_q, reportTotals.value.keluar_m);
+  if (canSeeNominal.value) totalRow.push(reportTotals.value.keluar_nominal);
+
+  totalRow.push(
+    reportTotals.value.stok_akhir_q,
+    reportTotals.value.stok_akhir_m,
+  );
+  if (canSeeNominal.value) totalRow.push(reportTotals.value.stok_akhir_nominal);
+
+  // 5. Gabungkan menjadi sheet
+  const ws = XLSX.utils.aoa_to_sheet([header1, header2, ...body, totalRow]);
+
+  // 6. Konfigurasi Merge Cells
   const merges = [
-    // Merge Vertikal untuk kolom identitas
+    // Merge Vertikal Kolom Identitas (Baris 0 sampai 1)
     { s: { r: 0, c: 0 }, e: { r: 1, c: 0 } }, // KODE
     { s: { r: 0, c: 1 }, e: { r: 1, c: 1 } }, // NAMA BAHAN
     { s: { r: 0, c: 2 }, e: { r: 1, c: 2 } }, // JENIS
-    { s: { r: 0, c: 3 }, e: { r: 1, c: 3 } }, // STATUS
+    { s: { r: 0, c: 3 }, e: { r: 1, c: 3 } }, // TYPE
+    { s: { r: 0, c: 4 }, e: { r: 1, c: 4 } }, // STATUS
 
-    // Merge Horizontal untuk Grouping
-    { s: { r: 0, c: 4 }, e: { r: 0, c: 6 } }, // SPESIFIKASI (P, L, M2)
+    // Merge Horizontal Spesifikasi (Baris 0, Kolom 5 sampai 7)
+    { s: { r: 0, c: 5 }, e: { r: 0, c: 7 } },
+
+    // Merge Horizontal Total (Baris terakhir, Kolom 0 sampai 4)
+    { s: { r: body.length + 2, c: 0 }, e: { r: body.length + 2, c: 4 } },
   ];
 
-  // Merge untuk Stock Awal, Terima, Keluar, Akhir (dinamis jika nominal ada)
+  // Merge untuk Kelompok Stok (Awal, Terima, Keluar, Akhir)
   const colStep = canSeeNominal.value ? 3 : 2;
-  let currentColumn = 7;
+  let currentColumn = 8; // Dimulai setelah Spesifikasi (kolom index 8)
 
   for (let i = 0; i < 4; i++) {
     merges.push({
@@ -662,18 +748,28 @@ const exportToExcel = () => {
 
   ws["!merges"] = merges;
 
-  // 6. Atur Lebar Kolom (Optional)
+  // 7. Atur Lebar Kolom
   ws["!cols"] = [
     { wch: 15 },
     { wch: 35 },
     { wch: 15 },
+    { wch: 12 },
     { wch: 15 }, // Identitas
     { wch: 10 },
     { wch: 10 },
     { wch: 10 }, // Spesifikasi
-    { wch: 8 },
+    { wch: 10 },
     { wch: 12 },
-    { wch: 15 }, // Pengulangan (Roll, M2, Nom)
+    { wch: 15 }, // Pengulangan (Stok Awal)
+    { wch: 10 },
+    { wch: 12 },
+    { wch: 15 }, // Pengulangan (Terima)
+    { wch: 10 },
+    { wch: 12 },
+    { wch: 15 }, // Pengulangan (Keluar)
+    { wch: 10 },
+    { wch: 12 },
+    { wch: 15 }, // Pengulangan (Stok Akhir)
   ];
 
   const wb = XLSX.utils.book_new();
