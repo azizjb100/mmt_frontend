@@ -20,7 +20,7 @@
 
         <div class="navbar-brand">
           <span class="brand-icon mdi mdi-speedometer"></span>
-          <span class="font-heading">MyApp</span>
+          <span class="font-heading">MMT App</span>
         </div>
       </div>
 
