@@ -14,7 +14,23 @@
 
         <v-card-text class="text-body-1 py-4">
           Ada perbaikan sistem (Validasi Barcode & Stok). Jika Anda sudah
-          selesai menyimpan data, harap segera perbarui aplikasi.
+          selesai menyimpan data, harap segera perbarui aplikasi agar fitur
+          terbaru aktif.
+
+          <div class="mt-4 pa-2 bg-grey-lighten-4 rounded-lg text-caption">
+            <div class="d-flex justify-space-between">
+              <span>Versi Saat Ini:</span>
+              <span class="font-weight-bold text-grey-darken-1">{{
+                formatVersion(localVersionDisplay)
+              }}</span>
+            </div>
+            <div class="d-flex justify-space-between text-primary">
+              <span>Versi Terbaru:</span>
+              <span class="font-weight-bold">{{
+                formatVersion(serverVersion)
+              }}</span>
+            </div>
+          </div>
         </v-card-text>
 
         <v-card-actions class="justify-center flex-column ga-2">
@@ -45,12 +61,22 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from "vue";
-import { useRouter } from "vue-router"; // Import router
+import { useRouter } from "vue-router";
 
 const router = useRouter();
 const showUpdateModal = ref(false);
 const serverVersion = ref("");
-const isPaused = ref(false);
+const localVersionDisplay = ref("");
+
+// Fungsi untuk mempercantik tampilan timestamp agar tidak terlalu panjang
+const formatVersion = (v: string) => {
+  if (!v) return "-";
+  if (v.length > 10) {
+    // Jika berupa timestamp (Date.now()), ambil 5 angka terakhir saja sebagai identitas unik
+    return `v.${v.slice(-5)}`;
+  }
+  return `v.${v}`;
+};
 
 const checkForUpdates = async () => {
   try {
@@ -63,14 +89,13 @@ const checkForUpdates = async () => {
 
     if (!response.ok) return;
 
-    const text = await response.text(); // Ambil teks mentah dulu untuk pengecekan
-    if (!text.startsWith("{")) {
-      console.warn("Respons bukan JSON valid");
-      return;
-    }
+    const text = await response.text();
+    if (!text.startsWith("{")) return;
 
-    const data = JSON.parse(text); // Baru di-parse di sini
+    const data = JSON.parse(text);
     const localVersion = localStorage.getItem("app_version");
+
+    localVersionDisplay.value = localVersion || "";
 
     console.log(
       `[Version Check] Lokal: ${localVersion} | Server: ${data.version}`,
@@ -78,6 +103,7 @@ const checkForUpdates = async () => {
 
     if (!localVersion) {
       localStorage.setItem("app_version", data.version);
+      localVersionDisplay.value = data.version;
     } else if (String(localVersion) !== String(data.version)) {
       serverVersion.value = data.version;
       showUpdateModal.value = true;
@@ -87,7 +113,6 @@ const checkForUpdates = async () => {
   }
 };
 
-// Fungsi saat klik Update
 const handleUpdate = () => {
   localStorage.setItem("app_version", serverVersion.value);
   setTimeout(() => {
@@ -95,21 +120,15 @@ const handleUpdate = () => {
   }, 100);
 };
 
-// Fungsi saat klik Nanti (Hanya menutup modal sementara)
 const remindMeLater = () => {
   showUpdateModal.value = false;
 };
 
 onMounted(() => {
-  // 1. Cek saat pertama kali aplikasi dibuka
   checkForUpdates();
-
-  // 2. Cek otomatis setiap 5 menit (standby)
   setInterval(checkForUpdates, 300000);
 
-  // 3. LOGIKA BARU: Cek setiap kali pindah halaman
   router.afterEach(() => {
-    console.log("Berpindah halaman, mengecek ulang versi...");
     checkForUpdates();
   });
 });
@@ -133,7 +152,6 @@ body {
   overflow: hidden;
 }
 
-/* Styling tambahan agar modal terlihat lebih modern */
 .v-card {
   border-radius: 12px !important;
 }
