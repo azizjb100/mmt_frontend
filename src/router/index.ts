@@ -83,6 +83,7 @@ import MutasiGudangView from '@/views/MutasiGudangView.vue';
 import FormMutasiGudangView from '@/views/FormMutasiGudangView.vue';
 import SpkPrintView from '@/views/SpkPrintView.vue';
 import SearchBarcodeView from '@/views/SearchBarcodeView.vue';
+import FormStbjView from '@/views/FormStbjView.vue';
 
 
 
@@ -133,6 +134,7 @@ const routes: RouteRecordRaw[] = [
                 props: true 
             },
             { path: 'mmt/stbj', name: 'BrowseStbj', component: StbjView },
+            { path: 'mmt/stbj/new', name: 'StbjNew', component: FormStbjView },
             { path: 'mmt/daftar/stbj', name: 'STBJMMT', component: StbjMmtView },
             { path: 'mmt/pengajuan-permintaan', name: 'PengajuanPermintaanBrowse', component: PengajuanPermintaanView },
             {

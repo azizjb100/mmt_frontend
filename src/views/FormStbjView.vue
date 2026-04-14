@@ -1,275 +1,385 @@
-<template>
-  <PageLayout
-    :title="isEdit ? 'Edit STBJ' : 'Input Barang Jadi (STBJ)'"
-    icon="mdi-package-variant-closed"
-  >
-    <template #header-actions>
-      <v-btn
-        color="primary"
-        prepend-icon="mdi-content-save"
-        @click="saveData"
-        :loading="submitting"
-      >
-        Simpan
-      </v-btn>
-      <v-btn variant="outlined" class="ml-2" @click="$router.back()"
-        >Batal</v-btn
-      >
-    </template>
-
-    <v-row>
-      <!-- Panel Header -->
-      <v-col cols="12">
-        <v-card variant="outlined" class="pa-4">
-          <v-row density="compact">
-            <v-col cols="12" md="3">
-              <v-text-field
-                v-model="store.header.stbj_nomor"
-                label="Nomor STBJ"
-                readonly
-                variant="filled"
-                density="compact"
-              />
-            </v-col>
-            <v-col cols="12" md="3">
-              <v-text-field
-                v-model="store.header.stbj_tanggal"
-                label="Tanggal"
-                type="date"
-                variant="outlined"
-                density="compact"
-              />
-            </v-col>
-            <v-col cols="12" md="6">
-              <div class="d-flex ga-2">
-                <v-text-field
-                  v-model="store.header.stbj_gdg_kode"
-                  label="Gudang Tujuan"
-                  readonly
-                  variant="outlined"
-                  density="compact"
-                  style="max-width: 120px"
-                />
-                <v-text-field
-                  v-model="store.header.stbj_gdg_nama"
-                  readonly
-                  variant="filled"
-                  density="compact"
-                  append-inner-icon="mdi-magnify"
-                  @click:append-inner="openGudangHelp"
-                />
-              </div>
-            </v-col>
-            <v-col cols="12">
-              <v-textarea
-                v-model="store.header.stbj_keterangan"
-                label="Keterangan"
-                rows="2"
-                variant="outlined"
-                density="compact"
-                hide-details
-              />
-            </v-col>
-          </v-row>
-        </v-card>
-      </v-col>
-
-      <!-- Panel Detail Grid -->
-      <v-col cols="12">
-        <v-card variant="outlined">
-          <v-table density="compact" class="stbj-table">
-            <thead>
-              <tr>
-                <th class="text-center" width="50">No</th>
-                <th width="200">No. SPK</th>
-                <th>Nama Barang / Item</th>
-                <th width="100">Size</th>
-                <th width="120">Jumlah</th>
-                <th width="100">Koli</th>
-                <th width="50"></th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="(item, index) in store.details" :key="index">
-                <td class="text-center">{{ index + 1 }}</td>
-                <td>
-                  <v-text-field
-                    v-model="item.stbjd_spk_nomor"
-                    placeholder="Input SPK..."
-                    variant="plain"
-                    hide-details
-                    @keyup.enter="handleSPKLookup(index)"
-                  />
-                </td>
-                <td>
-                  <v-text-field
-                    v-model="item.nama_barang"
-                    readonly
-                    variant="plain"
-                    hide-details
-                    class="text-grey"
-                  />
-                </td>
-                <td>
-                  <v-text-field
-                    v-model="item.stbjd_size"
-                    variant="plain"
-                    hide-details
-                  />
-                </td>
-                <td>
-                  <v-text-field
-                    v-model.number="item.stbjd_jumlah"
-                    type="number"
-                    variant="plain"
-                    hide-details
-                    class="text-right font-weight-bold"
-                  />
-                </td>
-                <td>
-                  <v-text-field
-                    v-model.number="item.stbjd_koli"
-                    type="number"
-                    variant="plain"
-                    hide-details
-                    class="text-right"
-                  />
-                </td>
-                <td>
-                  <v-btn
-                    icon="mdi-delete"
-                    size="x-small"
-                    color="error"
-                    variant="text"
-                    @click="store.removeDetail(index)"
-                  />
-                </td>
-              </tr>
-            </tbody>
-          </v-table>
-          <v-divider />
-          <v-card-actions>
-            <v-btn
-              prepend-icon="mdi-plus"
-              size="small"
-              color="success"
-              @click="store.addDetail"
-            >
-              Tambah Baris (F2)
-            </v-btn>
-            <v-spacer />
-            <div class="mr-4 text-h6">
-              Total Qty: <span class="text-primary">{{ totalQty }}</span>
-            </div>
-          </v-card-actions>
-        </v-card>
-      </v-col>
-    </v-row>
-
-    <!-- Dialog Bantuan Gudang -->
-    <v-dialog v-model="showGudangHelp" width="600">
-      <!-- Komponen bantuan gudang Anda di sini -->
-    </v-dialog>
-  </PageLayout>
-</template>
-
 <script setup lang="ts">
-import { ref, computed, onMounted } from "vue";
-import { useStbjStore } from "@/stores/stbjStore";
-import { useRoute, useRouter } from "vue-router";
-import { useToast } from "vue-toastification";
+import { ref, onMounted, computed, reactive } from "vue";
+import { useRouter, useRoute } from "vue-router";
 import api from "@/services/api";
+import PageLayout from "../components/PageLayout.vue";
+import GudangLookupModal from "@/modal/GudangLookupView.vue";
+import SPKLookupModal from "@/modal/SpkLookupModal.vue";
+import { format } from "date-fns";
+import { useToast } from "vue-toastification";
 
-const store = useStbjStore();
-const route = useRoute();
+// --- Interfaces ---
+interface DetailItem {
+  packing: string;
+  spk: string;
+  namaBarang: string;
+  size: string;
+  qty: number;
+  koli: number;
+  keterangan: string;
+}
+
+interface FormDataState {
+  nomor: string;
+  tanggal: string;
+  gudangKode: string;
+  gudangNama: string;
+  gudangProduksiKode: string;
+  gudangProduksiNama: string;
+  keteranganHeader: string;
+  userCreate: string;
+  detail: DetailItem[];
+}
+
+// --- Setup & State ---
 const router = useRouter();
+const route = useRoute();
 const toast = useToast();
 
-const submitting = ref(false);
-const showGudangHelp = ref(false);
-const isEdit = computed(() => !!route.params.nomor);
+const API_URL = "mmt/stbj"; // Sesuaikan dengan route Express Anda
 
-// Computed total qty mirip summary di Grid Delphi
-const totalQty = computed(() => {
-  return store.details.reduce((sum, item) => sum + (item.stbjd_jumlah || 0), 0);
+const isEditMode = ref(!!route.params.nomor);
+const isSaving = ref(false);
+const isGudangModalVisible = ref(false);
+const isSPKModalVisible = ref(false);
+const currentDetailIndex = ref<number | null>(null);
+
+const createEmptyDetail = (): DetailItem => ({
+  packing: "",
+  spk: "",
+  namaBarang: "",
+  size: "",
+  qty: 0,
+  koli: 0,
+  keterangan: "",
 });
 
-const handleSPKLookup = async (index: number) => {
-  const spk = store.details[index].stbjd_spk_nomor;
-  if (!spk) return;
+const formData = reactive<FormDataState>({
+  nomor: "AUTO",
+  tanggal: format(new Date(), "yyyy-MM-dd"),
+  gudangKode: "",
+  gudangNama: "",
+  gudangProduksiKode: "GP-001", // Default Finishing
+  gudangProduksiNama: "GUDANG FINISHING",
+  keteranganHeader: "",
+  userCreate: "",
+  detail: [createEmptyDetail()],
+});
 
-  try {
-    const res = await api.get(`/bantuan/spk-stbj/${spk}`);
-    store.details[index].nama_barang = res.data.nama;
-    store.details[index].stbjd_size = res.data.ukuran;
-    // Logika auto-focus ke kolom jumlah
-  } catch (e) {
-    toast.error("Nomor SPK tidak ditemukan");
+const detailHeaders = [
+  { title: "No", key: "index", width: "40px", align: "center" as const },
+  { title: "No. SPK", key: "spk", width: "150px" },
+  { title: "Nama Barang", key: "namaBarang", width: "250px" },
+  { title: "Size", key: "size", width: "80px" },
+  { title: "Jumlah", key: "qty", width: "100px", align: "end" as const },
+  { title: "Koli", key: "koli", width: "80px", align: "end" as const },
+  { title: "Keterangan", key: "keterangan" },
+  { title: "Aksi", key: "actions", width: "50px", align: "center" as const },
+] as const;
+
+// --- Computed ---
+const calculatedTotal = computed(() => {
+  return formData.detail.reduce((sum, d) => sum + (Number(d.qty) || 0), 0);
+});
+
+const isFormValid = computed(() => {
+  return (
+    !!formData.gudangKode && formData.detail.some((d) => d.spk && d.qty > 0)
+  );
+});
+
+// --- Methods ---
+const addDetail = () => {
+  formData.detail.push(createEmptyDetail());
+};
+
+const removeDetail = (index: number) => {
+  if (formData.detail.length > 1) {
+    formData.detail.splice(index, 1);
+  } else {
+    formData.detail[0] = createEmptyDetail();
   }
 };
 
-const saveData = async () => {
-  // Validasi seperti di Delphi
-  if (!store.header.stbj_gdg_kode) {
-    return toast.warning("Gudang harus diisi!");
-  }
-  if (store.details.length === 0) {
-    return toast.warning("Detail barang masih kosong!");
-  }
+const saveForm = async () => {
+  if (!isFormValid.value) return;
+  isSaving.value = true;
 
-  submitting.value = true;
   try {
+    // Pastikan tanggal tidak null/undefined
+    const tglHeader = formData.tanggal
+      ? formData.tanggal
+      : format(new Date(), "yyyy-MM-dd");
+
     const payload = {
-      header: store.header,
-      details: store.details,
+      header: {
+        stbj_nomor: formData.nomor,
+        stbj_tanggal: tglHeader, // Kirim string yyyy-MM-dd
+        stbj_gdg_kode: formData.gudangKode,
+        stbj_gdgp_kode: formData.gudangProduksiKode,
+        stbj_keterangan: formData.keteranganHeader,
+      },
+      details: formData.detail.filter((d) => d.spk && d.qty > 0),
     };
 
-    if (isEdit.value) {
-      await api.put(`/stbj/${store.header.stbj_nomor}`, payload);
+    if (isEditMode.value) {
+      await api.put(
+        `${API_URL}/${encodeURIComponent(formData.nomor)}`,
+        payload,
+      );
     } else {
-      await api.post("/stbj", payload);
+      await api.post(API_URL, payload);
     }
 
-    toast.success("STBJ Berhasil Disimpan");
-    router.push({ name: "StbjBrowse" });
-  } catch (err: any) {
-    toast.error(err.response?.data?.message || "Gagal menyimpan STBJ");
+    toast.success("STBJ berhasil disimpan!");
+    router.back();
+  } catch (error: any) {
+    // Tangkap pesan error spesifik jika ada
+    console.error("Error Simpan:", error);
+    toast.error(error.response?.data?.message || "Gagal menyimpan STBJ.");
   } finally {
-    submitting.value = false;
+    isSaving.value = false;
   }
 };
 
-const openGudangHelp = () => {
-  showGudangHelp.value = true;
+const handleGudangSelect = (gudang: any) => {
+  formData.gudangKode = gudang.Kode;
+  formData.gudangNama = gudang.Nama;
+  isGudangModalVisible.value = false;
+};
+
+const handleSPKSelect = (spk: any) => {
+  if (currentDetailIndex.value !== null) {
+    const target = formData.detail[currentDetailIndex.value];
+    target.spk = spk.Nomor || spk.Spk;
+    target.namaBarang = spk.Nama;
+    target.size = spk.Ukuran;
+    if (currentDetailIndex.value === formData.detail.length - 1) addDetail();
+  }
+  isSPKModalVisible.value = false;
 };
 
 onMounted(() => {
-  if (isEdit.value) {
-    store.loadSTBJ(route.params.nomor as string);
-  } else {
-    store.$reset();
-    store.addDetail();
+  if (isEditMode.value && route.params.nomor) {
+    // Panggil fungsi loaddataall mirip contoh Anda
   }
 });
 </script>
 
+<template>
+  <PageLayout
+    :title="isEditMode ? 'Edit STBJ' : 'Input Barang Jadi (STBJ)'"
+    icon="mdi-archive-arrow-down"
+  >
+    <template #header-actions>
+      <v-btn
+        size="x-small"
+        color="primary"
+        @click="saveForm"
+        :loading="isSaving"
+        :disabled="!isFormValid"
+      >
+        <v-icon start>mdi-check-circle</v-icon> Simpan (F10)
+      </v-btn>
+      <v-btn size="x-small" @click="router.back()" class="ml-1">
+        <v-icon start>mdi-close</v-icon> Tutup
+      </v-btn>
+    </template>
+
+    <div class="form-grid-container">
+      <div class="left-column">
+        <v-card flat border>
+          <v-card-title class="text-subtitle-1 py-2 bg-grey-lighten-4"
+            >Data Header</v-card-title
+          >
+          <v-divider />
+          <v-card-text>
+            <v-row dense>
+              <v-col cols="12">
+                <v-text-field
+                  label="Nomor STBJ"
+                  v-model="formData.nomor"
+                  readonly
+                  variant="filled"
+                  density="compact"
+                  hide-details
+                />
+              </v-col>
+              <v-col cols="12">
+                <v-text-field
+                  label="Tanggal"
+                  v-model="formData.tanggal"
+                  type="date"
+                  variant="outlined"
+                  density="compact"
+                  hide-details
+                />
+              </v-col>
+              <v-col cols="12">
+                <v-text-field
+                  label="Gudang Tujuan"
+                  v-model="formData.gudangKode"
+                  @click="isGudangModalVisible = true"
+                  append-inner-icon="mdi-magnify"
+                  readonly
+                  density="compact"
+                  variant="outlined"
+                  hide-details
+                />
+              </v-col>
+              <v-col cols="12">
+                <v-text-field
+                  label="Nama Gudang"
+                  v-model="formData.gudangNama"
+                  readonly
+                  bg-color="grey-lighten-4"
+                  density="compact"
+                  variant="outlined"
+                  hide-details
+                />
+              </v-col>
+              <v-col cols="12">
+                <v-textarea
+                  label="Keterangan Header"
+                  v-model="formData.keteranganHeader"
+                  rows="2"
+                  variant="outlined"
+                  density="compact"
+                  hide-details
+                />
+              </v-col>
+
+              <v-col cols="12" class="mt-4">
+                <v-card color="blue-lighten-5" flat class="pa-2">
+                  <div class="text-caption font-weight-bold text-blue-darken-3">
+                    TOTAL QTY JADI
+                  </div>
+                  <div
+                    class="text-h5 font-weight-black text-right text-blue-darken-4"
+                  >
+                    {{ calculatedTotal }}
+                  </div>
+                </v-card>
+              </v-col>
+            </v-row>
+          </v-card-text>
+        </v-card>
+      </div>
+
+      <div class="right-column">
+        <v-card border flat>
+          <v-data-table
+            :headers="detailHeaders"
+            :items="formData.detail"
+            :items-per-page="-1"
+            density="compact"
+            hide-default-footer
+            fixed-header
+            height="calc(100vh - 220px)"
+          >
+            <template #[`item.index`]="{ index }">
+              <span class="text-grey text-caption">{{ index + 1 }}</span>
+            </template>
+
+            <template #[`item.spk`]="{ item, index }">
+              <v-text-field
+                v-model="item.spk"
+                @click="
+                  ((currentDetailIndex = index), (isSPKModalVisible = true))
+                "
+                append-inner-icon="mdi-magnify"
+                readonly
+                density="compact"
+                variant="plain"
+                hide-details
+              />
+            </template>
+
+            <template #[`item.qty`]="{ item }">
+              <v-text-field
+                v-model.number="item.qty"
+                type="number"
+                density="compact"
+                variant="plain"
+                hide-details
+                class="text-right-input"
+              />
+            </template>
+
+            <template #[`item.koli`]="{ item }">
+              <v-text-field
+                v-model.number="item.koli"
+                type="number"
+                density="compact"
+                variant="plain"
+                hide-details
+                class="text-right-input"
+              />
+            </template>
+
+            <template #[`item.actions`]="{ index }">
+              <v-btn
+                icon="mdi-delete"
+                size="x-small"
+                color="error"
+                variant="text"
+                @click="removeDetail(index)"
+              />
+            </template>
+
+            <template #bottom>
+              <div class="pa-2 border-t">
+                <v-btn
+                  size="x-small"
+                  color="primary"
+                  variant="tonal"
+                  prepend-icon="mdi-plus"
+                  @click="addDetail"
+                  >Tambah Baris (F2)</v-btn
+                >
+              </div>
+            </template>
+          </v-data-table>
+        </v-card>
+      </div>
+    </div>
+
+    <GudangLookupModal
+      :isVisible="isGudangModalVisible"
+      @close="isGudangModalVisible = false"
+      @select="handleGudangSelect"
+    />
+    <SPKLookupModal
+      :isVisible="isSPKModalVisible"
+      @close="isSPKModalVisible = false"
+      @select="handleSPKSelect"
+    />
+  </PageLayout>
+</template>
+
 <style scoped>
-.stbj-table :deep(th) {
-  background-color: #eceff1 !important;
-  font-weight: bold !important;
-  color: #455a64 !important;
-  text-transform: uppercase;
-  font-size: 0.75rem;
+.form-grid-container {
+  display: grid;
+  grid-template-columns: 350px 1fr; /* Kolom kiri tetap, kanan fleksibel */
+  gap: 15px;
+  padding: 10px;
 }
 
-.stbj-table :deep(td) {
-  padding: 0 8px !important;
-  border-right: 1px solid #f0f0f0;
+/* Mengatur ukuran font agar padat seperti contoh */
+.right-column :deep(*) {
+  font-size: 11px !important;
 }
 
-/* Membuat input dalam table terlihat bersih */
-.stbj-table :deep(.v-field__input) {
-  padding: 4px 0 !important;
-  min-height: 32px !important;
+.text-right-input :deep(input) {
+  text-align: right !important;
+}
+
+/* Mengatur tinggi baris tabel agar compact */
+:deep(.v-data-table__td) {
+  height: 32px !important;
+}
+
+.bg-grey-lighten-4 {
+  background-color: #f5f5f5 !important;
 }
 </style>

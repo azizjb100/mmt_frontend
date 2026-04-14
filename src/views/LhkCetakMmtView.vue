@@ -124,6 +124,7 @@
           show-expand
           @click:row="handleRowClick"
           @update:expanded="loadDetails"
+          :row-props="getRowProps"
         >
           <template #item.Nomor="{ item }">
             <span :class="getRowTextColor(item)">{{ item.Nomor }}</span>
@@ -304,10 +305,27 @@ const loadDetails = async (expandedKeys: any[]) => {
   }
 };
 
-const handleRowClick = (event: any, { item }: any) => {
-  selected.value = [item];
+const selectedNomor = computed(() => selected.value[0]?.Nomor || null);
+
+// Tambahkan fungsi getRowProps
+const getRowProps = ({ item }: any) => {
+  return {
+    class: item?.Nomor === selectedNomor.value ? "row-selected" : "",
+  };
 };
 
+// Pastikan handleRowClick mengupdate array selected dengan benar
+const handleRowClick = (event: any, { item }: any) => {
+  // Jika sudah terpilih, maka unselect. Jika belum, pilih ini sebagai satu-satunya.
+  const isAlreadySelected = selected.value.some(
+    (s: any) => s.Nomor === item.Nomor,
+  );
+  if (isAlreadySelected) {
+    selected.value = [];
+  } else {
+    selected.value = [item];
+  }
+};
 const handleNewEdit = (mode: "new" | "edit") => {
   if (mode === "new") router.push("/mmt/lhk/cetak-mmt/new");
   else router.push(`/mmt/lhk/cetak-mmt/edit/${selected.value[0].Nomor}`);
@@ -487,6 +505,32 @@ onMounted(fetchMasterData);
 .browse-content {
   background-color: #f0f4f8; /* Background abu kebiruan tipis */
   padding: 8px;
+}
+
+.desktop-table :deep(.v-data-table__tr.row-selected) {
+  background-color: rgb(216, 239, 255) !important; /* Biru Muda */
+}
+
+/* Memastikan elemen <td> tidak memiliki background yang menutupi <tr> */
+.desktop-table :deep(.v-data-table__tr.row-selected td) {
+  background-color: transparent !important;
+}
+
+/* Hover effect saat baris tidak dipilih */
+.desktop-table :deep(tbody tr:hover:not(.row-selected)) {
+  background-color: #f1f8ff !important;
+  cursor: pointer;
+}
+
+/* Resizer Line Styling (Tetap pertahankan yang sudah ada) */
+.resizer {
+  position: absolute;
+  right: 0;
+  top: 0;
+  height: 100%;
+  width: 4px;
+  cursor: col-resize;
+  z-index: 10;
 }
 
 /* Custom Styling untuk Tabel Biru */

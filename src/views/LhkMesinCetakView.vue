@@ -100,6 +100,7 @@
           show-expand
           @click:row="handleRowClick"
           @update:expanded="loadDetails"
+          :row-props="getRowProps"
         >
           <template #item.Tanggal="{ item }">
             {{ safeFormatDate(item.Tanggal) }}
@@ -609,15 +610,19 @@ watch(filters, fetchMasterData, { deep: true });
 
 <style scoped>
 /* 1. Targetkan Header (th) dan Data Cell (td) yang sesuai */
-.desktop-table :deep(.v-data-table-header__th),
-.desktop-table :deep(tbody tr td) {
-  position: relative;
-  /* Penting: membuat konten tidak terpotong saat lebar diubah */
-  white-space: nowrap;
-  overflow: hidden;
-  /* Atur lebar awal agar lebih fleksibel */
-  width: auto !important;
-  min-width: 50px !important; /* Contoh min-width */
+.desktop-table :deep(.v-data-table__tr.row-selected) {
+  background-color: rgb(216, 239, 255) !important;
+}
+
+/* Pastikan kolom di dalam baris yang dipilih juga transparan agar warna baris terlihat */
+.desktop-table :deep(.v-data-table__tr.row-selected td) {
+  background-color: transparent !important;
+  color: #0d47a1 !important; /* Opsional: warna teks jadi biru tua agar kontras */
+}
+
+/* Menghilangkan efek hover saat baris sedang terpilih agar warna biru tetap solid */
+.desktop-table :deep(.v-data-table__tr.row-selected:hover) {
+  background-color: rgb(200, 230, 255) !important;
 }
 
 /* 2. Style untuk Resizer */
@@ -690,7 +695,7 @@ body.col-resize-active {
 
 /* Hover effect */
 :deep(.v-data-table tbody tr:hover) {
-  background-color: #f1f8ff;
+  background-color: #f1f8ff !important;
   cursor: pointer;
 }
 

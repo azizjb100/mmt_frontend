@@ -1232,9 +1232,20 @@ const handleApprove = async () => {
 };
 
 const handleBarcodeScan = async () => {
-  if (!formData.barcode_input) return;
+  const code = formData.barcode_input; // Tanpa .trim()
+
+  if (!code) return;
+
+  const regex = /^[a-zA-Z0-9-]+$/;
+  if (!regex.test(code)) {
+    toast.error("Format Barcode tidak valid! (Ada spasi atau karakter ilegal)");
+    // Opsional: reset nilai jika salah
+    // formData.barcode_input = "";
+    return;
+  }
+
   try {
-    const res = await api.get(`/mmt/stok-gudang/${formData.barcode_input}`);
+    const res = await api.get(`/mmt/stok-gudang/${code}`);
     const resData = res.data.data;
 
     if (resData.status === "READY") {

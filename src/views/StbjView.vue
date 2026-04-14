@@ -63,7 +63,14 @@ const loadDetails = async (newlyExpandedItems: any[]) => {
 
   loadingDetails.value.add(itemToLoad.Nomor);
   try {
-    const res = await api.get(`${API_STBJ}/detail/${itemToLoad.Nomor}`);
+    // SEBELUMNYA: api.get(`${API_STBJ}/detail/${itemToLoad.Nomor}`)
+    // SEKARANG: Menggunakan params agar menjadi ?nomor=STBJ/...
+    const res = await api.get(`${API_STBJ}/browse/detail`, {
+      params: {
+        nomor: itemToLoad.Nomor, // Axios akan handle karakter '/' secara otomatis
+      },
+    });
+
     details.value[itemToLoad.Nomor] = res.data || [];
   } catch (err) {
     toast.error(`Gagal memuat detail ${itemToLoad.Nomor}`);
@@ -86,7 +93,7 @@ const getStatusColor = (status: string) => {
 };
 
 const handleNew = () => {
-  router.push({ name: "StbjCreate" });
+  router.push({ name: "StbjNew" });
 };
 
 const handleEdit = () => {
