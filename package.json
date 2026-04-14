@@ -6,9 +6,9 @@
   "engines": {
     "node": "^20.19.0 || >=22.12.0"
   },
-  "scripts": {
+"scripts": {
     "dev": "vite --host",
-    "build": "vite build",
+    "build": "vite build && echo {\"version\": \"%DATE%-%TIME%\"} > public/version.json",
     "preview": "vite preview",
     "build-only": "vite build",
     "type-check": "vue-tsc --build",
