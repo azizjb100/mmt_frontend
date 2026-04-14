@@ -56,29 +56,34 @@ const checkForUpdates = async () => {
   try {
     const response = await fetch(
       `${window.location.origin}/version.json?t=${Date.now()}`,
-      { cache: "no-store" },
+      {
+        cache: "no-store",
+      },
     );
 
-    const contentType = response.headers.get("content-type");
-    if (
-      !response.ok ||
-      !contentType ||
-      !contentType.includes("application/json")
-    ) {
+    if (!response.ok) return;
+
+    const text = await response.text(); // Ambil teks mentah dulu untuk pengecekan
+    if (!text.startsWith("{")) {
+      console.warn("Respons bukan JSON valid");
       return;
     }
 
-    const data = await response.json();
+    const data = JSON.parse(text); // Baru di-parse di sini
     const localVersion = localStorage.getItem("app_version");
+
+    console.log(
+      `[Version Check] Lokal: ${localVersion} | Server: ${data.version}`,
+    );
 
     if (!localVersion) {
       localStorage.setItem("app_version", data.version);
-    } else if (localVersion !== data.version) {
+    } else if (String(localVersion) !== String(data.version)) {
       serverVersion.value = data.version;
       showUpdateModal.value = true;
     }
   } catch (error) {
-    console.error("Gagal cek versi:", error);
+    console.error("Gagal cek versi aplikasi:", error);
   }
 };
 
