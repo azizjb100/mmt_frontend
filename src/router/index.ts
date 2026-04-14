@@ -84,6 +84,7 @@ import FormMutasiGudangView from '@/views/FormMutasiGudangView.vue';
 import SpkPrintView from '@/views/SpkPrintView.vue';
 import SearchBarcodeView from '@/views/SearchBarcodeView.vue';
 import FormStbjView from '@/views/FormStbjView.vue';
+import JadwalKirimView from '@/views/JadwalKirimView.vue';
 
 
 
@@ -133,6 +134,8 @@ const routes: RouteRecordRaw[] = [
                 component: SpkPrintView,
                 props: true 
             },
+
+            { path: 'mmt/jadwal-kirim', name: 'JadwalKirimBrowse', component: JadwalKirimView },
             { path: 'mmt/stbj', name: 'BrowseStbj', component: StbjView },
             { path: 'mmt/stbj/new', name: 'StbjNew', component: FormStbjView },
             { path: 'mmt/daftar/stbj', name: 'STBJMMT', component: StbjMmtView },
