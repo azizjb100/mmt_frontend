@@ -3,8 +3,6 @@ import { ref, onMounted, nextTick, watch, computed } from "vue";
 import { useRoute } from "vue-router";
 import api from "@/services/api";
 
-/* ===== INTERFACES ===== */
-
 interface PenerimaanDetail {
   No: number | string;
   Kode: string;
