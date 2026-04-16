@@ -13,20 +13,14 @@ const endDate = ref(new Date().toISOString().substr(0, 10));
 const searchQuery = ref("");
 const summary = ref({ outputPerHari: "0", estimasiSelesaiHari: "0" });
 
-// --- HEADERS DEFINITION (MENAMPILKAN SEMUA DATA JSON) ---
 const colWidths = reactive({
-  NOMOR: 110,
-  spk_nama: 200,
-  spk_tanggal: 90,
-  deadline: 90,
-  status: 100,
-  divisi: 60,
-  jo_nama: 150,
-  bahan: 150,
-  // ... sub kolom lainnya dikelola via CSS width standar
+  NOMOR: 120,
+  spk_nama: 220,
+  spk_tanggal: 100,
+  deadline: 100,
+  bahan: 180,
 });
 
-// --- LOGIKA PERHITUNGAN TOTAL (FOOTER) ---
 const totals = computed(() => {
   return allData.value.reduce(
     (acc, item: any) => {
@@ -59,15 +53,11 @@ const totals = computed(() => {
   );
 });
 
-// --- LOGIKA RINGKASAN (OUTPUT & WAITING LIST) ---
 const waitingListKerja = computed(() => {
   const output = Number(summary.value.outputPerHari || 0);
-  if (output === 0) return 0;
-  // Rumus Delphi: t3 := Total_Kekurangan_Cetak_Meter / Output_Hari
-  return totals.value.krg_Cetak_meter / output;
+  return output === 0 ? 0 : totals.value.krg_Cetak_meter / output;
 });
 
-// Penyesuaian nilai default (mengikuti Delphi '2700')
 const outputHariTetap = 2700;
 const waitingListTetap = computed(
   () => totals.value.krg_Cetak_meter / outputHariTetap,
@@ -104,64 +94,153 @@ const fetchReport = async () => {
 };
 
 const exportToExcel = () => {
-  // 1. Siapkan data yang akan diekspor (mapping data agar header-nya rapi)
-  const reportData = allData.value.map((item) => ({
-    "NOMOR SPK": item.NOMOR,
-    "NAMA ORDER": item.spk_nama,
-    TANGGAL: formatDateDisplay(item.spk_tanggal),
-    DEADLINE: formatDateDisplay(item.deadline),
-    BAHAN: `${item.KAIN} ${item.spk_gramasi}`,
-    "ORD (PCS)": item.spk_jumlah,
-    "KRM (PCS)": item.spk_jumlah_kirim,
-    "K-KRM (PCS)": item.krg_kirim,
-    "SEAM (PCS)": item.krg_Seaming,
-    "M.AYM (PCS)": item.krg_mataayam,
-    "CETAK (PCS)": item.krg_Cetak,
-    "COLY (PCS)": item.krg_coly,
-    "CTK L.": item.cetak_luarx,
-    MT01: item.mt01 || 0,
-    MT02: item.mt02 || 0,
-    MT03: item.mt03 || 0,
-    MI: item.mi || 0,
-    "KRG-KRM (MTR)": item.krg_kirim_meter,
-    "KRG-CTK (MTR)": item.krg_Cetak_meter,
-    "KRG-CLY (MTR)": item.krg_coly_meter,
-  }));
+  // 1. Tentukan Judul Keterangan di Atas Tabel
+  const headerInfo = [
+    ["LAPORAN MONITORING LMKP"],
+    [
+      `Periode: ${formatDateDisplay(startDate.value)} s/d ${formatDateDisplay(endDate.value)}`,
+    ],
+    [`Kategori: ${jenisIndex.value === "0" ? "MT" : "MX"}`],
+    [], // Baris kosong sebagai pemisah
+  ];
 
-  // 2. Tambahkan baris TOTAL di paling bawah
-  const footerRow = {
-    "NOMOR SPK": "TOTAL",
-    "NAMA ORDER": "",
-    TANGGAL: "",
-    DEADLINE: "",
-    BAHAN: "",
-    "ORD (PCS)": totals.value.spk_jumlah,
-    "KRM (PCS)": totals.value.spk_jumlah_kirim,
-    "K-KRM (PCS)": totals.value.krg_kirim,
-    "SEAM (PCS)": totals.value.krg_Seaming,
-    "M.AYM (PCS)": totals.value.krg_mataayam,
-    "CETAK (PCS)": totals.value.krg_Cetak,
-    "COLY (PCS)": totals.value.krg_coly,
-    "CTK L.": totals.value.cetak_luarx,
-    MT01: "",
-    MT02: "",
-    MT03: "",
-    MI: "",
-    "KRG-KRM (MTR)": totals.value.krg_kirim_meter,
-    "KRG-CTK (MTR)": totals.value.krg_Cetak_meter,
-    "KRG-CLY (MTR)": totals.value.krg_coly_meter,
-  };
+  // 2. Tentukan Struktur Header (Grup Header & Sub Header)
+  const tableHeader = [
+    // Baris 1: Header Utama (Label Grup)
+    [
+      "NOMOR SPK",
+      "NAMA ORDER",
+      "TANGGAL",
+      "DEADLINE",
+      "BAHAN",
+      "PRODUKSI (PCS)",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "", // Colspan 7
+      "CTK L.",
+      "MESIN",
+      "",
+      "",
+      "",
+      "", // Colspan 5
+      "PRODUKSI (METER)",
+      "",
+      "", // Colspan 3
+    ],
+    // Baris 2: Sub Header
+    [
+      "",
+      "",
+      "",
+      "",
+      "",
+      "Order",
+      "Kirim",
+      "K-Kirim",
+      "Seam",
+      "M.Ayam",
+      "Cetak",
+      "Coly",
+      "",
+      "MT02",
+      "MT03",
+      "MT04",
+      "MT05",
+      "MI",
+      "K-KRM",
+      "K-CTK",
+      "K-CLY",
+    ],
+  ];
 
-  reportData.push(footerRow);
+  // 3. Mapping Data Body
+  const rows = allData.value.map((item) => [
+    item.NOMOR,
+    item.spk_nama,
+    formatDateDisplay(item.spk_tanggal),
+    formatDateDisplay(item.deadline),
+    `${item.KAIN} ${item.spk_gramasi}`,
+    item.spk_jumlah,
+    item.spk_jumlah_kirim,
+    item.krg_kirim,
+    item.krg_Seaming,
+    item.krg_mataayam,
+    item.krg_Cetak,
+    item.krg_coly,
+    item.cetak_luarx,
+    item.mt02 || 0,
+    item.mt03 || 0,
+    item.mt04 || 0,
+    item.mt05 || 0,
+    item.mi || 0,
+    item.krg_kirim_meter,
+    item.krg_Cetak_meter,
+    item.krg_coly_meter,
+  ]);
 
-  // 3. Proses menjadi file Excel
-  const worksheet = XLSX.utils.json_to_sheet(reportData);
+  // 4. Baris Total (Footer)
+  const footerRow = [
+    "TOTAL",
+    "",
+    "",
+    "",
+    "",
+    totals.value.spk_jumlah,
+    totals.value.spk_jumlah_kirim,
+    totals.value.krg_kirim,
+    totals.value.krg_Seaming,
+    totals.value.krg_mataayam,
+    totals.value.krg_Cetak,
+    totals.value.krg_coly,
+    totals.value.cetak_luarx,
+    "",
+    "",
+    "",
+    "",
+    "", // Mesin kosong
+    totals.value.krg_kirim_meter,
+    totals.value.krg_Cetak_meter,
+    totals.value.krg_coly_meter,
+  ];
+
+  // Gabungkan semua menjadi Array of Arrays
+  const fullData = [...headerInfo, ...tableHeader, ...rows, footerRow];
+
+  // 5. Buat Worksheet
+  const worksheet = XLSX.utils.aoa_to_sheet(fullData);
+
+  // 6. Konfigurasi Merge (PENTING untuk Header Grup)
+  // s = start, e = end, r = row, c = col
+  worksheet["!merges"] = [
+    // Header Info (Judul)
+    { s: { r: 0, c: 0 }, e: { r: 0, c: 4 } },
+
+    // Header Utama Vertical (Nomor SPK s/d Bahan)
+    { s: { r: 4, c: 0 }, e: { r: 5, c: 0 } }, // NOMOR SPK
+    { s: { r: 4, c: 1 }, e: { r: 5, c: 1 } }, // NAMA ORDER
+    { s: { r: 4, c: 2 }, e: { r: 5, c: 2 } }, // TANGGAL
+    { s: { r: 4, c: 3 }, e: { r: 5, c: 3 } }, // DEADLINE
+    { s: { r: 4, c: 4 }, e: { r: 5, c: 4 } }, // BAHAN
+
+    // Header Utama Horizontal (Grup)
+    { s: { r: 4, c: 5 }, e: { r: 4, c: 11 } }, // PRODUKSI (PCS)
+    { s: { r: 4, c: 12 }, e: { r: 5, c: 12 } }, // CTK L.
+    { s: { r: 4, c: 13 }, e: { r: 4, c: 17 } }, // MESIN
+    { s: { r: 4, c: 18 }, e: { r: 4, c: 20 } }, // PRODUKSI (METER)
+
+    // Footer Merge (TOTAL)
+    {
+      s: { r: fullData.length - 1, c: 0 },
+      e: { r: fullData.length - 1, c: 4 },
+    },
+  ];
+
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, worksheet, "Laporan LMKP");
-
-  // 4. Download file
-  const fileName = `Laporan_LMKP_${startDate.value}_sd_${endDate.value}.xlsx`;
-  XLSX.writeFile(workbook, fileName);
+  XLSX.writeFile(workbook, `Laporan_LMKP_${startDate.value}.xlsx`);
 };
 
 onMounted(fetchReport);
@@ -169,18 +248,10 @@ onMounted(fetchReport);
 
 <template>
   <PageLayout title="Monitoring LMKP" icon="mdi-monitor-dashboard">
-    <div
-      class="browse-content"
-      :style="{
-        '--w-col-1': colWidths.NOMOR + 'px',
-        '--w-col-2': colWidths.spk_nama + 'px',
-        '--w-col-3': colWidths.spk_tanggal + 'px',
-      }"
-    >
+    <div class="browse-content">
       <v-card flat class="border-bottom mb-1">
         <v-card-text class="py-2 px-3">
           <div class="filter-section d-flex align-center flex-wrap ga-3">
-            <v-label class="text-caption font-weight-bold">Kategori:</v-label>
             <v-select
               v-model="jenisIndex"
               :items="[
@@ -192,10 +263,6 @@ onMounted(fetchReport);
               variant="outlined"
               style="max-width: 80px"
             />
-
-            <v-label class="text-caption font-weight-bold ml-2"
-              >Periode:</v-label
-            >
             <v-text-field
               v-model="startDate"
               type="date"
@@ -213,27 +280,21 @@ onMounted(fetchReport);
               variant="outlined"
               style="max-width: 140px"
             />
-
             <v-btn
-              variant="text"
-              size="x-small"
+              variant="tonal"
+              size="small"
               @click="fetchReport"
               :loading="loading.report"
+              >Muat</v-btn
             >
-              <v-icon start size="16">mdi-refresh</v-icon> Muat
-            </v-btn>
-
             <v-btn
               variant="flat"
               color="success"
-              size="x-small"
-              class="ml-2"
+              size="small"
               @click="exportToExcel"
               :disabled="allData.length === 0"
+              >Excel</v-btn
             >
-              <v-icon start size="16">mdi-file-excel</v-icon> Ekspor Excel
-            </v-btn>
-
             <v-spacer />
             <v-text-field
               v-model="searchQuery"
@@ -254,7 +315,7 @@ onMounted(fetchReport);
           :items="allData"
           :search="searchQuery"
           density="compact"
-          class="desktop-table header-browse-blue elevation-1"
+          class="desktop-table elevation-1"
           fixed-header
           hide-default-footer
           :items-per-page="-1"
@@ -264,104 +325,70 @@ onMounted(fetchReport);
               <tr class="header-row-1">
                 <th
                   rowspan="2"
-                  class="text-center sticky-col-1 bg-blue-main"
+                  class="bg-blue-main sticky-col"
                   :style="{ width: colWidths.NOMOR + 'px' }"
                 >
                   NOMOR SPK
                 </th>
                 <th
                   rowspan="2"
-                  class="text-center sticky-col-2 bg-blue-main"
+                  class="bg-blue-main"
                   :style="{ width: colWidths.spk_nama + 'px' }"
                 >
                   NAMA ORDER
                 </th>
                 <th
                   rowspan="2"
-                  class="text-center bg-blue-main"
+                  class="bg-blue-main"
                   :style="{ width: colWidths.spk_tanggal + 'px' }"
                 >
                   TANGGAL
                 </th>
                 <th
                   rowspan="2"
-                  class="text-center bg-blue-main"
+                  class="bg-blue-main"
                   :style="{ width: colWidths.deadline + 'px' }"
                 >
                   DEADLINE
                 </th>
-
                 <th
                   rowspan="2"
-                  class="text-center bg-blue-main"
+                  class="bg-blue-main"
                   :style="{ width: colWidths.bahan + 'px' }"
                 >
                   BAHAN
                 </th>
-                <th colspan="7" class="text-center bg-blue-sub group-pcs">
-                  PRODUKSI (PCS)
-                </th>
-                <th rowspan="2" class="text-center bg-blue-main">CTK L.</th>
-
-                <th colspan="4" class="text-center bg-blue-sub group-mesin">
-                  MESIN
-                </th>
-
-                <th colspan="3" class="text-center bg-blue-sub group-meter">
-                  PRODUKSI (METER)
-                </th>
+                <th colspan="7" class="bg-blue-sub">PRODUKSI (PCS)</th>
+                <th rowspan="2" class="bg-blue-main">CTK L.</th>
+                <th colspan="5" class="bg-blue-sub">MESIN</th>
+                <th colspan="3" class="bg-blue-sub">PRODUKSI (METER)</th>
               </tr>
               <tr class="header-row-2">
-                <th class="text-center bg-blue-detail pcs-sub">ORD</th>
-                <th class="text-center bg-blue-detail pcs-sub">KRM</th>
-                <th class="text-center bg-blue-detail pcs-sub">K-KRM</th>
-                <th class="text-center bg-blue-detail pcs-sub">SEAM</th>
-                <th class="text-center bg-blue-detail pcs-sub">M.AYM</th>
-                <th class="text-center bg-blue-detail pcs-sub">CETAK</th>
-                <th class="text-center bg-blue-detail pcs-sub">COLY</th>
-
-                <th class="text-center bg-blue-detail mesin-sub">MT01</th>
-                <th class="text-center bg-blue-detail mesin-sub">MT02</th>
-                <th class="text-center bg-blue-detail mesin-sub">MT03</th>
-                <th class="text-center bg-blue-detail mesin-sub">MI</th>
-
-                <th class="text-center bg-blue-detail meter-sub">KRG-KRM</th>
-                <th class="text-center bg-blue-detail meter-sub">KRG-CTK</th>
-                <th class="text-center bg-blue-detail meter-sub">KRG-CLY</th>
+                <th class="bg-blue-detail">Order</th>
+                <th class="bg-blue-detail">Kirim</th>
+                <th class="bg-blue-detail">K-Kirim</th>
+                <th class="bg-blue-detail">Seam</th>
+                <th class="bg-blue-detail">M.Ayam</th>
+                <th class="bg-blue-detail">Cetak</th>
+                <th class="bg-blue-detail">Coly</th>
+                <th class="bg-blue-detail">MT02</th>
+                <th class="bg-blue-detail">MT03</th>
+                <th class="bg-blue-detail">MT04</th>
+                <th class="bg-blue-detail">MT05</th>
+                <th class="bg-blue-detail">MI</th>
+                <th class="bg-blue-detail">K-KRM</th>
+                <th class="bg-blue-detail">K-CTK</th>
+                <th class="bg-blue-detail">K-CLY</th>
               </tr>
             </thead>
           </template>
 
           <template v-slot:item="{ item }">
-            <tr class="data-row">
-              <td class="text-left sticky-col-1 bg-white font-weight-bold">
-                {{ item.NOMOR }}
-              </td>
-              <td class="text-left sticky-col-2 bg-white">
-                {{ item.spk_nama }}
-              </td>
-              <td class="text-center">
-                {{ formatDateDisplay(item.spk_tanggal) }}
-              </td>
-              <td class="text-center">
-                <span class="deadline">{{
-                  formatDateDisplay(item.deadline)
-                }}</span>
-              </td>
-              <td class="text-center">
-                <v-chip
-                  size="x-small"
-                  label
-                  :color="
-                    item.spk_statuskerja === 'TOP URGENT' ? 'error' : 'warning'
-                  "
-                  variant="flat"
-                >
-                  {{ item.spk_statuskerja }}
-                </v-chip>
-              </td>
-              <td class="text-center">{{ item.DIVISI }}</td>
-              <td class="text-left">{{ item.jo_nama }}</td>
+            <tr>
+              <td class="font-weight-bold">{{ item.NOMOR }}</td>
+              <td class="text-left">{{ item.spk_nama }}</td>
+              <td>{{ formatDateDisplay(item.spk_tanggal) }}</td>
+              <td class="deadline">{{ formatDateDisplay(item.deadline) }}</td>
               <td class="text-left">
                 <strong>{{ item.KAIN }}</strong
                 ><br /><small>{{ item.spk_gramasi }}</small>
@@ -378,9 +405,10 @@ onMounted(fetchReport);
               </td>
               <td class="text-right">{{ formatNumber(item.krg_coly) }}</td>
               <td class="text-right">{{ formatNumber(item.cetak_luarx) }}</td>
-              <td class="text-center">{{ item.mt01 || 0 }}</td>
               <td class="text-center">{{ item.mt02 || 0 }}</td>
               <td class="text-center">{{ item.mt03 || 0 }}</td>
+              <td class="text-center">{{ item.mt04 || 0 }}</td>
+              <td class="text-center">{{ item.mt05 || 0 }}</td>
               <td class="text-center">{{ item.mi || 0 }}</td>
               <td class="text-right">
                 {{ formatNumber(item.krg_kirim_meter, 2) }}
@@ -397,8 +425,8 @@ onMounted(fetchReport);
           <template #tfoot>
             <tr class="table-footer">
               <td
-                colspan="8"
-                class="text-right font-weight-bold sticky-footer-title"
+                colspan="5"
+                class="text-right font-weight-bold bg-footer sticky-footer"
               >
                 TOTAL
               </td>
@@ -426,7 +454,7 @@ onMounted(fetchReport);
               <td class="text-right font-weight-bold">
                 {{ formatNumber(totals.cetak_luarx) }}
               </td>
-              <td colspan="4" class="bg-blue-light"></td>
+              <td colspan="5" class="bg-blue-light"></td>
               <td class="text-right font-weight-bold">
                 {{ formatNumber(totals.krg_kirim_meter, 2) }}
               </td>
@@ -444,7 +472,7 @@ onMounted(fetchReport);
           <table class="stats-table">
             <tbody>
               <tr>
-                <td class="stats-label">Kekurangan :</td>
+                <td class="stats-label">Kekurangan Meter:</td>
                 <td class="stats-value text-error">
                   {{ formatNumber(totals.krg_Cetak_meter, 2) }}
                 </td>
@@ -452,15 +480,18 @@ onMounted(fetchReport);
                 <td class="stats-value">
                   {{ formatNumber(summary.outputPerHari, 2) }}
                 </td>
-                <td class="stats-value">2.700,00</td>
+                <td class="stats-value bg-blue-light">2.700,00</td>
               </tr>
               <tr>
-                <td class="stats-label">Waiting List Kerja:</td>
+                <td class="stats-label">Waiting List (Hari):</td>
                 <td class="stats-value">
-                  {{ formatNumber(waitingListKerja, 2) }}
+                  {{ formatNumber(waitingListKerja, 2) }} Hari
                 </td>
-                <td colspan="3" class="stats-value text-center">
-                  {{ formatNumber(waitingListTetap, 2) }}
+                <td colspan="2" class="stats-label text-center">
+                  Estimasi Tetap:
+                </td>
+                <td class="stats-value text-center">
+                  {{ formatNumber(waitingListTetap, 2) }} Hari
                 </td>
               </tr>
             </tbody>
@@ -472,234 +503,90 @@ onMounted(fetchReport);
 </template>
 
 <style scoped>
-.browse-content {
-  /* existing already ok */
-
-  --w-pcs-col: 70px;
-  --w-mesin-col: 60px;
-  --w-meter-col: 80px;
-
-  --pcs-cols: 7;
-  --mesin-cols: 4;
-  --meter-cols: 3;
-}
-
-/* GROUP HEADER WIDTH SAMA DENGAN JUMLAH SUBKOLOM */
-th.group-pcs {
-  width: calc(var(--pcs-cols) * var(--w-pcs-col));
-}
-
-th.group-mesin {
-  width: calc(var(--mesin-cols) * var(--w-mesin-col));
-}
-
-th.group-meter {
-  width: calc(var(--meter-cols) * var(--w-meter-col));
-}
-
 .table-container {
   border: 1px solid #7bdaff;
   border-radius: 8px;
+  max-height: calc(100vh - 200px);
   overflow: auto;
-  max-height: calc(100vh - 180px);
-  position: relative;
 }
 
-/* HEADER STYLE */
-.desktop-table :deep(thead th) {
+/* Mengubah warna teks header menjadi hitam pekat */
+.desktop-table :deep(th) {
   font-size: 10px !important;
   font-weight: 800 !important;
-  padding: 4px 8px !important;
-  border-right: 1px solid #7bdaff !important;
-  border-bottom: 1px solid #7bdaff !important;
-  text-transform: uppercase;
-  color: #333 !important;
-  white-space: nowrap;
   text-align: center !important;
-  height: auto !important;
-  line-height: 14px;
-  padding-top: 6px !important;
-  padding-bottom: 6px !important;
-  vertical-align: middle !important;
+  border-right: 1px solid #7bdaff !important;
+  white-space: nowrap;
+  color: #000000 !important; /* Warna teks hitam */
+}
+
+.desktop-table :deep(td) {
+  font-size: 10px !important;
+  border-right: 1px solid #eee !important;
+  white-space: nowrap;
+  color: #333;
 }
 
 .bg-blue-main {
-  background: linear-gradient(180deg, #e1f5fe 0%, #b3e5fc 100%) !important;
+  background: #b3e5fc !important;
 }
-
 .bg-blue-sub {
-  background-color: #f1f8ff !important;
+  background-color: #e1f5fe !important;
 }
-
 .bg-blue-detail {
   background-color: #ffffff !important;
-  font-size: 9px !important;
+}
+.bg-blue-light {
+  background-color: #f8fbff !important;
 }
 
-/* BODY & HOVER */
-.desktop-table :deep(td) {
-  padding: 4px 8px !important;
-  border-bottom: 1px solid #eee !important;
-  font-size: 10px !important;
-}
-
-.desktop-table :deep(tbody tr:hover td) {
-  background-color: #f5faff !important;
-}
-
-/* FOOTER */
 .table-footer td {
   position: sticky;
   bottom: 0;
   z-index: 25;
   background-color: #f0f4f8 !important;
   border-top: 2px solid #7bdaff !important;
-  font-weight: bold;
-  font-size: 10px;
   padding: 8px !important;
+  color: #000 !important; /* Total di footer juga hitam */
 }
 
-.sticky-footer-title {
-  position: sticky;
-  left: 0;
-  z-index: 30;
-  text-align: right !important;
-}
-
-/* SUMMARY PANEL (STICKY BOTTOM RIGHT) */
 .sticky-stats-wrapper {
-  position: relative;
-  bottom: 0;
-  margin-top: 12px;
+  margin-top: 10px;
   display: flex;
   justify-content: flex-end;
-  pointer-events: auto;
 }
 
 .stats-table {
-  pointer-events: auto;
   border-collapse: collapse;
   background: white;
   border: 1px solid #7bdaff;
-  box-shadow: -2px -2px 10px rgba(0, 0, 0, 0.1);
 }
 
 .stats-table td {
-  border: 1px solid #ccc;
-  padding: 4px 12px;
+  border: 1px solid #ddd;
+  padding: 6px 12px;
   font-size: 11px;
+  color: #000;
 }
 
 .stats-label {
   background: #f0f8ff;
   font-weight: bold;
-  text-align: right;
-  color: #01579b;
 }
-
 .stats-value {
   font-weight: bold;
   text-align: right;
-  min-width: 90px;
+  min-width: 100px;
 }
 
-/* UTILS */
 .deadline {
-  font-weight: 700;
+  font-weight: bold;
   color: #d32f2f;
 }
-
 .text-success {
   color: #2e7d32 !important;
 }
-
 .text-error {
   color: #d32f2f !important;
-}
-
-.bg-blue-light {
-  background-color: #f8fbff !important;
-}
-
-/* HIDE INTERNAL HEADER */
-.desktop-table :deep(.v-data-table__thead) {
-  display: none !important;
-}
-
-.desktop-table :deep(td),
-.desktop-table :deep(th) {
-  min-width: 60px;
-}
-
-/* header baris pertama sticky top */
-.header-row-1 th {
-  position: sticky;
-  top: 0;
-  z-index: 20;
-}
-
-/* header baris kedua sticky tepat di bawahnya */
-.header-row-2 th {
-  position: sticky;
-  top: 32px;
-  /* tinggi row-1 */
-  z-index: 19;
-}
-
-/* sub kolom pcs */
-th.pcs-sub,
-td.pcs-sub {
-  width: var(--w-pcs-col);
-}
-
-/* sub kolom mesin */
-th.mesin-sub,
-td.mesin-sub {
-  width: var(--w-mesin-col);
-}
-
-/* sub kolom meter */
-th.meter-sub,
-td.meter-sub {
-  width: var(--w-meter-col);
-}
-
-/* garis bawah tebal parent header */
-.header-row-1 th {
-  border-bottom: 2px solid #7bdaff !important;
-}
-
-/* garis kanan antar sub kolom */
-.header-row-2 th,
-.data-row td {
-  border-right: 1px solid #d0e8ff !important;
-}
-
-.group-pcs,
-.group-mesin,
-.group-meter {
-  letter-spacing: 0.5px;
-  font-weight: 800;
-}
-
-/* *** PENTING: NO WRAP UNTUK NOMOR & NAMA ORDER *** */
-.desktop-table :deep(td:nth-child(1)),
-.desktop-table :deep(td:nth-child(2)),
-.desktop-table :deep(th:nth-child(1)),
-.desktop-table :deep(th:nth-child(2)) {
-  white-space: nowrap !important;
-  overflow: visible !important;
-  text-overflow: initial !important;
-  line-height: 14px !important;
-}
-
-/* pastikan tinggi baris tidak ikut membesar */
-.desktop-table :deep(tbody tr) {
-  height: 22px !important;
-}
-
-/* kontainer tabel wajib bisa scroll */
-.table-container {
-  overflow-x: auto;
 }
 </style>
