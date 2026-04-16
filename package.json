@@ -8,12 +8,13 @@
   },
 "scripts": {
   "dev": "vite --host",
-"build": "vite build && node -e \"require('fs').writeFileSync('public/version.json', JSON.stringify({version: '1.0.0'}))\"",
+"build": "vite build && node -e \"require('fs').writeFileSync('public/version.json', JSON.stringify({version: '1.0.1'}))\"",
   "preview": "vite preview",
   "build-only": "vite build",
   "type-check": "vue-tsc --build",
   "lint": "eslint . --fix"
 },
+
   "dependencies": {
     "@mdi/font": "^7.4.47",
     "@playwright/test": "^1.58.2",

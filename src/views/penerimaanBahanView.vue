@@ -393,13 +393,14 @@ watch([startDate, endDate], fetchData);
 
           <template #expanded-row="{ columns, item }">
             <tr>
-              <td :colspan="columns.length">
-                <div class="detail-container pa-2">
+              <td :colspan="columns.length" class="pa-0 border-0">
+                <div class="detail-container">
                   <v-data-table
                     :headers="detailHeaders"
                     :items="item.Detail || []"
                     density="compact"
                     hide-default-footer
+                    class="border-0"
                   ></v-data-table>
                 </div>
               </td>
@@ -566,6 +567,33 @@ watch([startDate, endDate], fetchData);
   justify-items: center;
 }
 
+:deep(.v-data-table) {
+  font-size: 11px !important;
+}
+
+/* 2. Atur Header Tabel (Master & Detail) */
+:deep(.v-data-table-header th) {
+  font-size: 11px !important;
+  height: 32px !important; /* Menyamakan tinggi header agar compact */
+  font-weight: bold !important;
+}
+
+/* 3. Atur Baris Tabel (Master & Detail) */
+:deep(.v-data-table td) {
+  font-size: 11px !important;
+  height: 32px !important; /* Menyamakan tinggi baris agar seragam */
+}
+
+/* 4. Khusus untuk detail container agar tidak ada padding berlebih */
+.detail-container {
+  padding: 0 !important; /* Menghilangkan padding agar header detail menempel */
+  background-color: #f5f5f5;
+}
+
+/* 5. Hilangkan shadow atau border double jika diperlukan */
+.detail-container :deep(.v-table) {
+  background-color: transparent !important;
+}
 .label-card {
   display: flex;
   flex-direction: column;
@@ -656,5 +684,25 @@ watch([startDate, endDate], fetchData);
 /* Mematikan hover effect pada checkbox Vuetify agar bersih */
 :deep(.v-selection-control) {
   min-height: auto !important;
+}
+
+.custom-table :deep(thead th) {
+  font-size: 0.875rem !important; /* Ukuran standar Vuetify compact */
+  font-weight: 600 !important; /* Agar header tetap terlihat tegas */
+}
+
+.custom-table :deep(tbody td) {
+  font-size: 0.875rem !important;
+}
+
+/* Menghilangkan border putih/abu tipis di sekeliling container detail */
+.detail-container {
+  background-color: #f9f9f9; /* Memberi warna beda tipis agar kontras */
+  border-top: 1px solid rgba(0, 0, 0, 0.12);
+}
+
+/* Opsional: Jika ingin teks di dalam input/field pencarian juga sama */
+.custom-table :deep(.v-data-table-header__content) {
+  justify-content: start !important;
 }
 </style>
