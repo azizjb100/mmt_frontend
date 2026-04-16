@@ -1,5 +1,8 @@
 <template>
-  <PageLayout title="Data Jadwal Kirim Produksi" icon="mdi-truck-delivery">
+  <PageLayout
+    title="Data Jadwal Kirim (Gudang Jadi)"
+    icon="mdi-truck-delivery-outline"
+  >
     <template #header-actions>
       <v-btn
         v-if="authStore.can(MENU_ID, 'insert')"
@@ -60,15 +63,17 @@
               style="max-width: 150px"
             />
 
-            <v-select
-              v-model="filters.cab"
-              :items="listCabang"
-              label="Cabang"
+            <v-text-field
+              v-model="filters.gudang"
+              label="Kode Gudang"
+              placeholder="Cari Gudang..."
               density="compact"
               hide-details
               variant="outlined"
-              style="max-width: 150px"
-              :readonly="authStore.CAB !== ''"
+              clearable
+              style="max-width: 200px"
+              prepend-inner-icon="mdi-warehouse"
+              @keyup.enter="fetchData"
             />
           </div>
         </v-card-text>
@@ -80,7 +85,7 @@
           :headers="masterHeaders"
           :items="masterData"
           :loading="loading"
-          item-value="id_key"
+          item-value="Nomor"
           density="compact"
           class="desktop-table elevation-1"
           fixed-header
@@ -92,9 +97,20 @@
             {{ safeFormatDate(item.Tanggal) }}
           </template>
 
-          <template #item.Kurang="{ item }">
-            <v-chip :color="item.Kurang > 0 ? 'red' : 'green'" size="small">
-              {{ item.Kurang }}
+          <template #item.Selisih_Jumlah="{ item }">
+            <span
+              :class="item.Selisih_Jumlah < 0 ? 'text-error' : 'text-success'"
+            >
+              {{ item.Selisih_Jumlah }}
+            </span>
+          </template>
+
+          <template #item.Realisasi="{ item }">
+            <v-chip
+              size="x-small"
+              :color="item.Realisasi >= item.Jumlah ? 'green' : 'orange'"
+            >
+              {{ item.Realisasi }}
             </v-chip>
           </template>
         </v-data-table>
@@ -104,22 +120,22 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, computed, watch } from "vue";
+import { ref, reactive, onMounted, computed } from "vue";
 import { useRouter } from "vue-router";
 import { useToast } from "vue-toastification";
 import api from "@/services/api";
-import { format, subDays, parseISO, isValid } from "date-fns";
+import { format, parseISO, isValid } from "date-fns";
 import PageLayout from "../components/PageLayout.vue";
 
-// --- Auth Store Simulation ---
+// --- Global Vars / Auth ---
 const authStore = {
   can: (menuId: string, action: string) => true,
-  KDUSER: "USER01",
-  CAB: "P01", // Jika kosong berarti pusat/bisa akses ALL
+  KDUSER: "USER01", // zGJadiKode di Delphi
+  CAB: "P01",
 };
 
-const MENU_ID = "ufrmBrowseJadwalKirim";
-const API_URL = "/produksi/jadwal-kirim";
+const MENU_ID = "ufrmBrowJadwalKirim2";
+const API_URL = "/mmt/jadwal-kirim";
 
 const router = useRouter();
 const toast = useToast();
@@ -127,93 +143,93 @@ const toast = useToast();
 const masterData = ref([]);
 const loading = ref(false);
 const selected = ref([]);
-const listCabang = ref(["ALL", "P01", "P02", "P03", "P04"]); // Contoh data cabang
 
 const filters = reactive({
-  startDate: format(new Date(), "yyyy-MM-01"), // Awal bulan
+  startDate: format(new Date(), "yyyy-MM-01"),
   endDate: format(new Date(), "yyyy-MM-dd"),
-  cab: authStore.CAB || "ALL",
+  gudang: "", // Sesuai edtgudang.Text
 });
 
+// Headers disesuaikan dengan SQLMaster di JadwalKirim2
 const masterHeaders = [
-  { title: "Tanggal", key: "Tanggal", width: "120px" },
-  { title: "Cabang", key: "Cab", width: "80px" },
-  { title: "No. SPK", key: "SPK", width: "150px" },
-  { title: "Nama SPK", key: "NamaSPK", width: "250px" },
-  { title: "Jml SPK", key: "JmlSpk", align: "end" },
-  { title: "Jml Kirim", key: "JmlKirim", align: "end" },
-  { title: "Planing", key: "JmlPlaning", align: "end" },
-  { title: "Sisa", key: "Kurang", align: "end" }, // Logika (JmlPlaning-TotalKirim)
-  { title: "Keterangan", key: "Keterangan" },
+  { title: "Nomor Kirim", key: "Nomor", width: "120px" },
+  { title: "Gudang", key: "Nama_Gudang", width: "150px" },
+  { title: "Tanggal", key: "Tanggal", width: "110px" },
+  { title: "No. SPK", key: "No_SPK", width: "130px" },
+  { title: "Nama Barang", key: "Nama_Spk", width: "200px" },
+  { title: "Ukuran", key: "Ukuran", width: "100px" },
+  { title: "Kain", key: "Kain", width: "100px" },
+  { title: "Jumlah Rencana", key: "Jumlah", align: "end" },
+  { title: "Koli", key: "Koli", align: "end" },
+  { title: "Realisasi", key: "Realisasi", align: "end" },
+  { title: "Selisih", key: "Selisih_Jumlah", align: "end" },
+  { title: "User", key: "usr_create", width: "100px" },
 ] as const;
 
 const isSingleSelected = computed(() => selected.value.length === 1);
 const selectedRow = computed(() =>
-  isSingleSelected.value ? selected.value[0] : null,
+  isSingleSelected.value ? (selected.value[0] as any) : null,
 );
 
 const fetchData = async () => {
   loading.value = true;
   try {
     const res = await api.get(API_URL, { params: filters });
-    // Tambahkan id_key unik untuk v-model datatable karena di Delphi primary key-nya komposit
-    masterData.value = res.data.map((item) => ({
-      ...item,
-      id_key: `${item.nomor}-${item.SPK}-${item.Cab}`,
-    }));
+    masterData.value = res.data;
   } catch (err) {
-    toast.error("Gagal memuat data.");
+    toast.error("Gagal memuat data jadwal kirim.");
   } finally {
     loading.value = false;
   }
 };
 
 const handleRowClick = (event, { item }) => {
-  selected.value = [item];
+  selected.value = [item.Nomor]; // Menggunakan Nomor sebagai ID
 };
 
 const handleNew = () => {
-  // Logika cxButton2Click
   router.push({
-    name: "JadwalKirimForm",
-    query: { cab: filters.cab === "ALL" ? "P04" : filters.cab },
+    name: "JadwalKirimNew",
+    query: { gudang: filters.gudang },
   });
 };
 
 const handleEdit = () => {
   if (!selectedRow.value) return;
 
-  // Validasi Cabang (Sesuai Delphi: if CDSMaster.FieldByName('cab').AsString <> frmmenu.CAB)
-  if (authStore.CAB !== "" && selectedRow.value.Cab !== authStore.CAB) {
-    toast.warning("Data tersebut bukan cabang anda.");
+  // Validasi User Create (Sesuai Delphi: if CDSMaster.FieldByname('usr_create').AsString <> frmmenu.KDUSER)
+  if (selectedRow.value.usr_create !== authStore.KDUSER) {
+    toast.warning(
+      `Data ini milik ${selectedRow.value.usr_create}. Anda tidak boleh mengubah.`,
+    );
     return;
   }
 
   router.push({
-    name: "JadwalKirimEdit",
-    params: { nomor: selectedRow.value.NomorPlaning },
-    query: { spk: selectedRow.value.SPK },
+    name: "JadwalKirimEdit2",
+    params: { nomor: selectedRow.value.Nomor },
   });
 };
 
 const handleDelete = async () => {
   if (!selectedRow.value) return;
 
-  if (confirm("Yakin ingin hapus ?")) {
+  // Validasi Hak Hapus per User
+  if (selectedRow.value.usr_create !== authStore.KDUSER) {
+    toast.error("Anda tidak berhak menghapus data user lain.");
+    return;
+  }
+
+  if (confirm("Yakin ingin dihapus?")) {
     try {
-      // Mengirim param lengkap sesuai query DELETE di Delphi
+      // Sesuai logika Delphi: delete from tjadwalkirim where nomor_kirim = ...
       await api.delete(`${API_URL}/delete`, {
-        data: {
-          nomor: selectedRow.value.NomorPlaning,
-          spk_nomor: selectedRow.value.SPK,
-          cab: selectedRow.value.Cab,
-          tanggal: selectedRow.value.Tanggal,
-        },
+        data: { nomor: selectedRow.value.Nomor },
       });
-      toast.success("Berhasil dihapus");
+      toast.success("Hapus Data Sukses");
       fetchData();
     } catch (err) {
-      toast.error("Gagal Hapus");
+      toast.error("Gagal Hapus Data");
     }
   }
 };
@@ -227,11 +243,6 @@ const safeFormatDate = (dateString: string) => {
 onMounted(() => {
   fetchData();
 });
-
-watch(
-  () => filters.cab,
-  () => fetchData(),
-);
 </script>
 
 <style scoped>
@@ -239,6 +250,14 @@ watch(
   height: calc(100vh - 250px);
 }
 :deep(.v-data-table__table) {
-  font-size: 0.85rem;
+  font-size: 0.82rem;
+}
+.text-error {
+  color: #ff5252;
+  font-weight: bold;
+}
+.text-success {
+  color: #4caf50;
+  font-weight: bold;
 }
 </style>

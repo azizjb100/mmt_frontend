@@ -9,6 +9,14 @@
       </v-btn>
       <v-btn
         size="small"
+        color="primary"
+        :disabled="!isSingleSelected"
+        @click="handleAccClick"
+      >
+        <v-icon start>mdi-check-decagram</v-icon> ACC
+      </v-btn>
+      <v-btn
+        size="small"
         color="warning"
         :disabled="!isSingleSelected"
         @click="handleEditClick"
@@ -95,7 +103,9 @@
           show-select
           return-object
           show-expand
+          @click:row="handleRowClick"
           @update:expanded="loadDetails"
+          :row-props="getRowProps"
         >
           <template #item.Tanggal="{ item }">
             {{ safeFormatDate(item.Tanggal) }}
@@ -117,10 +127,10 @@
           <template #expanded-row="{ columns, item }">
             <tr>
               <td :colspan="columns.length">
-                <div class="detail-container">
+                <div class="detail-container pa-2">
                   <div class="detail-table-wrapper">
                     <div
-                      v-if="loading.details || isLoadingDetails(item.Nomor)"
+                      v-if="isLoadingDetails(item.Nomor)"
                       class="text-center pa-4 text-caption"
                     >
                       Memuat detail...
@@ -131,40 +141,40 @@
                       :headers="detailHeaders"
                       :items="details[item.Nomor] || []"
                       density="compact"
-                      class="detail-table"
+                      class="detail-table elevation-0"
                       :items-per-page="-1"
                       hide-default-footer
                     >
-                      <template #[`item.J_Order`]="{ item: d }">{{
-                        d.J_Order
+                      <template #[`item.J_Order`]="{ value }">{{
+                        value
                       }}</template>
-                      <template #[`item.J_Seaming`]="{ item: d }">{{
-                        d.J_Seaming
+                      <template #[`item.J_Seaming`]="{ value }">{{
+                        value
                       }}</template>
-                      <template #[`item.J_MataAyam`]="{ item: d }">{{
-                        d.J_MataAyam
+                      <template #[`item.J_MataAyam`]="{ value }">{{
+                        value
                       }}</template>
-                      <template #[`item.J_Coly`]="{ item: d }">{{
-                        d.J_Coly
+                      <template #[`item.J_Coly`]="{ value }">{{
+                        value
                       }}</template>
-                      <template #[`item.J_Bs`]="{ item: d }">{{
-                        d.J_Bs
+                      <template #[`item.J_Bs`]="{ value }">{{
+                        value
                       }}</template>
-                      <template #[`item.Mata_Ayam`]="{ item: d }">{{
-                        d.Mata_Ayam
+                      <template #[`item.Mata_Ayam`]="{ value }">{{
+                        value
                       }}</template>
-                      <template #[`item.XBanner`]="{ item: d }">{{
-                        d.XBanner
+                      <template #[`item.XBanner`]="{ value }">{{
+                        value
                       }}</template>
-                      <template #[`item.Plastik`]="{ item: d }">{{
-                        d.Plastik
+                      <template #[`item.Plastik`]="{ value }">{{
+                        value
                       }}</template>
                     </v-data-table>
 
                     <div
                       v-if="
                         !isLoadingDetails(item.Nomor) &&
-                        !(details[item.Nomor] && details[item.Nomor].length)
+                        !details[item.Nomor]?.length
                       "
                       class="text-center pa-4 text-caption"
                     >
@@ -188,7 +198,7 @@ import { useToast } from "vue-toastification";
 import { useAuthStore } from "../stores/authStore";
 import api from "@/services/api";
 import type { AxiosError } from "axios";
-import { format, subDays, parseISO, isValid } from "date-fns"; // Import isValid
+import { format, subDays, parseISO, isValid } from "date-fns";
 import PageLayout from "../components/PageLayout.vue";
 
 // --- Interfaces ---
@@ -281,6 +291,7 @@ const detailHeaders = [
   { title: "Nomor SPK", key: "Nomor_SPK", minWidth: "150px" },
   { title: "Nama SPK", key: "Nama_SPK", minWidth: "250px" },
   { title: "Jml Order", key: "J_Order", align: "end" },
+  { title: "Jml Potomg", key: "J_Potong", align: "end" },
   { title: "Jml Seaming", key: "J_Seaming", align: "end" },
   { title: "Jml Mata Ayam", key: "J_MataAyam", align: "end" },
   { title: "Jml Coly", key: "J_Coly", align: "end" },
@@ -298,6 +309,67 @@ const fetchGudangList = async () => {
     console.log("INFO: Simulating fetching Gudang List.");
   } catch (error) {
     console.error("Error fetching gudang list:", error);
+  }
+};
+
+const handleACC = async () => {
+  if (!selectedRow.value) return;
+
+  // Cek jika sudah di-ACC sebelumnya (opsional, tergantung logic backend)
+  if (selectedRow.value.Lengkap === "Y") {
+    toast.info("Data ini sudah lengkap/ACC.");
+    return;
+  }
+
+  if (
+    confirm(
+      `Apakah Anda yakin ingin memberikan ACC untuk nomor ${selectedRow.value.Nomor}?`,
+    )
+  ) {
+    try {
+      await api.post(`${API_BASE_URL}/acc/${selectedRow.value.Nomor}`);
+      toast.success(`LHK ${selectedRow.value.Nomor} berhasil di-ACC.`);
+      await fetchHeaders();
+    } catch (error) {
+      console.error("ACC error:", error);
+      toast.error("Gagal melakukan ACC data.");
+    }
+  }
+};
+
+const handleRowClick = (_event: any, { item }: any) => {
+  selected.value = [item];
+};
+
+/**
+ * Memberikan properti tambahan pada baris (styling)
+ */
+const getRowProps = (data: any) => {
+  const isSelected = selected.value.some((s) => s.Nomor === data.item.Nomor);
+
+  return {
+    style: { cursor: "pointer" },
+    class: isSelected ? "v-table-row-selected bg-blue-lighten-5" : "",
+  };
+};
+
+const handleAccClick = () => {
+  if (selectedRow.value) {
+    router.push({
+      // Pastikan Nama ini SAMA PERSIS dengan di router (Case Sensitive)
+      name: "LhkFinishingAcc",
+      params: { nomor: selectedRow.value.Nomor },
+    });
+  }
+};
+
+// Pastikan fungsi handleEditClick juga tetap ada untuk pengeditan biasa
+const handleEditClick = () => {
+  if (selectedRow.value) {
+    router.push({
+      name: "LhkFinishingEdit",
+      params: { nomor: selectedRow.value.Nomor },
+    });
   }
 };
 
@@ -326,11 +398,19 @@ const fetchHeaders = async () => {
   }
 };
 
+// Script Section
 const loadDetails = async (newlyExpandedItems: LhkFinishingItem[]) => {
-  // Ambil item terakhir yang di-expand
-  const itemToLoad = newlyExpandedItems[newlyExpandedItems.length - 1];
+  // Update state expanded lokal
+  expanded.value = newlyExpandedItems;
 
-  if (!itemToLoad || details.value[itemToLoad.Nomor]) return;
+  if (newlyExpandedItems.length === 0) return;
+
+  // Cari item yang baru saja di-expand dan belum ada di cache 'details'
+  const itemToLoad = newlyExpandedItems.find(
+    (item) => !details.value[item.Nomor],
+  );
+
+  if (!itemToLoad) return;
 
   loadingDetails.value.add(itemToLoad.Nomor);
   try {
@@ -338,9 +418,12 @@ const loadDetails = async (newlyExpandedItems: LhkFinishingItem[]) => {
       params: { nomor: itemToLoad.Nomor },
     });
 
-    // PERBAIKAN DI SINI: sesuaikan dengan struktur { success: true, data: [...] }
-    details.value[itemToLoad.Nomor] = res.data.data || [];
+    // Pastikan mapping data sesuai dengan struktur backend (Result.data.data.Detail)
+    // Karena kita baru merombak backend, pastikan kita mengambil array .Detail nya
+    const result = res.data.data;
+    details.value[itemToLoad.Nomor] = result.Detail || result || [];
   } catch (err) {
+    console.error(err);
     toast.error(`Gagal memuat detail untuk ${itemToLoad.Nomor}`);
     details.value[itemToLoad.Nomor] = [];
   } finally {
@@ -399,4 +482,11 @@ onMounted(() => {
 watch(filters, fetchHeaders, { deep: true });
 </script>
 
-<style scoped></style>
+<style scoped>
+:deep(.v-data-table__tr.v-table-row-selected) {
+  background-color: #e3f2fd !important; /* Biru muda */
+}
+:deep(.v-data-table__tr:hover) {
+  background-color: #f5f5f5 !important;
+}
+</style>

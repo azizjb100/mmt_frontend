@@ -85,6 +85,8 @@ import SpkPrintView from '@/views/SpkPrintView.vue';
 import SearchBarcodeView from '@/views/SearchBarcodeView.vue';
 import FormStbjView from '@/views/FormStbjView.vue';
 import JadwalKirimView from '@/views/JadwalKirimView.vue';
+import FormJadwalKirimView from '@/views/FormJadwalKirimView.vue';
+import FormFinishingAccView from '@/views/FormFinishingAccView.vue';
 
 
 
@@ -127,6 +129,12 @@ const routes: RouteRecordRaw[] = [
                 component: FormLhkFinishingBuildView,
                 props: { isEditMode: false }
             },
+            {
+    path: 'mmt/lhk/finishing/acc/:nomor', 
+    name: 'LhkFinishingAcc', 
+    component: FormFinishingAccView,
+    props: true 
+},
             { path: 'mmt/spk', name: 'BrowseSpk', component: SpkView },
             {
                 path: 'mmt/spk/print/:nomor',
@@ -136,6 +144,8 @@ const routes: RouteRecordRaw[] = [
             },
 
             { path: 'mmt/jadwal-kirim', name: 'JadwalKirimBrowse', component: JadwalKirimView },
+            { path: 'mmt/jadwal-kirim/new', name: 'JadwalKirimNew', component: FormJadwalKirimView },
+            { path: 'mmt/jadwal-kirim/edit/:nomor', name: 'JadwalKirimEdit', component: FormJadwalKirimView, props: { isEditMode: true } },
             { path: 'mmt/stbj', name: 'BrowseStbj', component: StbjView },
             { path: 'mmt/stbj/new', name: 'StbjNew', component: FormStbjView },
             { path: 'mmt/daftar/stbj', name: 'STBJMMT', component: StbjMmtView },

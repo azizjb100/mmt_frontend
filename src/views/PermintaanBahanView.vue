@@ -17,6 +17,7 @@ interface PermintaanBahanDetail {
   Kode: string;
   Nama_Bahan: string;
   Jumlah: number;
+  Total_Diterima: number; // Tambah ini
   Satuan: string;
   Nomor_SPK: string;
   Operator: string;
@@ -129,7 +130,7 @@ const detailHeaders = [
   { title: "Nama Bahan", key: "Nama_Bahan", minWidth: "250px" },
   { title: "ACC", key: "Is_Acc", minWidth: "250px" },
   { title: "Jumlah", key: "Jumlah", minWidth: "100px", align: "end" },
-  { title: "Jumlah Terima", key: "Jumlah_terima", minWidth: "80px" },
+  { title: "Jumlah Terima", key: "Total_Diterima", minWidth: "80px" },
   { title: "Satuan", key: "Satuan", minWidth: "80px" },
   { title: "Nomor SPK", key: "Nomor_SPK", minWidth: "150px" },
   { title: "Operator", key: "Operator", minWidth: "150px" },
@@ -236,7 +237,7 @@ const handleExportExcel = () => {
             "Nama Bahan": dtl.Nama_Bahan,
             "ACC Item": dtl.Is_Acc,
             "Jumlah Minta": dtl.Jumlah,
-            "Jumlah Terima": dtl.Jumlah_terima,
+            "Jumlah Terima": dtl.Total_Diterima,
             Satuan: dtl.Satuan,
             "Nomor SPK": dtl.Nomor_SPK,
             Operator: dtl.Operator,
@@ -532,7 +533,7 @@ watch([startDate, endDate], fetchData);
                             {{ d.Jumlah }}
                           </td>
                           <td>
-                            {{ d.Jumlah_terima }}
+                            {{ d.Total_Diterima }}
                           </td>
                           <td>{{ d.Satuan }}</td>
                           <td>{{ d.Nomor_SPK }}</td>

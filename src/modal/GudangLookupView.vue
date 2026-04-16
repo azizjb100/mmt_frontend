@@ -83,9 +83,10 @@
 
 <script setup lang="ts">
 import { ref, watch, defineProps, defineEmits, computed } from "vue";
-import axios, { AxiosError } from "axios";
+import { AxiosError } from "axios";
 import api from "@/services/api";
 import { useToast } from "vue-toastification";
+import { useAuthStore } from "@/stores/authStore";
 
 // --- Interfaces ---
 interface GudangItem {
@@ -100,26 +101,28 @@ interface ApiResponse {
 }
 
 // --- Props & Emits ---
+// GABUNGKAN SEMUA PROP DI SINI
 const props = defineProps<{
   isVisible: boolean;
+  mode: "all" | "jadi"; // Menentukan filter (Semua atau Gudang Jadi saja)
 }>();
 
 const emit = defineEmits<{
   (e: "close"): void;
-  // Mengembalikan objek GudangItem lengkap saat dipilih
   (e: "select", gudang: GudangItem): void;
 }>();
 
 const toast = useToast();
+const authStore = useAuthStore();
+const user = authStore.user;
 
 // --- State ---
-// Endpoint yang sesuai dengan backend Node.js/Express lookup service
 const API_URL = "/mmt/lookup/gudang";
 const gudangList = ref<GudangItem[]>([]);
 const searchKeyword = ref("");
 const loading = ref(false);
 
-// --- Konfigurasi Header v-data-table ---
+// --- Konfigurasi Header ---
 const headers = [
   { title: "Kode", key: "Kode", width: "150px" },
   { title: "Nama Gudang", key: "Nama", width: "350px" },
@@ -132,36 +135,32 @@ const headers = [
   },
 ];
 
-// --- Computed untuk Filter Sisi Klien (Fallback/Live Search) ---
-// Note: Karena backend hanya mendukung filter sederhana, kita filter di klien jika perlu live search.
+// --- Computed Filter (Client Side Search) ---
 const filteredGudangList = computed(() => {
-  if (!searchKeyword.value) {
-    return gudangList.value;
-  }
+  if (!searchKeyword.value) return gudangList.value;
   const keyword = searchKeyword.value.toLowerCase();
   return gudangList.value.filter(
     (g) =>
       g.Kode.toLowerCase().includes(keyword) ||
-      g.Nama.toLowerCase().includes(keyword)
+      g.Nama.toLowerCase().includes(keyword),
   );
 });
 
-// --- API & Logic ---
-
+// --- API Logic ---
+// --- Bagian script di GudangLookupView.vue ---
 const fetchGudangData = async () => {
   loading.value = true;
   try {
-    // Panggil endpoint GET /api/v1/lookup/gudang (tanpa parameter query)
-    const response = await api.get<ApiResponse>(API_URL);
-
-    gudangList.value = response.data.data || [];
+    const response = await api.get("/mmt/lookup/gudang", {
+      params: {
+        mode: props.mode, // Mengambil props 'jadi' yang dikirim dari parent
+        divisi: user?.divisi, // Mengambil divisi dari store
+      },
+    });
+    // Menyesuaikan dengan struktur response backend Anda
+    gudangList.value = response.data.data || response.data || [];
   } catch (error) {
-    const err = error as AxiosError;
-    const errorMessage =
-      (err.response?.data as { message?: string })?.message ||
-      "Gagal memuat daftar Gudang.";
-    toast.error(errorMessage);
-    gudangList.value = [];
+    toast.error("Gagal memuat daftar gudang di modal");
   } finally {
     loading.value = false;
   }
@@ -172,26 +171,20 @@ const selectGudang = (gudang: GudangItem) => {
     toast.error("Error: Kode Gudang kosong.");
     return;
   }
-
-  // Mengirim objek gudang lengkap ke form pemanggil
   emit("select", gudang);
   emit("close");
 };
 
-// --- Watchers & Lifecycle ---
-
-// Muat data saat modal terlihat
+// --- Watchers ---
 watch(
   () => props.isVisible,
   (newValue) => {
     if (newValue) {
-      searchKeyword.value = ""; // Reset keyword saat modal dibuka
+      searchKeyword.value = "";
       fetchGudangData();
-    } else {
-      gudangList.value = []; // Bersihkan list data saat ditutup
     }
   },
-  { immediate: true }
+  { immediate: true },
 );
 </script>
 
