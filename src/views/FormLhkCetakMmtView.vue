@@ -302,6 +302,8 @@ const handleSave = async (status: string) => {
         ...d,
         // Pastikan field matching dengan backend (misal: msn_kode)
         mesin: d.mesin,
+        lcd_lnomor: d.lhkmesin, // Set lhkmesin ke lcd_lnomor sebelum dikirim
+        lcd_lshift: d.shift || formData.shift,
       })),
       // Data Tinta (tabel tlhk_cetakmmt_ink) - Filter yang mesinnya diisi saja
       inkData: inkDetails.value

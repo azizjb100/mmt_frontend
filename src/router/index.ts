@@ -87,6 +87,7 @@ import FormStbjView from '@/views/FormStbjView.vue';
 import JadwalKirimView from '@/views/JadwalKirimView.vue';
 import FormJadwalKirimView from '@/views/FormJadwalKirimView.vue';
 import FormFinishingAccView from '@/views/FormFinishingAccView.vue';
+import LapMonFinishingView from '@/views/LapMonFinishingView.vue';
 
 
 
@@ -409,6 +410,8 @@ const routes: RouteRecordRaw[] = [
             { path: 'laporan/mmt/ls-bahan-penolong', name: 'LS Bahan Penolong', component: LapLsBahanPenolongView },
             { path: 'laporan/mmt/lap-mon-lmkp-mmt', name: 'lapMonLmkpMmt', component: LapMonLmkpMmtView },
             { path: 'laporan/mmt/lap-mon-cetak', name: 'lapMonCetak', component: LapMonCetakView },
+            { path: 'laporan/mmt/lap-mon-finishing', name: 'lapMonFinishing', component: LapMonFinishingView },
+
             { path: 'laporan/mmt/lap-spk-mmt', name: 'lapSpkMmt', component: LapSpkMmtView },            
             { path: 'laporan/mmt/lap-pemakaian-bahan', name: 'LapPemakaianBahan', component: LapPemakaianBahanView },
             { path: 'laporan/mmt/lap-plan-produksi', name: 'lapPlanProduksi', component: LapPlanProdView },

@@ -3,7 +3,7 @@ import { ref, reactive, computed, onMounted } from "vue";
 import api from "@/services/api";
 import PageLayout from "../components/PageLayout.vue";
 import { format, parseISO, isValid } from "date-fns";
-import * as XLSX from "xlsx";
+import XLSX from "xlsx-js-style";
 
 const loading = ref({ report: false });
 const allData = ref([]);
@@ -94,151 +94,240 @@ const fetchReport = async () => {
 };
 
 const exportToExcel = () => {
-  // 1. Tentukan Judul Keterangan di Atas Tabel
-  const headerInfo = [
-    ["LAPORAN MONITORING KURANG PRODUKSI (LMKP) - MMT"],
-    [
-      `Periode: ${formatDateDisplay(startDate.value)} s/d ${formatDateDisplay(endDate.value)}`,
-    ], // Baris kosong sebagai pemisah
-  ];
+  const fileName = `Laporan_LMKP_${startDate.value}.xlsx`;
 
-  // 2. Tentukan Struktur Header (Grup Header & Sub Header)
-  const tableHeader = [
-    // Baris 1: Header Utama (Label Grup)
-    [
-      "NOMOR SPK",
-      "NAMA ORDER",
-      "TANGGAL",
-      "DEADLINE",
-      "BAHAN",
-      "PRODUKSI (PCS)",
-      "",
-      "",
-      "",
-      "",
-      "",
-      "", // Colspan 7
-      "CTK L.",
-      "MESIN",
-      "",
-      "",
-      "",
-      "", // Colspan 5
-      "PRODUKSI (METER)",
-      "",
-      "", // Colspan 3
-    ],
-    // Baris 2: Sub Header
-    [
-      "",
-      "",
-      "",
-      "",
-      "",
-      "Order",
-      "Kirim",
-      "K-Kirim",
-      "Seam",
-      "M.Ayam",
-      "Cetak",
-      "Coly",
-      "",
-      "MT02",
-      "MT03",
-      "MT04",
-      "MT05",
-      "MI",
-      "K-KRM",
-      "K-CTK",
-      "K-CLY",
-    ],
-  ];
-
-  // 3. Mapping Data Body
-  const rows = allData.value.map((item) => [
-    item.NOMOR,
-    item.spk_nama,
-    formatDateDisplay(item.spk_tanggal),
-    formatDateDisplay(item.deadline),
-    `${item.KAIN} ${item.spk_gramasi}`,
-    item.spk_jumlah,
-    item.spk_jumlah_kirim,
-    item.krg_kirim,
-    item.krg_Seaming,
-    item.krg_mataayam,
-    item.krg_Cetak,
-    item.krg_coly,
-    item.cetak_luarx,
-    item.mt02 || 0,
-    item.mt03 || 0,
-    item.mt04 || 0,
-    item.mt05 || 0,
-    item.mi || 0,
-    item.krg_kirim_meter,
-    item.krg_Cetak_meter,
-    item.krg_coly_meter,
-  ]);
-
-  // 4. Baris Total (Footer)
-  const footerRow = [
-    "TOTAL",
-    "",
-    "",
-    "",
-    "",
-    totals.value.spk_jumlah,
-    totals.value.spk_jumlah_kirim,
-    totals.value.krg_kirim,
-    totals.value.krg_Seaming,
-    totals.value.krg_mataayam,
-    totals.value.krg_Cetak,
-    totals.value.krg_coly,
-    totals.value.cetak_luarx,
-    "",
-    "",
-    "",
-    "",
-    "", // Mesin kosong
-    totals.value.krg_kirim_meter,
-    totals.value.krg_Cetak_meter,
-    totals.value.krg_coly_meter,
-  ];
-
-  // Gabungkan semua menjadi Array of Arrays
-  const fullData = [...headerInfo, ...tableHeader, ...rows, footerRow];
-
-  // 5. Buat Worksheet
-  const worksheet = XLSX.utils.aoa_to_sheet(fullData);
-
-  // 6. Konfigurasi Merge (PENTING untuk Header Grup)
-  // s = start, e = end, r = row, c = col
-  worksheet["!merges"] = [
-    // Header Info (Judul)
-    { s: { r: 0, c: 0 }, e: { r: 0, c: 4 } },
-
-    // Header Utama Vertical (Nomor SPK s/d Bahan)
-    { s: { r: 4, c: 0 }, e: { r: 5, c: 0 } }, // NOMOR SPK
-    { s: { r: 4, c: 1 }, e: { r: 5, c: 1 } }, // NAMA ORDER
-    { s: { r: 4, c: 2 }, e: { r: 5, c: 2 } }, // TANGGAL
-    { s: { r: 4, c: 3 }, e: { r: 5, c: 3 } }, // DEADLINE
-    { s: { r: 4, c: 4 }, e: { r: 5, c: 4 } }, // BAHAN
-
-    // Header Utama Horizontal (Grup)
-    { s: { r: 4, c: 5 }, e: { r: 4, c: 11 } }, // PRODUKSI (PCS)
-    { s: { r: 4, c: 12 }, e: { r: 5, c: 12 } }, // CTK L.
-    { s: { r: 4, c: 13 }, e: { r: 4, c: 17 } }, // MESIN
-    { s: { r: 4, c: 18 }, e: { r: 4, c: 20 } }, // PRODUKSI (METER)
-
-    // Footer Merge (TOTAL)
-    {
-      s: { r: fullData.length - 1, c: 0 },
-      e: { r: fullData.length - 1, c: 4 },
+  // Definisi Style untuk digunakan berulang kali
+  const styleHeaderMain = {
+    fill: { fgColor: { rgb: "B3E5FC" } },
+    font: { bold: true, color: { rgb: "000000" } },
+    alignment: { horizontal: "center", vertical: "center", wrapText: true },
+    border: {
+      top: { style: "thin", color: { rgb: "000000" } },
+      bottom: { style: "thin", color: { rgb: "000000" } },
+      left: { style: "thin", color: { rgb: "000000" } },
+      right: { style: "thin", color: { rgb: "000000" } },
     },
+  };
+
+  const styleHeaderSub = {
+    ...styleHeaderMain,
+    fill: { fgColor: { rgb: "E1F5FE" } },
+  };
+
+  const styleDataCell = {
+    border: {
+      top: { style: "thin", color: { rgb: "000000" } },
+      bottom: { style: "thin", color: { rgb: "000000" } },
+      left: { style: "thin", color: { rgb: "000000" } },
+      right: { style: "thin", color: { rgb: "000000" } },
+    },
+    alignment: { vertical: "center" },
+  };
+
+  const styleFooter = {
+    ...styleDataCell,
+    fill: { fgColor: { rgb: "F0F4F8" } },
+    font: { bold: true },
+  };
+
+  // 1. Susun Data dengan Style
+  const wsData = [];
+
+  // Baris Info Judul (Tanpa Border)
+  wsData.push([
+    { v: "LAPORAN MONITORING LMKP", s: { font: { bold: true, sz: 14 } } },
+  ]);
+  wsData.push([
+    {
+      v: `Periode: ${formatDateDisplay(startDate.value)} s/d ${formatDateDisplay(endDate.value)}`,
+    },
+  ]);
+  wsData.push([{ v: `Kategori: ${jenisIndex.value === "0" ? "MT" : "MX"}` }]);
+  wsData.push([]); // Baris kosong
+
+  // 2. Buat Header Row 1
+  const headerRow1 = [
+    { v: "NOMOR SPK", s: styleHeaderMain },
+    { v: "NAMA ORDER", s: styleHeaderMain },
+    { v: "TANGGAL", s: styleHeaderMain },
+    { v: "DEADLINE", s: styleHeaderMain },
+    { v: "BAHAN", s: styleHeaderMain },
+    { v: "PRODUKSI (PCS)", s: styleHeaderMain },
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    { v: "CTK L.", s: styleHeaderMain },
+    { v: "MESIN", s: styleHeaderMain },
+    "",
+    "",
+    "",
+    "",
+    { v: "PRODUKSI (METER)", s: styleHeaderMain },
+    "",
+    "",
+  ];
+  // Isi cell kosong pada merge dengan style agar border muncul
+  for (let i = 6; i <= 11; i++) headerRow1[i] = { v: "", s: styleHeaderMain };
+  for (let i = 14; i <= 17; i++) headerRow1[i] = { v: "", s: styleHeaderMain };
+  for (let i = 19; i <= 20; i++) headerRow1[i] = { v: "", s: styleHeaderMain };
+  wsData.push(headerRow1);
+
+  // 3. Buat Header Row 2 (Sub-headers)
+  const subHeaders = [
+    "Order",
+    "Kirim",
+    "K-Kirim",
+    "Seam",
+    "M.Ayam",
+    "Cetak",
+    "Coly",
+  ];
+  const mesinHeaders = ["MT02", "MT03", "MT04", "MT05", "MI"];
+  const meterHeaders = ["K-KRM", "K-CTK", "K-CLY"];
+
+  const headerRow2 = Array(5).fill({ v: "", s: styleHeaderMain }); // Untuk vertical merge
+  subHeaders.forEach((h) => headerRow2.push({ v: h, s: styleHeaderSub }));
+  headerRow2.push({ v: "", s: styleHeaderMain }); // Untuk CTK L. vertical merge
+  mesinHeaders.forEach((h) => headerRow2.push({ v: h, s: styleHeaderSub }));
+  meterHeaders.forEach((h) => headerRow2.push({ v: h, s: styleHeaderSub }));
+  wsData.push(headerRow2);
+
+  // 4. Tambah Baris Data
+  allData.value.forEach((item) => {
+    wsData.push([
+      {
+        v: item.NOMOR,
+        s: { ...styleDataCell, alignment: { horizontal: "center" } },
+      },
+      { v: item.spk_nama, s: styleDataCell },
+      {
+        v: formatDateDisplay(item.spk_tanggal),
+        s: { ...styleDataCell, alignment: { horizontal: "center" } },
+      },
+      {
+        v: formatDateDisplay(item.deadline),
+        s: { ...styleDataCell, alignment: { horizontal: "center" } },
+      },
+      { v: `${item.KAIN} ${item.spk_gramasi}`, s: styleDataCell },
+      {
+        v: item.spk_jumlah,
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+      },
+      {
+        v: item.spk_jumlah_kirim,
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+      },
+      {
+        v: item.krg_kirim,
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+      },
+      {
+        v: item.krg_Seaming,
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+      },
+      {
+        v: item.krg_mataayam,
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+      },
+      {
+        v: item.krg_Cetak,
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+      },
+      {
+        v: item.krg_coly,
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+      },
+      {
+        v: item.cetak_luarx,
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+      },
+      {
+        v: item.mt02 || 0,
+        s: { ...styleDataCell, alignment: { horizontal: "center" } },
+      },
+      {
+        v: item.mt03 || 0,
+        s: { ...styleDataCell, alignment: { horizontal: "center" } },
+      },
+      {
+        v: item.mt04 || 0,
+        s: { ...styleDataCell, alignment: { horizontal: "center" } },
+      },
+      {
+        v: item.mt05 || 0,
+        s: { ...styleDataCell, alignment: { horizontal: "center" } },
+      },
+      {
+        v: item.mi || 0,
+        s: { ...styleDataCell, alignment: { horizontal: "center" } },
+      },
+      {
+        v: Number(item.krg_kirim_meter || 0).toFixed(2),
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+      },
+      {
+        v: Number(item.krg_Cetak_meter || 0).toFixed(2),
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+      },
+      {
+        v: Number(item.krg_coly_meter || 0).toFixed(2),
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+      },
+    ]);
+  });
+
+  // 5. Baris TOTAL
+  const footerRow = [
+    { v: "TOTAL", s: { ...styleFooter, alignment: { horizontal: "right" } } },
+    { v: "", s: styleFooter },
+    { v: "", s: styleFooter },
+    { v: "", s: styleFooter },
+    { v: "", s: styleFooter },
+    { v: totals.value.spk_jumlah, s: styleFooter },
+    { v: totals.value.spk_jumlah_kirim, s: styleFooter },
+    { v: totals.value.krg_kirim, s: styleFooter },
+    { v: totals.value.krg_Seaming, s: styleFooter },
+    { v: totals.value.krg_mataayam, s: styleFooter },
+    { v: totals.value.krg_Cetak, s: styleFooter },
+    { v: totals.value.krg_coly, s: styleFooter },
+    { v: totals.value.cetak_luarx, s: styleFooter },
+    { v: "", s: styleFooter },
+    { v: "", s: styleFooter },
+    { v: "", s: styleFooter },
+    { v: "", s: styleFooter },
+    { v: "", s: styleFooter },
+    { v: totals.value.krg_kirim_meter.toFixed(2), s: styleFooter },
+    { v: totals.value.krg_Cetak_meter.toFixed(2), s: styleFooter },
+    { v: totals.value.krg_coly_meter.toFixed(2), s: styleFooter },
+  ];
+  wsData.push(footerRow);
+
+  const ws = XLSX.utils.aoa_to_sheet(wsData);
+
+  // 6. Konfigurasi Merge
+  ws["!merges"] = [
+    { s: { r: 4, c: 0 }, e: { r: 5, c: 0 } },
+    { s: { r: 4, c: 1 }, e: { r: 5, c: 1 } },
+    { s: { r: 4, c: 2 }, e: { r: 5, c: 2 } },
+    { s: { r: 4, c: 3 }, e: { r: 5, c: 3 } },
+    { s: { r: 4, c: 4 }, e: { r: 5, c: 4 } },
+    { s: { r: 4, c: 12 }, e: { r: 5, c: 12 } },
+    { s: { r: 4, c: 5 }, e: { r: 4, c: 11 } },
+    { s: { r: 4, c: 13 }, e: { r: 4, c: 17 } },
+    { s: { r: 4, c: 18 }, e: { r: 4, c: 20 } },
+    { s: { r: wsData.length - 1, c: 0 }, e: { r: wsData.length - 1, c: 4 } },
   ];
 
-  const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, worksheet, "Laporan LMKP");
-  XLSX.writeFile(workbook, `Laporan_LMKP_${startDate.value}.xlsx`);
+  ws["!cols"] = Array(21).fill({ wch: 10 });
+  ws["!cols"][1] = { wch: 25 }; // Nama Order lebih lebar
+  ws["!cols"][4] = { wch: 20 }; // Bahan lebih lebar
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "LMKP");
+  XLSX.writeFile(wb, fileName);
 };
 
 onMounted(fetchReport);
@@ -508,46 +597,57 @@ onMounted(fetchReport);
   overflow: auto;
 }
 
-/* Mengubah warna teks header menjadi hitam pekat */
-.desktop-table :deep(th) {
+/* --- HEADER STYLING --- */
+/* Gunakan spesifikasi tinggi agar menimpa default Vuetify */
+.desktop-table :deep(thead th) {
   font-size: 10px !important;
   font-weight: 800 !important;
   text-align: center !important;
-  border-right: 1px solid #7bdaff !important;
+  color: #000000 !important; /* Teks Hitam Pekat */
+  text-transform: uppercase;
   white-space: nowrap;
-  color: #000000 !important; /* Warna teks hitam */
+  padding: 8px !important;
+  /* Border Biru Terang di semua sisi */
+  border: 1px solid #7bdaff !important;
 }
 
-.desktop-table :deep(td) {
-  font-size: 10px !important;
-  border-right: 1px solid #eee !important;
-  white-space: nowrap;
-  color: #333;
+/* Background Warna Header */
+.desktop-table :deep(.bg-blue-main) {
+  background-color: #b3e5fc !important;
 }
 
-.bg-blue-main {
-  background: #b3e5fc !important;
-}
-.bg-blue-sub {
+.desktop-table :deep(.bg-blue-sub) {
   background-color: #e1f5fe !important;
 }
-.bg-blue-detail {
+
+.desktop-table :deep(.bg-blue-detail) {
   background-color: #ffffff !important;
 }
-.bg-blue-light {
-  background-color: #f8fbff !important;
+
+/* --- BODY STYLING --- */
+.desktop-table :deep(tbody td) {
+  font-size: 10px !important;
+  border-right: 1px solid #eee !important;
+  border-bottom: 1px solid #eee !important;
+  white-space: nowrap;
+  color: #333;
+  padding: 4px 8px !important;
 }
 
+/* --- FOOTER STYLING --- */
 .table-footer td {
   position: sticky;
   bottom: 0;
   z-index: 25;
   background-color: #f0f4f8 !important;
+  border: 1px solid #7bdaff !important; /* Border footer biru */
   border-top: 2px solid #7bdaff !important;
   padding: 8px !important;
-  color: #000 !important; /* Total di footer juga hitam */
+  color: #000 !important;
+  font-weight: bold;
 }
 
+/* --- STATS / SUMMARY TABLE --- */
 .sticky-stats-wrapper {
   margin-top: 10px;
   display: flex;
@@ -571,12 +671,14 @@ onMounted(fetchReport);
   background: #f0f8ff;
   font-weight: bold;
 }
+
 .stats-value {
   font-weight: bold;
   text-align: right;
   min-width: 100px;
 }
 
+/* --- UTILS --- */
 .deadline {
   font-weight: bold;
   color: #d32f2f;
@@ -586,5 +688,8 @@ onMounted(fetchReport);
 }
 .text-error {
   color: #d32f2f !important;
+}
+.bg-blue-light {
+  background-color: #f8fbff !important;
 }
 </style>

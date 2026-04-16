@@ -421,6 +421,10 @@ const allMenuGroups = [
           },
           { name: "Lap. Mon Cetak", path: "/laporan/mmt/lap-mon-cetak" },
           {
+            name: "Lap. Mon Finishing",
+            path: "/laporan/mmt/lap-mon-finishing",
+          },
+          {
             name: "Lap. Plan Produksi",
             path: "/laporan/mmt/lap-plan-produksi",
           },
