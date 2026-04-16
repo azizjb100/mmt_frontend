@@ -415,6 +415,10 @@ const allMenuGroups = [
             name: "Lap. Monitoring Kurang Produksi MMT",
             path: "/laporan/mmt/lap-mon-lmkp-mmt",
           },
+          {
+            name: "Lap. Pemakaian Bahan",
+            path: "/laporan/mmt/lap-pemakaian-bahan",
+          },
           { name: "Lap. Mon Cetak", path: "/laporan/mmt/lap-mon-cetak" },
           {
             name: "Lap. Plan Produksi",
