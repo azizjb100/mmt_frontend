@@ -569,6 +569,7 @@ watch([startDate, endDate], fetchData);
 .detail-table-wrapper {
   padding: 0 40px;
 }
+/* hjb */
 .detail-table {
   background-color: white !important;
   font-size: 0.8rem;
