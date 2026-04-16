@@ -96,12 +96,10 @@ const fetchReport = async () => {
 const exportToExcel = () => {
   // 1. Tentukan Judul Keterangan di Atas Tabel
   const headerInfo = [
-    ["LAPORAN MONITORING LMKP"],
+    ["LAPORAN MONITORING KURANG PRODUKSI (LMKP) - MMT"],
     [
       `Periode: ${formatDateDisplay(startDate.value)} s/d ${formatDateDisplay(endDate.value)}`,
-    ],
-    [`Kategori: ${jenisIndex.value === "0" ? "MT" : "MX"}`],
-    [], // Baris kosong sebagai pemisah
+    ], // Baris kosong sebagai pemisah
   ];
 
   // 2. Tentukan Struktur Header (Grup Header & Sub Header)

@@ -1,23 +1,22 @@
 import { defineStore } from "pinia";
 import api from "@/services/api";
+import { format } from "date-fns"; // Pastikan date-fns terinstal
 
 export const useStbjStore = defineStore("stbj", {
   state: () => ({
-    // Ini mirip dengan Field-field di Tabel tstbj_hdr
     header: {
       stbj_nomor: "",
-      stbj_tanggal: new Date().toISOString().substr(0, 10),
+      // Menggunakan format date-fns agar sesuai tanggal lokal saat ini (YYYY-MM-DD)
+      stbj_tanggal: format(new Date(), "yyyy-MM-dd"),
       stbj_gdg_kode: "",
       stbj_gdg_nama: "",
       stbj_gdgp_kode: "",
       stbj_keterangan: "",
     },
-    // Ini mirip dengan TClientDataSet (CDS) untuk tstbj_dtl
     details: [] as any[],
   }),
 
   actions: {
-    // Fungsi untuk menambah baris kosong (Mirip CDS.Append)
     addDetail() {
       this.details.push({
         stbjd_spk_nomor: "",
@@ -29,7 +28,6 @@ export const useStbjStore = defineStore("stbj", {
       });
     },
 
-    // Fungsi untuk menghapus baris (Mirip CDS.Delete)
     removeDetail(index: number) {
       this.details.splice(index, 1);
       if (this.details.length === 0) {
@@ -37,22 +35,28 @@ export const useStbjStore = defineStore("stbj", {
       }
     },
 
-    // Fungsi untuk load data saat Edit (Mirip loaddataall di Delphi)
     async loadSTBJ(nomor: string) {
       try {
         const res = await api.get(`/stbj/detail-full/${nomor}`);
-        this.header = res.data.header;
+        
+        // --- Perbaikan Formatting Tanggal saat Load ---
+        const rawHeader = res.data.header;
+        if (rawHeader.stbj_tanggal) {
+          // Memastikan hanya mengambil 10 karakter pertama (YYYY-MM-DD)
+          rawHeader.stbj_tanggal = rawHeader.stbj_tanggal.substring(0, 10);
+        }
+        
+        this.header = rawHeader;
         this.details = res.data.details;
       } catch (error) {
         console.error("Gagal load data STBJ", error);
       }
     },
 
-    // Fungsi untuk reset form (Mirip refreshdata di Delphi)
     $reset() {
       this.header = {
         stbj_nomor: "OTOMATIS",
-        stbj_tanggal: new Date().toISOString().substr(0, 10),
+        stbj_tanggal: format(new Date(), "yyyy-MM-dd"),
         stbj_gdg_kode: "",
         stbj_gdg_nama: "",
         stbj_gdgp_kode: "",
