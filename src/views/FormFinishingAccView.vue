@@ -148,19 +148,29 @@ const loaddataall = async (nomor: string) => {
 
 const removeRow = (idx: number) => detailData.value.splice(idx, 1);
 
-const handleSaveAcc = async () => {
+const handleSave = async () => {
   if (detailData.value.length === 0) {
     toast.error("Rincian SPK tidak boleh kosong!");
     return;
   }
 
-  if (!window.confirm("Simpan perubahan dan berikan ACC?")) return;
+  const isAccMode = route.name === "LhkFinishingAcc";
+  const confirmMessage = isAccMode
+    ? "Simpan perubahan dan berikan ACC?"
+    : "Simpan perubahan data (Update)?";
+
+  if (!window.confirm(confirmMessage)) return;
 
   isSaving.value = true;
+
+  // Variabel untuk menandai apakah request API sebenarnya berhasil
+  let isSuccess = false;
+
   try {
     const payload = {
       nomor: formData.nomor,
-      // Mapping detailData agar nama key sesuai dengan yang diterima backend service
+      tanggal: formData.tanggal,
+      operator: formData.operator,
       details: detailData.value.map((d) => ({
         spk_nomor: d.spk_nomor,
         j_potong: d.j_potong,
@@ -176,15 +186,39 @@ const handleSaveAcc = async () => {
       })),
     };
 
-    // Pastikan route API ini sudah didaftarkan di backend (router.post('/acc', ...))
-    const res = await api.post("/mmt/lhk-finishing/acc", payload);
+    const endpoint = isAccMode
+      ? "/mmt/lhk-finishing/acc"
+      : "/mmt/lhk-finishing/update";
 
-    if (res.data?.success) {
-      toast.success(res.data.message);
-      router.replace({ name: "LHKFinishingBrowse" });
+    const res = await api.post(endpoint, payload);
+
+    // Cek respon dengan lebih longgar (mengantisipasi jika res.data.success undefined tapi status 200)
+    if (res.data?.success || res.status === 200) {
+      isSuccess = true; // Tandai sukses
+      toast.success(res.data?.message || "Data berhasil disimpan");
+
+      // Gunakan setTimeout agar user sempat melihat toast sukses sebelum pindah halaman
+      setTimeout(() => {
+        router.replace({ name: "LHKFinishingBrowse" });
+      }, 500);
+    } else {
+      toast.error(res.data?.message || "Server menolak permintaan");
     }
   } catch (error: any) {
-    toast.error(error.response?.data?.message || "Gagal melakukan ACC");
+    // JANGAN tampilkan toast error jika sebenarnya API sudah sukses (mencegah double toast)
+    if (!isSuccess) {
+      console.error("Save Error:", error);
+      const errorMsg =
+        error.response?.data?.message ||
+        (isAccMode ? "Gagal melakukan ACC" : "Gagal mengupdate data");
+      toast.error(errorMsg);
+    } else {
+      // Jika masuk sini, berarti API sukses tapi ada error di kode Vue setelahnya (misal router error)
+      console.warn(
+        "API Sukses, tapi terjadi error di client-side logic:",
+        error,
+      );
+    }
   } finally {
     isSaving.value = false;
   }
@@ -197,16 +231,34 @@ onMounted(() => {
 </script>
 
 <template>
-  <PageLayout title="ACC LHK Finishing MMT" icon="mdi-check-decagram">
+  <PageLayout
+    :title="
+      route.name === 'LhkFinishingAcc'
+        ? 'ACC LHK Finishing MMT'
+        : 'Ubah LHK Finishing MMT'
+    "
+    :icon="
+      route.name === 'LhkFinishingAcc'
+        ? 'mdi-check-decagram'
+        : 'mdi-pencil-box-multiple'
+    "
+  >
     <template #header-actions>
       <v-btn
         size="small"
-        color="primary"
-        @click="handleSaveAcc"
+        :color="route.name === 'LhkFinishingAcc' ? 'primary' : 'warning'"
+        @click="handleSave"
         :loading="isSaving"
         class="mr-2"
       >
-        <v-icon start>mdi-content-save-check</v-icon> Simpan & ACC
+        <v-icon start>{{
+          route.name === "LhkFinishingAcc"
+            ? "mdi-content-save-check"
+            : "mdi-database-edit"
+        }}</v-icon>
+        {{
+          route.name === "LhkFinishingAcc" ? "Simpan & ACC" : "Simpan & Update"
+        }}
       </v-btn>
 
       <v-btn

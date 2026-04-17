@@ -159,9 +159,53 @@ const handleSPKSelect = (spk: any) => {
   isSPKModalVisible.value = false;
 };
 
+const fetchDataByNomor = async (nomor: string) => {
+  try {
+    // encodeURIComponent penting karena nomor mengandung karakter '/'
+    const response = await api.get(`${API_URL}/${encodeURIComponent(nomor)}`);
+    const data = response.data;
+
+    // 1. Mapping Header
+    formData.nomor = data.Nomor;
+    formData.tanggal = data.Tanggal; // Sudah format yyyy-MM-dd dari backend
+    formData.gudangKode = data.Gudang_Kode;
+    formData.gudangNama = data.Gudang_Nama;
+    formData.gudangProduksiKode = data.Gudang_Produksi_Kode;
+    formData.gudangProduksiNama = data.Gudang_Produksi_Nama;
+    formData.keteranganHeader = data.Keterangan;
+    formData.userCreate = data.User_Create;
+
+    // 2. Mapping Detail
+    if (data.details && data.details.length > 0) {
+      formData.detail = data.details.map((item: any) => ({
+        spk: item.spk,
+        namaBarang: item.nama_spk, // mapping dari field backend
+        size: item.size,
+        qty: Number(item.qty),
+        koli: Number(item.koli),
+        keterangan: item.keterangan,
+        packing: item.packing,
+      }));
+
+      // Tambahkan satu baris kosong di bawah untuk kenyamanan input
+      addDetail();
+    }
+  } catch (error: any) {
+    console.error("Gagal load data STBJ:", error);
+    toast.error("Data tidak ditemukan atau gagal dimuat.");
+    router.back();
+  }
+};
+
+// --- Perbarui Lifecycle onMounted ---
 onMounted(() => {
   if (isEditMode.value && route.params.nomor) {
-    // Panggil fungsi loaddataall mirip contoh Anda
+    // route.params.nomor bisa berupa string atau array, pastikan ambil string
+    const nomor = Array.isArray(route.params.nomor)
+      ? route.params.nomor[0]
+      : route.params.nomor;
+
+    fetchDataByNomor(nomor);
   }
 });
 </script>

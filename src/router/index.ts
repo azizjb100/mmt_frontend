@@ -88,6 +88,7 @@ import JadwalKirimView from '@/views/JadwalKirimView.vue';
 import FormJadwalKirimView from '@/views/FormJadwalKirimView.vue';
 import FormFinishingAccView from '@/views/FormFinishingAccView.vue';
 import LapMonFinishingView from '@/views/LapMonFinishingView.vue';
+import LapMonTekstilView from '@/views/LapMonTekstilView.vue';
 
 
 
@@ -136,6 +137,12 @@ const routes: RouteRecordRaw[] = [
     component: FormFinishingAccView,
     props: true 
 },
+{
+    path: 'mmt/lhk/finishing/edit/:nomor', 
+    name: 'LhkFinishingEdit', 
+    component: FormFinishingAccView,
+    props: true 
+},
             { path: 'mmt/spk', name: 'BrowseSpk', component: SpkView },
             {
                 path: 'mmt/spk/print/:nomor',
@@ -149,6 +156,7 @@ const routes: RouteRecordRaw[] = [
             { path: 'mmt/jadwal-kirim/edit/:nomor', name: 'JadwalKirimEdit', component: FormJadwalKirimView, props: { isEditMode: true } },
             { path: 'mmt/stbj', name: 'BrowseStbj', component: StbjView },
             { path: 'mmt/stbj/new', name: 'StbjNew', component: FormStbjView },
+            { path: 'mmt/stbj/edit/:nomor', name: 'StbjEdit', component: FormStbjView, props: { isEditMode: true } },
             { path: 'mmt/daftar/stbj', name: 'STBJMMT', component: StbjMmtView },
             { path: 'mmt/pengajuan-permintaan', name: 'PengajuanPermintaanBrowse', component: PengajuanPermintaanView },
             {
@@ -411,7 +419,7 @@ const routes: RouteRecordRaw[] = [
             { path: 'laporan/mmt/lap-mon-lmkp-mmt', name: 'lapMonLmkpMmt', component: LapMonLmkpMmtView },
             { path: 'laporan/mmt/lap-mon-cetak', name: 'lapMonCetak', component: LapMonCetakView },
             { path: 'laporan/mmt/lap-mon-finishing', name: 'lapMonFinishing', component: LapMonFinishingView },
-
+            { path: 'laporan/mmt/lap-mon-tekstil', name: 'lapMonTekstil', component: LapMonTekstilView },
             { path: 'laporan/mmt/lap-spk-mmt', name: 'lapSpkMmt', component: LapSpkMmtView },            
             { path: 'laporan/mmt/lap-pemakaian-bahan', name: 'LapPemakaianBahan', component: LapPemakaianBahanView },
             { path: 'laporan/mmt/lap-plan-produksi', name: 'lapPlanProduksi', component: LapPlanProdView },
