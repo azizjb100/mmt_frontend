@@ -97,11 +97,16 @@ const calculatedTotal = computed(() => {
 });
 
 const isFormValid = computed(() => {
-  return (
-    !!formData.gudangKode && formData.detail.some((d) => d.spk && d.qty > 0)
-  );
-});
+  const hasGudang = !!formData.gudangKode;
+  const hasValidDetail = formData.detail.some((d) => d.spk && d.qty > 0);
 
+  // Cek apakah ada jumlah 'jadi' yang melebihi 'totalOrder'
+  const isOverOrder = formData.detail.some(
+    (d) => d.spk && d.jadi > d.totalOrder,
+  );
+
+  return hasGudang && hasValidDetail && !isOverOrder;
+});
 // --- Methods ---
 const addDetail = () => {
   formData.detail.push(createEmptyDetail());
@@ -117,6 +122,16 @@ const removeDetail = (index: number) => {
 
 const saveForm = async () => {
   if (!isFormValid.value) return;
+
+  // 2. Validasi Tambahan (Extra Guard)
+  const overOrderItems = formData.detail.filter(
+    (d) => d.spk && d.jadi > d.totalOrder,
+  );
+  if (overOrderItems.length > 0) {
+    toast.error("Tidak dapat menyimpan! Ada item yang melebihi Total Order.");
+    return;
+  }
+
   isSaving.value = true;
 
   try {
@@ -411,9 +426,17 @@ onMounted(() => {
                 flat
                 hide-details
                 class="text-right-input cell-yellow"
+                :error="item.jadi > item.totalOrder"
                 @input="
                   item.jadi = (item.order || 0) + (item.qty || 0);
                   item.kurang = item.totalOrder - item.jadi;
+
+                  // Tambahkan Logika Alert
+                  if (item.jadi > item.totalOrder) {
+                    toast.error(
+                      `Jumlah Jadi (${item.jadi}) melebihi Total Order (${item.totalOrder}) pada SPK ${item.spk}!`,
+                    );
+                  }
                 "
               />
             </template>
