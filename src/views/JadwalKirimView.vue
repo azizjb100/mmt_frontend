@@ -5,7 +5,7 @@
   >
     <template #header-actions>
       <v-btn
-        v-if="authStore.can(MENU_ID, 'insert')"
+        v-if="canAccess('insert')"
         size="x-small"
         color="success"
         @click="handleNew"
@@ -14,7 +14,7 @@
       </v-btn>
 
       <v-btn
-        v-if="authStore.can(MENU_ID, 'edit')"
+        v-if="canAccess('edit')"
         size="x-small"
         color="warning"
         :disabled="!isSingleSelected"
@@ -24,7 +24,7 @@
       </v-btn>
 
       <v-btn
-        v-if="authStore.can(MENU_ID, 'delete')"
+        v-if="canAccess('delete')"
         size="x-small"
         color="error"
         :disabled="!isSingleSelected"
@@ -35,7 +35,12 @@
 
       <v-divider vertical class="mx-2" />
 
-      <v-btn variant="text" size="x-small" @click="fetchData">
+      <v-btn
+        variant="text"
+        size="x-small"
+        @click="fetchData"
+        :loading="loading"
+      >
         <v-icon>mdi-refresh</v-icon> Refresh
       </v-btn>
     </template>
@@ -63,18 +68,24 @@
               style="max-width: 150px"
             />
 
-            <v-text-field
+            <v-autocomplete
               v-model="filters.gudang"
-              label="Kode Gudang"
-              placeholder="Cari Gudang..."
+              :items="gudangOptions"
+              :loading="loadingGudang"
+              label="Gudang"
+              placeholder="Pilih Gudang..."
               density="compact"
               hide-details
               variant="outlined"
+              style="max-width: 350px"
               clearable
-              style="max-width: 200px"
-              prepend-inner-icon="mdi-warehouse"
-              @keyup.enter="fetchData"
-            />
+              append-inner-icon="mdi-magnify"
+              @click:append-inner="openLookup"
+            >
+              <template #no-data>
+                <v-list-item title="Gudang tidak ditemukan"></v-list-item>
+              </template>
+            </v-autocomplete>
           </div>
         </v-card-text>
       </v-card>
@@ -116,41 +127,49 @@
         </v-data-table>
       </div>
     </div>
+
+    <GudangLookup
+      :is-visible="isLookupVisible"
+      mode="jadi"
+      @close="isLookupVisible = false"
+      @select="onGudangSelected"
+    />
   </PageLayout>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, computed } from "vue";
+import { ref, reactive, onMounted, computed, watch } from "vue";
 import { useRouter } from "vue-router";
 import { useToast } from "vue-toastification";
 import api from "@/services/api";
 import { format, parseISO, isValid } from "date-fns";
 import PageLayout from "../components/PageLayout.vue";
+import { useAuthStore } from "@/stores/authStore";
+import GudangLookup from "@/modal/GudangLookupView.vue";
 
-// --- Global Vars / Auth ---
-const authStore = {
-  can: (menuId: string, action: string) => true,
-  KDUSER: "USER01", // zGJadiKode di Delphi
-  CAB: "P01",
-};
+// --- Initialize ---
+const authStore = useAuthStore();
+const user = authStore.user;
+const router = useRouter();
+const toast = useToast();
 
 const MENU_ID = "ufrmBrowJadwalKirim2";
 const API_URL = "/mmt/jadwal-kirim";
 
-const router = useRouter();
-const toast = useToast();
-
-const masterData = ref([]);
+// --- State ---
+const masterData = ref<any[]>([]);
 const loading = ref(false);
-const selected = ref([]);
+const selected = ref<any[]>([]);
+const gudangOptions = ref<any[]>([]);
+const loadingGudang = ref(false);
+const isLookupVisible = ref(false);
 
 const filters = reactive({
   startDate: format(new Date(), "yyyy-MM-01"),
   endDate: format(new Date(), "yyyy-MM-dd"),
-  gudang: "", // Sesuai edtgudang.Text
+  gudang: user?.divisi == 1 ? "WH-010" : user?.GDG_KODE || "",
 });
 
-// Headers disesuaikan dengan SQLMaster di JadwalKirim2
 const masterHeaders = [
   { title: "Nomor Kirim", key: "Nomor", width: "120px" },
   { title: "Gudang", key: "Nama_Gudang", width: "150px" },
@@ -166,16 +185,36 @@ const masterHeaders = [
   { title: "User", key: "usr_create", width: "100px" },
 ] as const;
 
-const isSingleSelected = computed(() => selected.value.length === 1);
-const selectedRow = computed(() =>
-  isSingleSelected.value ? (selected.value[0] as any) : null,
-);
+// --- Helper Functions (Definisikan di atas agar Hoisting aman) ---
+
+const canAccess = (action: string) => {
+  // Cek apakah function can tersedia di store, jika tidak fallback ke true
+  if (typeof (authStore as any).can === "function") {
+    return (authStore as any).can(MENU_ID, action);
+  }
+  return true;
+};
+
+const safeFormatDate = (dateString: string) => {
+  if (!dateString) return "";
+  const date = parseISO(dateString);
+  return isValid(date) ? format(date, "dd/MM/yyyy") : dateString;
+};
+
+// --- API Methods ---
 
 const fetchData = async () => {
   loading.value = true;
   try {
-    const res = await api.get(API_URL, { params: filters });
-    masterData.value = res.data;
+    const res = await api.get(API_URL, {
+      params: {
+        startDate: filters.startDate,
+        endDate: filters.endDate,
+        gudang: filters.gudang,
+      },
+    });
+    masterData.value = res.data || [];
+    selected.value = []; // Reset Pilihan saat refresh
   } catch (err) {
     toast.error("Gagal memuat data jadwal kirim.");
   } finally {
@@ -183,8 +222,46 @@ const fetchData = async () => {
   }
 };
 
-const handleRowClick = (event, { item }) => {
-  selected.value = [item.Nomor]; // Menggunakan Nomor sebagai ID
+const fetchGudangOptions = async () => {
+  loadingGudang.value = true;
+  try {
+    const response = await api.get("/mmt/lookup/gudang", {
+      params: { mode: "jadi", divisi: user?.divisi },
+    });
+    gudangOptions.value = (response.data.data || []).map((g: any) => ({
+      title: `${g.Kode} - ${g.Nama}`,
+      value: g.Kode,
+    }));
+    if (
+      user?.divisi == 1 &&
+      !gudangOptions.value.some((o) => o.value === "WH-010")
+    ) {
+      gudangOptions.value.unshift({
+        title: "WH-010 - GUDANG JADI MMT",
+        value: "WH-010",
+      });
+    }
+  } catch (err) {
+    console.error("Gagal load opsi gudang", err);
+  } finally {
+    loadingGudang.value = false;
+  }
+};
+
+// --- Computed ---
+
+const isSingleSelected = computed(() => selected.value.length === 1);
+
+// Mencari data objek berdasarkan ID (Nomor) yang dipilih di tabel
+const selectedRow = computed(() => {
+  if (!isSingleSelected.value) return null;
+  return masterData.value.find((i) => i.Nomor === selected.value[0]) || null;
+});
+
+// --- Action Handlers ---
+
+const handleRowClick = (event: any, row: any) => {
+  selected.value = [row.item.Nomor];
 };
 
 const handleNew = () => {
@@ -196,15 +273,13 @@ const handleNew = () => {
 
 const handleEdit = () => {
   if (!selectedRow.value) return;
+  const creator = selectedRow.value.usr_create;
+  const currentUser = user?.kdUser || (authStore as any).KDUSER;
 
-  // Validasi User Create (Sesuai Delphi: if CDSMaster.FieldByname('usr_create').AsString <> frmmenu.KDUSER)
-  if (selectedRow.value.usr_create !== authStore.KDUSER) {
-    toast.warning(
-      `Data ini milik ${selectedRow.value.usr_create}. Anda tidak boleh mengubah.`,
-    );
+  if (creator !== currentUser) {
+    toast.warning(`Data ini milik ${creator}. Anda tidak boleh mengubah.`);
     return;
   }
-
   router.push({
     name: "JadwalKirimEdit2",
     params: { nomor: selectedRow.value.Nomor },
@@ -213,34 +288,53 @@ const handleEdit = () => {
 
 const handleDelete = async () => {
   if (!selectedRow.value) return;
+  const creator = selectedRow.value.usr_create;
+  const currentUser = user?.kdUser || (authStore as any).KDUSER;
 
-  // Validasi Hak Hapus per User
-  if (selectedRow.value.usr_create !== authStore.KDUSER) {
+  if (creator !== currentUser) {
     toast.error("Anda tidak berhak menghapus data user lain.");
     return;
   }
 
-  if (confirm("Yakin ingin dihapus?")) {
+  if (
+    confirm(`Yakin ingin menghapus Nomor Kirim: ${selectedRow.value.Nomor}?`)
+  ) {
     try {
-      // Sesuai logika Delphi: delete from tjadwalkirim where nomor_kirim = ...
       await api.delete(`${API_URL}/delete`, {
         data: { nomor: selectedRow.value.Nomor },
       });
       toast.success("Hapus Data Sukses");
       fetchData();
-    } catch (err) {
-      toast.error("Gagal Hapus Data");
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || "Gagal Hapus Data");
     }
   }
 };
 
-const safeFormatDate = (dateString: string) => {
-  if (!dateString) return "";
-  const date = parseISO(dateString);
-  return isValid(date) ? format(date, "dd/MM/yyyy") : dateString;
+// --- Lookup Logic ---
+
+const openLookup = () => (isLookupVisible.value = true);
+
+const onGudangSelected = (gudang: { Kode: string; Nama: string }) => {
+  if (!gudangOptions.value.some((opt) => opt.value === gudang.Kode)) {
+    gudangOptions.value.push({
+      title: `${gudang.Kode} - ${gudang.Nama}`,
+      value: gudang.Kode,
+    });
+  }
+  filters.gudang = gudang.Kode;
+  isLookupVisible.value = false;
 };
 
+// --- Watcher & Lifecycle ---
+
+watch(
+  [() => filters.startDate, () => filters.endDate, () => filters.gudang],
+  () => fetchData(),
+);
+
 onMounted(() => {
+  fetchGudangOptions();
   fetchData();
 });
 </script>
