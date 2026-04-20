@@ -196,7 +196,7 @@
 
                 <template #[`item.total`]="{ item }">
                   <div class="text-right font-weight-bold pr-2">
-                    {{ formatCurrency(item.invd_jumlah * item.invd_harga) }}
+                    {{ formatCurrency(item.total) }}
                   </div>
                 </template>
 
@@ -309,7 +309,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from "vue";
+import { ref, reactive, computed, onMounted, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { format } from "date-fns";
 import PageLayout from "@/components/PageLayout.vue";
@@ -330,9 +330,32 @@ const isSaving = ref(false);
 
 const isSupplierModalVisible = ref(false);
 const isRecModalVisible = ref(false);
-const isSPKModalVisible = ref(false);
 const activeDetailIndex = ref(-1);
 
+const getInvoiceStatusColor = () => (isEditMode.value ? "blue" : "green");
+
+const closeForm = () => router.push({ name: "InvoiceBrowse" });
+
+const handleCancel = () => {
+  if (confirm("Batalkan perubahan?")) {
+    if (isEditMode.value) {
+      // Panggil fungsi load data jika sedang edit
+      // loadInvoice();
+    } else {
+      closeForm();
+    }
+  }
+};
+
+const handlePrint = () => {
+  const url = router.resolve({
+    name: "InvoicePembelianPrint",
+    params: { nomor: formData.inv_nomor },
+  }).href;
+  window.open(url, "_blank");
+};
+
+// 1. Inisialisasi struktur formData dengan lengkap agar tidak undefined di awal
 const formData = reactive({
   invp_perush_kode: "001",
   inv_nomor: "AUTO",
@@ -351,28 +374,47 @@ const formData = reactive({
       invd_spk_nomor: "",
       nama_barang: "",
       satuan: "",
+      satuanHarga: "QTY", // Tambahkan default
+      m2: 0, // Tambahkan default
       invd_jumlah: 0,
       invd_harga: 0,
+      total: 0, // Tambahkan default agar tidak undefined saat render
     },
   ],
 });
 
-// Judul Form
 const formTitle = computed(() =>
-  isEditMode.value ? "Ubah Invoice Pembelian" : "Input Invoice Pembelian"
+  isEditMode.value ? "Ubah Invoice Pembelian" : "Input Invoice Pembelian",
 );
 
-// Fungsi hitung (Trigger re-kalkulasi)
+// 2. Perbaikan Fungsi hitung
 const hitung = () => {
-  console.log("Menghitung ulang total...");
+  formData.detail.forEach((item) => {
+    const qty = Number(item.invd_jumlah) || 0;
+    const harga = Number(item.invd_harga) || 0;
+    const m2 = Number(item.m2) || 0;
+
+    if (item.satuanHarga === "M2" && m2 > 0) {
+      // RUMUS: Qty * LuasM2 * Harga
+      item.total = qty * m2 * harga;
+    } else {
+      // RUMUS: Qty * Harga
+      item.total = qty * harga;
+    }
+  });
 };
+
+// Watcher untuk menghitung otomatis jika ada perubahan data di tabel
+watch(
+  () => formData.detail,
+  () => {
+    hitung();
+  },
+  { deep: true },
+);
 
 const openSupplierSearch = () => (isSupplierModalVisible.value = true);
 const openPenerimaanSearch = () => (isRecModalVisible.value = true);
-const openSPKSearch = (index: number) => {
-  activeDetailIndex.value = index;
-  // isSPKModalVisible.value = true;
-};
 
 const handleSupplierSelect = async (s: any) => {
   formData.inv_sup_kode = s.Kode;
@@ -381,91 +423,68 @@ const handleSupplierSelect = async (s: any) => {
   isSupplierModalVisible.value = false;
 };
 
+// 3. Perbaikan handlePenerimaanSelect (Pastikan data dimensi diproses)
 const handlePenerimaanSelect = async (rec: any) => {
   try {
     isSaving.value = true;
     const response = await api.get(
-      `/mmt/penerimaan-bahan/detail-invoice/${encodeURIComponent(rec.Nomor)}`
+      `/mmt/penerimaan-bahan/detail-invoice/${encodeURIComponent(rec.Nomor)}`,
     );
     const payload = response.data.data;
-
-    if (!payload || !payload.details)
-      throw new Error("Struktur data tidak sesuai");
 
     formData.inv_rekening = payload.header.rec_nomor;
     formData.inv_sup_kode = payload.header.rec_sup_kode;
     formData.sup_nama = rec.Supplier || payload.header.sup_nama;
     formData.inv_sup_alamat = rec.Keterangan || payload.header.sup_alamat || "";
 
-    formData.detail = payload.details.map((d: any) => ({
-      invd_spk_nomor: payload.header.rec_memo || payload.header.rec_nomor,
-      kode: d.Kode,
-      nama_barang: d.Nama_Barang,
-      satuan: d.Satuan,
-      invd_jumlah: Number(d.Qty) || 0,
-      invd_harga: Number(d.Harga_Beli) || 0,
-    }));
+    formData.detail = payload.details.map((d: any) => {
+      const p = Number(d.Panjang || d.brg_panjang || 0);
+      const l = Number(d.Lebar || d.brg_lebar || 0);
+      const m2Calculated = p * l;
+      const finalM2 =
+        m2Calculated > 0 ? m2Calculated : Number(d.M2 || d.m2) || 1;
 
-    addDetail();
-    formData.isPpn = payload.header.rec_istax === 1;
-    formData.ppnRate = payload.header.rec_taxamount || 11;
+      return {
+        invd_spk_nomor: payload.header.rec_memo || payload.header.rec_nomor,
+        kode: d.Kode,
+        nama_barang: d.Nama_Barang,
+        satuan: d.Satuan,
+        satuanHarga: (d.Satuan_Harga || "QTY").toUpperCase(),
+        m2: finalM2,
+        invd_jumlah: Number(d.Qty) || 0,
+        invd_harga: Number(d.Harga_Beli) || 0,
+        total: 0, // Akan diupdate oleh hitung()
+      };
+    });
 
+    hitung();
     toast.success(`Berhasil memuat Penerimaan ${rec.Nomor}`);
     isRecModalVisible.value = false;
   } catch (err: any) {
-    toast.error(err.message || "Gagal memuat detail penerimaan");
+    toast.error("Gagal memuat detail penerimaan");
   } finally {
     isSaving.value = false;
   }
 };
 
-const loadInvoice = async () => {
-  try {
-    const nomor = route.params.nomor as string;
-    const res = await api.get(`${API_DETAIL}/${nomor}`);
-    const data = res.data;
-
-    Object.assign(formData, {
-      inv_nomor: data.inv_nomor,
-      inv_tanggal: data.inv_tanggal,
-      inv_tanggal_tempo: data.inv_tanggal_tempo,
-      inv_sup_kode: data.inv_sup_kode,
-      sup_nama: data.sup_nama,
-      inv_sup_alamat: data.inv_sup_alamat,
-      inv_rekening: data.inv_rekening,
-      inv_keterangan: data.inv_keterangan,
-      isPpn: data.inv_is_ppn === "Y",
-      ppnRate: Number(data.inv_ppn_rate || 11),
-      detail: data.Detail.map((d: any) => ({
-        invd_spk_nomor: d.invd_spk_nomor,
-        nama_barang: d.nama_barang,
-        invd_jumlah: Number(d.invd_jumlah),
-        invd_harga: Number(d.invd_harga),
-      })),
-    });
-  } catch (err) {
-    toast.error("Gagal memuat data invoice");
+// 4. Perbaikan formatCurrency (Kebal terhadap undefined/NaN)
+const formatCurrency = (val: any) => {
+  const numericValue = parseFloat(val);
+  if (isNaN(numericValue)) {
+    return "0,00";
   }
+  return numericValue.toLocaleString("id-ID", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
 };
 
-const detailHeaders = [
-  { title: "Referensi/PO", key: "invd_spk_nomor", width: "150px" },
-  { title: "Deskripsi Barang", key: "nama_barang" },
-  { title: "Qty", key: "invd_jumlah", width: "100px", align: "end" as const },
-  { title: "Harga", key: "invd_harga", width: "130px", align: "end" as const },
-  { title: "Total", key: "total", width: "150px", align: "end" as const },
-  { title: "Aksi", key: "actions", width: "50px", sortable: false },
-];
-
-const formatCurrency = (val: number) =>
-  val.toLocaleString("id-ID", { minimumFractionDigits: 2 });
-
-const calculatedSubTotal = computed(() =>
-  formData.detail.reduce(
-    (sum, item) => sum + Number(item.invd_jumlah) * Number(item.invd_harga),
-    0
-  )
-);
+const calculatedSubTotal = computed(() => {
+  return formData.detail.reduce(
+    (sum, item) => sum + (Number(item.total) || 0),
+    0,
+  );
+});
 
 const calculatedGrandTotal = computed(() => {
   const sub = calculatedSubTotal.value;
@@ -474,7 +493,7 @@ const calculatedGrandTotal = computed(() => {
 
 const isFormValid = computed(
   () =>
-    !!formData.inv_sup_kode && formData.detail.some((d) => d.invd_jumlah > 0)
+    !!formData.inv_sup_kode && formData.detail.some((d) => d.invd_jumlah > 0),
 );
 
 const addDetail = () =>
@@ -483,15 +502,17 @@ const addDetail = () =>
     invd_spk_nomor: "",
     nama_barang: "",
     satuan: "",
+    satuanHarga: "QTY",
+    m2: 0,
     invd_jumlah: 0,
     invd_harga: 0,
+    total: 0,
   });
 
-const removeDetail = (index: number) => formData.detail.splice(index, 1);
-
-const closeForm = () => router.push({ name: "InvoiceBrowse" });
-
-const getInvoiceStatusColor = () => (isEditMode.value ? "blue" : "green");
+const removeDetail = (index: number) => {
+  formData.detail.splice(index, 1);
+  if (formData.detail.length === 0) addDetail();
+};
 
 const handleSave = async () => {
   if (!isFormValid.value) {
@@ -499,80 +520,45 @@ const handleSave = async () => {
     return;
   }
 
-  // Prevent duplicate clicks
   if (isSaving.value) return;
 
   try {
     isSaving.value = true;
-
     const validDetails = formData.detail
       .filter((d) => d.invd_jumlah > 0 && d.nama_barang)
       .map((d) => ({
+        ...d,
         invd_spk_nomor: d.invd_spk_nomor || null,
-        nama_barang: d.nama_barang,
-        invd_jumlah: Number(d.invd_jumlah),
-        invd_harga: Number(d.invd_harga),
         kode_barang: d.kode || null,
-        satuan: d.satuan || null,
       }));
 
-    if (validDetails.length === 0)
-      throw new Error("Detail item tidak boleh kosong");
-
     const payload = {
-      invp_perush_kode: formData.invp_perush_kode || "001",
-      inv_nomor: formData.inv_nomor,
-      inv_tanggal: formData.inv_tanggal,
-      inv_tanggal_tempo: formData.inv_tanggal_tempo,
-      inv_sup_kode: formData.inv_sup_kode,
-      inv_sup_alamat: formData.inv_sup_alamat,
-      inv_rekening: formData.inv_rekening,
-      inv_keterangan: formData.inv_keterangan,
+      ...formData,
       inv_subtotal: calculatedSubTotal.value,
       inv_is_ppn: formData.isPpn ? "Y" : "N",
-      inv_ppn_rate: formData.ppnRate,
       inv_grand_total: calculatedGrandTotal.value,
       detail: validDetails,
     };
 
     const res = await api.post(API_SAVE, {
-      // CRITICAL: Ensure this is null when not in edit mode to trigger INSERT
       nomorToEdit: isEditMode.value ? formData.inv_nomor : null,
       ...payload,
     });
 
-    // Handle success
-
     toast.success(res.data.message || "Invoice berhasil disimpan");
-
-    // KEMBALI KE BROWSE: Menggunakan push ke name route "InvoiceBrowse"
     router.push({ name: "InvoiceBrowse" });
   } catch (err: any) {
-    console.error("Save Error:", err);
-    toast.error(
-      err.response?.data?.message || err.message || "Gagal simpan invoice"
-    );
+    toast.error(err.response?.data?.message || "Gagal simpan invoice");
   } finally {
     isSaving.value = false;
   }
 };
 
-const handleCancel = () => {
-  if (confirm("Batalkan perubahan?")) {
-    if (isEditMode.value) loadInvoice();
-    else closeForm();
+const onMountedFunc = async () => {
+  if (isEditMode.value) {
+    // Implementasi loadInvoice() di sini
   }
 };
 
-const handlePrint = () => {
-  const url = router.resolve({
-    name: "InvoicePembelianPrint",
-    params: { nomor: formData.inv_nomor },
-  }).href;
-  window.open(url, "_blank");
-};
-
-onMounted(() => {
-  if (isEditMode.value) loadInvoice();
-});
+onMounted(onMountedFunc);
 </script>

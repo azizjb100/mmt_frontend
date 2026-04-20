@@ -205,6 +205,7 @@ const selectSPK = (SPK: SPKItem) => {
     Bahan: SPK.Bahan,
     Gramasi: SPK.Gramasi,
     Jumlah: SPK.Jumlah,
+    Ukuran: SPK.Ukuran,
     Jumlah_jadi: SPK.Jumlah_jadi,
     Sudah_Cetak: SPK.Sudah_Cetak || 0,
     Kurang_Cetak: SPK.Kurang_Cetak || 0,

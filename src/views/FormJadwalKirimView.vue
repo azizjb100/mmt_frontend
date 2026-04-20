@@ -132,21 +132,28 @@ const handleGudangSelect = (gudang: { Kode: string; Nama: string }) => {
 };
 
 const handleSPKSelect = (spk: any) => {
-  // Debugging: Lihat di console browser apa saja isi objek 'spk' yang dikirim modal
   console.log("Data SPK dipilih:", spk);
 
-  // Sesuaikan mapping di bawah ini dengan nama field dari Modal Anda
-  formData.spkNomor = spk.spk_nomor || spk.mspk_nomor || spk.Spk || "";
-  formData.spkNama = spk.spk_nama || spk.mspk_nama || spk.Nama || "";
-  formData.spkUkuran = spk.spk_ukuran || spk.mspk_ukuran || spk.Ukuran || "";
-  formData.spkKain = spk.spk_kain || spk.mspk_kain || spk.Kain || "";
+  // 1. Perbaiki pemetaan (Mapping) sesuai preview log modal Anda (PascalCase)
+  formData.spkNomor = spk.SPK || spk.spk_nomor || spk.mspk_nomor || "";
+  formData.spkNama = spk.Nama || spk.spk_nama || spk.mspk_nama || "";
+  formData.spkUkuran = spk.Ukuran || spk.spk_ukuran || spk.mspk_ukuran || "";
+  formData.spkKain = spk.Kain || spk.spk_kain || spk.mspk_kain || "";
 
-  // Tutup modal
+  // 2. Jika data SPK memiliki info Customer (berdasarkan logika Delphi Anda)
+  // formData.cusNama = spk.Cus_nama || "";
+
   isSPKModalVisible.value = false;
 
-  // Opsional: Jika ingin otomatis menambah baris detail pertama jika masih kosong
-  if (formData.detail.length === 1 && !formData.detail[0].kota) {
-    formData.detail[0].uraian = formData.spkNama;
+  // 3. Otomatis isi detail pertama jika masih kosong
+  if (formData.detail.length > 0) {
+    const firstDetail = formData.detail[0];
+
+    // Jika baris pertama masih "fresh" (belum diisi kota), kita bantu isi
+    if (!firstDetail.kota) {
+      firstDetail.uraian = formData.spkNama; // Isi uraian dengan nama SPK
+      firstDetail.size = formData.spkUkuran; // MASALAH ANDA: Pastikan field 'size' terisi
+    }
   }
 };
 
@@ -186,30 +193,52 @@ const loaddataall = async (nomor: string) => {
     isSaving.value = false;
   }
 };
+
 const saveForm = async (saveAndNew: boolean) => {
   if (!isFormValid.value) return;
+
   isSaving.value = true;
   try {
+    // Mapping payload harus mengambil dari property formData yang BENAR
     const payload = {
-      ...formData,
-      totalQty: calculatedTotalQty.value,
-      totalKoli: calculatedTotalKoli.value,
+      Nomor: formData.nomor, // "AUTO" atau nomor asli
+      Gudang: formData.gudangKode, // PERBAIKAN: Sebelumnya formData.gudang (undefined)
+      Tanggal: formData.tanggal,
+      No_SPK: formData.spkNomor, // PERBAIKAN: Sebelumnya formData.no_spk (undefined)
+      Jumlah: calculatedTotalQty.value,
+      Koli: calculatedTotalKoli.value,
+      Realisasi: 0, // Default untuk input baru
+      Koli_Realisasi: 0, // Default untuk input baru
+      usr_create: formData.usr_create,
     };
 
-    if (isEditMode.value) {
-      await api.put(`${API_URL}/${formData.nomor}`, payload);
-    } else {
-      await api.post(API_URL, payload);
-    }
+    // Debug untuk memastikan data terisi sebelum dikirim
+    console.log("Kirim Payload ke Backend:", payload);
+
+    await api.post(`${API_URL}/save`, payload);
 
     toast.success("Jadwal kirim berhasil disimpan!");
+
     if (saveAndNew) {
-      router.go(0); // Refresh page untuk data baru
+      Object.assign(formData, {
+        nomor: "AUTO",
+        tanggal: format(new Date(), "yyyy-MM-dd"),
+        gudangKode: "",
+        gudangNama: "",
+        spkNomor: "",
+        spkNama: "",
+        spkUkuran: "",
+        spkKain: "",
+        totalQty: 0,
+        totalKoli: 0,
+        detail: [createEmptyDetail(0)],
+      });
     } else {
       router.back();
     }
   } catch (error: any) {
-    toast.error(error.response?.data?.message || "Gagal menyimpan.");
+    console.error("Save Error Detail:", error.response?.data);
+    toast.error(error.response?.data?.message || "Gagal menyimpan data.");
   } finally {
     isSaving.value = false;
   }
@@ -328,17 +357,15 @@ onMounted(() => {
                   hide-details
                 />
               </v-col>
-              <v-col cols="6">
+              <template #[`item.size`]="{ item }">
                 <v-text-field
-                  label="Ukuran"
-                  v-model="formData.spkUkuran"
-                  readonly
-                  bg-color="grey-lighten-4"
+                  v-model="item.size"
                   density="compact"
-                  variant="outlined"
+                  variant="plain"
                   hide-details
+                  placeholder="Size..."
                 />
-              </v-col>
+              </template>
               <v-col cols="6">
                 <v-text-field
                   label="Jenis Kain"

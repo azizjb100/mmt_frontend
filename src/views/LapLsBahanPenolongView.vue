@@ -445,7 +445,7 @@
 import { ref, reactive, onMounted, computed, watch } from "vue";
 import PageLayout from "../components/PageLayout.vue";
 import api from "@/services/api";
-import * as XLSX from "xlsx";
+import * as XLSX from "xlsx-js-style";
 
 // Utility functions
 const formatDate = (date) => {
@@ -598,43 +598,215 @@ const fetchReport = async () => {
   }
 };
 
+const canSeeNominal = ref(true); // Set false jika tidak ingin menampilkan nominal
+
 const exportToExcel = () => {
+  // Cek data
   if (filteredData.value.length === 0) {
     alert("Tidak ada data untuk diekspor");
     return;
   }
 
-  // 1. Persiapkan data (Mapping header agar rapi)
-  const dataToExport = filteredData.value.map((item) => ({
-    KODE: item.kode,
-    "NAMA BAHAN": item.Nama,
-    JENIS: item.jb_nama,
-    STATUS: item.status,
-    LEBAR: item.Lebar,
-    PANJANG: item.Panjang,
-    M2: item.m2,
-    "STOK AWAL (ROLL)": item.stok_awal_q,
-    "STOK AWAL (M2)": item.stok_awal_m,
-    "TERIMA (ROLL)": item.terima_q,
-    "TERIMA (M2)": item.terima_m,
-    "KELUAR (ROLL)": item.keluar_q,
-    "KELUAR (M2)": item.keluar_m,
-    "RETUR (ROLL)": item.retur_q,
-    "RETUR (M2)": item.retur_m,
-    "STOK AKHIR (ROLL)": item.stok_akhir_q,
-    "STOK AKHIR (M2)": item.stok_akhir_m,
-  }));
+  const fileName = `Laporan_Stok_Bahan_Penolong_${startDate.value}.xlsx`;
 
-  // 2. Buat worksheet
-  const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+  // --- DEFINISI STYLE ---
+  const styleHeaderMain = {
+    fill: { fgColor: { rgb: "B3E5FC" } },
+    font: { bold: true, color: { rgb: "000000" }, sz: 10 },
+    alignment: { horizontal: "center", vertical: "center", wrapText: true },
+    border: {
+      top: { style: "thin", color: { rgb: "000000" } },
+      bottom: { style: "thin", color: { rgb: "000000" } },
+      left: { style: "thin", color: { rgb: "000000" } },
+      right: { style: "thin", color: { rgb: "000000" } },
+    },
+  };
 
-  // 3. Buat workbook (file)
-  const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, worksheet, "Laporan Stok");
+  const styleHeaderSub = {
+    ...styleHeaderMain,
+    fill: { fgColor: { rgb: "E1F5FE" } },
+  };
 
-  // 4. Download file
-  const fileName = `Laporan_Stok_${startDate.value}_sd_${endDate.value}.xlsx`;
-  XLSX.writeFile(workbook, fileName);
+  const styleDataCell = {
+    font: { sz: 10 },
+    border: {
+      top: { style: "thin", color: { rgb: "000000" } },
+      bottom: { style: "thin", color: { rgb: "000000" } },
+      left: { style: "thin", color: { rgb: "000000" } },
+      right: { style: "thin", color: { rgb: "000000" } },
+    },
+    alignment: { vertical: "center" },
+  };
+
+  const styleFooter = {
+    ...styleDataCell,
+    fill: { fgColor: { rgb: "F0F4F8" } },
+    font: { bold: true, sz: 10 },
+  };
+
+  // --- 1. STRUKTUR DATA (AOA) ---
+  const wsData = [];
+
+  // Baris Judul & Info (Hanya gunakan variabel yang ada di script kamu)
+  wsData.push([
+    { v: "LAPORAN STOK BAHAN PENOLONG", s: { font: { bold: true, sz: 14 } } },
+  ]);
+  wsData.push([{ v: `Periode: ${startDate.value} s/d ${endDate.value}` }]);
+  wsData.push([]); // Baris Kosong
+
+  // --- 2. HEADER BARIS 1 ---
+  const headerRow1 = [
+    { v: "KODE", s: styleHeaderMain },
+    { v: "NAMA BAHAN", s: styleHeaderMain },
+    { v: "JENIS", s: styleHeaderMain },
+    { v: "STATUS", s: styleHeaderMain },
+    { v: "SPESIFIKASI", s: styleHeaderMain },
+    { v: "", s: styleHeaderMain },
+    { v: "", s: styleHeaderMain },
+    { v: "STOCK AWAL", s: styleHeaderMain },
+    { v: "", s: styleHeaderMain },
+    { v: "TERIMA", s: styleHeaderMain },
+    { v: "", s: styleHeaderMain },
+    { v: "KELUAR", s: styleHeaderMain },
+    { v: "", s: styleHeaderMain },
+    { v: "RETUR/SISA", s: styleHeaderMain },
+    { v: "", s: styleHeaderMain },
+    { v: "STOCK AKHIR", s: styleHeaderMain },
+    { v: "", s: styleHeaderMain },
+  ];
+  wsData.push(headerRow1);
+
+  // --- 3. HEADER BARIS 2 ---
+  const headerRow2 = [
+    { v: "", s: styleHeaderMain },
+    { v: "", s: styleHeaderMain },
+    { v: "", s: styleHeaderMain },
+    { v: "", s: styleHeaderMain },
+    { v: "LEBAR", s: styleHeaderSub },
+    { v: "PANJANG", s: styleHeaderSub },
+    { v: "M2", s: styleHeaderSub },
+    { v: "ROLL", s: styleHeaderSub },
+    { v: "M2", s: styleHeaderSub },
+    { v: "ROLL", s: styleHeaderSub },
+    { v: "M2", s: styleHeaderSub },
+    { v: "ROLL", s: styleHeaderSub },
+    { v: "M2", s: styleHeaderSub },
+    { v: "ROLL", s: styleHeaderSub },
+    { v: "M2", s: styleHeaderSub },
+    { v: "ROLL", s: styleHeaderSub },
+    { v: "M2", s: styleHeaderSub },
+  ];
+  wsData.push(headerRow2);
+
+  // --- 4. DATA BODY ---
+  filteredData.value.forEach((row) => {
+    wsData.push([
+      { v: row.kode, s: styleDataCell },
+      { v: row.Nama, s: styleDataCell },
+      { v: row.jb_nama || "", s: styleDataCell },
+      { v: row.status || "", s: styleDataCell },
+      {
+        v: row.Lebar,
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+      },
+      {
+        v: row.Panjang,
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+      },
+      {
+        v: row.m2,
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+      },
+      {
+        v: row.stok_awal_q,
+        s: { ...styleDataCell, alignment: { horizontal: "center" } },
+      },
+      {
+        v: row.stok_awal_m,
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+      },
+      {
+        v: row.terima_q,
+        s: { ...styleDataCell, alignment: { horizontal: "center" } },
+      },
+      {
+        v: row.terima_m,
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+      },
+      {
+        v: row.keluar_q,
+        s: { ...styleDataCell, alignment: { horizontal: "center" } },
+      },
+      {
+        v: row.keluar_m,
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+      },
+      {
+        v: row.retur_q,
+        s: { ...styleDataCell, alignment: { horizontal: "center" } },
+      },
+      {
+        v: row.retur_m,
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+      },
+      {
+        v: row.stok_akhir_q,
+        s: { ...styleDataCell, alignment: { horizontal: "center" } },
+      },
+      {
+        v: row.stok_akhir_m,
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+      },
+    ]);
+  });
+
+  // --- 5. BARIS TOTAL ---
+  const footerRow = [
+    { v: "TOTAL", s: { ...styleFooter, alignment: { horizontal: "right" } } },
+    { v: "", s: styleFooter },
+    { v: "", s: styleFooter },
+    { v: "", s: styleFooter },
+    { v: "", s: styleFooter },
+    { v: "", s: styleFooter },
+    { v: "", s: styleFooter },
+    { v: reportTotals.value.stok_awal_q, s: styleFooter },
+    { v: reportTotals.value.stok_awal_m, s: styleFooter },
+    { v: reportTotals.value.terima_q, s: styleFooter },
+    { v: reportTotals.value.terima_m, s: styleFooter },
+    { v: reportTotals.value.keluar_q, s: styleFooter },
+    { v: reportTotals.value.keluar_m, s: styleFooter },
+    { v: reportTotals.value.retur_q, s: styleFooter },
+    { v: reportTotals.value.retur_m, s: styleFooter },
+    { v: reportTotals.value.stok_akhir_q, s: styleFooter },
+    { v: reportTotals.value.stok_akhir_m, s: styleFooter },
+  ];
+  wsData.push(footerRow);
+
+  const ws = XLSX.utils.aoa_to_sheet(wsData);
+
+  // --- 6. KONFIGURASI MERGE ---
+  const offset = 3;
+  ws["!merges"] = [
+    { s: { r: 0, c: 0 }, e: { r: 0, c: 3 } }, // Judul
+    { s: { r: offset, c: 0 }, e: { r: offset + 1, c: 0 } }, // KODE
+    { s: { r: offset, c: 1 }, e: { r: offset + 1, c: 1 } }, // NAMA
+    { s: { r: offset, c: 2 }, e: { r: offset + 1, c: 2 } }, // JENIS
+    { s: { r: offset, c: 3 }, e: { r: offset + 1, c: 3 } }, // STATUS
+    { s: { r: offset, c: 4 }, e: { r: offset, c: 6 } }, // SPESIFIKASI
+    { s: { r: offset, c: 7 }, e: { r: offset, c: 8 } }, // STOCK AWAL
+    { s: { r: offset, c: 9 }, e: { r: offset, c: 10 } }, // TERIMA
+    { s: { r: offset, c: 11 }, e: { r: offset, c: 12 } }, // KELUAR
+    { s: { r: offset, c: 13 }, e: { r: offset, c: 14 } }, // RETUR
+    { s: { r: offset, c: 15 }, e: { r: offset, c: 16 } }, // AKHIR
+    { s: { r: wsData.length - 1, c: 0 }, e: { r: wsData.length - 1, c: 6 } }, // TOTAL
+  ];
+
+  ws["!cols"] = Array(17).fill({ wch: 10 });
+  ws["!cols"][1] = { wch: 35 };
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Stok");
+  XLSX.writeFile(wb, fileName);
 };
 
 onMounted(fetchReport);

@@ -1,5 +1,5 @@
 <template>
-  <PageLayout title="Laporan Produksi & Penggunaan Tinta" icon="mdi-printer">
+  <PageLayout title="Laporan Pemakaian Bahan" icon="mdi-printer">
     <template #header-actions>
       <v-btn
         size="x-small"
@@ -246,7 +246,7 @@
 import { ref, computed, onMounted } from "vue";
 import PageLayout from "../components/PageLayout.vue";
 import api from "@/services/api";
-import * as XLSX from "xlsx";
+import * as XLSX from "xlsx-js-style";
 
 const startDate = ref(new Date().toISOString().substr(0, 10));
 const endDate = ref(new Date().toISOString().substr(0, 10));
@@ -294,38 +294,186 @@ const exportToExcel = () => {
     return;
   }
 
-  // 2. Map data agar nama kolom di Excel rapi
-  const dataToExport = filteredData.value.map((item) => ({
-    Tanggal: item.tgl,
-    Shift: item.shift,
-    "No. SPK": item.noSpk,
-    "Nama Order": item.namaOrder,
-    Mesin: item.kodeMesin,
-    "Hasil Qty": item.hasilQty,
-    "Hasil Luas (M2)": item.hasilLuas,
-    "Waste (M2)": item.wasteM2,
-    "Lost (M2)": item.lostM2,
-    // Tinta MT02
-    MT02_C: item.inkC_MT02,
-    MT02_M: item.inkM_MT02,
-    MT02_Y: item.inkY_MT02,
-    MT02_K: item.inkK_MT02,
-    // Tinta MT03
-    MT03_C: item.inkC_MT03,
-    MT03_M: item.inkM_MT03,
-    MT03_Y: item.inkY_MT03,
-    MT03_K: item.inkK_MT03,
-    // Tambahkan mesin lain jika perlu...
-  }));
+  const fileName = `Laporan_Produksi_Tinta_${startDate.value}.xlsx`;
 
-  // 3. Proses Pembuatan File Excel
-  const worksheet = XLSX.utils.json_to_sheet(dataToExport);
-  const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, worksheet, "Laporan Produksi");
+  // --- DEFINISI STYLE ---
+  const styleHeader = (color) => ({
+    fill: { fgColor: { rgb: color } },
+    font: { bold: true, sz: 10 },
+    alignment: { horizontal: "center", vertical: "center", wrapText: true },
+    border: {
+      top: { style: "thin" },
+      bottom: { style: "thin" },
+      left: { style: "thin" },
+      right: { style: "thin" },
+    },
+  });
 
-  // 4. Download File
-  const fileName = `Laporan_Produksi_${startDate.value}_to_${endDate.value}.xlsx`;
-  XLSX.writeFile(workbook, fileName);
+  const styleData = {
+    font: { sz: 10 },
+    border: {
+      top: { style: "thin" },
+      bottom: { style: "thin" },
+      left: { style: "thin" },
+      right: { style: "thin" },
+    },
+  };
+
+  const wsData = [];
+
+  // 1. Judul & Info
+  wsData.push([
+    {
+      v: "LAPORAN PRODUKSI & PENGGUNAAN TINTA",
+      s: { font: { bold: true, sz: 14 } },
+    },
+  ]);
+  wsData.push([{ v: `Periode: ${startDate.value} s/d ${endDate.value}` }]);
+  wsData.push([]); // Baris Kosong
+
+  // 2. Susun Header Baris 1 & 2 secara manual agar sinkron
+  // Gunakan Array.fill untuk memastikan jumlah kolom konsisten (total 42 kolom)
+  const h1 = Array(42)
+    .fill(null)
+    .map(() => ({ v: "", s: styleHeader("FFFFFF") }));
+  const h2 = Array(42)
+    .fill(null)
+    .map(() => ({ v: "", s: styleHeader("FFFFFF") }));
+
+  // Set Nama & Warna Header 1
+  h1[0] = { v: "TGL", s: styleHeader("FFFFFF") };
+  h1[1] = { v: "SHIFT", s: styleHeader("FFFFFF") };
+  h1[2] = { v: "TOLERANSI BAHAN", s: styleHeader("FCE4D6") };
+  h1[5] = { v: "NAMA ORDER SPK", s: styleHeader("FFFFFF") };
+  h1[6] = { v: "NO. SPK", s: styleHeader("FFFFFF") };
+  h1[7] = { v: "UKURAN / JENIS BAHAN", s: styleHeader("E2EFDA") };
+  h1[12] = { v: "ORDER SPK", s: styleHeader("A9D08E") };
+  h1[14] = { v: "HASIL CETAK", s: styleHeader("FFF2CC") };
+  h1[16] = { v: "AMBIL BAHAN / SISA", s: styleHeader("548235") };
+  h1[16].s.font.color = { rgb: "FFFFFF" };
+  h1[20] = { v: "TOTAL WASTE / LOST", s: styleHeader("DBDBDB") };
+  h1[26] = { v: "TINTA MT 02", s: styleHeader("FFFF00") };
+  h1[30] = { v: "TINTA MT 03", s: styleHeader("F9F586") };
+  h1[34] = { v: "TINTA MT 04", s: styleHeader("FFFF00") };
+  h1[38] = { v: "TINTA MT 05", s: styleHeader("F9F586") };
+
+  // Set Nama Header 2 (Sub-header)
+  const subNames = {
+    2: "S 1,2",
+    3: "S 3,4",
+    4: "%",
+    7: "P",
+    8: "L",
+    9: "GSM",
+    10: "MSN",
+    11: "BARCODE",
+    12: "PCS",
+    13: "M2",
+    14: "PCS",
+    15: "M2",
+    16: "AMB.P",
+    17: "AMB.L",
+    18: "SISA.P",
+    19: "SISA.L",
+    20: "WASTE",
+    21: "%",
+    22: "LOST",
+    23: "%",
+    24: "TOTAL",
+    25: "%",
+  };
+  // Isi C-M-Y-K untuk semua mesin tinta
+  [26, 30, 34, 38].forEach((idx) => {
+    subNames[idx] = "C";
+    subNames[idx + 1] = "M";
+    subNames[idx + 2] = "Y";
+    subNames[idx + 3] = "K";
+  });
+
+  Object.keys(subNames).forEach((key) => {
+    h2[key] = { v: subNames[key], s: styleHeader("F0F0F0") };
+  });
+
+  wsData.push(h1);
+  wsData.push(h2);
+
+  // 3. Isi Data Body
+  filteredData.value.forEach((item) => {
+    wsData.push([
+      { v: item.tgl, s: styleData },
+      { v: item.shift, s: styleData },
+      { v: item.s12, s: styleData },
+      { v: item.s34, s: styleData },
+      { v: item.persenToleransi, s: styleData },
+      { v: item.namaOrder, s: styleData },
+      { v: item.noSpk, s: styleData },
+      { v: item.p, s: styleData },
+      { v: item.l, s: styleData },
+      { v: item.gsm, s: styleData },
+      { v: item.kodeMesin, s: styleData },
+      { v: item.barcodeRoll, s: styleData },
+      { v: item.orderPcs, s: styleData },
+      { v: item.orderLuas, s: styleData },
+      { v: item.hasilQty, s: styleData },
+      { v: item.hasilLuas, s: styleData },
+      { v: item.ambilP, s: styleData },
+      { v: item.ambilL, s: styleData },
+      { v: item.sisaBahanP, s: styleData },
+      { v: item.sisaBahanL, s: styleData },
+      { v: item.wasteM2, s: styleData },
+      { v: item.wastePersen, s: styleData },
+      { v: item.lostM2, s: styleData },
+      { v: item.lostPersen, s: styleData },
+      { v: item.totalWasteM2, s: styleData },
+      { v: item.totalWastePersen, s: styleData },
+      { v: item.inkC_MT02, s: styleData },
+      { v: item.inkM_MT02, s: styleData },
+      { v: item.inkY_MT02, s: styleData },
+      { v: item.inkK_MT02, s: styleData },
+      { v: item.inkC_MT03, s: styleData },
+      { v: item.inkM_MT03, s: styleData },
+      { v: item.inkY_MT03, s: styleData },
+      { v: item.inkK_MT03, s: styleData },
+      { v: item.inkC_MT04, s: styleData },
+      { v: item.inkM_MT04, s: styleData },
+      { v: item.inkY_MT04, s: styleData },
+      { v: item.inkK_MT04, s: styleData },
+      { v: item.inkC_MT05, s: styleData },
+      { v: item.inkM_MT05, s: styleData },
+      { v: item.inkY_MT05, s: styleData },
+      { v: item.inkK_MT05, s: styleData },
+    ]);
+  });
+
+  const ws = XLSX.utils.aoa_to_sheet(wsData);
+
+  // 4. Perhitungan Merge (WAJIB TELITI)
+  const offset = 3;
+  const merges = [
+    { s: { r: 0, c: 0 }, e: { r: 0, c: 6 } }, // Judul
+    { s: { r: offset, c: 0 }, e: { r: offset + 1, c: 0 } }, // TGL
+    { s: { r: offset, c: 1 }, e: { r: offset + 1, c: 1 } }, // SHIFT
+    { s: { r: offset, c: 2 }, e: { r: offset, c: 4 } }, // Group Toleransi
+    { s: { r: offset, c: 5 }, e: { r: offset + 1, c: 5 } }, // NAMA ORDER
+    { s: { r: offset, c: 6 }, e: { r: offset + 1, c: 6 } }, // NO SPK
+    { s: { r: offset, c: 7 }, e: { r: offset, c: 11 } }, // Group Ukuran
+    { s: { r: offset, c: 12 }, e: { r: offset, c: 13 } }, // Group Order
+    { s: { r: offset, c: 14 }, e: { r: offset, c: 15 } }, // Group Hasil
+    { s: { r: offset, c: 16 }, e: { r: offset, c: 19 } }, // Group Ambil
+    { s: { r: offset, c: 20 }, e: { r: offset, c: 25 } }, // Group Waste
+    { s: { r: offset, c: 26 }, e: { r: offset, c: 29 } }, // Group MT02
+    { s: { r: offset, c: 30 }, e: { r: offset, c: 33 } }, // Group MT03
+    { s: { r: offset, c: 34 }, e: { r: offset, c: 37 } }, // Group MT04
+    { s: { r: offset, c: 38 }, e: { r: offset, c: 41 } }, // Group MT05
+  ];
+
+  ws["!merges"] = merges;
+  ws["!cols"] = Array(42).fill({ wch: 10 });
+  ws["!cols"][5] = { wch: 35 }; // Nama Order diperlebar
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Laporan Produksi");
+  XLSX.writeFile(wb, fileName);
 };
 
 onMounted(() => {

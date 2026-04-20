@@ -407,7 +407,7 @@ import { ref, reactive, onMounted, computed, watch } from "vue";
 import PageLayout from "../components/PageLayout.vue";
 import GudangLookupView from "../modal/GudangLookupView.vue";
 import api from "@/services/api";
-import * as XLSX from "xlsx";
+import * as XLSX from "xlsx-js-style";
 import { useAuthStore } from "@/stores/authStore";
 
 const authStore = useAuthStore();
@@ -611,173 +611,275 @@ const reportTotals = computed(() => {
 });
 
 const exportToExcel = () => {
-  // 1. Definisikan Header Baris 1 (Header Utama / Merge)
-  // Tambahkan JENIS dan TYPE sebelum STATUS
-  const header1 = [
-    "KODE",
-    "NAMA BAHAN",
-    "JENIS",
-    "TYPE",
-    "STATUS",
-    "SPESIFIKASI",
-    "",
-    "", // 3 kolom untuk Spesifikasi (P, L, M2)
-    "STOCK AWAL",
-    "",
-    canSeeNominal.value ? "" : null,
-    "TERIMA",
-    "",
-    canSeeNominal.value ? "" : null,
-    "KELUAR",
-    "",
-    canSeeNominal.value ? "" : null,
-    "STOCK AKHIR",
-    "",
-    canSeeNominal.value ? "" : null,
-  ].filter((x) => x !== null);
+  if (filteredData.value.length === 0) {
+    alert("Tidak ada data untuk diekspor");
+    return;
+  }
 
-  // 2. Definisikan Header Baris 2 (Sub-Header)
-  const header2 = [
-    "",
-    "",
-    "",
-    "",
-    "", // Kosongkan bawah Kode, Nama, Jenis, Type, Status (rowmerge)
-    "PANJANG",
-    "LEBAR",
-    "M2/ROLL",
-    "ROLL",
-    "M2",
-    canSeeNominal.value ? "NOMINAL (RP)" : null,
-    "ROLL",
-    "M2",
-    canSeeNominal.value ? "NOMINAL (RP)" : null,
-    "ROLL",
-    "M2",
-    canSeeNominal.value ? "NOMINAL (RP)" : null,
-    "ROLL",
-    "M2",
-    canSeeNominal.value ? "NOMINAL (RP)" : null,
-  ].filter((x) => x !== null);
+  const fileName = `Laporan_Stok_Bahan_Utama_${startDate.value}.xlsx`;
 
-  // 3. Mapping Data Body
-  const body = filteredData.value.map((row) => {
-    const base = [
-      row.kode,
-      row.Nama,
-      row.jb_nama,
-      row.type_barang,
-      row.status_barang,
-      row.Panjang,
-      row.Lebar,
-      row.m2,
-      row.stok_awal_q,
-      row.stok_awal_m,
+  // --- DEFINISI STYLE ---
+  const styleHeaderMain = {
+    fill: { fgColor: { rgb: "B3E5FC" } },
+    font: { bold: true, color: { rgb: "000000" }, sz: 10 },
+    alignment: { horizontal: "center", vertical: "center", wrapText: true },
+    border: {
+      top: { style: "thin", color: { rgb: "000000" } },
+      bottom: { style: "thin", color: { rgb: "000000" } },
+      left: { style: "thin", color: { rgb: "000000" } },
+      right: { style: "thin", color: { rgb: "000000" } },
+    },
+  };
+
+  const styleHeaderSub = {
+    ...styleHeaderMain,
+    fill: { fgColor: { rgb: "E1F5FE" } },
+  };
+
+  const styleDataCell = {
+    font: { sz: 10 },
+    border: {
+      top: { style: "thin", color: { rgb: "000000" } },
+      bottom: { style: "thin", color: { rgb: "000000" } },
+      left: { style: "thin", color: { rgb: "000000" } },
+      right: { style: "thin", color: { rgb: "000000" } },
+    },
+    alignment: { vertical: "center" },
+  };
+
+  const styleFooter = {
+    ...styleDataCell,
+    fill: { fgColor: { rgb: "F0F4F8" } },
+    font: { bold: true, sz: 10 },
+  };
+
+  // --- 1. SUSUN DATA (AOA) ---
+  const wsData = [];
+
+  // Baris Judul & Info
+  wsData.push([
+    { v: "LAPORAN STOK BAHAN UTAMA", s: { font: { bold: true, sz: 14 } } },
+  ]);
+  wsData.push([{ v: `Periode : ${startDate.value} s/d ${endDate.value}` }]);
+  wsData.push([
+    { v: `Gudang  : ${selectedGudangNama.value} (${selectedGudang.value})` },
+  ]);
+  wsData.push([]); // Baris kosong
+
+  // --- 2. HEADER ROW 1 ---
+  const headerRow1 = [
+    { v: "KODE", s: styleHeaderMain },
+    { v: "NAMA BAHAN", s: styleHeaderMain },
+    { v: "JENIS", s: styleHeaderMain },
+    { v: "TYPE", s: styleHeaderMain },
+    { v: "STATUS", s: styleHeaderMain },
+    { v: "SPESIFIKASI", s: styleHeaderMain },
+    { v: "", s: styleHeaderMain },
+    { v: "", s: styleHeaderMain },
+    { v: "STOCK AWAL", s: styleHeaderMain },
+    { v: "", s: styleHeaderMain },
+    ...(canSeeNominal.value ? [{ v: "", s: styleHeaderMain }] : []),
+    { v: "TERIMA", s: styleHeaderMain },
+    { v: "", s: styleHeaderMain },
+    ...(canSeeNominal.value ? [{ v: "", s: styleHeaderMain }] : []),
+    { v: "KELUAR", s: styleHeaderMain },
+    { v: "", s: styleHeaderMain },
+    ...(canSeeNominal.value ? [{ v: "", s: styleHeaderMain }] : []),
+    { v: "STOCK AKHIR", s: styleHeaderMain },
+    { v: "", s: styleHeaderMain },
+    ...(canSeeNominal.value ? [{ v: "", s: styleHeaderMain }] : []),
+  ];
+  wsData.push(headerRow1);
+
+  // --- 3. HEADER ROW 2 ---
+  const headerRow2 = [
+    { v: "", s: styleHeaderMain },
+    { v: "", s: styleHeaderMain },
+    { v: "", s: styleHeaderMain },
+    { v: "", s: styleHeaderMain },
+    { v: "", s: styleHeaderMain },
+    { v: "PANJANG", s: styleHeaderSub },
+    { v: "LEBAR", s: styleHeaderSub },
+    { v: "M2/ROLL", s: styleHeaderSub },
+    { v: "ROLL", s: styleHeaderSub },
+    { v: "M2", s: styleHeaderSub },
+    ...(canSeeNominal.value ? [{ v: "NOMINAL (RP)", s: styleHeaderSub }] : []),
+    { v: "ROLL", s: styleHeaderSub },
+    { v: "M2", s: styleHeaderSub },
+    ...(canSeeNominal.value ? [{ v: "NOMINAL (RP)", s: styleHeaderSub }] : []),
+    { v: "ROLL", s: styleHeaderSub },
+    { v: "M2", s: styleHeaderSub },
+    ...(canSeeNominal.value ? [{ v: "NOMINAL (RP)", s: styleHeaderSub }] : []),
+    { v: "ROLL", s: styleHeaderSub },
+    { v: "M2", s: styleHeaderSub },
+    ...(canSeeNominal.value ? [{ v: "NOMINAL (RP)", s: styleHeaderSub }] : []),
+  ];
+  wsData.push(headerRow2);
+
+  // --- 4. DATA BODY ---
+  filteredData.value.forEach((row) => {
+    const dataRow = [
+      { v: row.kode, s: styleDataCell },
+      { v: row.Nama, s: styleDataCell },
+      { v: row.jb_nama || "", s: styleDataCell },
+      { v: row.type_barang || "-", s: styleDataCell },
+      { v: row.status_barang || "-", s: styleDataCell },
+      {
+        v: row.Panjang,
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+      },
+      {
+        v: row.Lebar,
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+      },
+      {
+        v: row.m2,
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+      },
+      {
+        v: row.stok_awal_q,
+        s: { ...styleDataCell, alignment: { horizontal: "center" } },
+      },
+      {
+        v: row.stok_awal_m,
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+      },
     ];
-    if (canSeeNominal.value) base.push(row.stok_awal_nominal);
+    if (canSeeNominal.value)
+      dataRow.push({
+        v: row.stok_awal_nominal,
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+      });
 
-    base.push(row.terima_q, row.terima_m);
-    if (canSeeNominal.value) base.push(row.terima_nominal);
+    dataRow.push(
+      {
+        v: row.terima_q,
+        s: { ...styleDataCell, alignment: { horizontal: "center" } },
+      },
+      {
+        v: row.terima_m,
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+      },
+    );
+    if (canSeeNominal.value)
+      dataRow.push({
+        v: row.terima_nominal,
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+      });
 
-    base.push(row.keluar_q, row.keluar_m);
-    if (canSeeNominal.value) base.push(row.keluar_nominal);
+    dataRow.push(
+      {
+        v: row.keluar_q,
+        s: { ...styleDataCell, alignment: { horizontal: "center" } },
+      },
+      {
+        v: row.keluar_m,
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+      },
+    );
+    if (canSeeNominal.value)
+      dataRow.push({
+        v: row.keluar_nominal,
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+      });
 
-    base.push(row.stok_akhir_q, row.stok_akhir_m);
-    if (canSeeNominal.value) base.push(row.stok_akhir_nominal);
+    dataRow.push(
+      {
+        v: row.stok_akhir_q,
+        s: { ...styleDataCell, alignment: { horizontal: "center" } },
+      },
+      {
+        v: row.stok_akhir_m,
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+      },
+    );
+    if (canSeeNominal.value)
+      dataRow.push({
+        v: row.stok_akhir_nominal,
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+      });
 
-    return base;
+    wsData.push(dataRow);
   });
 
-  // 4. Baris Total (Sinkronkan dengan footer tabel)
-  const totalRow = [
-    "TOTAL:",
-    "",
-    "",
-    "",
-    "", // Colspan 5 untuk identitas
-    "",
-    "",
-    "", // Kosongkan bawah Spesifikasi
-    reportTotals.value.stok_awal_q,
-    reportTotals.value.stok_awal_m,
+  // --- 5. FOOTER TOTAL ---
+  const footerRow = [
+    { v: "TOTAL", s: { ...styleFooter, alignment: { horizontal: "right" } } },
+    { v: "", s: styleFooter },
+    { v: "", s: styleFooter },
+    { v: "", s: styleFooter },
+    { v: "", s: styleFooter },
+    { v: "", s: styleFooter },
+    { v: "", s: styleFooter },
+    { v: "", s: styleFooter },
+    { v: reportTotals.value.stok_awal_q, s: styleFooter },
+    { v: reportTotals.value.stok_awal_m, s: styleFooter },
   ];
-  if (canSeeNominal.value) totalRow.push(reportTotals.value.stok_awal_nominal);
+  if (canSeeNominal.value)
+    footerRow.push({ v: reportTotals.value.stok_awal_nominal, s: styleFooter });
 
-  totalRow.push(reportTotals.value.terima_q, reportTotals.value.terima_m);
-  if (canSeeNominal.value) totalRow.push(reportTotals.value.terima_nominal);
-
-  totalRow.push(reportTotals.value.keluar_q, reportTotals.value.keluar_m);
-  if (canSeeNominal.value) totalRow.push(reportTotals.value.keluar_nominal);
-
-  totalRow.push(
-    reportTotals.value.stok_akhir_q,
-    reportTotals.value.stok_akhir_m,
+  footerRow.push(
+    { v: reportTotals.value.terima_q, s: styleFooter },
+    { v: reportTotals.value.terima_m, s: styleFooter },
   );
-  if (canSeeNominal.value) totalRow.push(reportTotals.value.stok_akhir_nominal);
+  if (canSeeNominal.value)
+    footerRow.push({ v: reportTotals.value.terima_nominal, s: styleFooter });
 
-  // 5. Gabungkan menjadi sheet
-  const ws = XLSX.utils.aoa_to_sheet([header1, header2, ...body, totalRow]);
+  footerRow.push(
+    { v: reportTotals.value.keluar_q, s: styleFooter },
+    { v: reportTotals.value.keluar_m, s: styleFooter },
+  );
+  if (canSeeNominal.value)
+    footerRow.push({ v: reportTotals.value.keluar_nominal, s: styleFooter });
 
-  // 6. Konfigurasi Merge Cells
+  footerRow.push(
+    { v: reportTotals.value.stok_akhir_q, s: styleFooter },
+    { v: reportTotals.value.stok_akhir_m, s: styleFooter },
+  );
+  if (canSeeNominal.value)
+    footerRow.push({
+      v: reportTotals.value.stok_akhir_nominal,
+      s: styleFooter,
+    });
+
+  wsData.push(footerRow);
+
+  // --- 6. MERGE & DOWNLOAD ---
+  const ws = XLSX.utils.aoa_to_sheet(wsData);
+  const offset = 4;
   const merges = [
-    // Merge Vertikal Kolom Identitas (Baris 0 sampai 1)
-    { s: { r: 0, c: 0 }, e: { r: 1, c: 0 } }, // KODE
-    { s: { r: 0, c: 1 }, e: { r: 1, c: 1 } }, // NAMA BAHAN
-    { s: { r: 0, c: 2 }, e: { r: 1, c: 2 } }, // JENIS
-    { s: { r: 0, c: 3 }, e: { r: 1, c: 3 } }, // TYPE
-    { s: { r: 0, c: 4 }, e: { r: 1, c: 4 } }, // STATUS
-
-    // Merge Horizontal Spesifikasi (Baris 0, Kolom 5 sampai 7)
-    { s: { r: 0, c: 5 }, e: { r: 0, c: 7 } },
-
-    // Merge Horizontal Total (Baris terakhir, Kolom 0 sampai 4)
-    { s: { r: body.length + 2, c: 0 }, e: { r: body.length + 2, c: 4 } },
+    { s: { r: 0, c: 0 }, e: { r: 0, c: 4 } }, // Judul
+    { s: { r: offset, c: 0 }, e: { r: offset + 1, c: 0 } }, // KODE
+    { s: { r: offset, c: 1 }, e: { r: offset + 1, c: 1 } }, // NAMA
+    { s: { r: offset, c: 2 }, e: { r: offset + 1, c: 2 } }, // JENIS
+    { s: { r: offset, c: 3 }, e: { r: offset + 1, c: 3 } }, // TYPE
+    { s: { r: offset, c: 4 }, e: { r: offset + 1, c: 4 } }, // STATUS
+    { s: { r: offset, c: 5 }, e: { r: offset, c: 7 } }, // SPESIFIKASI
+    { s: { r: wsData.length - 1, c: 0 }, e: { r: wsData.length - 1, c: 7 } }, // TOTAL
   ];
 
-  // Merge untuk Kelompok Stok (Awal, Terima, Keluar, Akhir)
   const colStep = canSeeNominal.value ? 3 : 2;
-  let currentColumn = 8; // Dimulai setelah Spesifikasi (kolom index 8)
-
+  let currC = 8;
   for (let i = 0; i < 4; i++) {
     merges.push({
-      s: { r: 0, c: currentColumn },
-      e: { r: 0, c: currentColumn + colStep - 1 },
+      s: { r: offset, c: currC },
+      e: { r: offset, c: currC + colStep - 1 },
     });
-    currentColumn += colStep;
+    currC += colStep;
   }
 
   ws["!merges"] = merges;
-
-  // 7. Atur Lebar Kolom
   ws["!cols"] = [
     { wch: 15 },
     { wch: 35 },
     { wch: 15 },
     { wch: 12 },
-    { wch: 15 }, // Identitas
-    { wch: 10 },
-    { wch: 10 },
-    { wch: 10 }, // Spesifikasi
-    { wch: 10 },
     { wch: 12 },
-    { wch: 15 }, // Pengulangan (Stok Awal)
-    { wch: 10 },
-    { wch: 12 },
-    { wch: 15 }, // Pengulangan (Terima)
-    { wch: 10 },
-    { wch: 12 },
-    { wch: 15 }, // Pengulangan (Keluar)
-    { wch: 10 },
-    { wch: 12 },
-    { wch: 15 }, // Pengulangan (Stok Akhir)
   ];
 
   const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, "Laporan Stok");
-  XLSX.writeFile(
-    wb,
-    `Laporan_Stok_Bahan_${startDate.value}_sd_${endDate.value}.xlsx`,
-  );
+  XLSX.utils.book_append_sheet(wb, ws, "Stok Bahan Utama");
+  XLSX.writeFile(wb, fileName);
 };
 
 onMounted(fetchReport);

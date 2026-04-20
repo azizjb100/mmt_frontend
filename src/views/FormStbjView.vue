@@ -10,13 +10,17 @@ import { useToast } from "vue-toastification";
 
 // --- Interfaces ---
 interface DetailItem {
-  packing: string;
   spk: string;
   namaBarang: string;
   size: string;
-  qty: number;
+  totalOrder: number; // Baru
+  order: number; // Baru (mungkin qty yang sudah terproses sebelumnya)
+  qty: number; // Di gambar kolom "Jumlah"
   koli: number;
+  jadi: number; // Baru
+  kurang: number; // Baru
   keterangan: string;
+  packing: string;
 }
 
 interface FormDataState {
@@ -35,9 +39,7 @@ interface FormDataState {
 const router = useRouter();
 const route = useRoute();
 const toast = useToast();
-
-const API_URL = "mmt/stbj"; // Sesuaikan dengan route Express Anda
-
+const API_URL = "mmt/stbj";
 const isEditMode = ref(!!route.params.nomor);
 const isSaving = ref(false);
 const isGudangModalVisible = ref(false);
@@ -45,13 +47,17 @@ const isSPKModalVisible = ref(false);
 const currentDetailIndex = ref<number | null>(null);
 
 const createEmptyDetail = (): DetailItem => ({
-  packing: "",
   spk: "",
   namaBarang: "",
   size: "",
+  totalOrder: 0,
+  order: 0,
   qty: 0,
   koli: 0,
+  jadi: 0,
+  kurang: 0,
   keterangan: "",
+  packing: "",
 });
 
 const formData = reactive<FormDataState>({
@@ -67,12 +73,20 @@ const formData = reactive<FormDataState>({
 });
 
 const detailHeaders = [
-  { title: "No", key: "index", width: "40px", align: "center" as const },
-  { title: "No. SPK", key: "spk", width: "150px" },
-  { title: "Nama Barang", key: "namaBarang", width: "250px" },
-  { title: "Size", key: "size", width: "80px" },
-  { title: "Jumlah", key: "qty", width: "100px", align: "end" as const },
-  { title: "Koli", key: "koli", width: "80px", align: "end" as const },
+  { title: "no", key: "index", width: "40px", align: "center" as const },
+  { title: "No.SPK", key: "spk", width: "120px" },
+  { title: "Nama SPK", key: "namaBarang", width: "200px" },
+  { title: "Ukuran", key: "size", width: "100px" },
+  {
+    title: "Total Order",
+    key: "totalOrder",
+    width: "90px",
+    align: "end" as const,
+  },
+  { title: "Jumlah", key: "qty", width: "80px", align: "end" as const }, // Ini kolom kuning di gambar
+  { title: "Koli", key: "koli", width: "60px", align: "end" as const },
+  { title: "Jadi", key: "jadi", width: "80px", align: "end" as const },
+  { title: "Kurang", key: "kurang", width: "80px", align: "end" as const },
   { title: "Keterangan", key: "keterangan" },
   { title: "Aksi", key: "actions", width: "50px", align: "center" as const },
 ] as const;
@@ -148,51 +162,80 @@ const handleGudangSelect = (gudang: any) => {
   isGudangModalVisible.value = false;
 };
 
-const handleSPKSelect = (spk: any) => {
+const handleSPKSelect = (spk) => {
+  console.log("Data SPK Terpilih dari Backend:", spk);
+
   if (currentDetailIndex.value !== null) {
     const target = formData.detail[currentDetailIndex.value];
-    target.spk = spk.Nomor || spk.Spk;
-    target.namaBarang = spk.Nama;
-    target.size = spk.Ukuran;
-    if (currentDetailIndex.value === formData.detail.length - 1) addDetail();
+
+    // 1. Mapping Nomor SPK (Cek semua kemungkinan)
+    target.spk = spk.SPK || spk.Spk || spk.spk || "";
+
+    // 2. Mapping Nama
+    target.namaBarang = spk.Nama || spk.nama || "";
+
+    // 3. Mapping Ukuran (PENTING)
+    // Jika di console log 'Ukuran' tidak ada, kita coba ambil dari field cadangan
+    target.size = spk.Ukuran || spk.ukuran || spk.Size || spk.size || "";
+
+    // Jika masih kosong, dan ini adalah kaos, kadang ukuran ada di field lain
+    // atau di gabungan Panjang x Lebar (khusus MMT)
+    if (!target.size && spk.Panjang && spk.Lebar) {
+      target.size = `${spk.Panjang} x ${spk.Lebar}`;
+    }
+
+    // 4. Mapping Angka
+    target.totalOrder = Number(spk.Jumlah || spk.jumlah || 0);
+    target.order = Number(spk.Sudah_Cetak || spk.sudah_cetak || 0);
+    target.qty = Number(spk.Kurang_Cetak || spk.kurang_cetak || 0);
+    target.koli = 1;
+
+    // 5. Kalkulasi STBJ
+    target.jadi = target.order + target.qty;
+    target.kurang = target.totalOrder - target.jadi;
+
+    if (currentDetailIndex.value === formData.detail.length - 1) {
+      addDetail();
+    }
   }
   isSPKModalVisible.value = false;
 };
 
 const fetchDataByNomor = async (nomor: string) => {
   try {
-    // encodeURIComponent penting karena nomor mengandung karakter '/'
     const response = await api.get(`${API_URL}/${encodeURIComponent(nomor)}`);
     const data = response.data;
 
     // 1. Mapping Header
     formData.nomor = data.Nomor;
-    formData.tanggal = data.Tanggal; // Sudah format yyyy-MM-dd dari backend
+    formData.tanggal = data.Tanggal;
     formData.gudangKode = data.Gudang_Kode;
     formData.gudangNama = data.Gudang_Nama;
     formData.gudangProduksiKode = data.Gudang_Produksi_Kode;
     formData.gudangProduksiNama = data.Gudang_Produksi_Nama;
     formData.keteranganHeader = data.Keterangan;
-    formData.userCreate = data.User_Create;
 
-    // 2. Mapping Detail
+    // 2. Mapping Detail (Sesuaikan dengan field dari Query SQL Backend Anda)
     if (data.details && data.details.length > 0) {
       formData.detail = data.details.map((item: any) => ({
-        spk: item.spk,
-        namaBarang: item.nama_spk, // mapping dari field backend
-        size: item.size,
-        qty: Number(item.qty),
-        koli: Number(item.koli),
-        keterangan: item.keterangan,
-        packing: item.packing,
+        spk: item.No_Spk || item.spk || item.SPK, // Coba beberapa kemungkinan nama field
+        namaBarang: item.Nama_Spk || item.nama_spk || item.Nama,
+        size: item.Ukuran || item.size || "", // Pastikan Ukuran diambil
+        totalOrder: Number(item.Total_Order || item.totalOrder || 0),
+        order: Number(item.Order_Cetak || item.order || 0),
+        qty: Number(item.Qty || item.qty || 0),
+        koli: Number(item.Koli || item.koli || 0),
+        jadi: Number(item.Jadi || item.jadi || 0),
+        kurang: Number(item.Kurang || item.kurang || 0),
+        keterangan: item.Keterangan || item.keterangan || "",
+        packing: item.No_Packing || item.packing || "",
       }));
 
-      // Tambahkan satu baris kosong di bawah untuk kenyamanan input
       addDetail();
     }
   } catch (error: any) {
     console.error("Gagal load data STBJ:", error);
-    toast.error("Data tidak ditemukan atau gagal dimuat.");
+    toast.error("Data tidak ditemukan.");
     router.back();
   }
 };
@@ -320,6 +363,7 @@ onMounted(() => {
             hide-default-footer
             fixed-header
             height="calc(100vh - 220px)"
+            class="stbj-table"
           >
             <template #[`item.index`]="{ index }">
               <span class="text-grey text-caption">{{ index + 1 }}</span>
@@ -329,7 +373,8 @@ onMounted(() => {
               <v-text-field
                 v-model="item.spk"
                 @click="
-                  ((currentDetailIndex = index), (isSPKModalVisible = true))
+                  currentDetailIndex = index;
+                  isSPKModalVisible = true;
                 "
                 append-inner-icon="mdi-magnify"
                 readonly
@@ -339,14 +384,37 @@ onMounted(() => {
               />
             </template>
 
+            <template #[`item.namaBarang`]="{ item }">
+              <div class="text-truncate px-1" style="max-width: 250px">
+                {{ item.namaBarang }}
+              </div>
+            </template>
+
+            <template #[`item.size`]="{ item }">
+              <div class="px-1">{{ item.size }}</div>
+            </template>
+
+            <template #[`item.totalOrder`]="{ item }">
+              <div class="px-2 text-right">{{ item.totalOrder }}</div>
+            </template>
+
+            <template #[`item.order`]="{ item }">
+              <div class="px-2 text-right">{{ item.order }}</div>
+            </template>
+
             <template #[`item.qty`]="{ item }">
               <v-text-field
                 v-model.number="item.qty"
                 type="number"
                 density="compact"
-                variant="plain"
+                variant="solo"
+                flat
                 hide-details
-                class="text-right-input"
+                class="text-right-input cell-yellow"
+                @input="
+                  item.jadi = (item.order || 0) + (item.qty || 0);
+                  item.kurang = item.totalOrder - item.jadi;
+                "
               />
             </template>
 
@@ -361,6 +429,26 @@ onMounted(() => {
               />
             </template>
 
+            <template #[`item.jadi`]="{ item }">
+              <div class="px-2 text-right font-weight-bold">
+                {{ item.jadi }}
+              </div>
+            </template>
+
+            <template #[`item.kurang`]="{ item }">
+              <div class="px-2 text-right text-error">{{ item.kurang }}</div>
+            </template>
+
+            <template #[`item.keterangan`]="{ item }">
+              <v-text-field
+                v-model="item.keterangan"
+                density="compact"
+                variant="plain"
+                hide-details
+                placeholder="..."
+              />
+            </template>
+
             <template #[`item.actions`]="{ index }">
               <v-btn
                 icon="mdi-delete"
@@ -372,15 +460,20 @@ onMounted(() => {
             </template>
 
             <template #bottom>
-              <div class="pa-2 border-t">
+              <div class="pa-2 border-t d-flex align-center">
                 <v-btn
                   size="x-small"
                   color="primary"
                   variant="tonal"
                   prepend-icon="mdi-plus"
                   @click="addDetail"
-                  >Tambah Baris (F2)</v-btn
                 >
+                  Tambah Baris (F2)
+                </v-btn>
+                <v-spacer />
+                <div class="text-caption font-weight-bold mr-4">
+                  TOTAL JUMLAH: {{ calculatedTotal }}
+                </div>
               </div>
             </template>
           </v-data-table>

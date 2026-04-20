@@ -9,7 +9,7 @@ import type {
 import { AgGridVue } from "ag-grid-vue3";
 import { ModuleRegistry, AllCommunityModule } from "ag-grid-community";
 import api from "@/services/api";
-import * as XLSX from "xlsx";
+import * as XLSX from "xlsx-js-style";
 import PageLayout from "../components/PageLayout.vue";
 import { format, parseISO, isValid } from "date-fns";
 
@@ -387,29 +387,257 @@ const fetchReport = async () => {
 };
 
 const exportToExcel = () => {
-  // Mengambil data yang saat ini tampil di grid (termasuk yang sudah difilter)
+  if (allData.value.length === 0) {
+    alert("Tidak ada data untuk diekspor");
+    return;
+  }
+
+  const fileName = `Laporan_SPK_MMT_${startDate.value}.xlsx`;
+
+  // --- DEFINISI STYLE ---
+  const styleHeaderMain = {
+    fill: { fgColor: { rgb: "B3E5FC" } }, // Biru Muda
+    font: { bold: true, color: { rgb: "000000" }, sz: 10 },
+    alignment: { horizontal: "center", vertical: "center", wrapText: true },
+    border: {
+      top: { style: "thin", color: { rgb: "000000" } },
+      bottom: { style: "thin", color: { rgb: "000000" } },
+      left: { style: "thin", color: { rgb: "000000" } },
+      right: { style: "thin", color: { rgb: "000000" } },
+    },
+  };
+
+  const styleHeaderSub = {
+    ...styleHeaderMain,
+    fill: { fgColor: { rgb: "E1F5FE" } }, // Biru Lebih Muda
+  };
+
+  const styleDataCell = {
+    font: { sz: 10 },
+    border: {
+      top: { style: "thin", color: { rgb: "000000" } },
+      bottom: { style: "thin", color: { rgb: "000000" } },
+      left: { style: "thin", color: { rgb: "000000" } },
+      right: { style: "thin", color: { rgb: "000000" } },
+    },
+    alignment: { vertical: "center" },
+  };
+
+  const styleFooter = {
+    ...styleDataCell,
+    fill: { fgColor: { rgb: "F0F4F8" } },
+    font: { bold: true, sz: 10 },
+  };
+
+  // --- 1. SUSUN STRUKTUR DATA (AOA) ---
+  const wsData = [];
+
+  // Judul & Periode
+  wsData.push([
+    { v: "LAPORAN MONITORING SPK MMT", s: { font: { bold: true, sz: 14 } } },
+  ]);
+  wsData.push([
+    {
+      v: `Periode: ${formatDateDisplay(startDate.value)} s/d ${formatDateDisplay(endDate.value)}`,
+    },
+  ]);
+  wsData.push([]); // Baris Kosong
+
+  // --- 2. HEADER ROW 1 (Header Grup) ---
+  // Kita buat 3 baris header karena ada 3 level (JUMLAH CETAK -> PCS -> MESIN)
+  const headerRow1 = [
+    { v: "NAMA ORDER", s: styleHeaderMain },
+    { v: "NOMOR SPK", s: styleHeaderMain },
+    { v: "TGL SPK", s: styleHeaderMain },
+    { v: "DEADLINE", s: styleHeaderMain },
+    { v: "JENIS", s: styleHeaderMain },
+    { v: "STATUS", s: styleHeaderMain },
+    { v: "GRAMASI", s: styleHeaderMain },
+    { v: "P", s: styleHeaderMain },
+    { v: "L", s: styleHeaderMain },
+    { v: "KAIN", s: styleHeaderMain },
+    { v: "FINISHING", s: styleHeaderMain },
+    { v: "ORDER", s: styleHeaderMain },
+    { v: "JUMLAH CETAK", s: styleHeaderMain },
+    ...Array(5).fill({ v: "", s: styleHeaderMain }), // Sisa kolom Jml Cetak
+    { v: "JML SEAMING", s: styleHeaderMain },
+    { v: "JML MATA AYAM", s: styleHeaderMain },
+    { v: "JML COLY", s: styleHeaderMain },
+    { v: "JML JADI", s: styleHeaderMain },
+    { v: "JML KIRIM", s: styleHeaderMain },
+    { v: "MESIN CETAK (METER)", s: styleHeaderMain },
+    ...Array(5).fill({ v: "", s: styleHeaderMain }), // Sisa kolom Mesin Meter
+    { v: "SEAMING (M)", s: styleHeaderMain },
+    { v: "KIRIM (M)", s: styleHeaderMain },
+  ];
+  wsData.push(headerRow1);
+
+  // --- 3. HEADER ROW 2 (Sub-Group) ---
+  const headerRow2 = [
+    ...Array(12).fill({ v: "", s: styleHeaderMain }), // Bawah identitas kosong
+    { v: "PCS", s: styleHeaderSub },
+    ...Array(4).fill({ v: "", s: styleHeaderSub }),
+    { v: "TOTAL", s: styleHeaderSub },
+    ...Array(5).fill({ v: "", s: styleHeaderMain }),
+    { v: "TOTAL", s: styleHeaderSub },
+    ...Array(5).fill({ v: "", s: styleHeaderSub }),
+    { v: "", s: styleHeaderMain },
+    { v: "", s: styleHeaderMain },
+  ];
+  wsData.push(headerRow2);
+
+  // --- 4. HEADER ROW 3 (Nama Mesin/Unit) ---
+  const headerRow3 = [
+    ...Array(12).fill({ v: "", s: styleHeaderMain }),
+    { v: "MT01", s: styleHeaderSub },
+    { v: "MT02", s: styleHeaderSub },
+    { v: "MT03", s: styleHeaderSub },
+    { v: "MT04", s: styleHeaderSub },
+    { v: "MT05", s: styleHeaderSub },
+    { v: "TOTAL", s: styleHeaderSub },
+    ...Array(5).fill({ v: "", s: styleHeaderMain }), // Seaming s/d Kirim
+    { v: "MT01", s: styleHeaderSub },
+    { v: "MT02", s: styleHeaderSub },
+    { v: "MT03", s: styleHeaderSub },
+    { v: "MT04", s: styleHeaderSub },
+    { v: "MT05", s: styleHeaderSub },
+    { v: "TOTAL", s: styleHeaderSub },
+    { v: "METER", s: styleHeaderSub },
+    { v: "METER", s: styleHeaderSub },
+  ];
+  wsData.push(headerRow3);
+
+  // --- 5. DATA BODY ---
   const rowData: any[] = [];
   gridApi.value?.forEachNodeAfterFilterAndSort((node) => {
-    rowData.push(node.data);
+    const item = node.data;
+    wsData.push([
+      { v: item.spk_nama, s: styleDataCell },
+      {
+        v: item.NOMOR,
+        s: { ...styleDataCell, alignment: { horizontal: "center" } },
+      },
+      {
+        v: formatDateDisplay(item.spk_tanggal),
+        s: { ...styleDataCell, alignment: { horizontal: "center" } },
+      },
+      {
+        v: formatDateDisplay(item.deadline),
+        s: { ...styleDataCell, alignment: { horizontal: "center" } },
+      },
+      { v: item.jo_nama, s: styleDataCell },
+      {
+        v: item.status,
+        s: { ...styleDataCell, alignment: { horizontal: "center" } },
+      },
+      { v: item.spk_gramasi, s: styleDataCell },
+      {
+        v: item.PANJANG,
+        s: { ...styleDataCell, alignment: { horizontal: "center" } },
+      },
+      {
+        v: item.LEBAR,
+        s: { ...styleDataCell, alignment: { horizontal: "center" } },
+      },
+      { v: item.KAIN, s: styleDataCell },
+      { v: item.FINISHING, s: styleDataCell },
+      {
+        v: item.spk_jumlah,
+        s: { ...styleDataCell, alignment: { horizontal: "center" } },
+      },
+      // PCS Mesin
+      { v: item.mt01, s: styleDataCell },
+      { v: item.mt02, s: styleDataCell },
+      { v: item.mt03, s: styleDataCell },
+      { v: item.mt04, s: styleDataCell },
+      { v: item.mt05, s: styleDataCell },
+      { v: item.JML_CETAK, s: { ...styleDataCell, font: { bold: true } } },
+      // Finishings
+      { v: item.JML_seaming, s: styleDataCell },
+      { v: item.JML_mataayam, s: styleDataCell },
+      { v: item.JML_coly, s: styleDataCell },
+      { v: item.JML_JADI, s: styleDataCell },
+      { v: item.JML_KIRIM, s: styleDataCell },
+      // Mesin Meter
+      { v: item.mt01_m, s: styleDataCell },
+      { v: item.mt02_m, s: styleDataCell },
+      { v: item.mt03_m, s: styleDataCell },
+      { v: item.mt04_m, s: styleDataCell },
+      { v: item.mt05_m, s: styleDataCell },
+      { v: item.M_CETAK, s: { ...styleDataCell, font: { bold: true } } },
+      { v: item.m_seaming, s: styleDataCell },
+      { v: item.JML_meter_KIRIM, s: styleDataCell },
+    ]);
   });
 
-  // Mapping header agar lebih rapi di Excel
-  const worksheetData = rowData.map((item) => ({
-    "Nama Order": item.spk_nama,
-    "Nomor SPK": item.NOMOR,
-    Tanggal: item.spk_tanggal,
-    Deadline: item.deadline,
-    Status: item.status,
-    "Total Cetak": item.JML_CETAK,
-    "Total Jadi": item.JML_JADI,
-    "Total Kirim": item.JML_KIRIM,
-  }));
+  // --- 6. BARIS TOTAL ---
+  const footerRow = [
+    { v: "TOTAL", s: { ...styleFooter, alignment: { horizontal: "center" } } },
+    ...Array(10).fill({ v: "", s: styleFooter }),
+    { v: totals.value.spk_jumlah, s: styleFooter },
+    { v: totals.value.mt01, s: styleFooter },
+    { v: totals.value.mt02, s: styleFooter },
+    { v: totals.value.mt03, s: styleFooter },
+    { v: totals.value.mt04, s: styleFooter },
+    { v: totals.value.mt05, s: styleFooter },
+    { v: totals.value.JML_CETAK, s: styleFooter },
+    { v: totals.value.JML_seaming, s: styleFooter },
+    { v: totals.value.JML_mataayam, s: styleFooter },
+    { v: totals.value.JML_coly, s: styleFooter },
+    { v: totals.value.JML_JADI, s: styleFooter },
+    { v: totals.value.JML_KIRIM, s: styleFooter },
+    { v: totals.value.mt01_m, s: styleFooter },
+    { v: totals.value.mt02_m, s: styleFooter },
+    { v: totals.value.mt03_m, s: styleFooter },
+    { v: totals.value.mt04_m, s: styleFooter },
+    { v: totals.value.mt05_m, s: styleFooter },
+    { v: totals.value.M_CETAK, s: styleFooter },
+    { v: totals.value.m_seaming, s: styleFooter },
+    { v: totals.value.JML_meter_KIRIM, s: styleFooter },
+  ];
+  wsData.push(footerRow);
 
-  const ws = XLSX.utils.json_to_sheet(worksheetData);
+  const ws = XLSX.utils.aoa_to_sheet(wsData);
+
+  // --- 7. MERGE CONFIG ---
+  const offset = 3; // Baris data dimulai dari index 3
+  ws["!merges"] = [
+    { s: { r: 0, c: 0 }, e: { r: 0, c: 4 } }, // Judul
+    // Identitas Vertical Merge (3 baris)
+    ...Array(12)
+      .fill(0)
+      .map((_, i) => ({ s: { r: offset, c: i }, e: { r: offset + 2, c: i } })),
+    // Group Jumlah Cetak
+    { s: { r: offset, c: 12 }, e: { r: offset, c: 17 } },
+    { s: { r: offset + 1, c: 12 }, e: { r: offset + 1, c: 16 } }, // PCS
+    // Vertical merge for Total Cetak & Seaming dkk
+    ...Array(6)
+      .fill(0)
+      .map((_, i) => ({
+        s: { r: offset, c: 17 + i },
+        e: { r: offset + 2, c: 17 + i },
+      })),
+    // Group Mesin Meter
+    { s: { r: offset, c: 23 }, e: { r: offset, c: 28 } },
+    { s: { r: offset + 1, c: 23 }, e: { r: offset + 1, c: 27 } }, // Sub Group Meter
+    // Vertical merge Meter s/d Kirim
+    { s: { r: offset, c: 29 }, e: { r: offset + 2, c: 29 } },
+    { s: { r: offset, c: 30 }, e: { r: offset + 2, c: 30 } },
+    // Footer Merge
+    { s: { r: wsData.length - 1, c: 0 }, e: { r: wsData.length - 1, c: 10 } },
+  ];
+
+  ws["!cols"] = [
+    { wch: 35 },
+    { wch: 15 },
+    { wch: 12 },
+    { wch: 12 },
+    { wch: 15 },
+  ]; // Lebar Kolom
+
   const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, "Laporan MMT");
-
-  XLSX.writeFile(wb, `Laporan_MMT_${startDate.value}.xlsx`);
+  XLSX.utils.book_append_sheet(wb, ws, "Laporan SPK MMT");
+  XLSX.writeFile(wb, fileName);
 };
 
 const onBtnExport = () => {
@@ -482,10 +710,10 @@ onMounted(fetchReport);
             variant="flat"
             size="small"
             prepend-icon="mdi-export-variant"
-            @click="onBtnExport"
+            @click="exportToExcel"
             :disabled="loading.report || allData.length === 0"
           >
-            Export CSV
+            Export Excel
           </v-btn>
 
           <v-spacer />

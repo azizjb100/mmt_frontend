@@ -495,18 +495,22 @@ const menuGroups = computed(() => {
 .dashboard-layout-top {
   --color-primary: #1e78c8;
   --color-primary-dark: #155a9b;
-  --color-primary-light: #e3f2fd;
-  --color-text-main: #333333;
-  --color-border: #e0e0e0;
-  --radius-md: 12px;
+  --color-primary-light: #f0f7ff;
+  --color-text-main: #334155;
+  --color-text-muted: #94a3b8;
+  --color-border: #e2e8f0;
+  --color-danger: #ef4444;
+  --color-danger-bg: #fef2f2;
+  --radius-md: 8px;
   --transition: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  --navbar-height: 64px;
 
   display: flex;
   flex-direction: column;
   height: 100vh;
   width: 100%;
   overflow: hidden;
-  background-color: #f7fafc;
+  background-color: #f8fafc;
 }
 
 /* 2. TOP NAVBAR */
@@ -531,8 +535,8 @@ const menuGroups = computed(() => {
 .navbar-brand {
   color: var(--color-primary-dark);
   font-family: "Poppins", sans-serif;
-  font-weight: 800;
-  font-size: 1.2rem;
+  font-weight: 700;
+  font-size: 1.25rem;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -543,7 +547,7 @@ const menuGroups = computed(() => {
   display: flex;
   list-style: none;
   margin: 0;
-  padding: 0 0 0 20px;
+  padding: 0 0 0 30px;
   height: 100%;
   flex-grow: 1;
   gap: 4px;
@@ -561,16 +565,10 @@ const menuGroups = computed(() => {
   padding: 0 16px;
   color: var(--color-text-main);
   font-weight: 600;
-  font-size: 0.92rem;
+  font-size: 0.9rem;
   text-decoration: none;
   transition: var(--transition);
   cursor: pointer;
-}
-
-.dropdown.is-active > .dropdown-menu {
-  visibility: visible;
-  opacity: 1;
-  transform: translateY(0);
 }
 
 .dropdown-toggle:hover,
@@ -581,61 +579,28 @@ const menuGroups = computed(() => {
 
 /* 4. DROPDOWN CONTENT (LEVEL 2) */
 .dropdown-menu {
-  /* Hilangkan display: none, gunakan opacity & pointer-events agar transisi halus */
   display: block;
   visibility: hidden;
   opacity: 0;
   position: absolute;
   top: 100%;
   left: 0;
-  background-color: white;
+  background-color: white !important;
   min-width: 240px;
   padding: 8px;
   border: 1px solid var(--color-border);
   border-radius: 0 0 var(--radius-md) var(--radius-md);
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.12);
   transform: translateY(10px);
   transition: all 0.2s ease;
-  z-index: 1100;
+  z-index: 1200;
 }
 
-.disabled-link {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 10px 14px;
-  color: #94a3b8; /* Abu-abu lebih lembut */
-  font-size: 0.88rem; /* Samakan dengan link aktif */
-  font-weight: 500; /* Jangan gunakan bold yang terlalu tebal */
-  cursor: not-allowed;
-  background-color: #f8fafc; /* Beri sedikit background beda agar terlihat 'off' */
-  border-radius: 6px;
-  margin-bottom: 2px;
-}
-
-.disabled-link .mdi-lock-outline {
-  font-size: 0.9rem;
-  opacity: 0.7;
-  margin-left: 8px;
-}
-
-/* Pastikan item disabled tidak berubah warna saat di-hover */
-.item-disabled:hover {
-  background-color: transparent !important;
-}
-
-/* Menyesuaikan jarak agar teks tidak terlalu mepet ke ikon gembok */
-.item-disabled {
-  pointer-events: none; /* Mencegah interaksi */
-  user-select: none;
-}
-
-/* Desktop Hover Logic */
-@media (min-width: 1025px) {
-  .dropdown:hover > .dropdown-menu {
-    display: block;
-    animation: fadeInQuick 0.15s ease-out;
-  }
+.dropdown:hover > .dropdown-menu,
+.dropdown.is-active > .dropdown-menu {
+  visibility: visible;
+  opacity: 1;
+  transform: translateY(0);
 }
 
 .dropdown-menu li a,
@@ -646,7 +611,8 @@ const menuGroups = computed(() => {
   padding: 5px;
   color: var(--color-text-main);
   text-decoration: none;
-  font-size: 0.88rem;
+  font-size: 0.875rem;
+  font-weight: 500;
   border-radius: 6px;
   transition: var(--transition);
   cursor: pointer;
@@ -654,71 +620,70 @@ const menuGroups = computed(() => {
 
 .dropdown-menu li a:hover,
 .is-sub-active > .sub-dropdown-toggle {
-  background-color: var(--color-primary);
+  background-color: var(--color-primary) !important;
   color: white !important;
 }
 
-/* 5. SUB-MENU (LEVEL 3) - Card Style & Pancingan */
+/* 5. SUB-MENU (LEVEL 3) - PERBAIKAN UTAMA */
 .sub-dropdown {
   position: relative;
 }
 
 .sub-menu-popup {
   position: absolute;
-  left: 100%;
-  top: 0;
-  min-width: 240px;
-  padding-left: 12px; /* Area jembatan mouse */
-  background: transparent;
+  left: 100%; /* Geser ke kanan menu level 2 */
+  top: -8px; /* Sedikit ke atas agar sejajar */
+  min-width: 260px;
+  margin-left: 6px;
+  padding: 0;
+  background-color: white !important; /* Latar belakang solid */
   z-index: 1300;
   list-style: none;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: 10px 10px 30px rgba(0, 0, 0, 0.18); /* Shadow kuat agar tidak menempel tabel */
+  overflow: hidden;
 }
 
 .card-item {
   background-color: white;
-  margin-bottom: 6px;
-  border: 1px solid #edf2f7;
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-  overflow: hidden;
-  transition: transform 0.2s;
+  border-bottom: 1px solid #f1f5f9;
 }
 
-.card-item:hover {
-  transform: translateX(4px);
+.card-item:last-child {
+  border-bottom: none;
 }
 
 .card-item a {
+  display: block !important;
+  padding: 5px !important;
   background-color: white !important;
   color: var(--color-text-main) !important;
+  font-weight: 500;
+  transition: all 0.2s;
 }
 
 .card-item a:hover {
-  background-color: var(--color-primary) !important;
-  color: white !important;
+  background-color: var(--color-primary-light) !important;
+  color: var(--color-primary) !important;
+  padding-left: 22px !important; /* Animasi geser */
 }
 
-/* 6. ICONS & ANIMATIONS */
-.icon-arrow {
-  display: inline-block;
-  transition: transform 0.3s ease;
-  font-size: 1rem;
-  margin-left: 8px;
+/* 6. DISABLED & LOCK */
+.item-disabled {
+  pointer-events: none;
+  opacity: 0.6;
 }
 
-.icon-arrow.rotate {
-  transform: rotate(90deg);
-}
-
-@keyframes fadeInQuick {
-  from {
-    opacity: 0;
-    transform: translateY(-5px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+.disabled-link {
+  display: flex;
+  justify-content: space-between;
+  padding: 10px 14px;
+  color: var(--color-text-muted);
+  font-size: 0.875rem;
+  background-color: #f8fafc;
+  border-radius: 6px;
+  margin-bottom: 2px;
 }
 
 /* 7. MOBILE RESPONSIVE */
@@ -747,9 +712,9 @@ const menuGroups = computed(() => {
     height: 100vh;
     background: white;
     flex-direction: column;
-    padding: 70px 20px 20px;
-    transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    box-shadow: 4px 0 10px rgba(0, 0, 0, 0.1);
+    padding: 70px 0 20px;
+    transition: 0.3s ease;
+    box-shadow: 4px 0 15px rgba(0, 0, 0, 0.1);
     display: block;
     overflow-y: auto;
   }
@@ -760,17 +725,19 @@ const menuGroups = computed(() => {
 
   .dropdown {
     height: auto;
-    display: block;
     border-bottom: 1px solid #f1f5f9;
   }
 
   .dropdown-menu {
     position: static;
-    display: none;
+    visibility: visible;
+    opacity: 1;
+    display: none; /* Default tutup di mobile */
     box-shadow: none;
     border: none;
-    padding: 0 0 10px 15px;
+    padding: 10px 20px;
     background: #f8fafc;
+    transform: none;
   }
 
   .dropdown.is-active > .dropdown-menu {
@@ -779,40 +746,31 @@ const menuGroups = computed(() => {
 
   .sub-menu-popup {
     position: static;
-    padding-left: 15px;
-    background: white;
-  }
-
-  .card-item {
     box-shadow: none;
     border: none;
+    margin-left: 15px;
     border-left: 2px solid var(--color-primary);
     border-radius: 0;
-    margin-bottom: 0;
+    background-color: transparent !important;
   }
 }
 
-/* 8. USER SECTION */
+/* 8. USER & MISC */
 .navbar-user {
   display: flex;
   align-items: center;
   gap: 16px;
-  min-width: 180px;
-  justify-content: flex-end;
 }
 
 .logout-button {
   background-color: var(--color-danger-bg);
   color: var(--color-danger);
-  border: 1px solid #fed7d7;
+  border: 1px solid #fee2e2;
   padding: 8px 16px;
   border-radius: 6px;
   font-weight: 600;
   cursor: pointer;
   transition: var(--transition);
-  display: flex;
-  align-items: center;
-  gap: 8px;
 }
 
 .logout-button:hover {
@@ -823,13 +781,21 @@ const menuGroups = computed(() => {
 .menu-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.4);
+  background: rgba(15, 23, 42, 0.5);
   z-index: 1080;
+  backdrop-filter: blur(2px);
 }
 
 .main-content-top {
   flex-grow: 1;
   overflow-y: auto;
   padding: 24px;
+}
+
+.icon-arrow {
+  transition: transform 0.3s;
+}
+.icon-arrow.rotate {
+  transform: rotate(90deg);
 }
 </style>
