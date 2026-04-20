@@ -294,6 +294,7 @@ const allMenuGroups = [
       { name: "BS & Sisa Digital Print", path: "/mmt/bs-digital" },
       { name: "BS & Sisa Tekstil", path: "/mmt/bs-tekstil" },
       { name: "STBJ", path: "/mmt/stbj" },
+      { name: "Jadwal Kirim", path: "/mmt/jadwal-kirim" },
       {
         name: "LHK",
         isSubGroup: true,

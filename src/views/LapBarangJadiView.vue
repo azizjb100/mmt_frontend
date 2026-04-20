@@ -1,81 +1,46 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted } from "vue";
 import api from "@/services/api";
 import PageLayout from "../components/PageLayout.vue";
 import { format, parseISO, isValid } from "date-fns";
+import XLSX from "xlsx-js-style";
 
 // --- STATE ---
 const loading = ref(false);
 const allData = ref([]);
-const startDate = ref(new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().substr(0, 10));
+const startDate = ref(
+  new Date(new Date().getFullYear(), new Date().getMonth(), 1)
+    .toISOString()
+    .substr(0, 10),
+);
 const endDate = ref(new Date().toISOString().substr(0, 10));
 const searchQuery = ref("");
 
-// --- HEADERS DEFINITION ---
-// Mengikuti kolom-kolom pada cxGrid1DBBandedTableView1 di Delphi
-const headers = [
-  { title: "TANGGAL", key: "Tanggal", width: "110px", sortable: true },
-  { title: "NOMOR SPK", key: "spk_nomor", width: "130px" },
-  { title: "NAMA SPK", key: "spk_nama", minWidth: "200px" },
-  { title: "KAIN", key: "spk_kain", width: "120px" },
-  {
-    title: "DIMENSI",
-    align: "center",
-    children: [
-      { title: "P", key: "Panjang", width: "70px", align: 'end' },
-      { title: "L", key: "Lebar", width: "70px", align: 'end' },
-    ],
-  },
-  {
-    title: "QUANTITY (PCS)",
-    align: "center",
-    children: [
-      { title: "ORDER", key: "spk_jumlah", width: "90px", align: 'end' },
-      { title: "JADI", key: "Jumlah_jadi", width: "90px", align: 'end' },
-      { title: "KIRIM", key: "Jumlah_kirim", width: "90px", align: 'end' },
-      { title: "STOK", key: "stok_barang", width: "90px", align: 'end' },
-      { title: "SISA", key: "kurang_kirim", width: "90px", align: 'end' },
-    ],
-  },
-  {
-    title: "SATUAN (METER)",
-    align: "center",
-    children: [
-      { title: "M. JADI", key: "meter_jadi", width: "100px", align: 'end' },
-      { title: "M. KIRIM", key: "meter_kirim", width: "100px", align: 'end' },
-    ],
-  },
-];
-
-// --- LOGIKA TOTALS (FOOTER SUMMARY) ---
+// --- TOTALS CALCULATION ---
 const totals = computed(() => {
-  const t = { order: 0, jadi: 0, kirim: 0, stok: 0, sisa: 0, mJadi: 0, mKirim: 0 };
-  allData.value.forEach(item => {
-    t.order += Number(item.spk_jumlah || 0);
-    t.jadi += Number(item.Jumlah_jadi || 0);
-    t.kirim += Number(item.Jumlah_kirim || 0);
-    t.stok += Number(item.stok_barang || 0);
-    t.sisa += Number(item.kurang_kirim || 0);
-    t.mJadi += Number(item.meter_jadi || 0);
-    t.mKirim += Number(item.meter_kirim || 0);
-  });
-  return t;
+  return allData.value.reduce(
+    (acc, item: any) => {
+      acc.order += Number(item.spk_jumlah || 0);
+      acc.jadi += Number(item.Jumlah_jadi || 0);
+      acc.kirim += Number(item.Jumlah_kirim || 0);
+      acc.stok += Number(item.stok_barang || 0);
+      acc.sisa += Number(item.kurang_kirim || 0);
+      acc.mJadi += Number(item.meter_jadi || 0);
+      acc.mKirim += Number(item.meter_kirim || 0);
+      return acc;
+    },
+    { order: 0, jadi: 0, kirim: 0, stok: 0, sisa: 0, mJadi: 0, mKirim: 0 },
+  );
 });
 
-// --- FETCH DATA (loaddata di Delphi) ---
+// --- FETCH DATA ---
 const fetchReport = async () => {
   loading.value = true;
   try {
-    const res = await api.get('mmt/laporan-barang-jadi', {
-      params: { 
-        startDate: startDate.value, 
-        endDate: endDate.value 
-      }
+    const res = await api.get("mmt/laporan-barang-jadi", {
+      params: { startDate: startDate.value, endDate: endDate.value },
     });
-    // Data hasil query SQL di Delphi
     allData.value = res.data.data || [];
-  } catch (error) {
-    console.error("Gagal mengambil data laporan:", error);
   } finally {
     loading.value = false;
   }
@@ -83,7 +48,10 @@ const fetchReport = async () => {
 
 // --- HELPERS ---
 const formatNumber = (val: any, dec = 0) => {
-  return Number(val || 0).toLocaleString('id-ID', { minimumFractionDigits: dec, maximumFractionDigits: dec });
+  return Number(val || 0).toLocaleString("id-ID", {
+    minimumFractionDigits: dec,
+    maximumFractionDigits: dec,
+  });
 };
 
 const formatDate = (dateStr: string) => {
@@ -92,171 +60,260 @@ const formatDate = (dateStr: string) => {
   return isValid(date) ? format(date, "dd/MM/yyyy") : dateStr;
 };
 
+// --- EXPORT EXCEL (STYLE LMKP) ---
 const exportExcel = () => {
-  // Implementasi export grid ke excel (TeSpeedButton1Click di Delphi)
-  window.open(`${import.meta.env.VITE_API_URL}/mmt/laporan-barang-jadi/export?startDate=${startDate.value}&endDate=${endDate.value}`);
+  const fileName = `Lap_Barang_Jadi_MMT_${startDate.value}.xlsx`;
+  const styleHeader = {
+    fill: { fgColor: { rgb: "B3E5FC" } },
+    font: { bold: true, sz: 10 },
+    alignment: { horizontal: "center", vertical: "center" },
+    border: {
+      top: { style: "thin" },
+      bottom: { style: "thin" },
+      left: { style: "thin" },
+      right: { style: "thin" },
+    },
+  };
+  const styleCell = {
+    border: {
+      top: { style: "thin" },
+      bottom: { style: "thin" },
+      left: { style: "thin" },
+      right: { style: "thin" },
+    },
+    font: { sz: 9 },
+  };
+
+  const wsData = [
+    [{ v: "LAPORAN BARANG JADI MMT", s: { font: { bold: true, sz: 14 } } }],
+    [
+      {
+        v: `Periode: ${formatDate(startDate.value)} - ${formatDate(endDate.value)}`,
+      },
+    ],
+    [],
+    // Header Row 1
+    [
+      { v: "TANGGAL", s: styleHeader },
+      { v: "NOMOR SPK", s: styleHeader },
+      { v: "NAMA ORDER", s: styleHeader },
+      { v: "KAIN", s: styleHeader },
+      { v: "DIMENSI", s: styleHeader },
+      "",
+      { v: "QUANTITY (PCS)", s: styleHeader },
+      "",
+      "",
+      "",
+      "",
+      { v: "METER", s: styleHeader },
+      "",
+    ],
+    // Header Row 2
+    [
+      "",
+      "",
+      "",
+      "",
+      { v: "P", s: styleHeader },
+      { v: "L", s: styleHeader },
+      { v: "ORDER", s: styleHeader },
+      { v: "JADI", s: styleHeader },
+      { v: "KIRIM", s: styleHeader },
+      { v: "STOK", s: styleHeader },
+      { v: "SISA", s: styleHeader },
+      { v: "M.JADI", s: styleHeader },
+      { v: "M.KIRIM", s: styleHeader },
+    ],
+  ];
+
+  // Map Data
+  allData.value.forEach((item) => {
+    wsData.push([
+      { v: formatDate(item.Tanggal), s: styleCell },
+      { v: item.spk_nomor, s: styleCell },
+      { v: item.spk_nama, s: styleCell },
+      { v: item.spk_kain, s: styleCell },
+      { v: item.Panjang, s: styleCell },
+      { v: item.Lebar, s: styleCell },
+      { v: item.spk_jumlah, s: styleCell },
+      { v: item.Jumlah_jadi, s: styleCell },
+      { v: item.Jumlah_kirim, s: styleCell },
+      { v: item.stok_barang, s: styleCell },
+      { v: item.kurang_kirim, s: styleCell },
+      { v: item.meter_jadi, s: styleCell },
+      { v: item.meter_kirim, s: styleCell },
+    ]);
+  });
+
+  const ws = XLSX.utils.aoa_to_sheet(wsData);
+  ws["!merges"] = [
+    { s: { r: 3, c: 0 }, e: { r: 4, c: 0 } }, // Tanggal
+    { s: { r: 3, c: 1 }, e: { r: 4, c: 1 } }, // Nomor
+    { s: { r: 3, c: 2 }, e: { r: 4, c: 2 } }, // Nama
+    { s: { r: 3, c: 3 }, e: { r: 4, c: 3 } }, // Kain
+    { s: { r: 3, c: 4 }, e: { r: 3, c: 5 } }, // Dimensi
+    { s: { r: 3, c: 6 }, e: { r: 3, c: 10 } }, // Qty
+    { s: { r: 3, c: 11 }, e: { r: 3, c: 12 } }, // Meter
+  ];
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Barang Jadi");
+  XLSX.writeFile(wb, fileName);
 };
 
 onMounted(fetchReport);
 </script>
 
 <template>
-  <PageLayout title="Laporan Barang Jadi MMT" icon="mdi-package-variant-closed">
-    <div class="lap-barang-jadi-wrapper">
-      
-      <v-card flat class="mb-4 pa-4 filter-card" elevation="1">
-        <v-row dense align="center">
-          <v-col cols="12" md="5" class="d-flex align-center ga-3">
-            <v-label class="text-caption font-weight-bold">PERIODE:</v-label>
-            <v-text-field
-              v-model="startDate"
-              type="date"
-              density="compact"
-              variant="outlined"
-              hide-details
-              style="max-width: 170px"
-            />
-            <span class="text-caption">s.d</span>
-            <v-text-field
-              v-model="endDate"
-              type="date"
-              density="compact"
-              variant="outlined"
-              hide-details
-              style="max-width: 170px"
-            />
-            <v-btn 
-              color="primary" 
-              icon="mdi-magnify" 
-              size="small" 
-              @click="fetchReport" 
-              :loading="loading"
-              title="Tampilkan Data" 
-            />
-          </v-col>
-
-          <v-spacer />
-
-          <v-col cols="12" md="3">
-            <v-text-field
-              v-model="searchQuery"
-              prepend-inner-icon="mdi-filter-variant"
-              placeholder="Cari SPK atau Nama..."
-              density="compact"
-              variant="outlined"
-              hide-details
-            />
-          </v-col>
-          <v-col cols="auto">
-            <v-btn color="success" prepend-icon="mdi-file-excel" size="small" @click="exportExcel">
-              EXPORT EXCEL
-            </v-btn>
-          </v-col>
-        </v-row>
-      </v-card>
-
-      <v-card class="table-card" elevation="2">
-        <v-data-table
-          :headers="headers"
-          :items="allData"
-          :search="searchQuery"
-          :loading="loading"
+  <PageLayout title="Laporan Barang Jadi MMT" icon="mdi-package-variant">
+    <v-card flat class="pa-2 border-bottom">
+      <div class="d-flex align-center ga-3">
+        <v-text-field
+          v-model="startDate"
+          type="date"
           density="compact"
-          fixed-header
-          height="calc(100vh - 280px)"
-          class="mmt-grid"
+          variant="outlined"
+          hide-details
+        />
+        <v-text-field
+          v-model="endDate"
+          type="date"
+          density="compact"
+          variant="outlined"
+          hide-details
+        />
+        <v-btn color="primary" @click="fetchReport" :loading="loading"
+          >Muat</v-btn
         >
-          <template #item.Tanggal="{ value }">{{ formatDate(value) }}</template>
+        <v-btn
+          color="success"
+          prepend-icon="mdi-file-excel"
+          @click="exportExcel"
+          >Excel</v-btn
+        >
+        <v-spacer />
+        <v-text-field
+          v-model="searchQuery"
+          placeholder="Cari..."
+          density="compact"
+          variant="outlined"
+          hide-details
+          style="max-width: 250px"
+        />
+      </div>
+    </v-card>
 
-          <template #item.Panjang="{ value }">{{ formatNumber(value, 2) }}</template>
-          <template #item.Lebar="{ value }">{{ formatNumber(value, 2) }}</template>
-          
-          <template #item.spk_jumlah="{ value }">{{ formatNumber(value) }}</template>
-          <template #item.Jumlah_jadi="{ value }">{{ formatNumber(value) }}</template>
-          <template #item.Jumlah_kirim="{ value }">{{ formatNumber(value) }}</template>
-          
-          <template #item.stok_barang="{ value }">
-            <span :class="value > 0 ? 'text-success font-weight-bold' : ''">
-              {{ formatNumber(value) }}
-            </span>
-          </template>
-
-          <template #item.kurang_kirim="{ value }">
-            <span :class="value > 0 ? 'text-error' : ''">
-              {{ formatNumber(value) }}
-            </span>
-          </template>
-
-          <template #item.meter_jadi="{ value }">{{ formatNumber(value, 2) }}</template>
-          <template #item.meter_kirim="{ value }">{{ formatNumber(value, 2) }}</template>
-
-          <template #tfoot>
-            <tr class="footer-row font-weight-bold">
-              <td colspan="6" class="text-right bg-grey-lighten-4">TOTAL KESELURUHAN</td>
-              <td class="text-right">{{ formatNumber(totals.order) }}</td>
-              <td class="text-right text-blue">{{ formatNumber(totals.jadi) }}</td>
-              <td class="text-right text-green">{{ formatNumber(totals.kirim) }}</td>
-              <td class="text-right text-success">{{ formatNumber(totals.stok) }}</td>
-              <td class="text-right text-error">{{ formatNumber(totals.sisa) }}</td>
-              <td class="text-right">{{ formatNumber(totals.mJadi, 2) }}</td>
-              <td class="text-right">{{ formatNumber(totals.mKirim, 2) }}</td>
+    <div class="table-container mt-2">
+      <v-data-table
+        :items="allData"
+        :search="searchQuery"
+        :headers="[]"
+        density="compact"
+        class="mmt-table elevation-1"
+        fixed-header
+        height="calc(100vh - 250px)"
+        :items-per-page="-1"
+        hide-default-footer
+      >
+        <template #thead>
+          <thead>
+            <tr class="header-main">
+              <th rowspan="2" style="min-width: 100px">TANGGAL</th>
+              <th rowspan="2" style="min-width: 120px">NOMOR SPK</th>
+              <th rowspan="2" style="min-width: 250px">NAMA ORDER</th>
+              <th rowspan="2" style="min-width: 150px">KAIN</th>
+              <th colspan="2" class="group-header">DIMENSI</th>
+              <th colspan="5" class="group-header">QUANTITY (PCS)</th>
+              <th colspan="2" class="group-header">METER</th>
             </tr>
-          </template>
-        </v-data-table>
-      </v-card>
+            <tr class="header-sub">
+              <th style="width: 60px">P</th>
+              <th style="width: 60px">L</th>
+              <th style="width: 80px">ORDER</th>
+              <th style="width: 80px">JADI</th>
+              <th style="width: 80px">KIRIM</th>
+              <th style="width: 80px">STOK</th>
+              <th style="width: 80px">SISA</th>
+              <th style="width: 90px">M.JADI</th>
+              <th style="width: 90px">M.KIRIM</th>
+            </tr>
+          </thead>
+        </template>
 
+        <template v-slot:item="{ item }">
+          <tr>
+            <td>{{ formatDate(item.Tanggal) }}</td>
+            <td class="font-weight-bold text-center">{{ item.spk_nomor }}</td>
+            <td class="text-left">{{ item.spk_nama }}</td>
+            <td class="text-left">{{ item.spk_kain }}</td>
+            <td class="text-right">{{ formatNumber(item.Panjang, 2) }}</td>
+            <td class="text-right">{{ formatNumber(item.Lebar, 2) }}</td>
+            <td class="text-right">{{ formatNumber(item.spk_jumlah) }}</td>
+            <td class="text-right text-blue font-weight-bold">
+              {{ formatNumber(item.Jumlah_jadi) }}
+            </td>
+            <td class="text-right text-success font-weight-bold">
+              {{ formatNumber(item.Jumlah_kirim) }}
+            </td>
+            <td class="text-right">{{ formatNumber(item.stok_barang) }}</td>
+            <td class="text-right text-error font-weight-bold">
+              {{ formatNumber(item.kurang_kirim) }}
+            </td>
+            <td class="text-right">{{ formatNumber(item.meter_jadi, 2) }}</td>
+            <td class="text-right">{{ formatNumber(item.meter_kirim, 2) }}</td>
+          </tr>
+        </template>
+      </v-data-table>
     </div>
   </PageLayout>
 </template>
 
 <style scoped>
-.lap-barang-jadi-wrapper {
-  padding: 16px;
-  background-color: #f4f6f8;
-  min-height: 100vh;
-}
-
-.filter-card {
-  border-radius: 8px;
-}
-
-/* Banded Header Styling (Mirip dxSkin) */
-.mmt-grid :deep(thead th) {
-  background-color: #37474f !important; /* Blue Grey Dark */
-  color: white !important;
-  font-size: 11px !important;
-  font-weight: bold !important;
-  text-transform: uppercase;
-  border-right: 1px solid #546e7a !important;
-  height: 40px !important;
-}
-
-.mmt-grid :deep(td) {
-  font-size: 12px !important;
-  border-bottom: 1px solid #e0e0e0;
-}
-
-.mmt-grid :deep(tbody tr:nth-child(odd)) {
-  background-color: #ffffff;
-}
-
-/* Baris Selang-Seling (ContentOdd di Delphi) */
-.mmt-grid :deep(tbody tr:nth-child(even)) {
-  background-color: #fafafa;
-}
-
-.footer-row td {
-  padding: 8px 12px !important;
-  border-top: 2px solid #9e9e9e !important;
-  font-size: 12px;
-}
-
-.text-success { color: #2e7d32 !important; }
-.text-error { color: #d32f2f !important; }
-.text-blue { color: #1565c0 !important; }
-
-.table-card {
-  border-radius: 8px;
+.table-container {
+  border: 1px solid #7bdaff;
+  border-radius: 4px;
   overflow: hidden;
+}
+
+/* Header LMKP Style */
+.mmt-table :deep(thead th) {
+  background-color: #b3e5fc !important;
+  color: #000 !important;
+  font-size: 10px !important;
+  font-weight: bold !important;
+  text-align: center !important;
+  border: 1px solid #7bdaff !important;
+  text-transform: uppercase;
+}
+
+.mmt-table :deep(.header-sub th) {
+  background-color: #e1f5fe !important;
+}
+
+.mmt-table :deep(tbody td) {
+  font-size: 11px !important;
+  border: 0.5px solid #eee !important;
+  padding: 4px 8px !important;
+}
+
+.table-footer td {
+  background-color: #f0f4f8 !important;
+  font-weight: bold;
+  border: 1px solid #7bdaff !important;
+  font-size: 11px;
+}
+
+/* Colors */
+.text-blue {
+  color: #1565c0;
+}
+.text-success {
+  color: #2e7d32;
+}
+.text-error {
+  color: #d32f2f;
+}
+.bg-stok {
+  background-color: #e8f5e9;
 }
 </style>

@@ -146,9 +146,11 @@
               </tr>
               <tr class="header-row-2">
                 <th class="text-center" style="color: black !important">
-                  PANG
+                  PANJANG
                 </th>
-                <th class="text-center" style="color: black !important">LEB</th>
+                <th class="text-center" style="color: black !important">
+                  LEBAR
+                </th>
                 <th class="text-center" style="color: black !important">QTY</th>
                 <th class="text-center" style="color: black !important">MTR</th>
                 <th class="text-center" style="color: black !important">
@@ -510,8 +512,8 @@ const exportToExcel = () => {
     { v: "", s: styleHeaderMain }, // Tgl
     { v: "", s: styleHeaderMain }, // Deadline
     { v: "", s: styleHeaderMain }, // Nama Order
-    { v: "PANG", s: styleHeaderSub },
-    { v: "LEB", s: styleHeaderSub },
+    { v: "PANJANG", s: styleHeaderSub },
+    { v: "LEBAR", s: styleHeaderSub },
     { v: "", s: styleHeaderMain }, // No SPK
     { v: "", s: styleHeaderMain }, // Jenis
     { v: "QTY", s: styleHeaderSub },
