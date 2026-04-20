@@ -192,6 +192,7 @@ const rolePermissions = {
     "Stok Opname",
     // "Koreksi Stok",
     "STBJ",
+    "Jadwal Kirim",
     "LHK",
     "LHK Mesin Cetak",
     "LHK Tekstil",

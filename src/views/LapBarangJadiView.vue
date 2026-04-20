@@ -60,7 +60,7 @@ const formatDate = (dateStr: string) => {
   return isValid(date) ? format(date, "dd/MM/yyyy") : dateStr;
 };
 
-// --- EXPORT EXCEL (STYLE LMKP) ---
+// --- EXPORT EXCEL ---
 const exportExcel = () => {
   const fileName = `Lap_Barang_Jadi_MMT_${startDate.value}.xlsx`;
   const styleHeader = {
@@ -92,23 +92,23 @@ const exportExcel = () => {
       },
     ],
     [],
-    // Header Row 1
+    // Row 1 Header
     [
       { v: "TANGGAL", s: styleHeader },
       { v: "NOMOR SPK", s: styleHeader },
       { v: "NAMA ORDER", s: styleHeader },
       { v: "KAIN", s: styleHeader },
       { v: "DIMENSI", s: styleHeader },
-      "",
+      "", // placeholder L
+      { v: "JUMLAH ORDER", s: styleHeader },
       { v: "QUANTITY (PCS)", s: styleHeader },
-      "",
-      "",
-      "",
-      "",
+      "", // placeholder Kirim
+      "", // placeholder Stok
+      "", // placeholder Sisa
       { v: "METER", s: styleHeader },
-      "",
+      "", // placeholder M.Kirim
     ],
-    // Header Row 2
+    // Row 2 Header
     [
       "",
       "",
@@ -116,7 +116,7 @@ const exportExcel = () => {
       "",
       { v: "P", s: styleHeader },
       { v: "L", s: styleHeader },
-      { v: "ORDER", s: styleHeader },
+      "", // Jumlah Order (Merged vertically)
       { v: "JADI", s: styleHeader },
       { v: "KIRIM", s: styleHeader },
       { v: "STOK", s: styleHeader },
@@ -126,8 +126,7 @@ const exportExcel = () => {
     ],
   ];
 
-  // Map Data
-  allData.value.forEach((item) => {
+  allData.value.forEach((item: any) => {
     wsData.push([
       { v: formatDate(item.Tanggal), s: styleCell },
       { v: item.spk_nomor, s: styleCell },
@@ -146,14 +145,17 @@ const exportExcel = () => {
   });
 
   const ws = XLSX.utils.aoa_to_sheet(wsData);
+
+  // MERGE LOGIC
   ws["!merges"] = [
     { s: { r: 3, c: 0 }, e: { r: 4, c: 0 } }, // Tanggal
     { s: { r: 3, c: 1 }, e: { r: 4, c: 1 } }, // Nomor
     { s: { r: 3, c: 2 }, e: { r: 4, c: 2 } }, // Nama
     { s: { r: 3, c: 3 }, e: { r: 4, c: 3 } }, // Kain
-    { s: { r: 3, c: 4 }, e: { r: 3, c: 5 } }, // Dimensi
-    { s: { r: 3, c: 6 }, e: { r: 3, c: 10 } }, // Qty
-    { s: { r: 3, c: 11 }, e: { r: 3, c: 12 } }, // Meter
+    { s: { r: 3, c: 4 }, e: { r: 3, c: 5 } }, // Dimensi (Horz)
+    { s: { r: 3, c: 6 }, e: { r: 4, c: 6 } }, // JUMLAH ORDER (Vert)
+    { s: { r: 3, c: 7 }, e: { r: 3, c: 10 } }, // Qty (Horz)
+    { s: { r: 3, c: 11 }, e: { r: 3, c: 12 } }, // Meter (Horz)
   ];
 
   const wb = XLSX.utils.book_new();
@@ -218,18 +220,18 @@ onMounted(fetchReport);
         <template #thead>
           <thead>
             <tr class="header-main">
-              <th rowspan="2" style="min-width: 100px">TANGGAL</th>
-              <th rowspan="2" style="min-width: 120px">NOMOR SPK</th>
-              <th rowspan="2" style="min-width: 250px">NAMA ORDER</th>
-              <th rowspan="2" style="min-width: 150px">KAIN</th>
-              <th colspan="2" class="group-header">DIMENSI</th>
-              <th colspan="5" class="group-header">QUANTITY (PCS)</th>
-              <th colspan="2" class="group-header">METER</th>
+              <th rowspan="2">TANGGAL</th>
+              <th rowspan="2">NOMOR SPK</th>
+              <th rowspan="2">NAMA ORDER</th>
+              <th rowspan="2">KAIN</th>
+              <th colspan="2">DIMENSI</th>
+              <th rowspan="2">JUMLAH ORDER</th>
+              <th colspan="4">QUANTITY (PCS)</th>
+              <th colspan="2">METER</th>
             </tr>
             <tr class="header-sub">
-              <th style="width: 60px">P</th>
-              <th style="width: 60px">L</th>
-              <th style="width: 80px">ORDER</th>
+              <th style="width: 50px">P</th>
+              <th style="width: 50px">L</th>
               <th style="width: 80px">JADI</th>
               <th style="width: 80px">KIRIM</th>
               <th style="width: 80px">STOK</th>
@@ -248,7 +250,9 @@ onMounted(fetchReport);
             <td class="text-left">{{ item.spk_kain }}</td>
             <td class="text-right">{{ formatNumber(item.Panjang, 2) }}</td>
             <td class="text-right">{{ formatNumber(item.Lebar, 2) }}</td>
-            <td class="text-right">{{ formatNumber(item.spk_jumlah) }}</td>
+            <td class="text-right font-weight-bold">
+              {{ formatNumber(item.spk_jumlah) }}
+            </td>
             <td class="text-right text-blue font-weight-bold">
               {{ formatNumber(item.Jumlah_jadi) }}
             </td>
@@ -275,7 +279,6 @@ onMounted(fetchReport);
   overflow: hidden;
 }
 
-/* Header LMKP Style */
 .mmt-table :deep(thead th) {
   background-color: #b3e5fc !important;
   color: #000 !important;
@@ -296,14 +299,6 @@ onMounted(fetchReport);
   padding: 4px 8px !important;
 }
 
-.table-footer td {
-  background-color: #f0f4f8 !important;
-  font-weight: bold;
-  border: 1px solid #7bdaff !important;
-  font-size: 11px;
-}
-
-/* Colors */
 .text-blue {
   color: #1565c0;
 }
@@ -312,8 +307,5 @@ onMounted(fetchReport);
 }
 .text-error {
   color: #d32f2f;
-}
-.bg-stok {
-  background-color: #e8f5e9;
 }
 </style>
