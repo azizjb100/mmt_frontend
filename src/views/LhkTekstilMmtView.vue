@@ -1,8 +1,12 @@
 <template>
-  <PageLayout title="Hasil Kerja Tekstil MMT" icon="mdi-factory">
+  <PageLayout
+    title="Hasil Kerja Tekstil MMT"
+    icon="mdi-factory"
+    class="custom-font"
+  >
     <template #header-actions>
       <v-btn size="x-small" color="primary" @click="handleCreate">
-        <v-icon start>mdi-plus</v-icon> Baru
+        <v-icon start size="14">mdi-plus</v-icon> Baru
       </v-btn>
 
       <v-btn
@@ -11,7 +15,7 @@
         :disabled="!isSingleSelected"
         @click="handleEdit"
       >
-        <v-icon start>mdi-pencil</v-icon> Ubah
+        <v-icon start size="14">mdi-pencil</v-icon> Ubah
       </v-btn>
 
       <v-btn
@@ -20,7 +24,7 @@
         :disabled="!isSingleSelected"
         @click="handleBahan"
       >
-        <v-icon start>mdi-package-variant</v-icon> Bahan
+        <v-icon start size="14">mdi-package-variant</v-icon> Bahan
       </v-btn>
 
       <v-divider vertical class="mx-2" />
@@ -31,7 +35,7 @@
         :disabled="!isSingleSelected"
         @click="handleDelete"
       >
-        <v-icon start>mdi-delete</v-icon> Hapus
+        <v-icon start size="14">mdi-delete</v-icon> Hapus
       </v-btn>
 
       <v-btn
@@ -40,7 +44,7 @@
         :disabled="!isSingleSelected"
         @click="handlePrint"
       >
-        <v-icon start>mdi-printer</v-icon> Slip
+        <v-icon start size="14">mdi-printer</v-icon> Slip
       </v-btn>
     </template>
 
@@ -48,9 +52,10 @@
       <v-card flat class="mb-4 border">
         <v-card-text class="pa-3">
           <div class="d-flex align-center flex-wrap ga-4">
-            <v-label class="text-caption font-weight-bold"
+            <v-label class="font-weight-bold" style="font-size: 11px"
               >Periode Laporan:</v-label
             >
+
             <v-text-field
               v-model="filters.startDate"
               type="date"
@@ -58,8 +63,9 @@
               hide-details
               variant="outlined"
               style="max-width: 160px"
+              class="custom-field"
             />
-            <v-label>s/d</v-label>
+            <v-label style="font-size: 11px">s/d</v-label>
             <v-text-field
               v-model="filters.endDate"
               type="date"
@@ -67,21 +73,25 @@
               hide-details
               variant="outlined"
               style="max-width: 160px"
+              class="custom-field"
             />
             <v-btn
               variant="elevated"
               size="small"
               color="primary"
               @click="fetchMasterData"
+              style="font-size: 11px"
             >
-              <v-icon start>mdi-magnify</v-icon> Refresh
+              <v-icon start size="14">mdi-magnify</v-icon> Refresh
             </v-btn>
 
             <v-spacer />
 
-            <div class="d-flex align-center ga-2 text-caption italic">
-              <v-icon color="error" size="x-small">mdi-alert-circle</v-icon>
-              <span class="text-error">Teks Merah = Belum Lengkap</span>
+            <div class="d-flex align-center ga-2 italic">
+              <v-icon color="error" size="14">mdi-alert-circle</v-icon>
+              <span class="text-error" style="font-size: 11px"
+                >Teks Merah = Belum Lengkap</span
+              >
             </div>
           </div>
         </v-card-text>
@@ -95,7 +105,7 @@
         :loading="loading.master"
         item-value="Nomor"
         density="compact"
-        class="border elevation-1 main-grid"
+        class="border elevation-1 main-grid custom-table"
         show-select
         select-strategy="single"
         show-expand
@@ -111,7 +121,7 @@
         </template>
 
         <template #item.Lengkap="{ item }">
-          <v-icon :color="item.Lengkap === 'Y' ? 'success' : 'error'">
+          <v-icon size="18" :color="item.Lengkap === 'Y' ? 'success' : 'error'">
             {{ item.Lengkap === "Y" ? "mdi-check-circle" : "mdi-close-circle" }}
           </v-icon>
         </template>
@@ -119,13 +129,18 @@
         <template #expanded-row="{ columns, item }">
           <tr>
             <td :colspan="columns.length" class="bg-grey-lighten-4 pa-4">
-              <v-card variant="outlined" title="Detail Pekerjaan">
+              <v-card
+                variant="outlined"
+                title="Detail Pekerjaan"
+                class="custom-font"
+              >
                 <v-data-table
                   :headers="detailHeaders"
                   :items="details[item.Nomor] || []"
                   :loading="loadingDetails.has(item.Nomor)"
                   density="compact"
                   hide-default-footer
+                  class="custom-table"
                 >
                   <template #item.Ukuran="{ item }">
                     {{ item.Panjang }} x {{ item.Lebar }}
@@ -137,24 +152,28 @@
                         color="cyan"
                         variant="flat"
                         text="C"
+                        style="font-size: 9px"
                       />
                       <v-chip
                         size="x-small"
                         color="magenta"
                         variant="flat"
                         text="M"
+                        style="font-size: 9px"
                       />
                       <v-chip
                         size="x-small"
                         color="yellow"
                         variant="flat"
                         text="Y"
+                        style="font-size: 9px"
                       />
                       <v-chip
                         size="x-small"
                         color="black"
                         variant="flat"
                         text="K"
+                        style="font-size: 9px"
                       />
                     </div>
                   </template>
@@ -310,6 +329,31 @@ onMounted(() => {
 </script>
 
 <style scoped>
+/* Pengaturan global font size 11px untuk area ini */
+.custom-font {
+  font-size: 11px !important;
+}
+
+/* Mengatur ukuran font input field */
+:deep(.v-field-syntax),
+:deep(.v-field__input),
+:deep(input) {
+  font-size: 11px !important;
+  min-height: 32px !important;
+}
+
+/* Mengatur ukuran font tabel (Header dan Body) */
+.custom-table :deep(th),
+.custom-table :deep(td) {
+  font-size: 11px !important;
+}
+
+/* Tombol (Button) */
+:deep(.v-btn) {
+  font-size: 11px !important;
+  text-transform: none; /* Opsional: agar teks tombol tidak kapital semua */
+}
+
 .main-grid {
   height: calc(100vh - 250px);
 }

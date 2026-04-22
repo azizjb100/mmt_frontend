@@ -89,6 +89,7 @@ import FormJadwalKirimView from '@/views/FormJadwalKirimView.vue';
 import FormFinishingAccView from '@/views/FormFinishingAccView.vue';
 import LapMonFinishingView from '@/views/LapMonFinishingView.vue';
 import LapMonTekstilView from '@/views/LapMonTekstilView.vue';
+import InvoicePrintView from '@/views/InvoicePrintView.vue';
 
 
 
@@ -264,6 +265,7 @@ const routes: RouteRecordRaw[] = [
                 component: FormInvoiceView,
                 props: { isEditMode: false }
             },
+            { path: 'mmt/invoice/print/:nomor', name: 'InvoicePrint', component: InvoicePrintView, props: true},
             { path: 'mmt/create-barcode', name: 'CreateBarcode', component: CreateBarcodeView },
             { path: 'mmt/create-barcode/new', name: 'CreateBarcodeNew', component: FormRecreateBarcode },
             { path: 'mmt/stok-opname', name: 'StokOpnameBrowse', component: StokOpnameView },

@@ -104,17 +104,29 @@
                   class="mb-2"
                 />
               </v-col>
-              <v-col cols="6"
-                ><v-text-field
-                  label="Stok (M)"
-                  :model-value="formData.panjang_bahan"
-                  readonly
-                  variant="filled"
-                  density="compact"
-                  hide-details
-                  suffix="M"
-                  class="text-end"
-              /></v-col>
+<v-col cols="6">
+  <v-text-field
+    label="Stok (Yard)"
+    :model-value="formData.panjang_bahan"
+    readonly
+    variant="filled"
+    density="compact"
+    hide-details
+    suffix="Yrd"
+  />
+</v-col>
+<v-col cols="6">
+  <v-text-field
+    label="Konversi (M)"
+    :model-value="(formData.panjang_bahan * 0.9144).toFixed(2)"
+    readonly
+    variant="filled"
+    density="compact"
+    hide-details
+    suffix="M"
+    color="green"
+  />
+</v-col>
               <v-col cols="6"
                 ><v-text-field
                   label="Lebar (M)"
@@ -193,17 +205,21 @@
               </div>
             </template>
 
-            <template #[`item.panjang_per_pcs`]="{ item }">
-              <v-text-field
-                v-model.number="item.panjang_per_pcs"
-                type="number"
-                variant="underlined"
-                density="compact"
-                hide-details
-                class="text-end"
-                color="primary"
-              />
-            </template>
+            <template #[`item.panjang_meter`]="{ item }">
+  <div class="text-end text-blue font-weight-bold">
+    {{ (Number(item.panjang_per_pcs || 0) * 0.9144).toFixed(2) }}
+  </div>
+</template>
+
+<template #[`item.total_panjang_baris`]="{ item }">
+  <div class="text-end font-weight-bold text-success">
+    {{
+      (
+        Number(item.panjang_per_pcs) * Number(item.jumlah_cetak) * 0.9144
+      ).toFixed(2)
+    }}
+  </div>
+</template>
 
             <template #[`item.jumlah_cetak`]="{ item }">
               <v-text-field
@@ -316,17 +332,12 @@ const lookup = reactive({ mesin: false, spk: false });
 const detailHeaders = [
   { title: "No", key: "no", width: "50px", sortable: false },
   { title: "Mesin", key: "mesin", width: "110px" },
-  { title: "Nomor SPK", key: "nomor_spk", width: "130px" }, // Kolom Nomor SPK eksplisit
+  { title: "Nomor SPK", key: "nomor_spk", width: "130px" },
   { title: "Nama Pekerjaan", key: "nama_spk" },
-  { title: "L. SPK", key: "lebar_spk", align: "end", width: "80px" },
-  { title: "P/Pcs (M)", key: "panjang_per_pcs", align: "end", width: "100px" },
+  { title: "P/Pcs (Yard)", key: "panjang_per_pcs", align: "end", width: "100px" }, // Kolom Asli
+  { title: "P/Pcs (M)", key: "panjang_meter", align: "end", width: "100px" },      // Kolom Baru
   { title: "Qty", key: "jumlah_cetak", align: "end", width: "90px" },
-  {
-    title: "Subtotal",
-    key: "total_panjang_baris",
-    align: "end",
-    width: "100px",
-  },
+  { title: "Total (M)", key: "total_panjang_baris", align: "end", width: "100px" },
   { title: "", key: "actions", width: "50px", sortable: false },
 ];
 

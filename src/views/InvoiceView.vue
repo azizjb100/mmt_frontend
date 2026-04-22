@@ -320,16 +320,24 @@ const handleDelete = async () => {
 };
 
 const handlePrint = () => {
-  if (!selectedNomor.value) return;
+  if (!selectedNomor.value) {
+    toast.warning("Pilih satu invoice terlebih dahulu");
+    return;
+  }
+
   const url = router.resolve({
-    name: "InvoicePembelianPrint",
+    name: "InvoicePrint", // Pastikan nama ini SAMA dengan di router
     params: { nomor: selectedNomor.value },
   }).href;
+
   window.open(url, "_blank");
 };
 
 /* ================= LIFECYCLE ================= */
+// CUKUP FETCHDATA SAJA
 onMounted(fetchData);
+
+// JANGAN masukkan logika printData di sini
 watch(filters, fetchData, { deep: true });
 </script>
 
