@@ -104,29 +104,29 @@
                   class="mb-2"
                 />
               </v-col>
-<v-col cols="6">
-  <v-text-field
-    label="Stok (Yard)"
-    :model-value="formData.panjang_bahan"
-    readonly
-    variant="filled"
-    density="compact"
-    hide-details
-    suffix="Yrd"
-  />
-</v-col>
-<v-col cols="6">
-  <v-text-field
-    label="Konversi (M)"
-    :model-value="(formData.panjang_bahan * 0.9144).toFixed(2)"
-    readonly
-    variant="filled"
-    density="compact"
-    hide-details
-    suffix="M"
-    color="green"
-  />
-</v-col>
+              <v-col cols="6">
+                <v-text-field
+                  label="Stok (Yard)"
+                  :model-value="formData.panjang_bahan"
+                  readonly
+                  variant="filled"
+                  density="compact"
+                  hide-details
+                  suffix="Yrd"
+                />
+              </v-col>
+              <v-col cols="6">
+                <v-text-field
+                  label="Konversi (M)"
+                  :model-value="(formData.panjang_bahan * 0.9).toFixed(2)"
+                  readonly
+                  variant="filled"
+                  density="compact"
+                  hide-details
+                  suffix="M"
+                  color="green"
+                />
+              </v-col>
               <v-col cols="6"
                 ><v-text-field
                   label="Lebar (M)"
@@ -206,20 +206,22 @@
             </template>
 
             <template #[`item.panjang_meter`]="{ item }">
-  <div class="text-end text-blue font-weight-bold">
-    {{ (Number(item.panjang_per_pcs || 0) * 0.9144).toFixed(2) }}
-  </div>
-</template>
+              <div class="text-end text-blue font-weight-bold">
+                {{ (Number(item.panjang_per_pcs || 0) * 0.9).toFixed(2) }}
+              </div>
+            </template>
 
-<template #[`item.total_panjang_baris`]="{ item }">
-  <div class="text-end font-weight-bold text-success">
-    {{
-      (
-        Number(item.panjang_per_pcs) * Number(item.jumlah_cetak) * 0.9144
-      ).toFixed(2)
-    }}
-  </div>
-</template>
+            <template #[`item.total_panjang_baris`]="{ item }">
+              <div class="text-end font-weight-bold text-success">
+                {{
+                  (
+                    Number(item.panjang_per_pcs) *
+                    0.9 *
+                    Number(item.jumlah_cetak)
+                  ).toFixed(2)
+                }}
+              </div>
+            </template>
 
             <template #[`item.jumlah_cetak`]="{ item }">
               <v-text-field
@@ -258,7 +260,7 @@
               >
                 <span class="text-subtitle-2 mr-4">Total Pemakaian:</span>
                 <span class="text-h6 text-primary font-weight-black"
-                  >{{ totalPanjangEstimasi.toFixed(2) }} M</span
+                  >{{ totalPanjangEstimasi.toFixed(2) }} Yard</span
                 >
               </div>
             </template>
@@ -299,9 +301,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed } from "vue";
+import { ref, reactive, computed, onMounted } from "vue";
 import { format } from "date-fns";
-import { useRouter } from "vue-router";
+import { useRoute, useRouter } from "vue-router"; // <--- Tambahkan useRoute di sini
 import api from "@/services/api";
 import { useToast } from "vue-toastification";
 import PageLayout from "../components/PageLayout.vue";
@@ -309,6 +311,7 @@ import MesinLookupView from "@/modal/MesinLookupModal.vue";
 import SpkLookupView from "@/modal/SpkLookupModal.vue";
 
 const toast = useToast();
+const route = useRoute(); // 2. Definisikan variabel route di sini
 const router = useRouter();
 const isSaving = ref(false);
 const activeRow = ref(-1);
@@ -334,10 +337,20 @@ const detailHeaders = [
   { title: "Mesin", key: "mesin", width: "110px" },
   { title: "Nomor SPK", key: "nomor_spk", width: "130px" },
   { title: "Nama Pekerjaan", key: "nama_spk" },
-  { title: "P/Pcs (Yard)", key: "panjang_per_pcs", align: "end", width: "100px" }, // Kolom Asli
-  { title: "P/Pcs (M)", key: "panjang_meter", align: "end", width: "100px" },      // Kolom Baru
+  {
+    title: "P/Pcs (Yard)",
+    key: "panjang_per_pcs",
+    align: "end",
+    width: "100px",
+  }, // Kolom Asli
+  { title: "P/Pcs (M)", key: "panjang_meter", align: "end", width: "100px" }, // Kolom Baru
   { title: "Qty", key: "jumlah_cetak", align: "end", width: "90px" },
-  { title: "Total (M)", key: "total_panjang_baris", align: "end", width: "100px" },
+  {
+    title: "Total (M)",
+    key: "total_panjang_baris",
+    align: "end",
+    width: "100px",
+  },
   { title: "", key: "actions", width: "50px", sortable: false },
 ];
 
@@ -345,14 +358,17 @@ const detailHeaders = [
 
 const totalPanjangEstimasi = computed(() => {
   return detailData.value.reduce((acc, curr) => {
-    return (
-      acc + Number(curr.panjang_per_pcs || 0) * Number(curr.jumlah_cetak || 0)
-    );
+    // Konversi panjang_per_pcs (Yard) ke Meter (x 0.9) lalu dikali jumlah cetak
+    const panjangMeterPerBaris =
+      Number(curr.panjang_per_pcs || 0) * 0.9 * Number(curr.jumlah_cetak || 0);
+    return acc + panjangMeterPerBaris;
   }, 0);
 });
 
 const sisaBahanSetelahProduksi = computed(() => {
-  return formData.panjang_bahan - totalPanjangEstimasi.value;
+  // Stok bahan (Yard) dikonversi ke Meter, baru dikurangi total pemakaian (Meter)
+  const stokDalamMeter = formData.panjang_bahan * 0.9;
+  return stokDalamMeter - totalPanjangEstimasi.value;
 });
 
 const isFormValid = computed(() => {
@@ -444,6 +460,8 @@ const handleSave = async (status: string) => {
     const payload = {
       header: {
         ...formData,
+        barcode_roll: formData.barcode_input, // Sesuaikan agar backend mengenali
+        panjang_awal: formData.panjang_bahan, // Sesuaikan agar backend mengenali
         lstatus: status,
         total_pakai: totalPanjangEstimasi.value,
       },
@@ -462,20 +480,73 @@ const handleSave = async (status: string) => {
   }
 };
 
+// Fungsi untuk memuat data saat mode EDIT
+const loadDataLHK = async () => {
+  const nomorLhk = route.params.nomor;
+  console.log("1. Nomor LHK terdeteksi:", nomorLhk);
+
+  if (!nomorLhk || nomorLhk === "AUTO" || nomorLhk === "new") {
+    console.log("2. Mode baru, load dihentikan.");
+    return;
+  }
+
+  try {
+    console.log("3. Mengambil data dari API...");
+    const res = await api.get(`/mmt/lhk-tekstil-mmt/${nomorLhk}`);
+    console.log("4. Respon API mentah:", res.data);
+
+    const dataRes = res.data.data;
+    if (dataRes && dataRes.header) {
+      const h = dataRes.header;
+      console.log("5. Header ditemukan:", h);
+
+      // MAPPING DATA (Pastikan nama property h.Nomor dsb sesuai dengan isi Console Log)
+      formData.nomor = h.Nomor || h.lth_nomor;
+      formData.tanggal = h.Tanggal || h.lth_tanggal;
+      formData.shift = h.Shift || h.lth_shift;
+      formData.gdgKode = h.Gudang || h.lth_gdg_prod;
+      formData.brg_kode = h.Kode_Bahan || h.lth_brg_kode;
+      formData.barcode_input = h.Barcode_Roll || h.lth_barcode;
+
+      if (formData.barcode_input) {
+        console.log("6. Mencoba scan barcode otomatis...");
+        await handleBarcodeScan();
+      }
+
+      console.log("7. Mengisi detail table...");
+      detailData.value = dataRes.details.map((d: any) => ({
+        nomor_spk: d.Nomor_SPK || d.ltd_spk_nomor,
+        nama_spk: d.Nama_SPK || d.spk_nama,
+        panjang_per_pcs: parseFloat(d.Panjang || d.spk_panjang),
+        lebar_spk: parseFloat(d.Lebar || d.spk_lebar),
+        jumlah_cetak: parseInt(d.Jml_Cetak || d.ltd_qty_Cetak),
+        mesin: d.Mesin || d.ltd_jns_mesin,
+      }));
+
+      console.log("8. Load data berhasil!");
+    }
+  } catch (e) {
+    console.error("X. Error saat load data:", e);
+    toast.error("Gagal memuat data lama");
+  }
+};
+
 // --- VISUALISASI ---
 const layoutBlocks = computed(() => {
   const blocks: any[] = [];
   let currentX = 0;
   detailData.value.forEach((d) => {
     for (let q = 0; q < d.jumlah_cetak; q++) {
+      // Gunakan nilai Meter untuk lebar blok (Yard * 0.9)
+      const panjangDalamMeter = d.panjang_per_pcs * 0.9;
       blocks.push({
         label: d.nomor_spk,
         x: currentX,
         y: 0,
-        w: d.panjang_per_pcs,
+        w: panjangDalamMeter,
         h: d.lebar_spk,
       });
-      currentX += d.panjang_per_pcs;
+      currentX += panjangDalamMeter;
     }
   });
   return blocks;
@@ -483,7 +554,8 @@ const layoutBlocks = computed(() => {
 
 const rollStyle = computed(() => ({
   height: `${formData.lebar_bahan * SCALE}px`,
-  width: `${Math.max(totalPanjangEstimasi.value, formData.panjang_bahan) * SCALE}px`,
+  // Bandingkan stok dalam Meter vs pemakaian dalam Meter
+  width: `${Math.max(totalPanjangEstimasi.value, formData.panjang_bahan * 0.9) * SCALE}px`,
   position: "relative" as const,
   backgroundColor: "#ffffff",
   border: "2px solid #2c3e50",
@@ -523,6 +595,10 @@ const handleMesinSelect = (m: any) => {
 const removeRow = (idx: number) => {
   detailData.value.splice(idx, 1);
 };
+
+onMounted(() => {
+  loadDataLHK();
+});
 </script>
 
 <style scoped>

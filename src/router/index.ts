@@ -90,6 +90,7 @@ import FormFinishingAccView from '@/views/FormFinishingAccView.vue';
 import LapMonFinishingView from '@/views/LapMonFinishingView.vue';
 import LapMonTekstilView from '@/views/LapMonTekstilView.vue';
 import InvoicePrintView from '@/views/InvoicePrintView.vue';
+import FormRekapLhkTekstilView from '@/views/FormRekapLhkTekstilView.vue';
 
 
 
@@ -399,6 +400,8 @@ const routes: RouteRecordRaw[] = [
             { path: 'mmt/daftar/stbj', name: 'STBJ MMT', component: ComingSoon },
             { path: 'mmt/lhk/tekstil', name: 'tekstilMMT', component: LhkTekstilMmtView },
             { path: 'mmt/lhk/tekstil-new', name: 'tekstilMMTNew', component: FormLhkTekstilView },
+            { path: 'mmt/lhk/tekstil/edit/:nomor', name: 'tekstilMMTEdit', component: FormLhkTekstilView },
+            { path: 'mmt/rekap-tekstil', name: 'Rekap Pemakaian Tekstil', component: FormRekapLhkTekstilView },
             { path: 'mmt/lhk/proof', name: 'LHK Proof MMT', component: ComingSoon },
             { path: 'mmt/lhk/sublim', name: 'LHK Sublim MMT', component: ComingSoon },
             { path: 'mmt/lhk/rtr', name: 'LHK RTR MMT', component: ComingSoon },
