@@ -124,61 +124,64 @@
           class="desktop-table elevation-1"
           fixed-header
           show-select
-          return-object
           show-expand
           @update:expanded="loadDetails"
         >
-          <template #item.Tanggal="{ item }">
-            {{
-              item.Tanggal
-                ? format(parseCustomDate(item.Tanggal), "dd/MM/yyyy")
-                : ""
-            }}
+          <template #item.Tanggal="{ value }">
+            {{ value ? format(parseCustomDate(value), "dd/MM/yyyy") : "" }}
           </template>
 
           <template #expanded-row="{ columns, item }">
             <tr>
-              <td :colspan="columns.length">
-                <div class="detail-container">
-                  <div class="detail-table-wrapper">
-                    <div
-                      v-if="isLoadingDetails(item.Nomor)"
-                      class="text-center pa-4 text-caption"
-                    >
-                      Memuat detail...
-                    </div>
-
-                    <v-data-table
-                      v-else
-                      :headers="detailHeaders"
-                      :items="details[item.Nomor] || []"
-                      density="compact"
-                      class="detail-table"
-                      :items-per-page="-1"
-                      hide-default-footer
-                    >
-                      <template #[`item.Jumlah`]="{ item: d }">
-                        {{ Number(d.Jumlah).toFixed(2) }}
-                      </template>
-
-                      <template #[`item.Panjang`]="{ item: d }">
-                        {{ Number(d.Panjang).toFixed(2) }}
-                      </template>
-                      <template #[`item.Lebar`]="{ item: d }">
-                        {{ Number(d.Lebar).toFixed(2) }}
-                      </template>
-                    </v-data-table>
-
-                    <div
-                      v-if="
-                        !isLoadingDetails(item.Nomor) &&
-                        !(details[item.Nomor] && details[item.Nomor].length)
-                      "
-                      class="text-center pa-4 text-caption"
-                    >
-                      Tidak ada data detail.
-                    </div>
+              <td :colspan="columns.length" class="pa-0">
+                <div class="bg-grey-lighten-4 pa-4">
+                  <div
+                    v-if="isLoadingDetails(item.Nomor)"
+                    class="text-center pa-4"
+                  >
+                    <v-progress-circular
+                      indeterminate
+                      size="20"
+                      color="primary"
+                      class="mr-2"
+                    />
+                    <span class="text-caption">Memuat detail...</span>
                   </div>
+
+                  <div
+                    v-else-if="
+                      !details[item.Nomor] || details[item.Nomor].length === 0
+                    "
+                    class="text-center pa-4 text-caption text-grey"
+                  >
+                    Tidak ada data detail untuk nomor {{ item.Nomor }}
+                  </div>
+
+                  <v-data-table
+                    v-else
+                    :headers="detailHeaders"
+                    :items="details[item.Nomor]"
+                    density="compact"
+                    class="elevation-1 rounded"
+                    :items-per-page="-1"
+                    hide-default-footer
+                  >
+                    <template #[`item.Jumlah`]="{ item: d }">
+                      <div class="text-right">
+                        {{ Number(d.Jumlah || 0).toFixed(2) }}
+                      </div>
+                    </template>
+                    <template #[`item.Panjang`]="{ item: d }">
+                      <div class="text-right">
+                        {{ Number(d.Panjang || 0).toFixed(2) }}
+                      </div>
+                    </template>
+                    <template #[`item.Lebar`]="{ item: d }">
+                      <div class="text-right">
+                        {{ Number(d.Lebar || 0).toFixed(2) }}
+                      </div>
+                    </template>
+                  </v-data-table>
                 </div>
               </td>
             </tr>
@@ -352,19 +355,35 @@ const fetchData = async () => {
   }
 };
 
-const loadDetails = (newlyExpandedKeys: string[]) => {
-  const newlyExpandedNomor = newlyExpandedKeys.find(
-    (nomor) => !details.value[nomor],
-  );
+const loadDetails = async (expandedKeys: string[]) => {
+  // Ambil nomor terakhir yang di-expand
+  const lastExpandedNomor = expandedKeys[expandedKeys.length - 1];
 
-  if (newlyExpandedNomor) {
-    console.warn(
-      `Detail for ${newlyExpandedNomor} not found in cache. Simulating load...`,
+  // Jika data sudah ada di cache, jangan panggil API lagi
+  if (!lastExpandedNomor || details.value[lastExpandedNomor]) return;
+
+  loadingDetails.value.add(lastExpandedNomor);
+
+  try {
+    // Memanggil API sesuai URL yang Anda berikan
+    const response = await api.get(
+      `${API_PERMINTAAN_PRODUKSI}/${lastExpandedNomor}`,
     );
-    loadingDetails.value.add(newlyExpandedNomor);
-    setTimeout(() => {
-      loadingDetails.value.delete(newlyExpandedNomor);
-    }, 500);
+
+    /* PENTING: 
+      Berdasarkan service backend Anda, data detail ada di dalam properti 'Details'.
+      Kita simpan ke dalam ref 'details' dengan key berupa Nomor-nya.
+    */
+    if (response.data && response.data.Details) {
+      details.value[lastExpandedNomor] = response.data.Details;
+    } else {
+      details.value[lastExpandedNomor] = [];
+    }
+  } catch (error) {
+    console.error("Gagal memuat detail:", error);
+    toast.error("Gagal mengambil data detail dari server");
+  } finally {
+    loadingDetails.value.delete(lastExpandedNomor);
   }
 };
 
