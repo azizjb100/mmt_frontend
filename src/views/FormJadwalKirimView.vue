@@ -6,6 +6,7 @@ import PageLayout from "../components/PageLayout.vue";
 import GudangLookupModal from "@/modal/GudangLookupView.vue";
 import SpkLookupModal from "@/modal/SpkLookupModal.vue"; // Modal yang bisa handle Reguler/Memo
 import { format } from "date-fns";
+import * as XLSX from "xlsx";
 import { useToast } from "vue-toastification";
 
 // --- Interfaces ---
@@ -19,6 +20,7 @@ interface DetailItem {
   jamInput: string;
   jamReady: string;
   expedisi: string;
+  keterangan: string; // <-- Tambahan
 }
 
 interface FormDataState {
@@ -34,6 +36,7 @@ interface FormDataState {
   totalKoli: number;
   usr_create: string;
   detail: DetailItem[];
+  keterangan: string; // <-- Tambahan
 }
 
 // --- Setup & State ---
@@ -59,7 +62,7 @@ const createEmptyDetail = (index: number): DetailItem => ({
   qty: 0,
   koli: 0,
   jamInput: format(new Date(), "HH:mm"),
-  jamReady: "",
+  jamReady: "15:00",
   expedisi: "",
 });
 
@@ -87,6 +90,7 @@ const detailHeaders = [
   { title: "Koli", key: "koli", width: "80px", align: "end" as const },
   { title: "Jam Ready", key: "jamReady", width: "100px" },
   { title: "Ekspedisi", key: "expedisi", width: "150px" },
+  { title: "Keterangan", key: "keterangan", width: "150px" },
   { title: "Aksi", key: "actions", width: "50px", align: "center" as const },
 ] as const;
 
@@ -185,6 +189,7 @@ const loaddataall = async (nomor: string) => {
         koli: item.Koli,
         jamReady: item.Jam,
         expedisi: item.Expedisi,
+        keterangan: item.Keterangan, // <-- Pastikan field ini ada di response backend Anda
       }));
     }
   } catch (error) {
@@ -192,6 +197,55 @@ const loaddataall = async (nomor: string) => {
   } finally {
     isSaving.value = false;
   }
+};
+
+const importExcel = (event: Event) => {
+  const target = event.target as HTMLInputElement;
+  const file = target.files?.[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const data = new Uint8Array(e.target?.result as ArrayBuffer);
+    const workbook = XLSX.read(data, { type: "array" });
+    const sheetName = workbook.SheetNames[0];
+    const worksheet = workbook.Sheets[sheetName];
+
+    // Ambil data dalam format JSON
+    const jsonData = XLSX.utils.sheet_to_json(worksheet);
+
+    if (jsonData.length === 0) {
+      toast.warning("File Excel kosong atau format salah.");
+      return;
+    }
+
+    // Mapping data Excel ke DetailItem
+    // Asumsi Header Excel: Kota, Uraian, Size, Qty, Koli, Jam, Expedisi, Keterangan
+    const startIdx = formData.detail.length;
+    const importedDetails: DetailItem[] = jsonData.map(
+      (row: any, index: number) => ({
+        no_urut: startIdx + index + 1,
+        kota: row.Kota || "",
+        uraian: row.Uraian || formData.spkNama, // Jika kosong, pakai nama SPK
+        size: row.Size || formData.spkUkuran,
+        qty: Number(row.Qty) || 0,
+        koli: Number(row.Koli) || 0,
+        jamInput: format(new Date(), "HH:mm"),
+        jamReady: row.Jam || "15:00", // Default 15:00 jika kosong
+        expedisi: row.Expedisi || "",
+        keterangan: row.Keterangan || "",
+      }),
+    );
+    if (formData.detail.length === 1 && !formData.detail[0].kota) {
+      formData.detail = importedDetails;
+    } else {
+      formData.detail.push(...importedDetails);
+    }
+
+    toast.success(`${importedDetails.length} baris berhasil diimpor.`);
+    target.value = "";
+  };
+  reader.readAsArrayBuffer(file);
 };
 
 const saveForm = async (saveAndNew: boolean) => {
@@ -477,6 +531,15 @@ onMounted(() => {
                 placeholder="Nama Travel/Exp..."
               />
             </template>
+            <template #[`item.keterangan`]="{ item }">
+              <v-text-field
+                v-model="item.keterangan"
+                density="compact"
+                variant="plain"
+                hide-details
+                placeholder="Catatan..."
+              />
+            </template>
 
             <template #[`item.actions`]="{ index }">
               <v-btn
@@ -489,14 +552,40 @@ onMounted(() => {
             </template>
 
             <template #bottom>
-              <div class="pa-2 border-t">
+              <div class="pa-2 border-t d-flex align-center">
                 <v-btn
                   size="x-small"
                   color="primary"
                   variant="tonal"
                   prepend-icon="mdi-plus"
                   @click="addDetail"
-                  >Tambah Baris</v-btn
+                >
+                  Tambah Baris
+                </v-btn>
+
+                <v-divider vertical class="mx-3" />
+
+                <input
+                  type="file"
+                  ref="fileInput"
+                  accept=".xlsx, .xls"
+                  style="display: none"
+                  @change="importExcel"
+                />
+                <v-btn
+                  size="x-small"
+                  color="success"
+                  variant="tonal"
+                  prepend-icon="mdi-microsoft-excel"
+                  @click="($refs.fileInput as any).click()"
+                >
+                  Import Excel
+                </v-btn>
+
+                <v-spacer />
+                <span class="text-caption text-grey"
+                  >Format Header: Kota, Uraian, Size, Qty, Koli, Jam, Expedisi,
+                  Keterangan</span
                 >
               </div>
             </template>

@@ -169,35 +169,24 @@ const handlePermintaanSelect = async (permintaan: any) => {
   isPermintaanModalVisible.value = false;
   isSaving.value = true;
   try {
-    // Ambil detail lengkap permintaan berdasarkan nomor
     const res = await api.get(`${API_URL_PERMINTAAN}/${permintaan.Nomor}`);
     const data = res.data.data || res.data;
 
     if (data) {
-      // 1. Sinkronisasi Header
       formData.permintaanNomor = data.Nomor;
-
-      // DISINI POIN UTAMANYA:
-      // Mapping "GudangKode" dari API ke "gudangKode" di Form Asal
       formData.gudangKode = data.GudangKode || data.Gudang || "";
+      formData.gudangNama = data.GudangNama || "Gudang Lainnya";
 
-      // Update Nama Gudang secara otomatis untuk tampilan
-      if (formData.gudangKode === "WH-20") {
-        formData.gudangNama = "Gudang Obat/Tinta";
-      } else if (formData.gudangKode === "WH-16") {
-        formData.gudangNama = "Gudang Bahan MMT";
-      } else {
-        formData.gudangNama = data.GudangNama || "Gudang Lainnya";
-      }
+      // MAPPING DISINI: Sesuaikan key dari API ke key yang digunakan di tabel
+      formData.detailPermintaan = (data.Details || []).map((item: any) => ({
+        sku: item.Kode, // API 'Kode' -> Frontend 'sku'
+        namaBahan: item.Nama_Bahan, // API 'Nama_Bahan' -> Frontend 'namaBahan'
+        qtyMinta: item.Jumlah, // API 'Jumlah' -> Frontend 'qtyMinta'
+        satuan: item.Satuan,
+      }));
 
-      // 2. Masukkan ke Tabel Referensi (Daftar Item yang Diminta)
-      formData.detailPermintaan = data.Details || [];
-
-      // 3. Reset tabel Scan Realisasi (Bawah)
-      // Kita siapkan satu baris kosong untuk mulai scan
       formData.detail = [createEmptyDetail()];
-
-      toast.success(`Berhasil menarik data dari ${formData.gudangKode}`);
+      toast.success(`Berhasil menarik data ${formData.permintaanNomor}`);
     }
   } catch (error) {
     console.error("Error loading permintaan detail:", error);
