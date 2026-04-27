@@ -191,6 +191,7 @@ const rolePermissions = {
     "Planning Produksi",
     "Stok Opname",
     // "Koreksi Stok",
+    "Retur Produksi",
     "STBJ",
     "Jadwal Kirim",
     "LHK",

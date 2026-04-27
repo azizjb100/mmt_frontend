@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, watch } from "vue";
+import { ref, reactive, computed } from "vue";
 import { useRouter } from "vue-router";
 import { useToast } from "vue-toastification";
 import api from "@/services/api";
@@ -11,8 +11,6 @@ import SupplierLookupModal from "../modal/SupplierLookupModal.vue";
 interface LookupItem {
   Kode: string;
   Nama?: string;
-  Alamat?: string;
-  Kota?: string;
 }
 
 const router = useRouter();
@@ -24,23 +22,17 @@ const isSupplierModalVisible = ref(false);
 const outstandingInvoices = ref([]);
 const selectedInvoices = ref([]);
 
-const accounts = ref([
-  { kode: "1101", nama: "Kas Besar" },
-  { kode: "1102", nama: "Bank Mandiri" },
-]);
-
 const form = reactive({
-  pelh_tanggal: format(new Date(), "yyyy-MM-dd"),
-  pelh_sup_kode: "",
-  supNama: "", // Untuk display nama supplier
-  pelh_akun_kas: "",
-  pelh_keterangan: "",
-  pelh_perush_kode: "KP",
-  pelh_total_bayar: 0,
+  vch_tanggal: format(new Date(), "yyyy-MM-dd"),
+  vch_sup_kode: "",
+  supNama: "",
+  vch_keterangan: "",
+  vch_perush_kode: "KP",
+  vch_jenis: "HUTANG", // Menandakan ini voucher pelunasan hutang
 });
 
 // --- Computed ---
-const totalNominal = computed(() => {
+const totalPengajuan = computed(() => {
   return selectedInvoices.value.reduce(
     (sum, item) => sum + Number(item.TotalInvoice || 0),
     0,
@@ -54,13 +46,9 @@ const openSupplierSearch = () => {
 
 const handleSupplierSelect = (sup: LookupItem) => {
   if (!sup.Kode) return;
-
-  form.pelh_sup_kode = sup.Kode;
+  form.vch_sup_kode = sup.Kode;
   form.supNama = sup.Nama || "";
-
   isSupplierModalVisible.value = false;
-
-  // Langsung fetch invoice begitu supplier dipilih
   fetchOutstanding(sup.Kode);
 };
 
@@ -76,15 +64,15 @@ const fetchOutstanding = async (supKode: string) => {
     );
     outstandingInvoices.value = res.data;
   } catch (e) {
-    toast.error("Gagal ambil data invoice outstanding");
+    toast.error("Gagal mengambil daftar tagihan");
   } finally {
     loading.value = false;
   }
 };
 
-const handleSave = async () => {
-  if (!form.pelh_sup_kode || selectedInvoices.value.length === 0) {
-    toast.warning("Pilih supplier dan minimal satu invoice!");
+const handleSaveVoucher = async () => {
+  if (!form.vch_sup_kode || selectedInvoices.value.length === 0) {
+    toast.warning("Pilih supplier dan tandai invoice yang akan diajukan!");
     return;
   }
 
@@ -92,51 +80,45 @@ const handleSave = async () => {
   try {
     const payload = {
       ...form,
-      pelh_total_bayar: totalNominal.value,
+      vch_total_pengajuan: totalPengajuan.value,
+      // SESUAIKAN BAGIAN INI:
       detail: selectedInvoices.value.map((inv) => ({
-        peld_inv_nomor: inv.Nomor,
-        peld_nominal: inv.TotalInvoice,
+        vchd_inv_nomor: inv.Nomor, // Pastikan key ini sesuai dengan di backend (vchd_inv_nomor)
+        vchd_nominal: inv.TotalInvoice, // Pastikan key ini sesuai dengan di backend (vchd_nominal)
       })),
     };
 
-    // 1. Tunggu respon dari server
-    const res = await api.post("/mmt/pelunasan-pembelian/save", payload);
+    // Pastikan URL API sudah sesuai dengan route yang kita buat tadi
+    await api.post("/mmt/voucher-pelunasan/save", payload);
 
-    // 2. Tampilkan toast sukses HANYA jika request berhasil
-    toast.success("Pelunasan berhasil disimpan & Jurnal otomatis terbuat");
+    toast.success("Voucher Pengajuan berhasil dibuat. Menunggu approval.");
 
-    // 3. Pindah halaman
-    router.push({ name: "PelunasanPembelianBrowse" });
+    // Pastikan nama route ini sudah terdaftar di router/index.ts Anda
+    router.push({ name: "VoucherPembayaranBrowse" });
   } catch (e: any) {
-    // Jika API gagal atau router.push gagal, baru toast ini muncul
     console.error("Save Error:", e);
-
-    // Cegah toast ganda jika Anda sudah pakai interceptor global
-    const errorMessage = e.response?.data?.message || "Gagal simpan pelunasan";
+    const errorMessage = e.response?.data?.message || "Gagal membuat voucher";
     toast.error(errorMessage);
   } finally {
     loading.value = false;
   }
 };
-
-const handleSupKodeExit = () => {
-  if (form.pelh_sup_kode) {
-    fetchOutstanding(form.pelh_sup_kode);
-  }
-};
 </script>
 
 <template>
-  <PageLayout title="Input Pelunasan Baru" icon="mdi-cash-plus">
+  <PageLayout
+    title="Buat Voucher Pengajuan Pelunasan"
+    icon="mdi-file-document-edit-outline"
+  >
     <template #header-actions>
       <v-btn
-        color="primary"
-        @click="handleSave"
+        color="success"
+        @click="handleSaveVoucher"
         :loading="loading"
-        prepend-icon="mdi-content-save"
+        prepend-icon="mdi-check-decagram"
         size="small"
       >
-        Simpan Pelunasan
+        Ajukan Voucher
       </v-btn>
       <v-btn variant="text" size="small" @click="router.back()">Batal</v-btn>
     </template>
@@ -144,73 +126,65 @@ const handleSupKodeExit = () => {
     <v-container fluid>
       <v-row>
         <v-col cols="12" md="4">
-          <v-card variant="outlined" class="pa-4">
+          <v-card variant="outlined" class="pa-4 border-dashed">
+            <div class="text-overline mb-2 text-primary">Informasi Voucher</div>
+
             <v-text-field
-              v-model="form.pelh_tanggal"
+              v-model="form.vch_tanggal"
               type="date"
-              label="Tanggal Bayar"
+              label="Tanggal Pengajuan"
               density="compact"
               variant="outlined"
-              class="mb-2"
             />
 
-            <v-row no-gutters class="mb-2">
+            <v-row no-gutters class="mt-2">
               <v-col cols="4" class="pr-1">
                 <v-text-field
-                  label="Kode Sup"
-                  v-model="form.pelh_sup_kode"
+                  label="Supplier"
+                  v-model="form.vch_sup_kode"
                   @click:append-inner="openSupplierSearch"
-                  @keyup.f1.prevent="openSupplierSearch"
-                  @blur="handleSupKodeExit"
                   append-inner-icon="mdi-magnify"
                   density="compact"
                   variant="outlined"
-                  hide-details
                   readonly
-                  style="cursor: pointer"
                 />
               </v-col>
               <v-col cols="8">
                 <v-text-field
-                  label="Nama Supplier"
+                  label="Nama"
                   v-model="form.supNama"
                   density="compact"
                   variant="outlined"
-                  hide-details
                   readonly
                   disabled
                 />
               </v-col>
             </v-row>
 
-            <v-select
-              v-model="form.pelh_akun_kas"
-              :items="accounts"
-              item-title="nama"
-              item-value="kode"
-              label="Bayar Menggunakan"
+            <v-textarea
+              v-model="form.vch_keterangan"
+              label="Alasan/Keterangan Pengajuan"
               density="compact"
               variant="outlined"
-              prepend-inner-icon="mdi-bank"
-              class="mb-2"
+              rows="3"
+              placeholder="Contoh: Pelunasan invoice jatuh tempo minggu ini"
             />
 
-            <v-textarea
-              v-model="form.pelh_keterangan"
-              label="Keterangan"
+            <v-alert
+              type="info"
+              variant="tonal"
               density="compact"
-              variant="outlined"
-              rows="2"
-              hide-details
+              class="mt-4"
+              text="Data ini akan masuk ke daftar antrian pembayaran kasir."
             />
           </v-card>
 
-          <v-card class="mt-4 bg-blue-lighten-5 pa-4" variant="flat" border>
-            <div class="text-subtitle-2 text-blue-darken-3">
-              Total Pembayaran:
+          <v-card class="mt-4 bg-green-lighten-5 pa-4" variant="flat" border>
+            <div class="text-subtitle-2 text-green-darken-3">
+              Total Yang Diajukan:
             </div>
-            <div class="text-h5 font-weight-bold text-blue-darken-4">
-              Rp {{ totalNominal.toLocaleString("id-ID") }}
+            <div class="text-h5 font-weight-bold text-green-darken-4">
+              Rp {{ totalPengajuan.toLocaleString("id-ID") }}
             </div>
           </v-card>
         </v-col>
@@ -218,8 +192,8 @@ const handleSupKodeExit = () => {
         <v-col cols="12" md="8">
           <v-card variant="outlined">
             <v-card-title class="text-subtitle-1 d-flex align-center">
-              <v-icon start size="small">mdi-file-clock</v-icon>
-              Daftar Invoice Belum Lunas
+              <v-icon start color="orange">mdi-alert-circle-outline</v-icon>
+              Pilih Invoice untuk Diajukan
             </v-card-title>
 
             <v-divider></v-divider>
@@ -228,26 +202,18 @@ const handleSupKodeExit = () => {
               v-model="selectedInvoices"
               :items="outstandingInvoices"
               :headers="[
-                { title: 'Nomor Invoice', key: 'Nomor', sortable: true },
-                { title: 'Tanggal', key: 'Tanggal', width: '120px' },
-                { title: 'Jatuh Tempo', key: 'JatuhTempo', width: '120px' },
-                {
-                  title: 'Tagihan',
-                  key: 'TotalInvoice',
-                  align: 'end',
-                  width: '150px',
-                },
+                { title: 'Nomor Invoice', key: 'Nomor' },
+                { title: 'Jatuh Tempo', key: 'JatuhTempo', width: '150px' },
+                { title: 'Sisa Tagihan', key: 'TotalInvoice', align: 'end' },
               ]"
               show-select
               return-object
               density="compact"
               :loading="loading"
-              no-data-text="Pilih supplier untuk melihat invoice"
-              class="elevation-0"
-              style="font-size: 0.85rem"
+              no-data-text="Silahkan pilih supplier terlebih dahulu"
             >
               <template #item.TotalInvoice="{ item }">
-                <span class="font-weight-medium">
+                <span class="font-weight-bold">
                   {{ item.TotalInvoice.toLocaleString("id-ID") }}
                 </span>
               </template>
@@ -265,9 +231,3 @@ const handleSupKodeExit = () => {
     />
   </PageLayout>
 </template>
-
-<style scoped>
-:deep(.v-data-table-header__content) {
-  font-weight: bold !important;
-}
-</style>

@@ -176,10 +176,15 @@ const parseCustomDate = (dateString) => {
   return null;
 };
 
+const formatDateDisplay = (dateStr: string | null | undefined) => {
+  if (!dateStr) return "-";
+  const d = parseISO(dateStr);
+  return isValid(d) ? format(d, "dd/MM/yyyy") : "-";
+};
+
 const fetchData = async () => {
   loading.value = true;
   try {
-    // GUNAKAN 'api' yang sudah terkonfigurasi, dan endpoint relatif
     const response = await api.get(API_PERMINTAAN_BAHAN, {
       params: {
         startDate: startDate.value,
@@ -187,11 +192,15 @@ const fetchData = async () => {
       },
     });
 
-    const data = response.data.data ?? response.data;
+    // Seringkali response data bersarang di .data atau .data.data tergantung interceptor
+    const result = response.data.data ?? response.data;
+    masterData.value = Array.isArray(result) ? result : [];
 
-    masterData.value = Array.isArray(data) ? data : [];
+    // Reset seleksi saat refresh data agar tidak error
+    selected.value = [];
   } catch (err) {
     toast.error("Gagal mengambil data Permintaan Bahan.");
+    console.error(err);
   } finally {
     loading.value = false;
   }
@@ -293,10 +302,15 @@ const handleEditClick = () => {
 };
 
 const handleRowClick = (_event, row) => {
-  console.log("ROW CLICK RAW:", row);
-  console.log("ROW ITEM:", row?.item);
+  // row.item adalah objek data (karena kita pakai return-object di data-table)
+  const item = row.item;
 
-  selected.value = [row.item];
+  // Jika sudah terpilih, lepas. Jika belum, pilih ini saja (Single Select)
+  if (selected.value.some((s) => s.Nomor === item.Nomor)) {
+    selected.value = [];
+  } else {
+    selected.value = [item];
+  }
 };
 
 // Replikasi cxButton4Click (Hapus)
@@ -459,11 +473,7 @@ watch([startDate, endDate], fetchData);
           :row-props="getRowProps"
         >
           <template #item.Tanggal="{ item }">
-            {{
-              item.Tanggal
-                ? format(parseCustomDate(item.Tanggal), "dd/MM/yyyy")
-                : ""
-            }}
+            {{ formatDateDisplay(item.Tanggal) }}
           </template>
           <template #item.Status_PO="{ item }">
             <v-chip :color="getStatusColor(item.Status_PO)" size="small" label>

@@ -91,6 +91,7 @@ import LapMonFinishingView from '@/views/LapMonFinishingView.vue';
 import LapMonTekstilView from '@/views/LapMonTekstilView.vue';
 import InvoicePrintView from '@/views/InvoicePrintView.vue';
 import FormRekapLhkTekstilView from '@/views/FormRekapLhkTekstilView.vue';
+import FormAbsesnView from '@/views/FormAbsesnView.vue';
 
 
 
@@ -404,6 +405,7 @@ const routes: RouteRecordRaw[] = [
             { path: 'mmt/rekap-tekstil', name: 'Rekap Pemakaian Tekstil', component: FormRekapLhkTekstilView },
             { path: 'mmt/lhk/proof', name: 'LHK Proof MMT', component: ComingSoon },
             { path: 'mmt/lhk/sublim', name: 'LHK Sublim MMT', component: ComingSoon },
+            { path: 'mmt/absensi', name: 'absensiNew', component: FormAbsesnView },
             { path: 'mmt/lhk/rtr', name: 'LHK RTR MMT', component: ComingSoon },
             { path: 'mmt/bs-digital', name: 'BS & Sisa Digital Print', component: ComingSoon },
             { path: 'mmt/bs-tekstil', name: 'BS & Sisa Tekstil', component: ComingSoon },

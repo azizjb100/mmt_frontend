@@ -198,6 +198,11 @@ const handleLhkTekstilSelect = (selectedItems) => {
         // Properti tambahan untuk backend jika diperlukan
         brg_kode: item.Kode_Bahan,
         barcode: item.Barcode,
+        mesin: item.Mesin,
+        nomor_spk: item.Nomor_SPK,
+        qty: item.Jumlah_Cetak,
+        panjang: item.Panjang_Per_Pcs,
+        lebar: item.Lebar_SPK,
       });
     }
   });
@@ -229,11 +234,17 @@ const handleSave = async () => {
         admin: formData.admin,
         lstatus: "APPROVE",
       },
+      // BAGIAN INI YANG HARUS DIPERBAIKI:
       details: detailData.value.map((d) => ({
         lhk_nomor: d.lhk_nomor,
-        keterangan: d.keterangan,
-        // Pastikan konversi ke Number dan beri default 0 jika gagal
         total_m2: Number(d.total_m2) || 0,
+        // TAMBAHKAN PROPERTI DI BAWAH INI:
+        mesin: d.mesin || "",
+        nomor_spk: d.nomor_spk || "",
+        brg_kode: d.brg_kode || "",
+        jumlah_cetak: d.qty || 0, // Pastikan nama variabel sesuai dengan handleLhkTekstilSelect
+        panjang_per_pcs: d.panjang || 0,
+        lebar_spk: d.lebar || 0,
       })),
     };
 

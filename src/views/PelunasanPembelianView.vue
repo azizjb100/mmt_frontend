@@ -7,32 +7,30 @@ import PageLayout from "../components/PageLayout.vue";
 import { useToast } from "vue-toastification";
 
 /* --- Interfaces --- */
-interface PelunasanDetail {
-  peld_inv_nomor: string;
-  peld_nominal: number;
-  TanggalInvoice?: string;
-  TotalInvoice?: number;
+interface VoucherDetail {
+  vchd_inv_nomor: string;
+  vchd_nominal: number;
 }
 
-interface PelunasanHeader {
+interface VoucherHeader {
   Nomor: string;
   Tanggal: string;
   Supplier: string;
-  MetodeBayar: string;
-  TotalBayar: number;
+  Total: number;
+  Status: "OPEN" | "POSTED" | "VOID";
   Keterangan: string;
-  Detail?: PelunasanDetail[];
+  Detail?: VoucherDetail[];
 }
 
 /* --- Constants --- */
-const API_PELUNASAN = "/mmt/pelunasan-pembelian";
+const API_VOUCHER = "/mmt/voucher-pelunasan";
 const router = useRouter();
 const toast = useToast();
 
 /* --- State --- */
-const masterData = ref<PelunasanHeader[]>([]);
+const masterData = ref<VoucherHeader[]>([]);
 const loading = ref(false);
-const selected = ref<PelunasanHeader[]>([]);
+const selected = ref<VoucherHeader[]>([]);
 const expanded = ref<string[]>([]);
 
 const startDate = ref(format(subDays(new Date(), 30), "yyyy-MM-dd"));
@@ -43,24 +41,29 @@ const isSingleSelected = computed(() => selected.value.length === 1);
 
 /* --- Headers --- */
 const masterHeaders = [
-  { title: "Nomor Bukti", key: "Nomor", minWidth: "160px", fixed: true },
+  { title: "No. Voucher", key: "Nomor", minWidth: "160px", fixed: true },
   { title: "Tanggal", key: "Tanggal", minWidth: "120px" },
   { title: "Supplier", key: "Supplier", minWidth: "220px" },
-  { title: "Metode", key: "MetodeBayar", minWidth: "120px" },
   {
-    title: "Total Bayar",
-    key: "TotalBayar",
+    title: "Total Pengajuan",
+    key: "Total",
     minWidth: "140px",
     align: "end" as const,
+  },
+  {
+    title: "Status",
+    key: "Status",
+    minWidth: "100px",
+    align: "center" as const,
   },
   { title: "", key: "data-table-expand", minWidth: "40px" },
 ];
 
 const detailHeaders = [
-  { title: "Nomor Invoice", key: "peld_inv_nomor", minWidth: "180px" },
+  { title: "Nomor Invoice", key: "vchd_inv_nomor", minWidth: "180px" },
   {
-    title: "Nominal Bayar",
-    key: "peld_nominal",
+    title: "Nominal",
+    key: "vchd_nominal",
     minWidth: "150px",
     align: "end" as const,
   },
@@ -71,18 +74,27 @@ const fetchData = async () => {
   loading.value = true;
   selected.value = [];
   try {
-    const response = await api.get(API_PELUNASAN, {
+    const response = await api.get(`${API_VOUCHER}/list`, {
       params: { startDate: startDate.value, endDate: endDate.value },
     });
-    // Menyesuaikan dengan struktur response backend Anda
-    masterData.value = Array.isArray(response.data)
-      ? response.data
-      : response.data.data || [];
+    masterData.value = response.data.data || [];
   } catch (error) {
-    toast.error("Gagal mengambil data pelunasan");
-    console.error(error);
+    toast.error("Gagal mengambil daftar voucher");
   } finally {
     loading.value = false;
+  }
+};
+
+const getStatusColor = (status: string) => {
+  switch (status) {
+    case "OPEN":
+      return "orange";
+    case "POSTED":
+      return "success";
+    case "VOID":
+      return "error";
+    default:
+      return "grey";
   }
 };
 
@@ -99,14 +111,14 @@ const handleRowClick = (_event: any, row: any) => {
 };
 
 const handleNew = () => {
-  router.push({ name: "PelunasanPembelianNew" });
+  router.push({ name: "VoucherPembayaranNew" }); // Sesuaikan dengan nama route form Anda
 };
 
 const handlePrint = () => {
   if (!isSingleSelected.value) return;
   const nomor = selected.value[0].Nomor;
   window.open(
-    `${import.meta.env.VITE_API_URL}${API_PELUNASAN}/print/${nomor}`,
+    `${import.meta.env.VITE_API_URL}${API_VOUCHER}/print/${nomor}`,
     "_blank",
   );
 };
@@ -124,61 +136,65 @@ watch([startDate, endDate], fetchData);
 </script>
 
 <template>
-  <PageLayout title="Pelunasan Pembelian (Hutang)" icon="mdi-cash-register">
+  <PageLayout
+    title="Daftar Voucher Pengajuan Hutang"
+    icon="mdi-file-clock-outline"
+  >
     <template #header-actions>
-      <v-btn size="x-small" color="success" @click="handleNew">
-        <v-icon start>mdi-plus</v-icon> Bayar Hutang
+      <v-btn
+        size="small"
+        color="primary"
+        @click="handleNew"
+        prepend-icon="mdi-plus"
+      >
+        Buat Pengajuan Baru
       </v-btn>
       <v-divider vertical class="mx-2" />
       <v-btn
-        size="x-small"
+        size="small"
+        variant="outlined"
         color="info"
         :disabled="!isSingleSelected"
         @click="handlePrint"
+        prepend-icon="mdi-printer"
       >
-        <v-icon start>mdi-printer</v-icon> Cetak Bukti
+        Cetak Voucher
       </v-btn>
     </template>
 
     <div class="browse-content">
       <v-card flat class="mb-1 border-b">
-        <v-card-text>
-          <div class="filter-section d-flex align-center flex-wrap ga-4">
-            <v-label class="text-caption font-weight-bold"
-              >Filter Periode:</v-label
-            >
+        <v-card-text class="pa-3">
+          <div class="d-flex align-center flex-wrap ga-3">
+            <span class="text-caption font-weight-bold">Periode:</span>
             <v-text-field
               v-model="startDate"
               type="date"
-              label="Mulai"
               density="compact"
               hide-details
               variant="outlined"
-              style="max-width: 160px"
+              style="max-width: 150px"
             />
             <v-text-field
               v-model="endDate"
               type="date"
-              label="Sampai"
               density="compact"
               hide-details
               variant="outlined"
-              style="max-width: 160px"
+              style="max-width: 150px"
             />
             <v-btn
-              variant="tonal"
-              size="small"
+              icon="mdi-refresh"
+              variant="text"
+              density="comfortable"
               @click="fetchData"
               :loading="loading"
-              prepend-icon="mdi-refresh"
-            >
-              Refresh
-            </v-btn>
+            />
           </div>
         </v-card-text>
       </v-card>
 
-      <div class="table-container pa-4">
+      <div class="pa-4">
         <v-data-table
           v-model:selected="selected"
           v-model:expanded="expanded"
@@ -196,38 +212,50 @@ watch([startDate, endDate], fetchData);
           @click:row="handleRowClick"
           :row-props="getRowProps"
         >
-          <template #item.TotalBayar="{ item }">
-            <span class="font-weight-bold text-primary">
-              {{ formatCurrency(item.TotalBayar) }}
-            </span>
+          <template #item.Status="{ item }">
+            <v-chip
+              :color="getStatusColor(item.Status)"
+              size="x-small"
+              label
+              class="font-weight-bold"
+            >
+              {{ item.Status }}
+            </v-chip>
           </template>
 
-          <template #item.Tanggal="{ item }">
-            {{ item.Tanggal }}
+          <template #item.Total="{ item }">
+            <span class="font-weight-bold text-success">
+              {{ formatCurrency(item.Total) }}
+            </span>
           </template>
 
           <template #expanded-row="{ columns, item }">
             <tr>
-              <td :colspan="columns.length" class="bg-grey-lighten-4 pa-0">
-                <v-card flat tile class="mx-4 my-2 border">
-                  <v-card-title
-                    class="text-caption font-weight-bold bg-grey-lighten-3"
+              <td :colspan="columns.length" class="bg-grey-lighten-5 pa-0">
+                <v-card flat tile class="mx-4 my-3 border border-dashed">
+                  <div
+                    class="pa-2 bg-grey-lighten-3 text-caption font-weight-bold d-flex justify-space-between"
                   >
-                    Rincian Invoice yang Dibayar
-                  </v-card-title>
+                    <span>Rincian Item Voucher</span>
+                    <span class="text-grey-darken-1">{{ item.Nomor }}</span>
+                  </div>
                   <v-data-table
                     :headers="detailHeaders"
                     :items="item.Detail || []"
                     density="compact"
                     hide-default-footer
                   >
-                    <template #item.peld_nominal="{ item: d }">
-                      {{ formatCurrency(d.peld_nominal) }}
+                    <template #item.vchd_nominal="{ item: d }">
+                      {{ formatCurrency(d.vchd_nominal) }}
                     </template>
                   </v-data-table>
                   <v-divider />
-                  <div class="pa-2 text-caption">
-                    <strong>Keterangan:</strong> {{ item.Keterangan || "-" }}
+                  <div class="pa-3 text-caption">
+                    <v-icon size="small" class="mr-1"
+                      >mdi-information-outline</v-icon
+                    >
+                    <strong>Keterangan:</strong>
+                    {{ item.Keterangan || "Tidak ada keterangan" }}
                   </div>
                 </v-card>
               </td>
@@ -241,23 +269,13 @@ watch([startDate, endDate], fetchData);
 
 <style scoped>
 .browse-content {
-  background-color: #f5f5f5;
+  background-color: #fafafa;
   min-height: 80vh;
 }
-
-.table-container {
-  max-width: 100%;
-}
-
 :deep(.row-selected) {
-  background-color: #e3f2fd !important;
+  background-color: #f1f8e9 !important; /* Hijau muda pudar */
 }
-
-:deep(.v-data-table__expanded-row) {
-  background-color: #fafafa !important;
-}
-
-.filter-section {
-  background-color: white;
+:deep(.v-data-table-header) {
+  background-color: #f8f9fa;
 }
 </style>
