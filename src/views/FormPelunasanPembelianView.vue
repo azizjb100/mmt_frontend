@@ -212,6 +212,13 @@ const handleSaveVoucher = async () => {
               :loading="loading"
               no-data-text="Silahkan pilih supplier terlebih dahulu"
             >
+              <template #item.JatuhTempo="{ item }">
+                {{
+                  item.JatuhTempo
+                    ? format(new Date(item.JatuhTempo), "dd-MM-yyyy")
+                    : "-"
+                }}
+              </template>
               <template #item.TotalInvoice="{ item }">
                 <span class="font-weight-bold">
                   {{ item.TotalInvoice.toLocaleString("id-ID") }}
