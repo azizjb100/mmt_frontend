@@ -16,12 +16,12 @@ interface DetailItem {
   Nama_Bahan: string;
   qty: number;
   satuan: string;
-  harga: number; // Mapping ke retd_harga
-  diskon: number; // Mapping ke retd_discpr
-  expired: string; // Mapping ke retd_expired (Wajib karena PK)
+  panjang: number;
+  lebar: number;
   keterangan: string;
   spk: string;
   stok: number;
+  expired: string;
 }
 
 interface FormDataState {
@@ -42,7 +42,7 @@ const toast = useToast();
 const authStore = useAuthStore();
 
 // Gunakan Endpoint Retur
-const API_URL = "/api/retur-produksi";
+const API_URL = "/mmt/retur-produksi";
 
 // --- State ---
 const isEditMode = ref(!!route.params.nomor);
@@ -59,12 +59,12 @@ const createEmptyDetail = (): DetailItem => ({
   Nama_Bahan: "",
   qty: 0,
   satuan: "",
-  harga: 0,
-  diskon: 0,
-  expired: format(new Date(), "yyyy-MM-dd"), // Default hari ini agar PK tidak null
+  panjang: 0,
+  lebar: 0,
   keterangan: "",
   spk: "",
   stok: 0,
+  expired: format(new Date(), "yyyy-MM-dd"),
 });
 
 const formData = reactive<FormDataState>({
@@ -87,9 +87,7 @@ const calculatedTotal = computed(() => {
 
 const isFormValid = computed(() => {
   const isHeaderValid = !!formData.gudangKode;
-  const isDetailValid = formData.detail.some(
-    (d) => d.sku && d.qty > 0 && d.expired,
-  );
+  const isDetailValid = formData.detail.some((d) => d.sku && d.qty > 0);
   return isHeaderValid && isDetailValid;
 });
 
@@ -99,8 +97,13 @@ const detailHeaders = [
   { title: "Nama Bahan", key: "Nama_Bahan", width: "250px" },
   { title: "Qty Retur", key: "qty", width: "100px", align: "end" as const },
   { title: "Satuan", key: "satuan", width: "80px" },
-  { title: "Harga", key: "harga", width: "120px", align: "end" as const },
-  { title: "Expired", key: "expired", width: "150px" },
+  {
+    title: "Panjang (M)",
+    key: "panjang",
+    width: "100px",
+    align: "end" as const,
+  }, // Baru
+  { title: "Lebar (M)", key: "lebar", width: "100px", align: "end" as const },
   { title: "Keterangan", key: "keterangan", width: "150px" },
   { title: "", key: "actions", width: "50px", sortable: false },
 ] as const;
@@ -137,8 +140,9 @@ const handleBarcodeScan = async (index: number) => {
     targetItem.satuan = bahan.Satuan;
     targetItem.stok = bahan.Stok || 0;
     targetItem.qty = 1; // Default qty retur
-    targetItem.spk = bahan.Nomor_SPK || "";
-
+    targetItem.panjang = bahan.Panjang || 0;
+    targetItem.lebar = bahan.Lebar || 0;
+    targetItem.expired = bahan.Expired || format(new Date(), "yyyy-MM-dd");
     // Otomatis tambah baris baru jika scan di baris terakhir
     if (index === formData.detail.length - 1) addDetail();
 
@@ -161,22 +165,22 @@ const saveForm = async (saveAndNew: boolean) => {
 
   isSaving.value = true;
   try {
-    // MAPPING PAYLOAD UNTUK BACKEND SERVICE
     const payload = {
       Nomor: formData.nomor,
-      Gudang: formData.gudangKode,
       Tanggal: formData.tanggal,
+      GudangTujuan: formData.gudangKode,
+      GudangAsal: "GPM", // Paksa GPM sesuai logika trigger
+      NomorSPK: formData.noPermintaan,
       Keterangan: formData.keteranganHeader,
-      SupplierKode: formData.supplierKode,
-      NoPermintaan: formData.noPermintaan,
+      Type: 1,
       Details: validDetails.map((d) => ({
         sku: d.sku,
-        satuan: d.satuan,
         qty: Number(d.qty),
-        harga: Number(d.harga),
-        diskon: Number(d.diskon),
-        expired: d.expired,
+        panjang: Number(d.panjang || 0),
+        lebar: Number(d.lebar || 0),
         keterangan: d.keterangan,
+        barcode: d.barcode || "",
+        expired: d.expired, // Nilai otomatis "hari ini" terkirim ke backend
       })),
     };
 
@@ -333,24 +337,27 @@ onMounted(async () => {
               />
             </template>
 
-            <template #[`item.harga`]="{ item }">
+            <template #[`item.panjang`]="{ item }">
               <v-text-field
-                v-model.number="item.harga"
+                v-model.number="item.panjang"
                 type="number"
                 density="compact"
                 variant="underlined"
                 hide-details
+                suffix="m"
                 class="text-right-input"
               />
             </template>
 
-            <template #[`item.expired`]="{ item }">
+            <template #[`item.lebar`]="{ item }">
               <v-text-field
-                v-model="item.expired"
-                type="date"
+                v-model.number="item.lebar"
+                type="number"
                 density="compact"
                 variant="underlined"
                 hide-details
+                suffix="m"
+                class="text-right-input"
               />
             </template>
 

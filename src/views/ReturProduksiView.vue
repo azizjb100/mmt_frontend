@@ -1,296 +1,53 @@
-<template>
-  <PageLayout title="Data Permintaan Produksi" icon="mdi-factory">
-    <v-expand-transition>
-      <div v-if="pendingLoans.length > 0" class="mx-4 mt-2">
-        <v-alert
-          type="warning"
-          variant="tonal"
-          density="compact"
-          border="start"
-          class="mb-4"
-        >
-          <template #title>
-            <span class="text-subtitle-2 font-weight-bold"
-              >🔔 Permintaan Pinjam Bahan (Hutang Stok)</span
-            >
-          </template>
-          <div
-            v-for="loan in pendingLoans"
-            :key="loan.id"
-            class="d-flex align-center justify-space-between mt-1"
-          >
-            <span class="text-caption">
-              Produksi membutuhkan Barcode:
-              <strong>{{ loan.barcode }}</strong> ({{ loan.nama_bahan }}) -
-              Sisa: {{ loan.panjang }}M
-            </span>
-            <v-btn
-              size="x-small"
-              color="orange-darken-2"
-              class="ml-4"
-              @click="handleApproveLoan(loan)"
-            >
-              Proses Mutasi & Keluar
-            </v-btn>
-          </div>
-        </v-alert>
-      </div>
-    </v-expand-transition>
-    <template #header-actions>
-      <v-btn size="x-small" color="success" @click="handleNewEdit('new')">
-        <v-icon start>mdi-plus</v-icon> Baru
-      </v-btn>
-      <v-btn
-        size="x-small"
-        color="warning"
-        :disabled="!isSingleSelected"
-        @click="handleEditClick"
-      >
-        <v-icon start>mdi-pencil</v-icon> Ubah
-      </v-btn>
-      <v-btn
-        size="x-small"
-        color="error"
-        :disabled="!isSingleSelected"
-        @click="handleDelete"
-      >
-        <v-icon start>mdi-trash-can</v-icon> Hapus
-      </v-btn>
-
-      <v-divider vertical class="mx-2" />
-
-      <v-btn
-        v-if="authStore.can(MENU_ID, 'view')"
-        size="x-small"
-        color="info"
-        :disabled="!isSingleSelected"
-        @click="handlePrint"
-      >
-        <v-icon start>mdi-printer</v-icon> Cetak
-      </v-btn>
-      <v-btn
-        size="x-small"
-        color="info"
-        :disabled="!isSingleSelected"
-        @click="handleExportDetail"
-      >
-        <v-icon start>mdi-download</v-icon> Export Detail
-      </v-btn>
-    </template>
-
-    <div class="browse-content">
-      <v-card flat class="mb-4">
-        <v-card-text>
-          <div class="filter-section d-flex align-center flex-wrap ga-4">
-            <v-label class="filter-label">Periode Mulai:</v-label>
-            <v-text-field
-              v-model="startDate"
-              type="date"
-              density="compact"
-              hide-details
-              variant="outlined"
-              style="max-width: 150px"
-            />
-
-            <v-label class="mx-2">s/d</v-label>
-
-            <v-text-field
-              v-model="endDate"
-              type="date"
-              density="compact"
-              hide-details
-              variant="outlined"
-              style="max-width: 150px"
-            />
-
-            <v-btn variant="text" size="small" @click="fetchData">
-              <v-icon>mdi-refresh</v-icon> Refresh
-            </v-btn>
-
-            <v-spacer />
-          </div>
-        </v-card-text>
-      </v-card>
-
-      <div class="table-container">
-        <v-data-table
-          v-model:selected="selected"
-          v-model:expanded="expanded"
-          :headers="headers"
-          :items="masterData"
-          :loading="loading"
-          item-value="Nomor"
-          density="compact"
-          class="desktop-table elevation-1"
-          fixed-header
-          show-select
-          return-object
-          show-expand
-          @update:expanded="loadDetails"
-        >
-          <template #item.Tanggal="{ item }">
-            {{
-              item.Tanggal
-                ? format(parseCustomDate(item.Tanggal), "dd/MM/yyyy")
-                : ""
-            }}
-          </template>
-
-          <template #expanded-row="{ columns, item }">
-            <tr>
-              <td :colspan="columns.length">
-                <div class="detail-container">
-                  <div class="detail-table-wrapper">
-                    <div
-                      v-if="isLoadingDetails(item.Nomor)"
-                      class="text-center pa-4 text-caption"
-                    >
-                      Memuat detail...
-                    </div>
-
-                    <v-data-table
-                      v-else
-                      :headers="detailHeaders"
-                      :items="details[item.Nomor] || []"
-                      density="compact"
-                      class="detail-table"
-                      :items-per-page="-1"
-                      hide-default-footer
-                    >
-                      <template #[`item.Jumlah`]="{ item: d }">
-                        {{ Number(d.Jumlah).toFixed(2) }}
-                      </template>
-
-                      <template #[`item.Panjang`]="{ item: d }">
-                        {{ Number(d.Panjang).toFixed(2) }}
-                      </template>
-                      <template #[`item.Lebar`]="{ item: d }">
-                        {{ Number(d.Lebar).toFixed(2) }}
-                      </template>
-                    </v-data-table>
-
-                    <div
-                      v-if="
-                        !isLoadingDetails(item.Nomor) &&
-                        !(details[item.Nomor] && details[item.Nomor].length)
-                      "
-                      class="text-center pa-4 text-caption"
-                    >
-                      Tidak ada data detail.
-                    </div>
-                  </div>
-                </div>
-              </td>
-            </tr>
-          </template>
-        </v-data-table>
-      </div>
-    </div>
-  </PageLayout>
-</template>
-
 <script setup lang="ts">
-import { ref, reactive, onMounted, onUnmounted, computed, watch } from "vue";
-import { useRouter } from "vue-router";
-import { useToast } from "vue-toastification";
-import { useAuthStore } from "../stores/authStore";
+import { ref, computed, onMounted, watch } from "vue";
 import api from "@/services/api";
-import type { AxiosError } from "axios";
+import { useRouter } from "vue-router";
 import { format, subDays } from "date-fns";
 import PageLayout from "../components/PageLayout.vue";
-import { VDataTable } from "vuetify/components";
 
 // --- Interfaces ---
-
-interface PermintaanProduksiDetail {
+interface ReturProduksiDetail {
   Nomor: string;
   Kode: string;
+  Barcode: string;
   Nama_Bahan: string;
-  Panjang: number | null;
-  Lebar: number | null;
-  Satuan: string;
   Jumlah: number;
-  Operator: string;
-  Nomor_SPK: string;
-  spk_nama: string;
-  Keterangan: string;
-  [key: string]: string | number | null | undefined;
+  Satuan: string;
+  Panjang: number;
+  Lebar: number;
+  KeteranganDetail: string;
 }
 
-interface PermintaanProduksiHeader {
+interface ReturProduksiHeader {
   Nomor: string;
-  Gudang: string;
-  Nama: string;
+  GudangTujuan: string;
+  NamaGudangTujuan: string;
+  GudangAsal: string;
   Tanggal: string;
+  NomorSPK: string;
   Keterangan: string;
-  Detail?: PermintaanProduksiDetail[];
-  [key: string]: string | number | null | undefined;
+  TypeLabel: string;
+  Detail: ReturProduksiDetail[];
 }
 
-interface ApiResponse {
-  message: string;
-  data: PermintaanProduksiHeader[];
-}
-
-// --- State & Constants ---
-
+const API_RETUR_PRODUKSI = "/mmt/retur-produksi";
 const router = useRouter();
-const toast = useToast();
-const API_PERMINTAAN_PRODUKSI = "/mmt/permintaan-produksi";
-const MENU_ID = "MMT_PERMINTAAN_PRODUKSI";
 
-const masterData = ref<PermintaanProduksiHeader[]>([]);
-const details = ref<Record<string, PermintaanProduksiDetail[]>>({});
-const loading = ref<boolean>(true);
-const loadingDetails = ref(new Set<string>());
-
-const selected = ref<PermintaanProduksiHeader[]>([]);
+// --- State ---
+const masterData = ref<ReturProduksiHeader[]>([]);
+const loading = ref(false);
+const selected = ref<ReturProduksiHeader[]>([]);
 const expanded = ref<string[]>([]);
 
-const thirtyDaysAgo = format(subDays(new Date(), 30), "yyyy-MM-dd");
-const today = format(new Date(), "yyyy-MM-dd");
-
-const startDate = ref<string>(thirtyDaysAgo);
-const endDate = ref<string>(today);
+const startDate = ref(format(subDays(new Date(), 30), "yyyy-MM-dd"));
+const endDate = ref(format(new Date(), "yyyy-MM-dd"));
 
 // --- Computed ---
-
 const isSingleSelected = computed(() => selected.value.length === 1);
-const selectedNomor = computed<string | null>(() =>
-  isSingleSelected.value ? selected.value[0].Nomor : null,
-);
 
-// --- Konfigurasi Tabel (Headers) ---
-
-const headers = [
-  { title: "Nomor", key: "Nomor", minWidth: "150px", fixed: true },
-  { title: "Gudang", key: "Gudang", minWidth: "80px" },
-  { title: "Nama Gudang", key: "Nama", minWidth: "150px" },
-  { title: "Tanggal", key: "Tanggal", minWidth: "120px" },
-  { title: "Keterangan", key: "Keterangan", minWidth: "250px" },
-  { title: "", key: "data-table-expand", minWidth: "40px" },
-] as any[];
-
-// FIX: Menyesuaikan urutan dan key sesuai gambar (Nomor, Kode, Nama_Bahan, Panjang, Lebar, Satuan, Jumlah...)
-const detailHeaders = [
-  { title: "Nomor", key: "Nomor", minWidth: "140px", fixed: true },
-  { title: "Kode", key: "Kode", minWidth: "100px" },
-  { title: "Nama Bahan", key: "Nama_Bahan", minWidth: "200px" },
-  { title: "Panjang", key: "Panjang", minWidth: "80px", align: "end" },
-  { title: "Lebar", key: "Lebar", minWidth: "80px", align: "end" },
-  { title: "Satuan", key: "Satuan", minWidth: "80px" },
-  { title: "Jumlah", key: "Jumlah", minWidth: "80px", align: "end" },
-  { title: "Operator", key: "Operator", minWidth: "120px" },
-  { title: "Nomor SPK", key: "Nomor_SPK", minWidth: "120px" },
-  { title: "spk_nama", key: "spk_nama", minWidth: "150px" },
-  { title: "Keterangan", key: "Keterangan", minWidth: "150px" },
-] as any[];
-
-// --- Utility Functions ---
-
-const parseCustomDate = (dateString: string): Date | null => {
-  // Logika parseCustomDate tetap sama
-  if (!dateString) return null;
+// --- Helpers ---
+const parseCustomDate = (dateString: string) => {
+  if (!dateString) return new Date();
   try {
     const [day, monthName, year] = dateString.split("-");
     const months = [
@@ -310,177 +67,240 @@ const parseCustomDate = (dateString: string): Date | null => {
     const monthIndex = months.findIndex((m) =>
       m.toLowerCase().startsWith(monthName.toLowerCase()),
     );
-
-    if (monthIndex === -1) return null;
-
-    const date = new Date(Number(year), monthIndex, Number(day));
-
-    if (isNaN(date.getTime()) || date.getDate() !== Number(day)) return null;
-
-    return date;
+    return new Date(Number(year), monthIndex, Number(day));
   } catch (e) {
-    return null;
+    return new Date();
   }
 };
 
-const useAuthStore = () => ({
-  can: (menuId: string, action: string) => true, // Selalu true untuk demo
-  KDUSER: "ADMIN",
-});
-const authStore = useAuthStore();
+// --- Headers ---
+const masterHeaders = [
+  { title: "Nomor", key: "Nomor", minWidth: "150px", fixed: true },
+  { title: "Tanggal", key: "Tanggal", minWidth: "120px" },
+  { title: "Gudang Tujuan", key: "NamaGudangTujuan", minWidth: "180px" },
+  { title: "Asal", key: "GudangAsal", minWidth: "100px" },
+  { title: "No. SPK", key: "NomorSPK", minWidth: "150px" },
+  { title: "Tipe", key: "TypeLabel", minWidth: "120px" },
+  { title: "Keterangan", key: "Keterangan", minWidth: "250px" },
+  { title: "", key: "data-table-expand", minWidth: "40px" },
+];
 
+const detailHeaders = [
+  { title: "Barcode", key: "Barcode", minWidth: "150px" },
+  { title: "Kode Bahan", key: "Kode", minWidth: "120px" },
+  { title: "Nama Bahan", key: "Nama_Bahan", minWidth: "250px" },
+  { title: "Qty", key: "Jumlah", minWidth: "80px", align: "end" as const },
+  { title: "P (m)", key: "Panjang", minWidth: "80px", align: "end" as const },
+  { title: "L (m)", key: "Lebar", minWidth: "80px", align: "end" as const },
+  { title: "Satuan", key: "Satuan", minWidth: "80px" },
+  { title: "Keterangan", key: "KeteranganDetail", minWidth: "150px" },
+];
+
+// --- Methods ---
 const fetchData = async () => {
   loading.value = true;
   selected.value = [];
-  expanded.value = [];
-  details.value = {};
   try {
-    const response = await api.get<ApiResponse>(API_PERMINTAAN_PRODUKSI, {
-      params: {
-        startDate: startDate.value,
-        endDate: endDate.value,
-      },
+    const response = await api.get(API_RETUR_PRODUKSI, {
+      params: { startDate: startDate.value, endDate: endDate.value },
     });
-
-    const fetchedData = response.data.data || [];
-
-    fetchedData.forEach((header) => {
-      if (header.Detail) {
-        // Pastikan nilai Jumlah, Panjang, Lebar adalah angka (untuk toFixed)
-        details.value[header.Nomor] = header.Detail.map((d) => ({
-          ...d,
-          Panjang: d.Panjang || 0,
-          Lebar: d.Lebar || 0,
-          Jumlah: d.Jumlah || 0,
-        }));
-      }
-    });
-
-    masterData.value = fetchedData;
+    masterData.value = response.data.data || [];
   } catch (error) {
-    const err = error as AxiosError;
-    toast.error(
-      `Gagal memuat data: ${err.message || "Terjadi kesalahan jaringan."}`,
-    );
+    console.error("Gagal memuat data:", error);
   } finally {
     loading.value = false;
   }
 };
 
-const loadDetails = (newlyExpandedKeys: string[]) => {
-  const newlyExpandedNomor = newlyExpandedKeys.find(
-    (nomor) => !details.value[nomor],
-  );
-
-  if (newlyExpandedNomor) {
-    console.warn(
-      `Detail for ${newlyExpandedNomor} not found in cache. Simulating load...`,
-    );
-    loadingDetails.value.add(newlyExpandedNomor);
-    setTimeout(() => {
-      loadingDetails.value.delete(newlyExpandedNomor);
-    }, 500);
-  }
-};
-
-const isLoadingDetails = (nomor: string) => loadingDetails.value.has(nomor);
-
-const getRowTextColor = (item: PermintaanProduksiHeader) => {
-  return "";
-};
-
-const handleNewEdit = (mode: "new" | "edit") => {
-  if (mode === "new") {
-    router.push({ name: "ReturProduksiNew" });
-  } else if (mode === "edit" && selectedNomor.value) {
-    router.push({
-      name: "MutasiProduksiEdit",
-      params: { nomor: selectedNomor.value },
-    });
-  }
+const handleRowClick = (_event: any, row: any) => {
+  selected.value = [row.item];
 };
 
 const handleDelete = async () => {
-  if (!selectedNomor.value) return;
-
-  if (!confirm(`Yakin ingin hapus transaksi ${selectedNomor.value}?`)) return;
+  if (!isSingleSelected.value) return;
+  const nomor = selected.value[0].Nomor;
+  if (!confirm(`Hapus data retur ${nomor}?`)) return;
 
   try {
-    await api.delete(`${API_PERMINTAAN_PRODUKSI}/${selectedNomor.value}`);
-    toast.success("Data berhasil dihapus!");
-    await fetchData();
-  } catch (error) {
-    const err = error as AxiosError<any>;
-    toast.error(
-      `Gagal Hapus: ${
-        err.response?.data?.message ?? err.message ?? "Terjadi kesalahan."
-      }`,
-    );
+    await api.delete(`${API_RETUR_PRODUKSI}/${nomor}`);
+    fetchData();
+  } catch (e) {
+    alert("Gagal menghapus data");
   }
 };
 
-const handlePrint = () => {
-  if (selectedNomor.value) {
-    alert(`TODO: Mencetak slip untuk ${selectedNomor.value}`);
-  }
-};
-
-const pendingLoans = ref<any[]>([]);
-let pollingInterval: any = null;
-
-// Fungsi untuk mengambil data "Hutang" dari database
-const fetchPendingLoans = async () => {
-  try {
-    // Kita panggil endpoint yang mengecek permintaan dengan status 'PINJAM'
-    const response = await api.get("/mmt/request-pinjam");
-    pendingLoans.value = response.data.data || [];
-  } catch (error) {
-    console.error("Gagal memuat notifikasi pinjam");
-  }
-};
-
-const handleApproveLoan = async (loan: any) => {
-  const confirmOk = confirm(
-    `Proses Mutasi Barcode ${loan.barcode} dari WH-16 ke GPM sekarang?`,
-  );
-
-  if (confirmOk) {
-    try {
-      // Panggil API untuk mutasi otomatis
-      await api.post("/mmt/request-pinjam/approve-pinjam", {
-        barcode: loan.barcode,
-        nomor_permintaan: loan.Nomor,
-      });
-
-      toast.success(
-        `Stok Barcode ${loan.barcode} telah berpindah ke Produksi.`,
-      );
-      fetchPendingLoans(); // Refresh notif
-      fetchData(); // Refresh table utama
-    } catch (error) {
-      toast.error("Gagal memproses mutasi.");
-    }
-  }
-};
-
-// --- Lifecycle Hook ---
-
-onMounted(() => {
-  fetchData(); // Mengambil data tabel utama
-  fetchPendingLoans(); // Mengambil data notifikasi pinjaman saat pertama kali buka
-
-  // Tambahkan interval agar sistem mengecek notifikasi setiap 30 detik secara otomatis
-  pollingInterval = setInterval(() => {
-    fetchPendingLoans();
-  }, 30000);
-});
-
-onUnmounted(() => {
-  if (pollingInterval) {
-    clearInterval(pollingInterval);
-  }
-});
-
-// Watcher untuk tanggal (jika diubah, data dimuat ulang)
+onMounted(() => fetchData());
 watch([startDate, endDate], fetchData);
 </script>
+
+<template>
+  <PageLayout title="Data Retur Produksi MMT" icon="mdi-keyboard-return">
+    <template #header-actions>
+      <v-btn
+        size="x-small"
+        color="success"
+        @click="router.push({ name: 'ReturProduksiNew' })"
+      >
+        <v-icon start>mdi-plus</v-icon> Baru
+      </v-btn>
+      <v-divider vertical class="mx-2" />
+      <v-btn
+        size="x-small"
+        color="error"
+        :disabled="!isSingleSelected"
+        @click="handleDelete"
+      >
+        <v-icon start>mdi-trash-can</v-icon> Hapus
+      </v-btn>
+    </template>
+
+    <div class="browse-content">
+      <v-card flat class="mb-1">
+        <v-card-text>
+          <div class="filter-section d-flex align-center flex-wrap ga-4">
+            <v-label class="filter-label">Periode Mulai:</v-label>
+            <v-text-field
+              v-model="startDate"
+              type="date"
+              density="compact"
+              hide-details
+              variant="outlined"
+              style="max-width: 150px"
+            />
+            <v-label class="mx-2">s/d</v-label>
+            <v-text-field
+              v-model="endDate"
+              type="date"
+              density="compact"
+              hide-details
+              variant="outlined"
+              style="max-width: 150px"
+            />
+            <v-btn
+              variant="text"
+              size="x-small"
+              @click="fetchData"
+              :loading="loading"
+            >
+              <v-icon>mdi-refresh</v-icon> Refresh
+            </v-btn>
+          </div>
+        </v-card-text>
+      </v-card>
+
+      <div class="table-container">
+        <v-data-table
+          v-model:selected="selected"
+          v-model:expanded="expanded"
+          :headers="masterHeaders"
+          :items="masterData"
+          :loading="loading"
+          item-value="Nomor"
+          density="compact"
+          class="desktop-table elevation-1 border"
+          show-select
+          select-strategy="single"
+          return-object
+          show-expand
+          hover
+          @click:row="handleRowClick"
+        >
+          <template #item.Tanggal="{ item }">
+            {{
+              item.Tanggal
+                ? format(parseCustomDate(item.Tanggal), "dd/MM/yyyy")
+                : ""
+            }}
+          </template>
+
+          <template #item.Nomor="{ item }">
+            <span class="font-weight-bold text-primary">{{ item.Nomor }}</span>
+          </template>
+
+          <template #item.TypeLabel="{ item }">
+            <v-chip
+              size="x-small"
+              :color="item.TypeLabel === 'PRODUKSI' ? 'blue' : 'orange'"
+              variant="tonal"
+            >
+              {{ item.TypeLabel }}
+            </v-chip>
+          </template>
+
+          <template #expanded-row="{ columns, item }">
+            <tr>
+              <td :colspan="columns.length" class="pa-0 border-0">
+                <div class="detail-container">
+                  <v-data-table
+                    :headers="detailHeaders"
+                    :items="item.Detail || []"
+                    density="compact"
+                    hide-default-footer
+                    class="border-0 bg-transparent"
+                  >
+                    <template #[`item.Jumlah`]="{ item: d }">
+                      {{ Number(d.Jumlah).toFixed(2) }}
+                    </template>
+                    <template #[`item.Panjang`]="{ item: d }">
+                      <span class="text-blue font-weight-bold">{{
+                        Number(d.Panjang).toFixed(2)
+                      }}</span>
+                    </template>
+                    <template #[`item.Lebar`]="{ item: d }">
+                      <span class="text-blue font-weight-bold">{{
+                        Number(d.Lebar).toFixed(2)
+                      }}</span>
+                    </template>
+                  </v-data-table>
+                </div>
+              </td>
+            </tr>
+          </template>
+        </v-data-table>
+      </div>
+    </div>
+  </PageLayout>
+</template>
+
+<style scoped>
+/* 1. Atur Ukuran Font Umum Tabel */
+:deep(.v-data-table) {
+  font-size: 11px !important;
+}
+
+/* 2. Atur Header Tabel (Master & Detail) */
+:deep(.v-data-table-header th) {
+  font-size: 11px !important;
+  height: 32px !important;
+  font-weight: bold !important;
+  background-color: #f8f9fa !important;
+  text-transform: uppercase;
+}
+
+/* 3. Atur Baris Tabel */
+:deep(.v-data-table td) {
+  font-size: 11px !important;
+  height: 32px !important;
+}
+
+/* 4. Container Detail */
+.detail-container {
+  padding: 8px 12px !important;
+  background-color: #f1f3f4;
+  border-top: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.table-container {
+  margin-top: 4px;
+}
+
+.filter-section {
+  background-color: #ffffff;
+}
+
+/* Warna Row Hover */
+:deep(.v-data-table__tr:hover) {
+  background-color: #f0f4f8 !important;
+  cursor: pointer;
+}
+</style>
