@@ -597,5 +597,18 @@ watch([startDate, endDate], fetchData);
   background-color: #f1f8ff;
   cursor: pointer;
 }
+:deep(.row-selected) {
+  background-color: #d8efff !important;
+}
+
+/* KHUSUS untuk kolom yang FIXED (seperti Nomor PO) */
+:deep(.row-selected td) {
+  background-color: #d8efff !important;
+}
+
+/* Jika Anda menggunakan Vuetify 3 dan kolom tetap putih saat di-hover */
+:deep(.v-data-table__tr.row-selected:hover > td) {
+  background-color: #c0e4ff !important;
+}
 /* Style tambahan Vuetify (seperti .desktop-table) biasanya didefinisikan secara global */
 </style>

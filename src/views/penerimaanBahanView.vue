@@ -133,6 +133,15 @@ const handleRowClick = (_event: any, row: any) => {
   selected.value = [row.item];
 };
 
+const getRowProps = ({ item }: { item: PenerimaanBahan }) => {
+  return {
+    class: {
+      // Memberikan class 'row-selected' jika Nomor cocok dengan yang ada di array selected
+      "row-selected": selected.value.some((s) => s.Nomor === item.Nomor),
+    },
+  };
+};
+
 const handlePrintQR = async () => {
   if (!isSingleSelected.value) return;
 
@@ -382,6 +391,7 @@ watch([startDate, endDate], fetchData);
           show-expand
           hover
           @click:row="handleRowClick"
+          :row-props="getRowProps"
         >
           <template #item.Tanggal="{ item }">
             {{
@@ -704,5 +714,24 @@ watch([startDate, endDate], fetchData);
 /* Opsional: Jika ingin teks di dalam input/field pencarian juga sama */
 .custom-table :deep(.v-data-table-header__content) {
   justify-content: start !important;
+}
+
+:deep(.row-selected) {
+  background-color: #d8efff !important; /* Biru muda */
+}
+
+/* Pastikan kolom yang fixed (Nomor) juga berubah warnanya */
+:deep(.row-selected td) {
+  background-color: #d8efff !important;
+}
+
+/* Efek hover khusus baris yang sedang dipilih agar tidak kembali putih */
+:deep(.v-data-table__tr.row-selected:hover > td) {
+  background-color: #c0e4ff !important;
+}
+
+/* Mengubah kursor agar user tahu baris bisa diklik */
+:deep(.v-data-table__tr) {
+  cursor: pointer;
 }
 </style>

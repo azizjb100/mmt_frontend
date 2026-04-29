@@ -1,41 +1,6 @@
 <template>
   <PageLayout title="Data Permintaan Produksi" icon="mdi-factory">
-    <v-expand-transition>
-      <div v-if="pendingLoans.length > 0" class="mx-4 mt-2">
-        <v-alert
-          type="warning"
-          variant="tonal"
-          density="compact"
-          border="start"
-          class="mb-4"
-        >
-          <template #title>
-            <span class="text-subtitle-2 font-weight-bold"
-              >🔔 Permintaan Pinjam Bahan (Hutang Stok)</span
-            >
-          </template>
-          <div
-            v-for="loan in pendingLoans"
-            :key="loan.id"
-            class="d-flex align-center justify-space-between mt-1"
-          >
-            <span class="text-caption">
-              Produksi membutuhkan Barcode:
-              <strong>{{ loan.barcode }}</strong> ({{ loan.nama_bahan }}) -
-              Sisa: {{ loan.panjang }}M
-            </span>
-            <v-btn
-              size="x-small"
-              color="orange-darken-2"
-              class="ml-4"
-              @click="handleApproveLoan(loan)"
-            >
-              Proses Mutasi & Keluar
-            </v-btn>
-          </div>
-        </v-alert>
-      </div>
-    </v-expand-transition>
+    <v-expand-transition> </v-expand-transition>
     <template #header-actions>
       <v-btn size="x-small" color="success" @click="handleNewEdit('new')">
         <v-icon start>mdi-plus</v-icon> Baru
@@ -126,6 +91,8 @@
           show-select
           show-expand
           @update:expanded="loadDetails"
+          @click:row="handleRowClick"
+          :row-props="getRowProps"
         >
           <template #item.Tanggal="{ value }">
             {{ value ? format(parseCustomDate(value), "dd/MM/yyyy") : "" }}
@@ -356,32 +323,30 @@ const fetchData = async () => {
 };
 
 const loadDetails = async (expandedKeys: string[]) => {
-  // Ambil nomor terakhir yang di-expand
   const lastExpandedNomor = expandedKeys[expandedKeys.length - 1];
 
-  // Jika data sudah ada di cache, jangan panggil API lagi
   if (!lastExpandedNomor || details.value[lastExpandedNomor]) return;
 
   loadingDetails.value.add(lastExpandedNomor);
 
   try {
-    // Memanggil API sesuai URL yang Anda berikan
     const response = await api.get(
       `${API_PERMINTAAN_PRODUKSI}/${lastExpandedNomor}`,
     );
 
-    /* PENTING: 
-      Berdasarkan service backend Anda, data detail ada di dalam properti 'Details'.
-      Kita simpan ke dalam ref 'details' dengan key berupa Nomor-nya.
-    */
-    if (response.data && response.data.Details) {
-      details.value[lastExpandedNomor] = response.data.Details;
+    // PERBAIKAN: Akses response.data.data.Details (sesuai JSON API Anda)
+    // Jika axios Anda sudah otomatis mapping, pastikan jalurnya benar
+    const resData = response.data.data ?? response.data;
+
+    if (resData && resData.Details) {
+      details.value[lastExpandedNomor] = resData.Details;
     } else {
       details.value[lastExpandedNomor] = [];
     }
   } catch (error) {
     console.error("Gagal memuat detail:", error);
     toast.error("Gagal mengambil data detail dari server");
+    details.value[lastExpandedNomor] = []; // Set kosong agar tidak loading terus
   } finally {
     loadingDetails.value.delete(lastExpandedNomor);
   }
@@ -421,6 +386,20 @@ const handleDelete = async () => {
       }`,
     );
   }
+};
+
+const handleRowClick = (_event: any, row: any) => {
+  // row.item berisi objek baris tersebut
+  selected.value = [row.item];
+};
+
+const getRowProps = ({ item }: { item: PermintaanProduksiHeader }) => {
+  return {
+    class: {
+      // Memasang class jika Nomor cocok dengan yang dipilih
+      "row-selected": selected.value.some((s) => s.Nomor === item.Nomor),
+    },
+  };
 };
 
 const handlePrint = () => {
@@ -490,3 +469,72 @@ onUnmounted(() => {
 // Watcher untuk tanggal (jika diubah, data dimuat ulang)
 watch([startDate, endDate], fetchData);
 </script>
+
+<style scoped>
+/* 1. KONSISTENSI FONT & UKURAN TABEL */
+:deep(.v-data-table) {
+  font-size: 11px !important;
+}
+
+:deep(.v-data-table-header th) {
+  font-size: 11px !important;
+  height: 36px !important;
+  font-weight: bold !important;
+  background-color: #f8f9fa !important;
+  color: #333 !important;
+}
+
+:deep(.v-data-table td) {
+  font-size: 11px !important;
+  height: 32px !important;
+}
+
+/* 2. STYLE SELEKSI BARIS (BIRU MUDA) */
+:deep(.row-selected) {
+  background-color: #d8efff !important;
+}
+
+/* Pastikan kolom fixed (sticky) ikut berubah warna */
+:deep(.row-selected td) {
+  background-color: #d8efff !important;
+}
+
+:deep(.v-data-table__tr.row-selected:hover > td) {
+  background-color: #c0e4ff !important;
+}
+
+:deep(.v-data-table__tr) {
+  cursor: pointer;
+}
+
+/* 3. CONTAINER DETAIL */
+.detail-container {
+  padding: 8px 40px !important;
+  background-color: #fcfcfc;
+  border-top: 1px solid #eee;
+  border-bottom: 1px solid #eee;
+}
+
+.detail-table {
+  background-color: white !important;
+  border-radius: 4px;
+  box-shadow: inset 0 0 4px rgba(0, 0, 0, 0.05);
+}
+
+/* 4. UTILITY */
+.browse-content {
+  padding-top: 4px;
+}
+
+.filter-section {
+  padding: 4px 8px;
+}
+
+:deep(.text-end) {
+  text-align: right !important;
+}
+
+.text-red {
+  color: #d32f2f !important;
+}
+</style>

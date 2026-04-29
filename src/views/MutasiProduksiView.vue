@@ -127,6 +127,8 @@
           return-object
           show-expand
           @update:expanded="loadDetails"
+          @click:row="handleRowClick"
+          :row-props="getRowProps"
         >
           <template #item.Tanggal="{ item }">
             {{
@@ -325,6 +327,27 @@ const parseCustomDate = (dateString: string): Date | null => {
   }
 };
 
+// Tambahkan argumen event di depan, lalu ambil item dari argumen kedua
+const handleRowClick = (
+  event: any,
+  { item }: { item: PermintaanProduksiHeader },
+) => {
+  // item adalah objek baris yang diklik
+  if (selected.value.some((s) => s.Nomor === item.Nomor)) {
+    selected.value = []; // Lepas seleksi jika diklik ulang
+  } else {
+    selected.value = [item]; // Set sebagai item terpilih
+  }
+};
+
+const getRowProps = ({ item }: { item: PermintaanProduksiHeader }) => {
+  return {
+    class: {
+      "row-selected": selected.value.some((s) => s.Nomor === item.Nomor),
+    },
+  };
+};
+
 const useAuthStore = () => ({
   can: (menuId: string, action: string) => true, // Selalu true untuk demo
   KDUSER: "ADMIN",
@@ -486,3 +509,72 @@ onUnmounted(() => {
 // Watcher untuk tanggal (jika diubah, data dimuat ulang)
 watch([startDate, endDate], fetchData);
 </script>
+
+<style scoped>
+/* 1. KONSISTENSI FONT & UKURAN TABEL */
+:deep(.v-data-table) {
+  font-size: 11px !important;
+}
+
+:deep(.v-data-table-header th) {
+  font-size: 11px !important;
+  height: 36px !important;
+  font-weight: bold !important;
+  background-color: #f8f9fa !important;
+  color: #333 !important;
+}
+
+:deep(.v-data-table td) {
+  font-size: 11px !important;
+  height: 32px !important;
+}
+
+/* 2. STYLE SELEKSI BARIS (BIRU MUDA) */
+:deep(.row-selected) {
+  background-color: #d8efff !important;
+}
+
+/* Pastikan kolom fixed (sticky) ikut berubah warna */
+:deep(.row-selected td) {
+  background-color: #d8efff !important;
+}
+
+:deep(.v-data-table__tr.row-selected:hover > td) {
+  background-color: #c0e4ff !important;
+}
+
+:deep(.v-data-table__tr) {
+  cursor: pointer;
+}
+
+/* 3. CONTAINER DETAIL */
+.detail-container {
+  padding: 8px 40px !important;
+  background-color: #fcfcfc;
+  border-top: 1px solid #eee;
+  border-bottom: 1px solid #eee;
+}
+
+.detail-table {
+  background-color: white !important;
+  border-radius: 4px;
+  box-shadow: inset 0 0 4px rgba(0, 0, 0, 0.05);
+}
+
+/* 4. UTILITY */
+.browse-content {
+  padding-top: 4px;
+}
+
+.filter-section {
+  padding: 4px 8px;
+}
+
+:deep(.text-end) {
+  text-align: right !important;
+}
+
+.text-red {
+  color: #d32f2f !important;
+}
+</style>

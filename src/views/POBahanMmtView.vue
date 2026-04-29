@@ -114,6 +114,7 @@
           show-expand
           @update:expanded="loadDetails"
           @click:row="handleRowClick"
+          :row-props="getRowProps"
         >
           <template #item.Tanggal="{ item }">
             {{ safeFormatDate(item.Tanggal) }}
@@ -258,6 +259,15 @@ const filters = reactive({
 
 const handleRowClick = (event: Event, { item }: { item: PoBahanHeader }) => {
   selected.value = [item]; // <-- Ini yang membuat isSingleSelected selalu true
+};
+
+const getRowProps = ({ item }) => {
+  return {
+    class: {
+      // Pastikan membandingkan key yang unik (Nomor)
+      "row-selected": item.Nomor === selectedNomor.value,
+    },
+  };
 };
 
 const isSingleSelected = computed(() => selected.value.length === 1); // <-- OK
@@ -526,5 +536,39 @@ watch(filters, fetchData, { deep: true });
 }
 .v-data-table :deep(.text-end) {
   text-align: right !important;
+}
+
+:deep(.row-selected) {
+  background-color: #d8efff !important; /* Biru muda lembut */
+  transition: background-color 0.2s ease;
+}
+
+/* Tambahkan ini agar saat di-hover warna birunya sedikit lebih gelap */
+:deep(.row-selected:hover) {
+  background-color: #c0e4ff !important;
+}
+
+/* Mengatur kursor agar user tahu baris bisa diklik */
+:deep(.v-data-table__tr) {
+  cursor: pointer;
+}
+
+/* Warna hover untuk baris biasa (opsional) */
+:deep(.v-data-table__tr:hover:not(.row-selected)) {
+  background-color: #f5f5f5 !important;
+}
+
+:deep(.row-selected) {
+  background-color: #d8efff !important;
+}
+
+/* KHUSUS untuk kolom yang FIXED (seperti Nomor PO) */
+:deep(.row-selected td) {
+  background-color: #d8efff !important;
+}
+
+/* Jika Anda menggunakan Vuetify 3 dan kolom tetap putih saat di-hover */
+:deep(.v-data-table__tr.row-selected:hover > td) {
+  background-color: #c0e4ff !important;
 }
 </style>
