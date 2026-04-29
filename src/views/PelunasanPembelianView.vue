@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, watch } from "vue";
+import { ref, computed, onMounted, watch } from "vue";
 import api from "@/services/api";
 import { useRouter } from "vue-router";
 import { format, subDays } from "date-fns";
@@ -62,7 +62,7 @@ const masterHeaders = [
 const detailHeaders = [
   { title: "Nomor Invoice", key: "vchd_inv_nomor", minWidth: "180px" },
   {
-    title: "Nominal",
+    title: "Nominal Pelunasan",
     key: "vchd_nominal",
     minWidth: "150px",
     align: "end" as const,
@@ -79,7 +79,7 @@ const fetchData = async () => {
     });
     masterData.value = response.data.data || [];
   } catch (error) {
-    toast.error("Gagal mengambil daftar voucher");
+    toast.error("Gagal memuat daftar voucher");
   } finally {
     loading.value = false;
   }
@@ -90,7 +90,7 @@ const getStatusColor = (status: string) => {
     case "OPEN":
       return "orange";
     case "POSTED":
-      return "success";
+      return "blue";
     case "VOID":
       return "error";
     default:
@@ -111,7 +111,8 @@ const handleRowClick = (_event: any, row: any) => {
 };
 
 const handleNew = () => {
-  router.push({ name: "VoucherPembayaranNew" }); // Sesuaikan dengan nama route form Anda
+  // Mengarah ke route VoucherPelunasanNew
+  router.push({ name: "VoucherPelunasanNew" });
 };
 
 const handlePrint = () => {
@@ -123,12 +124,22 @@ const handlePrint = () => {
   );
 };
 
-const getRowProps = (data: any) => {
-  return {
-    class: selected.value.some((s) => s.Nomor === data.item.Nomor)
-      ? "row-selected"
-      : "",
-  };
+const handleDelete = async () => {
+  if (!isSingleSelected.value) return;
+  const target = selected.value[0];
+  if (target.Status !== "OPEN") {
+    toast.warning("Hanya voucher status OPEN yang bisa dihapus");
+    return;
+  }
+  if (!confirm(`Hapus voucher ${target.Nomor}?`)) return;
+
+  try {
+    await api.delete(`${API_VOUCHER}/${target.Nomor}`);
+    toast.success("Voucher berhasil dihapus");
+    fetchData();
+  } catch (e) {
+    toast.error("Gagal menghapus voucher");
+  }
 };
 
 onMounted(() => fetchData());
@@ -136,37 +147,38 @@ watch([startDate, endDate], fetchData);
 </script>
 
 <template>
-  <PageLayout
-    title="Daftar Voucher Pengajuan Hutang"
-    icon="mdi-file-clock-outline"
-  >
+  <PageLayout title="Voucher Pelunasan Hutang" icon="mdi-file-clock-outline">
     <template #header-actions>
-      <v-btn
-        size="small"
-        color="primary"
-        @click="handleNew"
-        prepend-icon="mdi-plus"
-      >
-        Buat Pengajuan Baru
+      <v-btn size="x-small" color="success" @click="handleNew">
+        <v-icon start>mdi-plus</v-icon> Baru
       </v-btn>
+
       <v-divider vertical class="mx-2" />
+
       <v-btn
-        size="small"
-        variant="outlined"
+        size="x-small"
         color="info"
         :disabled="!isSingleSelected"
         @click="handlePrint"
-        prepend-icon="mdi-printer"
       >
-        Cetak Voucher
+        <v-icon start>mdi-printer</v-icon> Cetak Voucher
+      </v-btn>
+
+      <v-btn
+        size="x-small"
+        color="error"
+        :disabled="!isSingleSelected"
+        @click="handleDelete"
+      >
+        <v-icon start>mdi-trash-can</v-icon> Hapus
       </v-btn>
     </template>
 
     <div class="browse-content">
-      <v-card flat class="mb-1 border-b">
-        <v-card-text class="pa-3">
-          <div class="d-flex align-center flex-wrap ga-3">
-            <span class="text-caption font-weight-bold">Periode:</span>
+      <v-card flat class="mb-1">
+        <v-card-text>
+          <div class="filter-section d-flex align-center flex-wrap ga-4">
+            <v-label class="filter-label">Periode Mulai:</v-label>
             <v-text-field
               v-model="startDate"
               type="date"
@@ -175,6 +187,7 @@ watch([startDate, endDate], fetchData);
               variant="outlined"
               style="max-width: 150px"
             />
+            <v-label class="mx-2">s/d</v-label>
             <v-text-field
               v-model="endDate"
               type="date"
@@ -184,17 +197,18 @@ watch([startDate, endDate], fetchData);
               style="max-width: 150px"
             />
             <v-btn
-              icon="mdi-refresh"
               variant="text"
-              density="comfortable"
+              size="x-small"
               @click="fetchData"
               :loading="loading"
-            />
+            >
+              <v-icon>mdi-refresh</v-icon> Refresh
+            </v-btn>
           </div>
         </v-card-text>
       </v-card>
 
-      <div class="pa-4">
+      <div class="table-container">
         <v-data-table
           v-model:selected="selected"
           v-model:expanded="expanded"
@@ -203,20 +217,23 @@ watch([startDate, endDate], fetchData);
           :loading="loading"
           item-value="Nomor"
           density="compact"
-          class="elevation-1 border rounded"
+          class="desktop-table elevation-1 border"
           show-select
           select-strategy="single"
           return-object
           show-expand
           hover
           @click:row="handleRowClick"
-          :row-props="getRowProps"
         >
+          <template #item.Nomor="{ item }">
+            <span class="font-weight-bold text-primary">{{ item.Nomor }}</span>
+          </template>
+
           <template #item.Status="{ item }">
             <v-chip
               :color="getStatusColor(item.Status)"
               size="x-small"
-              label
+              variant="tonal"
               class="font-weight-bold"
             >
               {{ item.Status }}
@@ -231,33 +248,32 @@ watch([startDate, endDate], fetchData);
 
           <template #expanded-row="{ columns, item }">
             <tr>
-              <td :colspan="columns.length" class="bg-grey-lighten-5 pa-0">
-                <v-card flat tile class="mx-4 my-3 border border-dashed">
-                  <div
-                    class="pa-2 bg-grey-lighten-3 text-caption font-weight-bold d-flex justify-space-between"
-                  >
-                    <span>Rincian Item Voucher</span>
-                    <span class="text-grey-darken-1">{{ item.Nomor }}</span>
-                  </div>
-                  <v-data-table
-                    :headers="detailHeaders"
-                    :items="item.Detail || []"
-                    density="compact"
-                    hide-default-footer
-                  >
-                    <template #item.vchd_nominal="{ item: d }">
-                      {{ formatCurrency(d.vchd_nominal) }}
-                    </template>
-                  </v-data-table>
-                  <v-divider />
-                  <div class="pa-3 text-caption">
-                    <v-icon size="small" class="mr-1"
-                      >mdi-information-outline</v-icon
+              <td :colspan="columns.length" class="pa-0 border-0">
+                <div class="detail-container">
+                  <v-card flat border class="bg-white">
+                    <v-data-table
+                      :headers="detailHeaders"
+                      :items="item.Detail || []"
+                      density="compact"
+                      hide-default-footer
+                      class="border-0 bg-transparent"
                     >
-                    <strong>Keterangan:</strong>
-                    {{ item.Keterangan || "Tidak ada keterangan" }}
-                  </div>
-                </v-card>
+                      <template #item.vchd_nominal="{ item: d }">
+                        <span class="font-weight-bold">{{
+                          formatCurrency(d.vchd_nominal)
+                        }}</span>
+                      </template>
+                    </v-data-table>
+                    <v-divider />
+                    <div class="pa-3 text-caption">
+                      <v-icon size="small" color="grey" class="mr-1"
+                        >mdi-information-outline</v-icon
+                      >
+                      <span class="font-weight-bold mr-1">Keterangan:</span>
+                      {{ item.Keterangan || "-" }}
+                    </div>
+                  </v-card>
+                </div>
               </td>
             </tr>
           </template>
@@ -268,14 +284,40 @@ watch([startDate, endDate], fetchData);
 </template>
 
 <style scoped>
-.browse-content {
-  background-color: #fafafa;
-  min-height: 80vh;
+/* Menyamakan font dan ukuran baris dengan ReturProduksi */
+:deep(.v-data-table) {
+  font-size: 11px !important;
 }
-:deep(.row-selected) {
-  background-color: #f1f8e9 !important; /* Hijau muda pudar */
+
+:deep(.v-data-table-header th) {
+  font-size: 11px !important;
+  height: 32px !important;
+  font-weight: bold !important;
+  background-color: #f8f9fa !important;
+  text-transform: uppercase;
 }
-:deep(.v-data-table-header) {
-  background-color: #f8f9fa;
+
+:deep(.v-data-table td) {
+  font-size: 11px !important;
+  height: 32px !important;
+}
+
+.detail-container {
+  padding: 8px 12px !important;
+  background-color: #f1f3f4;
+  border-top: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.table-container {
+  margin-top: 4px;
+}
+
+:deep(.v-data-table__tr:hover) {
+  background-color: #f0f4f8 !important;
+  cursor: pointer;
+}
+
+:deep(.v-data-table__selected) {
+  background-color: #e3f2fd !important;
 }
 </style>

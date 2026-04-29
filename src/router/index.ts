@@ -210,8 +210,8 @@ const routes: RouteRecordRaw[] = [
                     layout: "PrintLayout", // Nama Layout yang akan digunakan
                 },
             },
-            { path: 'mmt/pelunasan-pembelian', name: 'PelunasanPembelianBrowse', component: PelunasanPembelianView },
-            { path: 'mmt/pelunasan-pembelian/new', name: 'PelunasanPembelianNew', component: FormPelunasanPembelianView },
+            { path: 'mmt/voucher-pembelian', name: 'VoucherPelunasanBrowse', component: PelunasanPembelianView },
+            { path: 'mmt/voucher-pembelian/new', name: 'VoucherPelunasanNew', component: FormPelunasanPembelianView },
             { path: 'mmt/po-bahan-mmt', name: 'POBahanMmtBrowse', component: POBahanMmtView },
             {
                 // 2. Rute untuk Halaman Input Baru

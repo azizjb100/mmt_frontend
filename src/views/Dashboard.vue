@@ -273,7 +273,7 @@ const allMenuGroups = [
           { name: "PO Bahan MMT", path: "/mmt/po-bahan-mmt" },
           { name: "Invoice", path: "/mmt/invoice" },
           { name: "Retur Beli", path: "/mmt/retur-beli" },
-          { name: "Pelunasan Pembelian", path: "/mmt/pelunasan-pembelian" },
+          { name: "Voucher Pelunasan", path: "/mmt/voucher-pembelian" },
           { name: "Laporan Outstanding", path: "/laporan/mmt/lap-hutang" },
         ],
       },
