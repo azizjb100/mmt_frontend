@@ -16,11 +16,12 @@ interface DetailItem {
   uraian: string;
   size: string;
   qty: number;
+  maxQty: number; // <-- Tambahkan ini untuk validasi
   koli: number;
   jamInput: string;
   jamReady: string;
   expedisi: string;
-  keterangan: string; // <-- Tambahan
+  keterangan: string;
 }
 
 interface FormDataState {
@@ -60,10 +61,12 @@ const createEmptyDetail = (index: number): DetailItem => ({
   uraian: "",
   size: "",
   qty: 0,
+  maxQty: 999999, // Default besar jika bukan dari SPK
   koli: 0,
   jamInput: format(new Date(), "HH:mm"),
   jamReady: "15:00",
   expedisi: "",
+  keterangan: "",
 });
 
 const formData = reactive<FormDataState>({
@@ -135,30 +138,39 @@ const handleGudangSelect = (gudang: { Kode: string; Nama: string }) => {
   isGudangModalVisible.value = false;
 };
 
+const validateQty = (item: DetailItem) => {
+  if (item.qty > item.maxQty) {
+    toast.warning(
+      `Peringatan: Qty untuk ${item.kota || "Baris " + item.no_urut} (${item.qty}) melebihi batas order SPK (${item.maxQty})!`,
+      { timeout: 3000 },
+    );
+  }
+};
+
 const handleSPKSelect = (spk: any) => {
   console.log("Data SPK dipilih:", spk);
 
-  // 1. Perbaiki pemetaan (Mapping) sesuai preview log modal Anda (PascalCase)
-  formData.spkNomor = spk.SPK || spk.spk_nomor || spk.mspk_nomor || "";
-  formData.spkNama = spk.Nama || spk.spk_nama || spk.mspk_nama || "";
-  formData.spkUkuran = spk.Ukuran || spk.spk_ukuran || spk.mspk_ukuran || "";
-  formData.spkKain = spk.Kain || spk.spk_kain || spk.mspk_kain || "";
+  // 1. Ambil data sesuai Key dari backend (Case Sensitive)
+  // Gunakan spk.Spk karena di log muncul 'Spk'
+  formData.spkNomor = spk.Spk || "";
+  formData.spkNama = spk.Nama || "";
+  formData.spkUkuran = spk.Ukuran || "";
+  formData.spkKain = spk.Bahan || ""; // Sesuai log: Bahan -> 'FLEXY 380GR'
 
-  // 2. Jika data SPK memiliki info Customer (berdasarkan logika Delphi Anda)
-  // formData.cusNama = spk.Cus_nama || "";
+  // 2. Ambil batas qty untuk validasi
+  // Sesuai log: Jumlah -> 18
+  const limitQty = Number(spk.Jumlah) || 0;
+
+  // 3. Update detail yang sudah ada
+  if (formData.detail.length > 0) {
+    formData.detail.forEach((d) => {
+      d.uraian = formData.spkNama;
+      d.size = formData.spkUkuran;
+      d.maxQty = limitQty;
+    });
+  }
 
   isSPKModalVisible.value = false;
-
-  // 3. Otomatis isi detail pertama jika masih kosong
-  if (formData.detail.length > 0) {
-    const firstDetail = formData.detail[0];
-
-    // Jika baris pertama masih "fresh" (belum diisi kota), kita bantu isi
-    if (!firstDetail.kota) {
-      firstDetail.uraian = formData.spkNama; // Isi uraian dengan nama SPK
-      firstDetail.size = formData.spkUkuran; // MASALAH ANDA: Pastikan field 'size' terisi
-    }
-  }
 };
 
 const loaddataall = async (nomor: string) => {
@@ -213,36 +225,60 @@ const importExcel = (event: Event) => {
 
     // Ambil data dalam format JSON
     const jsonData = XLSX.utils.sheet_to_json(worksheet);
+    console.log("Data Excel Terbaca:", jsonData);
 
     if (jsonData.length === 0) {
       toast.warning("File Excel kosong atau format salah.");
       return;
     }
 
-    // Mapping data Excel ke DetailItem
-    // Asumsi Header Excel: Kota, Uraian, Size, Qty, Koli, Jam, Expedisi, Keterangan
-    const startIdx = formData.detail.length;
-    const importedDetails: DetailItem[] = jsonData.map(
-      (row: any, index: number) => ({
-        no_urut: startIdx + index + 1,
-        kota: row.Kota || "",
-        uraian: row.Uraian || formData.spkNama, // Jika kosong, pakai nama SPK
-        size: row.Size || formData.spkUkuran,
-        qty: Number(row.Qty) || 0,
-        koli: Number(row.Koli) || 0,
-        jamInput: format(new Date(), "HH:mm"),
-        jamReady: row.Jam || "15:00", // Default 15:00 jika kosong
-        expedisi: row.Expedisi || "",
-        keterangan: row.Keterangan || "",
-      }),
-    );
-    if (formData.detail.length === 1 && !formData.detail[0].kota) {
-      formData.detail = importedDetails;
-    } else {
-      formData.detail.push(...importedDetails);
+    // --- LOGIKA PERBAIKAN PENOMORAN ---
+    // Cek apakah baris pertama di tabel masih "kosong" (belum diisi kota)
+    const isFirstRowEmpty =
+      formData.detail.length === 1 && !formData.detail[0].kota;
+
+    if (isFirstRowEmpty) {
+      // Jika kosong, kita reset array agar index dimulai dari 0
+      formData.detail = [];
     }
 
+    const startIdx = formData.detail.length;
+
+    // Fungsi pembantu untuk konversi jam desimal Excel (0.625 -> "15:00")
+    const excelSerialToTime = (serial: any) => {
+      if (typeof serial !== "number") return serial || "15:00";
+      const totalSeconds = Math.round(serial * 24 * 3600);
+      const hours = Math.floor(totalSeconds / 3600);
+      const minutes = Math.floor((totalSeconds % 3600) / 60);
+      return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
+    };
+
+    // Mapping data Excel ke DetailItem
+    const importedDetails: DetailItem[] = jsonData.map(
+      (row: any, index: number) => {
+        return {
+          no_urut: startIdx + index + 1,
+          // Gunakan key sesuai log console (ALOKASI, URAIAN, jumlah, koli, jam)
+          kota: row.ALOKASI || "",
+          uraian: row.URAIAN || formData.spkNama,
+          size: row.SIZE || formData.spkUkuran,
+          qty: Number(row.jumlah) || 0,
+          koli: Number(row.koli) || 0,
+          jamInput: format(new Date(), "HH:mm"),
+          // Konversi jam desimal excel ke string "HH:mm"
+          jamReady: row.jam ? excelSerialToTime(row.jam) : "15:00",
+          expedisi: row.EXPEDISI || "",
+          keterangan: row.KETERANGAN || "",
+        };
+      },
+    );
+
+    // Masukkan data ke dalam state
+    formData.detail.push(...importedDetails);
+
     toast.success(`${importedDetails.length} baris berhasil diimpor.`);
+
+    // Reset input file agar bisa pilih file yang sama lagi jika perlu
     target.value = "";
   };
   reader.readAsArrayBuffer(file);
@@ -251,19 +287,34 @@ const importExcel = (event: Event) => {
 const saveForm = async (saveAndNew: boolean) => {
   if (!isFormValid.value) return;
 
+  // --- VALIDASI QTY MELEBIHI ORDER ---
+  const overLimitItems = formData.detail.filter(
+    (item) => item.qty > item.maxQty,
+  );
+
+  if (overLimitItems.length > 0) {
+    const listKota = overLimitItems
+      .map((i) => i.kota || "Baris " + i.no_urut)
+      .join(", ");
+    toast.error(
+      `Gagal Simpan! Qty pada tujuan [${listKota}] melebihi jumlah order SPK.`,
+    );
+    return; // Berhenti di sini, tidak lanjut proses API
+  }
+  // ------------------------------------
+
   isSaving.value = true;
   try {
-    // Mapping payload harus mengambil dari property formData yang BENAR
     const payload = {
-      Nomor: formData.nomor, // "AUTO" atau nomor asli
-      Gudang: formData.gudangKode, // PERBAIKAN: Sebelumnya formData.gudang (undefined)
+      Nomor: formData.nomor,
+      Gudang: formData.gudangKode,
       Tanggal: formData.tanggal,
-      No_SPK: formData.spkNomor, // PERBAIKAN: Sebelumnya formData.no_spk (undefined)
+      No_SPK: formData.spkNomor,
       Jumlah: calculatedTotalQty.value,
       Koli: calculatedTotalKoli.value,
-      Realisasi: 0, // Default untuk input baru
-      Koli_Realisasi: 0, // Default untuk input baru
       usr_create: formData.usr_create,
+      // Jangan lupa kirim detailnya jika backend membutuhkannya
+      Detail: formData.detail,
     };
 
     // Debug untuk memastikan data terisi sebelum dikirim
@@ -498,7 +549,19 @@ onMounted(() => {
                 variant="plain"
                 hide-details
                 class="text-right-input"
+                @update:model-value="validateQty(item)"
+                :class="{
+                  'text-error font-weight-bold': item.qty > item.maxQty,
+                }"
               />
+              <!-- Opsional: Tampilkan pesan kecil di bawah input -->
+              <div
+                v-if="item.qty > item.maxQty"
+                class="text-caption text-error"
+                style="font-size: 9px !important"
+              >
+                Max: {{ item.maxQty }}
+              </div>
             </template>
 
             <template #[`item.koli`]="{ item }">
