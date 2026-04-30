@@ -427,6 +427,8 @@ const allMenuGroups = [
             name: "Lap. Mon Finishing",
             path: "/laporan/mmt/lap-mon-finishing",
           },
+          { name: "Lap. Mon Proof", path: "/laporan/mmt/lap-mon-proof" },
+          { name: "Lap. Mon Sublim", path: "/laporan/mmt/lap-mon-sublim" },
           {
             name: "Lap. Plan Produksi",
             path: "/laporan/mmt/lap-plan-produksi",
