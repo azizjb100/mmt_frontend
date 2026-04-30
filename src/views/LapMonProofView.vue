@@ -113,7 +113,7 @@
                 item.lprd_jproof == 0 ? 'bg-warning-light' : '',
               ]"
             >
-              <td class="text-center">{{ item.jenis_display }}</td>
+              <td class="text-center">{{ item.jenis }}</td>
               <td class="text-center">{{ item.mspk_tanggal }}</td>
               <td class="text-center">{{ item.deadline }}</td>
               <td class="text-left">{{ item.nama_order }}</td>
@@ -230,7 +230,7 @@ const fetchReport = async () => {
         endDate: endDate.value,
       },
     });
-    allData.value = res.data;
+    allData.value = res.data.data;
   } catch (error) {
     // Jika error 400 terjadi, ia akan masuk ke sini
     console.error("Gagal mengambil data:", error.response?.data?.message);
