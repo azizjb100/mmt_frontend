@@ -92,6 +92,7 @@ import LapMonTekstilView from '@/views/LapMonTekstilView.vue';
 import InvoicePrintView from '@/views/InvoicePrintView.vue';
 import FormRekapLhkTekstilView from '@/views/FormRekapLhkTekstilView.vue';
 import FormAbsesnView from '@/views/FormAbsesnView.vue';
+import LapMonProofView from '@/views/LapMonProofView.vue';
 
 
 
@@ -427,6 +428,8 @@ const routes: RouteRecordRaw[] = [
             { path: 'laporan/mmt/lap-mon-cetak', name: 'lapMonCetak', component: LapMonCetakView },
             { path: 'laporan/mmt/lap-mon-finishing', name: 'lapMonFinishing', component: LapMonFinishingView },
             { path: 'laporan/mmt/lap-mon-tekstil', name: 'lapMonTekstil', component: LapMonTekstilView },
+            { path: 'laporan/mmt/lap-mon-proof', name: 'lapMonProof', component: LapMonProofView },
+
             { path: 'laporan/mmt/lap-spk-mmt', name: 'lapSpkMmt', component: LapSpkMmtView },            
             { path: 'laporan/mmt/lap-pemakaian-bahan', name: 'LapPemakaianBahan', component: LapPemakaianBahanView },
             { path: 'laporan/mmt/lap-plan-produksi', name: 'lapPlanProduksi', component: LapPlanProdView },
