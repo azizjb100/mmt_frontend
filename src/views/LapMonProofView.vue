@@ -74,48 +74,67 @@
           <template #thead>
             <thead>
               <tr class="header-row-1">
-                <th rowspan="2" class="text-center sticky-col-1 bg-blue-main">
-                  SALESMAN
-                </th>
-                <th rowspan="2" class="text-center">NO. SPK</th>
-                <th rowspan="2" class="text-center">TGL SPK</th>
+                <th rowspan="2" class="text-center">JENIS</th>
+                <th rowspan="2" class="text-center">TGL MEMO</th>
                 <th rowspan="2" class="text-center">DEADLINE</th>
-                <th colspan="2" class="text-center bg-blue-sub">UKURAN</th>
-                <th rowspan="2" class="text-center">JENIS KAIN</th>
-                <th rowspan="2" class="text-center">SEAMING</th>
-                <th rowspan="2" class="text-center">JML ORDER</th>
-                <th rowspan="2" class="text-center">STATUS</th>
-                <th rowspan="2" class="text-center">LAMA PROOF (HARI)</th>
+                <th rowspan="2" class="text-center">NAMA ORDER</th>
+                <th colspan="2" class="text-center">UKURAN</th>
+                <th rowspan="2" class="text-center">NOMOR MEMO</th>
+                <th colspan="1" class="text-center">RENCANA SPK</th>
+                <th colspan="1" class="text-center">AKTUAL PROOF</th>
+                <th colspan="1" class="text-center">LAMA PROOFING</th>
+                <th rowspan="2" class="text-center">TANGGAL PROOF</th>
+                <th rowspan="2" class="text-center">LOKASI PROOFING</th>
+                <th rowspan="2" class="text-center">JENIS BAHAN</th>
+                <th rowspan="2" class="text-center">GRAMASI</th>
                 <th rowspan="2" class="text-center">KETERANGAN</th>
+                <th rowspan="2" class="text-center">STATUS</th>
+                <th rowspan="2" class="text-center">TANGGAL SPK</th>
+                <th rowspan="2" class="text-center">NOMOR SPK</th>
               </tr>
               <tr class="header-row-2">
+                <!-- Di bawah UKURAN -->
                 <th class="text-center">PANJANG</th>
                 <th class="text-center">LEBAR</th>
+                <!-- Di bawah RENCANA SPK -->
+                <th class="text-center">PCS</th>
+                <!-- Di bawah AKTUAL PROOF -->
+                <th class="text-center">PCS</th>
+                <!-- Di bawah LAMA PROOFING -->
+                <th class="text-center">HARI</th>
               </tr>
             </thead>
           </template>
 
           <template v-slot:item="{ item }">
-            <!-- Logika Row Style (Seperti StylesGetContentStyle di Delphi) -->
             <tr
               :class="[
                 'data-row',
                 item.lprd_jproof == 0 ? 'bg-warning-light' : '',
               ]"
             >
-              <td class="text-left sticky-col-1 font-weight-bold">
-                {{ item.salesman }}
-              </td>
-              <td class="text-center">{{ item.mspk_nomor }}</td>
+              <td class="text-center">{{ item.jenis_display }}</td>
               <td class="text-center">{{ item.mspk_tanggal }}</td>
               <td class="text-center">{{ item.deadline }}</td>
+              <td class="text-left">{{ item.nama_order }}</td>
               <td class="text-right">{{ formatNumber(item.panjang, 2) }}</td>
               <td class="text-right">{{ formatNumber(item.lebar, 2) }}</td>
-              <td class="text-left">{{ item.jeniskain }}</td>
-              <td class="text-left">{{ item.seaming }}</td>
-              <td class="text-right font-weight-bold">
-                {{ formatNumber(item.jml_order, 0) }}
+              <td class="text-center font-weight-bold">
+                {{ item.mspk_nomor }}
               </td>
+              <!-- Rencana SPK PCS -->
+              <td class="text-right">{{ formatNumber(item.jml_order, 0) }}</td>
+              <!-- Aktual Proof PCS -->
+              <td class="text-right">
+                {{ formatNumber(item.lprd_jproof, 0) }}
+              </td>
+              <!-- Lama Proofing Hari -->
+              <td class="text-center">{{ item.lama_proof }}</td>
+              <td class="text-center">{{ item.lpr_tanggal }}</td>
+              <td class="text-left">{{ item.lokasi_proof }}</td>
+              <td class="text-left">{{ item.jenis_bahan }}</td>
+              <td class="text-right">{{ item.gramasi }}</td>
+              <td class="text-left">{{ item.keterangan }}</td>
               <td class="text-center">
                 <v-chip
                   size="x-small"
@@ -124,8 +143,8 @@
                   {{ item.statusmemo || "PENDING" }}
                 </v-chip>
               </td>
-              <td class="text-center">{{ item.lama_proof }}</td>
-              <td class="text-left">{{ item.keterangan }}</td>
+              <td class="text-center">{{ item.spktanggal }}</td>
+              <td class="text-center font-weight-bold">{{ item.nomorspk }}</td>
             </tr>
           </template>
 
@@ -205,27 +224,16 @@ const fetchReport = async () => {
   loading.value = true;
   try {
     const res = await api.get("/mmt/monitoring-proof/monitoring", {
-      params: { start: startDate.value, end: endDate.value },
+      // Ini akan mengirimkan URL: .../monitoring?startDate=2024-01-01&endDate=2024-01-31
+      params: {
+        startDate: startDate.value,
+        endDate: endDate.value,
+      },
     });
-
-    // Mapping data sesuai field query SQL di Delphi
-    allData.value = res.data.map((row) => ({
-      salesman: row.mspk_salesman || "-",
-      mspk_nomor: row.mspk_nomor,
-      mspk_tanggal: row.mspk_tanggal?.substring(0, 10),
-      deadline: row.mspk_deadline?.substring(0, 10),
-      panjang: row.mspk_panjang,
-      lebar: row.mspk_lebar,
-      jeniskain: row.jenis, // Hasil IF di SQL
-      seaming: row.mspk_seaming,
-      jml_order: row.mspk_qty,
-      lprd_jproof: row.lprd_jproof, // Untuk pewarnaan row
-      statusmemo: row.statusmemo,
-      lama_proof: row.lama_proof,
-      keterangan: row.mspk_keterangan,
-    }));
+    allData.value = res.data;
   } catch (error) {
-    console.error("Fetch Error:", error);
+    // Jika error 400 terjadi, ia akan masuk ke sini
+    console.error("Gagal mengambil data:", error.response?.data?.message);
   } finally {
     loading.value = false;
   }
