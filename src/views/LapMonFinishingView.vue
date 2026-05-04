@@ -745,7 +745,7 @@ onMounted(fetchReport);
 
 /* Row Styling jika data kosong (jmlseaming=0) */
 .row-empty td {
-  background-color: #fff9c4 !important;
+  background-color: #ffffff !important;
 }
 
 .table-footer td {

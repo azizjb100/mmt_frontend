@@ -218,7 +218,7 @@ const masterHeaders = [
   { title: "Tanggal", key: "Tanggal", width: "120px" },
   { title: "Gudang", key: "Nama_Gudang" },
   { title: "Shift", key: "Shift", width: "80px" },
-  { title: "Cetak (m)", key: "cetak_meter", align: "end" },
+  { title: "Cetak (m)", key: "total_meter", align: "end" },
 ];
 
 const detailHeaders = [
