@@ -99,6 +99,7 @@ import LhkSublimView from '@/views/LhkSublimView.vue';
 import FormLhkSublimView from '@/views/FormLhkSublimView.vue';
 import LhkRtrView from '@/views/LhkRtrView.vue';
 import FormLhkRtrView from '@/views/FormLhkRtrView.vue';
+import LhkTekstilApproveView from '@/views/LhkTekstilApproveView.vue';
 
 
 
@@ -409,13 +410,12 @@ const routes: RouteRecordRaw[] = [
             { path: 'mmt/lhk/tekstil', name: 'tekstilMMT', component: LhkTekstilMmtView },
             { path: 'mmt/lhk/tekstil-new', name: 'tekstilMMTNew', component: FormLhkTekstilView },
             { path: 'mmt/lhk/tekstil/edit/:nomor', name: 'tekstilMMTEdit', component: FormLhkTekstilView },
-            { path: 'mmt/rekap-tekstil', name: 'Rekap Pemakaian Tekstil', component: FormRekapLhkTekstilView },
+            { path: 'mmt/lhk/tekstil/approve', name: 'LhkTekstilApprove', component: LhkTekstilApproveView },
+            { path: 'mmt/rekap-tekstil', name: 'RekapTekstilMMT', component: FormRekapLhkTekstilView },
+            { path: 'mmt/rekap-tekstil/edit/:nomor', name: 'RekapTekstilMMTEdit', component: FormRekapLhkTekstilView },
             { path: 'mmt/lhk/proof', name: 'LHKProofMMTBrowse', component: LhkProofView },
             { path: 'mmt/lhk/proof/new', name: 'LHKProofMMTNew', component: FormLhkProofView },
             { path: 'mmt/lhk/proof/edit/:nomor', name: 'LHKProofMMTEdit', component: FormLhkProofView },
-
-
-
             { path: 'mmt/lhk/sublim', name: 'LHKSublimMMT', component: LhkSublimView },
             { path: 'mmt/lhk/sublim/new', name: 'LHKSublimMMTNew', component: FormLhkSublimView },
             { path: 'mmt/lhk/sublim/edit/:nomor', name: 'LHKSublimMMTEdit', component: FormLhkSublimView },

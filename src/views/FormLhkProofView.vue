@@ -90,6 +90,20 @@
                 />
               </v-col>
               <v-col cols="12">
+                <v-text-field
+                  label="Scan Barcode Bahan (Roll)"
+                  v-model="formData.barcode_input"
+                  prepend-inner-icon="mdi-barcode-scan"
+                  variant="outlined"
+                  density="compact"
+                  color="primary"
+                  hide-details
+                  class="mb-4 custom-label-blue"
+                  @keyup.enter="handleBarcodeScan"
+                  placeholder="Tekan Enter setelah scan"
+                />
+              </v-col>
+              <v-col cols="12">
                 <v-textarea
                   label="Keterangan"
                   v-model="formData.keterangan"
@@ -213,13 +227,27 @@
             </template>
 
             <!-- Jenis Bahan (Isi Manual) -->
-            <template #[`item.jenis_bahan`]="{ item }">
-              <v-text-field
+            <template #[`item.jenis_bahan`]="{ item, index }">
+              <div class="cell-yellow h-100 d-flex align-center px-1">
+                <input
+                  v-model="item.barcode_detail"
+                  class="table-input"
+                  placeholder="Scan Barcode..."
+                  @keyup.enter="handleBarcodeDetailScan(index)"
+                />
+                <v-icon size="x-small" color="primary" class="ml-1"
+                  >mdi-barcode-scan</v-icon
+                >
+              </div>
+            </template>
+
+            <!-- Tambahkan kolom Nama Bahan setelah Barcode jika ingin menampilkan deskripsinya -->
+            <template #[`item.nama_bahan`]="{ item }">
+              <input
                 v-model="item.jenis_bahan"
-                variant="plain"
-                density="compact"
-                hide-details
-                class="table-input-inline"
+                class="table-input"
+                readonly
+                placeholder="Nama Bahan..."
               />
             </template>
 
@@ -353,6 +381,7 @@ const formTitle = computed(() =>
 );
 
 const handleSpkSelect = (spk: any) => {
+  // Mapping field dari JSON yang Anda berikan
   const nomor = spk.spk_nomor || spk.Spk || spk.SPK;
   if (detailData.value.some((d) => d.nomor_spk === nomor)) {
     return toast.warning("SPK sudah ada dalam daftar");
@@ -360,18 +389,34 @@ const handleSpkSelect = (spk: any) => {
 
   detailData.value.push({
     nomor_spk: nomor,
-    nama_spk: spk.Nama || "",
-    tgl_memo: spk.spk_tanggal || "",
-    deadline: spk.spk_dateline || "",
-    panjang: parseFloat(spk.panjang) || 0,
-    lebar: parseFloat(spk.lebar) || 0,
-    rencana_order: parseFloat(spk.spk_jumlah) || 0,
+    nama_spk: spk.Nama || "", // Ambil field "Nama" dari JSON
+    tgl_memo: spk.Tanggal ? format(new Date(spk.Tanggal), "yyyy-MM-dd") : "-",
+    deadline: "-", // Bisa diisi manual nanti
+    panjang: parseFloat(spk.Panjang) || 0,
+    lebar: parseFloat(spk.Lebar) || 0,
+    rencana_order: parseFloat(spk.Jumlah) || 0,
     aktual_proof: 1,
-    jenis_bahan: "",
+    jenis_bahan: spk.Bahan || "",
     lokasi: "",
     keterangan: "",
   });
   lookup.spk = false;
+};
+
+const handleBarcodeScan = async () => {
+  if (!formData.barcode_input) return;
+  try {
+    const res = await api.get(`/mmt/stok-gudang/${formData.barcode_input}`);
+    if (res.data.success) {
+      const dataBahan = res.data.data;
+      // Jika ingin mengisi keterangan otomatis dari barcode
+      formData.keterangan = `Bahan: ${dataBahan.Nama_Barang} (${formData.barcode_input})`;
+      toast.success("Bahan terdeteksi: " + dataBahan.Nama_Barang);
+    }
+  } catch (e) {
+    toast.error("Barcode tidak ditemukan");
+    formData.barcode_input = "";
+  }
 };
 
 const loadData = async () => {
@@ -510,5 +555,24 @@ onMounted(() => {
   background-color: #f8f9fa;
   min-height: 180px;
   border: 1px inset #ddd;
+}
+/* Input murni untuk grid agar enteng dan bisa diedit langsung */
+.table-input {
+  width: 100%;
+  height: 100%;
+  border: none;
+  background: transparent;
+  outline: none;
+  padding: 0 8px;
+  font-size: 11px;
+  color: black;
+}
+
+.table-input:focus {
+  background-color: #e3f2fd; /* Warna biru muda saat diklik */
+}
+
+.text-end {
+  text-align: right;
 }
 </style>

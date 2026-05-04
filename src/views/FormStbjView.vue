@@ -4,7 +4,7 @@ import { useRouter, useRoute } from "vue-router";
 import api from "@/services/api";
 import PageLayout from "../components/PageLayout.vue";
 import GudangLookupModal from "@/modal/GudangLookupView.vue";
-import SPKLookupModal from "@/modal/SpkLookupModal.vue";
+import SPKLookupModal from "@/modal/LookupSpkStbjView.vue";
 import { format } from "date-fns";
 import { useToast } from "vue-toastification";
 

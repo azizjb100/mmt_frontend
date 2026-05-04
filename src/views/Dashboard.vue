@@ -305,6 +305,8 @@ const allMenuGroups = [
           { name: "LHK Cetak (Mesin)", path: "/mmt/lhk/cetak" },
           { name: "LHK Approval Cetak", path: "/mmt/lhk/cetak-mmt" },
           { name: "LHK Tekstil", path: "/mmt/lhk/tekstil" },
+          { name: "LHK Approval Tekstil", path: "/mmt/lhk/tekstil/approve" },
+
           { name: "LHK Finishing", path: "/mmt/lhk/finishing" },
           { name: "LHK Proof", path: "/mmt/lhk/proof" },
           { name: "LHK Sublim", path: "/mmt/lhk/sublim" },

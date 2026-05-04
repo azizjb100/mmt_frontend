@@ -472,7 +472,7 @@ const handleSave = async (status: string) => {
     };
     await api.post("/mmt/lhk-tekstil-mmt", payload);
     toast.success("Tersimpan sebagai " + status);
-    if (status === "POSTED") router.push("/mmt/lhk-tekstil");
+    if (status === "POSTED") router.push("/mmt/lhk/tekstil");
   } catch (e) {
     toast.error("Gagal mengirim data");
   } finally {

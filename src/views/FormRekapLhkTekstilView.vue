@@ -3,137 +3,188 @@
     :title="isEditMode ? 'Edit Approval Tekstil' : 'Input Approval Tekstil'"
     icon="mdi-check-decagram"
   >
+    <!-- Action Buttons -->
     <template #header-actions>
       <v-btn
-        size="small"
+        prepend-icon="mdi-content-save"
         color="primary"
+        variant="elevated"
         @click="handleSave"
         :loading="isSaving"
         :disabled="detailData.length === 0"
+        class="text-none"
       >
-        <v-icon start>mdi-content-save</v-icon> Simpan & Approve
+        Simpan & Approve
       </v-btn>
       <v-btn
-        size="small"
-        variant="outlined"
-        color="error"
+        prepend-icon="mdi-arrow-left"
+        variant="text"
+        color="grey-darken-1"
         @click="router.back()"
         :disabled="isSaving"
+        class="ml-2 text-none"
       >
-        <v-icon start>mdi-close</v-icon> Batal
+        Batal
       </v-btn>
     </template>
 
     <v-row dense>
+      <!-- Form Header -->
       <v-col cols="12">
-        <v-card flat border class="bg-grey-lighten-5 pa-3 mb-3">
-          <v-row dense>
-            <v-col cols="12" md="3">
-              <v-text-field
-                v-model="formData.nomor"
-                label="No. Approval"
-                readonly
-                density="compact"
-                variant="solo-filled"
-                flat
-                hide-details
-              />
-            </v-col>
-            <v-col cols="12" md="3">
-              <v-text-field
-                v-model="formData.tanggal"
-                type="date"
-                label="Tanggal Rekap"
-                variant="outlined"
-                density="compact"
-                hide-details
-              />
-            </v-col>
-            <v-col cols="12" md="3">
-              <v-select
-                v-model="formData.shift"
-                :items="[1, 2, 3]"
-                label="Shift"
-                variant="outlined"
-                density="compact"
-                hide-details
-              />
-            </v-col>
-            <v-col cols="12" md="3">
-              <v-text-field
-                v-model="formData.admin"
-                label="Admin / Pemeriksa"
-                variant="outlined"
-                density="compact"
-                hide-details
-                readonly
-              />
-            </v-col>
-          </v-row>
+        <v-card variant="outlined" class="mb-4 border-sm" rounded="lg">
+          <v-toolbar density="compact" color="transparent" flat>
+            <v-toolbar-title class="text-subtitle-1 font-weight-bold">
+              <v-icon start color="primary">mdi-information-outline</v-icon>
+              Informasi Utama
+            </v-toolbar-title>
+          </v-toolbar>
+          <v-divider />
+          <v-card-text class="pa-4 bg-grey-lighten-5">
+            <v-row dense>
+              <v-col cols="12" md="3">
+                <v-text-field
+                  v-model="formData.nomor"
+                  label="No. Approval"
+                  readonly
+                  density="compact"
+                  variant="filled"
+                  hide-details
+                  class="font-weight-bold"
+                />
+              </v-col>
+              <v-col cols="12" md="3">
+                <v-text-field
+                  v-model="formData.tanggal"
+                  type="date"
+                  label="Tanggal Rekap"
+                  variant="outlined"
+                  density="compact"
+                  hide-details
+                  bg-color="white"
+                />
+              </v-col>
+              <v-col cols="12" md="3">
+                <v-select
+                  v-model="formData.shift"
+                  :items="[1, 2, 3]"
+                  label="Shift"
+                  variant="outlined"
+                  density="compact"
+                  hide-details
+                  bg-color="white"
+                />
+              </v-col>
+              <v-col cols="12" md="3">
+                <v-text-field
+                  v-model="formData.admin"
+                  label="Pemeriksa"
+                  variant="outlined"
+                  density="compact"
+                  hide-details
+                  readonly
+                  bg-color="white"
+                  prepend-inner-icon="mdi-account-check"
+                />
+              </v-col>
+            </v-row>
+          </v-card-text>
         </v-card>
       </v-col>
 
+      <!-- Data Table Section -->
       <v-col cols="12">
-        <v-toolbar
-          density="compact"
-          color="blue-grey-darken-3"
-          class="rounded-t"
-        >
-          <v-toolbar-title class="text-subtitle-2">
-            Rincian LHK yang Di-Approve
-          </v-toolbar-title>
-          <v-spacer />
-          <v-btn
-            size="small"
-            color="yellow-darken-2"
-            variant="elevated"
-            prepend-icon="mdi-plus-box"
-            @click="isLhkTekstilVisible = true"
-          >
-            Pilih LHK Tekstil (F1)
-          </v-btn>
-        </v-toolbar>
-
-        <v-data-table
-          :headers="headers"
-          :items="detailData"
-          density="compact"
-          border
-          hide-default-footer
-          class="elevation-1"
-        >
-          <template #[`item.no`]="{ index }">
-            {{ index + 1 }}
-          </template>
-
-          <template #[`item.lhk_nomor`]="{ item }">
-            <span class="font-weight-bold text-primary">
-              {{ item.lhk_nomor }}
-            </span>
-          </template>
-
-          <template #[`item.total_m2`]="{ item }">
-            {{ Number(item.total_m2).toFixed(2) }} m²
-          </template>
-
-          <template #[`item.actions`]="{ index }">
+        <v-card variant="outlined" rounded="lg">
+          <v-toolbar density="compact" color="blue-grey-darken-4">
+            <v-icon start class="ml-4">mdi-format-list-bulleted</v-icon>
+            <v-toolbar-title class="text-subtitle-2">
+              Rincian LHK yang Di-Approve ({{ detailData.length }} Item)
+            </v-toolbar-title>
+            <v-spacer />
             <v-btn
-              icon="mdi-delete"
-              size="x-small"
-              color="error"
-              variant="text"
-              @click="removeRow(index)"
-            />
-          </template>
+              size="small"
+              color="yellow-darken-3"
+              variant="elevated"
+              prepend-icon="mdi-plus-box"
+              @click="isLhkTekstilVisible = true"
+              class="mr-2 text-none"
+            >
+              Pilih LHK (F1)
+            </v-btn>
+          </v-toolbar>
 
-          <template #body.append v-if="detailData.length > 0">
-            <tr class="bg-blue-lighten-5 font-weight-bold">
-              <td colspan="4" class="text-end">GRAND TOTAL :</td>
-              <td class="text-end">{{ totalM2.toFixed(2) }} m²</td>
-              <td></td>
-            </tr>
-          </template>
-        </v-data-table>
+          <v-data-table
+            :headers="headers"
+            :items="detailData"
+            density="compact"
+            hover
+            class="custom-table"
+          >
+            <template #[`item.no`]="{ index }">
+              <span class="text-caption text-grey">{{ index + 1 }}</span>
+            </template>
+
+            <template #[`item.lhk_nomor`]="{ item }">
+              <div class="d-flex flex-column">
+                <span class="font-weight-bold text-primary">{{
+                  item.lhk_nomor
+                }}</span>
+                <span class="text-caption text-grey"
+                  >SPK: {{ item.nomor_spk || "-" }}</span
+                >
+              </div>
+            </template>
+
+            <template #[`item.keterangan`]="{ item }">
+              <div class="py-1">
+                <div class="text-body-2">{{ item.keterangan }}</div>
+                <v-chip
+                  size="x-small"
+                  variant="outlined"
+                  color="secondary"
+                  class="mt-1"
+                >
+                  Mesin: {{ item.mesin || "-" }}
+                </v-chip>
+              </div>
+            </template>
+
+            <template #[`item.qty`]="{ item }">
+              <span class="font-weight-medium">{{ item.qty }}</span>
+            </template>
+
+            <template #[`item.total_m2`]="{ item }">
+              <v-chip size="small" color="blue-darken-1" label variant="tonal">
+                {{ Number(item.total_m2).toFixed(2) }} m²
+              </v-chip>
+            </template>
+
+            <template #[`item.actions`]="{ index }">
+              <v-btn
+                icon="mdi-delete-outline"
+                size="x-small"
+                color="error"
+                variant="text"
+                @click="removeRow(index)"
+              />
+            </template>
+
+            <!-- Custom Footer for Total -->
+            <template #body.append v-if="detailData.length > 0">
+              <tr class="bg-blue-grey-lighten-5">
+                <td colspan="4" class="text-end font-weight-bold">
+                  GRAND TOTAL
+                </td>
+                <td class="text-end font-weight-black text-primary">
+                  {{ totalQty }} Pcs
+                </td>
+                <td class="text-end font-weight-black text-blue-darken-4">
+                  {{ totalM2.toFixed(2) }} m²
+                </td>
+                <td></td>
+              </tr>
+            </template>
+          </v-data-table>
+        </v-card>
       </v-col>
     </v-row>
 
@@ -151,7 +202,7 @@ import { useRouter } from "vue-router";
 import { format } from "date-fns";
 import api from "@/services/api";
 import { useToast } from "vue-toastification";
-import { useAuthStore } from "@/stores/authStore"; // Pastikan path ini benar
+import { useAuthStore } from "@/stores/authStore";
 import PageLayout from "../components/PageLayout.vue";
 import LhkTekstilLookupModal from "@/modal/LhkTekstilLookupModal.vue";
 
@@ -167,27 +218,33 @@ const formData = reactive({
   nomor: "AUTO",
   tanggal: format(new Date(), "yyyy-MM-dd"),
   shift: 1,
-  admin: authStore.user?.name || "ADMIN", // Default dari user login
+  admin: authStore.user?.name || "ADMIN",
 });
 
 const detailData = ref([]);
 
 const headers = [
   { title: "No", key: "no", width: "50px", sortable: false },
-  { title: "No. LHK Tekstil", key: "lhk_nomor", width: "200px" },
-  { title: "Bahan / Barcode", key: "keterangan" },
+  { title: "Nomor Dokumen", key: "lhk_nomor", width: "180px" },
+  { title: "Detail Bahan", key: "keterangan" },
   { title: "Shift", key: "shift", width: "80px", align: "center" },
-  { title: "Total Produksi", key: "total_m2", align: "end", width: "150px" },
+  { title: "Jumlah (Pcs)", key: "qty", align: "end", width: "120px" }, // KOLOM BARU
+  { title: "Luas Produksi", key: "total_m2", align: "end", width: "150px" },
   { title: "", key: "actions", width: "50px", sortable: false },
 ];
 
+// Perhitungan Total Unit Cetak
+const totalQty = computed(() =>
+  detailData.value.reduce((s, i) => s + (Number(i.qty) || 0), 0),
+);
+
+// Perhitungan Total Luas
 const totalM2 = computed(() =>
   detailData.value.reduce((s, i) => s + (Number(i.total_m2) || 0), 0),
 );
 
 const handleLhkTekstilSelect = (selectedItems) => {
   selectedItems.forEach((item) => {
-    // Hindari duplikasi berdasarkan Nomor LHK
     const isExist = detailData.value.some((d) => d.lhk_nomor === item.Nomor);
     if (!isExist) {
       detailData.value.push({
@@ -195,14 +252,13 @@ const handleLhkTekstilSelect = (selectedItems) => {
         shift: item.Shift,
         keterangan: `${item.Nama_Bahan} (${item.Barcode || "-"})`,
         total_m2: item.Total_Meter || 0,
-        // Properti tambahan untuk backend jika diperlukan
         brg_kode: item.Kode_Bahan,
         barcode: item.Barcode,
         mesin: item.Mesin,
-        nomor_spk: item.Nomor_SPK,
-        qty: item.Jumlah_Cetak,
-        panjang: item.Panjang_Per_Pcs,
-        lebar: item.Lebar_SPK,
+        nomor_spk: item.No_SPK,
+        qty: item.Jml_Cetak || 0,
+        lebar: item.Lebar || 0,
+        panjang: item.Jml_Cetak > 0 ? item.Total_Meter / item.Jml_Cetak : 0,
       });
     }
   });
@@ -218,12 +274,7 @@ const handleSave = async () => {
     return toast.warning("Pilih minimal satu LHK untuk di-approve");
   }
 
-  if (
-    !window.confirm(
-      "Simpan Approval ini? Data yang sudah di-approve tidak dapat diedit kembali.",
-    )
-  )
-    return;
+  if (!window.confirm("Simpan & Approve data ini?")) return;
 
   isSaving.value = true;
   try {
@@ -234,37 +285,31 @@ const handleSave = async () => {
         admin: formData.admin,
         lstatus: "APPROVE",
       },
-      // BAGIAN INI YANG HARUS DIPERBAIKI:
       details: detailData.value.map((d) => ({
         lhk_nomor: d.lhk_nomor,
         total_m2: Number(d.total_m2) || 0,
-        // TAMBAHKAN PROPERTI DI BAWAH INI:
         mesin: d.mesin || "",
         nomor_spk: d.nomor_spk || "",
         brg_kode: d.brg_kode || "",
-        jumlah_cetak: d.qty || 0, // Pastikan nama variabel sesuai dengan handleLhkTekstilSelect
-        panjang_per_pcs: d.panjang || 0,
-        lebar_spk: d.lebar || 0,
+        jumlah_cetak: Number(d.qty) || 0,
+        panjang_per_pcs: Number(d.panjang) || 0,
+        lebar_spk: Number(d.lebar) || 0,
       })),
     };
 
     const res = await api.post("/mmt/lhk-tekstil-mmt/approve", payload);
-
     if (res.data.success) {
       toast.success(res.data.message || "Approval berhasil disimpan");
-      router.push("/mmt/lhk-tekstil-mmt"); // Kembali ke list
+      router.push("/mmt/lhk/tekstil/approve");
     }
   } catch (e) {
     console.error("Save Error:", e);
-    toast.error(
-      e.response?.data?.message || "Terjadi kesalahan saat menyimpan approval",
-    );
+    toast.error(e.response?.data?.message || "Terjadi kesalahan sistem");
   } finally {
     isSaving.value = false;
   }
 };
 
-// Shortcut Keyboard F1
 const handleGlobalKey = (e) => {
   if (e.key === "F1") {
     e.preventDefault();
@@ -282,8 +327,20 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-.v-data-table :deep(thead th) {
-  background-color: #f5f5f5 !important;
+.custom-table :deep(thead th) {
+  background-color: #eceff1 !important;
   font-weight: bold !important;
+  color: #263238 !important;
+  text-transform: uppercase;
+  font-size: 0.75rem;
+}
+
+.custom-table :deep(tbody td) {
+  font-size: 0.875rem;
+}
+
+.custom-table :deep(tbody tr:hover) {
+  background-color: #f1f8e9 !important;
+  cursor: default;
 }
 </style>
