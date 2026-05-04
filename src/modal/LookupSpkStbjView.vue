@@ -24,7 +24,7 @@
           <v-col cols="12" md="8">
             <v-text-field
               v-model="searchKeyword"
-              label="Cari Nomor SPK atau Nama Konsumen..."
+              label="Cari Nomor SPK atau Nama Proyek..."
               prepend-inner-icon="mdi-magnify"
               variant="outlined"
               density="compact"
@@ -36,7 +36,7 @@
           <v-col cols="12" md="4" class="d-flex align-center">
             <v-checkbox
               v-model="filterSisa"
-              label="Hanya sisa cetak > 0"
+              label="Hanya sisa STBJ > 0"
               density="compact"
               hide-details
               color="primary"
@@ -65,15 +65,27 @@
             }}
           </template>
 
-          <!-- Highlight Kolom Sisa (Kurang_Cetak) -->
-          <template #item.Kurang_Cetak="{ item }">
+          <!-- Status Badge -->
+          <template #item.STATUS="{ item }">
             <v-chip
-              :color="item.Kurang_Cetak > 0 ? 'orange-darken-3' : 'grey'"
+              :color="item.STATUS === 'Open' ? 'green' : 'red'"
+              size="x-small"
+              variant="tonal"
+              class="text-uppercase"
+            >
+              {{ item.STATUS }}
+            </v-chip>
+          </template>
+
+          <!-- Highlight Kolom Sisa (Kurang_STBJ) -->
+          <template #item.Kurang_STBJ="{ item }">
+            <v-chip
+              :color="item.Kurang_STBJ > 0 ? 'orange-darken-3' : 'grey'"
               size="x-small"
               variant="flat"
               class="font-weight-bold"
             >
-              {{ item.Kurang_Cetak }}
+              {{ item.Kurang_STBJ }}
             </v-chip>
           </template>
 
@@ -82,7 +94,6 @@
               color="primary"
               size="x-small"
               @click.stop="selectSPK(item as SPKItem)"
-              :disabled="item.Kurang_Cetak <= 0"
               variant="tonal"
             >
               Pilih
@@ -110,15 +121,16 @@ import { ref, computed, watch } from "vue";
 import api from "@/services/api";
 import { useToast } from "vue-toastification";
 
+// Interface disesuaikan dengan Response JSON
 interface SPKItem {
   SPK: string;
   Nama: string;
   Tanggal: string;
-  Jumlah: number;
-  Sudah_Cetak: number;
-  Kurang_Cetak: number;
-  Ukuran?: string;
-  Bahan?: string;
+  Qty_Order: number;
+  Sudah_STBJ: number;
+  Kurang_STBJ: number;
+  Kepentingan: string;
+  STATUS: string;
   [key: string]: any;
 }
 
@@ -131,21 +143,22 @@ const emit = defineEmits<{
 const toast = useToast();
 const loading = ref(false);
 const searchKeyword = ref("");
-const filterSisa = ref(true); // Default hanya tampilkan yang masih ada sisa
+const filterSisa = ref(true);
 const SPKList = ref<SPKItem[]>([]);
 
 const headers = [
-  { title: "Nomor SPK", key: "SPK", width: "180px" },
-  { title: "Nama SPK / Konsumen", key: "Nama", width: "350px" },
+  { title: "Nomor SPK", key: "SPK", width: "150px" },
+  { title: "Nama SPK / Proyek", key: "Nama", width: "350px" },
   { title: "Tanggal", key: "Tanggal", width: "110px" },
-  { title: "Target", key: "Jumlah", width: "90px", align: "end" as const },
+  { title: "Order", key: "Qty_Order", width: "90px", align: "end" as const },
   {
-    title: "Sdh Cetak",
-    key: "Sudah_Cetak",
+    title: "Sdh STBJ",
+    key: "Sudah_STBJ",
     width: "90px",
     align: "end" as const,
   },
-  { title: "Sisa", key: "Kurang_Cetak", width: "90px", align: "end" as const },
+  { title: "Sisa", key: "Kurang_STBJ", width: "90px", align: "end" as const },
+  { title: "Status", key: "STATUS", width: "90px", align: "center" as const },
   {
     title: "Aksi",
     key: "actions",
@@ -157,7 +170,7 @@ const headers = [
 
 const filteredSPKList = computed(() => {
   return filterSisa.value
-    ? SPKList.value.filter((item) => item.Kurang_Cetak > 0)
+    ? SPKList.value.filter((item) => item.Kurang_STBJ > 0)
     : SPKList.value;
 });
 
@@ -165,7 +178,7 @@ const fetchSPKData = async () => {
   loading.value = true;
   try {
     const response = await api.get<{ success: boolean; data: SPKItem[] }>(
-      "/mmt/spk/lookup",
+      "/mmt/spk/stbj/lookup", // Endpoint disesuaikan
       { params: { keyword: searchKeyword.value } },
     );
     SPKList.value = response.data.data || [];
@@ -182,7 +195,7 @@ const selectSPK = (item: SPKItem) => {
 };
 
 const handleDoubleClick = (_event: any, { item }: any) => {
-  if (item.Kurang_Cetak > 0) selectSPK(item);
+  selectSPK(item);
 };
 
 watch(

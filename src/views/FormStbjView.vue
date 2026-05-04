@@ -178,37 +178,36 @@ const handleGudangSelect = (gudang: any) => {
 };
 
 const handleSPKSelect = (spk) => {
-  console.log("Data SPK Terpilih dari Backend:", spk);
+  console.log("Data SPK Terpilih:", spk);
 
   if (currentDetailIndex.value !== null) {
     const target = formData.detail[currentDetailIndex.value];
 
-    // 1. Mapping Nomor SPK (Cek semua kemungkinan)
-    target.spk = spk.SPK || spk.Spk || spk.spk || "";
+    // 1. Mapping Nomor & Nama (Sesuaikan dengan JSON Response)
+    target.spk = spk.SPK || "";
+    target.namaBarang = spk.Nama || "";
 
-    // 2. Mapping Nama
-    target.namaBarang = spk.Nama || spk.nama || "";
+    // 2. Mapping Angka (WAJIB sesuaikan dengan Key di JSON)
+    // JSON: Qty_Order, Sudah_STBJ, Kurang_STBJ
+    target.totalOrder = Number(spk.Qty_Order || 0);
+    target.order = Number(spk.Sudah_STBJ || 0); // Qty yang sudah di-STBJ sebelumnya
 
-    // 3. Mapping Ukuran (PENTING)
-    // Jika di console log 'Ukuran' tidak ada, kita coba ambil dari field cadangan
-    target.size = spk.Ukuran || spk.ukuran || spk.Size || spk.size || "";
+    // Default qty yang akan di-input adalah sisa yang kurang
+    target.qty = Number(spk.Kurang_STBJ || 0);
 
-    // Jika masih kosong, dan ini adalah kaos, kadang ukuran ada di field lain
-    // atau di gabungan Panjang x Lebar (khusus MMT)
-    if (!target.size && spk.Panjang && spk.Lebar) {
-      target.size = `${spk.Panjang} x ${spk.Lebar}`;
-    }
-
-    // 4. Mapping Angka
-    target.totalOrder = Number(spk.Jumlah || spk.jumlah || 0);
-    target.order = Number(spk.Sudah_Cetak || spk.sudah_cetak || 0);
-    target.qty = Number(spk.Kurang_Cetak || spk.kurang_cetak || 0);
     target.koli = 1;
 
-    // 5. Kalkulasi STBJ
+    // 3. Mapping Ukuran/Size (Pastikan field ini ada di SELECT SQL Backend Anda)
+    target.size = spk.Ukuran || spk.size || "-";
+
+    // 4. Kalkulasi Otomatis untuk kolom Jadi dan Kurang
+    // 'jadi' adalah total akumulasi (sebelumnya + input sekarang)
     target.jadi = target.order + target.qty;
+
+    // 'kurang' adalah sisa akhir setelah input sekarang
     target.kurang = target.totalOrder - target.jadi;
 
+    // Tambah baris baru jika memilih di baris terakhir
     if (currentDetailIndex.value === formData.detail.length - 1) {
       addDetail();
     }
