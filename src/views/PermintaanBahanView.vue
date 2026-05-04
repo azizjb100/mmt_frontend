@@ -361,6 +361,53 @@ const handleExportDetail = () => {
   alert(`TODO: Export Detail transaksi ${selectedNomor.value}`);
 };
 
+// --- STATE UNTUK TRACKING DIALOG ---
+const dialogTracking = reactive({
+  show: false,
+  item: null as PermintaanBahanHeader | null,
+});
+
+// Urutan Proses Permintaan Bahan
+const trackingSteps = [
+  {
+    status: "ACC",
+    title: "Persetujuan (ACC)",
+    icon: "mdi-check-decagram",
+    color: "success",
+  },
+  {
+    status: "PO",
+    title: "Pesanan Pembelian (PO)",
+    icon: "mdi-cart-check",
+    color: "warning",
+  },
+  {
+    status: "DITERIMA",
+    title: "Penerimaan Gudang",
+    icon: "mdi-truck-check",
+    color: "primary",
+  },
+];
+
+// Logika penentuan sampai mana proses berjalan
+const getStepStatus = (step: string, item: PermintaanBahanHeader) => {
+  if (step === "ACC")
+    return item.Status_Acc === "ACC" || item.Status_Acc === "Y";
+  if (step === "PO")
+    return item.Status_PO === "CLOSE" || item.Status_PO === "ONPROSES";
+  if (step === "DITERIMA")
+    return (
+      item.Status_Diterima === "SELESAI" || item.Status_Diterima === "DITERIMA"
+    );
+  return false;
+};
+
+const openTracking = () => {
+  if (!isSingleSelected.value) return;
+  dialogTracking.item = selected.value[0];
+  dialogTracking.show = true;
+};
+
 // --- Lifecycle Hook ---
 
 onMounted(() => {
@@ -392,6 +439,15 @@ watch([startDate, endDate], fetchData);
         @click="handleDelete"
       >
         <v-icon start>mdi-trash-can</v-icon> Hapus
+      </v-btn>
+
+      <v-btn
+        size="x-small"
+        color="purple"
+        :disabled="!isSingleSelected"
+        @click="openTracking"
+      >
+        <v-icon start>mdi-map-marker-path</v-icon> Lacak Proses
       </v-btn>
 
       <v-divider vertical class="mx-2" />
@@ -566,6 +622,114 @@ watch([startDate, endDate], fetchData);
         </v-data-table>
       </div>
     </div>
+    <!-- DIALOG TRACKING PROSES -->
+    <v-dialog v-model="dialogTracking.show" max-width="700px">
+      <v-card class="rounded-lg">
+        <v-toolbar color="purple-darken-2" density="compact">
+          <v-toolbar-title class="text-subtitle-1"
+            >Tracking Permintaan:
+            {{ dialogTracking.item?.Nomor }}</v-toolbar-title
+          >
+          <v-spacer></v-spacer>
+          <v-btn
+            icon="mdi-close"
+            variant="text"
+            @click="dialogTracking.show = false"
+          ></v-btn>
+        </v-toolbar>
+
+        <v-card-text class="pa-6">
+          <v-timeline direction="horizontal" align="start">
+            <!-- Step 1: Input Permintaan (Selalu Done) -->
+            <v-timeline-item
+              dot-color="grey"
+              icon="mdi-file-document-outline"
+              size="small"
+            >
+              <template #opposite>
+                <span class="text-caption">Input</span>
+              </template>
+              <div class="text-caption font-weight-bold">Permintaan Dibuat</div>
+              <div class="text-caption">
+                {{ formatDateDisplay(dialogTracking.item?.Tanggal) }}
+              </div>
+            </v-timeline-item>
+
+            <!-- Step Dinamis berdasarkan TrackingSteps -->
+            <v-timeline-item
+              v-for="(step, i) in trackingSteps"
+              :key="i"
+              :dot-color="
+                getStepStatus(step.status, dialogTracking.item!)
+                  ? step.color
+                  : 'grey-lighten-2'
+              "
+              :icon="step.icon"
+              size="small"
+            >
+              <template #opposite>
+                <span
+                  :class="
+                    getStepStatus(step.status, dialogTracking.item!)
+                      ? `text-${step.color} font-weight-bold`
+                      : 'text-grey'
+                  "
+                >
+                  {{ step.title }}
+                </span>
+              </template>
+
+              <div
+                v-if="
+                  step.status === 'PO' &&
+                  dialogTracking.item?.Estimasi_Kedatangan
+                "
+                class="text-caption"
+              >
+                Est. Datang:
+                {{ formatDateDisplay(dialogTracking.item.Estimasi_Kedatangan) }}
+              </div>
+              <div
+                v-if="
+                  step.status === 'DITERIMA' &&
+                  dialogTracking.item?.Tanggal_Datang
+                "
+                class="text-caption"
+              >
+                Real Datang:
+                {{ formatDateDisplay(dialogTracking.item.Tanggal_Datang) }}
+              </div>
+              <div class="mt-1">
+                <v-icon
+                  v-if="getStepStatus(step.status, dialogTracking.item!)"
+                  color="success"
+                  size="x-small"
+                  >mdi-check-circle</v-icon
+                >
+                <span class="text-caption">{{
+                  getStepStatus(step.status, dialogTracking.item!)
+                    ? "Selesai"
+                    : "Belum"
+                }}</span>
+              </div>
+            </v-timeline-item>
+          </v-timeline>
+
+          <v-alert
+            v-if="
+              dialogTracking.item?.Status_Acc === 'VOID' ||
+              dialogTracking.item?.Status_Acc === 'CANCEL'
+            "
+            type="error"
+            variant="tonal"
+            class="mt-4"
+            density="compact"
+          >
+            Transaksi ini telah dibatalkan (VOID).
+          </v-alert>
+        </v-card-text>
+      </v-card>
+    </v-dialog>
   </PageLayout>
 </template>
 

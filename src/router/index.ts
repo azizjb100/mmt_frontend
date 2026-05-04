@@ -93,6 +93,12 @@ import InvoicePrintView from '@/views/InvoicePrintView.vue';
 import FormRekapLhkTekstilView from '@/views/FormRekapLhkTekstilView.vue';
 import FormAbsesnView from '@/views/FormAbsesnView.vue';
 import LapMonProofView from '@/views/LapMonProofView.vue';
+import LhkProofView from '@/views/LhkProofView.vue';
+import FormLhkProofView from '@/views/FormLhkProofView.vue';
+import LhkSublimView from '@/views/LhkSublimView.vue';
+import FormLhkSublimView from '@/views/FormLhkSublimView.vue';
+import LhkRtrView from '@/views/LhkRtrView.vue';
+import FormLhkRtrView from '@/views/FormLhkRtrView.vue';
 
 
 
@@ -404,10 +410,21 @@ const routes: RouteRecordRaw[] = [
             { path: 'mmt/lhk/tekstil-new', name: 'tekstilMMTNew', component: FormLhkTekstilView },
             { path: 'mmt/lhk/tekstil/edit/:nomor', name: 'tekstilMMTEdit', component: FormLhkTekstilView },
             { path: 'mmt/rekap-tekstil', name: 'Rekap Pemakaian Tekstil', component: FormRekapLhkTekstilView },
-            { path: 'mmt/lhk/proof', name: 'LHK Proof MMT', component: ComingSoon },
-            { path: 'mmt/lhk/sublim', name: 'LHK Sublim MMT', component: ComingSoon },
+            { path: 'mmt/lhk/proof', name: 'LHKProofMMTBrowse', component: LhkProofView },
+            { path: 'mmt/lhk/proof/new', name: 'LHKProofMMTNew', component: FormLhkProofView },
+            { path: 'mmt/lhk/proof/edit/:nomor', name: 'LHKProofMMTEdit', component: FormLhkProofView },
+
+
+
+            { path: 'mmt/lhk/sublim', name: 'LHKSublimMMT', component: LhkSublimView },
+            { path: 'mmt/lhk/sublim/new', name: 'LHKSublimMMTNew', component: FormLhkSublimView },
+            { path: 'mmt/lhk/sublim/edit/:nomor', name: 'LHKSublimMMTEdit', component: FormLhkSublimView },
+
             { path: 'mmt/absensi', name: 'absensiNew', component: FormAbsesnView },
-            { path: 'mmt/lhk/rtr', name: 'LHK RTR MMT', component: ComingSoon },
+            { path: 'mmt/lhk/rtr', name: 'LHKRTRMMT', component: LhkRtrView },
+            { path: 'mmt/lhk/rtr/new', name: 'LHKRTRMMTNew', component: FormLhkRtrView },
+            { path: 'mmt/lhk/rtr/edit/:nomor', name: 'LHKRTRMMTEdit', component: FormLhkRtrView },
+
             { path: 'mmt/bs-digital', name: 'BS & Sisa Digital Print', component: ComingSoon },
             { path: 'mmt/bs-tekstil', name: 'BS & Sisa Tekstil', component: ComingSoon },
             { path: 'mmt/bahan-sisa', name: 'Bahan Sisa MMT', component: ComingSoon },
