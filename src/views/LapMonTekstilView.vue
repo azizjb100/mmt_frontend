@@ -92,9 +92,14 @@
                 <th>METER</th>
                 <th class="bg-blue-lighten-5">MX01</th>
                 <th class="bg-blue-lighten-5">MX02</th>
+                <th class="bg-blue-lighten-5">MX03</th>
+                <!-- Tambah ini -->
                 <th class="bg-blue-lighten-5">TOTAL</th>
+                <!-- METER -->
                 <th class="bg-green-lighten-5">MX01</th>
                 <th class="bg-green-lighten-5">MX02</th>
+                <th class="bg-green-lighten-5">MX03</th>
+                <!-- Tambah ini -->
                 <th class="bg-green-lighten-5">TOTAL</th>
               </tr>
             </thead>
@@ -110,9 +115,9 @@
               <td class="text-center">{{ formatDate(item.spk_dateline) }}</td>
               <td class="text-left">{{ item.spk_nama }}</td>
               <td class="text-right">
-                {{ formatNumber(item.spk_panjang, 2) }}
+                {{ formatNumber(item.spk_panjang) }}
               </td>
-              <td class="text-right">{{ formatNumber(item.spk_lebar, 3) }}</td>
+              <td class="text-right">{{ formatNumber(item.spk_lebar) }}</td>
               <td class="text-center font-weight-bold">{{ item.spk_nomor }}</td>
               <td class="text-right">{{ formatNumber(item.spk_jumlah, 0) }}</td>
               <td class="text-right">
@@ -124,11 +129,13 @@
               </td>
               <td class="text-right">{{ formatNumber(item.mx01, 0) }}</td>
               <td class="text-right">{{ formatNumber(item.mx02, 0) }}</td>
+              <td class="text-right">{{ formatNumber(item.mx03, 0) }}</td>
               <td class="text-right font-weight-bold">
                 {{ formatNumber(item.jmlcetak, 0) }}
               </td>
               <td class="text-right">{{ formatNumber(item.jmx01, 2) }}</td>
               <td class="text-right">{{ formatNumber(item.jmx02, 2) }}</td>
+              <td class="text-right">{{ formatNumber(item.jmx03, 2) }}</td>
               <td class="text-right font-weight-bold">
                 {{ formatNumber(item.cetak_meter, 2) }}
               </td>
@@ -238,11 +245,13 @@ watch([searchQuery, startDate, endDate], () => {
 });
 
 // --- UTILS ---
-const formatNumber = (val, decimal = 0) => {
-  return parseFloat(val || 0).toLocaleString("id-ID", {
-    minimumFractionDigits: decimal,
-    maximumFractionDigits: decimal,
-  });
+const formatNumber = (val, decimal = 3) => {
+  if (val === null || val === undefined || val === 0) return "0";
+
+  // Menggunakan parseFloat untuk membuang nol yang tidak perlu
+  // kemudian diformat sesuai locale Indonesia
+  const formatted = parseFloat(val).toFixed(decimal);
+  return parseFloat(formatted).toLocaleString("id-ID");
 };
 
 const formatDate = (dateStr) => {
@@ -399,11 +408,11 @@ const exportToExcel = () => {
       { v: formatDate(item.spk_tanggal), s: cellStyle },
       { v: formatDate(item.spk_dateline), s: cellStyle },
       { v: item.spk_nama, s: cellStyle },
-      { v: item.spk_panjang, s: cellStyle, t: "n", z: "#,##0.00" },
-      { v: item.spk_lebar, s: cellStyle, t: "n", z: "#,##0.000" },
+      { v: item.spk_panjang, s: cellStyle, t: "n", z: "#,##0.###" },
+      { v: item.spk_lebar, s: cellStyle, t: "n", z: "#,##0.###" },
       { v: item.spk_nomor, s: cellStyle },
       { v: item.spk_jumlah, s: cellStyle, t: "n" },
-      { v: item.order_meter, s: cellStyle, t: "n", z: "#,##0.00" },
+      { v: item.order_meter, s: cellStyle, t: "n", z: "#,##0.###" },
       { v: item.spk_kain, s: cellStyle },
       {
         v: item.jmlkurang,
@@ -448,9 +457,11 @@ const exportToExcel = () => {
     "",
     { v: reportTotals.value.mx01, s: styleHeader, t: "n" },
     { v: reportTotals.value.mx02, s: styleHeader, t: "n" },
+    { v: reportTotals.value.mx03, s: styleHeader, t: "n" },
     { v: reportTotals.value.jmlcetak, s: styleHeader, t: "n" },
     { v: reportTotals.value.jmx01, s: styleHeader, t: "n", z: "#,##0.00" },
     { v: reportTotals.value.jmx02, s: styleHeader, t: "n", z: "#,##0.00" },
+    { v: reportTotals.value.jmx03, s: styleHeader, t: "n", z: "#,##0.00" },
     {
       v: reportTotals.value.cetak_meter,
       s: styleHeader,

@@ -33,6 +33,15 @@
         <v-icon start>mdi-trash-can</v-icon> Hapus
       </v-btn>
 
+      <v-btn
+        size="x-small"
+        color="info"
+        @click="handlePrint"
+        :loading="loading"
+      >
+        <v-icon start>mdi-printer</v-icon> Cetak
+      </v-btn>
+
       <v-divider vertical class="mx-2" />
 
       <v-btn
@@ -220,6 +229,162 @@ const fetchData = async () => {
   } finally {
     loading.value = false;
   }
+};
+
+// --- Action Handlers ---
+
+const handlePrint = async () => {
+  loading.value = true;
+  try {
+    const res = await api.get(`${API_URL}/print`, {
+      params: {
+        startDate: filters.startDate,
+        endDate: filters.endDate,
+        gudang: filters.gudang,
+      },
+    });
+
+    if (res.data.success) {
+      generatePrintWindow(res.data);
+    }
+  } catch (err) {
+    toast.error("Gagal mengambil data cetak");
+  } finally {
+    loading.value = false;
+  }
+};
+
+const generatePrintWindow = (payload: any) => {
+  // 1. Ambil data dari payload. Sesuaikan jika backend langsung mengirim array.
+  const data = Array.isArray(payload) ? payload : payload.data || [];
+
+  const printWindow = window.open("", "_blank");
+  if (!printWindow) return;
+
+  const namaGudang =
+    gudangOptions.value.find((o) => o.value === filters.gudang)?.title ||
+    filters.gudang;
+
+  // 2. Hitung Total secara dinamis
+  const totalPcs = data.reduce(
+    (sum: number, item: any) => sum + (Number(item.Jml_Pcs) || 0),
+    0,
+  );
+  const totalKoli = data.reduce(
+    (sum: number, item: any) => sum + (Number(item.Jml_Koli) || 0),
+    0,
+  );
+
+  const htmlContent = `
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <title>Cetak Jadwal & Realisasi Pengiriman</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; color: #333; font-size: 10pt; }
+        .page-container { width: 297mm; margin: 0 auto; background-color: white; box-sizing: border-box; }
+        .header { display: flex; justify-content: space-between; margin-bottom: 10px; }
+        .logo-placeholder { color: #c00000; font-weight: bold; font-size: 1.4em; }
+        .doc-title { text-align: center; font-weight: bold; margin: 20px 0; text-transform: uppercase; }
+        .main-table { width: 100%; border-collapse: collapse; }
+        .main-table th, .main-table td { border: 1px solid #000; padding: 5px; }
+        .main-table thead th { background-color: #d9d9d9; text-align: center; text-transform: uppercase; }
+        .table-subheader td { font-weight: bold; background-color: #f2f2f2; }
+        .col-center { text-align: center; }
+        .col-right { text-align: right; }
+        .total-row td { font-weight: bold; background-color: #eee; }
+        @media print { 
+            body { background-color: white; margin: 0; }
+            .page-container { box-shadow: none; width: 100%; }
+        }
+    </style>
+</head>
+<body>
+<div class="page-container">
+    <div class="header">
+        <div>
+            <strong>CV. Kencana Print</strong><br>
+            Padokan RT 04 / 04 Sawahan Ngemplak<br>
+            Boyolali
+        </div>
+        <div style="text-align: right;">
+            <div class="logo-placeholder">Kencana Print</div>
+            <div style="font-size: 0.8em; font-style: italic;">Semakin Nyata Semakin Nyata</div>
+        </div>
+    </div>
+
+    <div class="doc-title">JADWAL & REALISASI PENGIRIMAN</div>
+
+    <table class="main-table">
+        <thead>
+            <tr>
+                <th rowspan="2">NO.</th>
+                <th rowspan="2">NO SPK</th>
+                <th rowspan="2">NAMA SPK</th>
+                <th rowspan="2">UKURAN</th>
+                <th rowspan="2">JENIS KAIN</th>
+                <th rowspan="2">TANGGAL</th>
+                <th rowspan="2">URAIAN</th>
+                <th rowspan="2">CUST</th>
+                <th colspan="3">JADWAL</th>
+                <th colspan="2">REALISASI</th>
+                <th rowspan="2">EXPEDISI</th>
+            </tr>
+            <tr>
+                <th>JML PCS</th>
+                <th>JML KOLI</th>
+                <th>JAM READY</th>
+                <th>NOMOR SJ</th>
+                <th>JML KIRIM</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr class="table-subheader">
+                <td colspan="14">${namaGudang}</td>
+            </tr>
+
+            <!-- LOOPING DATA DI SINI -->
+            ${data
+              .map(
+                (item: any, index: number) => `
+                <tr>
+                    <td class="col-center">${index + 1}</td>
+                    <td>${item.No_SPK || ""}</td>
+                    <td>${item.Nama_Spk || ""}</td>
+                    <td class="col-center">${item.Ukuran || ""}</td>
+                    <td>${item.Kain || ""}</td>
+                    <td class="col-center">${item.Tanggal || ""}</td>
+                    <td>${item.uraian || ""}</td>
+                    <td class="col-center">${item.Customer || ""}</td>
+                    <td class="col-right"><strong>${item.Jml_Pcs || 0}</strong></td>
+                    <td class="col-right"><strong>${item.Jml_Koli || 0}</strong></td>
+                    <td class="col-center">${item.Jam_Ready || ""}</td>
+                    <td>${item.Nomor_SJ || ""}</td>
+                    <td class="col-right"><strong>${item.Realisasi_Kirim || 0}</strong></td>
+                    <td>${item.expedisi || ""}</td>
+                </tr>
+            `,
+              )
+              .join("")}
+
+            <tr class="total-row">
+                <td colspan="8" style="text-align: right;">JUMLAH:</td>
+                <td class="col-right">${totalPcs}</td>
+                <td class="col-right">${totalKoli}</td>
+                <td colspan="4"></td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+</body>
+</html>`;
+
+  printWindow.document.write(htmlContent);
+  printWindow.document.close();
+  printWindow.onload = () => {
+    printWindow.print();
+  };
 };
 
 const fetchGudangOptions = async () => {
