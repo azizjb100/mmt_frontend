@@ -255,135 +255,403 @@ const handlePrint = async () => {
 };
 
 const generatePrintWindow = (payload: any) => {
-  // 1. Ambil data dari payload. Sesuaikan jika backend langsung mengirim array.
-  const data = Array.isArray(payload) ? payload : payload.data || [];
-
+  const { header, data } = payload;
   const printWindow = window.open("", "_blank");
   if (!printWindow) return;
 
+  // Mendapatkan nama gudang dari filter (untuk judul)
   const namaGudang =
     gudangOptions.value.find((o) => o.value === filters.gudang)?.title ||
     filters.gudang;
-
-  // 2. Hitung Total secara dinamis
-  const totalPcs = data.reduce(
-    (sum: number, item: any) => sum + (Number(item.Jml_Pcs) || 0),
-    0,
-  );
-  const totalKoli = data.reduce(
-    (sum: number, item: any) => sum + (Number(item.Jml_Koli) || 0),
-    0,
-  );
 
   const htmlContent = `
 <!DOCTYPE html>
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <title>Cetak Jadwal & Realisasi Pengiriman</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tampilan Jadwal & Realisasi Pengiriman - Kencana Print</title>
     <style>
-        body { font-family: Arial, sans-serif; margin: 20px; color: #333; font-size: 10pt; }
-        .page-container { width: 297mm; margin: 0 auto; background-color: white; box-sizing: border-box; }
-        .header { display: flex; justify-content: space-between; margin-bottom: 10px; }
-        .logo-placeholder { color: #c00000; font-weight: bold; font-size: 1.4em; }
-        .doc-title { text-align: center; font-weight: bold; margin: 20px 0; text-transform: uppercase; }
-        .main-table { width: 100%; border-collapse: collapse; }
-        .main-table th, .main-table td { border: 1px solid #000; padding: 5px; }
-        .main-table thead th { background-color: #d9d9d9; text-align: center; text-transform: uppercase; }
-        .table-subheader td { font-weight: bold; background-color: #f2f2f2; }
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            color: #333;
+            background-color: #f4f4f4; /* Background halaman agar kertas terlihat */
+        }
+
+        /* Container utama seperti selembar kertas A4 landscape */
+        .page-container {
+            width: 297mm; /* Lebar A4 Landscape */
+            min-height: 210mm; /* Tinggi A4 Landscape */
+            margin: 0 auto;
+            background-color: white;
+            padding: 20px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            box-sizing: border-box;
+            position: relative;
+        }
+
+        /* Bagian Header (Nama Perusahaan & Logo) */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 10px;
+        }
+
+        .company-info {
+            font-weight: bold;
+            font-size: 1.1em;
+            line-height: 1.3;
+        }
+
+        .logo-container {
+            text-align: right;
+            margin-top: -10px; /* Menyesuaikan posisi logo agar sejajar atas */
+        }
+
+        /* Placeholder untuk Logo */
+        .logo-placeholder {
+            width: 150px;
+            height: auto;
+            color: #c00000; /* Warna merah Kencana */
+            font-weight: bold;
+            font-size: 1.2em;
+        }
+        
+        .logo-placeholder span {
+            color: #c00000;
+        }
+        
+        .logo-slogan {
+            font-size: 0.8em;
+            color: #666;
+            margin-top: 2px;
+            font-style: italic;
+        }
+
+        /* Judul Dokumen */
+        .doc-title {
+            text-align: center;
+            font-weight: bold;
+            font-size: 1.2em;
+            margin-bottom: 15px;
+            text-transform: uppercase;
+        }
+
+        /* Gaya Tabel Utama */
+        .main-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85em; /* Ukuran font lebih kecil agar muat */
+        }
+
+        .main-table th, .main-table td {
+            border: 1px solid #ccc; /* Warna border abu-abu muda */
+            padding: 4px 3px;
+            text-align: left;
+            vertical-align: middle;
+        }
+
+        /* Header Tabel dengan background abu-abu */
+        .main-table thead th {
+            background-color: #d9d9d9;
+            font-weight: bold;
+            text-transform: uppercase;
+            text-align: center;
+            font-size: 0.9em;
+        }
+
+        /* Sub-header seperti GUDANG JADI MMT */
+        .table-subheader td {
+            font-weight: bold;
+            background-color: #f2f2f2;
+            padding-left: 10px;
+            border-top: 2px solid #999;
+        }
+
+        /* Kolom spesifik yang butuh perataan tengah atau kanan */
         .col-center { text-align: center; }
         .col-right { text-align: right; }
-        .total-row td { font-weight: bold; background-color: #eee; }
-        @media print { 
-            body { background-color: white; margin: 0; }
-            .page-container { box-shadow: none; width: 100%; }
+        .col-bold { font-weight: bold; }
+
+        /* Pengaturan Lebar Kolom (Estimasi) */
+        .col-no { width: 3%; }
+        .col-spk { width: 8%; }
+        .col-nama { width: 18%; }
+        .col-ukuran { width: 8%; }
+        .col-kain { width: 10%; }
+        .col-tgl { width: 7%; }
+        .col-uraian { width: 15%; }
+        .col-cust { width: 5%; }
+        .col-jml { width: 4%; }
+        .col-jam { width: 5%; }
+        .col-sj { width: 7%; }
+        .col-kirim { width: 4%; }
+        .col-exp { width: 4%; }
+
+        /* Baris Total di bawah */
+        .total-row td {
+            font-weight: bold;
+            text-align: right;
+            border-top: 2px solid #999;
         }
+        
+        .total-label {
+            text-transform: uppercase;
+            padding-right: 15px;
+        }
+
     </style>
 </head>
 <body>
+
 <div class="page-container">
+    
+    <!-- Bagian Atas: Info Perusahaan & Logo -->
     <div class="header">
-        <div>
-            <strong>CV. Kencana Print</strong><br>
+        <div class="company-info">
+            CV. Kencana Print<br>
             Padokan RT 04 / 04 Sawahan Ngemplak<br>
             Boyolali
         </div>
-        <div style="text-align: right;">
-            <div class="logo-placeholder">Kencana Print</div>
-            <div style="font-size: 0.8em; font-style: italic;">Semakin Nyata Semakin Nyata</div>
+        <div class="logo-container">
+            <!-- Representasi teks untuk logo yang ada di gambar -->
+            <div class="logo-placeholder">Kencana <span>Print</span></div>
+            <div class="logo-slogan">Semakin Nyata Semakin Nyata</div>
         </div>
     </div>
 
+    <!-- Judul Dokumen -->
     <div class="doc-title">JADWAL & REALISASI PENGIRIMAN</div>
 
+    <!-- Tabel Utama -->
     <table class="main-table">
         <thead>
+            <!-- Baris Header Pertama dengan Merged Cells -->
             <tr>
-                <th rowspan="2">NO.</th>
-                <th rowspan="2">NO SPK</th>
-                <th rowspan="2">NAMA SPK</th>
-                <th rowspan="2">UKURAN</th>
-                <th rowspan="2">JENIS KAIN</th>
-                <th rowspan="2">TANGGAL</th>
-                <th rowspan="2">URAIAN</th>
-                <th rowspan="2">CUST</th>
-                <th colspan="3">JADWAL</th>
-                <th colspan="2">REALISASI</th>
-                <th rowspan="2">EXPEDISI</th>
+                <th rowspan="2" class="col-no">NO.</th>
+                <th rowspan="2" class="col-spk">NO SPK</th>
+                <th rowspan="2" class="col-nama">NAMA SPK</th>
+                <th rowspan="2" class="col-ukuran">UKURAN</th>
+                <th rowspan="2" class="col-kain">JENIS KAIN</th>
+                <th rowspan="2" class="col-tgl">TANGGAL</th>
+                <th rowspan="2" class="col-uraian">URAIAN</th>
+                <th rowspan="2" class="col-cust">CUST</th>
+                <th colspan="3" class="col-center">JADWAL</th>
+                <th colspan="2" class="col-center">REALISASI</th>
+                <th rowspan="2" class="col-exp">EXPEDISI</th>
             </tr>
+            <!-- Baris Header Kedua -->
             <tr>
-                <th>JML PCS</th>
-                <th>JML KOLI</th>
-                <th>JAM READY</th>
-                <th>NOMOR SJ</th>
-                <th>JML KIRIM</th>
+                <th class="col-jml col-center">JML PCS</th>
+                <th class="col-jml col-center">JML KOLI</th>
+                <th class="col-jam col-center">JAM BRG READY</th>
+                <th class="col-sj col-center">NOMOR SJ</th>
+                <th class="col-kirim col-center">JML KIRIM</th>
             </tr>
         </thead>
         <tbody>
+            <!-- Subheader Baris -->
             <tr class="table-subheader">
-                <td colspan="14">${namaGudang}</td>
+                <td colspan="14">GUDANG JADI MMT</td>
             </tr>
 
-            <!-- LOOPING DATA DI SINI -->
-            ${data
-              .map(
-                (item: any, index: number) => `
-                <tr>
-                    <td class="col-center">${index + 1}</td>
-                    <td>${item.No_SPK || ""}</td>
-                    <td>${item.Nama_Spk || ""}</td>
-                    <td class="col-center">${item.Ukuran || ""}</td>
-                    <td>${item.Kain || ""}</td>
-                    <td class="col-center">${item.Tanggal || ""}</td>
-                    <td>${item.uraian || ""}</td>
-                    <td class="col-center">${item.Customer || ""}</td>
-                    <td class="col-right"><strong>${item.Jml_Pcs || 0}</strong></td>
-                    <td class="col-right"><strong>${item.Jml_Koli || 0}</strong></td>
-                    <td class="col-center">${item.Jam_Ready || ""}</td>
-                    <td>${item.Nomor_SJ || ""}</td>
-                    <td class="col-right"><strong>${item.Realisasi_Kirim || 0}</strong></td>
-                    <td>${item.expedisi || ""}</td>
-                </tr>
-            `,
-              )
-              .join("")}
+            <!-- Data Baris 1 -->
+            <tr>
+                <td class="col-center">1</td>
+                <td>KP-MT-005497</td>
+                <td>MMT RAPAT RUTIN</td>
+                <td class="col-center">2.5 X 1M</td>
+                <td>BAHAN SISA</td>
+                <td class="col-center">05 May 26</td>
+                <td>-@1PCS</td>
+                <td class="col-center">02460</td>
+                <td class="col-center col-bold">1</td>
+                <td class="col-center col-bold">1</td>
+                <td class="col-center">15:00</td>
+                <td></td> <!-- Nomor SJ Kosong -->
+                <td class="col-center col-bold">0</td>
+                <td></td> <!-- Expedisi Kosong -->
+            </tr>
+            <!-- Data Baris 2 -->
+            <tr>
+                <td class="col-center">2</td>
+                <td>KP-MT-005498</td>
+                <td>MMT BUDAYAKAN 7S</td>
+                <td class="col-center">0.9 X 0.6M</td>
+                <td>BAHAN SISA</td>
+                <td class="col-center">05 May 26</td>
+                <td>-@2PCS</td>
+                <td class="col-center">02460</td>
+                <td class="col-center col-bold">2</td>
+                <td class="col-center col-bold">1</td>
+                <td class="col-center">15:00</td>
+                <td></td>
+                <td class="col-center col-bold">0</td>
+                <td></td>
+            </tr>
+            <!-- Data Baris 3 -->
+            <tr>
+                <td class="col-center">3</td>
+                <td>KP-MT-005499</td>
+                <td>MMT DEPOT JUS</td>
+                <td class="col-center">3 X 1M</td>
+                <td>FLEXY</td>
+                <td class="col-center">05 May 26</td>
+                <td>-@1PCS</td>
+                <td class="col-center">02460</td>
+                <td class="col-center col-bold">1</td>
+                <td class="col-center col-bold">1</td>
+                <td class="col-center">15:00</td>
+                <td></td>
+                <td class="col-center col-bold">0</td>
+                <td></td>
+            </tr>
+            <!-- Data Baris 4 -->
+            <tr>
+                <td class="col-center">4</td>
+                <td>KP-MT-005500</td>
+                <td>MMT SOTO SURABAYA 1 X 3</td>
+                <td class="col-center">1 X 3M</td>
+                <td>BAHAN SISA TEBAL</td>
+                <td class="col-center">05 May 26</td>
+                <td>-@1PCS</td>
+                <td class="col-center">02460</td>
+                <td class="col-center col-bold">1</td>
+                <td class="col-center col-bold">1</td>
+                <td class="col-center">15:00</td>
+                <td></td>
+                <td class="col-center col-bold">0</td>
+                <td></td>
+            </tr>
+            <!-- Data Baris 5 -->
+            <tr>
+                <td class="col-center">5</td>
+                <td>KP-MT-005501</td>
+                <td>MMT SOTO SURABAYA 2.5 X 1</td>
+                <td class="col-center">2.5 X 1M</td>
+                <td>BAHAN SISA TEBAL</td>
+                <td class="col-center">05 May 26</td>
+                <td>-@2PCS</td>
+                <td class="col-center">02460</td>
+                <td class="col-center col-bold">2</td>
+                <td class="col-center col-bold">1</td>
+                <td class="col-center">15:00</td>
+                <td></td>
+                <td class="col-center col-bold">0</td>
+                <td></td>
+            </tr>
+            <!-- Data Baris 6 -->
+            <tr>
+                <td class="col-center">6</td>
+                <td>KP-MT-005502</td>
+                <td>MMT DEVI DAN MARKUS</td>
+                <td class="col-center">2.44 X 2.44M</td>
+                <td>BAHAN SISA TEBAL</td>
+                <td class="col-center">05 May 26</td>
+                <td>-@1PCS</td>
+                <td class="col-center">02460</td>
+                <td class="col-center col-bold">1</td>
+                <td class="col-center col-bold">1</td>
+                <td class="col-center">15:00</td>
+                <td></td>
+                <td class="col-center col-bold">0</td>
+                <td></td>
+            </tr>
+            <!-- Data Baris 7 -->
+            <tr>
+                <td class="col-center">7</td>
+                <td>KP-MT-005503</td>
+                <td>MMT MLETIK'S DW</td>
+                <td class="col-center">1 X 0.5M</td>
+                <td>BAHAN SISA TEBAL</td>
+                <td class="col-center">05 May 26</td>
+                <td>-@1PCS</td>
+                <td class="col-center">02460</td>
+                <td class="col-center col-bold">1</td>
+                <td class="col-center col-bold">1</td>
+                <td class="col-center">15:00</td>
+                <td></td>
+                <td class="col-center col-bold">0</td>
+                <td></td>
+            </tr>
+            <!-- Data Baris 8 -->
+            <tr>
+                <td class="col-center">8</td>
+                <td>KP-MT-005504</td>
+                <td>MMT TOKO FITRI</td>
+                <td class="col-center">1 X 0.5M</td>
+                <td>BAHAN SISA TEBAL</td>
+                <td class="col-center">05 May 26</td>
+                <td>-@1PCS</td>
+                <td class="col-center">02460</td>
+                <td class="col-center col-bold">1</td>
+                <td class="col-center col-bold">1</td>
+                <td class="col-center">15:00</td>
+                <td></td>
+                <td class="col-center col-bold">0</td>
+                <td></td>
+            </tr>
+            <!-- Data Baris 9 -->
+            <tr>
+                <td class="col-center">9</td>
+                <td>JA-MX-001688</td>
+                <td>MX SPANDUK KAIN 0.9X6 M - POLO K&reg;</td>
+                <td class="col-center">6 X 0.9 M</td>
+                <td>POLY 60/50</td>
+                <td class="col-center">05 May 26</td>
+                <td>TANGGERANG @25PCS</td>
+                <td class="col-center">02514</td>
+                <td class="col-center col-bold">50</td>
+                <td class="col-center col-bold">2</td>
+                <td class="col-center">15:00</td>
+                <td></td>
+                <td class="col-center col-bold">0</td>
+                <td></td>
+            </tr>
+            <!-- Data Baris 10 -->
+            <tr>
+                <td class="col-center">10</td>
+                <td>JA-MX-001689</td>
+                <td>MX SPANDUK FULL KAIN 0.9X6 M - SE</td>
+                <td class="col-center">6 X 0.9 M</td>
+                <td>OPTIC 70/50</td>
+                <td class="col-center">05 May 26</td>
+                <td>TANGGERANG</td>
+                <td class="col-center">02511</td>
+                <td class="col-center col-bold">70</td>
+                <td class="col-center col-bold">3</td>
+                <td class="col-center">15:00</td>
+                <td></td>
+                <td class="col-center col-bold">0</td>
+                <td></td>
+            </tr>
 
+            <!-- Baris Total -->
             <tr class="total-row">
-                <td colspan="8" style="text-align: right;">JUMLAH:</td>
-                <td class="col-right">${totalPcs}</td>
-                <td class="col-right">${totalKoli}</td>
-                <td colspan="4"></td>
+                <td colspan="8" class="total-label">JUMLAH:</td>
+                <td class="col-center col-bold">130</td>
+                <td class="col-center col-bold">13</td>
+                <td colspan="4"></td> <!-- Sisa kolom kosong -->
             </tr>
+
         </tbody>
     </table>
+
 </div>
+
 </body>
-</html>`;
+</html>
+  `;
 
   printWindow.document.write(htmlContent);
   printWindow.document.close();
+
+  // Menggunakan on-load agar gambar/style ter-load sempurna sebelum print
   printWindow.onload = () => {
     printWindow.print();
+    // printWindow.close(); // Aktifkan jika ingin langsung tutup setelah print
   };
 };
 

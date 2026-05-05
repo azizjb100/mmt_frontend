@@ -908,6 +908,14 @@ const loaddataall = async (nomor: string) => {
       formData.mesin = h.Mesin || "";
       formData.kode_bahan_aktif = h.Kode_bahan || "";
       formData.barcode_input = h.lbarcode_roll || "";
+
+      // 2. Tambahkan baris ini untuk pemicu "Auto-Enter"
+      if (formData.barcode_input) {
+        // Gunakan nextTick agar memastikan state barcode_input sudah stabil
+        nextTick(() => {
+          handleBarcodeScan();
+        });
+      }
       formData.panjang_bs = h.PanjangBS || 0;
       formData.lebar_bs = h.LebarBS || 0;
 
