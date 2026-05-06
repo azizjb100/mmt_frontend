@@ -62,9 +62,12 @@
                   label="Gudang"
                   :model-value="`${formData.gudangKode} - ${formData.gudang}`"
                   readonly
-                  variant="filled"
+                  variant="outlined"
                   density="compact"
                   hide-details
+                  append-inner-icon="mdi-magnify"
+                  @click="openGudangLookup"
+                  style="cursor: pointer"
                 />
               </v-col>
               <v-col cols="12">
@@ -234,6 +237,12 @@
       @close="closeModal"
       @select="handleSupplierSelect"
     />
+    <GudangLookupModal
+      v-if="isGudangModalVisible"
+      :isVisible="isGudangModalVisible"
+      @close="closeGudangLookup"
+      @select="handleGudangSelect"
+    />
     <MasterBahanModal
       :isVisible="isBahanMMTModalVisible"
       mode="mmt"
@@ -260,6 +269,7 @@ import QRCode from "qrcode";
 import SupplierLookupModal from "@/modal/SupplierLookupModal.vue";
 import MasterBahanModal from "@/modal/MasterBahanModal.vue";
 import POLookupModal from "@/modal/POLookupModal.vue";
+import GudangLookupModal from "@/modal/GudangLookupView.vue";
 import PageLayout from "../components/PageLayout.vue";
 
 interface DetailItem {
@@ -298,6 +308,8 @@ const selectedForBarcode = ref<string[]>([]);
 const itemsToRender = ref<any[]>([]);
 const lastSaveAndNew = ref(false);
 const dbBarcodes = ref<any[]>([]);
+
+const isGudangModalVisible = ref(false);
 
 const formData = reactive({
   nomor: (route.params.nomor as string) || "AUTO",
@@ -419,6 +431,22 @@ const saveForm = async (saveAndNew: boolean) => {
   } finally {
     isSaving.value = false;
   }
+};
+
+const openGudangLookup = () => {
+  isGudangModalVisible.value = true;
+};
+
+const closeGudangLookup = () => {
+  isGudangModalVisible.value = false;
+};
+
+const handleGudangSelect = (g: any) => {
+  // Mapping field sesuai response dari modal/API gudang Anda
+  // Biasanya menggunakan properti 'Kode' dan 'Nama'
+  formData.gudangKode = g.Kode || g.kode;
+  formData.gudang = g.Nama || g.nama;
+  closeGudangLookup();
 };
 
 const generateAndShowBarcodes = async () => {
