@@ -1309,6 +1309,16 @@ const generateNextAfalBarcode = (originalBarcode: string) => {
 const handleSave = async (statusValue: "DRAFT" | "POSTED" = "DRAFT") => {
   recalculateCombine();
 
+  // 1. Validasi Panjang Bahan (Wajib > 0)
+  const panjangBahan = Number(formData.Panjang_bahan || 0);
+  if (panjangBahan <= 0) {
+    toast.error(
+      "Gagal Simpan: Panjang bahan yang diambil tidak boleh 0. Silakan scan barcode roll kembali.",
+    );
+    return;
+  }
+
+  // 2. Validasi Over Production & Required Form
   let isOverProduction = false;
   let overMessages = "";
 
@@ -1319,27 +1329,29 @@ const handleSave = async (statusValue: "DRAFT" | "POSTED" = "DRAFT") => {
     }
   });
 
+  // Jika Over Production, beri peringatan tapi boleh lanjut jika dikonfirmasi
   if (isOverProduction && statusValue === "POSTED") {
-    // Gunakan confirm browser atau dialog vuetify
     const projut = confirm(
       `PERHATIAN: Ada kelebihan jumlah cetak:${overMessages}\n\nTetap lanjutkan simpan?`,
     );
-    if (!projut) {
-      isSaving.value = false;
-      return;
-    }
+    if (!projut) return;
   }
+
+  // Validasi data wajib (Operator, Mesin, dll)
   if (!isFormValid.value) {
     toast.error("Mohon lengkapi data wajib (Operator, Mesin, Barcode, SPK)");
     return;
   }
 
+  // Konfirmasi final jika ingin POSTED (Potong Stok)
   if (
     statusValue === "POSTED" &&
     !confirm("Simpan Hasil akan MEMOTONG STOK. Lanjutkan?")
-  )
+  ) {
     return;
+  }
 
+  // 3. Proses Pengiriman Data
   isSaving.value = true;
   try {
     const currentUser = authStore.user?.kdUser || "SYSTEM";
@@ -1372,7 +1384,7 @@ const handleSave = async (statusValue: "DRAFT" | "POSTED" = "DRAFT") => {
           sisabahan: formData.sisa_panjang_manual ?? sisaStokOtomatis.value,
           sisabahanlebar: formData.sisa_lebar_manual ?? 0,
         };
-        // Map C1 - C7 ke payload
+        // Map C1 - C7
         for (let i = 1; i <= 7; i++) {
           detailEntry[`cetak${i}`] = d[`cetak${i}`] || 0;
         }
@@ -1382,10 +1394,14 @@ const handleSave = async (statusValue: "DRAFT" | "POSTED" = "DRAFT") => {
     };
 
     const response = await api.post("/mmt/lhk-cetak", payload);
+
     if (response.data.success) {
       toast.success(response.data.message);
-      if (statusValue === "POSTED") router.push("/mmt/lhk/cetak");
-      else if (!isEditMode.value) {
+
+      if (statusValue === "POSTED") {
+        router.push("/mmt/lhk/cetak");
+      } else if (!isEditMode.value) {
+        // Jika simpan draft pertama kali, pindah ke mode edit
         formData.nomor = response.data.nomor;
         isEditMode.value = true;
         router.replace(`/mmt/lhk-cetak/edit/${response.data.nomor}`);
