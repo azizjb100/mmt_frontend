@@ -100,6 +100,7 @@ import FormLhkSublimView from '@/views/FormLhkSublimView.vue';
 import LhkRtrView from '@/views/LhkRtrView.vue';
 import FormLhkRtrView from '@/views/FormLhkRtrView.vue';
 import LhkTekstilApproveView from '@/views/LhkTekstilApproveView.vue';
+import JadwalKirimPrintView from '@/views/JadwalKirimPrintView.vue';
 
 
 
@@ -165,6 +166,8 @@ const routes: RouteRecordRaw[] = [
             { path: 'mmt/jadwal-kirim', name: 'JadwalKirimBrowse', component: JadwalKirimView },
             { path: 'mmt/jadwal-kirim/new', name: 'JadwalKirimNew', component: FormJadwalKirimView },
             { path: 'mmt/jadwal-kirim/edit/:nomor', name: 'JadwalKirimEdit', component: FormJadwalKirimView, props: { isEditMode: true } },
+            { path: 'mmt/jadwal-kirim/print/:nomor', name: 'JadwalKirimPrint', component: JadwalKirimPrintView, props: true },
+
             { path: 'mmt/stbj', name: 'BrowseStbj', component: StbjView },
             { path: 'mmt/stbj/new', name: 'StbjNew', component: FormStbjView },
             { path: 'mmt/stbj/edit/:nomor', name: 'StbjEdit', component: FormStbjView, props: { isEditMode: true } },

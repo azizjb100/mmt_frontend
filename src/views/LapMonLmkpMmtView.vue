@@ -16,14 +16,24 @@ const summary = ref({ outputPerHari: "0", estimasiSelesaiHari: "0" });
 const colWidths = reactive({
   NOMOR: 120,
   spk_nama: 220,
-  spk_tanggal: 100,
-  deadline: 100,
-  bahan: 180,
 });
 
+// --- LOGIKA SEARCH ---
+const filteredData = computed(() => {
+  if (!searchQuery.value) return allData.value;
+  const query = searchQuery.value.toLowerCase();
+  return allData.value.filter((item: any) => {
+    return (
+      item.NOMOR?.toLowerCase().includes(query) ||
+      item.spk_nama?.toLowerCase().includes(query) ||
+      item.KAIN?.toLowerCase().includes(query)
+    );
+  });
+});
+
+// --- LOGIKA TOTALS ---
 const totals = computed(() => {
   return filteredData.value.reduce(
-    // <-- Ganti di sini
     (acc, item: any) => {
       acc.spk_jumlah += Number(item.spk_jumlah || 0);
       acc.spk_jumlah_kirim += Number(item.spk_jumlah_kirim || 0);
@@ -56,12 +66,10 @@ const totals = computed(() => {
 
 const waitingListKerja = computed(() => {
   const output = Number(summary.value.outputPerHari || 0);
-
-  return output === 0 ? 0 : totals.value.krg_Cetak_meter / output;
+  return output <= 0 ? 0 : totals.value.krg_Cetak_meter / output;
 });
 
 const outputHariTetap = 2700;
-
 const waitingListTetap = computed(
   () => totals.value.krg_Cetak_meter / outputHariTetap,
 );
@@ -89,7 +97,6 @@ const fetchReport = async () => {
         endDate: endDate.value,
       },
     });
-
     allData.value = res.data.data || [];
     summary.value = res.data.summary || summary.value;
   } finally {
@@ -97,28 +104,41 @@ const fetchReport = async () => {
   }
 };
 
-const filteredData = computed(() => {
-  if (!searchQuery.value) return allData.value;
-  const query = searchQuery.value.toLowerCase();
-  return allData.value.filter((item: any) => {
-    return (
-      item.NOMOR?.toLowerCase().includes(query) ||
-      item.spk_nama?.toLowerCase().includes(query) ||
-      item.KAIN?.toLowerCase().includes(query)
-    );
-  });
-});
-
 const exportToExcel = () => {
   const fileName = `Laporan_LMKP_${startDate.value}.xlsx`;
 
-  // Definisi Style untuk digunakan berulang kali
+  const formatDateIndo = (dateStr) => {
+    if (!dateStr) return "-";
+    const date = parseISO(dateStr);
+    if (!isValid(date)) return dateStr;
 
+    const bulanIndo = [
+      "Januari",
+      "Februari",
+      "Maret",
+      "April",
+      "Mei",
+      "Juni",
+      "Juli",
+      "Agustus",
+      "September",
+      "Oktober",
+      "November",
+      "Desember",
+    ];
+
+    const d = date.getDate();
+    const m = bulanIndo[date.getMonth()];
+    const y = date.getFullYear();
+
+    return `${d} ${m} ${y}`;
+  };
+
+  // --- 1. Definisi Style ---
   const styleHeaderMain = {
     fill: { fgColor: { rgb: "B3E5FC" } },
     font: { bold: true, color: { rgb: "000000" } },
     alignment: { horizontal: "center", vertical: "center", wrapText: true },
-
     border: {
       top: { style: "thin", color: { rgb: "000000" } },
       bottom: { style: "thin", color: { rgb: "000000" } },
@@ -148,56 +168,56 @@ const exportToExcel = () => {
     font: { bold: true },
   };
 
-  // 1. Susun Data dengan Style
-
+  // --- 2. Susun Struktur Data (AOA) ---
   const wsData = [];
-  // Baris Info Judul (Tanpa Border)
+
+  // Judul
   wsData.push([
     { v: "LAPORAN MONITORING LMKP", s: { font: { bold: true, sz: 14 } } },
   ]);
   wsData.push([
     {
-      v: `Periode: ${formatDateDisplay(startDate.value)} s/d ${formatDateDisplay(endDate.value)}`,
+      v: `Periode: ${formatDateIndo(startDate.value)} s/d ${formatDateIndo(endDate.value)}`,
+      s: { font: { bold: true } },
     },
   ]);
   wsData.push([{ v: `Kategori: ${jenisIndex.value === "0" ? "MT" : "MX"}` }]);
-  wsData.push([]); // Baris kosong
-
-  // 2. Buat Header Row 1
-
+  wsData.push([]);
+  // Header Row 1 (Row index 4)
+  // Total kolom sekarang adalah 22 (Index 0 s/d 21)
   const headerRow1 = [
-    { v: "NOMOR SPK", s: styleHeaderMain },
-    { v: "NAMA ORDER", s: styleHeaderMain },
-    { v: "TANGGAL", s: styleHeaderMain },
-    { v: "DEADLINE", s: styleHeaderMain },
-    { v: "BAHAN", s: styleHeaderMain },
-    { v: "PRODUKSI (PCS)", s: styleHeaderMain },
+    { v: "NOMOR SPK", s: styleHeaderMain }, // 0
+    { v: "NAMA ORDER", s: styleHeaderMain }, // 1
+    { v: "TANGGAL", s: styleHeaderMain }, // 2
+    { v: "DEADLINE", s: styleHeaderMain }, // 3
+    { v: "BAHAN", s: styleHeaderMain }, // 4
+    { v: "GRAMASI", s: styleHeaderMain }, // 5
+    { v: "PRODUKSI (PCS)", s: styleHeaderMain }, // 6 (Akan di-merge 6 s/d 12)
     "",
     "",
     "",
     "",
     "",
-    "",
-    { v: "CTK L.", s: styleHeaderMain },
-    { v: "MESIN", s: styleHeaderMain },
-    "",
-    "",
+    "", // 7, 8, 9, 10, 11, 12
+    { v: "CTK L.", s: styleHeaderMain }, // 13
+    { v: "MESIN", s: styleHeaderMain }, // 14 (Akan di-merge 14 s/d 18)
     "",
     "",
-    { v: "PRODUKSI (METER)", s: styleHeaderMain },
     "",
+    "", // 15, 16, 17, 18
+    { v: "PRODUKSI (METER)", s: styleHeaderMain }, // 19 (Akan di-merge 19 s/d 21)
     "",
+    "", // 20, 21
   ];
 
-  // Isi cell kosong pada merge dengan style agar border muncul
-  for (let i = 6; i <= 11; i++) headerRow1[i] = { v: "", s: styleHeaderMain };
-  for (let i = 14; i <= 17; i++) headerRow1[i] = { v: "", s: styleHeaderMain };
-  for (let i = 19; i <= 20; i++) headerRow1[i] = { v: "", s: styleHeaderMain };
+  // Isi cell kosong dengan style agar border muncul
+  headerRow1.forEach((cell, idx) => {
+    if (cell === "") headerRow1[idx] = { v: "", s: styleHeaderMain };
+  });
   wsData.push(headerRow1);
 
-  // 3. Buat Header Row 2 (Sub-headers)
-
-  const subHeaders = [
+  // Header Row 2 (Row index 5)
+  const subPcs = [
     "Order",
     "Kirim",
     "K-Kirim",
@@ -206,18 +226,19 @@ const exportToExcel = () => {
     "Cetak",
     "Coly",
   ];
-  const mesinHeaders = ["MT02", "MT03", "MT04", "MT05", "MI"];
-  const meterHeaders = ["K-KRM", "K-CTK", "K-CLY"];
-  const headerRow2 = Array(5).fill({ v: "", s: styleHeaderMain }); // Untuk vertical merge
-  subHeaders.forEach((h) => headerRow2.push({ v: h, s: styleHeaderSub }));
-  headerRow2.push({ v: "", s: styleHeaderMain }); // Untuk CTK L. vertical merge
-  mesinHeaders.forEach((h) => headerRow2.push({ v: h, s: styleHeaderSub }));
-  meterHeaders.forEach((h) => headerRow2.push({ v: h, s: styleHeaderSub }));
+  const subMesin = ["MT02", "MT03", "MT04", "MT05", "MI"];
+  const subMeter = ["K-KRM", "K-CTK", "K-CLY"];
+
+  const headerRow2 = Array(6).fill({ v: "", s: styleHeaderMain }); // Untuk vertical merge (0-5)
+  subPcs.forEach((h) => headerRow2.push({ v: h, s: styleHeaderSub })); // 6-12
+  headerRow2.push({ v: "", s: styleHeaderMain }); // Untuk vertical merge CTK L. (13)
+  subMesin.forEach((h) => headerRow2.push({ v: h, s: styleHeaderSub })); // 14-18
+  subMeter.forEach((h) => headerRow2.push({ v: h, s: styleHeaderSub })); // 19-21
   wsData.push(headerRow2);
 
-  // 4. Tambah Baris Data
-
-  allData.value.forEach((item) => {
+  // --- 3. Tambah Baris Data ---
+  // Gunakan filteredData agar yang di-export sesuai dengan hasil pencarian user
+  filteredData.value.forEach((item) => {
     wsData.push([
       {
         v: item.NOMOR,
@@ -232,37 +253,41 @@ const exportToExcel = () => {
         v: formatDateDisplay(item.deadline),
         s: { ...styleDataCell, alignment: { horizontal: "center" } },
       },
-      { v: `${item.KAIN} ${item.spk_gramasi}`, s: styleDataCell },
+      { v: item.KAIN, s: styleDataCell },
       {
-        v: item.spk_jumlah,
+        v: item.spk_gramasi,
+        s: { ...styleDataCell, alignment: { horizontal: "center" } },
+      },
+      {
+        v: Number(item.spk_jumlah),
         s: { ...styleDataCell, alignment: { horizontal: "right" } },
       },
       {
-        v: item.spk_jumlah_kirim,
+        v: Number(item.spk_jumlah_kirim),
         s: { ...styleDataCell, alignment: { horizontal: "right" } },
       },
       {
-        v: item.krg_kirim,
+        v: Number(item.krg_kirim),
         s: { ...styleDataCell, alignment: { horizontal: "right" } },
       },
       {
-        v: item.krg_Seaming,
+        v: Number(item.krg_Seaming),
         s: { ...styleDataCell, alignment: { horizontal: "right" } },
       },
       {
-        v: item.krg_mataayam,
+        v: Number(item.krg_mataayam),
         s: { ...styleDataCell, alignment: { horizontal: "right" } },
       },
       {
-        v: item.krg_Cetak,
+        v: Number(item.krg_Cetak),
         s: { ...styleDataCell, alignment: { horizontal: "right" } },
       },
       {
-        v: item.krg_coly,
+        v: Number(item.krg_coly),
         s: { ...styleDataCell, alignment: { horizontal: "right" } },
       },
       {
-        v: item.cetak_luarx,
+        v: Number(item.cetak_luarx),
         s: { ...styleDataCell, alignment: { horizontal: "right" } },
       },
       {
@@ -286,28 +311,42 @@ const exportToExcel = () => {
         s: { ...styleDataCell, alignment: { horizontal: "center" } },
       },
       {
-        v: Number(item.krg_kirim_meter || 0).toFixed(2),
-        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+        v: Number(item.krg_kirim_meter || 0),
+        s: {
+          ...styleDataCell,
+          alignment: { horizontal: "right" },
+          t: "n",
+          z: "#,##0.00",
+        },
       },
       {
-        v: Number(item.krg_Cetak_meter || 0).toFixed(2),
-        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+        v: Number(item.krg_Cetak_meter || 0),
+        s: {
+          ...styleDataCell,
+          alignment: { horizontal: "right" },
+          t: "n",
+          z: "#,##0.00",
+        },
       },
       {
-        v: Number(item.krg_coly_meter || 0).toFixed(2),
-        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+        v: Number(item.krg_coly_meter || 0),
+        s: {
+          ...styleDataCell,
+          alignment: { horizontal: "right" },
+          t: "n",
+          z: "#,##0.00",
+        },
       },
     ]);
   });
 
-  // 5. Baris TOTAL
-
+  // --- 4. Baris TOTAL ---
   const footerRow = [
-    { v: "TOTAL", s: { ...styleFooter, alignment: { horizontal: "right" } } },
-    { v: "", s: styleFooter },
-    { v: "", s: styleFooter },
-    { v: "", s: styleFooter },
-    { v: "", s: styleFooter },
+    {
+      v: "TOTAL (FILTERED)",
+      s: { ...styleFooter, alignment: { horizontal: "right" } },
+    },
+    ...Array(5).fill({ v: "", s: styleFooter }), // Spacer untuk merge kolom 0-5
     { v: totals.value.spk_jumlah, s: styleFooter },
     { v: totals.value.spk_jumlah_kirim, s: styleFooter },
     { v: totals.value.krg_kirim, s: styleFooter },
@@ -316,53 +355,72 @@ const exportToExcel = () => {
     { v: totals.value.krg_Cetak, s: styleFooter },
     { v: totals.value.krg_coly, s: styleFooter },
     { v: totals.value.cetak_luarx, s: styleFooter },
-    { v: "", s: styleFooter },
-    { v: "", s: styleFooter },
-    { v: "", s: styleFooter },
-    { v: "", s: styleFooter },
-    { v: "", s: styleFooter },
-    { v: totals.value.krg_kirim_meter.toFixed(2), s: styleFooter },
-    { v: totals.value.krg_Cetak_meter.toFixed(2), s: styleFooter },
-    { v: totals.value.krg_coly_meter.toFixed(2), s: styleFooter },
+    ...Array(5).fill({ v: "", s: styleFooter }), // Spacer kolom mesin
+    {
+      v: Number(totals.value.krg_kirim_meter),
+      s: { ...styleFooter, t: "n", z: "#,##0.00" },
+    },
+    {
+      v: Number(totals.value.krg_Cetak_meter),
+      s: { ...styleFooter, t: "n", z: "#,##0.00" },
+    },
+    {
+      v: Number(totals.value.krg_coly_meter),
+      s: { ...styleFooter, t: "n", z: "#,##0.00" },
+    },
   ];
   wsData.push(footerRow);
+
   const ws = XLSX.utils.aoa_to_sheet(wsData);
 
-  // 6. Konfigurasi Merge
+  // --- 5. Konfigurasi Merge (Koordinat r: baris, c: kolom) ---
   ws["!merges"] = [
-    { s: { r: 4, c: 0 }, e: { r: 5, c: 0 } },
-    { s: { r: 4, c: 1 }, e: { r: 5, c: 1 } },
-    { s: { r: 4, c: 2 }, e: { r: 5, c: 2 } },
-    { s: { r: 4, c: 3 }, e: { r: 5, c: 3 } },
-    { s: { r: 4, c: 4 }, e: { r: 5, c: 4 } },
-    { s: { r: 4, c: 12 }, e: { r: 5, c: 12 } },
-    { s: { r: 4, c: 5 }, e: { r: 4, c: 11 } },
-    { s: { r: 4, c: 13 }, e: { r: 4, c: 17 } },
-    { s: { r: 4, c: 18 }, e: { r: 4, c: 20 } },
-    { s: { r: wsData.length - 1, c: 0 }, e: { r: wsData.length - 1, c: 4 } },
+    // Vertical Merges (Header Row 1 ke Row 2)
+    { s: { r: 4, c: 0 }, e: { r: 5, c: 0 } }, // NOMOR
+    { s: { r: 4, c: 1 }, e: { r: 5, c: 1 } }, // NAMA
+    { s: { r: 4, c: 2 }, e: { r: 5, c: 2 } }, // TANGGAL
+    { s: { r: 4, c: 3 }, e: { r: 5, c: 3 } }, // DEADLINE
+    { s: { r: 4, c: 4 }, e: { r: 5, c: 4 } }, // BAHAN
+    { s: { r: 4, c: 5 }, e: { r: 5, c: 5 } }, // GRAMASI
+    { s: { r: 4, c: 13 }, e: { r: 5, c: 13 } }, // CTK L.
+
+    // Horizontal Merges (Group Headers)
+    { s: { r: 4, c: 6 }, e: { r: 4, c: 12 } }, // PRODUKSI (PCS)
+    { s: { r: 4, c: 14 }, e: { r: 4, c: 18 } }, // MESIN
+    { s: { r: 4, c: 19 }, e: { r: 4, c: 21 } }, // PRODUKSI (METER)
+
+    // Footer Merge
+    { s: { r: wsData.length - 1, c: 0 }, e: { r: wsData.length - 1, c: 5 } },
   ];
-  ws["!cols"] = Array(21).fill({ wch: 10 });
-  ws["!cols"][1] = { wch: 25 }; // Nama Order lebih lebar
-  ws["!cols"][4] = { wch: 20 }; // Bahan lebih lebar
+
+  // Lebar Kolom
+  ws["!cols"] = [
+    { wch: 15 }, // NOMOR
+    { wch: 30 }, // NAMA
+    { wch: 12 }, // TANGGAL
+    { wch: 12 }, // DEADLINE
+    { wch: 20 }, // BAHAN
+    { wch: 10 }, // GRAMASI
+    ...Array(16).fill({ wch: 10 }), // Sisanya
+  ];
+
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "LMKP");
   XLSX.writeFile(wb, fileName);
 };
-
 onMounted(fetchReport);
 </script>
 
 <template>
   <PageLayout title="Monitoring LMKP" icon="mdi-monitor-dashboard">
     <div class="browse-content">
-      <v-card flat class="border-bottom mb-1">
+      <v-card flat class="border-bottom mb-2">
         <v-card-text class="py-2 px-3">
           <div class="filter-section d-flex align-center flex-wrap ga-3">
             <v-select
               v-model="jenisIndex"
               :items="[
                 { title: 'MT', value: '0' },
-
                 { title: 'MX', value: '1' },
               ]"
               density="compact"
@@ -370,7 +428,6 @@ onMounted(fetchReport);
               variant="outlined"
               style="max-width: 80px"
             />
-
             <v-text-field
               v-model="startDate"
               type="date"
@@ -379,9 +436,7 @@ onMounted(fetchReport);
               variant="outlined"
               style="max-width: 140px"
             />
-
             <v-label class="mx-1">s/d</v-label>
-
             <v-text-field
               v-model="endDate"
               type="date"
@@ -390,15 +445,14 @@ onMounted(fetchReport);
               variant="outlined"
               style="max-width: 140px"
             />
-
             <v-btn
               variant="tonal"
               size="small"
               @click="fetchReport"
               :loading="loading.report"
+              color="primary"
               >Muat</v-btn
             >
-
             <v-btn
               variant="flat"
               color="success"
@@ -407,17 +461,16 @@ onMounted(fetchReport);
               :disabled="allData.length === 0"
               >Excel</v-btn
             >
-
             <v-spacer />
-
             <v-text-field
               v-model="searchQuery"
-              label="Cari SPK..."
+              label="Cari SPK atau Nama..."
               prepend-inner-icon="mdi-magnify"
               density="compact"
               hide-details
               variant="outlined"
-              style="max-width: 250px"
+              style="max-width: 280px"
+              clearable
             />
           </div>
         </v-card-text>
@@ -428,7 +481,7 @@ onMounted(fetchReport);
           :headers="[]"
           :items="filteredData"
           density="compact"
-          class="desktop-table elevation-1"
+          class="desktop-table"
           fixed-header
           hide-default-footer
           :items-per-page="-1"
@@ -443,7 +496,6 @@ onMounted(fetchReport);
                 >
                   NOMOR SPK
                 </th>
-
                 <th
                   rowspan="2"
                   class="bg-blue-main"
@@ -451,127 +503,70 @@ onMounted(fetchReport);
                 >
                   NAMA ORDER
                 </th>
-
-                <th
-                  rowspan="2"
-                  class="bg-blue-main"
-                  :style="{ width: colWidths.spk_tanggal + 'px' }"
-                >
-                  TANGGAL
-                </th>
-
-                <th
-                  rowspan="2"
-                  class="bg-blue-main"
-                  :style="{ width: colWidths.deadline + 'px' }"
-                >
-                  DEADLINE
-                </th>
-
-                <th
-                  rowspan="2"
-                  class="bg-blue-main"
-                  :style="{ width: colWidths.bahan + 'px' }"
-                >
-                  BAHAN
-                </th>
-
+                <th rowspan="2" class="bg-blue-main">TANGGAL</th>
+                <th rowspan="2" class="bg-blue-main">DEADLINE</th>
+                <th rowspan="2" class="bg-blue-main">BAHAN</th>
+                <th rowspan="2" class="bg-blue-main">GRAMASI</th>
                 <th colspan="7" class="bg-blue-sub">PRODUKSI (PCS)</th>
-
                 <th rowspan="2" class="bg-blue-main">CTK L.</th>
-
                 <th colspan="5" class="bg-blue-sub">MESIN</th>
-
                 <th colspan="3" class="bg-blue-sub">PRODUKSI (METER)</th>
               </tr>
-
               <tr class="header-row-2">
                 <th class="bg-blue-detail">Order</th>
-
                 <th class="bg-blue-detail">Kirim</th>
-
-                <th class="bg-blue-detail">K-Kirim</th>
-
-                <th class="bg-blue-detail">Seam</th>
-
-                <th class="bg-blue-detail">M.Ayam</th>
-
+                <th class="bg-blue-detail">Kurang Kirim</th>
+                <th class="bg-blue-detail">Seaming</th>
+                <th class="bg-blue-detail">Mata Ayam</th>
                 <th class="bg-blue-detail">Cetak</th>
-
                 <th class="bg-blue-detail">Coly</th>
-
                 <th class="bg-blue-detail">MT02</th>
-
                 <th class="bg-blue-detail">MT03</th>
-
                 <th class="bg-blue-detail">MT04</th>
-
                 <th class="bg-blue-detail">MT05</th>
-
                 <th class="bg-blue-detail">MI</th>
-
                 <th class="bg-blue-detail">K-KRM</th>
-
                 <th class="bg-blue-detail">K-CTK</th>
-
                 <th class="bg-blue-detail">K-CLY</th>
               </tr>
             </thead>
           </template>
 
           <template v-slot:item="{ item }">
-            <tr>
-              <td class="font-weight-bold">{{ item.NOMOR }}</td>
-
+            <tr class="data-row">
+              <td class="text-center font-weight-bold">{{ item.NOMOR }}</td>
               <td class="text-left">{{ item.spk_nama }}</td>
-
-              <td>{{ formatDateDisplay(item.spk_tanggal) }}</td>
-
-              <td class="deadline">{{ formatDateDisplay(item.deadline) }}</td>
-
-              <td class="text-left">
-                <strong>{{ item.KAIN }}</strong
-                ><br /><small>{{ item.spk_gramasi }}</small>
+              <td class="text-center">
+                {{ formatDateDisplay(item.spk_tanggal) }}
               </td>
-
+              <td class="text-center deadline">
+                {{ formatDateDisplay(item.deadline) }}
+              </td>
+              <td class="text-left">{{ item.KAIN }}</td>
+              <td class="text-center">{{ item.spk_gramasi }}</td>
               <td class="text-right">{{ formatNumber(item.spk_jumlah) }}</td>
-
-              <td class="text-right text-success font-weight-bold">
+              <td class="text-right text-success">
                 {{ formatNumber(item.spk_jumlah_kirim) }}
               </td>
-
               <td class="text-right">{{ formatNumber(item.krg_kirim) }}</td>
-
               <td class="text-right">{{ formatNumber(item.krg_Seaming) }}</td>
-
               <td class="text-right">{{ formatNumber(item.krg_mataayam) }}</td>
-
-              <td class="text-right text-error font-weight-bold">
+              <td class="text-right text-error">
                 {{ formatNumber(item.krg_Cetak) }}
               </td>
-
               <td class="text-right">{{ formatNumber(item.krg_coly) }}</td>
-
               <td class="text-right">{{ formatNumber(item.cetak_luarx) }}</td>
-
               <td class="text-center">{{ item.mt02 || 0 }}</td>
-
               <td class="text-center">{{ item.mt03 || 0 }}</td>
-
               <td class="text-center">{{ item.mt04 || 0 }}</td>
-
               <td class="text-center">{{ item.mt05 || 0 }}</td>
-
               <td class="text-center">{{ item.mi || 0 }}</td>
-
               <td class="text-right">
                 {{ formatNumber(item.krg_kirim_meter, 2) }}
               </td>
-
               <td class="text-right text-error font-weight-bold">
                 {{ formatNumber(item.krg_Cetak_meter, 2) }}
               </td>
-
               <td class="text-right">
                 {{ formatNumber(item.krg_coly_meter, 2) }}
               </td>
@@ -580,93 +575,60 @@ onMounted(fetchReport);
 
           <template #tfoot>
             <tr class="table-footer">
-              <td
-                colspan="5"
-                class="text-right font-weight-bold bg-footer sticky-footer"
-              >
-                TOTAL
+              <td colspan="6" class="text-right font-weight-bold">
+                TOTAL (Filtered)
               </td>
-
-              <td class="text-right font-weight-bold">
-                {{ formatNumber(totals.spk_jumlah) }}
-              </td>
-
-              <td class="text-right font-weight-bold text-success">
+              <td class="text-right">{{ formatNumber(totals.spk_jumlah) }}</td>
+              <td class="text-right text-success">
                 {{ formatNumber(totals.spk_jumlah_kirim) }}
               </td>
-
-              <td class="text-right font-weight-bold">
-                {{ formatNumber(totals.krg_kirim) }}
-              </td>
-
-              <td class="text-right font-weight-bold">
-                {{ formatNumber(totals.krg_Seaming) }}
-              </td>
-
-              <td class="text-right font-weight-bold">
+              <td class="text-right">{{ formatNumber(totals.krg_kirim) }}</td>
+              <td class="text-right">{{ formatNumber(totals.krg_Seaming) }}</td>
+              <td class="text-right">
                 {{ formatNumber(totals.krg_mataayam) }}
               </td>
-
-              <td class="text-right font-weight-bold text-error">
+              <td class="text-right text-error">
                 {{ formatNumber(totals.krg_Cetak) }}
               </td>
-
-              <td class="text-right font-weight-bold">
-                {{ formatNumber(totals.krg_coly) }}
-              </td>
-
-              <td class="text-right font-weight-bold">
-                {{ formatNumber(totals.cetak_luarx) }}
-              </td>
-
-              <td colspan="5" class="bg-blue-light"></td>
-
-              <td class="text-right font-weight-bold">
+              <td class="text-right">{{ formatNumber(totals.krg_coly) }}</td>
+              <td class="text-right">{{ formatNumber(totals.cetak_luarx) }}</td>
+              <td colspan="5" class="bg-grey-lighten-4"></td>
+              <td class="text-right">
                 {{ formatNumber(totals.krg_kirim_meter, 2) }}
               </td>
-
-              <td class="text-right font-weight-bold text-error">
+              <td class="text-right text-error">
                 {{ formatNumber(totals.krg_Cetak_meter, 2) }}
               </td>
-
-              <td class="text-right font-weight-bold">
+              <td class="text-right">
                 {{ formatNumber(totals.krg_coly_meter, 2) }}
               </td>
             </tr>
           </template>
         </v-data-table>
 
-        <div class="sticky-stats-wrapper">
-          <table class="stats-table">
+        <div class="summary-wrapper">
+          <table class="summary-table">
             <tbody>
               <tr>
-                <td class="stats-label">Kekurangan Meter:</td>
-
-                <td class="stats-value text-error">
+                <td class="sum-label">Kekurangan Meter:</td>
+                <td class="sum-value text-error">
                   {{ formatNumber(totals.krg_Cetak_meter, 2) }}
                 </td>
-
-                <td class="stats-label">Output/Hari:</td>
-
-                <td class="stats-value">
+                <td class="sum-label">Output / Hari:</td>
+                <td class="sum-value">
                   {{ formatNumber(summary.outputPerHari, 2) }}
                 </td>
-
-                <td class="stats-value bg-blue-light">2.700,00</td>
+                <td class="sum-value bg-blue-lighten-5">2.700,00</td>
               </tr>
-
               <tr>
-                <td class="stats-label">Waiting List (Hari):</td>
-
-                <td class="stats-value">
+                <td class="sum-label">Waiting List:</td>
+                <td class="sum-value">
                   {{ formatNumber(waitingListKerja, 2) }} Hari
                 </td>
-
-                <td colspan="2" class="stats-label text-center">
+                <td colspan="2" class="sum-label text-center">
                   Estimasi Tetap:
                 </td>
-
-                <td class="stats-value text-center">
+                <td class="sum-value text-center">
                   {{ formatNumber(waitingListTetap, 2) }} Hari
                 </td>
               </tr>
@@ -682,18 +644,18 @@ onMounted(fetchReport);
 .table-container {
   border: 1px solid #7bdaff;
   border-radius: 8px;
-  max-height: calc(100vh - 200px);
+  max-height: calc(100vh - 240px);
   overflow: auto;
+  background: white;
 }
 
-/* --- HEADER STYLING (Bold) --- */
+/* Header Styling */
 .desktop-table :deep(thead th) {
   font-size: 10px !important;
-  font-weight: 800 !important; /* Header Bold */
+  font-weight: 800 !important;
   text-align: center !important;
-  color: #000000 !important;
+  color: #000 !important;
   text-transform: uppercase;
-  white-space: nowrap;
   padding: 8px !important;
   border: 1px solid #7bdaff !important;
 }
@@ -708,58 +670,67 @@ onMounted(fetchReport);
   background-color: #ffffff !important;
 }
 
+/* Body Styling */
 .desktop-table :deep(tbody td) {
   font-size: 10px !important;
-  font-weight: 400 !important; /* Memastikan font normal */
-  border-right: 1px solid #eee !important;
-  border-bottom: 1px solid #eee !important;
-}
-
-/* Biarkan footer tetap Bold */
-.table-footer td {
-  font-weight: 800 !important;
-}
-
-/* --- BODY STYLING (Tidak Bold) --- */
-.desktop-table :deep(tbody td) {
-  font-size: 10px !important;
-  font-weight: 400 !important; /* Isi Tabel Normal */
+  font-weight: 400 !important;
   border-right: 1px solid #eee !important;
   border-bottom: 1px solid #eee !important;
   white-space: nowrap;
-  color: #333;
   padding: 4px 8px !important;
 }
 
-/* --- FOOTER STYLING (Bold) --- */
+/* Footer Styling */
 .table-footer td {
   position: sticky;
   bottom: 0;
-  z-index: 25;
-  background-color: #f0f4f8 !important;
-  border: 1px solid #7bdaff !important;
-  border-top: 2px solid #7bdaff !important;
-  padding: 8px !important;
-  color: #000 !important;
+  z-index: 20;
+  background-color: #f8f9fa !important;
   font-weight: 800 !important;
+  border-top: 2px solid #7bdaff !important;
+  font-size: 10px !important;
 }
 
-/* --- SUMMARY TABLE --- */
-.stats-table {
+/* Summary Table di Kanan */
+.summary-wrapper {
+  margin-top: 15px;
+  display: flex;
+  justify-content: flex-end;
+  padding: 0 10px 15px 0;
+}
+
+.summary-table {
   border-collapse: collapse;
   background: white;
   border: 1px solid #7bdaff;
+  min-width: 500px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
-.stats-table td {
+
+.summary-table td {
   border: 1px solid #ddd;
-  padding: 6px 12px;
+  padding: 8px 15px;
   font-size: 11px;
 }
-.text-error {
-  color: #d32f2f !important;
+
+.sum-label {
+  background: #f0f8ff;
   font-weight: bold;
+}
+.sum-value {
+  font-weight: bold;
+  text-align: right;
+}
+
+/* Utils */
+.text-error {
+  color: #000000 !important;
 }
 .text-success {
   color: #2e7d32 !important;
+}
+.deadline {
+  color: #000000;
+  font-weight: bold !important;
 }
 </style>
