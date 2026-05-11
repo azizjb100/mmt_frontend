@@ -4,7 +4,7 @@ import { useRouter, useRoute } from "vue-router";
 import api from "@/services/api";
 import PageLayout from "../components/PageLayout.vue";
 import GudangLookupModal from "@/modal/GudangLookupView.vue";
-import SpkLookupModal from "@/modal/SpkLookupModal.vue"; // Modal yang bisa handle Reguler/Memo
+import SpkLookupModal from "@/modal/SpkJadwalLookupView.vue"; // Modal yang bisa handle Reguler/Memo
 import { format } from "date-fns";
 import * as XLSX from "xlsx";
 import { useToast } from "vue-toastification";
@@ -37,7 +37,10 @@ interface FormDataState {
   totalKoli: number;
   usr_create: string;
   detail: DetailItem[];
-  keterangan: string; // <-- Tambahan
+  keterangan: string;
+  spkTotalOrder: number; // Tambahan
+  spkSudahKirim: number; // Tambahan
+  spkBelumKirim: number; // Tambahan
 }
 
 // --- Setup & State ---
@@ -76,6 +79,9 @@ const formData = reactive<FormDataState>({
   gudangNama: "",
   spkNomor: "",
   spkNama: "",
+  spkTotalOrder: 0,
+  spkSudahKirim: 0,
+  spkBelumKirim: 0,
   spkUkuran: "",
   spkKain: "",
   totalQty: 0,
@@ -150,27 +156,44 @@ const validateQty = (item: DetailItem) => {
 const handleSPKSelect = (spk: any) => {
   console.log("Data SPK dipilih:", spk);
 
-  // 1. Ambil data sesuai Key dari backend (Case Sensitive)
-  // Gunakan spk.Spk karena di log muncul 'Spk'
+  // 1. Mapping Header SPK
   formData.spkNomor = spk.Spk || "";
   formData.spkNama = spk.Nama || "";
   formData.spkUkuran = spk.Ukuran || "";
-  formData.spkKain = spk.Bahan || ""; // Sesuai log: Bahan -> 'FLEXY 380GR'
+  formData.spkKain = spk.Bahan || "";
 
-  // 2. Ambil batas qty untuk validasi
-  // Sesuai log: Jumlah -> 18
-  const limitQty = Number(spk.Jumlah) || 0;
+  // 2. Kalkulasi Saldo Order untuk Informasi di Left Column
+  // Asumsi property dari backend: Jumlah (Total), Sudah_Kirim (Realisasi/Jadwal sebelumnya)
+  formData.spkTotalOrder = Number(spk.Jumlah) || 0;
+  formData.spkSudahKirim = Number(spk.Sudah_Kirim) || 0;
 
-  // 3. Update detail yang sudah ada
+  // Hitung sisa yang benar-benar bisa dijadwalkan sekarang
+  const sisaBelumKirim = formData.spkTotalOrder - formData.spkSudahKirim;
+  formData.spkBelumKirim = sisaBelumKirim;
+
+  // 3. Update Detail yang sudah ada di tabel
+  // maxQty sekarang dikunci ke sisaBelumKirim agar validasi per baris akurat
   if (formData.detail.length > 0) {
     formData.detail.forEach((d) => {
+      // Isi otomatis uraian dan size dari data SPK
       d.uraian = formData.spkNama;
       d.size = formData.spkUkuran;
-      d.maxQty = limitQty;
+
+      // Validasi: Qty input tidak boleh melebihi sisa saldo SPK
+      d.maxQty = sisaBelumKirim;
     });
   }
 
+  // 4. Reset baris pertama jika masih kosong (opsional, agar lebih user-friendly)
+  if (formData.detail.length === 1 && !formData.detail[0].kota) {
+    formData.detail[0].qty = sisaBelumKirim > 0 ? sisaBelumKirim : 0;
+  }
+
   isSPKModalVisible.value = false;
+
+  toast.info(`SPK terpilih. Sisa saldo order: ${sisaBelumKirim}`, {
+    timeout: 2000,
+  });
 };
 
 const loaddataall = async (nomor: string) => {
