@@ -177,31 +177,28 @@ const loaddataall = async (nomor: string) => {
   isSaving.value = true;
   try {
     const res = await api.get(`${API_URL}/${nomor}`);
-    const d = res.data; // Data dari backend Node.js (JadwalKirim2)
+    const d = res.data;
 
-    // Mapping field Database ke State Vue
     formData.nomor = d.Nomor;
-    formData.tanggal = format(new Date(d.Tanggal), "yyyy-MM-dd");
+    formData.tanggal = d.Tanggal; // Sudah format YYYY-MM-DD dari DB
     formData.gudangKode = d.Gudang;
     formData.gudangNama = d.Nama_Gudang;
-    formData.spkNomor = d.No_SPK; // Sesuaikan dengan Alias di Query Node.js Anda
+    formData.spkNomor = d.No_SPK;
     formData.spkNama = d.Nama_Spk;
     formData.spkUkuran = d.Ukuran;
     formData.spkKain = d.Kain;
-    formData.usr_create = d.usr_create;
 
-    // Load Detail (jika ada)
+    // Pastikan property "Detail" (D besar) sesuai dengan return di Service
     if (d.Detail) {
       formData.detail = d.Detail.map((item: any) => ({
         no_urut: item.No_urut,
-        kota: item.Kota,
-        uraian: item.Uraian,
-        size: item.Size,
-        qty: item.Jumlah,
-        koli: item.Koli,
+        kota: item.kota,
+        uraian: item.uraian,
+        size: item.size,
+        qty: item.Jumlah, // Sesuai alias "Jumlah" di service
+        koli: item.Koli, // Sesuai alias "Koli" di service
         jamReady: item.Jam,
-        expedisi: item.Expedisi,
-        keterangan: item.Keterangan, // <-- Pastikan field ini ada di response backend Anda
+        expedisi: item.expedisi,
       }));
     }
   } catch (error) {
@@ -287,11 +284,12 @@ const importExcel = (event: Event) => {
 const saveForm = async (saveAndNew: boolean) => {
   if (!isFormValid.value) return;
 
-  // --- VALIDASI QTY MELEBIHI ORDER ---
+  const currentUser = localStorage.getItem("kdUser") || "USER01";
+
+  // --- VALIDASI QTY (Tetap sama) ---
   const overLimitItems = formData.detail.filter(
     (item) => item.qty > item.maxQty,
   );
-
   if (overLimitItems.length > 0) {
     const listKota = overLimitItems
       .map((i) => i.kota || "Baris " + i.no_urut)
@@ -299,9 +297,8 @@ const saveForm = async (saveAndNew: boolean) => {
     toast.error(
       `Gagal Simpan! Qty pada tujuan [${listKota}] melebihi jumlah order SPK.`,
     );
-    return; // Berhenti di sini, tidak lanjut proses API
+    return;
   }
-  // ------------------------------------
 
   isSaving.value = true;
   try {
@@ -312,19 +309,17 @@ const saveForm = async (saveAndNew: boolean) => {
       No_SPK: formData.spkNomor,
       Jumlah: calculatedTotalQty.value,
       Koli: calculatedTotalKoli.value,
-      usr_create: formData.usr_create,
-      // Jangan lupa kirim detailnya jika backend membutuhkannya
+      Realisasi: 0,
+      Koli_Realisasi: 0,
+      usr_create: currentUser,
       Detail: formData.detail,
     };
 
-    // Debug untuk memastikan data terisi sebelum dikirim
-    console.log("Kirim Payload ke Backend:", payload);
-
     await api.post(`${API_URL}/save`, payload);
-
     toast.success("Jadwal kirim berhasil disimpan!");
 
     if (saveAndNew) {
+      // Reset form tapi pertahankan user yang login
       Object.assign(formData, {
         nomor: "AUTO",
         tanggal: format(new Date(), "yyyy-MM-dd"),
@@ -336,13 +331,13 @@ const saveForm = async (saveAndNew: boolean) => {
         spkKain: "",
         totalQty: 0,
         totalKoli: 0,
+        usr_create: currentUser, // <-- Tetap pertahankan user ini
         detail: [createEmptyDetail(0)],
       });
     } else {
       router.back();
     }
   } catch (error: any) {
-    console.error("Save Error Detail:", error.response?.data);
     toast.error(error.response?.data?.message || "Gagal menyimpan data.");
   } finally {
     isSaving.value = false;
@@ -350,6 +345,12 @@ const saveForm = async (saveAndNew: boolean) => {
 };
 
 onMounted(() => {
+  // Update state user_create dengan user yang sedang login
+  const loggedInUser = localStorage.getItem("kdUser");
+  if (loggedInUser) {
+    formData.usr_create = loggedInUser;
+  }
+
   if (isEditMode.value) loaddataall(route.params.nomor as string);
 });
 </script>

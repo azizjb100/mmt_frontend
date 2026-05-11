@@ -713,8 +713,9 @@ const handleEdit = () => {
     toast.warning(`Data ini milik ${creator}. Anda tidak boleh mengubah.`);
     return;
   }
+
   router.push({
-    name: "JadwalKirimEdit2",
+    name: "JadwalKirimEdit",
     params: { nomor: selectedRow.value.Nomor },
   });
 };
