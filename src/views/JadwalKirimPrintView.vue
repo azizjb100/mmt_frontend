@@ -81,10 +81,11 @@ onMounted(() => {
 });
 
 const totalPcs = computed(() =>
-  masterData.value.reduce((a, b) => a + (Number(b.Jml_pcs) || 0), 0),
+  masterData.value.reduce((a, b) => a + (Number(b.Jml_Pcs) || 0), 0),
 );
+
 const totalKoli = computed(() =>
-  masterData.value.reduce((a, b) => a + (Number(b.Jml_koli) || 0), 0),
+  masterData.value.reduce((a, b) => a + (Number(b.Jml_Koli) || 0), 0),
 );
 </script>
 
