@@ -38,9 +38,9 @@ interface FormDataState {
   usr_create: string;
   detail: DetailItem[];
   keterangan: string;
-  spkTotalOrder: number; // Tambahan
-  spkSudahKirim: number; // Tambahan
-  spkBelumKirim: number; // Tambahan
+  spkTotalOrder: number;
+  spkSudahDijadwalkan: number; // Ubah dari spkSudahKirim
+  spkSisaBelumJadwal: number;
 }
 
 // --- Setup & State ---
@@ -80,8 +80,8 @@ const formData = reactive<FormDataState>({
   spkNomor: "",
   spkNama: "",
   spkTotalOrder: 0,
-  spkSudahKirim: 0,
-  spkBelumKirim: 0,
+  spkSudahDijadwalkan: 0,
+  spkSisaBelumJadwal: 0,
   spkUkuran: "",
   spkKain: "",
   totalQty: 0,
@@ -154,46 +154,36 @@ const validateQty = (item: DetailItem) => {
 };
 
 const handleSPKSelect = (spk: any) => {
-  console.log("Data SPK dipilih:", spk);
+  console.log("Data SPK terpilih dari modal:", spk);
 
-  // 1. Mapping Header SPK
-  formData.spkNomor = spk.Spk || "";
+  // 1. Mapping Header SPK (Sesuaikan dengan KEY dari backend)
+  formData.spkNomor = spk.SPK || ""; // Backend pakai "SPK" (huruf besar semua)
   formData.spkNama = spk.Nama || "";
   formData.spkUkuran = spk.Ukuran || "";
   formData.spkKain = spk.Bahan || "";
 
-  // 2. Kalkulasi Saldo Order untuk Informasi di Left Column
-  // Asumsi property dari backend: Jumlah (Total), Sudah_Kirim (Realisasi/Jadwal sebelumnya)
-  formData.spkTotalOrder = Number(spk.Jumlah) || 0;
-  formData.spkSudahKirim = Number(spk.Sudah_Kirim) || 0;
-
-  // Hitung sisa yang benar-benar bisa dijadwalkan sekarang
-  const sisaBelumKirim = formData.spkTotalOrder - formData.spkSudahKirim;
-  formData.spkBelumKirim = sisaBelumKirim;
+  // 2. Kalkulasi Saldo Order (Gunakan alias dari Query SQL Backend)
+  formData.spkTotalOrder = Number(spk.Total_Order) || 0;
+  formData.spkSudahDijadwalkan = Number(spk.Sudah_Kirim) || 0;
+  formData.spkSisaBelumJadwal = Number(spk.Belum_Kirim) || 0;
 
   // 3. Update Detail yang sudah ada di tabel
-  // maxQty sekarang dikunci ke sisaBelumKirim agar validasi per baris akurat
+  const sisa = formData.spkSisaBelumJadwal;
   if (formData.detail.length > 0) {
     formData.detail.forEach((d) => {
-      // Isi otomatis uraian dan size dari data SPK
       d.uraian = formData.spkNama;
       d.size = formData.spkUkuran;
-
-      // Validasi: Qty input tidak boleh melebihi sisa saldo SPK
-      d.maxQty = sisaBelumKirim;
+      d.maxQty = sisa; // Kunci batas maksimal input
     });
   }
 
-  // 4. Reset baris pertama jika masih kosong (opsional, agar lebih user-friendly)
+  // 4. Otomatis isi Qty jika baris pertama masih kosong
   if (formData.detail.length === 1 && !formData.detail[0].kota) {
-    formData.detail[0].qty = sisaBelumKirim > 0 ? sisaBelumKirim : 0;
+    formData.detail[0].qty = sisa > 0 ? sisa : 0;
   }
 
   isSPKModalVisible.value = false;
-
-  toast.info(`SPK terpilih. Sisa saldo order: ${sisaBelumKirim}`, {
-    timeout: 2000,
-  });
+  toast.info(`SPK terpilih. Sisa saldo: ${sisa}`);
 };
 
 const loaddataall = async (nomor: string) => {
@@ -505,6 +495,37 @@ onMounted(() => {
                   variant="outlined"
                   hide-details
                 />
+              </v-col>
+
+              <v-col cols="12" class="mt-4">
+                <v-card color="blue-lighten-5" flat class="pa-2">
+                  <!-- Warna ganti biru agar beda dengan 'kirim' -->
+                  <div class="d-flex justify-space-between">
+                    <span class="text-caption font-weight-bold"
+                      >TOTAL ORDER</span
+                    >
+                    <span class="font-weight-black">{{
+                      formData.spkTotalOrder
+                    }}</span>
+                  </div>
+                  <div class="d-flex justify-space-between">
+                    <span class="text-caption font-weight-bold text-primary"
+                      >SUDAH DIJADWALKAN</span
+                    >
+                    <span class="font-weight-black text-primary">{{
+                      formData.spkSudahDijadwalkan
+                    }}</span>
+                  </div>
+                  <v-divider class="my-1" />
+                  <div class="d-flex justify-space-between">
+                    <span class="text-caption font-weight-bold text-error"
+                      >SISA BELUM JADWAL</span
+                    >
+                    <span class="font-weight-black text-error">{{
+                      formData.spkSisaBelumJadwal
+                    }}</span>
+                  </div>
+                </v-card>
               </v-col>
 
               <v-col cols="12" class="mt-4">

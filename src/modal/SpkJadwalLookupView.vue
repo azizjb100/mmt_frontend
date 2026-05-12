@@ -240,17 +240,37 @@ watch(
 </script>
 
 <style scoped>
+/* Membuat header terlihat jelas dan tetap di atas (sticky) */
+.desktop-table :deep(thead th) {
+  background-color: #1976d2 !important; /* Biru Primary agar kontras */
+  color: white !important; /* Teks putih agar terbaca */
+  font-weight: bold !important;
+  font-size: 12px !important;
+  height: 45px !important;
+  border-bottom: 2px solid #1565c0 !important;
+}
+
+/* Mengatur ukuran font isi tabel */
 .desktop-table :deep(td) {
   height: 38px !important;
   font-size: 11.5px;
 }
-.desktop-table :deep(thead th) {
-  background-color: #f5f5f5 !important;
-  font-weight: bold;
-  font-size: 12px;
-}
+
+/* Efek Hover baris agar interaktif */
 .clickable-row :deep(tbody tr):hover {
   cursor: pointer;
   background-color: #e3f2fd !important;
+}
+
+/* Memperbaiki Scrollbar */
+.desktop-table :deep(.v-table__wrapper) {
+  scrollbar-width: thin;
+  scrollbar-color: #bdc3c7 transparent;
+}
+
+/* Layout Dialog agar lebih rapi */
+.dialog-card {
+  border-radius: 8px;
+  overflow: hidden;
 }
 </style>
