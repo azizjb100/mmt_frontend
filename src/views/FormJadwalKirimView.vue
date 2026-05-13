@@ -61,10 +61,10 @@ const authStore = {
 const createEmptyDetail = (index: number): DetailItem => ({
   no_urut: index + 1,
   kota: "",
-  uraian: "",
+  uraian: "", // Memastikan uraian barang kosong saat tambah baris baru
   size: "",
   qty: 0,
-  maxQty: 999999, // Default besar jika bukan dari SPK
+  maxQty: 999999,
   koli: 0,
   jamInput: format(new Date(), "HH:mm"),
   jamReady: "15:00",
@@ -75,8 +75,8 @@ const createEmptyDetail = (index: number): DetailItem => ({
 const formData = reactive<FormDataState>({
   nomor: "AUTO",
   tanggal: format(new Date(), "yyyy-MM-dd"),
-  gudangKode: "",
-  gudangNama: "",
+  gudangKode: "WH-010", // SET DEFAULT GUDANG
+  gudangNama: "GUDANG JADI MMT", // Anda bisa isi nama gudang defaultnya di sini
   spkNomor: "",
   spkNama: "",
   spkTotalOrder: 0,
@@ -87,7 +87,7 @@ const formData = reactive<FormDataState>({
   totalQty: 0,
   totalKoli: 0,
   usr_create: authStore.KDUSER,
-  detail: [createEmptyDetail(0)],
+  detail: [createEmptyDetail(0)], // Akan memanggil detail dengan uraian kosong
 });
 
 const detailHeaders = [
@@ -171,7 +171,6 @@ const handleSPKSelect = (spk: any) => {
   const sisa = formData.spkSisaBelumJadwal;
   if (formData.detail.length > 0) {
     formData.detail.forEach((d) => {
-      d.uraian = formData.spkNama;
       d.size = formData.spkUkuran;
       d.maxQty = sisa; // Kunci batas maksimal input
     });

@@ -315,13 +315,13 @@ const handleSave = async () => {
   isSaving.value = true;
   try {
     const payload = {
-      header: formData,
+      header: formData, // Di sini formData.nomor akan berisi 'AUTO' atau 'MMT-LHK-R...'
       details: detailData.value.map((item) => ({
-        nomor_spk: item.spk_nomor, // Pastikan di sini 'nomor_spk'
+        nomor_spk: item.spk_nomor,
         nama_spk: item.spk_nama,
         panjang: item.panjang,
         lebar: item.lebar,
-        j_order: item.spk_jmlorder,
+        j_order: item.j_order,
         jumlah_rtr: item.jumlah_rtr,
         lokasi: item.lokasi,
         jenis_bahan: item.jenis_bahan,
@@ -330,13 +330,14 @@ const handleSave = async () => {
       })),
     };
 
-    const endpoint = route.params.nomor
-      ? `/mmt/lhk-rtr/${route.params.nomor}`
-      : "/mmt/lhk-rtr";
+    // PERBAIKAN: Jangan masukkan nomor di URL
+    // Cukup gunakan endpoint utama karena logika IF/ELSE ada di dalam saveLhk (Backend)
+    const endpoint = "/mmt/lhk-rtr";
+
     await api.post(endpoint, payload);
 
     toast.success("Simpan data berhasil.");
-    router.push({ name: "lhkRtrBrowse" });
+    router.push({ name: "LHKRTRMMT" });
   } catch (e: any) {
     toast.error("Gagal Simpan: " + (e.response?.data?.message || e.message));
   } finally {
@@ -403,15 +404,18 @@ const openSpkSearch = () => {
 };
 
 const handleSpkSelect = (spk: any) => {
+  // Mapping data sesuai response JSON yang Anda berikan
   const data = {
     spk_nomor: spk.spk_nomor || spk.Spk,
-    spk_nama: spk.nama || spk.spk_nama,
-    panjang: parseFloat(spk.spk_panjang || spk.panjang) || 0,
-    lebar: parseFloat(spk.spk_lebar || spk.lebar) || 0,
-    jumlah_rtr: 1,
+    spk_nama: spk.Nama, // Mengambil dari properti "Nama"
+    panjang: parseFloat(spk.Panjang) || 0, // Mengambil dari properti "Panjang"
+    lebar: parseFloat(spk.Lebar) || 0, // Mengambil dari properti "Lebar"
+    jumlah_rtr: 1, // Default 1
+    jenis_bahan: spk.Bahan, // Tambahan: ambil info bahan jika perlu
   };
 
   if (activeRowIdx.value === -1) {
+    // Jika tambah baris baru (dari tombol "Tambah SPK")
     detailData.value.push({
       ...data,
       poi_nomor: "",
@@ -419,17 +423,68 @@ const handleSpkSelect = (spk: any) => {
       lokasi: "",
       jumlah_meter: 0,
     });
+    // Hitung meter untuk baris terakhir yang baru saja ditambah
     calculateMeter(detailData.value[detailData.value.length - 1]);
   } else {
+    // Jika update baris yang sudah ada (klik icon mdi-magnify di baris)
     detailData.value[activeRowIdx.value] = {
       ...detailData.value[activeRowIdx.value],
       ...data,
     };
+    // Hitung ulang meter untuk baris tersebut
     calculateMeter(detailData.value[activeRowIdx.value]);
   }
+
   lookup.spk = false;
 };
 
+const loadDataAll = async (nomor: string) => {
+  isSaving.value = true;
+  try {
+    const response = await api.get(`/mmt/lhk-rtr/detail/${nomor}`);
+    const res = response.data; // Ini berisi { data: [...] } berdasarkan contoh Anda
+
+    // Jika Backend hanya mengirim detail di endpoint ini,
+    // kita perlu memastikan apakah header dikirim di objek yang sama atau berbeda.
+    // Berdasarkan contoh JSON Anda yang hanya menunjukkan array "data":
+
+    const rawDetails = res.data || [];
+
+    if (rawDetails.length > 0) {
+      // 1. Sinkronisasi Field Header (Ambil dari baris pertama detail jika tidak ada objek header terpisah)
+      const firstRow = rawDetails[0];
+
+      formData.nomor = firstRow.Nomor;
+      // Catatan: Jika Backend mengirim objek 'header' terpisah, gunakan res.header.
+      // Namun jika tidak ada, kita asumsikan data header menempel di row detail.
+
+      // 2. Kosongkan dan Isi Detail Data
+      detailData.value = [];
+
+      rawDetails.forEach((d: any) => {
+        detailData.value.push({
+          // SESUAIKAN DENGAN KEY DI JSON (PascalCase)
+          spk_nomor: d.Nomor_SPK,
+          spk_nama: d.Nama_SPK,
+          panjang: parseFloat(d.Panjang) || 0,
+          lebar: parseFloat(d.Lebar) || 0,
+          j_order: d.J_Order,
+          jumlah_rtr: parseFloat(d.Jumlah) || 0,
+          jumlah_meter: parseFloat(d.Jumlah_meter) || 0,
+          poi_nomor: d.No_PO_Internal,
+          poi_size: d.Size,
+          lokasi: d.Lokasi || "",
+          jenis_bahan: d.Jenis_Bahan || "",
+        });
+      });
+    }
+  } catch (error: any) {
+    console.error("Load Error:", error);
+    toast.error("Gagal memuat data LHK RTR.");
+  } finally {
+    isSaving.value = false;
+  }
+};
 // --- Other Lookups ---
 const handleGudangSelect = (g: any) => {
   formData.gdgKode = g.Kode;
@@ -458,14 +513,9 @@ const updateMaxKode = async () => {
 };
 
 onMounted(async () => {
-  if (route.params.nomor) {
-    try {
-      const res = await api.get(`/mmt/lhk-rtr/${route.params.nomor}`);
-      Object.assign(formData, res.data.header);
-      detailData.value = res.data.details;
-    } catch (e) {
-      toast.error("Gagal load data edit");
-    }
+  const nomorParams = route.params.nomor as string;
+  if (nomorParams) {
+    await loadDataAll(nomorParams);
   }
 });
 </script>
@@ -476,10 +526,12 @@ onMounted(async () => {
   gap: 16px;
   height: calc(100vh - 140px);
 }
+
 .left-column {
   width: 300px;
   flex-shrink: 0;
 }
+
 .right-column {
   flex: 1;
   min-width: 0;
@@ -487,36 +539,61 @@ onMounted(async () => {
   flex-direction: column;
 }
 
+/* Header Card: Menggunakan warna terang agar teks hitam terlihat jelas */
 .custom-header-blue {
-  background-color: #455a64 !important;
+  background-color: #eeeeee !important;
+  color: #000000 !important;
   font-weight: bold !important;
-}
-.custom-label-blue :deep(.v-label) {
-  font-size: 11px;
-  font-weight: 600;
-  color: #000 !important;
+  border-bottom: 1px solid #ccc !important;
 }
 
+/* Label pada form kiri */
+.custom-label-blue :deep(.v-label) {
+  font-size: 11px;
+  font-weight: 700;
+  color: #000000 !important;
+  opacity: 1;
+}
+
+/* Header Tabel: Jika ingin teks hitam, background harus terang (misal: grey-lighten-2) */
 .delphi-grid :deep(thead th) {
-  background-color: #1565c0 !important;
-  color: white !important;
+  background-color: #5aa4ff !important; /* Diubah dari biru ke abu terang */
+  color: #ffffff !important; /* Teks jadi hitam */
   font-size: 11px !important;
+  font-weight: bold !important;
   height: 32px !important;
+  border: 0.5px solid #ccc !important;
 }
 
 .delphi-grid :deep(td) {
   border: 0.5px solid #eee !important;
   height: 32px !important;
+  color: #000000 !important;
 }
+
+/* Warna cell kuning dengan teks hitam pekat */
 .cell-yellow {
   background-color: #fff9c4 !important;
 }
-.table-input-inline :deep(.v-field__input) {
+
+/* Paksa semua input (termasuk yang readonly) berwarna hitam pekat */
+.table-input-inline :deep(input) {
   padding: 4px 8px !important;
   min-height: 28px !important;
   font-size: 12px !important;
+  color: #000000 !important;
+  opacity: 1 !important;
+  /* Properti di bawah ini krusial untuk field 'readonly' di Chrome/Safari */
+  -webkit-text-fill-color: #000000 !important;
 }
+
 .custom-font {
   font-size: 12px !important;
+  color: #000000 !important;
+}
+
+/* Menghilangkan shadow default agar lebih flat ala Delphi */
+.v-card {
+  border-radius: 0 !important;
 }
 </style>

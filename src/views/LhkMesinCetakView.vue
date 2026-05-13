@@ -34,8 +34,8 @@
       <v-btn
         size="x-small"
         color="info"
-        :disabled="!isSingleSelected"
-        @click="handleExportDetail"
+        :disabled="masterData.length === 0"
+        @click="exportToExcel"
       >
         <v-icon start>mdi-download</v-icon> Export Detail
       </v-btn>
@@ -210,6 +210,7 @@ import type { AxiosError } from "axios";
 import { format, subDays, parseISO, isValid } from "date-fns";
 import PageLayout from "../components/PageLayout.vue";
 import api from "@/services/api";
+import * as XLSX from "xlsx";
 
 // --- Interfaces ---
 interface LhkCetakHeader {
@@ -462,6 +463,111 @@ const resizeTable = (tableSelector: string) => {
 
     header.appendChild(resizer);
   });
+};
+
+const exportToExcel = async () => {
+  loading.value.headers = true;
+  try {
+    const payload = {
+      startDate: filters.startDate,
+      endDate: filters.endDate,
+      // Jika di LHK Mesin tidak ada filter mesin multi, hapus baris di bawah
+      mesin: filters.mesin?.length > 0 ? filters.mesin.join(",") : undefined,
+    };
+
+    // Panggil endpoint yang sesuai dengan routes backend tadi
+    const res = await api.get(`${API_BASE_URL}/report/export-detail`, {
+      params: payload,
+    });
+    const rawData = res.data?.data || []; // Ambil data dari properti 'data' (karena controller kirim {success, data})
+
+    if (rawData.length === 0) {
+      toast.warning("Tidak ada data untuk diekspor");
+      return;
+    }
+
+    const worksheetData = [];
+    worksheetData.push(["Laporan Hasil Kerja Mesin Cetak MMT"]);
+    worksheetData.push([
+      `Periode : ${filters.startDate} s.d ${filters.endDate}`,
+    ]);
+    worksheetData.push([]); // Space kosong
+
+    // Header (Sesuai gambar yang diinginkan)
+    const headers = [
+      "Tanggal",
+      "Shift",
+      "cetak_meter",
+      "Mesin",
+      "Nomor_SPK",
+      "Nama_SPK",
+      "Panjang",
+      "Lebar",
+      "Jml_Order",
+      "Jml_Cetak",
+    ];
+    worksheetData.push(headers);
+
+    // LOGIKA GROUPING (Agar baris tanggal/shift tidak duplikat ke bawah)
+    const grouped = rawData.reduce((acc, item) => {
+      if (!acc[item.Nomor_LHK]) {
+        acc[item.Nomor_LHK] = {
+          items: [],
+          totalM2: 0,
+          tanggal: item.Tanggal,
+          shift: item.Shift_LHK,
+        };
+      }
+      acc[item.Nomor_LHK].items.push(item);
+      acc[item.Nomor_LHK].totalM2 += Number(item.m2_cetak || 0);
+      return acc;
+    }, {});
+
+    Object.keys(grouped).forEach((nomorLhk) => {
+      const group = grouped[nomorLhk];
+      group.items.forEach((row, index) => {
+        const isFirstRow = index === 0;
+        worksheetData.push([
+          isFirstRow ? group.tanggal : "", // Kolom Tanggal (Kosong jika bukan baris pertama group)
+          isFirstRow ? group.shift : "", // Kolom Shift
+          isFirstRow ? group.totalM2.toFixed(3) : "", // Total m2 per LHK
+          row.Mesin || "",
+          row.Nomor_SPK || "",
+          row.Nama_Order || "",
+          row.Panjang || 0,
+          row.Lebar || 0,
+          0, // Jml_Order (placeholder)
+          row.Qty_Cetak || 0,
+        ]);
+      });
+    });
+
+    const ws = XLSX.utils.aoa_to_sheet(worksheetData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "LHK_Mesin");
+
+    // Set Width Kolom
+    ws["!cols"] = [
+      { wch: 12 },
+      { wch: 6 },
+      { wch: 15 },
+      { wch: 10 },
+      { wch: 20 },
+      { wch: 40 },
+      { wch: 8 },
+      { wch: 8 },
+      { wch: 10 },
+      { wch: 10 },
+    ];
+
+    XLSX.writeFile(wb, `LHK_Mesin_MMT_${filters.startDate}.xlsx`);
+    toast.success("Excel berhasil diunduh");
+  } catch (error) {
+    console.error("Export Error:", error);
+    toast.error("Gagal mengekspor data.");
+  } finally {
+    loading.value.headers = false;
+  }
 };
 
 const fetchGudangList = async () => {

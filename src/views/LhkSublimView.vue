@@ -1,16 +1,16 @@
 <template>
   <PageLayout
-    title="Browse Hasil Kerja Sublim MMT"
+    title="Hasil Kerja Sublim MMT"
     icon="mdi-printer-settings"
     class="custom-font"
   >
     <template #header-actions>
-      <!-- cxButton2Click (Tambah Baru) -->
+      <!-- Tambah Baru -->
       <v-btn size="x-small" color="primary" @click="handleCreate">
         <v-icon start size="14">mdi-plus</v-icon> Baru
       </v-btn>
 
-      <!-- cxButton1Click (Edit/Ubah) -->
+      <!-- Ubah -->
       <v-btn
         size="x-small"
         color="warning"
@@ -20,9 +20,19 @@
         <v-icon start size="14">mdi-pencil</v-icon> Ubah
       </v-btn>
 
+      <!-- Input Bahan -->
+      <v-btn
+        size="x-small"
+        color="secondary"
+        :disabled="!isSingleSelected"
+        @click="handleBahan"
+      >
+        <v-icon start size="14">mdi-package-variant</v-icon> Bahan
+      </v-btn>
+
       <v-divider vertical class="mx-2" />
 
-      <!-- cxButton4Click (Hapus) -->
+      <!-- Hapus -->
       <v-btn
         size="x-small"
         color="error"
@@ -32,7 +42,7 @@
         <v-icon start size="14">mdi-delete</v-icon> Hapus
       </v-btn>
 
-      <!-- cxButton3Click (Cetak Slip) -->
+      <!-- Cetak Slip -->
       <v-btn
         size="x-small"
         color="info"
@@ -40,16 +50,6 @@
         @click="handlePrint"
       >
         <v-icon start size="14">mdi-printer</v-icon> Slip
-      </v-btn>
-
-      <!-- cxButton5Click (Input Bahan) -->
-      <v-btn
-        size="x-small"
-        color="secondary"
-        :disabled="!isSingleSelected"
-        @click="handleBahan"
-      >
-        <v-icon start size="14">mdi-basket-outline</v-icon> Bahan
       </v-btn>
     </template>
 
@@ -90,78 +90,76 @@
             >
               <v-icon start size="14">mdi-magnify</v-icon> Refresh
             </v-btn>
+
+            <v-spacer />
+
+            <!-- Legend Status -->
+            <div class="d-flex align-center ga-2 italic">
+              <v-icon color="error" size="14">mdi-alert-circle</v-icon>
+              <span class="text-error" style="font-size: 11px"
+                >Teks Merah = Belum Lengkap</span
+              >
+            </div>
           </div>
         </v-card-text>
       </v-card>
 
-      <!-- Main Data Table (Master) -->
+      <!-- Table Master -->
       <v-data-table
         v-model:selected="selected"
         v-model:expanded="expanded"
         :headers="masterHeaders"
         :items="masterData"
         :loading="loading.master"
-        item-value="nomor"
+        item-value="Nomor"
         density="compact"
         class="border elevation-1 main-grid custom-table"
         show-select
         select-strategy="single"
         show-expand
         fixed-header
+        :row-props="getRowProps"
         @click:row="handleRowClick"
       >
-        <!-- Logika cxGrdMasterCustomDrawCell (Warna Merah jika Lengkap != 'Y') -->
-        <template #[`item.nomor`]="{ item }">
+        <!-- Custom Drawing untuk Nomor (Warna Merah jika belum lengkap) -->
+        <template #[`item.Nomor`]="{ item }">
           <span
             :class="item.Lengkap !== 'Y' ? 'text-error font-weight-bold' : ''"
           >
-            {{ item.nomor }}
+            {{ item.Nomor }}
           </span>
         </template>
 
-        <template #[`item.Jenis`]="{ item }">
-          <v-chip
-            size="x-small"
-            :color="getJenisColor(item.Jenis)"
-            variant="flat"
-            label
-          >
-            {{ item.Jenis }}
-          </v-chip>
+        <!-- Total Meter format -->
+        <template #[`item.total_meter`]="{ item }">
+          {{ Number(item.total_meter || 0).toFixed(2) }}
         </template>
 
-        <!-- Nested Detail Table (SQLDetail) -->
+        <!-- Nested Detail Table -->
         <template #expanded-row="{ columns, item }">
           <tr>
             <td :colspan="columns.length" class="bg-grey-lighten-4 pa-4">
               <v-card
                 variant="outlined"
-                title="Detail Item Hasil Kerja Sublim"
+                title="Detail Pekerjaan Sublim"
                 class="custom-font"
               >
                 <v-data-table
                   :headers="detailHeaders"
-                  :items="details[item.nomor] || []"
-                  :loading="loadingDetails.has(item.nomor)"
+                  :items="details[item.Nomor] || []"
+                  :loading="loadingDetails.has(item.Nomor)"
                   density="compact"
                   hide-default-footer
                   class="custom-table"
                 >
-                  <!-- Perbaikan Slot Ukuran menggunakan PascalCase -->
                   <template #[`item.Ukuran`]="{ item }">
                     {{ item.Panjang }} x {{ item.Lebar }}
                   </template>
 
-                  <!-- Perbaikan Slot Jumlah_Meter sesuai data JSON -->
                   <template #[`item.Jumlah_Meter`]="{ item }">
                     <span class="font-weight-bold">
-                      {{ Number(item.Jumlah_Meter).toFixed(2) }}
+                      {{ Number(item.Jumlah_Meter || 0).toFixed(2) }}
                     </span>
-                  </template>
-
-                  <!-- Opsional: Perbaikan Slot Jumlah Hasil -->
-                  <template #[`item.Jumlah`]="{ item }">
-                    {{ item.Jumlah }}
                   </template>
                 </v-data-table>
               </v-card>
@@ -194,29 +192,30 @@ const loading = reactive({ master: false });
 const loadingDetails = ref(new Set());
 
 const filters = reactive({
-  startDate: format(subDays(new Date(), 7), "yyyy-MM-dd"),
+  startDate: format(subDays(new Date(), 30), "yyyy-MM-dd"), // 30 hari seperti Tekstil
   endDate: format(new Date(), "yyyy-MM-dd"),
 });
 
-// --- Table Headers (Mapping dari SQLMaster & SQLDetail) ---
+// --- Table Headers (Master Sublim) ---
 const masterHeaders = [
-  { title: "Nomor", key: "nomor", width: "150px" },
+  { title: "Nomor", key: "Nomor", width: "150px" },
   { title: "Tanggal", key: "Tanggal", width: "120px" },
   { title: "Gudang", key: "Nama_Gudang" },
-  { title: "Jenis", key: "Jenis", width: "100px" },
   { title: "Shift", key: "Shift", width: "80px" },
-  { title: "Lengkap", key: "Lengkap", width: "80px" },
+  { title: "Cetak (m²)", key: "total_meter", align: "end", width: "100px" },
+  { title: "Lengkap", key: "Lengkap", width: "80px", align: "center" },
 ];
 
+// --- Table Headers (Detail Sublim) ---
 const detailHeaders = [
-  { title: "No. Urut", key: "No_Urut", width: "70px" },
+  { title: "No. Urut", key: "lmsd_no_urut", width: "70px" },
   { title: "No. SPK", key: "Nomor_SPK", width: "130px" },
   { title: "Nama SPK", key: "Nama_SPK" },
-  { title: "Ukuran", key: "Ukuran", width: "110px" }, // Gabungan Panjang x Lebar
+  { title: "Ukuran", key: "Ukuran", width: "110px" },
+  { title: "Bahan", key: "Bahan" },
   { title: "J. Order", key: "J_Order", align: "end", width: "80px" },
   { title: "J. Hasil", key: "Jumlah", align: "end", width: "80px" },
   { title: "Mtr²", key: "Jumlah_Meter", align: "end", width: "90px" },
-  { title: "Lokasi", key: "Lokasi", width: "100px" },
 ];
 
 // --- Computed ---
@@ -224,13 +223,6 @@ const isSingleSelected = computed(() => selected.value.length === 1);
 const selectedItemNomor = computed(() => selected.value[0]);
 
 // --- Methods ---
-
-const getJenisColor = (jenis: string) => {
-  if (jenis === "MMT") return "blue-darken-2";
-  if (jenis === "SUBLIM") return "purple-darken-2";
-  if (jenis === "TEKSTIL") return "green-darken-2";
-  return "grey";
-};
 
 const fetchMasterData = async () => {
   loading.master = true;
@@ -244,11 +236,9 @@ const fetchMasterData = async () => {
   }
 };
 
-// Logika Fetch Detail saat Baris di-expand
+// Expand Row Logic
 watch(expanded, async (newVal) => {
-  if (newVal.length === 0) return;
   const lastExpanded = newVal[newVal.length - 1];
-
   if (lastExpanded && !details.value[lastExpanded]) {
     loadingDetails.value.add(lastExpanded);
     try {
@@ -262,8 +252,14 @@ watch(expanded, async (newVal) => {
   }
 });
 
+const getRowProps = ({ item }: any) => {
+  return {
+    class: selected.value.includes(item.Nomor) ? "bg-blue-lighten-5" : "",
+  };
+};
+
 const handleRowClick = (event: any, { item }: any) => {
-  selected.value = [item.nomor];
+  selected.value = [item.Nomor];
 };
 
 const handleCreate = () => {
@@ -346,7 +342,7 @@ onMounted(() => {
 }
 
 .main-grid {
-  height: calc(100vh - 220px);
+  height: calc(100vh - 250px);
 }
 
 :deep(.v-data-table-header th) {
@@ -356,5 +352,9 @@ onMounted(() => {
 
 .text-error {
   color: #ff5252 !important;
+}
+
+.italic {
+  font-style: italic;
 }
 </style>
