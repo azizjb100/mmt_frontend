@@ -96,6 +96,7 @@ const totalKoli = computed(() =>
 
 <template>
   <div class="mmt-print-page">
+    <!-- Tombol Aksi (Hanya muncul di layar, tidak saat print) -->
     <div class="no-print action-bar">
       <v-btn
         prepend-icon="mdi-arrow-left"
@@ -113,6 +114,7 @@ const totalKoli = computed(() =>
     </div>
 
     <div v-if="!isLoading" class="sheet">
+      <!-- Kop Surat sesuai image_63ab04.jpg -->
       <div class="report-header">
         <div class="company-brand">
           <div class="brand-name">CV. Kencana Print</div>
@@ -129,7 +131,8 @@ const totalKoli = computed(() =>
 
       <table class="data-table">
         <thead>
-          <tr>
+          <tr class="header-blue">
+            <!-- Class Warna Biru Muda -->
             <th rowspan="2" class="w-no">NO.</th>
             <th rowspan="2" class="w-spk">NO SPK</th>
             <th rowspan="2" class="w-nama">NAMA SPK</th>
@@ -140,9 +143,9 @@ const totalKoli = computed(() =>
             <th rowspan="2" class="w-cust">CUST</th>
             <th colspan="3">JADWAL</th>
             <th colspan="2">REALISASI</th>
-            <th rowspan="2" class="w-exp">EXPEDISI</th>
+            <th rowspan="2" class="w-exp">EKSPEDISI</th>
           </tr>
-          <tr>
+          <tr class="header-blue">
             <th class="w-pcs">JML PCS</th>
             <th class="w-koli">JML KOLI</th>
             <th class="w-ready">JAM READY</th>
@@ -156,27 +159,19 @@ const totalKoli = computed(() =>
           </tr>
           <tr v-for="(item, index) in masterData" :key="index">
             <td class="text-center">{{ index + 1 }}</td>
-            <td class="text-center w-spk">{{ item.No_SPK }}</td>
+            <td class="text-center">{{ item.No_SPK }}</td>
             <td>{{ formatLongString(item.Nama_Spk, 25) }}</td>
             <td class="text-center">{{ item.Ukuran }}</td>
-            <td>{{ item.Kain }}</td>
+            <td class="text-center">{{ item.Kain }}</td>
             <td class="text-center">{{ item.Tanggal }}</td>
-            <td class="text-center">{{ item.uraian }}</td>
-            <td class="text-center">
-              {{ formatLongString(item.Customer, 18) }}
-            </td>
+            <td>{{ item.uraian }}</td>
+            <td>{{ formatLongString(item.Customer, 18) }}</td>
             <td class="text-center font-bold">{{ item.Jml_Pcs }}</td>
             <td class="text-center font-bold">{{ item.Jml_Koli }}</td>
             <td class="text-center">{{ item.Jam_Ready }}</td>
-            <td>{{ item.Nomor_SJ }}</td>
+            <td class="text-center">{{ item.Nomor_SJ }}</td>
             <td class="text-center font-bold">{{ item.Realisasi_Kirim }}</td>
             <td>{{ item.expedisi }}</td>
-          </tr>
-          <tr class="footer-row">
-            <td colspan="8" class="text-right">JUMLAH:</td>
-            <td class="text-center">{{ totalPcs }}</td>
-            <td class="text-center">{{ totalKoli }}</td>
-            <td colspan="4"></td>
           </tr>
         </tbody>
       </table>
@@ -185,16 +180,10 @@ const totalKoli = computed(() =>
 </template>
 
 <style scoped>
-/* Reset khusus halaman ini agar tidak terganggu navbar aplikasi */
+/* Container Preview */
 .mmt-print-page {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
   background-color: #525659;
-  z-index: 9999;
-  overflow-y: auto;
+  min-height: 100vh;
   padding: 40px 0;
   font-family: Arial, sans-serif;
 }
@@ -202,14 +191,13 @@ const totalKoli = computed(() =>
 /* Kertas A4 Landscape */
 .sheet {
   background: white;
-  width: 350mm;
-  min-height: 210mm;
+  width: 350mm; /* Sesuai lebar tabel pada gambar */
   margin: 0 auto;
-  padding: 10mm;
-  box-sizing: border-box;
+  padding: 15mm 10mm;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
 }
 
-/* Header */
+/* Header & Kop */
 .report-header {
   display: flex;
   justify-content: space-between;
@@ -217,7 +205,7 @@ const totalKoli = computed(() =>
 }
 .brand-name {
   font-weight: bold;
-  font-size: 11pt;
+  font-size: 12pt;
 }
 .brand-sub {
   font-size: 9pt;
@@ -225,7 +213,7 @@ const totalKoli = computed(() =>
 }
 .logo-main {
   font-weight: bold;
-  font-size: 15pt;
+  font-size: 16pt;
   color: #c00000;
   text-align: right;
 }
@@ -242,94 +230,90 @@ const totalKoli = computed(() =>
 .report-title {
   text-align: center;
   font-weight: bold;
-  font-size: 12pt;
-  margin: 15px 0;
-  text-decoration: none;
+  font-size: 13pt;
+  margin: 20px 0;
+  text-decoration: underline;
 }
 
-/* Table Style Identik Gambar */
+/* Styling Tabel Utama */
 .data-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 10px; /* Sesuai permintaan */
+  font-size: 9px; /* Ukuran font kecil agar muat banyak kolom */
 }
 .data-table th,
 .data-table td {
-  white-space: nowrap; /* Mencegah teks turun ke baris baru */
-  text-overflow: ellipsis;
-  border: 1px solid #666;
-  padding: 3px 2px;
+  border: 1px solid #444;
+  padding: 4px 2px;
+  line-height: 1.2;
 }
 
-.data-table thead th {
-  background-color: #d9d9d9;
+/* Header Biru Muda */
+.header-blue th {
+  background-color: #d1e9ff !important; /* Warna Biru Muda */
+  color: #003366;
   font-weight: bold;
-  text-align: center;
+  text-transform: uppercase;
 }
+
 .group-row td {
   background-color: #f2f2f2;
   font-weight: bold;
-  padding-left: 8px;
-}
-.footer-row td {
-  font-weight: bold;
-  background-color: #fff;
-  border-top: 2px solid #000;
+  padding: 6px 10px;
 }
 
-/* Aligment */
+/* Zebra Striping untuk kemudahan baca */
+tbody tr:nth-child(even) {
+  background-color: #fafafa;
+}
+
+/* Helpers */
 .text-center {
   text-align: center;
-}
-.text-right {
-  text-align: right;
-  padding-right: 10px;
 }
 .font-bold {
   font-weight: bold;
 }
 
-/* Width Control agar proporsional */
+/* Lebar Kolom Proporsional */
 .w-no {
-  width: 20px;
+  width: 25px;
 }
 .w-spk {
   width: 100px;
 }
 .w-nama {
-  width: 220px;
+  width: 160px;
 }
 .w-ukuran {
-  width: 80px;
+  width: 100px;
 }
 .w-tgl {
-  width: 70px;
+  width: 65px;
 }
 .w-pcs,
 .w-koli,
 .w-kirim {
-  width: 45px;
+  width: 40px;
 }
 
-/* Floating Action Bar */
+/* Tombol Aksi */
 .action-bar {
   position: fixed;
-  top: 10px;
-  right: 20px;
-  z-index: 10001;
+  top: 20px;
+  right: 40px;
+  z-index: 100;
 }
 
-/* PRINT RULES */
+/* Aturan Cetak */
 @media print {
   @page {
     size: A4 landscape;
     margin: 5mm;
   }
   .mmt-print-page {
-    position: static;
-    background: white;
+    background: none;
     padding: 0;
-    overflow: visible;
   }
   .no-print {
     display: none !important;
@@ -339,9 +323,11 @@ const totalKoli = computed(() =>
     box-shadow: none;
     padding: 0;
   }
-  .data-table th,
-  .data-table td {
-    border: 1px solid #000 !important;
+  /* Memastikan warna background muncul saat di-print */
+  .header-blue th {
+    background-color: #d1e9ff !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
 }
 </style>
