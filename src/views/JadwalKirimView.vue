@@ -373,10 +373,21 @@ const handleExportExcel = () => {
 };
 
 const handlePrint = () => {
-  if (!selectedRow.value) return;
+  if (!selectedRow.value) {
+    toast.warning("Pilih satu data terlebih dahulu untuk dicetak.");
+    return;
+  }
+
+  // Menggunakan Nomor (ID Utama) atau No_SPK sesuai kebutuhan route Anda
+  // Jika di router.ts menggunakan :nomor, maka sesuaikan params-nya
   router.push({
     name: "JadwalKirimPrint",
     params: { nomor: selectedRow.value.Nomor },
+    query: {
+      startDate: filters.startDate,
+      endDate: filters.endDate,
+      gudang: filters.gudang,
+    },
   });
 };
 
