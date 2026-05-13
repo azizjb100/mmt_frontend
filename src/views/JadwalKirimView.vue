@@ -3,6 +3,7 @@
     title="Data Jadwal Kirim (Gudang Jadi)"
     icon="mdi-truck-delivery-outline"
   >
+    <!-- Header Actions: Dibuat simpel dan fungsional seperti LHK -->
     <template #header-actions>
       <v-btn
         v-if="canAccess('insert')"
@@ -12,7 +13,6 @@
       >
         <v-icon start>mdi-plus</v-icon> Baru
       </v-btn>
-
       <v-btn
         v-if="canAccess('edit')"
         size="x-small"
@@ -22,7 +22,6 @@
       >
         <v-icon start>mdi-pencil</v-icon> Ubah
       </v-btn>
-
       <v-btn
         v-if="canAccess('delete')"
         size="x-small"
@@ -33,17 +32,24 @@
         <v-icon start>mdi-trash-can</v-icon> Hapus
       </v-btn>
 
+      <v-divider vertical class="mx-2" />
+
       <v-btn
         size="x-small"
         color="info"
-        @click="handlePrint"
-        :loading="loading"
         :disabled="!isSingleSelected"
+        @click="handlePrint"
       >
         <v-icon start>mdi-printer</v-icon> Cetak
       </v-btn>
-
-      <v-divider vertical class="mx-2" />
+      <v-btn
+        size="x-small"
+        color="info"
+        :disabled="masterData.length === 0"
+        @click="handleExportExcel"
+      >
+        <v-icon start>mdi-download</v-icon> Export Excel
+      </v-btn>
 
       <v-btn
         variant="text"
@@ -56,10 +62,11 @@
     </template>
 
     <div class="browse-content">
+      <!-- Filter Section: Mengikuti gaya LHK yang rapat -->
       <v-card flat class="mb-4">
         <v-card-text>
           <div class="filter-section d-flex align-center flex-wrap ga-4">
-            <v-label>Periode:</v-label>
+            <v-label class="filter-label">Periode:</v-label>
             <v-text-field
               v-model="filters.startDate"
               type="date"
@@ -68,7 +75,7 @@
               variant="outlined"
               style="max-width: 150px"
             />
-            <v-label>s/d</v-label>
+            <v-label class="mx-2">s/d</v-label>
             <v-text-field
               v-model="filters.endDate"
               type="date"
@@ -83,26 +90,33 @@
               :items="gudangOptions"
               :loading="loadingGudang"
               label="Gudang"
-              placeholder="Pilih Gudang..."
               density="compact"
               hide-details
               variant="outlined"
-              style="max-width: 350px"
+              style="max-width: 300px"
               clearable
-              append-inner-icon="mdi-magnify"
-              @click:append-inner="openLookup"
-            >
-              <template #no-data>
-                <v-list-item title="Gudang tidak ditemukan"></v-list-item>
-              </template>
-            </v-autocomplete>
+            />
+
+            <v-text-field
+              v-model="filters.search"
+              prepend-inner-icon="mdi-magnify"
+              label="Cari SPK / Nama Barang"
+              density="compact"
+              hide-details
+              variant="outlined"
+              clearable
+              style="max-width: 300px"
+              @keyup.enter="fetchData"
+            />
           </div>
         </v-card-text>
       </v-card>
 
+      <!-- Table Section: Desktop Style dengan Row Selection Biru Muda -->
       <div class="table-container">
         <v-data-table
           v-model:selected="selected"
+          v-model:expanded="expanded"
           :headers="masterHeaders"
           :items="masterData"
           :loading="loading"
@@ -111,33 +125,79 @@
           class="desktop-table elevation-1"
           fixed-header
           show-select
+          show-expand
           select-strategy="single"
           @click:row="handleRowClick"
+          @update:expanded="loadDetailForExpanded"
+          :row-props="getRowProps"
         >
+          <!-- Custom item rendering -->
           <template #item.Tanggal="{ item }">
             {{ safeFormatDate(item.Tanggal) }}
           </template>
 
+          <template #item.Realisasi="{ item }">
+            <v-chip
+              size="x-x-small"
+              :color="item.Realisasi >= item.Jumlah ? 'success' : 'warning'"
+            >
+              {{ item.Realisasi }}
+            </v-chip>
+          </template>
+
           <template #item.Selisih_Jumlah="{ item }">
             <span
-              :class="item.Selisih_Jumlah < 0 ? 'text-error' : 'text-success'"
+              :class="
+                item.Selisih_Jumlah < 0
+                  ? 'text-error font-weight-bold'
+                  : 'text-success font-weight-bold'
+              "
             >
               {{ item.Selisih_Jumlah }}
             </span>
           </template>
 
-          <template #item.Realisasi="{ item }">
-            <v-chip
-              size="x-small"
-              :color="item.Realisasi >= item.Jumlah ? 'green' : 'orange'"
-            >
-              {{ item.Realisasi }}
-            </v-chip>
+          <!-- Expanded Row: Gaya Detail Container LHK -->
+          <template #expanded-row="{ columns, item }">
+            <tr>
+              <td :colspan="columns.length" class="pa-0">
+                <div class="detail-container">
+                  <div class="detail-table-wrapper">
+                    <!-- Loader Detail -->
+                    <div v-if="item.loadingDetail" class="text-center pa-4">
+                      <v-progress-circular indeterminate size="20" />
+                      <span class="ml-2 text-caption">Memuat detail...</span>
+                    </div>
+
+                    <!-- Tabel Detail Internal -->
+                    <v-data-table
+                      v-else-if="item.Detail && item.Detail.length"
+                      :headers="detailHeaders"
+                      :items="item.Detail"
+                      density="compact"
+                      hide-default-footer
+                      class="detail-table border"
+                    >
+                      <template #item.Jumlah="{ value }">
+                        <strong class="total-bold text-blue-darken-3">{{
+                          value
+                        }}</strong>
+                      </template>
+                    </v-data-table>
+
+                    <div v-else class="text-center pa-4 text-caption">
+                      Data detail tidak ditemukan.
+                    </div>
+                  </div>
+                </div>
+              </td>
+            </tr>
           </template>
         </v-data-table>
       </div>
     </div>
 
+    <!-- Gudang Lookup -->
     <GudangLookup
       :is-visible="isLookupVisible"
       mode="jadi"
@@ -156,6 +216,7 @@ import { format, parseISO, isValid } from "date-fns";
 import PageLayout from "../components/PageLayout.vue";
 import { useAuthStore } from "@/stores/authStore";
 import GudangLookup from "@/modal/GudangLookupView.vue";
+import * as XLSX from "xlsx";
 
 // --- Initialize ---
 const authStore = useAuthStore();
@@ -170,6 +231,7 @@ const API_URL = "/mmt/jadwal-kirim";
 const masterData = ref<any[]>([]);
 const loading = ref(false);
 const selected = ref<any[]>([]);
+const expanded = ref<any[]>([]);
 const gudangOptions = ref<any[]>([]);
 const loadingGudang = ref(false);
 const isLookupVisible = ref(false);
@@ -178,156 +240,96 @@ const filters = reactive({
   startDate: format(new Date(), "yyyy-MM-01"),
   endDate: format(new Date(), "yyyy-MM-dd"),
   gudang: user?.divisi == 1 ? "WH-010" : user?.GDG_KODE || "",
+  search: "",
 });
 
 const masterHeaders = [
-  { title: "Nomor Kirim", key: "Nomor", width: "120px" },
+  { title: "Nomor Kirim", key: "Nomor", width: "150px", fixed: true },
   { title: "Gudang", key: "Nama_Gudang", width: "150px" },
   { title: "Tanggal", key: "Tanggal", width: "110px" },
-  { title: "No. SPK", key: "No_SPK", width: "130px" },
-  { title: "Nama Barang", key: "Nama_Spk", width: "200px" },
-  { title: "Ukuran", key: "Ukuran", width: "100px" },
-  { title: "Kain", key: "Kain", width: "100px" },
-  { title: "Jumlah Rencana", key: "Jumlah", align: "end" },
+  { title: "No. SPK", key: "No_SPK", width: "150px" },
+  { title: "Nama Barang", key: "Nama_Spk", minWidth: "220px" },
+  { title: "Qty Rencana", key: "Jumlah", align: "end" },
   { title: "Koli", key: "Koli", align: "end" },
   { title: "Realisasi", key: "Realisasi", align: "end" },
   { title: "Selisih", key: "Selisih_Jumlah", align: "end" },
   { title: "User", key: "usr_create", width: "100px" },
 ] as const;
 
-// --- Helper Functions (Definisikan di atas agar Hoisting aman) ---
+const detailHeaders = [
+  { title: "No", key: "No_urut", width: "50px" },
+  { title: "Kota Tujuan", key: "kota", minWidth: "150px" },
+  { title: "Uraian Barang", key: "uraian", minWidth: "250px" },
+  { title: "Size", key: "size", width: "100px" },
+  { title: "Qty", key: "Jumlah", align: "end" },
+  { title: "Koli", key: "Koli", align: "end" },
+  { title: "Ekspedisi", key: "expedisi", minWidth: "150px" },
+];
 
-const canAccess = (action: string) => {
-  // Cek apakah function can tersedia di store, jika tidak fallback ke true
-  if (typeof (authStore as any).can === "function") {
-    return (authStore as any).can(MENU_ID, action);
-  }
-  return true;
-};
+// --- Computed & Props ---
+const isSingleSelected = computed(() => selected.value.length === 1);
+const selectedRow = computed(() =>
+  isSingleSelected.value
+    ? masterData.value.find((i) => i.Nomor === selected.value[0])
+    : null,
+);
 
-const safeFormatDate = (dateString: string) => {
-  if (!dateString) return "";
-  const date = parseISO(dateString);
-  return isValid(date) ? format(date, "dd/MM/yyyy") : dateString;
+const getRowProps = ({ item }: any) => {
+  return {
+    class: selected.value.includes(item.Nomor) ? "row-selected" : "",
+  };
 };
 
 // --- API Methods ---
-
 const fetchData = async () => {
   loading.value = true;
   try {
-    const res = await api.get(API_URL, {
-      params: {
-        startDate: filters.startDate,
-        endDate: filters.endDate,
-        gudang: filters.gudang,
-      },
-    });
+    const res = await api.get(API_URL, { params: { ...filters } });
     masterData.value = res.data || [];
-    selected.value = []; // Reset Pilihan saat refresh
+    selected.value = [];
+    expanded.value = [];
   } catch (err) {
-    toast.error("Gagal memuat data jadwal kirim.");
+    toast.error("Gagal memuat data.");
   } finally {
     loading.value = false;
   }
 };
 
-// --- Action Handlers ---
+const loadDetailForExpanded = async (expandedKeys: any[]) => {
+  if (expandedKeys.length === 0) return;
+  const lastNomor = expandedKeys[expandedKeys.length - 1];
+  const targetItem = masterData.value.find((i) => i.Nomor === lastNomor);
+  if (!targetItem || targetItem.Detail) return;
 
-// Cari fungsi handlePrint yang lama dan ganti dengan ini:
-const handlePrint = () => {
-  if (!selectedRow.value) {
-    toast.warning("Pilih satu data terlebih dahulu untuk dicetak.");
-    return;
-  }
-
-  // Menggunakan Nomor (ID Utama) atau No_SPK sesuai kebutuhan route Anda
-  // Jika di router.ts menggunakan :nomor, maka sesuaikan params-nya
-  router.push({
-    name: "JadwalKirimPrint",
-    params: { nomor: selectedRow.value.Nomor },
-    query: {
-      startDate: filters.startDate,
-      endDate: filters.endDate,
-      gudang: filters.gudang,
-    },
-  });
-};
-
-const fetchPrintData = async () => {
-  const nomorSpk = route.params.nomor; // Mengambil :nomor dari URL
   try {
-    isLoading.value = true;
-    const response = await api.get(`/mmt/jadwal-kirim/print/${nomorSpk}`);
-
-    // Jika API mengembalikan list, masukkan ke masterData
-    masterData.value = response.data.data || [response.data];
-  } catch (error) {
-    console.error("Gagal memuat data:", error);
-  } finally {
-    isLoading.value = false;
-  }
-};
-
-const fetchGudangOptions = async () => {
-  loadingGudang.value = true;
-  try {
-    const response = await api.get("/mmt/lookup/gudang", {
-      params: { mode: "jadi", divisi: user?.divisi },
-    });
-    gudangOptions.value = (response.data.data || []).map((g: any) => ({
-      title: `${g.Kode} - ${g.Nama}`,
-      value: g.Kode,
-    }));
-    if (
-      user?.divisi == 1 &&
-      !gudangOptions.value.some((o) => o.value === "WH-010")
-    ) {
-      gudangOptions.value.unshift({
-        title: "WH-010 - GUDANG JADI MMT",
-        value: "WH-010",
-      });
-    }
+    targetItem.loadingDetail = true;
+    const res = await api.get(`${API_URL}/${lastNomor}`);
+    targetItem.Detail = res.data.Detail || [];
   } catch (err) {
-    console.error("Gagal load opsi gudang", err);
+    toast.error("Gagal memuat detail.");
   } finally {
-    loadingGudang.value = false;
+    targetItem.loadingDetail = false;
   }
 };
 
-// --- Computed ---
-
-const isSingleSelected = computed(() => selected.value.length === 1);
-
-// Mencari data objek berdasarkan ID (Nomor) yang dipilih di tabel
-const selectedRow = computed(() => {
-  if (!isSingleSelected.value) return null;
-  return masterData.value.find((i) => i.Nomor === selected.value[0]) || null;
-});
-
-// --- Action Handlers ---
-
-const handleRowClick = (event: any, row: any) => {
-  selected.value = [row.item.Nomor];
+// --- Actions ---
+const handleRowClick = (event: any, { item }: any) => {
+  selected.value = selected.value[0] === item.Nomor ? [] : [item.Nomor];
 };
 
-const handleNew = () => {
-  router.push({
-    name: "JadwalKirimNew",
-    query: { gudang: filters.gudang },
-  });
-};
+const handleNew = () =>
+  router.push({ name: "JadwalKirimNew", query: { gudang: filters.gudang } });
 
 const handleEdit = () => {
   if (!selectedRow.value) return;
-  const creator = selectedRow.value.usr_create;
-  const currentUser = user?.kdUser || (authStore as any).KDUSER;
-
-  if (creator !== currentUser) {
-    toast.warning(`Data ini milik ${creator}. Anda tidak boleh mengubah.`);
+  if (
+    selectedRow.value.usr_create !== (user?.kdUser || authStore.user?.kdUser)
+  ) {
+    toast.warning(
+      `Data ini milik ${selectedRow.value.usr_create}. Anda tidak boleh mengubah.`,
+    );
     return;
   }
-
   router.push({
     name: "JadwalKirimEdit",
     params: { nomor: selectedRow.value.Nomor },
@@ -335,71 +337,133 @@ const handleEdit = () => {
 };
 
 const handleDelete = async () => {
-  if (!selectedRow.value) return;
-  const creator = selectedRow.value.usr_create;
-  const currentUser = user?.kdUser || (authStore as any).KDUSER;
-
-  if (creator !== currentUser) {
-    toast.error("Anda tidak berhak menghapus data user lain.");
-    return;
-  }
-
   if (
-    confirm(`Yakin ingin menghapus Nomor Kirim: ${selectedRow.value.Nomor}?`)
-  ) {
-    try {
-      await api.delete(`${API_URL}/delete`, {
-        data: { nomor: selectedRow.value.Nomor },
-      });
-      toast.success("Hapus Data Sukses");
-      fetchData();
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || "Gagal Hapus Data");
-    }
+    !selectedRow.value ||
+    !confirm(`Hapus Jadwal Kirim ${selectedRow.value.Nomor}?`)
+  )
+    return;
+  try {
+    await api.delete(`${API_URL}/delete`, {
+      data: { nomor: selectedRow.value.Nomor },
+    });
+    toast.success("Data berhasil dihapus.");
+    fetchData();
+  } catch (err) {
+    toast.error("Gagal menghapus data.");
   }
 };
 
-// --- Lookup Logic ---
+const handleExportExcel = () => {
+  if (!masterData.value.length) return;
+  const worksheet = XLSX.utils.json_to_sheet(
+    masterData.value.map((i) => ({
+      "Nomor Kirim": i.Nomor,
+      Gudang: i.Nama_Gudang,
+      Tanggal: i.Tanggal,
+      "No. SPK": i.No_SPK,
+      Barang: i.Nama_Spk,
+      Qty: i.Jumlah,
+      Koli: i.Koli,
+      User: i.usr_create,
+    })),
+  );
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, "Data");
+  XLSX.writeFile(workbook, `Jadwal_Kirim_${filters.startDate}.xlsx`);
+};
 
-const openLookup = () => (isLookupVisible.value = true);
+const handlePrint = () => {
+  if (!selectedRow.value) return;
+  router.push({
+    name: "JadwalKirimPrint",
+    params: { nomor: selectedRow.value.Nomor },
+  });
+};
 
-const onGudangSelected = (gudang: { Kode: string; Nama: string }) => {
-  if (!gudangOptions.value.some((opt) => opt.value === gudang.Kode)) {
-    gudangOptions.value.push({
-      title: `${gudang.Kode} - ${gudang.Nama}`,
-      value: gudang.Kode,
-    });
-  }
-  filters.gudang = gudang.Kode;
+const canAccess = (action: string) =>
+  typeof (authStore as any).can === "function"
+    ? (authStore as any).can(MENU_ID, action)
+    : true;
+const safeFormatDate = (d: string) =>
+  isValid(parseISO(d)) ? format(parseISO(d), "dd/MM/yyyy") : d;
+const onGudangSelected = (g: any) => {
+  filters.gudang = g.Kode;
   isLookupVisible.value = false;
 };
 
-// --- Watcher & Lifecycle ---
+const fetchGudangOptions = async () => {
+  try {
+    const res = await api.get("/mmt/lookup/gudang", {
+      params: { mode: "jadi" },
+    });
+    gudangOptions.value = res.data.data.map((g: any) => ({
+      title: `${g.Kode} - ${g.Nama}`,
+      value: g.Kode,
+    }));
+  } catch (e) {}
+};
 
-watch(
-  [() => filters.startDate, () => filters.endDate, () => filters.gudang],
-  () => fetchData(),
-);
-
+// --- Lifecycle ---
 onMounted(() => {
   fetchGudangOptions();
   fetchData();
 });
+watch(
+  [
+    () => filters.startDate,
+    () => filters.endDate,
+    () => filters.gudang,
+    () => filters.search,
+  ],
+  fetchData,
+);
 </script>
 
 <style scoped>
 .table-container {
   height: calc(100vh - 250px);
 }
+
+/* Row Selection: Biru Muda khas LHK */
+:deep(.row-selected) {
+  background-color: rgb(216, 239, 255) !important;
+}
+
+:deep(.v-data-table tbody tr:hover) {
+  background-color: #f1f8ff !important;
+  cursor: pointer;
+}
+
+/* Detail Expanded Container */
+.detail-container {
+  padding: 10px 0;
+  background-color: #f7f7f7;
+  border-top: 1px solid #ddd;
+}
+
+.detail-table-wrapper {
+  padding: 0 15px;
+  width: 100%;
+}
+
+.detail-table {
+  background-color: white !important;
+  font-size: 0.8rem;
+  width: 100% !important;
+}
+
+/* Text & Visual Styles */
 :deep(.v-data-table__table) {
   font-size: 0.82rem;
 }
+
 .text-error {
-  color: #ff5252;
-  font-weight: bold;
+  color: #f44336 !important;
 }
 .text-success {
-  color: #4caf50;
-  font-weight: bold;
+  color: #4caf50 !important;
+}
+.font-weight-bold {
+  font-weight: bold !important;
 }
 </style>

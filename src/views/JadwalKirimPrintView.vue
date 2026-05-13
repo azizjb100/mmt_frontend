@@ -49,6 +49,11 @@ const fetchPrintData = async () => {
   }
 };
 
+const formatLongString = (str: string, max: number) => {
+  if (!str) return "";
+  return str.length > max ? str.substring(0, max) + "..." : str;
+};
+
 const printNow = () => {
   window.print();
 };
@@ -152,12 +157,14 @@ const totalKoli = computed(() =>
           <tr v-for="(item, index) in masterData" :key="index">
             <td class="text-center">{{ index + 1 }}</td>
             <td class="text-center w-spk">{{ item.No_SPK }}</td>
-            <td>{{ item.Nama_Spk }}</td>
+            <td>{{ formatLongString(item.Nama_Spk, 25) }}</td>
             <td class="text-center">{{ item.Ukuran }}</td>
             <td>{{ item.Kain }}</td>
             <td class="text-center">{{ item.Tanggal }}</td>
             <td class="text-center">{{ item.uraian }}</td>
-            <td class="text-center">{{ item.Customer }}</td>
+            <td class="text-center">
+              {{ formatLongString(item.Customer, 18) }}
+            </td>
             <td class="text-center font-bold">{{ item.Jml_Pcs }}</td>
             <td class="text-center font-bold">{{ item.Jml_Koli }}</td>
             <td class="text-center">{{ item.Jam_Ready }}</td>
@@ -248,9 +255,12 @@ const totalKoli = computed(() =>
 }
 .data-table th,
 .data-table td {
+  white-space: nowrap; /* Mencegah teks turun ke baris baru */
+  text-overflow: ellipsis;
   border: 1px solid #666;
   padding: 3px 2px;
 }
+
 .data-table thead th {
   background-color: #d9d9d9;
   font-weight: bold;
