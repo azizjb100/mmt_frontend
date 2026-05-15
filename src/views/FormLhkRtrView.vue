@@ -293,7 +293,7 @@ const formData = reactive({
   nomor: "AUTO",
   tanggal: format(new Date(), "yyyy-MM-dd"),
   gdgKode: "GPM",
-  gdgNama: "GUDANG PUSAT MMT",
+  gdgNama: "GUDANG PRODUKSI MMT",
 });
 
 const detailHeaders = [
