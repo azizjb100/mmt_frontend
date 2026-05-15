@@ -22,185 +22,111 @@ const isEditMode = ref(false);
 const isLhkLookupVisible = ref(false);
 const isMesinLookupVisible = ref(false);
 const isSpkLookupVisible = ref(false);
-
-// State untuk melacak baris mana yang sedang melakukan lookup (Mesin/SPK)
-// Jika null, berarti lookup dilakukan untuk Header Utama
 const activeRowIndex = ref<number | null>(null);
 
 const formData = reactive({
-  nomor: "AUTO",
+  nomor: "AUTO", // Ini akan menjadi Nomor LHK Cetak setelah simpan
   tanggal: format(new Date(), "yyyy-MM-dd"),
   gdg_kode: "GPM",
   shift: 1,
   operator: "",
-  // Hapus ink_c, ink_m, dll dari sini karena sudah pindah ke array
+  mesin: "",
 });
-const inkDetails = ref<any[]>([
-  { msn_kode: "", c: 0, m: 0, y: 0, k: 0 }, // Default satu baris kosong
-]);
 
-const addInkRow = () => {
+const inkDetails = ref<any[]>([{ msn_kode: "", c: 0, m: 0, y: 0, k: 0 }]);
+
+const detailData = ref<any[]>([]);
+
+// --- Headers (CMYK Dihapus dari Detail) ---
+const detailHeaders = [
+  { title: "No", key: "no", width: "50px", sortable: false },
+  { title: "No. LHK Cetak", key: "lhk_rekap", width: "150px" }, // Kolom baru untuk lcd_lnomor
+  { title: "No. LHK Mesin", key: "lhkmesin", width: "150px" }, // Referensi dari ld_lnomor
+  { title: "Shift", key: "shift", width: "70px" },
+  { title: "Mesin", key: "mesin", width: "100px" },
+  { title: "No. SPK", key: "spk_nomor", width: "130px" },
+  { title: "Nama Produk", key: "spk_nama", minWidth: "200px" },
+  { title: "Qty", key: "jumlah_cetak", width: "90px", align: "end" },
+  { title: "Meter (m²)", key: "total_m2", width: "100px", align: "end" },
+  { title: "", key: "actions", width: "50px", sortable: false },
+];
+
+// --- Handlers ---
+const addInkRow = () =>
   inkDetails.value.push({ msn_kode: "", c: 0, m: 0, y: 0, k: 0 });
-};
-
 const removeInkRow = (index: number) => {
   if (inkDetails.value.length > 1) inkDetails.value.splice(index, 1);
 };
 
-const detailData = ref<any[]>([]);
-
-// --- Headers ---
-const detailHeaders = [
-  { title: "No", key: "no", width: "50px", sortable: false },
-  { title: "No. LHK Mesin", key: "lhkmesin", width: "160px" },
-  { title: "Shift", key: "shift", width: "80px" },
-  { title: "Mesin", key: "mesin", width: "120px" },
-  // Kolom Tinta Baru
-  { title: "C", key: "ink_c", width: "70px", align: "center" },
-  { title: "M", key: "ink_m", width: "70px", align: "center" },
-  { title: "Y", key: "ink_y", width: "70px", align: "center" },
-  { title: "K", key: "ink_k", width: "70px", align: "center" },
-  { title: "No. SPK", key: "spk_nomor", width: "160px" },
-  { title: "Nama Produk", key: "spk_nama", minWidth: "200px" },
-  { title: "Qty", key: "jumlah_cetak", width: "100px", align: "end" },
-  { title: "", key: "actions", width: "50px", sortable: false },
-];
-
-// --- Handlers Open Modal ---
 const openLhkLookup = () => (isLhkLookupVisible.value = true);
-
 const openMesinSearch = (index: number | null = null) => {
   activeRowIndex.value = index;
   isMesinLookupVisible.value = true;
 };
-
 const openSpkSearch = (index: number | null = null) => {
   activeRowIndex.value = index;
   isSpkLookupVisible.value = true;
 };
 
-// --- Handlers Select Data ---
 const handleMesinSelect = (mesin: any) => {
   const kodeMesin = mesin.msn_kode || mesin.Kode;
-
   if (activeRowIndex.value !== null) {
     if (activeRowIndex.value >= 1000) {
-      // Input untuk baris TINTA
-      const inkIdx = activeRowIndex.value - 1000;
-      inkDetails.value[inkIdx].msn_kode = kodeMesin;
+      inkDetails.value[activeRowIndex.value - 1000].msn_kode = kodeMesin;
     } else {
-      // Input untuk baris SPK
       detailData.value[activeRowIndex.value].mesin = kodeMesin;
     }
   } else {
     formData.mesin = kodeMesin;
   }
-
   isMesinLookupVisible.value = false;
   activeRowIndex.value = null;
 };
 
-const loaddataall = async (nomor: string) => {
-  isLoadingDetails.value = true;
-  try {
-    const response = await api.get(`/mmt/lhk-cetak-mmt/${nomor}`);
-    const res = response.data.data;
-
-    if (res) {
-      isEditMode.value = true;
-
-      // 1. Mapping Header Utama
-      // Mengambil dari alias 'Nomor' (lch_nomor)
-      formData.nomor = res.Nomor;
-      formData.tanggal = res.Tanggal;
-      formData.shift = res.Shift;
-      formData.operator = res.Operator;
-      formData.mesin = res.Mesin;
-      formData.gdg_kode = res.Gdg_Kode;
-
-      // 2. Mapping Tinta Per Mesin
-      if (Array.isArray(res.inks) && res.inks.length > 0) {
-        inkDetails.value = res.inks.map((i: any) => ({
-          msn_kode: i.Msn_Kode || i.msn_kode,
-          c: Number(i.Ink_C ?? i.c) || 0,
-          m: Number(i.Ink_M ?? i.m) || 0,
-          y: Number(i.Ink_Y ?? i.y) || 0,
-          k: Number(i.Ink_K ?? i.k) || 0,
-        }));
-      } else {
-        inkDetails.value = [{ msn_kode: "", c: 0, m: 0, y: 0, k: 0 }];
-      }
-
-      // 3. Mapping Detail Pengerjaan SPK
-      if (Array.isArray(res.details)) {
-        detailData.value = res.details.map((d: any) => ({
-          // Jika di bagian detail juga menggunakan alias 'Nomor' untuk lhk_mesin
-          lhkmesin: d.Nomor || d.Nomor_lhk_mesin || "MANUAL",
-          shift: d.Shift || res.Shift,
-          mesin: d.Mesin,
-          spk_nomor: d.Nomor_SPK,
-          spk_nama: d.Nama_SPK,
-          operator: d.Operator || "",
-          jumlah_cetak: Number(d.Jml_Cetak) || 0,
-          total_m2: Number(d.m2_cetak) || 0,
-          panjang_spk: d.Panjang,
-          lebar_spk: d.Lebar,
-          isManual:
-            !d.Nomor && (!d.Nomor_lhk_mesin || d.Nomor_lhk_mesin === "MANUAL"),
-        }));
-      }
-    }
-  } catch (error: any) {
-    console.error("Load Error:", error);
-    toast.error("Gagal memuat data rincian rekap.");
-  } finally {
-    isLoadingDetails.value = false;
-  }
-};
-
 const handleSpkSelect = (spk: any) => {
-  const nomorSpk = spk.Spk || spk.spk_nomor;
-  const namaSpk = spk.Nama || spk.spk_nama;
   const p = parseFloat(spk.Panjang || 0);
   const l = parseFloat(spk.Lebar || 0);
+  const newRow = {
+    lhkmesin: "MANUAL",
+    shift: formData.shift,
+    mesin: formData.mesin,
+    spk_nomor: spk.Spk || spk.spk_nomor,
+    spk_nama: spk.Nama || spk.spk_nama,
+    panjang_spk: p,
+    lebar_spk: l,
+    jumlah_cetak: 1,
+    total_m2: Number((p * l).toFixed(2)),
+    isManual: true,
+  };
 
   if (activeRowIndex.value !== null) {
-    const row = detailData.value[activeRowIndex.value];
-    row.spk_nomor = nomorSpk;
-    row.spk_nama = namaSpk;
-    row.panjang_spk = p; // Simpan panjang untuk perhitungan
-    row.lebar_spk = l; // Simpan lebar untuk perhitungan
-    calculateRowM2(activeRowIndex.value); // Hitung awal
+    detailData.value[activeRowIndex.value] = {
+      ...detailData.value[activeRowIndex.value],
+      ...newRow,
+    };
   } else {
-    // Tambah baris baru dengan dimensi
-    detailData.value.push({
-      lhkmesin: "MANUAL",
-      shift: formData.shift,
-      mesin: formData.mesin,
-      spk_nomor: nomorSpk,
-      spk_nama: namaSpk,
-      panjang_spk: p,
-      lebar_spk: l,
-      jumlah_cetak: 0,
-      total_m2: 0,
-      isManual: true,
-    });
+    detailData.value.push(newRow);
   }
-
   isSpkLookupVisible.value = false;
-  activeRowIndex.value = null;
 };
 
 const handleLhkSelect = async (selectedNomors: string[]) => {
-  if (!Array.isArray(selectedNomors) || selectedNomors.length === 0) return;
+  if (!selectedNomors.length) return;
   isLoadingDetails.value = true;
   try {
-    const queryNomor = selectedNomors.join(",");
     const response = await api.get(`/mmt/lhk-cetak/detail-lookup`, {
-      params: { nomor: queryNomor },
+      params: { nomor: selectedNomors.join(",") },
     });
+
     const res = response.data.data;
 
+    if (res.header) {
+      formData.operator = res.header.Operator || formData.operator;
+      formData.mesin = res.header.Mesin || formData.mesin;
+      formData.gdg_kode = res.header.Gudang || formData.gdg_kode;
+    }
+
+    // 2. Update atau Tambah Detail
     if (res && Array.isArray(res.details)) {
       res.details.forEach((d: any) => {
         const isExist = detailData.value.some(
@@ -224,8 +150,11 @@ const handleLhkSelect = async (selectedNomors: string[]) => {
         }
       });
     }
-  } catch (error: any) {
-    toast.error("Gagal menarik rincian data");
+
+    toast.success("Data LHK berhasil diperbarui/ditambahkan");
+  } catch (error) {
+    console.error("Lookup Detail Error:", error);
+    toast.error("Gagal menarik data rincian LHK");
   } finally {
     isLoadingDetails.value = false;
     isLhkLookupVisible.value = false;
@@ -235,29 +164,10 @@ const handleLhkSelect = async (selectedNomors: string[]) => {
 const calculateRowM2 = (index: number) => {
   const row = detailData.value[index];
   if (!row) return;
-
-  // Pastikan angka valid (konversi dari cm ke meter jika perlu)
-  // Asumsi: panjang_spk dan lebar_spk dalam satuan meter.
-  // Jika dalam cm, bagi 100 dulu.
   const p = Number(row.panjang_spk) || 0;
   const l = Number(row.lebar_spk) || 0;
   const qty = Number(row.jumlah_cetak) || 0;
-
   row.total_m2 = Number((p * l * qty).toFixed(2));
-};
-
-const addRow = (spkNo = "", spkName = "") => {
-  detailData.value.push({
-    lhkmesin: "MANUAL",
-    shift: formData.shift,
-    mesin: formData.mesin, // Ambil default dari header
-    spk_nomor: spkNo,
-    spk_nama: spkName,
-    operator: formData.operator,
-    jumlah_cetak: 0,
-    total_m2: 0,
-    isManual: true,
-  });
 };
 
 const removeRow = (idx: number) => detailData.value.splice(idx, 1);
@@ -337,38 +247,59 @@ const handleSave = async (status: string) => {
   }
 };
 
-const handleClose = () => {
-  router.replace({ name: "LHKCetakMMT" });
-};
+const loaddataall = async (nomor: string) => {
+  isLoadingDetails.value = true;
+  try {
+    const response = await api.get(`/mmt/lhk-cetak-mmt/${nomor}`);
+    const res = response.data.data;
+    if (res) {
+      isEditMode.value = true;
+      formData.nomor = res.Nomor; // lch_nomor (Header)
+      formData.tanggal = res.Tanggal;
+      formData.shift = res.Shift;
+      formData.operator = res.Operator;
+      formData.mesin = res.Mesin;
 
-// --- Keyboard Shortcut (F1) ---
-const handleKeyDown = (e: KeyboardEvent) => {
-  if (e.key === "F1") {
-    e.preventDefault();
-    openLhkLookup();
+      if (res.details) {
+        detailData.value = res.details.map((d: any) => ({
+          lhk_rekap: d.lcd_lnomor || res.Nomor, // Nomor LHK Cetak (lcd_lnomor)
+          lhkmesin: d.Nomor_lhk_mesin || d.ld_lnomor || "MANUAL", // Nomor LHK Mesin
+          shift: d.Shift,
+          mesin: d.Mesin,
+          spk_nomor: d.Nomor_SPK,
+          spk_nama: d.Nama_SPK,
+          jumlah_cetak: Number(d.Jml_Cetak),
+          total_m2: Number(d.m2_cetak),
+          panjang_spk: d.Panjang || 0,
+          lebar_spk: d.Lebar || 0,
+          isManual: d.Nomor_lhk_mesin === "MANUAL" || !d.Nomor_lhk_mesin,
+        }));
+      }
+    }
+  } catch (error) {
+    toast.error("Gagal load data");
+  } finally {
+    isLoadingDetails.value = false;
   }
 };
 
 onMounted(() => {
-  window.addEventListener("keydown", handleKeyDown);
-
-  // Ambil ID dari URL (pastikan namanya sesuai dengan yang di router/index.ts)
-  const idFromUrl = route.params.id || route.params.nomor;
-
-  if (idFromUrl && idFromUrl !== "new" && idFromUrl !== "create") {
-    isEditMode.value = true;
-    loaddataall(idFromUrl as string);
-  }
-});
-
-onUnmounted(() => {
-  window.removeEventListener("keydown", handleKeyDown);
+  window.addEventListener("keydown", (e) => {
+    if (e.key === "F1") {
+      e.preventDefault();
+      openLhkLookup();
+    }
+  });
+  const id = route.params.id || route.params.nomor;
+  if (id && id !== "new") loaddataall(id as string);
 });
 </script>
 
 <template>
   <PageLayout
-    :title="isEditMode ? 'Edit Rekap' : 'Input Rekap Cetak'"
+    :title="
+      isEditMode ? `Edit Rekap: ${formData.nomor}` : 'Input Rekap Cetak MMT'
+    "
     icon="mdi-printer-eye"
   >
     <template #header-actions>
@@ -377,31 +308,29 @@ onUnmounted(() => {
         color="primary"
         @click="handleSave('POSTED')"
         :loading="isSaving"
-        :disabled="isSaving"
         class="mr-2"
       >
         <v-icon start>mdi-content-save</v-icon> Simpan Rekap
       </v-btn>
-
       <v-btn
         size="small"
         variant="outlined"
         color="error"
-        @click="handleClose"
-        :disabled="isSaving"
+        @click="router.back()"
       >
-        <v-icon start>mdi-exit-to-app</v-icon> Batal
+        <v-icon start>mdi-close</v-icon> Batal
       </v-btn>
     </template>
 
     <v-row dense>
+      <!-- Header Info -->
       <v-col cols="12">
-        <v-card flat border class="bg-grey-lighten-5 pa-3">
-          <v-row dense align="center">
+        <v-card flat border class="bg-grey-lighten-5 pa-4 mb-3">
+          <v-row dense>
             <v-col cols="12" md="2">
               <v-text-field
                 v-model="formData.nomor"
-                label="No. Rekap"
+                label="No. Rekap Cetak"
                 readonly
                 density="compact"
                 variant="solo-filled"
@@ -413,7 +342,7 @@ onUnmounted(() => {
               <v-text-field
                 v-model="formData.tanggal"
                 type="date"
-                label="Tanggal"
+                label="Tanggal Rekap"
                 variant="outlined"
                 density="compact"
                 hide-details
@@ -422,7 +351,7 @@ onUnmounted(() => {
             <v-col cols="12" md="3">
               <v-text-field
                 v-model="formData.mesin"
-                label="Mesin Utama (Default)"
+                label="Mesin Utama"
                 readonly
                 density="compact"
                 variant="outlined"
@@ -452,113 +381,101 @@ onUnmounted(() => {
             </v-col>
           </v-row>
 
-          <v-row dense class="mt-2 pt-2 border-top">
-            <v-col cols="12">
-              <v-card flat border class="pa-3 bg-blue-grey-lighten-5">
-                <div class="text-subtitle-2 mb-2 d-flex align-center">
-                  <v-icon start color="primary">mdi-invert-colors</v-icon>
-                  PEMAKAIAN TINTA PER MESIN
-                  <v-spacer />
-                  <v-btn
-                    size="x-small"
-                    color="primary"
-                    @click="addInkRow"
-                    prepend-icon="mdi-plus"
-                    >Tambah Mesin</v-btn
-                  >
-                </div>
-
-                <v-row
-                  v-for="(ink, idx) in inkDetails"
-                  :key="idx"
-                  dense
-                  align="center"
-                  class="mb-2"
-                >
-                  <v-col cols="12" md="3">
-                    <v-text-field
-                      v-model="ink.msn_kode"
-                      label="Pilih Mesin"
-                      readonly
-                      density="compact"
-                      variant="solo"
-                      flat
-                      append-inner-icon="mdi-magnify"
-                      @click="openMesinSearch(idx + 1000)"
-                      hide-details
-                    />
-                  </v-col>
-
-                  <v-col cols="2" md="2">
-                    <v-text-field
-                      v-model.number="ink.c"
-                      label="C"
-                      type="number"
-                      density="compact"
-                      variant="outlined"
-                      hide-details
-                      color="cyan"
-                    />
-                  </v-col>
-                  <v-col cols="2" md="2">
-                    <v-text-field
-                      v-model.number="ink.m"
-                      label="M"
-                      type="number"
-                      density="compact"
-                      variant="outlined"
-                      hide-details
-                      color="magenta"
-                    />
-                  </v-col>
-                  <v-col cols="2" md="2">
-                    <v-text-field
-                      v-model.number="ink.y"
-                      label="Y"
-                      type="number"
-                      density="compact"
-                      variant="outlined"
-                      hide-details
-                      color="amber-darken-2"
-                    />
-                  </v-col>
-                  <v-col cols="2" md="2">
-                    <v-text-field
-                      v-model.number="ink.k"
-                      label="K"
-                      type="number"
-                      density="compact"
-                      variant="outlined"
-                      hide-details
-                      color="black"
-                    />
-                  </v-col>
-
-                  <v-col cols="1" md="1">
-                    <v-btn
-                      icon="mdi-close"
-                      size="x-small"
-                      color="error"
-                      variant="text"
-                      @click="removeInkRow(idx)"
-                      v-if="inkDetails.length > 1"
-                    />
-                  </v-col>
-                </v-row>
-              </v-card>
-            </v-col>
-          </v-row>
+          <!-- Tinta Section -->
+          <div class="mt-4 border-top pt-3">
+            <div class="text-caption font-weight-bold mb-2 d-flex align-center">
+              <v-icon size="small" color="primary" class="mr-1"
+                >mdi-format-color-fill</v-icon
+              >
+              PEMAKAIAN TINTA (LITER)
+              <v-spacer />
+              <v-btn
+                size="x-small"
+                color="primary"
+                variant="text"
+                @click="addInkRow"
+                prepend-icon="mdi-plus"
+                >Tambah Mesin</v-btn
+              >
+            </div>
+            <v-row
+              v-for="(ink, idx) in inkDetails"
+              :key="idx"
+              dense
+              align="center"
+            >
+              <v-col cols="12" md="3">
+                <v-text-field
+                  v-model="ink.msn_kode"
+                  label="Mesin"
+                  readonly
+                  density="compact"
+                  variant="underlined"
+                  append-inner-icon="mdi-magnify"
+                  @click="openMesinSearch(idx + 1000)"
+                  hide-details
+                />
+              </v-col>
+              <v-col cols="2" md="2"
+                ><v-text-field
+                  v-model.number="ink.c"
+                  label="C"
+                  type="number"
+                  density="compact"
+                  variant="underlined"
+                  hide-details
+                  color="cyan"
+              /></v-col>
+              <v-col cols="2" md="2"
+                ><v-text-field
+                  v-model.number="ink.m"
+                  label="M"
+                  type="number"
+                  density="compact"
+                  variant="underlined"
+                  hide-details
+                  color="magenta"
+              /></v-col>
+              <v-col cols="2" md="2"
+                ><v-text-field
+                  v-model.number="ink.y"
+                  label="Y"
+                  type="number"
+                  density="compact"
+                  variant="underlined"
+                  hide-details
+                  color="amber-darken-2"
+              /></v-col>
+              <v-col cols="2" md="2"
+                ><v-text-field
+                  v-model.number="ink.k"
+                  label="K"
+                  type="number"
+                  density="compact"
+                  variant="underlined"
+                  hide-details
+                  color="black"
+              /></v-col>
+              <v-col cols="1"
+                ><v-btn
+                  icon="mdi-delete"
+                  size="x-small"
+                  color="error"
+                  variant="text"
+                  @click="removeInkRow(idx)"
+                  v-if="inkDetails.length > 1"
+              /></v-col>
+            </v-row>
+          </div>
         </v-card>
       </v-col>
 
+      <!-- Detail Pekerjaan -->
       <v-col cols="12">
         <v-card flat border>
-          <v-toolbar density="compact" color="primary" flat>
-            <v-icon start class="ml-2 text-white"
-              >mdi-format-list-bulleted</v-icon
-            >
+          <v-toolbar density="compact" color="blue-darken-2" flat>
             <v-toolbar-title class="text-subtitle-2 text-white"
-              >Daftar Rekap Pekerjaan</v-toolbar-title
+              >Daftar Pekerjaan Cetak</v-toolbar-title
             >
             <v-spacer />
             <v-btn
@@ -566,85 +483,48 @@ onUnmounted(() => {
               color="success"
               variant="elevated"
               prepend-icon="mdi-plus"
-              class="mr-2"
               @click="openSpkSearch(null)"
+              class="mr-2"
+              >Tambah SPK Manual</v-btn
             >
-              Tambah SPK Manual
-            </v-btn>
             <v-btn
               size="small"
               color="white"
+              class="text-blue-darken-2"
               variant="elevated"
               prepend-icon="mdi-layers-search"
-              class="text-primary"
               @click="openLhkLookup"
+              >Pilih LHK (F1)</v-btn
             >
-              Pilih LHK (F1)
-            </v-btn>
           </v-toolbar>
+
+          <template #[`item.lhk_rekap`]="{ item }">
+            <span class="text-caption font-weight-bold text-grey-darken-2">
+              {{ isEditMode ? item.lhk_rekap : "NEW" }}
+            </span>
+          </template>
 
           <v-data-table
             :headers="detailHeaders"
             :items="detailData"
             :items-per-page="-1"
             density="compact"
-            height="450px"
+            height="400px"
             fixed-header
             hide-default-footer
           >
             <template #[`item.no`]="{ index }">{{ index + 1 }}</template>
 
             <template #[`item.lhkmesin`]="{ item }">
-              <span
-                :class="{
-                  'text-grey-lighten-1 italic': item.isManual,
-                  'font-weight-medium text-dark': !item.isManual,
-                }"
-              >
-                {{ item.lhkmesin || "MANUAL" }}
-              </span>
-            </template>
-            <template #[`item.shift`]="{ item }">
-              <v-text-field
-                v-if="item.isManual"
-                v-model.number="item.shift"
-                type="number"
-                density="compact"
-                hide-details
-                variant="underlined"
-                class="text-center"
-                style="width: 50px"
-              />
-              <span v-else>{{ item.shift }}</span>
+              <div :class="item.isManual ? 'text-grey italic' : 'lhk-chip'">
+                {{ item.lhkmesin }}
+              </div>
             </template>
 
-            <template #[`item.mesin`]="{ item, index }">
-              <v-text-field
-                v-if="item.isManual"
-                v-model="item.mesin"
-                density="compact"
-                hide-details
-                variant="underlined"
-                append-inner-icon="mdi-magnify"
-                @click="openMesinSearch(index)"
-                readonly
-              />
-              <span v-else>{{ item.mesin }}</span>
-            </template>
-
-            <template #[`item.spk_nomor`]="{ item, index }">
-              <v-text-field
-                v-if="item.isManual"
-                v-model="item.spk_nomor"
-                density="compact"
-                hide-details
-                variant="underlined"
-                append-inner-icon="mdi-magnify"
-                @click="openSpkSearch(index)"
-                readonly
-                placeholder="Cari SPK..."
-              />
-              <span v-else class="font-weight-bold">{{ item.spk_nomor }}</span>
+            <template #[`item.spk_nomor`]="{ item }">
+              <span class="font-weight-bold text-blue-darken-4">{{
+                item.spk_nomor
+              }}</span>
             </template>
 
             <template #[`item.jumlah_cetak`]="{ item, index }">
@@ -654,9 +534,15 @@ onUnmounted(() => {
                 density="compact"
                 hide-details
                 variant="underlined"
-                class="text-right"
+                class="text-right custom-input"
                 @update:model-value="calculateRowM2(index)"
               />
+            </template>
+
+            <template #[`item.total_m2`]="{ item }">
+              <span class="font-weight-medium text-blue-darken-1"
+                >{{ item.total_m2.toFixed(2) }} m²</span
+              >
             </template>
 
             <template #[`item.actions`]="{ index }">
@@ -669,9 +555,12 @@ onUnmounted(() => {
               />
             </template>
 
+            <!-- Footer Total -->
             <template #body.append v-if="detailData.length > 0">
               <tr class="bg-blue-lighten-5 font-weight-bold">
-                <td colspan="6" class="text-end">TOTAL :</td>
+                <td colspan="6" class="text-end text-uppercase">
+                  Total Keseluruhan :
+                </td>
                 <td class="text-end text-primary">
                   {{
                     detailData
@@ -695,6 +584,7 @@ onUnmounted(() => {
       </v-col>
     </v-row>
 
+    <!-- Modals -->
     <MesinLookupView
       :isVisible="isMesinLookupVisible"
       @close="isMesinLookupVisible = false"
@@ -714,59 +604,37 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
-/* Container Tabel */
-:deep(.v-data-table) {
-  font-family:
-    "Inter", sans-serif !important; /* Gunakan font standar yang bersih */
-}
-
-/* Header Tabel: Samakan dengan gambar (Background Biru Muda) */
 :deep(thead th) {
-  background-color: #87cefa !important; /* Warna biru muda seperti di gambar */
+  background-color: #1976d2 !important; /* Warna biru lebih solid sesuai standar UI modern */
   color: white !important;
-  font-weight: 600 !important;
   font-size: 11px !important;
-  height: 48px !important;
-  text-transform: capitalize !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.5px;
 }
-
-/* Standarisasi semua sel dalam tabel */
 :deep(tbody td) {
-  font-size: 11px !important; /* Ukuran font seragam */
-  color: #333 !important;
-  height: 40px !important;
-  border-bottom: 1px solid #f0f0f0 !important;
-}
-
-/* Menyamakan Font Input (v-text-field) dengan Teks Biasa */
-:deep(.v-field__input) {
   font-size: 11px !important;
-  min-height: 32px !important;
-  padding-top: 0 !important;
-  padding-bottom: 0 !important;
-  font-family: inherit !important;
+  height: 38px !important;
 }
 
-/* Styling Khusus Kolom No. LHK (Agar seperti kotak kuning di gambar) */
 .lhk-chip {
-  background-color: #fff9c4;
-  border: 1px solid #fbc02d;
+  background-color: #e3f2fd;
+  border: 1px solid #2196f3;
   padding: 2px 8px;
   border-radius: 4px;
-  font-weight: 500;
-  color: #5d4037;
+  font-weight: 600;
+  color: #1565c0;
   display: inline-block;
-  font-size: 0.75rem !important; /* Sedikit lebih kecil agar muat */
 }
 
-/* Menghilangkan border bawah input agar terlihat seperti teks biasa saat tidak fokus */
-:deep(.v-field--variant-underlined .v-field__outline::before) {
-  border-bottom-width: 1px !important;
-  opacity: 0.2;
+.custom-input :deep(input) {
+  text-align: right;
+  font-weight: bold;
+  color: #1976d2;
 }
-
-/* Utility untuk teks miring manual */
 .italic {
   font-style: italic;
+}
+.border-top {
+  border-top: 1px solid #e0e0e0;
 }
 </style>

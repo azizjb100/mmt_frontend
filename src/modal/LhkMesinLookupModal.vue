@@ -285,9 +285,10 @@ const fetchLhkData = async () => {
     // Kirim tanggal yang sama ke startDate dan endDate agar filter jadi "per hari"
     const response = await api.get("/mmt/lhk-cetak/lookup", {
       params: {
-        startDate: filters.date, // Diambil dari v-model="filters.date"
-        endDate: filters.date, // Diambil dari v-model="filters.date" juga
-        shift: filters.shift, // Tambahan filter shift jika backend mendukung
+        startDate: filters.date,
+        endDate: filters.date,
+        shift: filters.shift, // Harus 'shift' sesuai destrukturisasi di backend
+        search: filters.search, // Jika ada
       },
     });
 

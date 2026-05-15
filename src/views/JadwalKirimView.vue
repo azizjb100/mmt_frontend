@@ -353,23 +353,90 @@ const handleDelete = async () => {
   }
 };
 
-const handleExportExcel = () => {
-  if (!masterData.value.length) return;
-  const worksheet = XLSX.utils.json_to_sheet(
-    masterData.value.map((i) => ({
-      "Nomor Kirim": i.Nomor,
-      Gudang: i.Nama_Gudang,
-      Tanggal: i.Tanggal,
-      "No. SPK": i.No_SPK,
-      Barang: i.Nama_Spk,
-      Qty: i.Jumlah,
-      Koli: i.Koli,
-      User: i.usr_create,
-    })),
-  );
-  const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, worksheet, "Data");
-  XLSX.writeFile(workbook, `Jadwal_Kirim_${filters.startDate}.xlsx`);
+const handleExportExcel = async () => {
+  if (masterData.value.length === 0) {
+    toast.warning("Tidak ada data untuk di-export.");
+    return;
+  }
+
+  loading.value = true;
+  try {
+    const exportData: any[] = [];
+
+    // Mengambil detail untuk setiap baris master secara paralel
+    const detailPromises = masterData.value.map((m) =>
+      api.get(`${API_URL}/${m.Nomor}`),
+    );
+    const detailResponses = await Promise.all(detailPromises);
+
+    masterData.value.forEach((master, index) => {
+      const detailItems = detailResponses[index].data.Detail || [];
+
+      if (detailItems.length > 0) {
+        detailItems.forEach((dtl: any) => {
+          exportData.push({
+            Nomor: master.Nomor,
+            Gudang: master.Gudang,
+            "Nama Gudang": master.Nama_Gudang,
+            Tanggal: safeFormatDate(master.Tanggal),
+            "No. SPK": master.No_SPK,
+            "Nama Spk": master.Nama_Spk,
+            Ukuran: master.Ukuran,
+            Kain: master.Kain,
+            Jumlah: master.Jumlah,
+            Koli: master.Koli,
+            Realisasi: master.Realisasi,
+            "Selisih Jumlah": master.Selisih_Jumlah,
+            "Selisih Koli": master.Selisih_Koli,
+            "User Create": master.usr_create,
+            // Kolom Detail (Sesuai image_5671bb.jpg)
+            "No Urut Dtl": dtl.No_urut,
+            Kota: dtl.kota,
+            Uraian: dtl.uraian,
+            Size: dtl.size,
+            "Jumlah Dtl": dtl.Jumlah,
+            "Koli Dtl": dtl.Koli,
+            "Jam Input": dtl.JamInput,
+            "Jam Ready": dtl.Jam,
+            Ekspedisi: dtl.expedisi,
+          });
+        });
+      } else {
+        // Jika tidak ada detail, tetap tampilkan baris masternya saja
+        exportData.push({
+          Nomor: master.Nomor,
+          Gudang: master.Gudang,
+          "Nama Gudang": master.Nama_Gudang,
+          Tanggal: safeFormatDate(master.Tanggal),
+          "No. SPK": master.No_SPK,
+          "Nama Spk": master.Nama_Spk,
+          Ukuran: master.Ukuran,
+          Kain: master.Kain,
+          Jumlah: master.Jumlah,
+          Koli: master.Koli,
+          Realisasi: master.Realisasi,
+          "Selisih Jumlah": master.Selisih_Jumlah,
+          "Selisih Koli": master.Selisih_Koli,
+          "User Create": master.usr_create,
+        });
+      }
+    });
+
+    const worksheet = XLSX.utils.json_to_sheet(exportData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Jadwal Kirim Detail");
+
+    // Atur Header agar Bold
+    const fileName = `Export_Jadwal_Kirim_${filters.startDate}_sd_${filters.endDate}.xlsx`;
+    XLSX.writeFile(workbook, fileName);
+
+    toast.success("Export detail berhasil.");
+  } catch (error) {
+    console.error("Export Detail Error:", error);
+    toast.error("Gagal melakukan export detail.");
+  } finally {
+    loading.value = false;
+  }
 };
 
 const handlePrint = () => {

@@ -211,6 +211,17 @@
               </div>
             </template>
 
+            <template #[`item.keterangan`]="{ item }">
+              <v-text-field
+                v-model="item.keterangan"
+                placeholder="..."
+                variant="plain"
+                density="compact"
+                hide-details
+                class="table-input-inline"
+              />
+            </template>
+
             <template #[`item.actions`]="{ index }">
               <v-btn
                 icon="mdi-delete"
@@ -296,6 +307,7 @@ const detailHeaders = [
   { title: "Jml RTR", key: "jumlah_rtr", width: "90px", align: "end" },
   { title: "Total m²", key: "jumlah_meter", width: "100px", align: "end" },
   { title: "Lokasi/Mesin", key: "lokasi", width: "120px" },
+  { title: "Keterangan", key: "keterangan", width: "150px" },
   { title: "", key: "actions", width: "50px" },
 ];
 
