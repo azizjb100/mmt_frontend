@@ -101,6 +101,7 @@ import LhkRtrView from '@/views/LhkRtrView.vue';
 import FormLhkRtrView from '@/views/FormLhkRtrView.vue';
 import LhkTekstilApproveView from '@/views/LhkTekstilApproveView.vue';
 import JadwalKirimPrintView from '@/views/JadwalKirimPrintView.vue';
+import LapMonSublimView from '@/views/LapMonSublimView.vue';
 
 
 
@@ -449,6 +450,7 @@ const routes: RouteRecordRaw[] = [
             { path: 'laporan/mmt/lap-mon-finishing', name: 'lapMonFinishing', component: LapMonFinishingView },
             { path: 'laporan/mmt/lap-mon-tekstil', name: 'lapMonTekstil', component: LapMonTekstilView },
             { path: 'laporan/mmt/lap-mon-proof', name: 'lapMonProof', component: LapMonProofView },
+            { path: 'laporan/mmt/lap-mon-sublim', name: 'lapMonSublim', component: LapMonSublimView },
 
             { path: 'laporan/mmt/lap-spk-mmt', name: 'lapSpkMmt', component: LapSpkMmtView },            
             { path: 'laporan/mmt/lap-pemakaian-bahan', name: 'LapPemakaianBahan', component: LapPemakaianBahanView },
