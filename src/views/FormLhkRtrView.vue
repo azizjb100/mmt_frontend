@@ -115,6 +115,7 @@
           <v-data-table
             :headers="detailHeaders"
             :items="detailData"
+            :items-per-page="-1"
             density="compact"
             hide-default-footer
             class="delphi-grid custom-font"
@@ -534,6 +535,7 @@ onMounted(async () => {
 .form-grid-container {
   display: flex;
   gap: 16px;
+  /* Mengunci tinggi container form agar pas dengan tinggi sisa layar browser */
   height: calc(100vh - 140px);
 }
 
@@ -547,9 +549,35 @@ onMounted(async () => {
   min-width: 0;
   display: flex;
   flex-direction: column;
+  height: 100%; /* Paksa tinggi kolom kanan mengikuti container utama */
 }
 
-/* Header Card: Menggunakan warna terang agar teks hitam terlihat jelas */
+/* Mengunci Card pembungkus tabel agar tingginya pas dan tidak jebol kebawah */
+.right-column .v-card {
+  display: flex;
+  flex-direction: column;
+  height: 100% !important;
+  border-radius: 0 !important;
+  overflow: hidden; /* Mencegah card ikut memanjang */
+}
+
+/* --- LOGIKA UTAMA SCROLLBAR TABLE --- */
+/* v-data-table di Vuetify 3 membungkus flex internal, kita paksa penuhi space sisa */
+.delphi-grid {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Mengunci wrapper body tabel dan memunculkan scrollbar vertikal jika > 10 baris */
+.delphi-grid :deep(.v-table__wrapper) {
+  flex: 1;
+  overflow-y: auto !important; /* Memunculkan scrollbar vertikal */
+  overflow-x: auto !important; /* Memunculkan scrollbar horizontal jika kolom terlalu lebar */
+}
+
+/* --- Desain Model Header & Cell --- */
 .custom-header-blue {
   background-color: #eeeeee !important;
   color: #000000 !important;
@@ -557,7 +585,6 @@ onMounted(async () => {
   border-bottom: 1px solid #ccc !important;
 }
 
-/* Label pada form kiri */
 .custom-label-blue :deep(.v-label) {
   font-size: 11px;
   font-weight: 700;
@@ -565,10 +592,9 @@ onMounted(async () => {
   opacity: 1;
 }
 
-/* Header Tabel: Jika ingin teks hitam, background harus terang (misal: grey-lighten-2) */
 .delphi-grid :deep(thead th) {
-  background-color: #5aa4ff !important; /* Diubah dari biru ke abu terang */
-  color: #ffffff !important; /* Teks jadi hitam */
+  background-color: #5aa4ff !important;
+  color: #ffffff !important;
   font-size: 11px !important;
   font-weight: bold !important;
   height: 32px !important;
@@ -579,6 +605,43 @@ onMounted(async () => {
   border: 0.5px solid #eee !important;
   height: 32px !important;
   color: #000000 !important;
+}
+
+.cell-yellow {
+  background-color: #fff9c4 !important;
+}
+
+.table-input-inline :deep(input) {
+  padding: 4px 8px !important;
+  min-height: 28px !important;
+  font-size: 12px !important;
+  color: #000000 !important;
+  opacity: 1 !important;
+  -webkit-text-fill-color: #000000 !important;
+}
+
+.custom-font {
+  font-size: 12px !important;
+  color: #000000 !important;
+}
+
+/* Gaya Scrollbar Cantik ala Windows Desktop (Biar pas dengan konsep Delphi) */
+.delphi-grid :deep(.v-table__wrapper::-webkit-scrollbar) {
+  width: 10px;
+  height: 10px;
+}
+
+.delphi-grid :deep(.v-table__wrapper::-webkit-scrollbar-track) {
+  background: #f1f1f1;
+}
+
+.delphi-grid :deep(.v-table__wrapper::-webkit-scrollbar-thumb) {
+  background: #c1c1c1;
+  border-radius: 2px;
+}
+
+.delphi-grid :deep(.v-table__wrapper::-webkit-scrollbar-thumb:hover) {
+  background: #a8a8a8;
 }
 
 /* Warna cell kuning dengan teks hitam pekat */
