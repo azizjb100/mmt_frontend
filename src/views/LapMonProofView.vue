@@ -262,16 +262,129 @@ const paginatedData = computed(() => {
 
 // --- EXPORT (Konversi dari TeSpeedButton1Click) ---
 const exportToExcel = async () => {
+  if (filteredData.value.length === 0) return;
+
   const workbook = new ExcelJS.Workbook();
   const sheet = workbook.addWorksheet("Monitoring Proof");
 
+  // 1. Judul Laporan
   sheet.addRow(["LAPORAN MONITORING PROOF"]);
   sheet.addRow([`Periode: ${startDate.value} s.d ${endDate.value}`]);
-  sheet.addRow([]);
+  sheet.addRow([]); // Baris Kosong
 
-  // Tambahkan Header & Data...
-  // (Logika ExcelJS serupa dengan kode export yang Anda miliki)
+  // 2. Definisi Header Kolom Excel
+  const headers = [
+    "JENIS",
+    "TGL MEMO",
+    "DEADLINE",
+    "NAMA ORDER",
+    "PANJANG",
+    "LEBAR",
+    "NOMOR MEMO",
+    "RENCANA SPK (PCS)",
+    "AKTUAL PROOF (PCS)",
+    "LAMA PROOF (HARI)",
+    "TANGGAL PROOF",
+    "LOKASI PROOFING",
+    "JENIS BAHAN",
+    "GRAMASI",
+    "KETERANGAN",
+    "STATUS",
+    "TANGGAL SPK",
+    "NOMOR SPK",
+  ];
 
+  const headerRow = sheet.addRow(headers);
+
+  // Styling Header (Biar mirip cxGrid / Biru-biru soft)
+  headerRow.eachCell((cell) => {
+    cell.font = { bold: true, color: { argb: "001579B" } };
+    cell.fill = {
+      type: "pattern",
+      pattern: "solid",
+      fgColor: { argb: "FFE1F5FE" },
+    };
+    cell.alignment = { vertical: "middle", horizontal: "center" };
+    cell.border = {
+      top: { style: "thin" },
+      left: { style: "thin" },
+      bottom: { style: "thin" },
+      right: { style: "thin" },
+    };
+  });
+
+  // 3. Memasukkan Data Loop
+  filteredData.value.forEach((item) => {
+    const rowData = [
+      item.jenis,
+      item.mspk_tanggal,
+      item.deadline,
+      item.nama_order,
+      parseFloat(item.panjang || 0),
+      parseFloat(item.lebar || 0),
+      item.mspk_nomor,
+      parseFloat(item.jml_order || 0),
+      parseFloat(item.lprd_jproof || 0),
+      item.lama_proof,
+      item.lpr_tanggal,
+      item.lokasi_proof,
+      item.jenis_bahan,
+      item.gramasi,
+      item.keterangan,
+      item.statusmemo || "PENDING",
+      item.spktanggal,
+      item.nomorspk,
+    ];
+
+    const insertedRow = sheet.addRow(rowData);
+
+    // Warnai kuning jika lprd_jproof == 0 (Sama dengan logic Delphi/CSS Anda)
+    if (parseFloat(item.lprd_jproof || 0) === 0) {
+      insertedRow.eachCell((cell) => {
+        cell.fill = {
+          type: "pattern",
+          pattern: "solid",
+          fgColor: { argb: "FFFFF9C4" }, // bg-warning-light
+        };
+      });
+    }
+  });
+
+  // 4. Baris Total (Summary Footer)
+  const totalRowIndex = sheet.lastRow.number + 1;
+  sheet.cellFormulaResults;
+
+  // Buat row summary kosong dulu, lalu set manual nilainya
+  const totalRow = sheet.addRow([]);
+  totalRow.getCell(1).value = "TOTAL ORDER:";
+  sheet.mergeCells(`A${totalRowIndex}:G${totalRowIndex}`); // Gabung cell A sampai G
+
+  // Taruh hasil sum di kolom H (Rencana SPK)
+  totalRow.getCell(8).value = totalOrder.value;
+
+  // Styling baris total
+  sheet.getRow(totalRowIndex).eachCell((cell) => {
+    cell.font = { bold: true };
+    cell.fill = {
+      type: "pattern",
+      pattern: "solid",
+      fgColor: { argb: "FFEEEEEE" },
+    };
+  });
+
+  // Auto-fit ukuran lebar kolom berdasarkan teks terpanjang
+  sheet.columns.forEach((column) => {
+    let maxLength = 12;
+    column.eachCell({ includeEmpty: true }, (cell) => {
+      const columnLength = cell.value ? cell.value.toString().length : 0;
+      if (columnLength > maxLength) {
+        maxLength = columnLength;
+      }
+    });
+    column.width = maxLength + 3;
+  });
+
+  // 5. Cetak File
   const buffer = await workbook.xlsx.writeBuffer();
   saveAs(new Blob([buffer]), `Monitoring_Proof_${startDate.value}.xlsx`);
 };

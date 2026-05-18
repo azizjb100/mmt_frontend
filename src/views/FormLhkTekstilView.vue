@@ -276,9 +276,28 @@
 
               <template #[`item.total_cetak`]="{ item }">
                 <div
-                  class="text-center font-weight-bold text-deep-purple text-caption"
+                  class="text-center font-weight-bold text-caption transition-all"
+                  :class="
+                    hitungTotalCetakBaris(item) >
+                    Number(item.panjang_spk_ori || 0)
+                      ? 'text-red font-weight-black bg-red-lighten-5 rounded px-1'
+                      : 'text-deep-purple'
+                  "
                 >
                   {{ hitungTotalCetakBaris(item) }}
+
+                  <!-- Tooltip interaktif saat angka di-hover oleh mouse -->
+                  <v-tooltip
+                    v-if="
+                      hitungTotalCetakBaris(item) >
+                      Number(item.panjang_spk_ori || 0)
+                    "
+                    activator="parent"
+                    location="top"
+                  >
+                    Melebihi target order SPK (Maksimal:
+                    {{ item.panjang_spk_ori }} Qty)
+                  </v-tooltip>
                 </div>
               </template>
 
@@ -355,7 +374,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from "vue";
+import { ref, reactive, computed, onMounted, watch, nextTick } from "vue";
 import { format } from "date-fns";
 import { useRoute, useRouter } from "vue-router";
 import api from "@/services/api";
@@ -564,9 +583,71 @@ const clearBahan = () => {
   formData.panjang_bahan = 0;
 };
 
+watch(
+  detailData,
+  (newData) => {
+    newData.forEach((d) => {
+      const totalCetakInput = hitungTotalCetakBaris(d);
+
+      // Ambil batas order dari panjang_spk_ori (atau jumlah_order sesuai field data SPK Anda)
+      const batasOrder = Number(d.panjang_spk_ori || 0);
+
+      if (batasOrder > 0 && totalCetakInput > batasOrder) {
+        toast.warning(
+          `SPK ${d.nomor_spk} melebihi jumlah order! (Input: ${totalCetakInput} Qty > Order: ${batasOrder} Qty)`,
+        );
+      }
+    });
+  },
+  { deep: true },
+);
+
+// ==========================================
+// 2. PROTEKSI STRICT SAAT TOMBOL SIMPAN DITEKAN
+// ==========================================
 const handleSave = async (status: string) => {
-  if (status === "POSTED" && !isFormValid.value)
+  let isOverProduction = false;
+  let overMessages = "";
+
+  detailData.value.forEach((d) => {
+    const totalCetakInput = hitungTotalCetakBaris(d);
+    const batasOrder = Number(d.panjang_spk_ori || 0);
+
+    if (batasOrder > 0 && totalCetakInput > batasOrder) {
+      isOverProduction = true;
+      overMessages += `\n- SPK ${d.nomor_spk}: Input ${totalCetakInput} Qty (Maks Order: ${batasOrder})`;
+    }
+  });
+
+  // Jika melebihi order:
+  if (isOverProduction) {
+    if (status === "POSTED") {
+      // BLOCK TOTAL: Tidak boleh simpan hasil potong stok jika over-produksi
+      toast.error(
+        `Gagal Simpan! Kuantitas cetak melebihi jumlah order SPK:${overMessages}`,
+      );
+      return;
+    } else {
+      // Jika masih SIMPAN SEMENTARA (DRAFT), berikan peringatan saja agar data tidak hilang
+      toast.warning(
+        `Peringatan: Draft disimpan dengan kondisi input melebihi jumlah order SPK.`,
+      );
+    }
+  }
+
+  // Validasi standar bawaan form tekstil Anda
+  if (status === "POSTED" && !isFormValid.value) {
     return toast.error("Lengkapi data dan cek sisa stok.");
+  }
+
+  // Konfirmasi final potong stok
+  if (
+    status === "POSTED" &&
+    !confirm("Simpan Hasil akan MEMOTONG STOK tekstil. Lanjutkan?")
+  ) {
+    return;
+  }
+
   isSaving.value = true;
   try {
     const payload = {
@@ -577,13 +658,13 @@ const handleSave = async (status: string) => {
         lstatus: status,
         total_pakai: totalPanjangEstimasi.value,
       },
-      // PERBAIKAN PAYLOAD: menyertakan cetak_1 s/d cetak_7 agar bisa dibaca backend
       details: detailData.value.map((d) => ({
         ...d,
         jumlah_cetak: hitungTotalCetakBaris(d),
         total_panjang_baris: d.panjang_per_pcs * hitungTotalCetakBaris(d),
       })),
     };
+
     await api.post("/mmt/lhk-tekstil-mmt", payload);
     toast.success("Tersimpan sebagai " + status);
     if (status === "POSTED") router.push("/mmt/lhk/tekstil");

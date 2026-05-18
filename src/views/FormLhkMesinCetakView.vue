@@ -842,6 +842,15 @@ const recalculateCombine = () => {
     for (let i = 1; i <= 7; i++) {
       totalCetakInput += parseFloat(d[`cetak${i}`]) || 0;
     }
+
+    // Pemicu Alert Toast jika melebihi kurangcetak_asli (sisa order sebelum input sekarang)
+    if (totalCetakInput > d.kurangcetak_asli) {
+      // Menggunakan toast.warning agar operator langsung sadar tanpa merusak fokus mengetik
+      toast.warning(
+        `SPK ${d.nomor_spk} melebihi sisa order! (Input: ${totalCetakInput} > Sisa: ${d.kurangcetak_asli})`,
+      );
+    }
+
     d.totalcetak = totalCetakInput;
 
     d.kurangcetak =
@@ -886,7 +895,6 @@ const recalculateCombine = () => {
   totalPanjangTerpakai.value = nextXOffset;
 
   // 🔥 PAKSA SISTEM MENATA BARISAN SECARA OTOMATIS
-  // Menggunakan nextTick agar Vue selesai merender elemen kotak baru dulu
   nextTick(() => {
     autoFillLayout(true); // true agar tidak muncul notifikasi terus-menerus
   });
