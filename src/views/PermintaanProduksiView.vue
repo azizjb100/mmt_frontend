@@ -35,11 +35,11 @@
       </v-btn>
       <v-btn
         size="x-small"
-        color="info"
-        :disabled="!isSingleSelected"
-        @click="handleExportDetail"
+        color="success"
+        @click="handleExportExcel"
+        :loading="loading"
       >
-        <v-icon start>mdi-download</v-icon> Export Detail
+        <v-icon start>mdi-file-excel</v-icon> Export Excel
       </v-btn>
     </template>
 
@@ -167,6 +167,7 @@ import { useAuthStore } from "../stores/authStore";
 import api from "@/services/api";
 import type { AxiosError } from "axios";
 import { format, subDays } from "date-fns";
+import * as XLSX from "xlsx-js-style";
 import PageLayout from "../components/PageLayout.vue";
 import { VDataTable } from "vuetify/components";
 
@@ -445,6 +446,214 @@ const handleApproveLoan = async (loan: any) => {
     } catch (error) {
       toast.error("Gagal memproses mutasi.");
     }
+  }
+};
+
+const handleExportExcel = () => {
+  if (masterData.value.length === 0) {
+    toast.warning("Tidak ada data untuk di-export.");
+    return;
+  }
+
+  loading.value = true;
+  try {
+    const fileName = `Permintaan_Produksi_${startDate.value}_to_${endDate.value}.xlsx`;
+
+    // ==========================================
+    // 1. DEFINISI STYLE EXCEL
+    // ==========================================
+    const styleHeaderMain = {
+      fill: { fgColor: { rgb: "B3E5FC" } }, // Biru muda cerah
+      font: { bold: true, color: { rgb: "000000" }, sz: 10 }, // Teks Hitam Tebal
+      alignment: { horizontal: "center", vertical: "center", wrapText: true },
+      border: {
+        top: { style: "thin", color: { rgb: "000000" } },
+        bottom: { style: "thin", color: { rgb: "000000" } },
+        left: { style: "thin", color: { rgb: "000000" } },
+        right: { style: "thin", color: { rgb: "000000" } },
+      },
+    };
+
+    const styleDataCell = {
+      font: { sz: 10 },
+      border: {
+        top: { style: "thin", color: { rgb: "000000" } },
+        bottom: { style: "thin", color: { rgb: "000000" } },
+        left: { style: "thin", color: { rgb: "000000" } },
+        right: { style: "thin", color: { rgb: "000000" } },
+      },
+      alignment: { vertical: "center" },
+    };
+
+    const styleDataCellCenter = {
+      ...styleDataCell,
+      alignment: { horizontal: "center", vertical: "center" },
+    };
+
+    const styleDataCellRight = {
+      ...styleDataCell,
+      alignment: { horizontal: "right", vertical: "center" },
+    };
+
+    // ==========================================
+    // 2. SUSUN DATA (Array of Arrays / AOA)
+    // ==========================================
+    const wsData = [];
+
+    // Fungsi Helper format tanggal Indonesia
+    const formatTanggalIndo = (dateStr: string) => {
+      if (!dateStr) return "";
+      const bulanIndo = [
+        "Januari",
+        "Februari",
+        "Maret",
+        "April",
+        "Mei",
+        "Juni",
+        "Juli",
+        "Agustus",
+        "September",
+        "Oktober",
+        "November",
+        "Desember",
+      ];
+      const [year, month, day] = dateStr.split("-");
+      const indexBulan = parseInt(month, 10) - 1;
+      return `${parseInt(day, 10)} ${bulanIndo[indexBulan]} ${year}`;
+    };
+
+    const periodeStr = `Periode : ${formatTanggalIndo(startDate.value)} s/d ${formatTanggalIndo(endDate.value)}`;
+
+    // Judul Atas
+    wsData.push([
+      {
+        v: "LAPORAN TRANSAKSI PERMINTAAN PRODUKSI",
+        s: { font: { bold: true, sz: 14 } },
+      },
+    ]);
+    wsData.push([{ v: periodeStr, s: { font: { sz: 10 } } }]);
+    wsData.push([]);
+
+    // Header Kolom Tabel
+    const tableHeaders = [
+      { v: "NOMOR PERMINTAAN", s: styleHeaderMain },
+      { v: "TANGGAL", s: styleHeaderMain },
+      { v: "KODE GUDANG", s: styleHeaderMain },
+      { v: "NAMA GUDANG", s: styleHeaderMain },
+      { v: "LOKASI", s: styleHeaderMain },
+      { v: "KETERANGAN HEADER", s: styleHeaderMain },
+      { v: "KODE BARANG", s: styleHeaderMain },
+      { v: "NAMA BAHAN / BARANG", s: styleHeaderMain },
+      { v: "PANJANG", s: styleHeaderMain },
+      { v: "LEBAR", s: styleHeaderMain },
+      { v: "SATUAN", s: styleHeaderMain },
+      { v: "JUMLAH", s: styleHeaderMain },
+      { v: "NOMOR SPK", s: styleHeaderMain },
+    ];
+    wsData.push(tableHeaders);
+
+    // Looping Isi Data Body
+    masterData.value.forEach((header) => {
+      // PERBAIKAN: Deteksi 'Details' dengan huruf s atau 'Detail' biasa
+      const targetDetails =
+        details.value[header.Nomor] || header.Details || header.Detail || [];
+
+      // PERBAIKAN: Ambil properti yang sesuai dengan JSON asli dari server
+      const tglHeader = header.Tanggal
+        ? header.Tanggal.split("-").reverse().join("/")
+        : ""; // 2026-04-23 -> 23/04/2026
+      const kodeGudang = header.GudangKode || header.Gudang || "";
+      const namaGudang = header.GudangNama || header.Nama || "";
+      const lokasi = header.Lokasi || "-";
+      const keteranganHeader = header.Keterangan || "";
+
+      if (targetDetails.length > 0) {
+        targetDetails.forEach((dtl, index) => {
+          const row = [
+            // Kolom Header Utama (Hanya muncul di baris pertama detail)
+            { v: index === 0 ? header.Nomor : "", s: styleDataCellCenter },
+            { v: index === 0 ? tglHeader : "", s: styleDataCellCenter },
+            { v: index === 0 ? kodeGudang : "", s: styleDataCellCenter },
+            { v: index === 0 ? namaGudang : "", s: styleDataCell },
+            { v: index === 0 ? lokasi : "", s: styleDataCellCenter },
+            { v: index === 0 ? keteranganHeader : "", s: styleDataCell },
+
+            // Kolom Detail Item Produksi
+            { v: dtl.Kode, s: styleDataCellCenter },
+            { v: dtl.Nama_Bahan, s: styleDataCell },
+            {
+              v: dtl.Panjang !== null ? Number(dtl.Panjang) : 0,
+              s: styleDataCellRight,
+            },
+            {
+              v: dtl.Lebar !== null ? Number(dtl.Lebar) : 0,
+              s: styleDataCellRight,
+            },
+            { v: dtl.Satuan, s: styleDataCellCenter },
+            {
+              v: dtl.Jumlah !== null ? Number(dtl.Jumlah) : 0,
+              s: styleDataCellRight,
+            },
+            { v: dtl.Nomor_SPK || "-", s: styleDataCellCenter },
+          ];
+          wsData.push(row);
+        });
+      } else {
+        // Fallback jika tidak ada detail item
+        const row = [
+          { v: header.Nomor, s: styleDataCellCenter },
+          { v: tglHeader, s: styleDataCellCenter },
+          { v: kodeGudang, s: styleDataCellCenter },
+          { v: namaGudang, s: styleDataCell },
+          { v: lokasi, s: styleDataCellCenter },
+          { v: keteranganHeader, s: styleDataCell },
+          { v: "-", s: styleDataCellCenter },
+          { v: "Tidak ada data detail", s: styleDataCell },
+          { v: 0, s: styleDataCellRight },
+          { v: 0, s: styleDataCellRight },
+          { v: "-", s: styleDataCellCenter },
+          { v: 0, s: styleDataCellRight },
+          { v: "-", s: styleDataCellCenter },
+        ];
+        wsData.push(row);
+      }
+    });
+
+    // ==========================================
+    // 3. PEMBUATAN WORKSHEET & PROSES DOWNLOAD
+    // ==========================================
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+
+    // Merge baris judul atas (Kolom A sampai M / total 13 kolom)
+    ws["!merges"] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 12 } }];
+
+    // Setting Lebar Kolom Excel
+    ws["!cols"] = [
+      { wch: 22 }, // NOMOR PERMINTAAN
+      { wch: 12 }, // TANGGAL
+      { wch: 15 }, // KODE GUDANG
+      { wch: 25 }, // NAMA GUDANG
+      { wch: 15 }, // LOKASI
+      { wch: 25 }, // KETERANGAN HEADER
+      { wch: 15 }, // KODE BARANG
+      { wch: 30 }, // NAMA BAHAN
+      { wch: 12 }, // PANJANG
+      { wch: 12 }, // LEBAR
+      { wch: 12 }, // SATUAN
+      { wch: 12 }, // JUMLAH
+      { wch: 18 }, // NOMOR SPK
+    ];
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "PermintaanProduksi");
+    XLSX.writeFile(wb, fileName);
+
+    toast.success("Export Excel Berhasil!");
+  } catch (error) {
+    console.error("Export error:", error);
+    toast.error("Gagal melakukan export excel.");
+  } finally {
+    loading.value = false;
   }
 };
 

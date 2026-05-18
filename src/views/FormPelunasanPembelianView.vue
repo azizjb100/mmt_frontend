@@ -19,22 +19,27 @@ const toast = useToast();
 // --- State ---
 const loading = ref(false);
 const isSupplierModalVisible = ref(false);
-const outstandingInvoices = ref([]);
-const selectedInvoices = ref([]);
+
+// Mengubah penamaan state agar sesuai konteks BPB/Penerimaan Bahan
+const outstandingPenerimaan = ref([]);
+const selectedPenerimaan = ref([]);
 
 const form = reactive({
   vch_tanggal: format(new Date(), "yyyy-MM-dd"),
   vch_sup_kode: "",
   supNama: "",
+  vch_invoice_no: "", // <-- Inputan Baru: Nomor Invoice dari Supplier
+  vch_faktur_pajak_no: "", // <-- Inputan Baru: Nomor Faktur Pajak
   vch_keterangan: "",
   vch_perush_kode: "KP",
-  vch_jenis: "HUTANG", // Menandakan ini voucher pelunasan hutang
+  vch_jenis: "HUTANG",
 });
 
 // --- Computed ---
+// Menghitung total pengajuan dari BPB yang dipilih
 const totalPengajuan = computed(() => {
-  return selectedInvoices.value.reduce(
-    (sum, item) => sum + Number(item.TotalInvoice || 0),
+  return selectedPenerimaan.value.reduce(
+    (sum, item) => sum + Number(item.TotalBpb || 0),
     0,
   );
 });
@@ -49,30 +54,34 @@ const handleSupplierSelect = (sup: LookupItem) => {
   form.vch_sup_kode = sup.Kode;
   form.supNama = sup.Nama || "";
   isSupplierModalVisible.value = false;
-  fetchOutstanding(sup.Kode);
+  fetchOutstandingBPB(sup.Kode); // Panggil fungsi outstanding BPB
 };
 
-const fetchOutstanding = async (supKode: string) => {
+// Mengubah endpoint dan penampung data ke BPB Outstanding
+const fetchOutstandingBPB = async (supKode: string) => {
   if (!supKode) return;
   loading.value = true;
-  outstandingInvoices.value = [];
-  selectedInvoices.value = [];
+  outstandingPenerimaan.value = [];
+  selectedPenerimaan.value = [];
 
   try {
+    // Silakan sesuaikan URL endpoint backend ini untuk mengambil data BPB belum lunas
     const res = await api.get(
-      `/mmt/pelunasan-pembelian/outstanding/${supKode}`,
+      `/mmt/pelunasan-pembelian/outstanding-bpb/${supKode}`,
     );
-    outstandingInvoices.value = res.data;
+    outstandingPenerimaan.value = res.data;
   } catch (e) {
-    toast.error("Gagal mengambil daftar tagihan");
+    toast.error("Gagal mengambil daftar Penerimaan Bahan (BPB)");
   } finally {
     loading.value = false;
   }
 };
 
 const handleSaveVoucher = async () => {
-  if (!form.vch_sup_kode || selectedInvoices.value.length === 0) {
-    toast.warning("Pilih supplier dan tandai invoice yang akan diajukan!");
+  if (!form.vch_sup_kode || selectedPenerimaan.value.length === 0) {
+    toast.warning(
+      "Pilih supplier dan tandai Penerimaan (BPB) yang akan diajukan!",
+    );
     return;
   }
 
@@ -81,19 +90,18 @@ const handleSaveVoucher = async () => {
     const payload = {
       ...form,
       vch_total_pengajuan: totalPengajuan.value,
-      // SESUAIKAN BAGIAN INI:
-      detail: selectedInvoices.value.map((inv) => ({
-        vchd_inv_nomor: inv.Nomor, // Pastikan key ini sesuai dengan di backend (vchd_inv_nomor)
-        vchd_nominal: inv.TotalInvoice, // Pastikan key ini sesuai dengan di backend (vchd_nominal)
+      // Menyesuaikan mapping detail voucher dengan struktur field database BPB Anda
+      detail: selectedPenerimaan.value.map((bpb) => ({
+        vchd_bpb_nomor: bpb.Nomor, // Mengubah vchd_inv_nomor -> vchd_bpb_nomor
+        vchd_nominal: bpb.TotalBpb, // Nilai tagihan real dari BPB tersebut
       })),
     };
 
-    // Pastikan URL API sudah sesuai dengan route yang kita buat tadi
     await api.post("/mmt/voucher-pelunasan/save", payload);
 
-    toast.success("Voucher Pengajuan berhasil dibuat. Menunggu approval.");
-
-    // Pastikan nama route ini sudah terdaftar di router/index.ts Anda
+    toast.success(
+      "Voucher Pengajuan berbasis BPB berhasil dibuat. Menunggu approval.",
+    );
     router.push({ name: "VoucherPembayaranBrowse" });
   } catch (e: any) {
     console.error("Save Error:", e);
@@ -107,7 +115,7 @@ const handleSaveVoucher = async () => {
 
 <template>
   <PageLayout
-    title="Buat Voucher Pengajuan Pelunasan"
+    title="Buat Voucher Pengajuan Pelunasan (Berbasis BPB)"
     icon="mdi-file-document-edit-outline"
   >
     <template #header-actions>
@@ -161,13 +169,36 @@ const handleSaveVoucher = async () => {
               </v-col>
             </v-row>
 
+            <!-- Inputan Baru: Nomor Invoice -->
+            <v-text-field
+              v-model="form.vch_invoice_no"
+              label="Nomor Invoice Supplier"
+              placeholder="Masukkan nomor invoice / nota fisik"
+              density="compact"
+              variant="outlined"
+              clearable
+              class="mt-2"
+            />
+
+            <!-- Inputan Baru: Nomor Faktur Pajak -->
+            <v-text-field
+              v-model="form.vch_faktur_pajak_no"
+              label="Nomor Faktur Pajak"
+              placeholder="000.000-00.00000000"
+              density="compact"
+              variant="outlined"
+              clearable
+              class="mt-2"
+            />
+
             <v-textarea
               v-model="form.vch_keterangan"
               label="Alasan/Keterangan Pengajuan"
               density="compact"
               variant="outlined"
               rows="3"
-              placeholder="Contoh: Pelunasan invoice jatuh tempo minggu ini"
+              placeholder="Contoh: Pelunasan penerimaan bahan / BPB minggu ini"
+              class="mt-2"
             />
 
             <v-alert
@@ -175,7 +206,7 @@ const handleSaveVoucher = async () => {
               variant="tonal"
               density="compact"
               class="mt-4"
-              text="Data ini akan masuk ke daftar antrian pembayaran kasir."
+              text="Data ini akan masuk ke daftar antrian pembayaran kasir berdasarkan nota BPB."
             />
           </v-card>
 
@@ -193,18 +224,22 @@ const handleSaveVoucher = async () => {
           <v-card variant="outlined">
             <v-card-title class="text-subtitle-1 d-flex align-center">
               <v-icon start color="orange">mdi-alert-circle-outline</v-icon>
-              Pilih Invoice untuk Diajukan
+              Pilih Bukti Penerimaan Barang (BPB) untuk Diajukan
             </v-card-title>
 
             <v-divider></v-divider>
 
             <v-data-table
-              v-model="selectedInvoices"
-              :items="outstandingInvoices"
+              v-model="selectedPenerimaan"
+              :items="outstandingPenerimaan"
               :headers="[
-                { title: 'Nomor Invoice', key: 'Nomor' },
-                { title: 'Jatuh Tempo', key: 'JatuhTempo', width: '150px' },
-                { title: 'Sisa Tagihan', key: 'TotalInvoice', align: 'end' },
+                { title: 'Nomor BPB', key: 'Nomor' },
+                {
+                  title: 'Tanggal Terima',
+                  key: 'TanggalTerima',
+                  width: '150px',
+                },
+                { title: 'Nilai Tagihan BPB', key: 'TotalBpb', align: 'end' },
               ]"
               show-select
               return-object
@@ -212,16 +247,16 @@ const handleSaveVoucher = async () => {
               :loading="loading"
               no-data-text="Silahkan pilih supplier terlebih dahulu"
             >
-              <template #item.JatuhTempo="{ item }">
+              <template #item.TanggalTerima="{ item }">
                 {{
-                  item.JatuhTempo
-                    ? format(new Date(item.JatuhTempo), "dd-MM-yyyy")
+                  item.TanggalTerima
+                    ? format(new Date(item.TanggalTerima), "dd-MM-yyyy")
                     : "-"
                 }}
               </template>
-              <template #item.TotalInvoice="{ item }">
+              <template #item.TotalBpb="{ item }">
                 <span class="font-weight-bold">
-                  {{ item.TotalInvoice.toLocaleString("id-ID") }}
+                  {{ item.TotalBpb.toLocaleString("id-ID") }}
                 </span>
               </template>
             </v-data-table>

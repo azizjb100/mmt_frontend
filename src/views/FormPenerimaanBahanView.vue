@@ -362,6 +362,7 @@ const saveForm = async (saveAndNew: boolean) => {
   isSaving.value = true;
   lastSaveAndNew.value = saveAndNew;
 
+  // Filter detail yang valid (memiliki kode barang dan qty terima > 0)
   const validDetails = formData.details.filter(
     (d) => d.kode && Number(d.qtyTerima) > 0,
   );
@@ -389,7 +390,8 @@ const saveForm = async (saveAndNew: boolean) => {
         qtyPO: Number(d.qtyPO || 0),
         qtyTerima: Number(d.qtyTerima || 0),
 
-        // harga otomatis dari PO
+        // 🔥 PERBAIKAN UTAMA: Ambil d.harga yang sudah didapat dari state form/PO
+        // Jika d.harga null/undefined, dia akan cek fallback ke field alternatif sebelum jadi 0
         harga: Number(d.harga ?? d.Harga_PO ?? d.hargaPO ?? 0),
 
         keterangan: d.keterangan || "",
@@ -587,7 +589,7 @@ const handlePOSelect = async (po: any) => {
           lebar: Number(x.lebar || 0),
           satuan: x.satuan || "",
           keterangan: x.spk ? `SPK: ${x.spk}` : "", // Tambahan info SPK jika ada
-          harga: 0, // JSON tidak menyediakan harga, default ke 0
+          harga: Number(x.harga || x.harga_po || x.pod_harga || 0),
         }));
       }
     }

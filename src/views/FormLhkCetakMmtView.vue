@@ -126,16 +126,28 @@ const handleLhkSelect = async (selectedNomors: string[]) => {
       formData.gdg_kode = res.header.Gudang || formData.gdg_kode;
     }
 
-    // 2. Update atau Tambah Detail
+    // --- PERBAIKAN LOGIKA DI SINI ---
     if (res && Array.isArray(res.details)) {
       res.details.forEach((d: any) => {
-        const isExist = detailData.value.some(
+        // Cari index data yang sudah ada berdasarkan kombinasi LHK Mesin + Nomor SPK
+        const existingIndex = detailData.value.findIndex(
           (ex) =>
             `${ex.lhkmesin}-${ex.spk_nomor}`.toUpperCase() ===
             `${d.referensi_lhk}-${d.spk_nomor}`.toUpperCase(),
         );
 
-        if (!isExist) {
+        if (existingIndex !== -1) {
+          // 1. JIKA SUDAH ADA: Update qty, total_m2, dan field relasi lainnya
+          detailData.value[existingIndex].jumlah_cetak =
+            Number(d.totalcetak) || 0;
+          detailData.value[existingIndex].total_m2 = Number(d.ld_luas_m2) || 0;
+          detailData.value[existingIndex].shift = d.shift || formData.shift;
+          detailData.value[existingIndex].mesin = d.mesin || "-";
+          detailData.value[existingIndex].operator = d.operator || "";
+          // Tetap pertahankan isManual false karena ditarik dari LHK
+          detailData.value[existingIndex].isManual = false;
+        } else {
+          // 2. JIKA BELUM ADA: Push sebagai baris baru seperti biasa
           detailData.value.push({
             lhkmesin: d.referensi_lhk,
             shift: d.shift || formData.shift,

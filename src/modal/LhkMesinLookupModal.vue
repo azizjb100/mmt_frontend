@@ -139,6 +139,16 @@
               </td>
             </tr>
           </template>
+          <template #[`item.StatusAmbil`]="{ item }">
+            <v-chip
+              size="x-small"
+              :color="item.StatusAmbil === 'BARU' ? 'success' : 'grey-darken-1'"
+              :variant="item.StatusAmbil === 'BARU' ? 'flat' : 'tonal'"
+              class="font-weight-bold"
+            >
+              {{ item.StatusAmbil === "BARU" ? "OPEN" : "CLOSE" }}
+            </v-chip>
+          </template>
 
           <template #[`item.Tanggal`]="{ item }">
             {{
@@ -244,6 +254,7 @@ const filters = reactive({
 const headers = [
   { title: "", key: "data-table-expand", width: "40px" },
   { title: "Nomor LHK", key: "Nomor", width: "130px" },
+  { title: "Status", key: "StatusAmbil", width: "90px" },
   { title: "Shift", key: "Shift", width: "70px" },
   { title: "Mesin", key: "Mesin", width: "80px" },
   { title: "Nomor SPK", key: "NomorSPK", width: "150px" },
@@ -303,6 +314,28 @@ const fetchLhkData = async () => {
 
 const submitSelection = () => {
   if (selectedItems.value.length === 0) return;
+
+  // 1. Cek apakah ada item terpilih yang statusnya CLOSED
+  // Catatan: Karena v-model data-table mengikat "item-value="Nomor"",
+  // kita cari object lengkapnya dari lhkList berdasarkan Nomor tersebut.
+  const hasClosedItem = selectedItems.value.some((nomorLhk) => {
+    const originalItem = lhkList.value.find(
+      (lhk: any) => lhk.Nomor === nomorLhk,
+    );
+    return originalItem?.StatusAmbil === "CLOSED";
+  });
+
+  // 2. Jika ada yang CLOSED, tampilkan warning / alert konfirmasi
+  if (hasClosedItem) {
+    const konfirmasi = window.confirm(
+      "Peringatan: Ada Nomor LHK yang sudah pernah diambil (CLOSED).\nApakah Anda yakin ingin tetap mengambil data ini?",
+    );
+
+    // Jika user menekan tombol 'Cancel' pada alert, batalkan proses ambil data
+    if (!konfirmasi) return;
+  }
+
+  // 3. Jika aman atau user menyetujui warning, kirim data ke komponen utama
   emit("select", selectedItems.value);
   emit("close");
 };

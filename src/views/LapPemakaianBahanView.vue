@@ -290,190 +290,413 @@ const formatNumber = (val, dec = 1) => {
 
 const exportToExcel = () => {
   if (productionData.value.length === 0) {
-    alert("Tidak ada data untuk diexport");
+    toast.warning("Tidak ada data untuk di-export.");
     return;
   }
 
-  const fileName = `Laporan_Produksi_Tinta_${startDate.value}.xlsx`;
+  loading.value = true;
+  try {
+    const fileName = `Laporan_Pemakaian_Bahan_Shift_Group_${startDate.value}.xlsx`;
 
-  // --- DEFINISI STYLE ---
-  const styleHeader = (color) => ({
-    fill: { fgColor: { rgb: color } },
-    font: { bold: true, sz: 10 },
-    alignment: { horizontal: "center", vertical: "center", wrapText: true },
-    border: {
-      top: { style: "thin" },
-      bottom: { style: "thin" },
-      left: { style: "thin" },
-      right: { style: "thin" },
-    },
-  });
+    // ==========================================
+    // 1. DEFINISI STYLE KOMPONEN EXCEL
+    // ==========================================
+    const styleBaseTh = {
+      font: { bold: true, color: { rgb: "000000" }, sz: 9 },
+      alignment: { horizontal: "center", vertical: "center", wrapText: true },
+      border: {
+        top: { style: "thin", color: { rgb: "000000" } },
+        bottom: { style: "thin", color: { rgb: "000000" } },
+        left: { style: "thin", color: { rgb: "000000" } },
+        right: { style: "thin", color: { rgb: "000000" } },
+      },
+    };
 
-  const styleData = {
-    font: { sz: 10 },
-    border: {
-      top: { style: "thin" },
-      bottom: { style: "thin" },
-      left: { style: "thin" },
-      right: { style: "thin" },
-    },
-  };
+    const styleHeader = (bgColor, isTextWhite) => ({
+      ...styleBaseTh,
+      fill: { fgColor: { rgb: bgColor } },
+      font: {
+        ...styleBaseTh.font,
+        color: { rgb: isTextWhite ? "FFFFFF" : "000000" },
+      },
+    });
 
-  const wsData = [];
+    const styleDataCell = {
+      font: { sz: 9 },
+      border: {
+        top: { style: "thin", color: { rgb: "000000" } },
+        bottom: { style: "thin", color: { rgb: "000000" } },
+        left: { style: "thin", color: { rgb: "000000" } },
+        right: { style: "thin", color: { rgb: "000000" } },
+      },
+      alignment: { vertical: "center" },
+    };
 
-  // 1. Judul & Info
-  wsData.push([
-    {
-      v: "LAPORAN PRODUKSI & PENGGUNAAN TINTA",
-      s: { font: { bold: true, sz: 14 } },
-    },
-  ]);
-  wsData.push([{ v: `Periode: ${startDate.value} s/d ${endDate.value}` }]);
-  wsData.push([]); // Baris Kosong
+    const styleDataCellCenter = {
+      ...styleDataCell,
+      alignment: { horizontal: "center", vertical: "center" },
+    };
+    const styleDataCellRight = {
+      ...styleDataCell,
+      alignment: { horizontal: "right", vertical: "center" },
+    };
 
-  // 2. Susun Header Baris 1 & 2 secara manual agar sinkron
-  // Gunakan Array.fill untuk memastikan jumlah kolom konsisten (total 42 kolom)
-  const h1 = Array(42)
-    .fill(null)
-    .map(() => ({ v: "", s: styleHeader("FFFFFF") }));
-  const h2 = Array(42)
-    .fill(null)
-    .map(() => ({ v: "", s: styleHeader("FFFFFF") }));
+    const styleGroupHeader = {
+      fill: { fgColor: { rgb: "E1F5FE" } }, // Warna biru soft penanda Shift
+      font: { bold: true, sz: 11, color: { rgb: "01579B" } },
+      alignment: { vertical: "center" },
+    };
 
-  // Set Nama & Warna Header 1
-  h1[0] = { v: "TGL", s: styleHeader("FFFFFF") };
-  h1[1] = { v: "SHIFT", s: styleHeader("FFFFFF") };
-  h1[2] = { v: "TOLERANSI BAHAN", s: styleHeader("FCE4D6") };
-  h1[5] = { v: "NAMA ORDER SPK", s: styleHeader("FFFFFF") };
-  h1[6] = { v: "NO. SPK", s: styleHeader("FFFFFF") };
-  h1[7] = { v: "UKURAN / JENIS BAHAN", s: styleHeader("E2EFDA") };
-  h1[12] = { v: "ORDER SPK", s: styleHeader("A9D08E") };
-  h1[14] = { v: "HASIL CETAK", s: styleHeader("FFF2CC") };
-  h1[16] = { v: "AMBIL BAHAN / SISA", s: styleHeader("548235") };
-  h1[16].s.font.color = { rgb: "FFFFFF" };
-  h1[20] = { v: "TOTAL WASTE / LOST", s: styleHeader("DBDBDB") };
-  h1[26] = { v: "TINTA MT 02", s: styleHeader("FFFF00") };
-  h1[30] = { v: "TINTA MT 03", s: styleHeader("F9F586") };
-  h1[34] = { v: "TINTA MT 04", s: styleHeader("FFFF00") };
-  h1[38] = { v: "TINTA MT 05", s: styleHeader("F9F586") };
+    const styleSummaryTinta = {
+      fill: { fgColor: { rgb: "FFFBEB" } }, // Kuning gading untuk total tinta
+      font: { bold: true, sz: 9 },
+      border: {
+        top: { style: "thin", color: { rgb: "000000" } },
+        bottom: { style: "double", color: { rgb: "000000" } },
+        left: { style: "thin", color: { rgb: "000000" } },
+        right: { style: "thin", color: { rgb: "000000" } },
+      },
+    };
 
-  // Set Nama Header 2 (Sub-header)
-  const subNames = {
-    2: "S 1,2",
-    3: "S 3,4",
-    4: "%",
-    7: "P",
-    8: "L",
-    9: "GSM",
-    10: "MSN",
-    11: "BARCODE",
-    12: "PCS",
-    13: "M2",
-    14: "PCS",
-    15: "M2",
-    16: "AMB.P",
-    17: "AMB.L",
-    18: "SISA.P",
-    19: "SISA.L",
-    20: "WASTE",
-    21: "%",
-    22: "LOST",
-    23: "%",
-    24: "TOTAL",
-    25: "%",
-  };
-  // Isi C-M-Y-K untuk semua mesin tinta
-  [26, 30, 34, 38].forEach((idx) => {
-    subNames[idx] = "C";
-    subNames[idx + 1] = "M";
-    subNames[idx + 2] = "Y";
-    subNames[idx + 3] = "K";
-  });
+    const formatTanggalIndo = (dateStr) => {
+      if (!dateStr) return "";
+      const bulanIndo = [
+        "Januari",
+        "Februari",
+        "Maret",
+        "April",
+        "Mei",
+        "Juni",
+        "Juli",
+        "Agustus",
+        "September",
+        "Oktober",
+        "November",
+        "Desember",
+      ];
+      try {
+        const [year, month, day] = dateStr.split("-");
+        return `${parseInt(day, 10)} ${bulanIndo[parseInt(month, 10) - 1]} ${year}`;
+      } catch (e) {
+        return dateStr;
+      }
+    };
 
-  Object.keys(subNames).forEach((key) => {
-    h2[key] = { v: subNames[key], s: styleHeader("F0F0F0") };
-  });
+    const wsData = [];
+    const merges = [];
 
-  wsData.push(h1);
-  wsData.push(h2);
-
-  // 3. Isi Data Body
-  filteredData.value.forEach((item) => {
+    // Judul Dokumen Atas
     wsData.push([
-      { v: item.tgl, s: styleData },
-      { v: item.shift, s: styleData },
-      { v: item.s12, s: styleData },
-      { v: item.s34, s: styleData },
-      { v: item.persenToleransi, s: styleData },
-      { v: item.namaOrder, s: styleData },
-      { v: item.noSpk, s: styleData },
-      { v: item.p, s: styleData },
-      { v: item.l, s: styleData },
-      { v: item.gsm, s: styleData },
-      { v: item.kodeMesin, s: styleData },
-      { v: item.barcodeRoll, s: styleData },
-      { v: item.orderPcs, s: styleData },
-      { v: item.orderLuas, s: styleData },
-      { v: item.hasilQty, s: styleData },
-      { v: item.hasilLuas, s: styleData },
-      { v: item.ambilP, s: styleData },
-      { v: item.ambilL, s: styleData },
-      { v: item.sisaBahanP, s: styleData },
-      { v: item.sisaBahanL, s: styleData },
-      { v: item.wasteM2, s: styleData },
-      { v: item.wastePersen, s: styleData },
-      { v: item.lostM2, s: styleData },
-      { v: item.lostPersen, s: styleData },
-      { v: item.totalWasteM2, s: styleData },
-      { v: item.totalWastePersen, s: styleData },
-      { v: item.inkC_MT02, s: styleData },
-      { v: item.inkM_MT02, s: styleData },
-      { v: item.inkY_MT02, s: styleData },
-      { v: item.inkK_MT02, s: styleData },
-      { v: item.inkC_MT03, s: styleData },
-      { v: item.inkM_MT03, s: styleData },
-      { v: item.inkY_MT03, s: styleData },
-      { v: item.inkK_MT03, s: styleData },
-      { v: item.inkC_MT04, s: styleData },
-      { v: item.inkM_MT04, s: styleData },
-      { v: item.inkY_MT04, s: styleData },
-      { v: item.inkK_MT04, s: styleData },
-      { v: item.inkC_MT05, s: styleData },
-      { v: item.inkM_MT05, s: styleData },
-      { v: item.inkY_MT05, s: styleData },
-      { v: item.inkK_MT05, s: styleData },
+      {
+        v: "LAPORAN PEMAKAIAN BAHAN & REKAP KONSUMSI TINTA PER SHIFT",
+        s: { font: { bold: true, sz: 14, color: { rgb: "1E3A8A" } } },
+      },
     ]);
-  });
+    wsData.push([
+      {
+        v: `Periode: ${formatTanggalIndo(startDate.value)} s/d ${formatTanggalIndo(endDate.value)}`,
+        s: { font: { italic: true, sz: 10, color: { rgb: "475569" } } },
+      },
+    ]);
+    wsData.push([]);
+    merges.push({ s: { r: 0, c: 0 }, e: { r: 0, c: 39 } });
 
-  const ws = XLSX.utils.aoa_to_sheet(wsData);
+    // ==========================================
+    // 2. LOGIKA GROUPING FRONTEND (SPK dimasukkan per Shift)
+    // ==========================================
+    const groupedMap = new Map();
 
-  // 4. Perhitungan Merge (WAJIB TELITI)
-  const offset = 3;
-  const merges = [
-    { s: { r: 0, c: 0 }, e: { r: 0, c: 6 } }, // Judul
-    { s: { r: offset, c: 0 }, e: { r: offset + 1, c: 0 } }, // TGL
-    { s: { r: offset, c: 1 }, e: { r: offset + 1, c: 1 } }, // SHIFT
-    { s: { r: offset, c: 2 }, e: { r: offset, c: 4 } }, // Group Toleransi
-    { s: { r: offset, c: 5 }, e: { r: offset + 1, c: 5 } }, // NAMA ORDER
-    { s: { r: offset, c: 6 }, e: { r: offset + 1, c: 6 } }, // NO SPK
-    { s: { r: offset, c: 7 }, e: { r: offset, c: 11 } }, // Group Ukuran
-    { s: { r: offset, c: 12 }, e: { r: offset, c: 13 } }, // Group Order
-    { s: { r: offset, c: 14 }, e: { r: offset, c: 15 } }, // Group Hasil
-    { s: { r: offset, c: 16 }, e: { r: offset, c: 19 } }, // Group Ambil
-    { s: { r: offset, c: 20 }, e: { r: offset, c: 25 } }, // Group Waste
-    { s: { r: offset, c: 26 }, e: { r: offset, c: 29 } }, // Group MT02
-    { s: { r: offset, c: 30 }, e: { r: offset, c: 33 } }, // Group MT03
-    { s: { r: offset, c: 34 }, e: { r: offset, c: 37 } }, // Group MT04
-    { s: { r: offset, c: 38 }, e: { r: offset, c: 41 } }, // Group MT05
-  ];
+    productionData.value.forEach((row) => {
+      if (!row.tgl || row.tgl === "TOTAL") return; // Skip row total bawaan backend jika ada
 
-  ws["!merges"] = merges;
-  ws["!cols"] = Array(42).fill({ wch: 10 });
-  ws["!cols"][5] = { wch: 35 }; // Nama Order diperlebar
+      const key = `${row.tgl}_Shift_${row.shift || "1"}`;
 
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, "Laporan Produksi");
-  XLSX.writeFile(wb, fileName);
+      if (!groupedMap.has(key)) {
+        groupedMap.set(key, {
+          tgl: row.tgl,
+          shift: row.shift || "1",
+          spkList: [],
+          // Tampung akumulasi tinta maksimal per mesin khusus shift ini
+          tinta: {
+            MT02: { C: 0, M: 0, Y: 0, K: 0 },
+            MT03: { C: 0, M: 0, Y: 0, K: 0 },
+            MT04: { C: 0, M: 0, Y: 0, K: 0 },
+            MT05: { C: 0, M: 0, Y: 0, K: 0 },
+          },
+        });
+      }
+
+      const currentGroup = groupedMap.get(key);
+
+      // Masukkan SPK ke dalam list shift ini
+      currentGroup.spkList.push(row);
+
+      // Akumulasi/ambil nilai tinta terbesar atau total di shift ini
+      const engines = ["MT02", "MT03", "MT04", "MT05"];
+      const colors = ["C", "M", "Y", "K"];
+      engines.forEach((eng) => {
+        colors.forEach((ch) => {
+          const val = parseFloat(row[`ink${ch}_${eng}`]) || 0;
+          // Menggunakan Math.max karena nilai tinta biasanya terisi kumulatif di baris terakhir shift
+          if (val > currentGroup.tinta[eng][ch]) {
+            currentGroup.tinta[eng][ch] = val;
+          }
+        });
+      });
+    });
+
+    // ==========================================
+    // 3. MATRIKS BUILDING (AOA) BERDASARKAN GRUP SHIFT
+    // ==========================================
+    groupedMap.forEach((group) => {
+      const bannerRowIdx = wsData.length;
+      let tglIndo = group.tgl.includes("-")
+        ? group.tgl.split("-").reverse().join("/")
+        : group.tgl;
+
+      // A. BANNER UTAMA SHIFT
+      const groupRow = [
+        {
+          v: `📅 TANGGAL: ${tglIndo}   |   🕒 SHIFT: ${group.shift}`,
+          s: styleGroupHeader,
+        },
+      ];
+      for (let i = 1; i < 40; i++)
+        groupRow.push({ v: "", s: styleGroupHeader });
+      wsData.push(groupRow);
+      merges.push({
+        s: { r: bannerRowIdx, c: 0 },
+        e: { r: bannerRowIdx, c: 39 },
+      });
+
+      // B. DOUBLE HEADER TABEL (ROW 1)
+      const r1Idx = wsData.length;
+      const row1 = new Array(40)
+        .fill(null)
+        .map(() => ({ v: "", s: styleBaseTh }));
+
+      row1[0] = { v: "TOLERANSI BAHAN", s: styleHeader("FCE4D6") };
+      for (let i = 1; i < 3; i++) row1[i].s = styleHeader("FCE4D6");
+      merges.push({ s: { r: r1Idx, c: 0 }, e: { r: r1Idx, c: 2 } });
+
+      row1[3] = { v: "NAMA ORDER SPK", s: styleHeader("FFFFFF") };
+      merges.push({ s: { r: r1Idx, c: 3 }, e: { r: r1Idx + 1, c: 3 } });
+
+      row1[4] = { v: "NO. SPK", s: styleHeader("FFFFFF") };
+      merges.push({ s: { r: r1Idx, c: 4 }, e: { r: r1Idx + 1, c: 4 } });
+
+      row1[5] = { v: "UKURAN / JENIS BAHAN", s: styleHeader("E2EFDA") };
+      for (let i = 6; i < 10; i++) row1[i].s = styleHeader("E2EFDA");
+      merges.push({ s: { r: r1Idx, c: 5 }, e: { r: r1Idx, c: 9 } });
+
+      row1[10] = { v: "ORDER SPK", s: styleHeader("A9D08E") };
+      row1[11].s = styleHeader("A9D08E");
+      merges.push({ s: { r: r1Idx, c: 10 }, e: { r: r1Idx, c: 11 } });
+
+      row1[12] = { v: "HASIL CETAK", s: styleHeader("FFF2CC") };
+      row1[13].s = styleHeader("FFF2CC");
+      merges.push({ s: { r: r1Idx, c: 12 }, e: { r: r1Idx, c: 13 } });
+
+      row1[14] = { v: "AMBIL BAHAN / SISA", s: styleHeader("548235", true) };
+      for (let i = 15; i < 18; i++) row1[i].s = styleHeader("548235", true);
+      merges.push({ s: { r: r1Idx, c: 14 }, e: { r: r1Idx, c: 17 } });
+
+      row1[18] = { v: "TOTAL WASTE / LOST", s: styleHeader("DBDBDB") };
+      for (let i = 19; i < 24; i++) row1[i].s = styleHeader("DBDBDB");
+      merges.push({ s: { r: r1Idx, c: 18 }, e: { r: r1Idx, c: 23 } });
+
+      const tintaHeads = [
+        { c: 24, t: "TINTA MT 02", rgb: "FFFF00" },
+        { c: 28, t: "TINTA MT 03", rgb: "FEF9C3" },
+        { c: 32, t: "TINTA MT 04", rgb: "FFFF00" },
+        { c: 36, t: "TINTA MT 05", rgb: "FEF9C3" },
+      ];
+      tintaHeads.forEach((th) => {
+        row1[th.c] = { v: th.t, s: styleHeader(th.rgb) };
+        for (let i = 1; i < 4; i++) row1[th.c + i].s = styleHeader(th.rgb);
+        merges.push({ s: { r: r1Idx, c: th.c }, e: { r: r1Idx, c: th.c + 3 } });
+      });
+      wsData.push(row1);
+
+      // C. DOUBLE HEADER TABEL (ROW 2 - SUB LABEL TEKNIS)
+      const row2 = new Array(40)
+        .fill(null)
+        .map(() => ({ v: "", s: styleBaseTh }));
+      const subLabels = [
+        { c: 0, v: "S 1,2", bg: "F8CBAD" },
+        { c: 1, v: "S 3,4", bg: "F8CBAD" },
+        { c: 2, v: "%", bg: "F8CBAD" },
+        { c: 5, v: "P", bg: "C6E0B4" },
+        { c: 6, v: "L", bg: "C6E0B4" },
+        { c: 7, v: "GSM", bg: "C6E0B4" },
+        { c: 8, v: "MSN", bg: "C6E0B4" },
+        { c: 9, v: "BARCODE", bg: "C6E0B4" },
+        { c: 10, v: "PCS", bg: "7AB35A" },
+        { c: 11, v: "M2", bg: "7AB35A" },
+        { c: 12, v: "PCS", bg: "FFE699" },
+        { c: 13, v: "M2", bg: "FFE699" },
+        { c: 14, v: "AMB.P", bg: "385723", w: true },
+        { c: 15, v: "AMB.L", bg: "385723", w: true },
+        { c: 16, v: "SISA.P", bg: "385723", w: true },
+        { c: 17, v: "SISA.L", bg: "385723", w: true },
+        { c: 18, v: "WASTE", bg: "BFBFBF" },
+        { c: 19, v: "%", bg: "BFBFBF" },
+        { c: 20, v: "LOST", bg: "BFBFBF" },
+        { c: 21, v: "%", bg: "BFBFBF" },
+        { c: 22, v: "TOTAL", bg: "BFBFBF" },
+        { c: 23, v: "%", bg: "BFBFBF" },
+      ];
+      subLabels.forEach((sl) => {
+        row2[sl.c] = { v: sl.v, s: styleHeader(sl.bg, sl.w) };
+      });
+
+      const subTintaBgs = ["E2E200", "FDE047", "E2E200", "FDE047"];
+      [24, 28, 32, 36].forEach((startC, tIdx) => {
+        ["C", "M", "Y", "K"].forEach((ch, o) => {
+          row2[startC + o] = { v: ch, s: styleHeader(subTintaBgs[tIdx]) };
+        });
+      });
+      row2[3].s = styleBaseTh;
+      row2[4].s = styleBaseTh;
+      wsData.push(row2);
+
+      // D. LOOPING DAFTAR SPK DI DALAM SHIFT INI
+      group.spkList.forEach((dtl) => {
+        const dRow = new Array(40)
+          .fill(null)
+          .map(() => ({ v: "", s: styleDataCell }));
+        const valMapping = [
+          dtl.s12,
+          dtl.s34,
+          dtl.persenToleransi,
+          dtl.namaOrder,
+          dtl.noSpk,
+          dtl.p,
+          dtl.l,
+          dtl.gsm,
+          dtl.kodeMesin,
+          dtl.barcodeRoll,
+          dtl.orderPcs,
+          dtl.orderLuas,
+          dtl.hasilQty,
+          dtl.hasilLuas,
+          dtl.ambilP,
+          dtl.ambilL,
+          dtl.sisaBahanP,
+          dtl.sisaBahanL,
+          dtl.wasteM2,
+          dtl.wastePersen,
+          dtl.lostM2,
+          dtl.lostPersen,
+          dtl.totalWasteM2,
+          dtl.totalWastePersen,
+        ];
+
+        valMapping.forEach((val, cIdx) => {
+          let alignStyle = { ...styleDataCell };
+          if (cIdx === 3)
+            alignStyle.alignment = { horizontal: "left", vertical: "center" };
+          else if ([4, 7, 8, 9].includes(cIdx))
+            alignStyle.alignment = { horizontal: "center", vertical: "center" };
+          else
+            alignStyle.alignment = { horizontal: "right", vertical: "center" };
+
+          let cleanVal = val;
+          if ([2, 19, 21, 23].includes(cIdx) && typeof val === "number") {
+            cleanVal = `${val.toFixed(1)}%`;
+          }
+          dRow[cIdx] = {
+            v: cleanVal !== undefined && cleanVal !== null ? cleanVal : "-",
+            s: alignStyle,
+          };
+        });
+        wsData.push(dRow);
+      });
+
+      // E. BARIS TOTAL KONSUMSI TINTA (Hanya Muncul 1 Kali di Akhir Shift)
+      const rSumIdx = wsData.length;
+      const rowSum = new Array(40)
+        .fill(null)
+        .map(() => ({ v: "", s: styleSummaryTinta }));
+
+      rowSum[0] = {
+        v: "🧪 TOTAL KONSUMSI TINTA (LITER) SHIFT INI:",
+        s: {
+          ...styleSummaryTinta,
+          alignment: { horizontal: "right", vertical: "center" },
+        },
+      };
+      merges.push({ s: { r: rSumIdx, c: 0 }, e: { r: rSumIdx, c: 23 } });
+
+      const inkEngines = [
+        { base: 24, prefix: "MT02" },
+        { base: 28, prefix: "MT03" },
+        { base: 32, prefix: "MT04" },
+        { base: 36, prefix: "MT05" },
+      ];
+
+      inkEngines.forEach((eng) => {
+        ["C", "M", "Y", "K"].forEach((ch, o) => {
+          const finalInkVal = group.tinta[eng.prefix][ch];
+          rowSum[eng.base + o] = {
+            v: finalInkVal > 0 ? Number(finalInkVal) : "-",
+            s: {
+              ...styleSummaryTinta,
+              alignment: { horizontal: "center", vertical: "center" },
+            },
+          };
+        });
+      });
+
+      wsData.push(rowSum);
+      wsData.push([]); // Spasi baris pemisah antar shift
+    });
+
+    // ==========================================
+    // 4. GENERATE DAN DOWNLOADING PROCESS
+    // ==========================================
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+    ws["!merges"] = merges;
+
+    ws["!cols"] = [
+      { wch: 10 },
+      { wch: 10 },
+      { wch: 8 },
+      { wch: 40 },
+      { wch: 18 },
+      { wch: 10 },
+      { wch: 10 },
+      { wch: 10 },
+      { wch: 10 },
+      { wch: 16 },
+      { wch: 8 },
+      { wch: 14 },
+      { wch: 8 },
+      { wch: 14 },
+      { wch: 12 },
+      { wch: 12 },
+      { wch: 12 },
+      { wch: 12 },
+      { wch: 12 },
+      { wch: 8 },
+      { wch: 12 },
+      { wch: 8 },
+      { wch: 12 },
+      { wch: 8 },
+    ];
+    for (let i = 24; i < 40; i++) ws["!cols"].push({ wch: 6 });
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Laporan Pemakaian");
+    XLSX.writeFile(wb, fileName);
+
+    toast.success("Export Excel Berhasil!");
+  } catch (error) {
+    console.error("Export error:", error);
+    toast.error("Gagal melakukan export excel.");
+  } finally {
+    loading.value = false;
+  }
 };
 
 onMounted(() => {

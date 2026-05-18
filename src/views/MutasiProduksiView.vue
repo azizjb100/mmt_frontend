@@ -70,11 +70,11 @@
       </v-btn>
       <v-btn
         size="x-small"
-        color="info"
-        :disabled="!isSingleSelected"
-        @click="handleExportDetail"
+        color="success"
+        @click="handleExportExcel"
+        :loading="loading"
       >
-        <v-icon start>mdi-download</v-icon> Export Detail
+        <v-icon start>mdi-file-excel</v-icon> Export Excel
       </v-btn>
     </template>
 
@@ -201,6 +201,7 @@ import type { AxiosError } from "axios";
 import { format, subDays } from "date-fns";
 import PageLayout from "../components/PageLayout.vue";
 import { VDataTable } from "vuetify/components";
+import * as XLSX from "xlsx-js-style";
 
 // --- Interfaces ---
 
@@ -485,6 +486,218 @@ const handleApproveLoan = async (loan: any) => {
     } catch (error) {
       toast.error("Gagal memproses mutasi.");
     }
+  }
+};
+
+const handleExportExcel = () => {
+  if (masterData.value.length === 0) {
+    toast.warning("Tidak ada data untuk di-export.");
+    return;
+  }
+
+  loading.value = true;
+  try {
+    const fileName = `Realisasi_Produksi_${startDate.value}_to_${endDate.value}.xlsx`;
+
+    // ==========================================
+    // 1. DEFINISI STYLE EXCEL (PERSIS MODUL LAIN)
+    // ==========================================
+    const styleHeaderMain = {
+      fill: { fgColor: { rgb: "B3E5FC" } }, // Biru muda cerah
+      font: { bold: true, color: { rgb: "000000" }, sz: 10 }, // Teks Hitam Tebal
+      alignment: { horizontal: "center", vertical: "center", wrapText: true },
+      border: {
+        top: { style: "thin", color: { rgb: "000000" } },
+        bottom: { style: "thin", color: { rgb: "000000" } },
+        left: { style: "thin", color: { rgb: "000000" } },
+        right: { style: "thin", color: { rgb: "000000" } },
+      },
+    };
+
+    const styleDataCell = {
+      font: { sz: 10 },
+      border: {
+        top: { style: "thin", color: { rgb: "000000" } }, // Border hitam tipis seluruh sisi
+        bottom: { style: "thin", color: { rgb: "000000" } },
+        left: { style: "thin", color: { rgb: "000000" } },
+        right: { style: "thin", color: { rgb: "000000" } },
+      },
+      alignment: { vertical: "center" },
+    };
+
+    const styleDataCellCenter = {
+      ...styleDataCell,
+      alignment: { horizontal: "center", vertical: "center" },
+    };
+
+    const styleDataCellRight = {
+      ...styleDataCell,
+      alignment: { horizontal: "right", vertical: "center" },
+    };
+
+    // ==========================================
+    // 2. SUSUN DATA (Array of Arrays / AOA)
+    // ==========================================
+    const wsData = [];
+
+    // Fungsi Helper format tanggal Indonesia
+    const formatTanggalIndo = (dateStr: string) => {
+      if (!dateStr) return "";
+      const bulanIndo = [
+        "Januari",
+        "Februari",
+        "Maret",
+        "April",
+        "Mei",
+        "Juni",
+        "Juli",
+        "Agustus",
+        "September",
+        "Oktober",
+        "November",
+        "Desember",
+      ];
+      const [year, month, day] = dateStr.split("-");
+      const indexBulan = parseInt(month, 10) - 1;
+      return `${parseInt(day, 10)} ${bulanIndo[indexBulan]} ${year}`;
+    };
+
+    const periodeStr = `Periode : ${formatTanggalIndo(startDate.value)} s/d ${formatTanggalIndo(endDate.value)}`;
+
+    // Judul Atas
+    wsData.push([
+      {
+        v: "LAPORAN TRANSAKSI REALISASI PRODUKSI",
+        s: { font: { bold: true, sz: 14 } },
+      },
+    ]);
+    wsData.push([{ v: periodeStr, s: { font: { sz: 10 } } }]);
+    wsData.push([]);
+
+    // Header Kolom Tabel Sesuai Struktur Realisasi Produksi (Total 14 Kolom)
+    const tableHeaders = [
+      { v: "NOMOR TRANSAKSI", s: styleHeaderMain },
+      { v: "TANGGAL", s: styleHeaderMain },
+      { v: "KODE GUDANG", s: styleHeaderMain },
+      { v: "NAMA GUDANG", s: styleHeaderMain },
+      { v: "KETERANGAN HEADER", s: styleHeaderMain },
+      { v: "KODE BARANG", s: styleHeaderMain },
+      { v: "NAMA BAHAN / BARANG", s: styleHeaderMain },
+      { v: "BARCODE", s: styleHeaderMain },
+      { v: "PANJANG", s: styleHeaderMain },
+      { v: "LEBAR", s: styleHeaderMain },
+      { v: "SATUAN", s: styleHeaderMain },
+      { v: "JUMLAH", s: styleHeaderMain },
+      { v: "OPERATOR", s: styleHeaderMain },
+      { v: "NOMOR SPK", s: styleHeaderMain },
+    ];
+    wsData.push(tableHeaders);
+
+    // Looping Isi Data Body Realisasi
+    masterData.value.forEach((header) => {
+      // Mengambil detail berdasarkan state cache `details` komponen
+      const targetDetails = details.value[header.Nomor] || header.Detail || [];
+
+      // Konversi format tanggal internal
+      let tglHeader = header.Tanggal || "";
+      if (
+        tglHeader &&
+        tglHeader.includes("-") &&
+        tglHeader.split("-")[0].length === 4
+      ) {
+        tglHeader = tglHeader.split("-").reverse().join("/"); // 2026-04-23 -> 23/04/2026
+      }
+
+      if (targetDetails.length > 0) {
+        targetDetails.forEach((dtl, index) => {
+          const row = [
+            // Kolom Header Utama (Hanya muncul di baris index 0/pertama detail agar visual bersih)
+            { v: index === 0 ? header.Nomor : "", s: styleDataCellCenter },
+            { v: index === 0 ? tglHeader : "", s: styleDataCellCenter },
+            { v: index === 0 ? header.Gudang : "", s: styleDataCellCenter },
+            { v: index === 0 ? header.Nama : "", s: styleDataCell },
+            { v: index === 0 ? header.Keterangan || "" : "", s: styleDataCell },
+
+            // Kolom Detail Item Realisasi Produksi
+            { v: dtl.Kode, s: styleDataCellCenter },
+            { v: dtl.Nama_Bahan, s: styleDataCell },
+            { v: dtl.Barcode || "-", s: styleDataCellCenter },
+            {
+              v: dtl.Panjang !== null ? Number(dtl.Panjang) : 0,
+              s: styleDataCellRight,
+            },
+            {
+              v: dtl.Lebar !== null ? Number(dtl.Lebar) : 0,
+              s: styleDataCellRight,
+            },
+            { v: dtl.Satuan, s: styleDataCellCenter },
+            {
+              v: dtl.Jumlah !== null ? Number(dtl.Jumlah) : 0,
+              s: styleDataCellRight,
+            },
+            { v: dtl.Operator || "-", s: styleDataCell },
+            { v: dtl.Nomor_SPK || "-", s: styleDataCellCenter },
+          ];
+          wsData.push(row);
+        });
+      } else {
+        // Fallback jika tidak ada detail item
+        const row = [
+          { v: header.Nomor, s: styleDataCellCenter },
+          { v: tglHeader, s: styleDataCellCenter },
+          { v: header.Gudang, s: styleDataCellCenter },
+          { v: header.Nama, s: styleDataCell },
+          { v: header.Keterangan || "", s: styleDataCell },
+          { v: "-", s: styleDataCellCenter },
+          { v: "Tidak ada data detail", s: styleDataCell },
+          { v: "-", s: styleDataCellCenter },
+          { v: 0, s: styleDataCellRight },
+          { v: 0, s: styleDataCellRight },
+          { v: "-", s: styleDataCellCenter },
+          { v: 0, s: styleDataCellRight },
+          { v: "-", s: styleDataCell },
+          { v: "-", s: styleDataCellCenter },
+        ];
+        wsData.push(row);
+      }
+    });
+
+    // ==========================================
+    // 3. PEMBUATAN WORKSHEET & PROSES DOWNLOAD
+    // ==========================================
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+
+    // Merge baris judul atas (Kolom A sampai N / total 14 kolom)
+    ws["!merges"] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 13 } }];
+
+    // Setting Lebar Kolom Excel otomatis pas
+    ws["!cols"] = [
+      { wch: 22 }, // NOMOR TRANSAKSI
+      { wch: 12 }, // TANGGAL
+      { wch: 15 }, // KODE GUDANG
+      { wch: 25 }, // NAMA GUDANG
+      { wch: 25 }, // KETERANGAN HEADER
+      { wch: 15 }, // KODE BARANG
+      { wch: 30 }, // NAMA BAHAN
+      { wch: 18 }, // BARCODE
+      { wch: 12 }, // PANJANG
+      { wch: 12 }, // LEBAR
+      { wch: 12 }, // SATUAN
+      { wch: 12 }, // JUMLAH
+      { wch: 15 }, // OPERATOR
+      { wch: 18 }, // NOMOR SPK
+    ];
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "RealisasiProduksi");
+    XLSX.writeFile(wb, fileName);
+
+    toast.success("Export Excel Berhasil!");
+  } catch (error) {
+    console.error("Export error:", error);
+    toast.error("Gagal melakukan export excel.");
+  } finally {
+    loading.value = false;
   }
 };
 

@@ -3,7 +3,7 @@ import { ref, reactive, onMounted, computed, watch } from "vue";
 import { useRouter } from "vue-router";
 import { useToast } from "vue-toastification";
 import api from "@/services/api";
-import * as XLSX from "xlsx";
+import * as XLSX from "xlsx-js-style";
 import { format, subDays, parseISO, isValid } from "date-fns";
 import PageLayout from "../components/PageLayout.vue";
 
@@ -227,51 +227,188 @@ const handleExportExcel = () => {
 
   loading.value = true;
   try {
-    const exportData: any[] = [];
+    const fileName = `Permintaan_Bahan_${startDate.value}_to_${endDate.value}.xlsx`;
 
+    // ==========================================
+    // 1. DEFINISI STYLE EXCEL (PERSIS LAPORAN STOK)
+    // ==========================================
+    const styleHeaderMain = {
+      fill: { fgColor: { rgb: "B3E5FC" } }, // Biru muda cerah
+      font: { bold: true, color: { rgb: "000000" }, sz: 10 }, // Teks Hitam Tebal
+      alignment: { horizontal: "center", vertical: "center", wrapText: true },
+      border: {
+        top: { style: "thin", color: { rgb: "000000" } },
+        bottom: { style: "thin", color: { rgb: "000000" } },
+        left: { style: "thin", color: { rgb: "000000" } },
+        right: { style: "thin", color: { rgb: "000000" } },
+      },
+    };
+
+    const styleDataCell = {
+      font: { sz: 10 },
+      border: {
+        top: { style: "thin", color: { rgb: "000000" } }, // Border hitam tipis seluruh sisi
+        bottom: { style: "thin", color: { rgb: "000000" } },
+        left: { style: "thin", color: { rgb: "000000" } },
+        right: { style: "thin", color: { rgb: "000000" } },
+      },
+      alignment: { vertical: "center" },
+    };
+
+    const styleDataCellCenter = {
+      ...styleDataCell,
+      alignment: { horizontal: "center", vertical: "center" },
+    };
+
+    const styleDataCellRight = {
+      ...styleDataCell,
+      alignment: { horizontal: "right", vertical: "center" },
+    };
+
+    // ==========================================
+    // 2. SUSUN DATA (Array of Arrays / AOA)
+    // ==========================================
+    const wsData = [];
+
+    // Fungsi Helper untuk mengubah YYYY-MM-DD menjadi "DD Bulan YYYY" (Bahasa Indonesia)
+    const formatTanggalIndo = (dateStr: string) => {
+      if (!dateStr) return "";
+      const bulanIndo = [
+        "Januari",
+        "Februari",
+        "Maret",
+        "April",
+        "Mei",
+        "Juni",
+        "Juli",
+        "Agustus",
+        "September",
+        "Oktober",
+        "November",
+        "Desember",
+      ];
+      const [year, month, day] = dateStr.split("-");
+      const indexBulan = parseInt(month, 10) - 1;
+      return `${parseInt(day, 10)} ${bulanIndo[indexBulan]} ${year}`;
+    };
+
+    const periodeStr = `Periode : ${formatTanggalIndo(startDate.value)} s/d ${formatTanggalIndo(endDate.value)}`;
+
+    // Baris Judul & Info Atas Laporan (Tanpa Border)
+    wsData.push([
+      {
+        v: "LAPORAN TRANSAKSI PERMINTAAN BAHAN",
+        s: { font: { bold: true, sz: 14 } },
+      },
+    ]);
+    wsData.push([{ v: periodeStr, s: { font: { sz: 10 } } }]);
+    wsData.push([]); // Baris kosong
+
+    // Header Tabel (Total 12 Kolom terstruktur)
+    const tableHeaders = [
+      { v: "NOMOR PERMINTAAN", s: styleHeaderMain },
+      { v: "TANGGAL", s: styleHeaderMain },
+      { v: "GUDANG", s: styleHeaderMain },
+      { v: "ESTIMASI DATANG", s: styleHeaderMain },
+      { v: "TANGGAL DATANG", s: styleHeaderMain },
+      { v: "STATUS PO", s: styleHeaderMain },
+      { v: "STATUS TERIMA", s: styleHeaderMain },
+      { v: "STATUS ACC", s: styleHeaderMain },
+      { v: "KODE BAHAN", s: styleHeaderMain },
+      { v: "NAMA BAHAN", s: styleHeaderMain },
+      { v: "JUMLAH ORDER", s: styleHeaderMain },
+      { v: "JUMLAH TERIMA", s: styleHeaderMain },
+    ];
+    wsData.push(tableHeaders);
+
+    // Looping Isi Data Body
     masterData.value.forEach((header) => {
+      // Pemformatan tanggal internal baris data
+      const formatDataDate = (dStr: string | undefined | null) => {
+        if (!dStr) return "-";
+        if (dStr.includes("-")) {
+          const parts = dStr.split("-");
+          if (parts[0].length === 4)
+            return `${parts[2]}/${parts[1]}/${parts[0]}`; // yyyy-mm-dd -> dd/mm/yyyy
+          return dStr.replace(/-/g, "/");
+        }
+        return dStr;
+      };
+
+      const tglHeader = formatDataDate(header.Tanggal);
+      const estDatang = formatDataDate(header.Estimasi_Kedatangan);
+      const tglDatang = formatDataDate(header.Tanggal_Datang);
+
       if (header.Detail && header.Detail.length > 0) {
-        header.Detail.forEach((dtl) => {
-          exportData.push({
-            "Nomor Permintaan": header.Nomor,
-            Tanggal: header.Tanggal,
-            Gudang: header.Nama,
-            "Estimasi Kedatangan": header.Estimasi_Kedatangan || "-", // Baru
-            "Tanggal Kedatangan": header.Tanggal_Datang || "-",
-            "Keterangan Header": header.Keterangan,
-            "Status PO": header.Status_PO,
-            "Status Diterima": header.Status_Diterima,
-            "Status ACC": header.Status_Acc,
-            "Kode Bahan": dtl.Kode,
-            "Nama Bahan": dtl.Nama_Bahan,
-            "ACC Item": dtl.Is_Acc,
-            "Jumlah Minta": dtl.Jumlah,
-            "Jumlah Terima": dtl.Total_Diterima,
-            Satuan: dtl.Satuan,
-            "Nomor SPK": dtl.Nomor_SPK,
-            Operator: dtl.Operator,
-          });
+        header.Detail.forEach((dtl, index) => {
+          const row = [
+            // Header utama dikosongkan pada baris detail ke-2 dst agar visual Excel rapi
+            { v: index === 0 ? header.Nomor : "", s: styleDataCellCenter },
+            { v: index === 0 ? tglHeader : "", s: styleDataCellCenter },
+            { v: index === 0 ? header.Nama : "", s: styleDataCell },
+            { v: index === 0 ? estDatang : "", s: styleDataCellCenter },
+            { v: index === 0 ? tglDatang : "", s: styleDataCellCenter },
+            { v: index === 0 ? header.Status_PO : "", s: styleDataCellCenter },
+            {
+              v: index === 0 ? header.Status_Diterima : "",
+              s: styleDataCellCenter,
+            },
+            { v: index === 0 ? header.Status_Acc : "", s: styleDataCellCenter },
+
+            // Bagian Detail Item Barang
+            { v: dtl.Kode, s: styleDataCellCenter },
+            { v: dtl.Nama_Bahan, s: styleDataCell },
+            { v: dtl.Jumlah, s: styleDataCellRight },
+            { v: dtl.Total_Diterima || 0, s: styleDataCellRight },
+          ];
+          wsData.push(row);
         });
       } else {
-        exportData.push({
-          "Nomor Permintaan": header.Nomor,
-          Tanggal: header.Tanggal,
-          Gudang: header.Nama,
-          "Keterangan Header": header.Keterangan,
-          "Status PO": header.Status_PO,
-          "Status Diterima": header.Status_Diterima,
-          "Status ACC": header.Status_Acc,
-          "Kode Bahan": "-",
-          "Nama Bahan": "Tidak ada detail",
-        });
+        // Jika dokumen kebetulan tidak memiliki detail item
+        const row = [
+          { v: header.Nomor, s: styleDataCellCenter },
+          { v: tglHeader, s: styleDataCellCenter },
+          { v: header.Nama, s: styleDataCell },
+          { v: estDatang, s: styleDataCellCenter },
+          { v: tglDatang, s: styleDataCellCenter },
+          { v: header.Status_PO, s: styleDataCellCenter },
+          { v: header.Status_Diterima, s: styleDataCellCenter },
+          { v: header.Status_Acc, s: styleDataCellCenter },
+          { v: "-", s: styleDataCellCenter },
+          { v: "Tidak ada detail", s: styleDataCell },
+          { v: 0, s: styleDataCellRight },
+          { v: 0, s: styleDataCellRight },
+        ];
+        wsData.push(row);
       }
     });
 
-    const ws = XLSX.utils.json_to_sheet(exportData);
+    // ==========================================
+    // 3. PEMBUATAN WORKSHEET & PROSES DOWNLOAD
+    // ==========================================
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+
+    // Merge baris judul atas (Kolom A sampai L)
+    ws["!merges"] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 11 } }];
+
+    // Setting Lebar Kolom Excel
+    ws["!cols"] = [
+      { wch: 22 }, // NOMOR PERMINTAAN
+      { wch: 12 }, // TANGGAL
+      { wch: 25 }, // GUDANG
+      { wch: 18 }, // ESTIMASI DATANG
+      { wch: 18 }, // TANGGAL DATANG
+      { wch: 15 }, // STATUS PO
+      { wch: 15 }, // STATUS TERIMA
+      { wch: 15 }, // STATUS ACC
+      { wch: 15 }, // KODE BAHAN
+      { wch: 35 }, // NAMA BAHAN
+      { wch: 15 }, // JUMLAH ORDER
+      { wch: 15 }, // JUMLAH TERIMA
+    ];
+
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "PermintaanBahan");
-
-    const fileName = `Permintaan_Bahan_${startDate.value}_to_${endDate.value}.xlsx`;
     XLSX.writeFile(wb, fileName);
 
     toast.success("Export Excel Berhasil!");

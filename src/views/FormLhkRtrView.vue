@@ -137,6 +137,16 @@
                 />
               </div>
             </template>
+            <template #[`item.poi_size`]="{ item }">
+              <v-text-field
+                v-model="item.poi_size"
+                placeholder="..."
+                variant="plain"
+                density="compact"
+                hide-details
+                class="table-input-inline"
+              />
+            </template>
 
             <!-- SPK Nomor (Yellow + Lookup) -->
             <template #[`item.spk_nomor`]="{ item, index }">
@@ -209,17 +219,6 @@
               <div class="px-2 text-end text-blue-darken-2 font-weight-bold">
                 {{ Number(item.jumlah_meter || 0).toFixed(2) }}
               </div>
-            </template>
-
-            <template #[`item.keterangan`]="{ item }">
-              <v-text-field
-                v-model="item.keterangan"
-                placeholder="..."
-                variant="plain"
-                density="compact"
-                hide-details
-                class="table-input-inline"
-              />
             </template>
 
             <template #[`item.actions`]="{ index }">
@@ -307,7 +306,6 @@ const detailHeaders = [
   { title: "Jml RTR", key: "jumlah_rtr", width: "90px", align: "end" },
   { title: "Total m²", key: "jumlah_meter", width: "100px", align: "end" },
   { title: "Lokasi/Mesin", key: "lokasi", width: "120px" },
-  { title: "Keterangan", key: "keterangan", width: "150px" },
   { title: "", key: "actions", width: "50px" },
 ];
 

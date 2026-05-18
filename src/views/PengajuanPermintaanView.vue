@@ -3,32 +3,32 @@ import { ref, reactive, onMounted, computed, watch } from "vue";
 import { useRouter } from "vue-router";
 import { useToast } from "vue-toastification";
 import api from "@/services/api";
-import * as XLSX from "xlsx";
+import * as XLSX from "xlsx-js-style";
 import { format, subDays, parseISO, isValid } from "date-fns";
 import PageLayout from "../components/PageLayout.vue";
 
 const useAuthStore = () => ({
-    can: (menuId: string, action: string) => true, // Selalu true untuk demo
-    KDUSER: "ADMIN",
+  can: (menuId: string, action: string) => true, // Selalu true untuk demo
+  KDUSER: "ADMIN",
 });
 const authStore = useAuthStore();
 
 interface PermintaanBahanDetail {
-    Kode: string;
-    Nama_Bahan: string;
-    Jumlah: number;
-    Satuan: string;
-    Nomor_SPK: string;
-    Operator: string;
+  Kode: string;
+  Nama_Bahan: string;
+  Jumlah: number;
+  Satuan: string;
+  Nomor_SPK: string;
+  Operator: string;
 }
 
 interface PermintaanBahanHeader {
-    Nomor: string;
-    Gudang: string;
-    Nama: string;
-    Tanggal: string;
-    Keterangan: string;
-    Detail: PermintaanBahanDetail[];
+  Nomor: string;
+  Gudang: string;
+  Nama: string;
+  Tanggal: string;
+  Keterangan: string;
+  Detail: PermintaanBahanDetail[];
 }
 
 const toast = useToast();
@@ -54,297 +54,413 @@ const endDate = ref(today);
 // --- Computed ---
 const isSingleSelected = computed(() => selected.value.length === 1); // <-- OK
 const selectedNomor = computed<string | null>(() => {
-    // Gunakan selected.value[0] HANYA jika isSingleSelected benar
-    return isSingleSelected.value ? selected.value[0].Nomor : null; // <-- Kunci masalah: Ini harusnya OK jika isSingleSelected benar.
+  // Gunakan selected.value[0] HANYA jika isSingleSelected benar
+  return isSingleSelected.value ? selected.value[0].Nomor : null; // <-- Kunci masalah: Ini harusnya OK jika isSingleSelected benar.
 });
 
 const selectedRow = computed<PermintaanBahanHeader | null>(() =>
-    isSingleSelected.value
-        ? (selected.value[0] as PermintaanBahanHeader)
-        : null,
+  isSingleSelected.value ? (selected.value[0] as PermintaanBahanHeader) : null,
 );
 
 // Fungsi untuk menentukan status PO berdasarkan item yang di-ACC saja
 const calculateStatusPO = (details: PermintaanBahanDetail[]) => {
-    if (!details || details.length === 0) return "OPEN";
+  if (!details || details.length === 0) return "OPEN";
 
-    // 1. Filter hanya item yang disetujui (ACC = 'Y')
-    const accItems = details.filter((d) => d.Is_Acc === "Y");
+  // 1. Filter hanya item yang disetujui (ACC = 'Y')
+  const accItems = details.filter((d) => d.Is_Acc === "Y");
 
-    // Jika tidak ada satu pun yang di-ACC, bisa dianggap CLOSE atau VOID tergantung kebijakan
-    if (accItems.length === 0) return "CLOSE";
+  // Jika tidak ada satu pun yang di-ACC, bisa dianggap CLOSE atau VOID tergantung kebijakan
+  if (accItems.length === 0) return "CLOSE";
 
-    // 2. Cek apakah semua item yang di-ACC sudah memiliki relasi ke PO
-    // (Asumsi: item yang sudah dibuatkan PO memiliki flag atau nomor PO di database)
-    // Contoh logika: jika Jumlah_PO >= Jumlah_Permintaan
-    const allProcessed = accItems.every((d) => {
-        // Ganti 'Jumlah_PO' dengan field asli dari database Anda yang menandakan item sudah jadi PO
-        return (d.Jumlah_PO || 0) >= d.Jumlah;
-    });
+  // 2. Cek apakah semua item yang di-ACC sudah memiliki relasi ke PO
+  // (Asumsi: item yang sudah dibuatkan PO memiliki flag atau nomor PO di database)
+  // Contoh logika: jika Jumlah_PO >= Jumlah_Permintaan
+  const allProcessed = accItems.every((d) => {
+    // Ganti 'Jumlah_PO' dengan field asli dari database Anda yang menandakan item sudah jadi PO
+    return (d.Jumlah_PO || 0) >= d.Jumlah;
+  });
 
-    return allProcessed ? "CLOSE" : "ONPROSES";
+  return allProcessed ? "CLOSE" : "ONPROSES";
 };
 
 const getStatusColor = (status: string) => {
-    if (!status) return "default";
+  if (!status) return "default";
 
-    switch (status.toUpperCase()) {
-        case "OPEN":
-            return "success"; // Hijau
-        case "ONPROSES":
-        case "PENDING":
-            return "warning"; // Orange
-        case "CLOSE":
-        case "SELESAI":
-            return "grey"; // Abu-abu
-        case "VOID":
-        case "CANCEL":
-            return "error"; // Merah
-        default:
-            return "info"; // Biru (default)
-    }
+  switch (status.toUpperCase()) {
+    case "OPEN":
+      return "success"; // Hijau
+    case "ONPROSES":
+    case "PENDING":
+      return "warning"; // Orange
+    case "CLOSE":
+    case "SELESAI":
+      return "grey"; // Abu-abu
+    case "VOID":
+    case "CANCEL":
+      return "error"; // Merah
+    default:
+      return "info"; // Biru (default)
+  }
 };
 // --- Headers ---
 
 const masterHeaders = [
-    { title: "Nomor", key: "Nomor", minWidth: "150px", fixed: true },
-    { title: "Gudang", key: "Gudang", minWidth: "100px" },
-    { title: "Nama Gudang", key: "Nama", minWidth: "200px" },
-    { title: "Tanggal", key: "Tanggal", minWidth: "120px" },
-    { title: "Status PO", key: "Status_PO", minWidth: "120px" },
-    { title: "Status Terima", key: "Status_Diterima", minWidth: "120px" },
-    { title: "Status ACC", key: "Status_Acc", minWidth: "120px" },
-    { title: "Keterangan", key: "Keterangan", minWidth: "150px" },
-    { title: "", key: "data-table-expand", minWidth: "40px" },
+  { title: "Nomor", key: "Nomor", minWidth: "150px", fixed: true },
+  { title: "Gudang", key: "Gudang", minWidth: "100px" },
+  { title: "Nama Gudang", key: "Nama", minWidth: "200px" },
+  { title: "Tanggal", key: "Tanggal", minWidth: "120px" },
+  { title: "Status PO", key: "Status_PO", minWidth: "120px" },
+  { title: "Status Terima", key: "Status_Diterima", minWidth: "120px" },
+  { title: "Status ACC", key: "Status_Acc", minWidth: "120px" },
+  { title: "Keterangan", key: "Keterangan", minWidth: "150px" },
+  { title: "", key: "data-table-expand", minWidth: "40px" },
 ];
 
 const detailHeaders = [
-    { title: "Kode Bahan", key: "Kode", minWidth: "120px" },
-    { title: "Nama Bahan", key: "Nama_Bahan", minWidth: "250px" },
-    { title: "ACC", key: "Is_Acc", minWidth: "250px" },
-    { title: "Jumlah", key: "Jumlah", minWidth: "100px", align: "end" },
-    { title: "Jumlah Terima", key: "Jumlah_terima", minWidth: "80px" },
-    { title: "Satuan", key: "Satuan", minWidth: "80px" },
-    { title: "Nomor SPK", key: "Nomor_SPK", minWidth: "150px" },
-    { title: "Operator", key: "Operator", minWidth: "150px" },
+  { title: "Kode Bahan", key: "Kode", minWidth: "120px" },
+  { title: "Nama Bahan", key: "Nama_Bahan", minWidth: "250px" },
+  { title: "ACC", key: "Is_Acc", minWidth: "250px" },
+  { title: "Jumlah", key: "Jumlah", minWidth: "100px", align: "end" },
+  { title: "Jumlah Terima", key: "Jumlah_terima", minWidth: "80px" },
+  { title: "Satuan", key: "Satuan", minWidth: "80px" },
+  { title: "Nomor SPK", key: "Nomor_SPK", minWidth: "150px" },
+  { title: "Operator", key: "Operator", minWidth: "150px" },
 ];
 
 const parseCustomDate = (dateString) => {
-    if (!dateString) return null;
-    try {
-        const parts = dateString.split("-");
-        if (parts.length === 3) {
-            // Asumsi format 'DD-MMM-YYYY' dari kode Penerimaan Bahan
-            const [day, monthName, year] = parts;
-            const months = [
-                "January",
-                "February",
-                "March",
-                "April",
-                "May",
-                "June",
-                "July",
-                "August",
-                "September",
-                "October",
-                "November",
-                "December",
-            ];
-            const monthIndex = months.findIndex((m) =>
-                m.toLowerCase().startsWith(monthName.toLowerCase()),
-            );
-            if (monthIndex === -1) return null;
+  if (!dateString) return null;
+  try {
+    const parts = dateString.split("-");
+    if (parts.length === 3) {
+      // Asumsi format 'DD-MMM-YYYY' dari kode Penerimaan Bahan
+      const [day, monthName, year] = parts;
+      const months = [
+        "January",
+        "February",
+        "March",
+        "April",
+        "May",
+        "June",
+        "July",
+        "August",
+        "September",
+        "October",
+        "November",
+        "December",
+      ];
+      const monthIndex = months.findIndex((m) =>
+        m.toLowerCase().startsWith(monthName.toLowerCase()),
+      );
+      if (monthIndex === -1) return null;
 
-            const date = new Date(Number(year), monthIndex, Number(day));
-            if (isNaN(date.getTime()) || date.getDate() !== Number(day))
-                return null;
+      const date = new Date(Number(year), monthIndex, Number(day));
+      if (isNaN(date.getTime()) || date.getDate() !== Number(day)) return null;
 
-            return date;
-        } else if (dateString.match(/^\d{4}-\d{2}-\d{2}$/)) {
-            // Jika formatnya sudah YYYY-MM-DD
-            return new Date(dateString);
-        }
-    } catch (e) {
-        return null;
+      return date;
+    } else if (dateString.match(/^\d{4}-\d{2}-\d{2}$/)) {
+      // Jika formatnya sudah YYYY-MM-DD
+      return new Date(dateString);
     }
+  } catch (e) {
     return null;
+  }
+  return null;
 };
 
 const getRowProps = ({ item }) => {
-    return {
-        class: item?.Nomor === selectedNomor.value ? "row-selected" : "",
-    };
+  return {
+    class: item?.Nomor === selectedNomor.value ? "row-selected" : "",
+  };
 };
 
 const fetchData = async () => {
-    loading.value = true;
-    try {
-        // GUNAKAN 'api' yang sudah terkonfigurasi, dan endpoint relatif
-        const response = await api.get(API_PERMINTAAN_BAHAN, {
-            params: {
-                startDate: startDate.value,
-                endDate: endDate.value,
-            },
-        });
+  loading.value = true;
+  try {
+    // GUNAKAN 'api' yang sudah terkonfigurasi, dan endpoint relatif
+    const response = await api.get(API_PERMINTAAN_BAHAN, {
+      params: {
+        startDate: startDate.value,
+        endDate: endDate.value,
+      },
+    });
 
-        const data = response.data.data ?? response.data;
+    const data = response.data.data ?? response.data;
 
-        masterData.value = Array.isArray(data) ? data : [];
-    } catch (err) {
-        toast.error("Gagal mengambil data Permintaan Bahan.");
-    } finally {
-        loading.value = false;
-    }
+    masterData.value = Array.isArray(data) ? data : [];
+  } catch (err) {
+    toast.error("Gagal mengambil data Permintaan Bahan.");
+  } finally {
+    loading.value = false;
+  }
 };
 
 const loadDetails = async (newlyExpandedItems: PermintaanBahanHeader[]) => {
-    const itemToLoad = newlyExpandedItems?.find(
-        (it) =>
-            it &&
-            !details.value[it.Nomor] &&
-            !loadingDetails.value.has(it.Nomor),
-    );
+  const itemToLoad = newlyExpandedItems?.find(
+    (it) =>
+      it && !details.value[it.Nomor] && !loadingDetails.value.has(it.Nomor),
+  );
 };
 
 const handleExportExcel = () => {
-    if (masterData.value.length === 0) {
-        toast.warning("Tidak ada data untuk di-export.");
-        return;
-    }
+  if (masterData.value.length === 0) {
+    toast.warning("Tidak ada data untuk di-export.");
+    return;
+  }
 
-    loading.value = true;
-    try {
-        // 1. Siapkan data datar (Flatten) untuk Excel
-        // Kita menggabungkan data Header dan data Detail agar informatif di Excel
-        const exportData = [];
+  loading.value = true;
+  try {
+    const fileName = `Permintaan_Bahan_${startDate.value}_to_${endDate.value}.xlsx`;
 
-        masterData.value.forEach((header) => {
-            if (header.Detail && header.Detail.length > 0) {
-                header.Detail.forEach((dtl) => {
-                    exportData.push({
-                        "Nomor Permintaan": header.Nomor,
-                        Tanggal: header.Tanggal,
-                        Gudang: header.Nama,
-                        "Keterangan Header": header.Keterangan,
-                        "Status ACC": header.Status_Acc,
-                        "Kode Bahan": dtl.Kode,
-                        "Nama Bahan": dtl.Nama_Bahan,
-                        "Jumlah Minta": dtl.Jumlah,
-                        "Jumlah Terima": dtl.Jumlah_terima,
-                        Satuan: dtl.Satuan,
-                        "Nomor SPK": dtl.Nomor_SPK,
-                        Operator: dtl.Operator,
-                        "ACC Item": dtl.Is_Acc,
-                    });
-                });
-            } else {
-                // Jika tidak ada detail, tetap masukkan headernya saja
-                exportData.push({
-                    "Nomor Permintaan": header.Nomor,
-                    Tanggal: header.Tanggal,
-                    Gudang: header.Nama,
-                    "Keterangan Header": header.Keterangan,
-                    "Status ACC": header.Status_Acc,
-                    "Kode Bahan": "-",
-                    "Nama Bahan": "Tidak ada detail",
-                });
-            }
+    // ===================================================
+    // 1. DEFINISI STYLE EXCEL (PERSIS SEPERTI GAMBAR)
+    // ===================================================
+    const styleHeaderMain = {
+      fill: { fgColor: { rgb: "B3E5FC" } }, // Biru muda cerah sesuai gambar contoh
+      font: { bold: true, color: { rgb: "000000" }, sz: 10 }, // Teks Hitam Tebal
+      alignment: { horizontal: "center", vertical: "center", wrapText: true },
+      border: {
+        top: { style: "thin", color: { rgb: "000000" } },
+        bottom: { style: "thin", color: { rgb: "000000" } },
+        left: { style: "thin", color: { rgb: "000000" } },
+        right: { style: "thin", color: { rgb: "000000" } },
+      },
+    };
+
+    const styleDataCell = {
+      font: { sz: 10 },
+      border: {
+        top: { style: "thin", color: { rgb: "000000" } }, // Border hitam tipis untuk data
+        bottom: { style: "thin", color: { rgb: "000000" } },
+        left: { style: "thin", color: { rgb: "000000" } },
+        right: { style: "thin", color: { rgb: "000000" } },
+      },
+      alignment: { vertical: "center" },
+    };
+
+    const styleDataCellCenter = {
+      ...styleDataCell,
+      alignment: { horizontal: "center", vertical: "center" },
+    };
+
+    const styleDataCellRight = {
+      ...styleDataCell,
+      alignment: { horizontal: "right", vertical: "center" },
+    };
+
+    // ==========================================
+    // 2. SUSUN DATA (Array of Arrays / AOA)
+    // ==========================================
+    const wsData = [];
+
+    const formatTanggalIndo = (dateStr) => {
+      if (!dateStr) return "";
+      const bulanIndo = [
+        "Januari",
+        "Februari",
+        "Maret",
+        "April",
+        "Mei",
+        "Juni",
+        "Juli",
+        "Agustus",
+        "September",
+        "Oktober",
+        "November",
+        "Desember",
+      ];
+      const [year, month, day] = dateStr.split("-");
+      const indexBulan = parseInt(month, 10) - 1;
+      return `${parseInt(day, 10)} ${bulanIndo[indexBulan]} ${year}`;
+    };
+
+    const periodeStr = `Periode : ${formatTanggalIndo(startDate.value)} s/d ${formatTanggalIndo(endDate.value)}`;
+
+    // Baris Judul & Info Atas Laporan (Tanpa Border)
+    wsData.push([
+      {
+        v: "LAPORAN TRANSAKSI PERMINTAAN BAHAN",
+        s: { font: { bold: true, sz: 14 } },
+      },
+    ]);
+    wsData.push([{ v: periodeStr, s: { font: { sz: 10 } } }]); // <-- Sudah berformat Indonesia
+    wsData.push([]); //
+
+    // Header Tabel Sesuai Urutan Kolom Permintaan Anda
+    const tableHeaders = [
+      { v: "NOMOR PERMINTAAN", s: styleHeaderMain },
+      { v: "TANGGAL", s: styleHeaderMain },
+      { v: "GUDANG", s: styleHeaderMain },
+      { v: "STATUS PO", s: styleHeaderMain },
+      { v: "STATUS TERIMA", s: styleHeaderMain },
+      { v: "STATUS ACC", s: styleHeaderMain },
+      { v: "KODE BAHAN", s: styleHeaderMain },
+      { v: "NAMA BAHAN", s: styleHeaderMain },
+      { v: "JUMLAH ORDER", s: styleHeaderMain },
+      { v: "JUMLAH TERIMA", s: styleHeaderMain },
+    ];
+    wsData.push(tableHeaders);
+
+    // Looping Isi Data Body
+    masterData.value.forEach((header) => {
+      if (header.Detail && header.Detail.length > 0) {
+        header.Detail.forEach((dtl, index) => {
+          const row = [
+            { v: index === 0 ? header.Nomor : "", s: styleDataCellCenter },
+            {
+              v:
+                index === 0
+                  ? header.Tanggal
+                    ? format(parseCustomDate(header.Tanggal), "dd/MM/yyyy")
+                    : ""
+                  : "",
+              s: styleDataCellCenter,
+            },
+            { v: index === 0 ? header.Nama : "", s: styleDataCell },
+            { v: index === 0 ? header.Status_PO : "", s: styleDataCellCenter },
+            {
+              v: index === 0 ? header.Status_Diterima : "",
+              s: styleDataCellCenter,
+            },
+            { v: index === 0 ? header.Status_Acc : "", s: styleDataCellCenter },
+
+            // Bagian Detail Item
+            { v: dtl.Kode, s: styleDataCellCenter },
+            { v: dtl.Nama_Bahan, s: styleDataCell },
+            { v: dtl.Jumlah, s: styleDataCellRight },
+            { v: dtl.Jumlah_terima || 0, s: styleDataCellRight },
+          ];
+          wsData.push(row);
         });
+      } else {
+        // Jika dokumen permintaan tidak ada detail item barang
+        const row = [
+          { v: header.Nomor, s: styleDataCellCenter },
+          {
+            v: header.Tanggal
+              ? format(parseCustomDate(header.Tanggal), "dd/MM/yyyy")
+              : "",
+            s: styleDataCellCenter,
+          },
+          { v: header.Nama, s: styleDataCell },
+          { v: header.Status_PO, s: styleDataCellCenter },
+          { v: header.Status_Diterima, s: styleDataCellCenter },
+          { v: header.Status_Acc, s: styleDataCellCenter },
+          { v: "-", s: styleDataCellCenter },
+          { v: "Tidak ada detail", s: styleDataCell },
+          { v: 0, s: styleDataCellRight },
+          { v: 0, s: styleDataCellRight },
+        ];
+        wsData.push(row);
+      }
+    });
 
-        // 2. Buat Worksheet
-        const ws = XLSX.utils.json_to_sheet(exportData);
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, "PermintaanBahan");
+    // ==========================================
+    // 3. PEMBUATAN WORKSHEET & PROSES DOWNLOAD
+    // ==========================================
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
 
-        // 3. Generate File & Download
-        const fileName = `Permintaan_Bahan_${startDate.value}_to_${endDate.value}.xlsx`;
-        XLSX.writeFile(wb, fileName);
+    // Merge baris judul atas (Kolom A sampai J)
+    ws["!merges"] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 9 } }];
 
-        toast.success("Export Excel Berhasil!");
-    } catch (error) {
-        console.error("Export error:", error);
-        toast.error("Gagal melakukan export excel.");
-    } finally {
-        loading.value = false;
-    }
+    // Setting Lebar Kolom Excel
+    ws["!cols"] = [
+      { wch: 20 }, // Nomor Permintaan
+      { wch: 12 }, // Tanggal
+      { wch: 25 }, // Gudang
+      { wch: 15 }, // Status PO
+      { wch: 15 }, // Status Terima
+      { wch: 15 }, // Status ACC
+      { wch: 15 }, // Kode Bahan
+      { wch: 35 }, // Nama Bahan
+      { wch: 15 }, // Jumlah Order
+      { wch: 15 }, // Jumlah Terima
+    ];
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "PermintaanBahan");
+    XLSX.writeFile(wb, fileName);
+
+    toast.success("Export Excel Berhasil!");
+  } catch (error) {
+    console.error("Export error:", error);
+    toast.error("Gagal melakukan export excel.");
+  } finally {
+    loading.value = false;
+  }
 };
 
 const handleNewEdit = (mode) => {
-    if (mode === "new") {
-        router.push({ name: "PengajuanPermintaanNew" });
-    } else if (mode === "edit" && selectedNomor.value) {
-        router.push({
-            name: "PengajuanPermintaanEdit",
-            params: { nomor: selectedNomor.value },
-        });
-    }
+  if (mode === "new") {
+    router.push({ name: "PengajuanPermintaanNew" });
+  } else if (mode === "edit" && selectedNomor.value) {
+    router.push({
+      name: "PengajuanPermintaanEdit",
+      params: { nomor: selectedNomor.value },
+    });
+  }
 };
 
 const handleEditClick = () => {
-    handleNewEdit("edit");
+  handleNewEdit("edit");
 };
 
 const handleRowClick = (_event, row) => {
-    console.log("ROW CLICK RAW:", row);
-    console.log("ROW ITEM:", row?.item);
+  console.log("ROW CLICK RAW:", row);
+  console.log("ROW ITEM:", row?.item);
 
-    selected.value = [row.item];
+  selected.value = [row.item];
 };
 
 // Replikasi cxButton4Click (Hapus)
 const handleDelete = async () => {
-    if (!selectedNomor.value) return;
+  if (!selectedNomor.value) return;
 
-    if (
-        !confirm(`Yakin ingin hapus transaksi Nomor: ${selectedNomor.value}?`)
-    ) {
-        return;
-    }
+  if (!confirm(`Yakin ingin hapus transaksi Nomor: ${selectedNomor.value}?`)) {
+    return;
+  }
 
-    try {
-        await api.delete(`${API_PERMINTAAN_BAHAN}/${selectedNomor.value}`);
-        alert("Data berhasil di Hapus.");
+  try {
+    await api.delete(`${API_PERMINTAAN_BAHAN}/${selectedNomor.value}`);
+    alert("Data berhasil di Hapus.");
 
-        await fetchData();
-    } catch (error) {
-        const err = error;
-        console.error(
-            "Error deleting data:",
-            err.response ? err.response.data : err.message,
-        );
-        alert(
-            `Gagal Hapus! ${err.response?.data?.error || "Silakan cek konsol."}`,
-        );
-    }
+    await fetchData();
+  } catch (error) {
+    const err = error;
+    console.error(
+      "Error deleting data:",
+      err.response ? err.response.data : err.message,
+    );
+    alert(`Gagal Hapus! ${err.response?.data?.error || "Silakan cek konsol."}`);
+  }
 };
 
 const handlePrint = () => {
-    if (!selectedNomor.value) {
-        alert("Pilih satu transaksi untuk dicetak.");
-        return;
-    }
+  if (!selectedNomor.value) {
+    alert("Pilih satu transaksi untuk dicetak.");
+    return;
+  }
 
-    try {
-        const url = router.resolve({
-            name: "PengajuanPermintaanPrint",
-            params: { nomor: selectedNomor.value },
-        }).href;
+  try {
+    const url = router.resolve({
+      name: "PengajuanPermintaanPrint",
+      params: { nomor: selectedNomor.value },
+    }).href;
 
-        window.open(url, "_blank");
-    } catch (e) {
-        console.error("Gagal Navigasi atau membuka jendela cetak:", e);
-        alert(
-            'Gagal memulai pencetakan. Pastikan rute "PengajuanPermintaanPrint" sudah benar.',
-        );
-    }
+    window.open(url, "_blank");
+  } catch (e) {
+    console.error("Gagal Navigasi atau membuka jendela cetak:", e);
+    alert(
+      'Gagal memulai pencetakan. Pastikan rute "PengajuanPermintaanPrint" sudah benar.',
+    );
+  }
 };
 
 const handleExportDetail = () => {
-    alert(`TODO: Export Detail transaksi ${selectedNomor.value}`);
+  alert(`TODO: Export Detail transaksi ${selectedNomor.value}`);
 };
 
 onMounted(() => {
-    fetchData();
+  fetchData();
 });
 
 // Watcher untuk tanggal (jika diubah, data dimuat ulang)
@@ -352,242 +468,217 @@ watch([startDate, endDate], fetchData);
 </script>
 
 <template>
-    <PageLayout title="Data Pengajuan Permintaan" icon="mdi-basket-fill">
-        <template #header-actions>
-            <v-btn size="x-small" color="success" @click="handleNewEdit('new')">
-                <v-icon start>mdi-plus</v-icon> Baru
-            </v-btn>
+  <PageLayout title="Data Pengajuan Permintaan" icon="mdi-basket-fill">
+    <template #header-actions>
+      <v-btn size="x-small" color="success" @click="handleNewEdit('new')">
+        <v-icon start>mdi-plus</v-icon> Baru
+      </v-btn>
+      <v-btn
+        size="x-small"
+        color="warning"
+        :disabled="!isSingleSelected"
+        @click="handleEditClick"
+      >
+        <v-icon start>mdi-pencil</v-icon> Ubah
+      </v-btn>
+      <v-btn
+        size="x-small"
+        color="error"
+        :disabled="!isSingleSelected"
+        @click="handleDelete"
+      >
+        <v-icon start>mdi-trash-can</v-icon> Hapus
+      </v-btn>
+
+      <v-divider vertical class="mx-2" />
+
+      <v-btn
+        v-if="authStore.can(MENU_ID, 'view')"
+        size="x-small"
+        color="info"
+        :disabled="!isSingleSelected"
+        @click="handlePrint"
+      >
+        <v-icon start>mdi-printer</v-icon> Cetak
+      </v-btn>
+      <v-btn
+        size="x-small"
+        color="info"
+        @click="handleExportExcel"
+        :loading="loading"
+      >
+        <v-icon start>mdi-microsoft-excel</v-icon> Export Excel
+      </v-btn>
+    </template>
+
+    <div class="browse-content">
+      <v-card flat class="mb-1">
+        <v-card-text>
+          <div class="filter-section d-flex align-center flex-wrap ga-4">
+            <v-label class="filter-label">Periode Mulai:</v-label>
+            <v-text-field
+              v-model="startDate"
+              type="date"
+              density="compact"
+              hide-details
+              variant="outlined"
+              style="max-width: 150px"
+            />
+
+            <v-label class="mx-2">s/d</v-label>
+
+            <v-text-field
+              v-model="endDate"
+              type="date"
+              density="compact"
+              hide-details
+              variant="outlined"
+              style="max-width: 150px"
+            />
+
             <v-btn
-                size="x-small"
-                color="warning"
-                :disabled="!isSingleSelected"
-                @click="handleEditClick"
+              variant="text"
+              size="x-small"
+              @click="fetchData"
+              :loading="loading"
             >
-                <v-icon start>mdi-pencil</v-icon> Ubah
-            </v-btn>
-            <v-btn
-                size="x-small"
-                color="error"
-                :disabled="!isSingleSelected"
-                @click="handleDelete"
-            >
-                <v-icon start>mdi-trash-can</v-icon> Hapus
+              <v-icon>mdi-refresh</v-icon> Refresh
             </v-btn>
 
-            <v-divider vertical class="mx-2" />
+            <v-spacer />
+          </div>
+        </v-card-text>
+      </v-card>
 
-            <v-btn
-                v-if="authStore.can(MENU_ID, 'view')"
-                size="x-small"
-                color="info"
-                :disabled="!isSingleSelected"
-                @click="handlePrint"
-            >
-                <v-icon start>mdi-printer</v-icon> Cetak
-            </v-btn>
-            <v-btn
-                size="x-small"
-                color="info"
-                @click="handleExportExcel"
-                :loading="loading"
-            >
-                <v-icon start>mdi-microsoft-excel</v-icon> Export Excel
-            </v-btn>
-        </template>
+      <div class="table-container">
+        <v-data-table
+          v-model:selected="selected"
+          v-model:expanded="expanded"
+          :headers="masterHeaders"
+          :items="masterData"
+          :loading="loading"
+          item-value="Nomor"
+          density="compact"
+          class="desktop-table elevation-1"
+          fixed-header
+          show-select
+          return-object
+          show-expand
+          @update:expanded="loadDetails"
+          @click:row="handleRowClick"
+          :row-props="getRowProps"
+        >
+          <template #item.Tanggal="{ item }">
+            {{
+              item.Tanggal
+                ? format(parseCustomDate(item.Tanggal), "dd/MM/yyyy")
+                : ""
+            }}
+          </template>
+          <template #item.Status_PO="{ item }">
+            <v-chip :color="getStatusColor(item.Status_PO)" size="small" label>
+              {{ item.Status_PO }}
+            </v-chip>
+          </template>
 
-        <div class="browse-content">
-            <v-card flat class="mb-1">
-                <v-card-text>
-                    <div
-                        class="filter-section d-flex align-center flex-wrap ga-4"
+          <template #item.Status_Diterima="{ item }">
+            <v-chip :color="getStatusColor(item.Status_Diterima)" size="small">
+              {{ item.Status_Diterima }}
+            </v-chip>
+          </template>
+
+          <template #item.Status_Acc="{ item }">
+            <v-chip :color="getStatusColor(item.Status_Acc)" size="small">
+              {{ item.Status_Acc }}
+            </v-chip>
+          </template>
+
+          <template #expanded-row="{ columns, item }">
+            <tr>
+              <td :colspan="columns.length">
+                <div class="detail-container">
+                  <div class="detail-table-wrapper">
+                    <v-data-table
+                      :headers="detailHeaders"
+                      :items="item.Detail || []"
+                      density="compact"
+                      class="detail-table"
+                      :items-per-page="-1"
+                      hide-default-footer
                     >
-                        <v-label class="filter-label">Periode Mulai:</v-label>
-                        <v-text-field
-                            v-model="startDate"
-                            type="date"
-                            density="compact"
-                            hide-details
-                            variant="outlined"
-                            style="max-width: 150px"
-                        />
-
-                        <v-label class="mx-2">s/d</v-label>
-
-                        <v-text-field
-                            v-model="endDate"
-                            type="date"
-                            density="compact"
-                            hide-details
-                            variant="outlined"
-                            style="max-width: 150px"
-                        />
-
-                        <v-btn
-                            variant="text"
-                            size="x-small"
-                            @click="fetchData"
-                            :loading="loading"
+                      <template #item="{ item: d }">
+                        <tr
+                          :class="{
+                            'text-red font-weight-bold': d.Is_Acc === 'N',
+                          }"
                         >
-                            <v-icon>mdi-refresh</v-icon> Refresh
-                        </v-btn>
-
-                        <v-spacer />
-                    </div>
-                </v-card-text>
-            </v-card>
-
-            <div class="table-container">
-                <v-data-table
-                    v-model:selected="selected"
-                    v-model:expanded="expanded"
-                    :headers="masterHeaders"
-                    :items="masterData"
-                    :loading="loading"
-                    item-value="Nomor"
-                    density="compact"
-                    class="desktop-table elevation-1"
-                    fixed-header
-                    show-select
-                    return-object
-                    show-expand
-                    @update:expanded="loadDetails"
-                    @click:row="handleRowClick"
-                    :row-props="getRowProps"
-                >
-                    <template #item.Tanggal="{ item }">
-                        {{
-                            item.Tanggal
-                                ? format(
-                                      parseCustomDate(item.Tanggal),
-                                      "dd/MM/yyyy",
-                                  )
-                                : ""
-                        }}
-                    </template>
-                    <template #item.Status_PO="{ item }">
-                        <v-chip
-                            :color="getStatusColor(item.Status_PO)"
-                            size="small"
-                            label
-                        >
-                            {{ item.Status_PO }}
-                        </v-chip>
-                    </template>
-
-                    <template #item.Status_Diterima="{ item }">
-                        <v-chip
-                            :color="getStatusColor(item.Status_Diterima)"
-                            size="small"
-                        >
-                            {{ item.Status_Diterima }}
-                        </v-chip>
-                    </template>
-
-                    <template #item.Status_Acc="{ item }">
-                        <v-chip
-                            :color="getStatusColor(item.Status_Acc)"
-                            size="small"
-                        >
-                            {{ item.Status_Acc }}
-                        </v-chip>
-                    </template>
-
-                    <template #expanded-row="{ columns, item }">
-                        <tr>
-                            <td :colspan="columns.length">
-                                <div class="detail-container">
-                                    <div class="detail-table-wrapper">
-                                        <v-data-table
-                                            :headers="detailHeaders"
-                                            :items="item.Detail || []"
-                                            density="compact"
-                                            class="detail-table"
-                                            :items-per-page="-1"
-                                            hide-default-footer
-                                        >
-                                            <template #item="{ item: d }">
-                                                <tr
-                                                    :class="{
-                                                        'text-red font-weight-bold':
-                                                            d.Is_Acc === 'N',
-                                                    }"
-                                                >
-                                                    <td>{{ d.Kode }}</td>
-                                                    <td>{{ d.Nama_Bahan }}</td>
-                                                    <td>
-                                                        <v-chip
-                                                            :color="
-                                                                d.Is_Acc === 'Y'
-                                                                    ? 'success'
-                                                                    : 'error'
-                                                            "
-                                                            size="x-small"
-                                                            label
-                                                        >
-                                                            {{ d.Is_Acc }}
-                                                        </v-chip>
-                                                    </td>
-                                                    <td class="text-right">
-                                                        {{ d.Jumlah }}
-                                                    </td>
-                                                    <td>
-                                                        {{ d.Jumlah_terima }}
-                                                    </td>
-                                                    <td>{{ d.Satuan }}</td>
-                                                    <td>{{ d.Nomor_SPK }}</td>
-                                                    <td>{{ d.Operator }}</td>
-                                                </tr>
-                                            </template>
-                                        </v-data-table>
-
-                                        <div
-                                            v-if="
-                                                !(
-                                                    item.Detail &&
-                                                    item.Detail.length
-                                                )
-                                            "
-                                            class="text-center pa-4 text-caption"
-                                        >
-                                            Tidak ada data detail.
-                                        </div>
-                                    </div>
-                                </div>
-                            </td>
+                          <td>{{ d.Kode }}</td>
+                          <td>{{ d.Nama_Bahan }}</td>
+                          <td>
+                            <v-chip
+                              :color="d.Is_Acc === 'Y' ? 'success' : 'error'"
+                              size="x-small"
+                              label
+                            >
+                              {{ d.Is_Acc }}
+                            </v-chip>
+                          </td>
+                          <td class="text-right">
+                            {{ d.Jumlah }}
+                          </td>
+                          <td>
+                            {{ d.Jumlah_terima }}
+                          </td>
+                          <td>{{ d.Satuan }}</td>
+                          <td>{{ d.Nomor_SPK }}</td>
+                          <td>{{ d.Operator }}</td>
                         </tr>
-                    </template>
-                </v-data-table>
-            </div>
-        </div>
-    </PageLayout>
+                      </template>
+                    </v-data-table>
+
+                    <div
+                      v-if="!(item.Detail && item.Detail.length)"
+                      class="text-center pa-4 text-caption"
+                    >
+                      Tidak ada data detail.
+                    </div>
+                  </div>
+                </div>
+              </td>
+            </tr>
+          </template>
+        </v-data-table>
+      </div>
+    </div>
+  </PageLayout>
 </template>
 
 <style scoped>
 /* Style yang disalin dari file Penerimaan Bahan untuk detail table */
 .detail-container {
-    padding: 10px 0;
-    background-color: #f7f7f7;
-    border-top: 1px solid #ddd;
+  padding: 10px 0;
+  background-color: #f7f7f7;
+  border-top: 1px solid #ddd;
 }
 .detail-table-wrapper {
-    padding: 0 40px;
+  padding: 0 40px;
 }
 .detail-table {
-    background-color: white !important;
-    font-size: 0.8rem;
+  background-color: white !important;
+  font-size: 0.8rem;
 }
 
 .row-selected {
-    background-color: rgb(30, 93, 138) !important; /* biru muda */
+  background-color: rgb(30, 93, 138) !important; /* biru muda */
 }
 
 :deep(.row-selected) {
-    background-color: rgb(216, 239, 255) !important;
+  background-color: rgb(216, 239, 255) !important;
 }
 
 .v-data-table tbody tr:hover {
-    background-color: #f1f8ff;
-    cursor: pointer;
+  background-color: #f1f8ff;
+  cursor: pointer;
 }
 
 /* Style tambahan Vuetify (seperti .desktop-table) biasanya didefinisikan secara global */

@@ -216,7 +216,7 @@ import { format, parseISO, isValid } from "date-fns";
 import PageLayout from "../components/PageLayout.vue";
 import { useAuthStore } from "@/stores/authStore";
 import GudangLookup from "@/modal/GudangLookupView.vue";
-import * as XLSX from "xlsx";
+import * as XLSX from "xlsx-js-style";
 
 // --- Initialize ---
 const authStore = useAuthStore();
@@ -361,80 +361,248 @@ const handleExportExcel = async () => {
 
   loading.value = true;
   try {
-    const exportData: any[] = [];
+    const fileName = `Jadwal_Kirim_${filters.startDate}_sd_${filters.endDate}.xlsx`;
 
-    // Mengambil detail untuk setiap baris master secara paralel
+    // ==========================================
+    // 1. DEFINISI STYLE EXCEL (PERSIS PERMINTAAN BAHAN)
+    // ==========================================
+    const styleHeaderMain = {
+      fill: { fgColor: { rgb: "B3E5FC" } }, // Biru muda cerah
+      font: { bold: true, color: { rgb: "000000" }, sz: 10 }, // Teks Hitam Tebal
+      alignment: { horizontal: "center", vertical: "center", wrapText: true },
+      border: {
+        top: { style: "thin", color: { rgb: "000000" } },
+        bottom: { style: "thin", color: { rgb: "000000" } },
+        left: { style: "thin", color: { rgb: "000000" } },
+        right: { style: "thin", color: { rgb: "000000" } },
+      },
+    };
+
+    const styleDataCell = {
+      font: { sz: 10 },
+      border: {
+        top: { style: "thin", color: { rgb: "000000" } }, // Border hitam tipis seluruh sisi
+        bottom: { style: "thin", color: { rgb: "000000" } },
+        left: { style: "thin", color: { rgb: "000000" } },
+        right: { style: "thin", color: { rgb: "000000" } },
+      },
+      alignment: { vertical: "center" },
+    };
+
+    const styleDataCellCenter = {
+      ...styleDataCell,
+      alignment: { horizontal: "center", vertical: "center" },
+    };
+
+    const styleDataCellRight = {
+      ...styleDataCell,
+      alignment: { horizontal: "right", vertical: "center" },
+    };
+
+    // ==========================================
+    // 2. SUSUN DATA (Array of Arrays / AOA)
+    // ==========================================
+    const wsData = [];
+
+    // Fungsi Helper format tanggal Indonesia
+    const formatTanggalIndo = (dateStr: string) => {
+      if (!dateStr) return "";
+      const bulanIndo = [
+        "Januari",
+        "Februari",
+        "Maret",
+        "April",
+        "Mei",
+        "Juni",
+        "Juli",
+        "Agustus",
+        "September",
+        "Oktober",
+        "November",
+        "Desember",
+      ];
+      const [year, month, day] = dateStr.split("-");
+      const indexBulan = parseInt(month, 10) - 1;
+      return `${parseInt(day, 10)} ${bulanIndo[indexBulan]} ${year}`;
+    };
+
+    const periodeStr = `Periode : ${formatTanggalIndo(filters.startDate)} s/d ${formatTanggalIndo(filters.endDate)}`;
+
+    // Judul & Info Atas Laporan (Tanpa Border)
+    wsData.push([
+      {
+        v: "LAPORAN JADWAL KIRIM (GUDANG JADI)",
+        s: { font: { bold: true, sz: 14 } },
+      },
+    ]);
+    wsData.push([{ v: periodeStr, s: { font: { sz: 10 } } }]);
+    wsData.push([]); // Baris kosong
+
+    // Header Tabel (Total 21 Kolom terstruktur dari Master dan Detail)
+    const tableHeaders = [
+      { v: "NOMOR KIRIM", s: styleHeaderMain },
+      { v: "KODE GDG", s: styleHeaderMain },
+      { v: "NAMA GUDANG", s: styleHeaderMain },
+      { v: "TANGGAL", s: styleHeaderMain },
+      { v: "NO. SPK", s: styleHeaderMain },
+      { v: "NAMA BARANG", s: styleHeaderMain },
+      { v: "UKURAN", s: styleHeaderMain },
+      { v: "KAIN", s: styleHeaderMain },
+      { v: "QTY RENCANA", s: styleHeaderMain },
+      { v: "KOLI", s: styleHeaderMain },
+      { v: "REALISASI", s: styleHeaderMain },
+      { v: "SELISIH QTY", s: styleHeaderMain },
+      { v: "SELISIH KOLI", s: styleHeaderMain },
+      { v: "USER CREATE", s: styleHeaderMain },
+      // Kolom Detail Internal
+      { v: "NO URUT", s: styleHeaderMain },
+      { v: "KOTA TUJUAN", s: styleHeaderMain },
+      { v: "URAIAN BARANG", s: styleHeaderMain },
+      { v: "SIZE", s: styleHeaderMain },
+      { v: "QTY DETAIL", s: styleHeaderMain },
+      { v: "KOLI DETAIL", s: styleHeaderMain },
+      { v: "EKSPEDISI", s: styleHeaderMain },
+    ];
+    wsData.push(tableHeaders);
+
+    // Hit data detail secara paralel agar performa cepat
     const detailPromises = masterData.value.map((m) =>
       api.get(`${API_URL}/${m.Nomor}`),
     );
     const detailResponses = await Promise.all(detailPromises);
 
+    // Looping gabungan Master & Detail
     masterData.value.forEach((master, index) => {
       const detailItems = detailResponses[index].data.Detail || [];
+      const tglFormatted = safeFormatDate(master.Tanggal);
 
       if (detailItems.length > 0) {
-        detailItems.forEach((dtl: any) => {
-          exportData.push({
-            Nomor: master.Nomor,
-            Gudang: master.Gudang,
-            "Nama Gudang": master.Nama_Gudang,
-            Tanggal: safeFormatDate(master.Tanggal),
-            "No. SPK": master.No_SPK,
-            "Nama Spk": master.Nama_Spk,
-            Ukuran: master.Ukuran,
-            Kain: master.Kain,
-            Jumlah: master.Jumlah,
-            Koli: master.Koli,
-            Realisasi: master.Realisasi,
-            "Selisih Jumlah": master.Selisih_Jumlah,
-            "Selisih Koli": master.Selisih_Koli,
-            "User Create": master.usr_create,
-            // Kolom Detail (Sesuai image_5671bb.jpg)
-            "No Urut Dtl": dtl.No_urut,
-            Kota: dtl.kota,
-            Uraian: dtl.uraian,
-            Size: dtl.size,
-            "Jumlah Dtl": dtl.Jumlah,
-            "Koli Dtl": dtl.Koli,
-            "Jam Input": dtl.JamInput,
-            "Jam Ready": dtl.Jam,
-            Ekspedisi: dtl.expedisi,
-          });
+        detailItems.forEach((dtl: any, idxDtl: number) => {
+          const row = [
+            // Kolom Master (Hanya muncul di baris pertama detail agar visual tidak penuh sesak)
+            { v: idxDtl === 0 ? master.Nomor : "", s: styleDataCellCenter },
+            {
+              v: idxDtl === 0 ? master.Gudang || "" : "",
+              s: styleDataCellCenter,
+            },
+            { v: idxDtl === 0 ? master.Nama_Gudang : "", s: styleDataCell },
+            { v: idxDtl === 0 ? tglFormatted : "", s: styleDataCellCenter },
+            { v: idxDtl === 0 ? master.No_SPK : "", s: styleDataCellCenter },
+            { v: idxDtl === 0 ? master.Nama_Spk : "", s: styleDataCell },
+            {
+              v: idxDtl === 0 ? master.Ukuran || "-" : "",
+              s: styleDataCellCenter,
+            },
+            { v: idxDtl === 0 ? master.Kain || "-" : "", s: styleDataCell },
+            {
+              v: idxDtl === 0 ? Number(master.Jumlah || 0) : "",
+              s: styleDataCellRight,
+            },
+            {
+              v: idxDtl === 0 ? Number(master.Koli || 0) : "",
+              s: styleDataCellRight,
+            },
+            {
+              v: idxDtl === 0 ? Number(master.Realisasi || 0) : "",
+              s: styleDataCellRight,
+            },
+            {
+              v: idxDtl === 0 ? Number(master.Selisih_Jumlah || 0) : "",
+              s: styleDataCellRight,
+            },
+            {
+              v: idxDtl === 0 ? Number(master.Selisih_Koli || 0) : "",
+              s: styleDataCellRight,
+            },
+            {
+              v: idxDtl === 0 ? master.usr_create : "",
+              s: styleDataCellCenter,
+            },
+
+            // Kolom Detail Internal (Selalu Terisi)
+            { v: dtl.No_urut, s: styleDataCellCenter },
+            { v: dtl.kota || "-", s: styleDataCell },
+            { v: dtl.uraian || "-", s: styleDataCell },
+            { v: dtl.size || "-", s: styleDataCellCenter },
+            { v: Number(dtl.Jumlah || 0), s: styleDataCellRight },
+            { v: Number(dtl.Koli || 0), s: styleDataCellRight },
+            { v: dtl.expedisi || "-", s: styleDataCell },
+          ];
+          wsData.push(row);
         });
       } else {
-        // Jika tidak ada detail, tetap tampilkan baris masternya saja
-        exportData.push({
-          Nomor: master.Nomor,
-          Gudang: master.Gudang,
-          "Nama Gudang": master.Nama_Gudang,
-          Tanggal: safeFormatDate(master.Tanggal),
-          "No. SPK": master.No_SPK,
-          "Nama Spk": master.Nama_Spk,
-          Ukuran: master.Ukuran,
-          Kain: master.Kain,
-          Jumlah: master.Jumlah,
-          Koli: master.Koli,
-          Realisasi: master.Realisasi,
-          "Selisih Jumlah": master.Selisih_Jumlah,
-          "Selisih Koli": master.Selisih_Koli,
-          "User Create": master.usr_create,
-        });
+        // Fallback jika tidak didapatkan data detail sama sekali
+        const row = [
+          { v: master.Nomor, s: styleDataCellCenter },
+          { v: master.Gudang || "", s: styleDataCellCenter },
+          { v: master.Nama_Gudang, s: styleDataCell },
+          { v: tglFormatted, s: styleDataCellCenter },
+          { v: master.No_SPK, s: styleDataCellCenter },
+          { v: master.Nama_Spk, s: styleDataCell },
+          { v: master.Ukuran || "-", s: styleDataCellCenter },
+          { v: master.Kain || "-", s: styleDataCell },
+          { v: Number(master.Jumlah || 0), s: styleDataCellRight },
+          { v: Number(master.Koli || 0), s: styleDataCellRight },
+          { v: Number(master.Realisasi || 0), s: styleDataCellRight },
+          { v: Number(master.Selisih_Jumlah || 0), s: styleDataCellRight },
+          { v: Number(master.Selisih_Koli || 0), s: styleDataCellRight },
+          { v: master.usr_create, s: styleDataCellCenter },
+          // Detail Kosong
+          { v: "-", s: styleDataCellCenter },
+          { v: "Tidak ada detail", s: styleDataCell },
+          { v: "-", s: styleDataCell },
+          { v: "-", s: styleDataCellCenter },
+          { v: 0, s: styleDataCellRight },
+          { v: 0, s: styleDataCellRight },
+          { v: "-", s: styleDataCell },
+        ];
+        wsData.push(row);
       }
     });
 
-    const worksheet = XLSX.utils.json_to_sheet(exportData);
+    // ==========================================
+    // 3. PEMBUATAN WORKSHEET & PROSES DOWNLOAD
+    // ==========================================
+    const worksheet = XLSX.utils.aoa_to_sheet(wsData);
+
+    // Merge baris judul atas (Kolom A sampai U / Total 21 Kolom)
+    worksheet["!merges"] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 20 } }];
+
+    // Atur Lebar Kolom Excel secara proporsional
+    worksheet["!cols"] = [
+      { wch: 22 },
+      { wch: 12 },
+      { wch: 25 },
+      { wch: 12 },
+      { wch: 18 },
+      { wch: 30 },
+      { wch: 12 },
+      { wch: 15 },
+      { wch: 15 },
+      { wch: 12 },
+      { wch: 12 },
+      { wch: 15 },
+      { wch: 15 },
+      { wch: 15 },
+      { wch: 10 },
+      { wch: 20 },
+      { wch: 30 },
+      { wch: 12 },
+      { wch: 12 },
+      { wch: 12 },
+      { wch: 20 },
+    ];
+
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Jadwal Kirim Detail");
-
-    // Atur Header agar Bold
-    const fileName = `Export_Jadwal_Kirim_${filters.startDate}_sd_${filters.endDate}.xlsx`;
     XLSX.writeFile(workbook, fileName);
 
-    toast.success("Export detail berhasil.");
+    toast.success("Export Excel Berhasil!");
   } catch (error) {
     console.error("Export Detail Error:", error);
-    toast.error("Gagal melakukan export detail.");
+    toast.error("Gagal melakukan export excel.");
   } finally {
+    worksheet = null; // Memory clearance
     loading.value = false;
   }
 };
