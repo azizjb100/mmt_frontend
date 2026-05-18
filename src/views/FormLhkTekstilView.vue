@@ -178,7 +178,7 @@
               :items="detailData"
               density="compact"
               hide-default-footer
-              class="detail-entry-table text-xs"
+              class="detail-entry-table text-xs custom-wide-table"
             >
               <template #[`item.no`]="{ index }">{{ index + 1 }}</template>
 
@@ -224,62 +224,55 @@
                 </div>
               </template>
 
-              <template #[`item.cetak_1`]="{ item }">
-                <input
+              <template #[`item.cetak_1`]="{ item }"
+                ><input
                   type="number"
                   v-model.number="item.cetak_1"
                   class="table-inline-input"
                   @wheel="$event.target.blur()"
-                />
-              </template>
-              <template #[`item.cetak_2`]="{ item }">
-                <input
+              /></template>
+              <template #[`item.cetak_2`]="{ item }"
+                ><input
                   type="number"
                   v-model.number="item.cetak_2"
                   class="table-inline-input"
                   @wheel="$event.target.blur()"
-                />
-              </template>
-              <template #[`item.cetak_3`]="{ item }">
-                <input
+              /></template>
+              <template #[`item.cetak_3`]="{ item }"
+                ><input
                   type="number"
                   v-model.number="item.cetak_3"
                   class="table-inline-input"
                   @wheel="$event.target.blur()"
-                />
-              </template>
-              <template #[`item.cetak_4`]="{ item }">
-                <input
+              /></template>
+              <template #[`item.cetak_4`]="{ item }"
+                ><input
                   type="number"
                   v-model.number="item.cetak_4"
                   class="table-inline-input"
                   @wheel="$event.target.blur()"
-                />
-              </template>
-              <template #[`item.cetak_5`]="{ item }">
-                <input
+              /></template>
+              <template #[`item.cetak_5`]="{ item }"
+                ><input
                   type="number"
                   v-model.number="item.cetak_5"
                   class="table-inline-input"
                   @wheel="$event.target.blur()"
-                />
-              </template>
-              <template #[`item.cetak_6`]="{ item }">
-                <input
+              /></template>
+              <template #[`item.cetak_6`]="{ item }"
+                ><input
                   type="number"
                   v-model.number="item.cetak_6"
                   class="table-inline-input"
                   @wheel="$event.target.blur()"
-                />
-              </template>
-              <template #[`item.cetak_7`]="{ item }">
-                <input
+              /></template>
+              <template #[`item.cetak_7`]="{ item }"
+                ><input
                   type="number"
                   v-model.number="item.cetak_7"
                   class="table-inline-input"
                   @wheel="$event.target.blur()"
-                />
-              </template>
+              /></template>
 
               <template #[`item.total_cetak`]="{ item }">
                 <div
@@ -394,82 +387,78 @@ const formData = reactive({
 const detailData = ref<any[]>([]);
 const lookup = reactive({ mesin: false, spk: false });
 
-// --- SETTING HEADERS (DENGAN COLS CETAK 1 - 7 DAN TOTAL) ---
 const detailHeaders = [
-  { title: "No", key: "no", width: "40px", sortable: false },
-  { title: "Mesin", key: "mesin", width: "90px", sortable: false },
-  { title: "Nomor SPK", key: "nomor_spk", width: "110px", sortable: false },
-  { title: "Pekerjaan", key: "nama_spk", width: "150px", sortable: false },
+  { title: "No", key: "no", width: "45px", sortable: false },
+  { title: "Mesin", key: "mesin", width: "95px", sortable: false },
+  { title: "Nomor SPK", key: "nomor_spk", width: "125px", sortable: false },
+  { title: "Pekerjaan", key: "nama_spk", width: "160px", sortable: false },
   {
     title: "P/Pcs(Y)",
     key: "panjang_per_pcs",
     align: "end" as const,
-    width: "75px",
+    width: "80px",
     sortable: false,
   },
   {
     title: "P/Pcs(M)",
     key: "panjang_meter",
     align: "end" as const,
-    width: "75px",
+    width: "80px",
     sortable: false,
   },
-
-  // Kolom Cetak input baru
   {
     title: "C1",
     key: "cetak_1",
-    width: "45px",
+    width: "50px",
     align: "center" as const,
     sortable: false,
   },
   {
     title: "C2",
     key: "cetak_2",
-    width: "45px",
+    width: "50px",
     align: "center" as const,
     sortable: false,
   },
   {
     title: "C3",
     key: "cetak_3",
-    width: "45px",
+    width: "50px",
     align: "center" as const,
     sortable: false,
   },
   {
     title: "C4",
     key: "cetak_4",
-    width: "45px",
+    width: "50px",
     align: "center" as const,
     sortable: false,
   },
   {
     title: "C5",
     key: "cetak_5",
-    width: "45px",
+    width: "50px",
     align: "center" as const,
     sortable: false,
   },
   {
     title: "C6",
     key: "cetak_6",
-    width: "45px",
+    width: "50px",
     align: "center" as const,
     sortable: false,
   },
   {
     title: "C7",
     key: "cetak_7",
-    width: "45px",
+    width: "50px",
     align: "center" as const,
     sortable: false,
   },
-
   {
     title: "Tot Qty",
     key: "total_cetak",
-    width: "65px",
+    width: "70px",
     align: "center" as const,
     sortable: false,
   },
@@ -477,13 +466,12 @@ const detailHeaders = [
     title: "Total (M)",
     key: "total_panjang_baris",
     align: "end" as const,
-    width: "85px",
+    width: "95px",
     sortable: false,
   },
-  { title: "", key: "actions", width: "40px", sortable: false },
+  { title: "", key: "actions", width: "45px", sortable: false },
 ];
 
-// --- KALKULASI TOTAL QUANTITY CETAK BARIS ---
 const hitungTotalCetakBaris = (item: any): number => {
   return (
     Number(item.cetak_1 || 0) +
@@ -496,19 +484,15 @@ const hitungTotalCetakBaris = (item: any): number => {
   );
 };
 
-// --- ESTIMASI TOTAL PANJANG (METER) ---
 const totalPanjangEstimasi = computed(() => {
   return detailData.value.reduce((acc, curr) => {
     const totalQty = hitungTotalCetakBaris(curr);
-    const panjangMeterBaris =
-      Number(curr.panjang_per_pcs || 0) * 0.9 * totalQty;
-    return acc + panjangMeterBaris;
+    return acc + Number(curr.panjang_per_pcs || 0) * 0.9 * totalQty;
   }, 0);
 });
 
 const sisaBahanSetelahProduksi = computed(() => {
-  const stokDalamMeter = formData.panjang_bahan * 0.9;
-  return stokDalamMeter - totalPanjangEstimasi.value;
+  return formData.panjang_bahan * 0.9 - totalPanjangEstimasi.value;
 });
 
 const isFormValid = computed(() => {
@@ -522,20 +506,12 @@ const isFormValid = computed(() => {
   );
 });
 
-// --- TAMBAH SPK (INISIALISASI FIELD CETAK) ---
 const handleSpkSelect = (spk: any) => {
   const nomorTerdeteksi = spk.Spk || spk.Id || spk.nomor_spk || spk.SPK;
   const namaTerdeteksi = spk.Nama || spk.nama || "Tanpa Nama";
-
-  if (!nomorTerdeteksi) {
-    toast.error("Gagal mendeteksi nomor SPK.");
-    return;
-  }
-
-  if (detailData.value.some((d) => d.nomor_spk === nomorTerdeteksi)) {
-    toast.warning("SPK sudah ada dalam daftar");
-    return;
-  }
+  if (!nomorTerdeteksi) return toast.error("Gagal mendeteksi nomor SPK.");
+  if (detailData.value.some((d) => d.nomor_spk === nomorTerdeteksi))
+    return toast.warning("SPK sudah ada");
 
   detailData.value.push({
     nomor_spk: nomorTerdeteksi,
@@ -543,7 +519,6 @@ const handleSpkSelect = (spk: any) => {
     panjang_spk_ori: parseFloat(spk.Panjang) || 0,
     panjang_per_pcs: parseFloat(spk.Panjang) || 0,
     lebar_spk: parseFloat(spk.Lebar) || 0,
-    // Set default C1 = 1, sisanya kosong (0)
     cetak_1: 1,
     cetak_2: 0,
     cetak_3: 0,
@@ -553,14 +528,12 @@ const handleSpkSelect = (spk: any) => {
     cetak_7: 0,
     mesin: "",
   });
-
   lookup.spk = false;
 };
 
 const handleCancel = () => {
   if (confirm("Batalkan perubahan?")) router.go(-1);
 };
-
 const handleClose = () => {
   router.push("/mmt/lhk-tekstil");
 };
@@ -579,7 +552,7 @@ const handleBarcodeScan = async () => {
       toast.success("Material Ready");
     }
   } catch (e) {
-    toast.error("Barcode tidak terdaftar atau bermasalah");
+    toast.error("Barcode tidak terdaftar");
     clearBahan();
   }
 };
@@ -594,7 +567,6 @@ const clearBahan = () => {
 const handleSave = async (status: string) => {
   if (status === "POSTED" && !isFormValid.value)
     return toast.error("Lengkapi data dan cek sisa stok.");
-
   isSaving.value = true;
   try {
     const payload = {
@@ -605,6 +577,7 @@ const handleSave = async (status: string) => {
         lstatus: status,
         total_pakai: totalPanjangEstimasi.value,
       },
+      // PERBAIKAN PAYLOAD: menyertakan cetak_1 s/d cetak_7 agar bisa dibaca backend
       details: detailData.value.map((d) => ({
         ...d,
         jumlah_cetak: hitungTotalCetakBaris(d),
@@ -621,6 +594,7 @@ const handleSave = async (status: string) => {
   }
 };
 
+// --- FIX MAPPING EDIT MODE AGAR DATA TAMPIL ---
 const loadDataLHK = async () => {
   const nomorLhk = route.params.nomor;
   if (!nomorLhk || nomorLhk === "AUTO" || nomorLhk === "new") return;
@@ -639,18 +613,19 @@ const loadDataLHK = async () => {
 
       if (formData.barcode_input) await handleBarcodeScan();
 
+      // PERBAIKAN: Mapping nama property response DB (ltd_cetakX) ke object frontend (cetak_X)
       detailData.value = dataRes.details.map((d: any) => ({
         nomor_spk: d.Nomor_SPK || d.ltd_spk_nomor,
         nama_spk: d.Nama_SPK || d.spk_nama,
-        panjang_per_pcs: parseFloat(d.Panjang || d.spk_panjang),
-        lebar_spk: parseFloat(d.Lebar || d.spk_lebar),
-        cetak_1: parseInt(d.Cetak_1 || d.ltd_cetak_1 || 0),
-        cetak_2: parseInt(d.Cetak_2 || d.ltd_cetak_2 || 0),
-        cetak_3: parseInt(d.Cetak_3 || d.ltd_cetak_3 || 0),
-        cetak_4: parseInt(d.Cetak_4 || d.ltd_cetak_4 || 0),
-        cetak_5: parseInt(d.Cetak_5 || d.ltd_cetak_5 || 0),
-        cetak_6: parseInt(d.Cetak_6 || d.ltd_cetak_6 || 0),
-        cetak_7: parseInt(d.Cetak_7 || d.ltd_cetak_7 || 0),
+        panjang_per_pcs: parseFloat(d.Panjang || d.spk_panjang || 0),
+        lebar_spk: parseFloat(d.Lebar || d.spk_lebar || 0),
+        cetak_1: parseInt(d.ltd_cetak1 ?? d.Cetak_1 ?? 0),
+        cetak_2: parseInt(d.ltd_cetak2 ?? d.Cetak_2 ?? 0),
+        cetak_3: parseInt(d.ltd_cetak3 ?? d.Cetak_3 ?? 0),
+        cetak_4: parseInt(d.ltd_cetak4 ?? d.Cetak_4 ?? 0),
+        cetak_5: parseInt(d.ltd_cetak5 ?? d.Cetak_5 ?? 0),
+        cetak_6: parseInt(d.ltd_cetak6 ?? d.Cetak_6 ?? 0),
+        cetak_7: parseInt(d.ltd_cetak7 ?? d.Cetak_7 ?? 0),
         mesin: d.Mesin || d.ltd_jns_mesin,
       }));
     }
@@ -747,11 +722,19 @@ onMounted(() => {
   flex-grow: 1;
   overflow: hidden;
 }
-/* Menangani overflow tabel secara independen agar kolom cetak bisa di-scroll horizontal */
+
+/* KUNCI BARU: Membuat Wrapper tabel bisa Scroll Horizontal */
 .table-responsive-wrapper {
   overflow-x: auto;
   width: 100%;
 }
+
+/* KUNCI BARU: Memaksa tabel melebar agar kolom cetak leluasa */
+.custom-wide-table {
+  min-width: 1300px !important;
+  table-layout: fixed;
+}
+
 .scroll-wrapper {
   overflow-x: auto;
   background-color: #f8f9fa;
@@ -770,9 +753,8 @@ onMounted(() => {
   padding: 0 4px !important;
   height: 36px !important;
 }
-/* Input style minimalis alternatif v-text-field untuk performa render cepat inside table loop */
 .table-inline-input {
-  width: 38px;
+  width: 40px;
   text-align: center;
   border-bottom: 1px solid #ccc;
   padding: 2px 0;
