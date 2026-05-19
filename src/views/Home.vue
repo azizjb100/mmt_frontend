@@ -2,7 +2,6 @@
   <div
     class="min-h-screen bg-[#F1F5F9] p-6 font-sans antialiased text-slate-800"
   >
-    <!-- HEADER -->
     <header
       class="mx-auto mb-8 flex max-w-[1400px] flex-col gap-4 rounded-2xl bg-white px-6 py-4 shadow-sm border border-slate-100 md:flex-row md:items-center md:justify-between"
     >
@@ -39,7 +38,6 @@
       </div>
     </header>
 
-    <!-- STAT CARDS -->
     <div
       class="mx-auto mb-8 grid max-w-[1400px] grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4"
     >
@@ -76,9 +74,7 @@
       </div>
     </div>
 
-    <!-- MAIN GRID -->
     <div class="mx-auto grid max-w-[1400px] grid-cols-12 gap-6">
-      <!-- GRAPH FLOW -->
       <div class="col-span-12 space-y-6 lg:col-span-8">
         <div class="rounded-3xl bg-white p-6 shadow-sm border border-slate-100">
           <h3 class="mb-6 text-sm font-semibold text-slate-700">
@@ -90,7 +86,6 @@
         </div>
       </div>
 
-      <!-- GRAPH COMPOSITION -->
       <div class="col-span-12 space-y-6 lg:col-span-4">
         <div class="rounded-3xl bg-white p-6 shadow-sm border border-slate-100">
           <h3 class="mb-6 text-sm font-semibold text-slate-700">
@@ -105,9 +100,6 @@
         </div>
       </div>
 
-      <!-- ================= KONDISI KRITIS OPERASIONAL ================= -->
-
-      <!-- KIRI: TOP 10 MEPEET DEADLINE -->
       <div class="col-span-12 lg:col-span-6">
         <div
           class="rounded-3xl bg-white p-6 shadow-sm border border-slate-100 h-full flex flex-col"
@@ -186,7 +178,6 @@
         </div>
       </div>
 
-      <!-- KANAN: PERMINTAAN BAHAN BELUM TEREALISASI -->
       <div class="col-span-12 lg:col-span-6">
         <div
           class="rounded-3xl bg-white p-6 shadow-sm border border-slate-100 h-full flex flex-col"
@@ -197,7 +188,8 @@
                 Permintaan Bahan Belum Terealisasi
               </h3>
               <p class="text-xs text-slate-400 mt-0.5">
-                Bon bahan baku pending yang menahan proses cetak
+                Bon bahan baku pending yang menahan proses cetak (Klik baris
+                untuk melihat total data)
               </p>
             </div>
             <span
@@ -224,7 +216,8 @@
                 <tr
                   v-for="(item, index) in permintaanBahanPending"
                   :key="index"
-                  class="hover:bg-slate-50/50"
+                  class="hover:bg-slate-50/50 cursor-pointer transition-colors"
+                  @click="openDetailModal"
                 >
                   <td class="py-3 px-2 text-center font-medium text-slate-400">
                     {{ index + 1 }}
@@ -235,20 +228,39 @@
                   <td class="py-3 px-2 text-center">
                     <span
                       class="bg-slate-100 px-1.5 py-0.5 rounded text-slate-600"
-                      >{{ item.divisi }}</span
                     >
+                      {{ item.divisi }}
+                    </span>
                   </td>
                   <td class="py-3 px-2 text-right font-medium text-blue-600">
                     {{ item.qty_minta }} {{ item.unit }}
                   </td>
                   <td class="py-3 px-2 text-center">
                     <span
-                      class="inline-flex items-center gap-1 text-[10px] text-amber-600 font-medium"
+                      v-if="item.status_permintaan === 'PENDING'"
+                      class="inline-flex items-center gap-1 text-[10px] text-amber-600 bg-amber-50 border border-amber-100 px-2 py-0.5 rounded-full font-medium"
                     >
                       <span
-                        class="h-1.5 w-1.5 rounded-full bg-amber-500 animate-ping"
+                        class="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse"
                       ></span>
-                      Belum Keluar
+                      Pending Finance
+                    </span>
+
+                    <span
+                      v-else-if="
+                        item.status_permintaan === 'PROGRESS' ||
+                        item.status_permintaan === 'ONPROSES'
+                      "
+                      class="inline-flex items-center gap-1 text-[10px] text-blue-600 bg-blue-50 border border-blue-100 px-2 py-0.5 rounded-full font-medium"
+                    >
+                      Selesai PO
+                    </span>
+
+                    <span
+                      v-else
+                      class="inline-flex items-center gap-1 text-[10px] text-slate-500 bg-slate-50 px-2 py-0.5 rounded-full font-medium"
+                    >
+                      {{ item.status_permintaan }}
                     </span>
                   </td>
                 </tr>
@@ -263,6 +275,128 @@
         </div>
       </div>
     </div>
+
+    <div
+      v-if="isModalOpen"
+      class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm"
+      @click.self="closeModal"
+    >
+      <div
+        class="w-full max-w-4xl bg-white rounded-3xl shadow-xl border border-slate-100 max-h-[85vh] flex flex-col overflow-hidden"
+      >
+        <div
+          class="px-6 py-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50"
+        >
+          <div>
+            <h3 class="text-base font-bold text-slate-800">
+              Daftar Total Permintaan Bahan Belum Terealisasi
+            </h3>
+            <p class="text-xs text-slate-400 mt-0.5">
+              Menampilkan seluruh total bon penyerahan/pembelian tanpa batasan
+              data halaman utama
+            </p>
+          </div>
+          <button
+            @click="closeModal"
+            class="h-8 w-8 rounded-full flex items-center justify-center bg-white border border-slate-200 text-slate-400 hover:text-slate-600 shadow-sm transition-all active:scale-95"
+          >
+            <i class="mdi mdi-close text-lg"></i>
+          </button>
+        </div>
+
+        <div class="p-6 overflow-y-auto flex-1">
+          <div class="overflow-x-auto border border-slate-100 rounded-2xl">
+            <table class="w-full text-left border-collapse text-xs">
+              <thead>
+                <tr
+                  class="bg-slate-50 border-b border-slate-100 text-slate-500 uppercase tracking-wider font-semibold"
+                >
+                  <th class="py-3.5 px-4 w-12 text-center">No</th>
+                  <th class="py-3.5 px-3">No. Bon / Referensi</th>
+                  <th class="py-3.5 px-3">Bahan / Material</th>
+                  <th class="py-3.5 px-3 text-center">Divisi Peminta</th>
+                  <th class="py-3.5 px-3 text-right">Qty Diminta</th>
+                  <th class="py-3.5 px-3 text-center">Tanggal Input</th>
+                  <th class="py-3.5 px-4 text-center">Status</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-100 text-slate-600">
+                <tr
+                  v-for="(item, index) in totalPermintaanBahan"
+                  :key="index"
+                  class="hover:bg-slate-50/50 transition-colors"
+                >
+                  <td
+                    class="py-3.5 px-4 text-center font-medium text-slate-400"
+                  >
+                    {{ index + 1 }}
+                  </td>
+                  <td class="py-3.5 px-3 font-mono font-medium text-slate-700">
+                    {{ item.nomor_bon }}
+                  </td>
+                  <td class="py-3.5 px-3 font-semibold text-slate-800">
+                    {{ item.nama_bahan }}
+                  </td>
+                  <td class="py-3.5 px-3 text-center">
+                    <span
+                      class="bg-slate-100 px-2 py-0.5 rounded text-slate-600 font-medium"
+                      >{{ item.divisi }}</span
+                    >
+                  </td>
+                  <td
+                    class="py-3.5 px-3 text-right font-semibold text-blue-600"
+                  >
+                    {{ item.qty_minta }} {{ item.unit }}
+                  </td>
+                  <td class="py-3.5 px-3 text-center text-slate-400">
+                    {{ formatDate(item.created_at) }}
+                  </td>
+                  <td class="py-3.5 px-4 text-center">
+                    <span
+                      class="inline-flex items-center gap-1 text-[10px] text-amber-600 font-medium bg-amber-50 border border-amber-100 px-2 py-0.5 rounded-full"
+                    >
+                      <span
+                        class="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse"
+                      ></span>
+                      Pending Finance
+                    </span>
+                  </td>
+                </tr>
+                <tr v-if="isLoadingTotal">
+                  <td colspan="7" class="text-center py-8 text-slate-400">
+                    <i class="mdi mdi-refresh animate-spin mr-2"></i> Memuat
+                    seluruh total data...
+                  </td>
+                </tr>
+                <tr v-if="totalPermintaanBahan.length === 0 && !isLoadingTotal">
+                  <td colspan="7" class="text-center py-8 text-slate-400">
+                    Tidak ada data total pending ditemukan.
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div
+          class="px-6 py-4 border-t border-slate-100 bg-slate-50/50 flex justify-between items-center text-xs text-slate-400"
+        >
+          <div>
+            Total:
+            <span class="font-bold text-slate-700">{{
+              totalPermintaanBahan.length
+            }}</span>
+            item data
+          </div>
+          <button
+            @click="closeModal"
+            class="px-4 py-2 border border-slate-200 bg-white rounded-xl text-slate-600 font-semibold shadow-sm hover:bg-slate-50 transition-all active:scale-95"
+          >
+            Tutup
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -272,14 +406,23 @@ import Chart from "chart.js/auto";
 import { format } from "date-fns";
 import api from "@/services/api";
 
-/* ================= STATE ================= */
-const lastUpdate = ref(format(new Date(), "HH:mm:ss"));
-const isLoading = ref(false);
-
+/* ================= ENDPOINT API ================= */
 const ENDPOINT_SUMMARY = "/mmt/laporan-ls-bahan-utama/total-roll";
 const ENDPOINT_FLOW = "/mmt/laporan-ls-bahan-utama/flow-6-bulan";
-const ENDPOINT_DEADLINE = "/mmt/laporan-ls-bahan-utama/top-10-deadline"; // Endpoint baru cetak mepet
-const ENDPOINT_PENDING_BAHAN = "/mmt/laporan-ls-bahan-utama/permintaan-pending"; // Endpoint baru bon tertunda
+const ENDPOINT_DEADLINE = "mmt/dashboard/top-10-deadline";
+const ENDPOINT_PENDING_BAHAN = "mmt/dashboard/permintaan-pending";
+const ENDPOINT_PENDING_BAHAN_TOTAL = "mmt/dashboard/permintaan-pending-total"; // Gunakan endpoint tanpa LIMIT untuk modal
+
+/* ================= STATE DASHBOARD ================= */
+const lastUpdate = ref(format(new Date(), "HH:mm:ss"));
+const isLoading = ref(false);
+const topDeadlineCetak = ref([]);
+const permintaanBahanPending = ref([]);
+
+/* ================= STATE MODAL DETAIL ================= */
+const isModalOpen = ref(false);
+const isLoadingTotal = ref(false);
+const totalPermintaanBahan = ref([]);
 
 const stats = ref([
   {
@@ -316,14 +459,12 @@ const stats = ref([
   },
 ]);
 
-const topDeadlineCetak = ref([]);
-const permintaanBahanPending = ref([]);
-
 let flowChartInstance = null;
 let compositionChartInstance = null;
 
-/* ================= API CALLS ================= */
+/* ================= API CALLS FUNCTIONS ================= */
 
+// 1. Fetch Summary (Stat Cards)
 const fetchSummary = async () => {
   try {
     const response = await api.get(ENDPOINT_SUMMARY);
@@ -339,6 +480,7 @@ const fetchSummary = async () => {
   }
 };
 
+// 2. Fetch Flow Data & Render Chart
 const fetchFlowData = async () => {
   try {
     const response = await api.get(ENDPOINT_FLOW);
@@ -354,124 +496,93 @@ const fetchFlowData = async () => {
   }
 };
 
-// Fetch 1: Antrean Cetak Mepet Deadline
+// 3. Fetch Top 10 Antrean Cetak Mepet Deadline
 const fetchDeadlineCetak = async () => {
   try {
     const response = await api.get(ENDPOINT_DEADLINE);
     const res = response.data;
-    if (res.success && res.data && res.data.length > 0) {
+    if (res.success && res.data) {
       topDeadlineCetak.value = res.data;
     } else {
-      // Mock Data jika API belum siap
-      topDeadlineCetak.value = [
-        {
-          no_spk: "SPK-2026-0089",
-          nama_produk: "Baliho Pemda Ramadan 4x6m",
-          qty: 2,
-          unit: "Pcs",
-          sisa_waktu: "15 Menit",
-          menit_sisa: 15,
-        },
-        {
-          no_spk: "SPK-2026-0091",
-          nama_produk: "X-Banner Event Astra Motor",
-          qty: 25,
-          unit: "Pcs",
-          sisa_waktu: "45 Menit",
-          menit_sisa: 45,
-        },
-        {
-          no_spk: "SPK-2026-0092",
-          nama_produk: "Sticker Branding Mobil Box J&T",
-          qty: 1,
-          unit: "Set",
-          sisa_waktu: "1.5 Jam",
-          menit_sisa: 90,
-        },
-        {
-          no_spk: "SPK-2026-0095",
-          nama_produk: "Neon Box Toko Kelontong Jaya",
-          qty: 2,
-          unit: "Pcs",
-          sisa_waktu: "3 Jam",
-          menit_sisa: 180,
-        },
-        {
-          no_spk: "SPK-2026-0100",
-          nama_produk: "Backdrop Panggung Hotel Santika",
-          qty: 1,
-          unit: "Pcs",
-          sisa_waktu: "5 Jam",
-          menit_sisa: 300,
-        },
-      ];
+      topDeadlineCetak.value = [];
     }
   } catch (err) {
-    console.error(err);
+    console.error("Gagal mengambil data antrean cetak:", err);
+    topDeadlineCetak.value = [];
   }
 };
 
-// Fetch 2: Permintaan Bahan Belum Direalisasikan Gudang
+// 4. Fetch Permintaan Bahan Pending Halaman Depan (Terlimit 15)
 const fetchPermintaanPending = async () => {
   try {
     const response = await api.get(ENDPOINT_PENDING_BAHAN);
     const res = response.data;
-    if (res.success && res.data && res.data.length > 0) {
+    if (res.success && res.data) {
       permintaanBahanPending.value = res.data;
     } else {
-      // Mock Data jika API belum siap
-      permintaanBahanPending.value = [
-        {
-          nama_bahan: "Flexi Frontlit 280g (Lebar 3.2m)",
-          divisi: "Outdoor",
-          qty_minta: 2,
-          unit: "Roll",
-        },
-        {
-          nama_bahan: "Sticker Ritrama Glossy (Lebar 1.2m)",
-          divisi: "Indoor/Eco",
-          qty_minta: 1,
-          unit: "Roll",
-        },
-        {
-          nama_bahan: "Tinta High-Solvent Cyan 5L",
-          divisi: "Outdoor",
-          qty_minta: 4,
-          unit: "Botol",
-        },
-        {
-          nama_bahan: "Mata Ayam / Eyelet Kuningan",
-          divisi: "Finishing",
-          qty_minta: 2,
-          unit: "Box",
-        },
-        {
-          nama_bahan: "Impraboard Black 3mm",
-          divisi: "Display",
-          qty_minta: 15,
-          unit: "Lembar",
-        },
-      ];
+      permintaanBahanPending.value = [];
     }
   } catch (err) {
-    console.error(err);
+    console.error("Gagal mengambil data permintaan pending:", err);
+    permintaanBahanPending.value = [];
   }
 };
 
-// Master Refresh
-const refreshAllData = async () => {
-  isLoading.value = true;
-  await Promise.all([
-    fetchSummary(),
-    fetchFlowData(),
-    fetchDeadlineCetak(),
-    fetchPermintaanPending(),
-  ]);
-  lastUpdate.value = format(new Date(), "HH:mm:ss");
-  isLoading.value = false;
+// 5. Fetch Keseluruhan Data Tanpa Limit khusus untuk Modal Pop-up
+const openDetailModal = async () => {
+  isModalOpen.value = true;
+  isLoadingTotal.value = true;
+  try {
+    const response = await api.get(ENDPOINT_PENDING_BAHAN_TOTAL);
+    const res = response.data;
+    if (res.success && res.data) {
+      totalPermintaanBahan.value = res.data;
+    } else {
+      totalPermintaanBahan.value = [];
+    }
+  } catch (err) {
+    console.error("Gagal mengambil total data pending full:", err);
+    totalPermintaanBahan.value = [];
+  } finally {
+    isLoadingTotal.value = false;
+  }
 };
 
-/* ================= CHARTS LOGIC ================= */
+// Fungsi menutup modal
+const closeModal = () => {
+  isModalOpen.value = false;
+};
+
+// Master Refresh Sync Data
+const refreshAllData = async () => {
+  isLoading.value = true;
+  try {
+    await Promise.all([
+      fetchSummary(),
+      fetchFlowData(),
+      fetchDeadlineCetak(),
+      fetchPermintaanPending(),
+    ]);
+    lastUpdate.value = format(new Date(), "HH:mm:ss");
+  } catch (err) {
+    console.error("Gagal melakukan sinkronisasi data dashboard:", err);
+  } finally {
+    isLoading.value = false;
+  }
+};
+
+/* ================= HELPERS FUNCTIONS ================= */
+const formatDate = (dateStr) => {
+  if (!dateStr) return "-";
+  const d = new Date(dateStr);
+  return d.toLocaleDateString("id-ID", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+};
+
+/* ================= CHARTS RENDER LOGIC ================= */
 const renderFlowChart = (labels, incomingData, outgoingData) => {
   const flowCtx = document.getElementById("stockFlowChart");
   if (!flowCtx) return;
@@ -535,6 +646,7 @@ const initCompositionChart = () => {
   });
 };
 
+/* ================= LIFECYCLE HOOKS ================= */
 onMounted(async () => {
   await refreshAllData();
   initCompositionChart();
