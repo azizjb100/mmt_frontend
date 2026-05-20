@@ -164,7 +164,7 @@ const totalKoli = computed(() =>
             <td class="text-center">{{ item.Ukuran }}</td>
             <td class="text-center">{{ item.Kain }}</td>
             <td class="text-center">{{ item.Tanggal }}</td>
-            <td>{{ item.uraian }}</td>
+            <td>{{ item.Uraian }}</td>
             <td>{{ formatLongString(item.Customer, 18) }}</td>
             <td class="text-center font-bold">{{ item.Jml_Pcs }}</td>
             <td class="text-center font-bold">{{ item.Jml_Koli }}</td>

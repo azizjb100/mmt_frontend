@@ -83,11 +83,16 @@ const detailHeaders = [
     width: "90px",
     align: "end" as const,
   },
-  { title: "Jumlah", key: "qty", width: "80px", align: "end" as const }, // Ini kolom kuning di gambar
+  { title: "Jumlah", key: "qty", width: "110px", align: "end" as const }, // Ini kolom kuning di gambar
   { title: "Koli", key: "koli", width: "60px", align: "end" as const },
   { title: "Jadi", key: "jadi", width: "80px", align: "end" as const },
   { title: "Kurang", key: "kurang", width: "80px", align: "end" as const },
-  { title: "Keterangan", key: "keterangan" },
+  {
+    title: "Keterangan",
+    key: "keterangan",
+    width: "120px",
+    align: "end" as const,
+  },
   { title: "Aksi", key: "actions", width: "50px", align: "center" as const },
 ] as const;
 
@@ -421,16 +426,13 @@ onMounted(() => {
                 v-model.number="item.qty"
                 type="number"
                 density="compact"
-                variant="solo"
-                flat
+                variant="plain"
                 hide-details
                 class="text-right-input cell-yellow"
                 :error="item.jadi > item.totalOrder"
                 @input="
                   item.jadi = (item.order || 0) + (item.qty || 0);
                   item.kurang = item.totalOrder - item.jadi;
-
-                  // Tambahkan Logika Alert
                   if (item.jadi > item.totalOrder) {
                     toast.error(
                       `Jumlah Jadi (${item.jadi}) melebihi Total Order (${item.totalOrder}) pada SPK ${item.spk}!`,
@@ -519,23 +521,42 @@ onMounted(() => {
 <style scoped>
 .form-grid-container {
   display: grid;
-  grid-template-columns: 350px 1fr; /* Kolom kiri tetap, kanan fleksibel */
+  grid-template-columns: 350px 1fr;
   gap: 15px;
   padding: 10px;
 }
 
 /* Mengatur ukuran font agar padat seperti contoh */
+
+/* 1. Paksa teks di dalam input text-field mengikuti rata kanan */
+.text-right-input :deep(input) {
+  text-align: right !important;
+  padding-right: 8px !important; /* Beri sedikit jarak di kanan agar tidak mepet garis */
+}
+
+/* 2. Bersihkan padding bawaan v-field Vuetify di dalam tabel */
+.stbj-table :deep(.v-field) {
+  --v-field-padding-start: 4px !important;
+  --v-field-padding-end: 4px !important;
+  --v-field-input-padding-top: 0px !important;
+  --v-field-input-padding-bottom: 0px !important;
+  min-height: 28px !important; /* Menjaga input tetap tipis */
+}
+
 .right-column :deep(*) {
   font-size: 11px !important;
 }
 
-.text-right-input :deep(input) {
-  text-align: right !important;
+/* 3. Ratakan vertikal (tengah-tengah) untuk header dan isi cell */
+.stbj-table :deep(th),
+.stbj-table :deep(td) {
+  vertical-align: middle !important;
+  padding: 0 8px !important; /* Selaraskan padding horizontal seluruh kolom */
 }
 
 /* Mengatur tinggi baris tabel agar compact */
 :deep(.v-data-table__td) {
-  height: 32px !important;
+  height: 36px !important;
 }
 
 .bg-grey-lighten-4 {
