@@ -533,6 +533,19 @@ onMounted(() => {
               </div>
             </template>
 
+            <template #[`item.mesin`]="{ item, index }">
+              <v-text-field
+                v-model="item.mesin"
+                readonly
+                density="compact"
+                variant="underlined"
+                append-inner-icon="mdi-magnify"
+                hide-details
+                style="cursor: pointer"
+                @click="openMesinSearch(index)"
+              />
+            </template>
+
             <template #[`item.spk_nomor`]="{ item }">
               <span class="font-weight-bold text-blue-darken-4">{{
                 item.spk_nomor
