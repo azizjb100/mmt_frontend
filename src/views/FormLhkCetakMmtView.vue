@@ -223,6 +223,7 @@ const handleSave = async (status: string) => {
       details: detailData.value.map((d) => ({
         ...d,
         // Pastikan field matching dengan backend (misal: msn_kode)
+        operator: d.operator || formData.operator,
         mesin: d.mesin,
         lcd_lnomor: d.lhkmesin, // Set lhkmesin ke lcd_lnomor sebelum dikirim
         lcd_lshift: d.shift || formData.shift,
@@ -266,30 +267,52 @@ const loaddataall = async (nomor: string) => {
     const res = response.data.data;
     if (res) {
       isEditMode.value = true;
-      formData.nomor = res.Nomor; // lch_nomor (Header)
-      formData.tanggal = res.Tanggal;
-      formData.shift = res.Shift;
-      formData.operator = res.Operator;
-      formData.mesin = res.Mesin;
 
-      if (res.details) {
+      // --- 1. Map Data Header ---
+      formData.nomor = res.Nomor; // Sesuai API: res.Nomor
+      formData.tanggal = res.Tanggal; // Sesuai API: res.Tanggal
+      formData.gdg_kode = res.Gdg_Kode; // Sesuai API: res.Gdg_Kode
+      formData.shift = Number(res.Shift); // Sesuai API: res.Shift
+      formData.operator = res.Operator || res.details?.[0]?.Operator || "";
+      // Catatan: Di API tingkat header tidak ada field "Mesin",
+      // Jika ingin default, bisa ambil dari Mesin di detail pertama jika ada
+      formData.mesin = res.details?.[0]?.Mesin || "";
+
+      // --- 2. Map Data Detail Pekerjaan ---
+      if (res.details && Array.isArray(res.details)) {
         detailData.value = res.details.map((d: any) => ({
-          lhk_rekap: d.lcd_lnomor || res.Nomor, // Nomor LHK Cetak (lcd_lnomor)
-          lhkmesin: d.Nomor_lhk_mesin || d.ld_lnomor || "MANUAL", // Nomor LHK Mesin
-          shift: d.Shift,
-          mesin: d.Mesin,
+          lhk_rekap: d.Nomor, // Nomor LHK Cetak dari API
+          lhkmesin: d.Nomor_lhk_mesin || "MANUAL",
+          shift: Number(d.Shift) || formData.shift,
+          mesin: d.Mesin || "-", // Menggunakan d.Mesin (M Kapital) sesuai API
+          operator: d.Operator || res.Operator || "",
           spk_nomor: d.Nomor_SPK,
           spk_nama: d.Nama_SPK,
-          jumlah_cetak: Number(d.Jml_Cetak),
-          total_m2: Number(d.m2_cetak),
-          panjang_spk: d.Panjang || 0,
-          lebar_spk: d.Lebar || 0,
+          jumlah_cetak: Number(d.Jml_Cetak) || 0,
+          total_m2: Number(d.m2_cetak) || 0,
+          panjang_spk: Number(d.Panjang) || 0,
+          lebar_spk: Number(d.Lebar) || 0,
           isManual: d.Nomor_lhk_mesin === "MANUAL" || !d.Nomor_lhk_mesin,
         }));
       }
+
+      // --- 3. Map Data Tinta (Disesuaikan dengan properti 'inks' dari API) ---
+      if (res.inks && Array.isArray(res.inks) && res.inks.length > 0) {
+        inkDetails.value = res.inks.map((ink: any) => ({
+          msn_kode: ink.Msn_Kode, // Sesuai API: Msn_Kode (M Kapital)
+          c: Number(ink.Ink_C) || 0, // Sesuai API: Ink_C
+          m: Number(ink.Ink_M) || 0, // Sesuai API: Ink_M
+          y: Number(ink.Ink_Y) || 0, // Sesuai API: Ink_Y
+          k: Number(ink.Ink_K) || 0, // Sesuai API: Ink_K
+        }));
+      } else {
+        // Fallback jika data tinta dari API kosong
+        inkDetails.value = [{ msn_kode: "", c: 0, m: 0, y: 0, k: 0 }];
+      }
     }
   } catch (error) {
-    toast.error("Gagal load data");
+    console.error("Load Data Error:", error);
+    toast.error("Gagal load data rekap cetak");
   } finally {
     isLoadingDetails.value = false;
   }
