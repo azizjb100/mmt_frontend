@@ -114,10 +114,10 @@
           <div class="mb-4 flex items-center justify-between">
             <div>
               <h3 class="text-sm font-semibold text-slate-700">
-                Top 10 Antrean Cetak (Mepet Deadline)
+                Top 10 SPK Cetak (Deadline)
               </h3>
               <p class="text-xs text-slate-400 mt-0.5">
-                Produksi mendesak hari ini. (Klik baris untuk detail semua data)
+                SPK aktif yang perlu segera di produksi
               </p>
             </div>
             <span

@@ -109,15 +109,36 @@
             </template>
 
             <template #[`item.qty_hasil`]="{ item }">
-              <v-text-field
-                v-model.number="item.qty_hasil"
-                type="number"
-                density="compact"
-                variant="underlined"
-                hide-details
-                class="text-end custom-input-qty"
-                @input="handleInputCalculation(item)"
-              />
+              <div
+                :class="
+                  item.qty_hasil > item.qty_order
+                    ? 'bg-red-lighten-5 px-1 rounded error-qty-border'
+                    : ''
+                "
+              >
+                <v-text-field
+                  v-model.number="item.qty_hasil"
+                  type="number"
+                  density="compact"
+                  variant="underlined"
+                  hide-details
+                  :class="
+                    item.qty_hasil > item.qty_order
+                      ? 'text-red font-weight-black custom-input-qty'
+                      : 'text-end custom-input-qty'
+                  "
+                  @input="handleInputCalculation(item)"
+                />
+
+                <!-- Tooltip Peringatan saat Hover mirip LHK Tekstil -->
+                <v-tooltip
+                  v-if="item.qty_hasil > item.qty_order"
+                  activator="parent"
+                  location="top"
+                >
+                  Melebihi kuantitas order SPK (Order: {{ item.qty_order }})
+                </v-tooltip>
+              </div>
             </template>
 
             <template #[`item.pengali_mata_ayam`]="{ item }">
@@ -220,7 +241,24 @@ const formData = reactive({
 const detailData = ref<any[]>([]);
 
 // --- 3. CALCULATION LOGIC ---
+// --- 3. CALCULATION LOGIC ---
 const handleInputCalculation = (item: any) => {
+  // Reset atau handle jika input kosong
+  if (
+    item.qty_hasil === "" ||
+    item.qty_hasil === null ||
+    item.qty_hasil === undefined
+  ) {
+    item.qty_hasil = 0;
+  }
+
+  // Pemicu Alert Toast jika melebihi SPK Order (Sama seperti logika LHK Tekstil)
+  if (item.qty_hasil > item.qty_order) {
+    toast.warning(
+      `SPK ${item.spk_nomor} input (${item.qty_hasil}) melebihi kuantitas order (${item.qty_order})`,
+    );
+  }
+
   // Hitung Mata Ayam
   item.jml_mata_ayam =
     formData.proses === "MATA_AYAM"
@@ -338,12 +376,32 @@ const handleBarcodeScan = async () => {
 
     if (existingIndex !== -1) {
       detailData.value[existingIndex].qty_hasil += quantityToAdd;
+
+      // Pemicu kalkulasi & pengecekan limit alert
       handleInputCalculation(detailData.value[existingIndex]);
-      toast.info(`SPK ${finalBarcode} bertambah ${quantityToAdd}`);
+
+      // Jika tidak melebihi, tampilkan info normal
+      if (
+        detailData.value[existingIndex].qty_hasil <=
+        detailData.value[existingIndex].qty_order
+      ) {
+        toast.info(`SPK ${finalBarcode} bertambah ${quantityToAdd}`);
+      }
     } else {
       const response = await api.get(`/mmt/spk/${finalBarcode}`);
       if (response.data.success && response.data.data) {
         addSpkWithQty(response.data.data, quantityToAdd);
+
+        // Cek langsung setelah data diinject ke tabel
+        const lastIndex = detailData.value.length - 1;
+        if (
+          detailData.value[lastIndex].qty_hasil >
+          detailData.value[lastIndex].qty_order
+        ) {
+          toast.warning(
+            `SPK ${finalBarcode} yang dimasukkan langsung melebihi order!`,
+          );
+        }
       } else {
         toast.error("SPK tidak ditemukan");
       }

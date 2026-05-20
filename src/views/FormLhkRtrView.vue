@@ -189,16 +189,39 @@
               />
             </template>
 
+            <!-- Kuantitas Input Hasil RTR (Isi Manual + Validasi Alert Over Order) -->
             <template #[`item.jumlah_rtr`]="{ item }">
-              <v-text-field
-                v-model.number="item.jumlah_rtr"
-                type="number"
-                variant="plain"
-                density="compact"
-                hide-details
-                class="table-input-inline text-end font-weight-bold"
-                @input="calculateMeter(item)"
-              />
+              <div
+                :class="
+                  item.jumlah_rtr > item.qty_order
+                    ? 'bg-red-lighten-5 px-1 rounded error-qty-border h-100 d-flex align-center'
+                    : 'h-100 d-flex align-center'
+                "
+              >
+                <v-text-field
+                  v-model.number="item.jumlah_rtr"
+                  type="number"
+                  variant="plain"
+                  density="compact"
+                  hide-details
+                  :class="
+                    item.jumlah_rtr > item.qty_order
+                      ? 'text-red font-weight-black table-input-inline text-end'
+                      : 'table-input-inline text-end font-weight-bold'
+                  "
+                  @input="calculateMeter(item)"
+                />
+
+                <!-- Tooltip Peringatan saat Hover mirip LHK Tekstil -->
+                <v-tooltip
+                  v-if="item.jumlah_rtr > item.qty_order"
+                  activator="parent"
+                  location="top"
+                >
+                  Jumlah RTR melebihi batas order (Maksimal Order:
+                  {{ item.qty_order }})
+                </v-tooltip>
+              </div>
             </template>
 
             <template #[`item.lokasi`]="{ item, index }">
@@ -304,6 +327,7 @@ const detailHeaders = [
   { title: "Nama Order", key: "spk_nama", width: "200px" },
   { title: "Panjang", key: "panjang", width: "80px", align: "end" },
   { title: "Lebar", key: "lebar", width: "80px", align: "end" },
+  { title: "Order", key: "qty_order", width: "70px", align: "end" }, // <-- Kolom Baru
   { title: "Jml RTR", key: "jumlah_rtr", width: "90px", align: "end" },
   { title: "Total m²", key: "jumlah_meter", width: "100px", align: "end" },
   { title: "Lokasi/Mesin", key: "lokasi", width: "120px" },
@@ -358,10 +382,26 @@ const handleSave = async () => {
 
 // --- Logika Delphi: Perhitungan Meter ---
 const calculateMeter = (item: any) => {
+  // Antisipasi input kosong
+  if (
+    item.jumlah_rtr === "" ||
+    item.jumlah_rtr === null ||
+    item.jumlah_rtr === undefined
+  ) {
+    item.jumlah_rtr = 0;
+  }
+
   const p = parseFloat(item.panjang) || 0;
   const l = parseFloat(item.lebar) || 0;
   const qty = parseFloat(item.jumlah_rtr) || 0;
   item.jumlah_meter = p * l * qty;
+
+  // Pemicu Alert Toast jika input hasil melebihi order asal
+  if (item.qty_order !== undefined && qty > item.qty_order) {
+    toast.warning(
+      `Peringatan: Hasil RTR ${item.spk_nomor || item.poi_nomor} (${qty}) melebihi kuantitas order (${item.qty_order})!`,
+    );
+  }
 };
 
 // --- Logika Delphi: PO Internal Lookup ---
@@ -384,6 +424,7 @@ const handlePoiSelect = async (poi: any) => {
     spk_nama: poi.spk_nama || "",
     panjang: parseFloat(poi.spk_panjang) || 0,
     lebar: parseFloat(poi.spk_lebar) || 0,
+    qty_order: parseFloat(poi.poid_jumlah) || 0,
     jumlah_rtr: 1,
     jumlah_meter: 0,
     lokasi: "",
@@ -415,18 +456,17 @@ const openSpkSearch = () => {
 };
 
 const handleSpkSelect = (spk: any) => {
-  // Mapping data sesuai response JSON yang Anda berikan
   const data = {
     spk_nomor: spk.spk_nomor || spk.Spk,
-    spk_nama: spk.Nama, // Mengambil dari properti "Nama"
-    panjang: parseFloat(spk.Panjang) || 0, // Mengambil dari properti "Panjang"
-    lebar: parseFloat(spk.Lebar) || 0, // Mengambil dari properti "Lebar"
-    jumlah_rtr: 1, // Default 1
-    jenis_bahan: spk.Bahan, // Tambahan: ambil info bahan jika perlu
+    spk_nama: spk.Nama,
+    panjang: parseFloat(spk.Panjang) || 0,
+    lebar: parseFloat(spk.Lebar) || 0,
+    qty_order: parseFloat(spk.Jumlah) || 0, // Ambil "Jumlah" dari Backend SPK
+    jumlah_rtr: 1,
+    jenis_bahan: spk.Bahan,
   };
 
   if (activeRowIdx.value === -1) {
-    // Jika tambah baris baru (dari tombol "Tambah SPK")
     detailData.value.push({
       ...data,
       poi_nomor: "",
@@ -434,18 +474,14 @@ const handleSpkSelect = (spk: any) => {
       lokasi: "",
       jumlah_meter: 0,
     });
-    // Hitung meter untuk baris terakhir yang baru saja ditambah
     calculateMeter(detailData.value[detailData.value.length - 1]);
   } else {
-    // Jika update baris yang sudah ada (klik icon mdi-magnify di baris)
     detailData.value[activeRowIdx.value] = {
       ...detailData.value[activeRowIdx.value],
       ...data,
     };
-    // Hitung ulang meter untuk baris tersebut
     calculateMeter(detailData.value[activeRowIdx.value]);
   }
-
   lookup.spk = false;
 };
 
@@ -453,33 +489,21 @@ const loadDataAll = async (nomor: string) => {
   isSaving.value = true;
   try {
     const response = await api.get(`/mmt/lhk-rtr/detail/${nomor}`);
-    const res = response.data; // Ini berisi { data: [...] } berdasarkan contoh Anda
-
-    // Jika Backend hanya mengirim detail di endpoint ini,
-    // kita perlu memastikan apakah header dikirim di objek yang sama atau berbeda.
-    // Berdasarkan contoh JSON Anda yang hanya menunjukkan array "data":
-
+    const res = response.data;
     const rawDetails = res.data || [];
 
     if (rawDetails.length > 0) {
-      // 1. Sinkronisasi Field Header (Ambil dari baris pertama detail jika tidak ada objek header terpisah)
       const firstRow = rawDetails[0];
-
       formData.nomor = firstRow.Nomor;
-      // Catatan: Jika Backend mengirim objek 'header' terpisah, gunakan res.header.
-      // Namun jika tidak ada, kita asumsikan data header menempel di row detail.
-
-      // 2. Kosongkan dan Isi Detail Data
       detailData.value = [];
 
       rawDetails.forEach((d: any) => {
         detailData.value.push({
-          // SESUAIKAN DENGAN KEY DI JSON (PascalCase)
           spk_nomor: d.Nomor_SPK,
           spk_nama: d.Nama_SPK,
           panjang: parseFloat(d.Panjang) || 0,
           lebar: parseFloat(d.Lebar) || 0,
-          j_order: d.J_Order,
+          qty_order: parseFloat(d.J_Order) || 0, // Mapping jumlah order yang tersimpan di DB
           jumlah_rtr: parseFloat(d.Jumlah) || 0,
           jumlah_meter: parseFloat(d.Jumlah_meter) || 0,
           poi_nomor: d.No_PO_Internal,

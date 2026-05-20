@@ -215,15 +215,39 @@
             </template>
 
             <!-- Aktual Proof (Isi Manual) -->
+            <!-- Aktual Proof (Isi Manual + Validasi Alert Melebihi Order) -->
             <template #[`item.aktual_proof`]="{ item }">
-              <v-text-field
-                v-model.number="item.aktual_proof"
-                type="number"
-                variant="plain"
-                density="compact"
-                hide-details
-                class="table-input-inline text-end"
-              />
+              <div
+                :class="
+                  item.aktual_proof > item.rencana_order
+                    ? 'bg-red-lighten-5 px-1 rounded error-qty-border h-100 d-flex align-center'
+                    : 'h-100 d-flex align-center'
+                "
+              >
+                <v-text-field
+                  v-model.number="item.aktual_proof"
+                  type="number"
+                  variant="plain"
+                  density="compact"
+                  hide-details
+                  :class="
+                    item.aktual_proof > item.rencana_order
+                      ? 'text-red font-weight-black table-input-inline text-end'
+                      : 'table-input-inline text-end'
+                  "
+                  @input="handleInputCalculation(item)"
+                />
+
+                <!-- Tooltip Peringatan saat Hover mirip LHK Tekstil -->
+                <v-tooltip
+                  v-if="item.aktual_proof > item.rencana_order"
+                  activator="parent"
+                  location="top"
+                >
+                  Melebihi kuantitas rencana order (Maksimal:
+                  {{ item.rencana_order }})
+                </v-tooltip>
+              </div>
             </template>
 
             <!-- Jenis Bahan (Isi Manual) -->
@@ -379,6 +403,25 @@ const formTitle = computed(() =>
     ? `Edit LHK Proofing: ${route.params.nomor}`
     : "Input LHK Proofing Baru",
 );
+
+// --- 3. PROOF CALCULATION & VALIDATION LOGIC ---
+const handleInputCalculation = (item: any) => {
+  // Antisipasi jika operator mengosongkan inputan angka
+  if (
+    item.aktual_proof === "" ||
+    item.aktual_proof === null ||
+    item.aktual_proof === undefined
+  ) {
+    item.aktual_proof = 0;
+  }
+
+  // Pemicu Alert Toast jika aktual melebihi rencana order
+  if (item.aktual_proof > item.rencana_order) {
+    toast.warning(
+      `Peringatan: Aktual Proof untuk SPK ${item.nomor_spk} (${item.aktual_proof}) melebihi kuantitas rencana order (${item.rencana_order})`,
+    );
+  }
+};
 
 const handleSpkSelect = (spk: any) => {
   // Mapping field dari JSON yang Anda berikan

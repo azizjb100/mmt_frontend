@@ -847,7 +847,7 @@ const recalculateCombine = () => {
     if (totalCetakInput > d.kurangcetak_asli) {
       // Menggunakan toast.warning agar operator langsung sadar tanpa merusak fokus mengetik
       toast.warning(
-        `SPK ${d.nomor_spk} melebihi sisa order! (Input: ${totalCetakInput} > Sisa: ${d.kurangcetak_asli})`,
+        `SPK ${d.nomor_spk} (Input: ${totalCetakInput} melebihi sisa order : ${d.kurangcetak_asli})`,
       );
     }
 

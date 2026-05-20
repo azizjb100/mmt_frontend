@@ -8,6 +8,7 @@ import GudangLookupModal from "@/modal/GudangLookupView.vue";
 import SPKLookupModal from "@/modal/SpkLookupModal.vue";
 import PabrikLookupModal from "@/modal/PabrikLookupModal.vue";
 import PengajuanLookupModal from "@/modal/PengajuanPermintaanLookupModal.vue";
+import MppbLookupModal from "@/modal/MppbLookupView.vue"; // ✅ Tambah Import Modal MPPB
 import { format } from "date-fns";
 import { useToast } from "vue-toastification";
 
@@ -66,8 +67,10 @@ const isSPKModalVisible = ref(false);
 const currentDetailIndex = ref<number | null>(null);
 const isApproving = ref(false);
 const currentUserKode = ref("");
-const isPengajuanModalVisible = ref(false); // Modal untuk list pengajuan
-const noPengajuan = ref(""); // Menyimpan nomor referensi pengajuan
+const isPengajuanModalVisible = ref(false);
+const isMppbModalVisible = ref(false); // ✅ State visibility Modal MPPB
+const noPengajuan = ref("");
+const noMppb = ref(""); // ✅ Menyimpan nomor referensi MPPB
 
 // Logika Lock: Hanya mengunci field utama jika data lama dan sudah di-ACC Manager
 const isLocked = computed(() => {
@@ -81,7 +84,6 @@ const isLocked = computed(() => {
 
 // Fungsi untuk mengambil user dari localStorage
 const getCurrentUser = () => {
-  // Mencari di dalam objek JSON seperti yang Anda lakukan di fungsi approveData
   for (let i = 0; i < localStorage.length; i++) {
     const key = localStorage.key(i);
     if (key) {
@@ -97,7 +99,6 @@ const getCurrentUser = () => {
       }
     }
   }
-  // Fallback jika disimpan langsung
   currentUserKode.value = localStorage.getItem("kdUser") || "";
 };
 
@@ -179,18 +180,10 @@ const isFormValid = computed(() => {
 const bahanModalMode = computed(() => {
   const kode = formData.gudangKode?.toUpperCase() || "";
   const nama = formData.gudangNama?.toLowerCase() || "";
-
-  // Jika gudang WH-20 atau mengandung kata 'tinta'/'obat'
-  if (kode === "WH-20" || nama.includes("tinta") || nama.includes("obat")) {
+  if (kode === "WH-20" || nama.includes("tinta") || nama.includes("obat"))
     return "obat";
-  }
-
-  // Jika gudang produksi
-  if (kode === "GPM" || nama.includes("produksi")) {
-    return "produksi";
-  }
-
-  return "mmt"; // Default
+  if (kode === "GPM" || nama.includes("produksi")) return "produksi";
+  return "mmt";
 });
 
 const approveData = async (type: "SPV" | "MANAGER") => {
@@ -204,29 +197,22 @@ const approveData = async (type: "SPV" | "MANAGER") => {
 
   isApproving.value = true;
   try {
-    // Sesuaikan payload ini dengan apa yang ditangkap oleh Controller Backend
     const payload = {
       nomor: formData.nomor,
-      role: type, // Ganti 'type' menjadi 'role' jika controller backend pakai 'role'
-      user: currentUserKode.value, // Ganti 'userKD' menjadi 'user' jika controller backend pakai 'user'
+      role: type,
+      user: currentUserKode.value,
       details: formData.detail
         .filter((d) => d.sku)
         .map((d) => ({ sku: d.sku, isAcc: d.isAcc ? "Y" : "N" })),
     };
 
-    // Log untuk memastikan data sebelum dikirim
-    console.log("Payload Approval:", payload);
-
     await api.post(`${API_URL}/approve`, payload, {
-      headers: {
-        Authorization: `Bearer ${localStorage.getItem("token")}`,
-      },
+      headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
     });
 
     toast.success(`Berhasil melakukan ACC ${type}`);
     await loaddataall(formData.nomor);
   } catch (error: any) {
-    // Jika error "Gagal ACC Header" muncul, artinya status SPV di DB memang masih 'N'
     const msg = error.response?.data?.message || `Gagal melakukan ACC ${type}`;
     toast.error(msg);
   } finally {
@@ -253,9 +239,7 @@ const loaddataall = async (nomor: string) => {
   isSaving.value = true;
   try {
     const response = await api.get(`${API_URL}/${nomor}`, {
-      headers: {
-        Authorization: `Bearer ${localStorage.getItem("token")}`,
-      },
+      headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
     });
     const d = response.data;
     formData.nomor = d.Nomor;
@@ -322,9 +306,7 @@ const handlePabrikSelect = (pabrik: { Kode: string; Nama: string }) => {
 };
 
 const handleGudangAsalSelect = (gudang: { Kode: string; Nama: string }) => {
-  // Cek jika sudah ada item di detail
   const hasItems = formData.detail.some((d) => d.sku !== "");
-
   if (hasItems && formData.gudangKode !== gudang.Kode) {
     if (
       !confirm(
@@ -336,11 +318,11 @@ const handleGudangAsalSelect = (gudang: { Kode: string; Nama: string }) => {
     }
     formData.detail = [createEmptyDetail()];
   }
-
   formData.gudangKode = gudang.Kode;
   formData.gudangNama = gudang.Nama;
   isGudangModalVisible.value = false;
 };
+
 const handleSPKSelect = (spk: { Spk: string; Nama: string }) => {
   if (currentDetailIndex.value !== null) {
     formData.detail[currentDetailIndex.value].spk = spk.Spk;
@@ -351,51 +333,27 @@ const handleSPKSelect = (spk: { Spk: string; Nama: string }) => {
 
 const handlePengajuanSelect = async (pengajuan: any) => {
   isSaving.value = true;
-
+  noMppb.value = ""; // Bersihkan referensi MPPB jika memilih pengajuan
   try {
-    // 1. Ambil data lengkap (Header + Detail)
     const response = await api.get(
       `/mmt/pengajuan-permintaan/${pengajuan.Nomor}`,
       {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
+        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
       },
     );
-
     const data = response.data;
-
-    // =========================
-    // 2. HEADER
-    // =========================
     noPengajuan.value = data.Nomor;
-
     const isAccSpv = data.Status_Acc === "Y";
 
-    // 👉 ACC SPV ikut status pengajuan
-    if (isAccSpv) {
-      formData.accSpv =
-        data.Acc_SPV || data.Acc_Spv_User || data.Req_ACC_User || "SYSTEM";
-    } else {
-      formData.accSpv = "-";
-    }
-
-    // ACC Manager (kalau ada)
+    formData.accSpv = isAccSpv
+      ? data.Acc_SPV || data.Acc_Spv_User || data.Req_ACC_User || "SYSTEM"
+      : "-";
     formData.accManager = data.Acc_Manager_User || "-";
-
     formData.keteranganHeader = `Ref Pengajuan: ${data.Nomor}. ${data.Keterangan || ""}`;
     formData.kepada = data.Ditujukan_Ke || "Purchasing";
+    if (data.Jenis) formData.jenis = data.Jenis;
 
-    if (data.Jenis) {
-      // @ts-ignore
-      formData.jenis = data.Jenis;
-    }
-
-    // =========================
-    // 3. DETAIL
-    // =========================
     formData.detail = [];
-
     if (Array.isArray(data.Detail)) {
       data.Detail.forEach((item: any) => {
         formData.detail.push({
@@ -408,22 +366,15 @@ const handlePengajuanSelect = async (pengajuan: any) => {
           keterangan: item.Keterangan || item.KeteranganItem || "",
           spk: item.Nomor_SPK || "",
           namaSPK: item.spk_nama || item.Nama_SPK || "",
-          // 👉 ikut status ACC pengajuan
           isAcc: isAccSpv,
         });
       });
     }
-
-    // =========================
-    // 4. BARIS KOSONG TAMBAHAN
-    // =========================
     addDetail();
-
     toast.success(
       `Berhasil menarik ${data.Detail?.length || 0} item dari pengajuan ${data.Nomor}`,
     );
   } catch (error: any) {
-    console.error("Error tarik pengajuan:", error);
     toast.error(
       error.response?.data?.message || "Gagal menarik data pengajuan.",
     );
@@ -433,7 +384,73 @@ const handlePengajuanSelect = async (pengajuan: any) => {
   }
 };
 
-// Pastikan fungsi refreshData didefinisikan jika dipanggil di saveForm
+// ✅ TAMBAHAN: Fungsi untuk menarik data terpilih dari Modal MPPB
+const handleMppbSelect = async (mppb: any) => {
+  isSaving.value = true;
+  noPengajuan.value = ""; // Bersihkan referensi pengajuan jika memilih MPPB
+  try {
+    // Sesuaikan endpoint backend Anda untuk detail MPPB, misalnya: /api/v1/mmt/mppb/:nomor
+    const response = await api.get(`/mmt/mppb/${mppb.nomor}`, {
+      headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+    });
+
+    const data = response.data;
+    noMppb.value = data.Nomor || mppb.nomor;
+
+    // Sinkronisasi status approval dasar dari MPPB (Mirip logika Delphi)
+    const isApproved = data.Approve === "Y" || mppb.approve === "Y";
+    formData.accSpv = isApproved ? data.User_Create || "SYSTEM" : "-";
+    formData.accManager = "-";
+
+    formData.keteranganHeader = `Ref MPPB: ${noMppb.value}. ${data.Keterangan || mppb.keterangan || ""}`;
+    formData.kepada = "Purchasing";
+    formData.jenis = "Bahan Baku"; // Default untuk MPPB
+
+    // Isikan data detail
+    formData.detail = [];
+    // Jika data.Detail berupa array objek barang dari backend
+    if (Array.isArray(data.Detail)) {
+      data.Detail.forEach((item: any) => {
+        formData.detail.push({
+          sku: item.Kode || item.mpb_bahan || "",
+          namaBarang: item.Nama_Bahan || item.mpb_nama || "",
+          qty: Number(item.Jumlah || item.mpb_jmlorder || 0),
+          satuan: item.Satuan || "MTR",
+          Panjang: Number(item.Panjang || item.mpb_gramasi || 0),
+          Lebar: Number(item.Lebar || item.mpb_ukuran || 0),
+          keterangan: item.Keterangan || item.mpb_ket || "",
+          spk: item.Nomor_SPK || data.spk || mppb.spk || "",
+          namaSPK: item.Nama_SPK || "",
+          isAcc: isApproved,
+        });
+      });
+    } else {
+      // Fallback: Jika backend langsung mengembalikan row master tunggal di lookup
+      formData.detail.push({
+        sku: mppb.bahan || "",
+        namaBarang: mppb.nama_produk || "",
+        qty: Number(mppb.qty_order || 0),
+        satuan: "MTR",
+        Panjang: Number(mppb.gramasi || 0),
+        Lebar: Number(mppb.ukuran || 0),
+        keterangan: mppb.keterangan || "",
+        spk: mppb.spk || "",
+        namaSPK: "",
+        isAcc: isApproved,
+      });
+    }
+
+    addDetail();
+    toast.success(`Berhasil menarik data dari MPPB Nomor ${noMppb.value}`);
+  } catch (error: any) {
+    console.error("Error tarik MPPB:", error);
+    toast.error(error.response?.data?.message || "Gagal menarik data MPPB.");
+  } finally {
+    isSaving.value = false;
+    isMppbModalVisible.value = false;
+  }
+};
+
 const refreshData = () => {
   Object.assign(formData, {
     nomor: "AUTO",
@@ -442,6 +459,7 @@ const refreshData = () => {
     keteranganHeader: "",
   });
   noPengajuan.value = "";
+  noMppb.value = ""; // ✅ Reset Pelacak MPPB
 };
 
 const saveForm = async (saveAndNew: boolean) => {
@@ -450,6 +468,7 @@ const saveForm = async (saveAndNew: boolean) => {
   try {
     const payload = {
       NoPengajuan: noPengajuan.value,
+      NoMPPB: noMppb.value, // ✅ Sertakan NoMPPB ke dalam Payload backend
       NomorToEdit: isEditMode.value ? formData.nomor : null,
       Tanggal: formData.tanggal,
       GudangKode: formData.gudangKode,
@@ -457,8 +476,6 @@ const saveForm = async (saveAndNew: boolean) => {
       Priority: formData.priority,
       Kepada: formData.kepada,
       Cabang: formData.cabang,
-
-      // ✅ TAMBAHAN ACC SPV
       AccSpv: formData.accSpv && formData.accSpv !== "-" ? "Y" : "N",
       AccSpvUser:
         formData.accSpv && formData.accSpv !== "-" ? formData.accSpv : null,
@@ -474,19 +491,17 @@ const saveForm = async (saveAndNew: boolean) => {
         })),
     };
 
-    let response;
     if (isEditMode.value) {
-      response = await api.put(`${API_URL}/${formData.nomor}`, payload);
+      await api.put(`${API_URL}/${formData.nomor}`, payload);
     } else {
-      response = await api.post(API_URL, payload);
+      await api.post(API_URL, payload);
     }
 
     toast.success("Data berhasil disimpan!");
-
     if (saveAndNew) {
-      refreshData(); // tetap di form
+      refreshData();
     } else {
-      router.back(); // ✅ kembali ke halaman sebelumnya
+      router.back();
     }
   } catch (error: any) {
     toast.error(error.response?.data?.message || "Gagal menyimpan data.");
@@ -614,6 +629,8 @@ onMounted(() => {
                   hide-details
                 />
               </v-col>
+
+              <!-- Input Pengajuan -->
               <v-col cols="12" class="mt-1">
                 <v-text-field
                   label="Ambil Dari Pengajuan (Persiapan)"
@@ -629,9 +646,12 @@ onMounted(() => {
                   @click="
                     !isLocked &&
                     formData.gudangKode !== 'WH-20' &&
+                    !noMppb &&
                     (isPengajuanModalVisible = true)
                   "
-                  :disabled="isEditMode || formData.gudangKode === 'WH-20'"
+                  :disabled="
+                    isEditMode || formData.gudangKode === 'WH-20' || !!noMppb
+                  "
                 >
                   <template
                     v-slot:details
@@ -641,7 +661,6 @@ onMounted(() => {
                       >WH-20: Langsung pilih bahan di tabel</span
                     >
                   </template>
-
                   <template
                     v-slot:append-inner
                     v-if="noPengajuan && !isEditMode"
@@ -651,6 +670,38 @@ onMounted(() => {
                       size="small"
                       @click.stop="
                         noPengajuan = '';
+                        formData.detail = [createEmptyDetail()];
+                      "
+                      >mdi-close-circle</v-icon
+                    >
+                  </template>
+                </v-text-field>
+              </v-col>
+
+              <!-- ✅ TAMBAHAN: Kolom Input Ambil Dari MPPB -->
+              <v-col cols="12" class="mt-1">
+                <v-text-field
+                  label="Ambil Dari MPPB (Memo Bahan)"
+                  v-model="noMppb"
+                  placeholder="Klik untuk cari data MPPB..."
+                  readonly
+                  persistent-placeholder
+                  density="compact"
+                  variant="outlined"
+                  color="blue-darken-3"
+                  prepend-inner-icon="mdi-text-box-search"
+                  hide-details
+                  @click="
+                    !isLocked && !noPengajuan && (isMppbModalVisible = true)
+                  "
+                  :disabled="isEditMode || !!noPengajuan"
+                >
+                  <template v-slot:append-inner v-if="noMppb && !isEditMode">
+                    <v-icon
+                      color="error"
+                      size="small"
+                      @click.stop="
+                        noMppb = '';
                         formData.detail = [createEmptyDetail()];
                       "
                       >mdi-close-circle</v-icon
@@ -688,7 +739,7 @@ onMounted(() => {
                   label="Pilih Tujuan (Pabrik)"
                   v-model="formData.pabrikNama"
                   @click="!isLocked && (isPabrikModalVisible = true)"
-                  append-inner-icon="isLocked ? '' : 'mdi-magnify'"
+                  :append-inner-icon="isLocked ? '' : 'mdi-magnify'"
                   readonly
                   variant="outlined"
                   density="compact"
@@ -847,7 +898,7 @@ onMounted(() => {
 
             <template #[`item.keterangan`]="{ item }">
               <v-text-field
-                v-model.number="item.keterangan"
+                v-model="item.keterangan"
                 type="text"
                 density="compact"
                 variant="plain"
@@ -884,6 +935,7 @@ onMounted(() => {
       </div>
     </div>
 
+    <!-- Modals Container -->
     <GudangLookupModal
       :isVisible="isGudangModalVisible"
       @close="isGudangModalVisible = false"
@@ -893,6 +945,12 @@ onMounted(() => {
       :isVisible="isPengajuanModalVisible"
       @close="isPengajuanModalVisible = false"
       @select="handlePengajuanSelect"
+    />
+    <!-- ✅ TAMBAHAN: Instansiasi Komponen Modal MPPB -->
+    <MppbLookupModal
+      :isVisible="isMppbModalVisible"
+      @close="isMppbModalVisible = false"
+      @select="handleMppbSelect"
     />
     <PabrikLookupModal
       :isVisible="isPabrikModalVisible"
