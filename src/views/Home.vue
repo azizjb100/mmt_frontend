@@ -2,6 +2,7 @@
   <div
     class="min-h-screen bg-[#F1F5F9] p-6 font-sans antialiased text-slate-800"
   >
+    <!-- HEADER -->
     <header
       class="mx-auto mb-8 flex max-w-[1400px] flex-col gap-4 rounded-2xl bg-white px-6 py-4 shadow-sm border border-slate-100 md:flex-row md:items-center md:justify-between"
     >
@@ -38,6 +39,7 @@
       </div>
     </header>
 
+    <!-- STATS CARDS -->
     <div
       class="mx-auto mb-8 grid max-w-[1400px] grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4"
     >
@@ -74,7 +76,8 @@
       </div>
     </div>
 
-    <div class="mx-auto grid max-w-[1400px] grid-cols-12 gap-6">
+    <!-- CHARTS -->
+    <div class="mx-auto grid max-w-[1400px] grid-cols-12 gap-6 mb-6">
       <div class="col-span-12 space-y-6 lg:col-span-8">
         <div class="rounded-3xl bg-white p-6 shadow-sm border border-slate-100">
           <h3 class="mb-6 text-sm font-semibold text-slate-700">
@@ -99,7 +102,11 @@
           </div>
         </div>
       </div>
+    </div>
 
+    <!-- TABLES AREA -->
+    <div class="mx-auto grid max-w-[1400px] grid-cols-12 gap-6">
+      <!-- 1. TABEL ANTREAN CETAK MEPEET DEADLINE -->
       <div class="col-span-12 lg:col-span-6">
         <div
           class="rounded-3xl bg-white p-6 shadow-sm border border-slate-100 h-full flex flex-col"
@@ -110,7 +117,7 @@
                 Top 10 Antrean Cetak (Mepet Deadline)
               </h3>
               <p class="text-xs text-slate-400 mt-0.5">
-                Produksi yang harus segera dieksekusi hari ini
+                Produksi mendesak hari ini. (Klik baris untuk detail semua data)
               </p>
             </div>
             <span
@@ -129,7 +136,7 @@
                   <th class="py-3 px-2 w-8 text-center">No</th>
                   <th class="py-3 px-2">No. SPK / WO</th>
                   <th class="py-3 px-2">Nama Produk / File</th>
-                  <th class="py-3 px-2 text-right">Qty Kirim</th>
+                  <th class="py-3 px-2 text-right">Sisa Cetak</th>
                   <th class="py-3 px-2 text-center">Sisa Waktu</th>
                 </tr>
               </thead>
@@ -137,7 +144,8 @@
                 <tr
                   v-for="(item, index) in topDeadlineCetak"
                   :key="index"
-                  class="hover:bg-slate-50/50"
+                  class="hover:bg-slate-50/50 cursor-pointer transition-colors"
+                  @click="openDetailModal('deadline')"
                 >
                   <td class="py-3 px-2 text-center font-medium text-slate-400">
                     {{ index + 1 }}
@@ -178,6 +186,7 @@
         </div>
       </div>
 
+      <!-- 2. TABEL PERMINTAAN BAHAN PENDING -->
       <div class="col-span-12 lg:col-span-6">
         <div
           class="rounded-3xl bg-white p-6 shadow-sm border border-slate-100 h-full flex flex-col"
@@ -188,8 +197,8 @@
                 Permintaan Bahan Belum Terealisasi
               </h3>
               <p class="text-xs text-slate-400 mt-0.5">
-                Bon bahan baku pending yang menahan proses cetak (Klik baris
-                untuk melihat total data)
+                Bon pending penahan proses cetak (Klik baris untuk detail semua
+                data)
               </p>
             </div>
             <span
@@ -207,7 +216,7 @@
                 >
                   <th class="py-3 px-2 w-8 text-center">No</th>
                   <th class="py-3 px-2">Bahan / Material</th>
-                  <th class="py-3 px-2 text-center">Divisi Peminta</th>
+                  <th class="py-3 px-2 text-center">Divisi</th>
                   <th class="py-3 px-2 text-right">Qty Diminta</th>
                   <th class="py-3 px-2 text-center">Status</th>
                 </tr>
@@ -217,7 +226,7 @@
                   v-for="(item, index) in permintaanBahanPending"
                   :key="index"
                   class="hover:bg-slate-50/50 cursor-pointer transition-colors"
-                  @click="openDetailModal"
+                  @click="openDetailModal('bahan')"
                 >
                   <td class="py-3 px-2 text-center font-medium text-slate-400">
                     {{ index + 1 }}
@@ -245,17 +254,6 @@
                       ></span>
                       Pending Finance
                     </span>
-
-                    <span
-                      v-else-if="
-                        item.status_permintaan === 'PROGRESS' ||
-                        item.status_permintaan === 'ONPROSES'
-                      "
-                      class="inline-flex items-center gap-1 text-[10px] text-blue-600 bg-blue-50 border border-blue-100 px-2 py-0.5 rounded-full font-medium"
-                    >
-                      Selesai PO
-                    </span>
-
                     <span
                       v-else
                       class="inline-flex items-center gap-1 text-[10px] text-slate-500 bg-slate-50 px-2 py-0.5 rounded-full font-medium"
@@ -276,18 +274,29 @@
       </div>
     </div>
 
+    <!-- MODAL DETAIL POP-UP (DYNAMIC CONDITIONAL) -->
     <div
       v-if="isModalOpen"
       class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm"
       @click.self="closeModal"
     >
       <div
-        class="w-full max-w-4xl bg-white rounded-3xl shadow-xl border border-slate-100 max-h-[85vh] flex flex-col overflow-hidden"
+        class="w-full max-w-5xl bg-white rounded-3xl shadow-xl border border-slate-100 max-h-[85vh] flex flex-col overflow-hidden"
       >
+        <!-- Modal Header -->
         <div
           class="px-6 py-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50"
         >
-          <div>
+          <div v-if="modalType === 'deadline'">
+            <h3 class="text-base font-bold text-slate-800">
+              Seluruh Antrean Cetak Berdasarkan Deadline
+            </h3>
+            <p class="text-xs text-slate-400 mt-0.5">
+              Menampilkan semua data SPK aktif yang masih memiliki sisa cetak
+              produksi
+            </p>
+          </div>
+          <div v-else-if="modalType === 'bahan'">
             <h3 class="text-base font-bold text-slate-800">
               Daftar Total Permintaan Bahan Belum Terealisasi
             </h3>
@@ -304,9 +313,89 @@
           </button>
         </div>
 
+        <!-- Modal Body Content -->
         <div class="p-6 overflow-y-auto flex-1">
-          <div class="overflow-x-auto border border-slate-100 rounded-2xl">
-            <table class="w-full text-left border-collapse text-xs">
+          <!-- Loading State -->
+          <div v-if="isLoadingTotal" class="text-center py-12 text-slate-400">
+            <i class="mdi mdi-refresh animate-spin text-2xl mr-2"></i>
+            <span class="block mt-2 text-sm"
+              >Memuat data lengkap dari server...</span
+            >
+          </div>
+
+          <div
+            v-else
+            class="overflow-x-auto border border-slate-100 rounded-2xl"
+          >
+            <!-- VIEW 1: TABEL DETAIL DEADLINE CETAK -->
+            <table
+              v-if="modalType === 'deadline'"
+              class="w-full text-left border-collapse text-xs"
+            >
+              <thead>
+                <tr
+                  class="bg-slate-50 border-b border-slate-100 text-slate-500 uppercase tracking-wider font-semibold"
+                >
+                  <th class="py-3.5 px-4 w-12 text-center">No</th>
+                  <th class="py-3.5 px-3">No. SPK</th>
+                  <th class="py-3.5 px-3">Nama Produk / File</th>
+                  <th class="py-3.5 px-3 text-right">Qty Order</th>
+                  <th class="py-3.5 px-3 text-right">Sudah Cetak</th>
+                  <th class="py-3.5 px-3 text-right">Sisa Cetak</th>
+                  <th class="py-3.5 px-3 text-center">Tgl Input</th>
+                  <th class="py-3.5 px-4 text-center">Sisa Waktu</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-100 text-slate-600">
+                <tr
+                  v-for="(item, index) in totalModalData"
+                  :key="index"
+                  class="hover:bg-slate-50/50 transition-colors"
+                >
+                  <td
+                    class="py-3.5 px-4 text-center font-medium text-slate-400"
+                  >
+                    {{ index + 1 }}
+                  </td>
+                  <td class="py-3.5 px-3 font-mono font-medium text-slate-700">
+                    {{ item.no_spk }}
+                  </td>
+                  <td class="py-3.5 px-3 font-semibold text-slate-800">
+                    {{ item.nama_produk }}
+                  </td>
+                  <td class="py-3.5 px-3 text-right text-slate-500">
+                    {{ item.qty_order }} {{ item.unit }}
+                  </td>
+                  <td class="py-3.5 px-3 text-right text-green-600 font-medium">
+                    {{ item.sudah_cetak }} {{ item.unit }}
+                  </td>
+                  <td class="py-3.5 px-3 text-right font-bold text-slate-800">
+                    {{ item.qty }} {{ item.unit }}
+                  </td>
+                  <td class="py-3.5 px-3 text-center text-slate-400">
+                    {{ formatDate(item.tanggal_spk) }}
+                  </td>
+                  <td class="py-3.5 px-4 text-center">
+                    <span
+                      :class="[
+                        item.menit_sisa <= 60
+                          ? 'bg-red-100 text-red-700 font-bold'
+                          : 'bg-amber-100 text-amber-700',
+                        'px-2 py-0.5 rounded text-[10px]',
+                      ]"
+                    >
+                      {{ item.sisa_waktu }}
+                    </span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+
+            <!-- VIEW 2: TABEL DETAIL PENDING BAHAN -->
+            <table
+              v-if="modalType === 'bahan'"
+              class="w-full text-left border-collapse text-xs"
+            >
               <thead>
                 <tr
                   class="bg-slate-50 border-b border-slate-100 text-slate-500 uppercase tracking-wider font-semibold"
@@ -322,7 +411,7 @@
               </thead>
               <tbody class="divide-y divide-slate-100 text-slate-600">
                 <tr
-                  v-for="(item, index) in totalPermintaanBahan"
+                  v-for="(item, index) in totalModalData"
                   :key="index"
                   class="hover:bg-slate-50/50 transition-colors"
                 >
@@ -362,29 +451,27 @@
                     </span>
                   </td>
                 </tr>
-                <tr v-if="isLoadingTotal">
-                  <td colspan="7" class="text-center py-8 text-slate-400">
-                    <i class="mdi mdi-refresh animate-spin mr-2"></i> Memuat
-                    seluruh total data...
-                  </td>
-                </tr>
-                <tr v-if="totalPermintaanBahan.length === 0 && !isLoadingTotal">
-                  <td colspan="7" class="text-center py-8 text-slate-400">
-                    Tidak ada data total pending ditemukan.
-                  </td>
-                </tr>
               </tbody>
             </table>
+
+            <!-- Empty Handler -->
+            <div
+              v-if="totalModalData.length === 0 && !isLoadingTotal"
+              class="text-center py-8 text-slate-400"
+            >
+              Tidak ada data ditemukan.
+            </div>
           </div>
         </div>
 
+        <!-- Modal Footer -->
         <div
           class="px-6 py-4 border-t border-slate-100 bg-slate-50/50 flex justify-between items-center text-xs text-slate-400"
         >
           <div>
             Total:
             <span class="font-bold text-slate-700">{{
-              totalPermintaanBahan.length
+              totalModalData.length
             }}</span>
             item data
           </div>
@@ -410,8 +497,9 @@ import api from "@/services/api";
 const ENDPOINT_SUMMARY = "/mmt/laporan-ls-bahan-utama/total-roll";
 const ENDPOINT_FLOW = "/mmt/laporan-ls-bahan-utama/flow-6-bulan";
 const ENDPOINT_DEADLINE = "mmt/dashboard/top-10-deadline";
+const ENDPOINT_DEADLINE_TOTAL = "mmt/dashboard/top-10-deadline-total"; // <--- Endpoint baru Anda di backend
 const ENDPOINT_PENDING_BAHAN = "mmt/dashboard/permintaan-pending";
-const ENDPOINT_PENDING_BAHAN_TOTAL = "mmt/dashboard/permintaan-pending-total"; // Gunakan endpoint tanpa LIMIT untuk modal
+const ENDPOINT_PENDING_BAHAN_TOTAL = "mmt/dashboard/permintaan-pending-total";
 
 /* ================= STATE DASHBOARD ================= */
 const lastUpdate = ref(format(new Date(), "HH:mm:ss"));
@@ -419,10 +507,11 @@ const isLoading = ref(false);
 const topDeadlineCetak = ref([]);
 const permintaanBahanPending = ref([]);
 
-/* ================= STATE MODAL DETAIL ================= */
+/* ================= STATE DYNAMIC MODAL ================= */
 const isModalOpen = ref(false);
 const isLoadingTotal = ref(false);
-const totalPermintaanBahan = ref([]);
+const modalType = ref(""); // Berisi 'deadline' atau 'bahan'
+const totalModalData = ref([]);
 
 const stats = ref([
   {
@@ -464,7 +553,6 @@ let compositionChartInstance = null;
 
 /* ================= API CALLS FUNCTIONS ================= */
 
-// 1. Fetch Summary (Stat Cards)
 const fetchSummary = async () => {
   try {
     const response = await api.get(ENDPOINT_SUMMARY);
@@ -480,7 +568,6 @@ const fetchSummary = async () => {
   }
 };
 
-// 2. Fetch Flow Data & Render Chart
 const fetchFlowData = async () => {
   try {
     const response = await api.get(ENDPOINT_FLOW);
@@ -496,7 +583,6 @@ const fetchFlowData = async () => {
   }
 };
 
-// 3. Fetch Top 10 Antrean Cetak Mepet Deadline
 const fetchDeadlineCetak = async () => {
   try {
     const response = await api.get(ENDPOINT_DEADLINE);
@@ -512,7 +598,6 @@ const fetchDeadlineCetak = async () => {
   }
 };
 
-// 4. Fetch Permintaan Bahan Pending Halaman Depan (Terlimit 15)
 const fetchPermintaanPending = async () => {
   try {
     const response = await api.get(ENDPOINT_PENDING_BAHAN);
@@ -528,32 +613,38 @@ const fetchPermintaanPending = async () => {
   }
 };
 
-// 5. Fetch Keseluruhan Data Tanpa Limit khusus untuk Modal Pop-up
-const openDetailModal = async () => {
+/* ================= CONTROL MASTER MODAL ================= */
+const openDetailModal = async (type) => {
+  modalType.value = type;
   isModalOpen.value = true;
   isLoadingTotal.value = true;
+  totalModalData.value = [];
+
   try {
-    const response = await api.get(ENDPOINT_PENDING_BAHAN_TOTAL);
-    const res = response.data;
-    if (res.success && res.data) {
-      totalPermintaanBahan.value = res.data;
-    } else {
-      totalPermintaanBahan.value = [];
+    let response;
+    if (type === "deadline") {
+      response = await api.get(ENDPOINT_DEADLINE_TOTAL);
+    } else if (type === "bahan") {
+      response = await api.get(ENDPOINT_PENDING_BAHAN_TOTAL);
+    }
+
+    const res = response?.data;
+    if (res && res.success && res.data) {
+      totalModalData.value = res.data;
     }
   } catch (err) {
-    console.error("Gagal mengambil total data pending full:", err);
-    totalPermintaanBahan.value = [];
+    console.error(`Gagal mengambil data modal detail (${type}):`, err);
   } finally {
     isLoadingTotal.value = false;
   }
 };
 
-// Fungsi menutup modal
 const closeModal = () => {
   isModalOpen.value = false;
+  modalType.value = "";
+  totalModalData.value = [];
 };
 
-// Master Refresh Sync Data
 const refreshAllData = async () => {
   isLoading.value = true;
   try {
@@ -646,7 +737,6 @@ const initCompositionChart = () => {
   });
 };
 
-/* ================= LIFECYCLE HOOKS ================= */
 onMounted(async () => {
   await refreshAllData();
   initCompositionChart();
