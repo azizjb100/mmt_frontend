@@ -494,6 +494,166 @@ const handlePrint = () => {
   }
 };
 
+const handleExportHeaderExcel = () => {
+  if (masterData.value.length === 0) {
+    toast.warning("Tidak ada data untuk di-export.");
+    return;
+  }
+
+  loading.value = true;
+  try {
+    const fileName = `Laporan_Header_Permintaan_Bahan_${startDate.value}_to_${endDate.value}.xlsx`;
+
+    // ==========================================
+    // 1. DEFINISI STYLE EXCEL
+    // ==========================================
+    const styleHeaderMain = {
+      fill: { fgColor: { rgb: "C8E6C9" } }, // Hijau muda cerah untuk membedakan dengan laporan detail
+      font: { bold: true, color: { rgb: "000000" }, sz: 10 },
+      alignment: { horizontal: "center", vertical: "center", wrapText: true },
+      border: {
+        top: { style: "thin", color: { rgb: "000000" } },
+        bottom: { style: "thin", color: { rgb: "000000" } },
+        left: { style: "thin", color: { rgb: "000000" } },
+        right: { style: "thin", color: { rgb: "000000" } },
+      },
+    };
+
+    const styleDataCell = {
+      font: { sz: 10 },
+      border: {
+        top: { style: "thin", color: { rgb: "000000" } },
+        bottom: { style: "thin", color: { rgb: "000000" } },
+        left: { style: "thin", color: { rgb: "000000" } },
+        right: { style: "thin", color: { rgb: "000000" } },
+      },
+      alignment: { vertical: "center" },
+    };
+
+    const styleDataCellCenter = {
+      ...styleDataCell,
+      alignment: { horizontal: "center", vertical: "center" },
+    };
+
+    // ==========================================
+    // 2. SUSUN DATA (Array of Arrays / AOA)
+    // ==========================================
+    const wsData = [];
+
+    const formatTanggalIndo = (dateStr: string) => {
+      if (!dateStr) return "";
+      const bulanIndo = [
+        "Januari",
+        "Februari",
+        "Maret",
+        "April",
+        "Mei",
+        "Juni",
+        "Juli",
+        "Agustus",
+        "September",
+        "Oktober",
+        "November",
+        "Desember",
+      ];
+      const [year, month, day] = dateStr.split("-");
+      const indexBulan = parseInt(month, 10) - 1;
+      return `${parseInt(day, 10)} ${bulanIndo[indexBulan]} ${year}`;
+    };
+
+    const periodeStr = `Periode : ${formatTanggalIndo(startDate.value)} s/d ${formatTanggalIndo(endDate.value)}`;
+
+    // Judul Utama
+    wsData.push([
+      {
+        v: "LAPORAN RINGKASAN (HEADER) PERMINTAAN BAHAN",
+        s: { font: { bold: true, sz: 14 } },
+      },
+    ]);
+    wsData.push([{ v: periodeStr, s: { font: { sz: 10 } } }]);
+    wsData.push([]); // Spasi kosong
+
+    // Header Tabel (Hanya kolom Master/Header saja)
+    const tableHeaders = [
+      { v: "NOMOR PERMINTAAN", s: styleHeaderMain },
+      { v: "TANGGAL", s: styleHeaderMain },
+      { v: "GUDANG", s: styleHeaderMain },
+      { v: "NAMA GUDANG", s: styleHeaderMain },
+      { v: "ESTIMASI DATANG", s: styleHeaderMain },
+      { v: "TANGGAL DATANG (REAL)", s: styleHeaderMain },
+      { v: "STATUS PO", s: styleHeaderMain },
+      { v: "STATUS TERIMA", s: styleHeaderMain },
+      { v: "STATUS ACC", s: styleHeaderMain },
+      { v: "KETERANGAN", s: styleHeaderMain },
+    ];
+    wsData.push(tableHeaders);
+
+    // Looping Data (1 baris per 1 transaksi master)
+    masterData.value.forEach((header) => {
+      const formatDataDate = (dStr: string | undefined | null) => {
+        if (!dStr) return "-";
+        if (dStr.includes("-")) {
+          const parts = dStr.split("-");
+          if (parts[0].length === 4)
+            return `${parts[2]}/${parts[1]}/${parts[0]}`;
+          return dStr.replace(/-/g, "/");
+        }
+        return dStr;
+      };
+
+      const row = [
+        { v: header.Nomor, s: styleDataCellCenter },
+        { v: formatDataDate(header.Tanggal), s: styleDataCellCenter },
+        { v: header.Gudang, s: styleDataCellCenter },
+        { v: header.Nama, s: styleDataCell },
+        {
+          v: formatDataDate(header.Estimasi_Kedatangan),
+          s: styleDataCellCenter,
+        },
+        { v: formatDataDate(header.Tanggal_Datang), s: styleDataCellCenter },
+        { v: header.Status_PO, s: styleDataCellCenter },
+        { v: header.Status_Diterima, s: styleDataCellCenter },
+        { v: header.Status_Acc, s: styleDataCellCenter },
+        { v: header.Keterangan || "-", s: styleDataCell },
+      ];
+      wsData.push(row);
+    });
+
+    // ==========================================
+    // 3. GENERATE WORKSHEET & DOWNLOAD
+    // ==========================================
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+
+    // Merge judul atas (Kolom A sampai J)
+    ws["!merges"] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 9 } }];
+
+    // Ukuran Lebar Kolom
+    ws["!cols"] = [
+      { wch: 22 }, // NOMOR PERMINTAAN
+      { wch: 12 }, // TANGGAL
+      { wch: 12 }, // GUDANG
+      { wch: 25 }, // NAMA GUDANG
+      { wch: 18 }, // ESTIMASI DATANG
+      { wch: 22 }, // TANGGAL DATANG
+      { wch: 15 }, // STATUS PO
+      { wch: 15 }, // STATUS TERIMA
+      { wch: 15 }, // STATUS ACC
+      { wch: 30 }, // KETERANGAN
+    ];
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "HeaderPermintaan");
+    XLSX.writeFile(wb, fileName);
+
+    toast.success("Export Header Excel Berhasil!");
+  } catch (error) {
+    console.error("Export Header error:", error);
+    toast.error("Gagal melakukan export header excel.");
+  } finally {
+    loading.value = false;
+  }
+};
+
 const handleExportDetail = () => {
   alert(`TODO: Export Detail transaksi ${selectedNomor.value}`);
 };
@@ -598,10 +758,19 @@ watch([startDate, endDate], fetchData);
       >
         <v-icon start>mdi-printer</v-icon> Cetak
       </v-btn>
+
+      <v-btn
+        size="x-small"
+        color="teal"
+        :disabled="masterData.length === 0"
+        @click="handleExportHeaderExcel"
+      >
+        <v-icon start>mdi-file-excel</v-icon> Export Header
+      </v-btn>
       <v-btn
         size="x-small"
         color="info"
-        :disabled="!isSingleSelected"
+        :disabled="masterData.length === 0"
         @click="handleExportExcel"
       >
         <v-icon start>mdi-download</v-icon> Export Detail
@@ -759,7 +928,6 @@ watch([startDate, endDate], fetchData);
         </v-data-table>
       </div>
     </div>
-    <!-- DIALOG TRACKING PROSES -->
     <v-dialog v-model="dialogTracking.show" max-width="700px">
       <v-card class="rounded-lg">
         <v-toolbar color="purple-darken-2" density="compact">
@@ -777,7 +945,6 @@ watch([startDate, endDate], fetchData);
 
         <v-card-text class="pa-6">
           <v-timeline direction="horizontal" align="start">
-            <!-- Step 1: Input Permintaan (Selalu Done) -->
             <v-timeline-item
               dot-color="grey"
               icon="mdi-file-document-outline"
@@ -792,7 +959,6 @@ watch([startDate, endDate], fetchData);
               </div>
             </v-timeline-item>
 
-            <!-- Step Dinamis berdasarkan TrackingSteps -->
             <v-timeline-item
               v-for="(step, i) in trackingSteps"
               :key="i"

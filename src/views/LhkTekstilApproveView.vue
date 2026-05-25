@@ -46,6 +46,16 @@
       >
         <v-icon start size="14">mdi-printer</v-icon> Slip
       </v-btn>
+
+      <v-btn
+        size="x-small"
+        color="success"
+        :disabled="masterData.length === 0"
+        @click="exportToExcel"
+        :loading="loading.master"
+      >
+        <v-icon start size="14">mdi-file-excel</v-icon> Export Excel
+      </v-btn>
     </template>
 
     <div class="browse-content">
@@ -81,6 +91,7 @@
               color="primary"
               @click="fetchMasterData"
               style="font-size: 11px"
+              :loading="loading.master"
             >
               <v-icon start size="14">mdi-magnify</v-icon> Refresh
             </v-btn>
@@ -191,21 +202,21 @@
 import { ref, reactive, computed, onMounted, watch } from "vue";
 import { useRouter } from "vue-router";
 import { useToast } from "vue-toastification";
-//import Swal from "sweetalert2";
 import PageLayout from "../components/PageLayout.vue";
 import api from "@/services/api";
 import { format, subDays } from "date-fns";
+import * as XLSX from "xlsx-js-style";
 
 const router = useRouter();
 const toast = useToast();
 
 // --- State ---
-const selected = ref([]);
-const expanded = ref([]);
-const masterData = ref([]);
+const selected = ref<any[]>([]);
+const expanded = ref<any[]>([]);
+const masterData = ref<any[]>([]);
 const details = ref<Record<string, any[]>>({});
 const loading = reactive({ master: false });
-const loadingDetails = ref(new Set());
+const loadingDetails = ref<Set<string>>(new Set());
 
 const filters = reactive({
   startDate: format(subDays(new Date(), 30), "yyyy-MM-dd"),
@@ -218,7 +229,7 @@ const masterHeaders = [
   { title: "Tanggal", key: "Tanggal", width: "120px" },
   { title: "Gudang", key: "Nama_Gudang" },
   { title: "Shift", key: "Shift", width: "80px" },
-  { title: "Cetak (m)", key: "total_meter", align: "end" },
+  { title: "Cetak (m)", key: "total_meter", align: "end" as const },
 ];
 
 const detailHeaders = [
@@ -226,7 +237,7 @@ const detailHeaders = [
   { title: "SPK", key: "Nomor_SPK" },
   { title: "Nama SPK", key: "Nama_SPK" },
   { title: "Ukuran", key: "Ukuran" },
-  { title: "Jml Cetak", key: "Jml_Cetak", align: "end" },
+  { title: "Jml Cetak", key: "Jml_Cetak", align: "end" as const },
   { title: "Bahan", key: "Nama" },
   { title: "Warna (CMYK)", key: "Warna", sortable: false },
 ];
@@ -235,16 +246,14 @@ const detailHeaders = [
 const isSingleSelected = computed(() => selected.value.length === 1);
 const selectedItem = computed(() => selected.value[0]);
 
-// --- Methods (Delphi Logics) ---
-
+// --- Methods ---
 const fetchMasterData = async () => {
   loading.master = true;
   try {
-    // Implementasi btnRefreshClick
     const response = await api.get("/mmt/lhk-tekstil-mmt/approval-list", {
       params: filters,
     });
-    masterData.value = response.data;
+    masterData.value = response.data || [];
   } catch (error) {
     toast.error("Gagal mengambil data master");
   } finally {
@@ -252,22 +261,18 @@ const fetchMasterData = async () => {
   }
 };
 
-// Logika SQLDetail saat baris di-expand
-// Perbaikan watch expanded di Frontend
 watch(expanded, async (newVal) => {
-  const lastExpanded = newVal[newVal.length - 1]; // Ini adalah nomor approval (ID baris)
+  const lastExpanded: any = newVal[newVal.length - 1];
 
   if (lastExpanded && !details.value[lastExpanded]) {
     loadingDetails.value.add(lastExpanded);
     try {
-      // Pastikan URL mengarah ke endpoint approval/:nomor
       const res = await api.get(`mmt/lhk-tekstil-mmt/approval/${lastExpanded}`);
-
-      // Sesuai dengan backend: res.data.success dan res.data.data.details
       if (res.data.success && res.data.data) {
-        details.value[lastExpanded] = res.data.data.details;
+        details.value[lastExpanded] = res.data.data.details || [];
       } else {
-        toast.error("Format data tidak sesuai");
+        // Fallback jika API mengembalikan langsung array data
+        details.value[lastExpanded] = res.data.details || res.data || [];
       }
     } catch (e) {
       console.error("Detail error:", e);
@@ -279,16 +284,19 @@ watch(expanded, async (newVal) => {
 });
 
 const handleRowClick = (event: any, { item }: any) => {
-  selected.value = [item.Nomor];
+  const isAlreadySelected = selected.value.some((s: any) => s === item.Nomor);
+  if (isAlreadySelected) {
+    selected.value = [];
+  } else {
+    selected.value = [item.Nomor];
+  }
 };
 
 const handleCreate = () => {
-  // cxButton2Click logic
   router.push({ name: "RekapTekstilMMT" });
 };
 
 const handleEdit = () => {
-  // cxButton1Click logic
   if (!selectedItem.value) return;
   router.push({
     name: "RekapTekstilMMTEdit",
@@ -297,7 +305,6 @@ const handleEdit = () => {
 };
 
 const handleBahan = () => {
-  // cxButton5Click logic
   if (!selectedItem.value) return;
   router.push({
     name: "LhkTekstilBahan",
@@ -306,19 +313,8 @@ const handleBahan = () => {
 };
 
 const handleDelete = async () => {
-  // cxButton4Click logic
   if (!selectedItem.value) return;
-
-  const result = await Swal.fire({
-    title: "Yakin ingin hapus?",
-    text: `Nomor: ${selectedItem.value}`,
-    icon: "warning",
-    showCancelButton: true,
-    confirmButtonText: "Ya, Hapus!",
-    cancelButtonText: "Batal",
-  });
-
-  if (result.isConfirmed) {
+  if (confirm(`Yakin ingin menghapus LHK nomor ${selectedItem.value}?`)) {
     try {
       await api.delete(`/lhk-tekstil-mmt/${selectedItem.value}`);
       toast.success("Berhasil dihapus.");
@@ -330,9 +326,199 @@ const handleDelete = async () => {
 };
 
 const handlePrint = () => {
-  // cxButton3Click logic (doslip)
+  if (!selectedItem.value) return;
   toast.info(`Mencetak slip untuk ${selectedItem.value}...`);
   window.open(`/api/report/lhk-slip/${selectedItem.value}`, "_blank");
+};
+
+// --- Fungsi Export Excel ---
+const exportToExcel = async () => {
+  loading.master = true;
+  try {
+    // 1. Ambil otomatis detail untuk baris approval yang belum di-expand
+    for (const header of masterData.value) {
+      if (
+        !details.value[header.Nomor] ||
+        details.value[header.Nomor].length === 0
+      ) {
+        try {
+          const res = await api.get(
+            `mmt/lhk-tekstil-mmt/approval/${header.Nomor}`,
+          );
+          if (res.data.success && res.data.data) {
+            details.value[header.Nomor] = res.data.data.details || [];
+          } else {
+            details.value[header.Nomor] = res.data.details || res.data || [];
+          }
+        } catch (e) {
+          console.error(`Gagal pre-fetch detail approval ${header.Nomor}:`, e);
+          details.value[header.Nomor] = [];
+        }
+      }
+    }
+
+    const fileName = `LHK_Approval_Tekstil_${filters.startDate}_to_${filters.endDate}.xlsx`;
+
+    // Style Definition
+    const styleHeaderMain = {
+      fill: { fgColor: { rgb: "B3E5FC" } },
+      font: { bold: true, color: { rgb: "000000" }, sz: 10 },
+      alignment: { horizontal: "center", vertical: "center", wrapText: true },
+      border: {
+        top: { style: "thin", color: { rgb: "000000" } },
+        bottom: { style: "thin", color: { rgb: "000000" } },
+        left: { style: "thin", color: { rgb: "000000" } },
+        right: { style: "thin", color: { rgb: "000000" } },
+      },
+    };
+
+    const styleDataCell = {
+      font: { sz: 10 },
+      border: {
+        top: { style: "thin", color: { rgb: "000000" } },
+        bottom: { style: "thin", color: { rgb: "000000" } },
+        left: { style: "thin", color: { rgb: "000000" } },
+        right: { style: "thin", color: { rgb: "000000" } },
+      },
+      alignment: { vertical: "center" },
+    };
+
+    const styleDataCellCenter = {
+      ...styleDataCell,
+      alignment: { horizontal: "center", vertical: "center" },
+    };
+
+    const styleDataCellRight = {
+      ...styleDataCell,
+      alignment: { horizontal: "right", vertical: "center" },
+    };
+
+    // Format Tanggal Manual Lokal Anti-Crash
+    const formatTglManual = (dateStr: string) => {
+      if (!dateStr) return "-";
+      try {
+        if (dateStr.includes("-")) {
+          const parts = dateStr.split("T")[0].split("-");
+          if (parts.length === 3) {
+            return `${parts[2]}/${parts[1]}/${parts[0]}`;
+          }
+        }
+        return dateStr;
+      } catch {
+        return dateStr;
+      }
+    };
+
+    const worksheetData = [];
+    worksheetData.push([
+      {
+        v: "DAFTAR APPROVAL HASIL KERJA TEKSTIL MMT",
+        s: { font: { bold: true, sz: 14 } },
+      },
+    ]);
+    worksheetData.push([
+      {
+        v: `Periode : ${formatTglManual(filters.startDate)} s/d ${formatTglManual(filters.endDate)}`,
+        s: { font: { sz: 10 } },
+      },
+    ]);
+    worksheetData.push([]);
+
+    // Headers Kolom Excel
+    const headers = [
+      { v: "NOMOR APPROVAL", s: styleHeaderMain },
+      { v: "TANGGAL", s: styleHeaderMain },
+      { v: "NAMA GUDANG", s: styleHeaderMain },
+      { v: "SHIFT", s: styleHeaderMain },
+      { v: "TOTAL METER (MASTER)", s: styleHeaderMain },
+      { v: "MESIN", s: styleHeaderMain },
+      { v: "NOMOR SPK", s: styleHeaderMain },
+      { v: "NAMA SPK / ORDER", s: styleHeaderMain },
+      { v: "UKURAN (PxL)", s: styleHeaderMain },
+      { v: "QTY CETAK DETAIL", s: styleHeaderMain },
+      { v: "NAMA BAHAN", s: styleHeaderMain },
+    ];
+    worksheetData.push(headers);
+
+    masterData.value.forEach((header: any) => {
+      const targetDetails = details.value[header.Nomor] || [];
+      const tglHeader = formatTglManual(header.Tanggal || "");
+
+      if (targetDetails.length > 0) {
+        targetDetails.forEach((dtl: any, index: number) => {
+          const ukuranText =
+            dtl.Panjang && dtl.Lebar ? `${dtl.Panjang} x ${dtl.Lebar}` : "-";
+
+          const row = [
+            { v: index === 0 ? header.Nomor : "", s: styleDataCellCenter },
+            { v: index === 0 ? tglHeader : "", s: styleDataCellCenter },
+            {
+              v: index === 0 ? header.Nama_Gudang || "-" : "",
+              s: styleDataCell,
+            },
+            {
+              v: index === 0 ? header.Shift || "-" : "",
+              s: styleDataCellCenter,
+            },
+            {
+              v: index === 0 ? Number(header.total_meter || 0) : "",
+              s: styleDataCellRight,
+            },
+
+            // Item Detail
+            { v: dtl.Mesin || "-", s: styleDataCellCenter },
+            { v: dtl.Nomor_SPK || "-", s: styleDataCellCenter },
+            { v: dtl.Nama_SPK || "-", s: styleDataCell },
+            { v: ukuranText, s: styleDataCellCenter },
+            { v: Number(dtl.Jml_Cetak || 0), s: styleDataCellRight },
+            { v: dtl.Nama || "-", s: styleDataCell },
+          ];
+          worksheetData.push(row);
+        });
+      } else {
+        const row = [
+          { v: header.Nomor, s: styleDataCellCenter },
+          { v: tglHeader, s: styleDataCellCenter },
+          { v: header.Nama_Gudang || "-", s: styleDataCell },
+          { v: header.Shift || "-", s: styleDataCellCenter },
+          { v: Number(header.total_meter || 0), s: styleDataCellRight },
+          { v: "-", s: styleDataCellCenter },
+          { v: "-", s: styleDataCellCenter },
+          { v: "Tidak ada data detail pekerjaan", s: styleDataCell },
+          { v: "-", s: styleDataCellCenter },
+          { v: 0, s: styleDataCellRight },
+          { v: "-", s: styleDataCell },
+        ];
+        worksheetData.push(row);
+      }
+    });
+
+    const ws = XLSX.utils.aoa_to_sheet(worksheetData);
+    ws["!merges"] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 10 } }];
+    ws["!cols"] = [
+      { wch: 22 },
+      { wch: 12 },
+      { wch: 20 },
+      { wch: 8 },
+      { wch: 22 },
+      { wch: 10 },
+      { wch: 18 },
+      { wch: 35 },
+      { wch: 15 },
+      { wch: 15 },
+      { wch: 20 },
+    ];
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "LHK_Approval_Tekstil");
+    XLSX.writeFile(wb, fileName);
+    toast.success("Excel Approval berhasil diunduh");
+  } catch (error) {
+    console.error("Export Error:", error);
+    toast.error("Gagal mengekspor data approval ke Excel.");
+  } finally {
+    loading.master = false;
+  }
 };
 
 onMounted(() => {
@@ -341,7 +527,6 @@ onMounted(() => {
 </script>
 
 <style scoped>
-/* Pengaturan global font size 11px untuk area ini */
 .custom-font {
   font-size: 11px !important;
 }
@@ -363,7 +548,7 @@ onMounted(() => {
 /* Tombol (Button) */
 :deep(.v-btn) {
   font-size: 11px !important;
-  text-transform: none; /* Opsional: agar teks tombol tidak kapital semua */
+  text-transform: none;
 }
 
 .main-grid {

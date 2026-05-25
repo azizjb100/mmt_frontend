@@ -385,11 +385,11 @@ const handlePengajuanSelect = async (pengajuan: any) => {
 };
 
 // ✅ TAMBAHAN: Fungsi untuk menarik data terpilih dari Modal MPPB
+// ✅ TAMBAHAN: Fungsi untuk menarik data terpilih dari Modal MPPB + Split Ukuran AxB
 const handleMppbSelect = async (mppb: any) => {
   isSaving.value = true;
   noPengajuan.value = ""; // Bersihkan referensi pengajuan jika memilih MPPB
   try {
-    // Sesuaikan endpoint backend Anda untuk detail MPPB, misalnya: /api/v1/mmt/mppb/:nomor
     const response = await api.get(`/mmt/mppb/${mppb.nomor}`, {
       headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
     });
@@ -397,51 +397,81 @@ const handleMppbSelect = async (mppb: any) => {
     const data = response.data;
     noMppb.value = data.Nomor || mppb.nomor;
 
-    // Sinkronisasi status approval dasar dari MPPB (Mirip logika Delphi)
     const isApproved = data.Approve === "Y" || mppb.approve === "Y";
     formData.accSpv = isApproved ? data.User_Create || "SYSTEM" : "-";
     formData.accManager = "-";
 
     formData.keteranganHeader = `Ref MPPB: ${noMppb.value}. ${data.Keterangan || mppb.keterangan || ""}`;
     formData.kepada = "Purchasing";
-    formData.jenis = "Bahan Baku"; // Default untuk MPPB
+    formData.jenis = "Bahan Baku";
+
+    // ─── FUNGSI HELPER UNTUK SPLIT UKURAN (Panjang x Lebar) ───
+    const parseUkuran = (ukuranStr: string | null | number) => {
+      let panjang = 0;
+      let lebar = 0;
+
+      if (ukuranStr) {
+        const str = String(ukuranStr).toLowerCase().trim();
+        if (str.includes("x")) {
+          const parts = str.split("x");
+          panjang = Number(parts[0]) || 0;
+          lebar = Number(parts[1]) || 0;
+        } else {
+          // Jika tidak ada karakter 'x', masukkan ke panjang sebagai fallback
+          panjang = Number(str) || 0;
+        }
+      }
+      return { panjang, lebar };
+    };
 
     // Isikan data detail
     formData.detail = [];
-    // Jika data.Detail berupa array objek barang dari backend
+
+    // Kasus 1: Jika backend mengembalikan data dalam bentuk Array Detail
     if (Array.isArray(data.Detail)) {
       data.Detail.forEach((item: any) => {
+        // Ambil string ukuran dari item detail atau master
+        const ukuranRaw =
+          item.Lebar || item.mpb_ukuran || data.mpb_ukuran || mppb.ukuran || "";
+        const dimensi = parseUkuran(ukuranRaw);
+
         formData.detail.push({
-          sku: item.Kode || item.mpb_bahan || "",
-          namaBarang: item.Nama_Bahan || item.mpb_nama || "",
-          qty: Number(item.Jumlah || item.mpb_jmlorder || 0),
+          sku: item.Kode || item.mpb_bahan || mppb.bahan || "",
+          namaBarang:
+            item.Nama_Bahan || item.mpb_nama || mppb.nama_produk || "",
+          qty: Number(item.Jumlah || item.mpb_jmlorder || mppb.qty_order || 0),
           satuan: item.Satuan || "MTR",
-          Panjang: Number(item.Panjang || item.mpb_gramasi || 0),
-          Lebar: Number(item.Lebar || item.mpb_ukuran || 0),
-          keterangan: item.Keterangan || item.mpb_ket || "",
+          Panjang: dimensi.panjang, // Hasil split bagian depan
+          Lebar: dimensi.lebar, // Hasil split bagian belakang
+          keterangan: item.Keterangan || item.mpb_ket || mppb.keterangan || "",
           spk: item.Nomor_SPK || data.spk || mppb.spk || "",
           namaSPK: item.Nama_SPK || "",
           isAcc: isApproved,
         });
       });
     } else {
-      // Fallback: Jika backend langsung mengembalikan row master tunggal di lookup
+      // Kasus 2: Fallback jika langsung dari row master tunggal di list lookup
+      const ukuranRaw = data.mpb_ukuran || mppb.ukuran || "";
+      const dimensi = parseUkuran(ukuranRaw);
+
       formData.detail.push({
-        sku: mppb.bahan || "",
-        namaBarang: mppb.nama_produk || "",
-        qty: Number(mppb.qty_order || 0),
+        sku: mppb.bahan || data.mpb_bahan || "",
+        namaBarang: mppb.nama_produk || data.mpb_nama || "",
+        qty: Number(mppb.qty_order || data.mpb_jmlorder || 0),
         satuan: "MTR",
-        Panjang: Number(mppb.gramasi || 0),
-        Lebar: Number(mppb.ukuran || 0),
-        keterangan: mppb.keterangan || "",
-        spk: mppb.spk || "",
+        Panjang: dimensi.panjang, // Hasil split bagian depan
+        Lebar: dimensi.lebar, // Hasil split bagian belakang
+        keterangan: mppb.keterangan || data.Keterangan || "",
+        spk: mppb.spk || data.spk || "",
         namaSPK: "",
         isAcc: isApproved,
       });
     }
 
     addDetail();
-    toast.success(`Berhasil menarik data dari MPPB Nomor ${noMppb.value}`);
+    toast.success(
+      `Berhasil menarik data dari MPPB Nomor ${noMppb.value} dengan konversi ukuran.`,
+    );
   } catch (error: any) {
     console.error("Error tarik MPPB:", error);
     toast.error(error.response?.data?.message || "Gagal menarik data MPPB.");

@@ -2,6 +2,8 @@
 import { ref, computed, onMounted, watch } from "vue";
 import api from "@/services/api";
 import { useRouter } from "vue-router";
+import { useToast } from "vue-toastification";
+import * as XLSX from "xlsx-js-style";
 import { format, subDays } from "date-fns";
 import PageLayout from "../components/PageLayout.vue";
 import QRCode from "qrcode";
@@ -38,6 +40,7 @@ interface PrintItem {
 
 const API_PENERIMAAN_BAHAN = "/mmt/penerimaan-bahan";
 const router = useRouter();
+const toast = useToast();
 
 // --- State ---
 const masterData = ref<PenerimaanBahan[]>([]);
@@ -56,6 +59,8 @@ const endDate = ref(format(new Date(), "yyyy-MM-dd"));
 
 // --- Computed ---
 const isSingleSelected = computed(() => selected.value.length === 1);
+
+const detailExpanded = ref<string[]>([]);
 
 // --- Helpers ---
 const parseCustomDate = (dateString: string) => {
@@ -85,6 +90,40 @@ const parseCustomDate = (dateString: string) => {
   }
 };
 
+const formatTanggalIndo = (dateStr: string) => {
+  if (!dateStr) return "";
+  const bulanIndo = [
+    "Januari",
+    "Februari",
+    "Maret",
+    "April",
+    "Mei",
+    "Juni",
+    "Juli",
+    "Agustus",
+    "September",
+    "Oktober",
+    "November",
+    "Desember",
+  ];
+  try {
+    if (dateStr.includes("-")) {
+      const parts = dateStr.split("-");
+      if (parts[0].length === 4) {
+        // format yyyy-mm-dd
+        const [year, month, day] = parts;
+        return `${parseInt(day, 10)} ${bulanIndo[parseInt(month, 10) - 1]} ${year}`;
+      } else {
+        // format dd-Month-yyyy atau sejenisnya
+        return dateStr.replace(/-/g, " ");
+      }
+    }
+  } catch (e) {
+    return dateStr;
+  }
+  return dateStr;
+};
+
 // --- Headers ---
 const masterHeaders = [
   { title: "Nomor", key: "Nomor", minWidth: "150px", fixed: true },
@@ -111,6 +150,7 @@ const detailHeaders = [
     align: "end" as const,
   },
   { title: "Satuan", key: "Satuan", minWidth: "80px" },
+  { title: "Barcode", key: "data-table-expand", minWidth: "100px" }, // Kolom pemicu expand barcode
 ];
 
 // --- Methods ---
@@ -136,10 +176,264 @@ const handleRowClick = (_event: any, row: any) => {
 const getRowProps = ({ item }: { item: PenerimaanBahan }) => {
   return {
     class: {
-      // Memberikan class 'row-selected' jika Nomor cocok dengan yang ada di array selected
       "row-selected": selected.value.some((s) => s.Nomor === item.Nomor),
     },
   };
+};
+
+const parseBarcodeList = (listBarcode?: string) => {
+  if (!listBarcode) return [];
+  return listBarcode
+    .split(",")
+    .map((b) => b.trim())
+    .filter(Boolean)
+    .map((barcode, index) => ({
+      No: index + 1,
+      Barcode: barcode,
+    }));
+};
+
+// ==========================================
+// EXPORT EXCEL HEADER ONLY
+// ==========================================
+const handleExportHeaderExcel = () => {
+  if (masterData.value.length === 0) {
+    toast.warning("Tidak ada data untuk di-export.");
+    return;
+  }
+
+  loading.value = true;
+  try {
+    const fileName = `Laporan_Header_Penerimaan_Bahan_${startDate.value}_to_${endDate.value}.xlsx`;
+
+    const styleHeaderMain = {
+      fill: { fgColor: { rgb: "C8E6C9" } }, // Hijau Soft
+      font: { bold: true, color: { rgb: "000000" }, sz: 10 },
+      alignment: { horizontal: "center", vertical: "center", wrapText: true },
+      border: {
+        top: { style: "thin", color: { rgb: "000000" } },
+        bottom: { style: "thin", color: { rgb: "000000" } },
+        left: { style: "thin", color: { rgb: "000000" } },
+        right: { style: "thin", color: { rgb: "000000" } },
+      },
+    };
+
+    const styleDataCell = {
+      font: { sz: 10 },
+      border: {
+        top: { style: "thin", color: { rgb: "000000" } },
+        bottom: { style: "thin", color: { rgb: "000000" } },
+        left: { style: "thin", color: { rgb: "000000" } },
+        right: { style: "thin", color: { rgb: "000000" } },
+      },
+      alignment: { vertical: "center" },
+    };
+
+    const styleDataCellCenter = {
+      ...styleDataCell,
+      alignment: { horizontal: "center", vertical: "center" },
+    };
+
+    const wsData = [];
+    const periodeStr = `Periode : ${formatTanggalIndo(startDate.value)} s/d ${formatTanggalIndo(endDate.value)}`;
+
+    wsData.push([
+      {
+        v: "LAPORAN RINGKASAN (HEADER) PENERIMAAN BAHAN",
+        s: { font: { bold: true, sz: 14 } },
+      },
+    ]);
+    wsData.push([{ v: periodeStr, s: { font: { sz: 10 } } }]);
+    wsData.push([]);
+
+    const tableHeaders = [
+      { v: "NOMOR PENERIMAAN", s: styleHeaderMain },
+      { v: "TANGGAL", s: styleHeaderMain },
+      { v: "GUDANG", s: styleHeaderMain },
+      { v: "SUPPLIER", s: styleHeaderMain },
+      { v: "NO. PERMINTAAN", s: styleHeaderMain },
+    ];
+    wsData.push(tableHeaders);
+
+    masterData.value.forEach((header) => {
+      wsData.push([
+        { v: header.Nomor, s: styleDataCellCenter },
+        { v: header.Tanggal || "-", s: styleDataCellCenter },
+        { v: header.Gudang, s: styleDataCellCenter },
+        { v: header.Supplier, s: styleDataCell },
+        { v: header.No_permintaan || "-", s: styleDataCellCenter },
+      ]);
+    });
+
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+    ws["!merges"] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 4 } }];
+    ws["!cols"] = [
+      { wch: 22 },
+      { wch: 15 },
+      { wch: 15 },
+      { wch: 30 },
+      { wch: 22 },
+    ];
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "HeaderPenerimaan");
+    XLSX.writeFile(wb, fileName);
+
+    toast.success("Export Header Berhasil!");
+  } catch (error) {
+    console.error(error);
+    toast.error("Gagal melakukan export header.");
+  } finally {
+    loading.value = false;
+  }
+};
+
+// ==========================================
+// EXPORT EXCEL HEADER + DETAIL BARANG
+// ==========================================
+const handleExportDetailExcel = () => {
+  if (masterData.value.length === 0) {
+    toast.warning("Tidak ada data untuk di-export.");
+    return;
+  }
+
+  loading.value = true;
+  try {
+    const fileName = `Laporan_Detail_Penerimaan_Bahan_${startDate.value}_to_${endDate.value}.xlsx`;
+
+    const styleHeaderMain = {
+      fill: { fgColor: { rgb: "B3E5FC" } }, // Biru Muda
+      font: { bold: true, color: { rgb: "000000" }, sz: 10 },
+      alignment: { horizontal: "center", vertical: "center", wrapText: true },
+      border: {
+        top: { style: "thin", color: { rgb: "000000" } },
+        bottom: { style: "thin", color: { rgb: "000000" } },
+        left: { style: "thin", color: { rgb: "000000" } },
+        right: { style: "thin", color: { rgb: "000000" } },
+      },
+    };
+
+    const styleDataCell = {
+      font: { sz: 10 },
+      border: {
+        top: { style: "thin", color: { rgb: "000000" } },
+        bottom: { style: "thin", color: { rgb: "000000" } },
+        left: { style: "thin", color: { rgb: "000000" } },
+        right: { style: "thin", color: { rgb: "000000" } },
+      },
+      alignment: { vertical: "center" },
+    };
+
+    const styleDataCellCenter = {
+      ...styleDataCell,
+      alignment: { horizontal: "center", vertical: "center" },
+    };
+
+    const styleDataCellRight = {
+      ...styleDataCell,
+      alignment: { horizontal: "right", vertical: "center" },
+    };
+
+    const wsData = [];
+    const periodeStr = `Periode : ${formatTanggalIndo(startDate.value)} s/d ${formatTanggalIndo(endDate.value)}`;
+
+    wsData.push([
+      {
+        v: "LAPORAN RINCIAN TRANSAKSI PENERIMAAN BAHAN",
+        s: { font: { bold: true, sz: 14 } },
+      },
+    ]);
+    wsData.push([{ v: periodeStr, s: { font: { sz: 10 } } }]);
+    wsData.push([]);
+
+    const tableHeaders = [
+      { v: "NOMOR PENERIMAAN", s: styleHeaderMain },
+      { v: "TANGGAL", s: styleHeaderMain },
+      { v: "GUDANG", s: styleHeaderMain },
+      { v: "SUPPLIER", s: styleHeaderMain },
+      { v: "NO. PERMINTAAN", s: styleHeaderMain },
+      { v: "KODE BAHAN", s: styleHeaderMain },
+      { v: "NAMA BAHAN", s: styleHeaderMain },
+      { v: "UKURAN (PxL)", s: styleHeaderMain },
+      { v: "JUMLAH PO", s: styleHeaderMain },
+      { v: "JUMLAH TERIMA", s: styleHeaderMain },
+      { v: "SATUAN", s: styleHeaderMain },
+      { v: "RINCIAN BARCODE / SERIAL", s: styleHeaderMain },
+    ];
+    wsData.push(tableHeaders);
+
+    masterData.value.forEach((header) => {
+      if (header.Detail && header.Detail.length > 0) {
+        header.Detail.forEach((dtl, index) => {
+          wsData.push([
+            { v: index === 0 ? header.Nomor : "", s: styleDataCellCenter },
+            {
+              v: index === 0 ? header.Tanggal || "-" : "",
+              s: styleDataCellCenter,
+            },
+            { v: index === 0 ? header.Gudang : "", s: styleDataCellCenter },
+            { v: index === 0 ? header.Supplier : "", s: styleDataCell },
+            {
+              v: index === 0 ? header.No_permintaan || "-" : "",
+              s: styleDataCellCenter,
+            },
+
+            // Item Detail
+            { v: dtl.Kode, s: styleDataCellCenter },
+            { v: dtl.Nama_Bahan, s: styleDataCell },
+            { v: `${dtl.Panjang} x ${dtl.Lebar}`, s: styleDataCellCenter },
+            { v: dtl.Jumlah_PO || 0, s: styleDataCellRight },
+            { v: dtl.Jumlah_Terima || 0, s: styleDataCellRight },
+            { v: dtl.Satuan, s: styleDataCellCenter },
+            { v: dtl.List_Barcode || "-", s: styleDataCell },
+          ]);
+        });
+      } else {
+        wsData.push([
+          { v: header.Nomor, s: styleDataCellCenter },
+          { v: header.Tanggal || "-", s: styleDataCellCenter },
+          { v: header.Gudang, s: styleDataCellCenter },
+          { v: header.Supplier, s: styleDataCell },
+          { v: header.No_permintaan || "-", s: styleDataCellCenter },
+          { v: "-", s: styleDataCellCenter },
+          { v: "Tidak ada detail bahan", s: styleDataCell },
+          { v: "-", s: styleDataCellCenter },
+          { v: 0, s: styleDataCellRight },
+          { v: 0, s: styleDataCellRight },
+          { v: "-", s: styleDataCellCenter },
+          { v: "-", s: styleDataCell },
+        ]);
+      }
+    });
+
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+    ws["!merges"] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 11 } }];
+    ws["!cols"] = [
+      { wch: 22 },
+      { wch: 15 },
+      { wch: 12 },
+      { wch: 25 },
+      { wch: 22 },
+      { wch: 15 },
+      { wch: 30 },
+      { wch: 15 },
+      { wch: 12 },
+      { wch: 12 },
+      { wch: 10 },
+      { wch: 45 },
+    ];
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "DetailPenerimaan");
+    XLSX.writeFile(wb, fileName);
+
+    toast.success("Export Detail Berhasil!");
+  } catch (error) {
+    console.error(error);
+    toast.error("Gagal melakukan export detail.");
+  } finally {
+    loading.value = false;
+  }
 };
 
 const handlePrintQR = async () => {
@@ -180,7 +474,6 @@ const handlePrintQR = async () => {
     }
 
     itemsToPrint.value = tempPrintList;
-    // Otomatis centang semua di awal
     selectedItemsToPrint.value = tempPrintList.map((_, index) => index);
     showQRDialog.value = true;
   } catch (e) {
@@ -193,7 +486,7 @@ const handlePrintQR = async () => {
 const printContent = () => {
   const iframe = document.createElement("iframe");
   iframe.style.position = "fixed";
-  iframe.style.visibility = "hidden"; // Lebih bersih daripada width 0
+  iframe.style.visibility = "hidden";
   document.body.appendChild(iframe);
 
   const doc = iframe.contentWindow?.document;
@@ -257,9 +550,9 @@ const printContent = () => {
             overflow: hidden; 
           }
           .label-box { 
-            width: 67mm; height: 44.5mm; /* Pengurangan 0.5mm untuk safety */
+            width: 67mm; height: 44.5mm;
             position: absolute; left: 50%; transform: translateX(-50%); 
-            line-height: normal; /* Balikkan line height di dalam label */
+            line-height: normal;
           }
           .pos-top { top: 0mm; }
           .pos-bottom { bottom: 0mm; }
@@ -288,21 +581,14 @@ const handlePrintSlip = () => {
     alert("Pilih satu transaksi untuk mencetak slip.");
     return;
   }
-
-  // Mengambil nomor dari baris yang dipilih
   const nomor = selected.value[0].Nomor;
-
-  // Membuka tab baru yang berisi tampilan Surat Jalan / Tanda Terima
-  // Pastikan rute "PenerimaanBahanPrint" sudah ada di router Anda
   try {
     const url = router.resolve({
       name: "PenerimaanBahanPrint",
       params: { nomor: nomor },
     }).href;
-
     window.open(url, "_blank");
   } catch (e) {
-    // Jika rute belum ada, bisa gunakan URL manual
     window.open(`/print/penerimaan-bahan/${nomor}`, "_blank");
   }
 };
@@ -338,6 +624,23 @@ watch([startDate, endDate], fetchData);
         :loading="loading"
       >
         <v-icon start>mdi-qrcode</v-icon> Cetak QR Item
+      </v-btn>
+
+      <v-btn
+        size="x-small"
+        color="teal"
+        :disabled="masterData.length === 0"
+        @click="handleExportHeaderExcel"
+      >
+        <v-icon start>mdi-file-excel</v-icon> Export Header
+      </v-btn>
+      <v-btn
+        size="x-small"
+        color="info"
+        :disabled="masterData.length === 0"
+        @click="handleExportDetailExcel"
+      >
+        <v-icon start>mdi-download</v-icon> Export Detail
       </v-btn>
     </template>
 
@@ -404,14 +707,58 @@ watch([startDate, endDate], fetchData);
           <template #expanded-row="{ columns, item }">
             <tr>
               <td :colspan="columns.length" class="pa-0 border-0">
-                <div class="detail-container">
+                <div class="detail-container pa-4">
                   <v-data-table
+                    v-model:expanded="detailExpanded"
                     :headers="detailHeaders"
                     :items="item.Detail || []"
+                    item-value="Kode"
                     density="compact"
                     hide-default-footer
-                    class="border-0"
-                  ></v-data-table>
+                    show-expand
+                    class="elevation-1 bg-white"
+                  >
+                    <template
+                      #expanded-row="{ columns: detailCols, item: detailItem }"
+                    >
+                      <tr>
+                        <td
+                          :colspan="detailCols.length"
+                          class="bg-grey-lighten-4 pa-2"
+                        >
+                          <div
+                            class="barcode-sub-container"
+                            style="max-width: 500px; margin: 0 auto"
+                          >
+                            <div
+                              class="text-subtitle-2 font-weight-bold mb-2 text-indigo"
+                            >
+                              <v-icon size="small" class="mr-1"
+                                >mdi-barcode-scan</v-icon
+                              >
+                              Rincian Barcode (Diterima:
+                              {{ detailItem.Jumlah_Terima }}
+                              {{ detailItem.Satuan }})
+                            </div>
+
+                            <v-data-table
+                              :headers="[
+                                { title: 'No.', key: 'No', width: '60px' },
+                                {
+                                  title: 'Nomor Barcode / Serial',
+                                  key: 'Barcode',
+                                },
+                              ]"
+                              :items="parseBarcodeList(detailItem.List_Barcode)"
+                              density="compact"
+                              hide-default-footer
+                              class="elevation-0 border"
+                            ></v-data-table>
+                          </div>
+                        </td>
+                      </tr>
+                    </template>
+                  </v-data-table>
                 </div>
               </td>
             </tr>
@@ -443,11 +790,9 @@ watch([startDate, endDate], fetchData);
         </v-toolbar>
 
         <v-card-text class="pa-6">
-          <!-- PANEL KONTROL MODERN -->
           <v-card variant="flat" border class="mb-6 d-print-none bg-white">
             <v-card-text>
               <v-row align="center">
-                <!-- Pilihan Printer dengan Toggle Button -->
                 <v-col cols="12" md="4">
                   <div
                     class="text-caption font-weight-bold mb-2 text-uppercase text-grey-darken-1"
@@ -482,7 +827,6 @@ watch([startDate, endDate], fetchData);
                   </v-btn-toggle>
                 </v-col>
 
-                <!-- Input Jumlah Copy -->
                 <v-col cols="12" sm="6" md="3">
                   <v-text-field
                     v-model.number="printCopies"
@@ -496,7 +840,6 @@ watch([startDate, endDate], fetchData);
                   ></v-text-field>
                 </v-col>
 
-                <!-- Input Offset -->
                 <v-col cols="12" sm="6" md="3">
                   <v-text-field
                     v-model.number="emptyLabelsOffset"
@@ -510,7 +853,6 @@ watch([startDate, endDate], fetchData);
                   ></v-text-field>
                 </v-col>
 
-                <!-- Status Info Ringkas -->
                 <v-col cols="12" md="2" class="text-right">
                   <v-chip color="info" size="small" variant="flat">
                     Total: {{ selectedItemsToPrint.length * printCopies }} Label
@@ -520,7 +862,6 @@ watch([startDate, endDate], fetchData);
             </v-card-text>
           </v-card>
 
-          <!-- GRID PREVIEW -->
           <div class="print-wrapper preview-grid">
             <div
               v-for="(item, index) in itemsToPrint"
@@ -530,7 +871,6 @@ watch([startDate, endDate], fetchData);
                 'label-disabled': !selectedItemsToPrint.includes(index),
               }"
             >
-              <!-- Area Checkbox di atas kartu -->
               <div class="label-checkbox-wrapper">
                 <v-checkbox
                   v-model="selectedItemsToPrint"
@@ -545,7 +885,6 @@ watch([startDate, endDate], fetchData);
                 </v-checkbox>
               </div>
 
-              <!-- Kotak Label Fisik -->
               <div class="label-box elevation-3">
                 <div class="border-inner">
                   <div class="top-row">
@@ -581,29 +920,37 @@ watch([startDate, endDate], fetchData);
   font-size: 11px !important;
 }
 
-/* 2. Atur Header Tabel (Master & Detail) */
 :deep(.v-data-table-header th) {
   font-size: 11px !important;
-  height: 32px !important; /* Menyamakan tinggi header agar compact */
+  height: 32px !important;
   font-weight: bold !important;
 }
 
-/* 3. Atur Baris Tabel (Master & Detail) */
 :deep(.v-data-table td) {
   font-size: 11px !important;
-  height: 32px !important; /* Menyamakan tinggi baris agar seragam */
+  height: 32px !important;
 }
 
-/* 4. Khusus untuk detail container agar tidak ada padding berlebih */
 .detail-container {
-  padding: 0 !important; /* Menghilangkan padding agar header detail menempel */
-  background-color: #f5f5f5;
+  padding: 12px !important;
+  background-color: #f1f5f9;
 }
 
-/* 5. Hilangkan shadow atau border double jika diperlukan */
 .detail-container :deep(.v-table) {
   background-color: transparent !important;
 }
+
+.barcode-sub-container {
+  background: #ffffff;
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+}
+
+.bg-grey-lighten-4 {
+  background-color: #f8fafc !important;
+}
+
 .label-card {
   display: flex;
   flex-direction: column;
@@ -622,14 +969,12 @@ watch([startDate, endDate], fetchData);
   justify-content: center;
 }
 
-/* Menggelapkan label yang tidak dipilih */
 .label-disabled {
   opacity: 0.4;
   filter: grayscale(1);
   transform: scale(0.95);
 }
 
-/* Ukuran Label Fisik di Layar (disesuaikan agar pas di grid) */
 .label-box {
   width: 67mm;
   height: 45mm;
@@ -637,7 +982,7 @@ watch([startDate, endDate], fetchData);
   padding: 1mm;
   box-sizing: border-box;
   cursor: pointer;
-  border-radius: 4px; /* Sedikit lengkung di preview agar manis */
+  border-radius: 4px;
 }
 
 .border-inner {
@@ -691,46 +1036,35 @@ watch([startDate, endDate], fetchData);
   text-transform: uppercase;
 }
 
-/* Mematikan hover effect pada checkbox Vuetify agar bersih */
 :deep(.v-selection-control) {
   min-height: auto !important;
 }
 
 .custom-table :deep(thead th) {
-  font-size: 0.875rem !important; /* Ukuran standar Vuetify compact */
-  font-weight: 600 !important; /* Agar header tetap terlihat tegas */
+  font-size: 0.875rem !important;
+  font-weight: 600 !important;
 }
 
 .custom-table :deep(tbody td) {
   font-size: 0.875rem !important;
 }
 
-/* Menghilangkan border putih/abu tipis di sekeliling container detail */
-.detail-container {
-  background-color: #f9f9f9; /* Memberi warna beda tipis agar kontras */
-  border-top: 1px solid rgba(0, 0, 0, 0.12);
-}
-
-/* Opsional: Jika ingin teks di dalam input/field pencarian juga sama */
 .custom-table :deep(.v-data-table-header__content) {
   justify-content: start !important;
 }
 
 :deep(.row-selected) {
-  background-color: #d8efff !important; /* Biru muda */
+  background-color: #d8efff !important;
 }
 
-/* Pastikan kolom yang fixed (Nomor) juga berubah warnanya */
 :deep(.row-selected td) {
   background-color: #d8efff !important;
 }
 
-/* Efek hover khusus baris yang sedang dipilih agar tidak kembali putih */
 :deep(.v-data-table__tr.row-selected:hover > td) {
   background-color: #c0e4ff !important;
 }
 
-/* Mengubah kursor agar user tahu baris bisa diklik */
 :deep(.v-data-table__tr) {
   cursor: pointer;
 }

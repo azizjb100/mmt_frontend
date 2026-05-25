@@ -468,100 +468,289 @@ const resizeTable = (tableSelector: string) => {
 const exportToExcel = async () => {
   loading.value.headers = true;
   try {
-    const payload = {
-      startDate: filters.startDate,
-      endDate: filters.endDate,
-      // Jika di LHK Mesin tidak ada filter mesin multi, hapus baris di bawah
-      mesin: filters.mesin?.length > 0 ? filters.mesin.join(",") : undefined,
-    };
-
-    // Panggil endpoint yang sesuai dengan routes backend tadi
-    const res = await api.get(`${API_BASE_URL}/report/export-detail`, {
-      params: payload,
-    });
-    const rawData = res.data?.data || []; // Ambil data dari properti 'data' (karena controller kirim {success, data})
-
-    if (rawData.length === 0) {
-      toast.warning("Tidak ada data untuk diekspor");
-      return;
+    // 1. Pre-fetch detail data jika belum ter-load
+    for (const header of masterData.value) {
+      if (
+        !details.value[header.Nomor] ||
+        details.value[header.Nomor].length === 0
+      ) {
+        try {
+          const res = await api.get(`${API_BASE_URL}/details`, {
+            params: { nomor: header.Nomor },
+          });
+          if (res.data && res.data.details) {
+            details.value[header.Nomor] = res.data.details;
+          } else {
+            details.value[header.Nomor] = res.data || [];
+          }
+        } catch (e) {
+          console.error(`Gagal pre-fetch detail nomor ${header.Nomor}:`, e);
+          details.value[header.Nomor] = [];
+        }
+      }
     }
 
-    const worksheetData = [];
-    worksheetData.push(["Laporan Hasil Kerja Mesin Cetak MMT"]);
-    worksheetData.push([
-      `Periode : ${filters.startDate} s.d ${filters.endDate}`,
-    ]);
-    worksheetData.push([]); // Space kosong
+    const fileName = `LHK_Mesin_MMT_${filters.startDate}_to_${filters.endDate}.xlsx`;
 
-    // Header (Sesuai gambar yang diinginkan)
+    // 2. Styling Definition (Gaya Penerimaan Bahan)
+    const styleHeaderMain = {
+      fill: { fgColor: { rgb: "B3E5FC" } }, // Biru Muda
+      font: { bold: true, color: { rgb: "000000" }, sz: 10 },
+      alignment: { horizontal: "center", vertical: "center", wrapText: true },
+      border: {
+        top: { style: "thin", color: { rgb: "000000" } },
+        bottom: { style: "thin", color: { rgb: "000000" } },
+        left: { style: "thin", color: { rgb: "000000" } },
+        right: { style: "thin", color: { rgb: "000000" } },
+      },
+    };
+
+    const styleDataCell = {
+      font: { sz: 10 },
+      border: {
+        top: { style: "thin", color: { rgb: "000000" } },
+        bottom: { style: "thin", color: { rgb: "000000" } },
+        left: { style: "thin", color: { rgb: "000000" } },
+        right: { style: "thin", color: { rgb: "000000" } },
+      },
+      alignment: { vertical: "center" },
+    };
+
+    const styleDataCellCenter = {
+      ...styleDataCell,
+      alignment: { horizontal: "center", vertical: "center" },
+    };
+
+    const styleDataCellRight = {
+      ...styleDataCell,
+      alignment: { horizontal: "right", vertical: "center" },
+    };
+
+    const formatTanggalIndo = (dateStr: string) => {
+      if (!dateStr) return "";
+      const bulanIndo = [
+        "Januari",
+        "Februari",
+        "Maret",
+        "April",
+        "Mei",
+        "Juni",
+        "Juli",
+        "Agustus",
+        "September",
+        "Oktober",
+        "November",
+        "Desember",
+      ];
+      try {
+        const [year, month, day] = dateStr.split("-");
+        return `${parseInt(day, 10)} ${bulanIndo[parseInt(month, 10) - 1]} ${year}`;
+      } catch {
+        return dateStr;
+      }
+    };
+
+    const worksheetData = [];
+    worksheetData.push([
+      {
+        v: "LAPORAN HASIL KERJA MESIN CETAK MMT",
+        s: { font: { bold: true, sz: 14 } },
+      },
+    ]);
+    worksheetData.push([
+      {
+        v: `Periode : ${formatTanggalIndo(filters.startDate)} s/d ${formatTanggalIndo(filters.endDate)}`,
+        s: { font: { sz: 10 } },
+      },
+    ]);
+    worksheetData.push([]);
+
+    // Header Kolom Baru disesuaikan eksak seperti gambar browse aplikasi
     const headers = [
-      "Tanggal",
-      "Shift",
-      "cetak_meter",
-      "Mesin",
-      "Nomor_SPK",
-      "Nama_SPK",
-      "Panjang",
-      "Lebar",
-      "Jml_Order",
-      "Jml_Cetak",
+      { v: "NOMOR LHK", s: styleHeaderMain },
+      { v: "SHIFT", s: styleHeaderMain },
+      { v: "TANGGAL", s: styleHeaderMain },
+      { v: "MESIN", s: styleHeaderMain },
+      { v: "NOMOR SPK", s: styleHeaderMain },
+      { v: "NAMA SPK", s: styleHeaderMain },
+      { v: "PANJANG", s: styleHeaderMain },
+      { v: "LEBAR", s: styleHeaderMain },
+      { v: "JML ORDER", s: styleHeaderMain },
+      { v: "JML CETAK", s: styleHeaderMain },
+      { v: "BAHAN AWAL", s: styleHeaderMain },
+      { v: "SISA", s: styleHeaderMain },
+      { v: "STATUS BAHAN", s: styleHeaderMain },
+      { v: "KODE BAHAN", s: styleHeaderMain },
+      { v: "NAMA BAHAN", s: styleHeaderMain },
+      { v: "CETAK 1", s: styleHeaderMain },
+      { v: "CETAK 2", s: styleHeaderMain },
+      { v: "CETAK 3", s: styleHeaderMain },
+      { v: "CETAK 4", s: styleHeaderMain },
+      { v: "CETAK 5", s: styleHeaderMain },
+      { v: "TOTAL DETAIL", s: styleHeaderMain },
     ];
     worksheetData.push(headers);
 
-    // LOGIKA GROUPING (Agar baris tanggal/shift tidak duplikat ke bawah)
-    const grouped = rawData.reduce((acc, item) => {
-      if (!acc[item.Nomor_LHK]) {
-        acc[item.Nomor_LHK] = {
-          items: [],
-          totalM2: 0,
-          tanggal: item.Tanggal,
-          shift: item.Shift_LHK,
-        };
-      }
-      acc[item.Nomor_LHK].items.push(item);
-      acc[item.Nomor_LHK].totalM2 += Number(item.m2_cetak || 0);
-      return acc;
-    }, {});
+    // Iterasi Data & Pemetaan Baris dengan Akurasi Properti Fleksibel Fallback
+    masterData.value.forEach((header) => {
+      const targetDetails = details.value[header.Nomor] || [];
+      const tglHeader = header.Tanggal ? safeFormatDate(header.Tanggal) : "";
 
-    Object.keys(grouped).forEach((nomorLhk) => {
-      const group = grouped[nomorLhk];
-      group.items.forEach((row, index) => {
-        const isFirstRow = index === 0;
-        worksheetData.push([
-          isFirstRow ? group.tanggal : "", // Kolom Tanggal (Kosong jika bukan baris pertama group)
-          isFirstRow ? group.shift : "", // Kolom Shift
-          isFirstRow ? group.totalM2.toFixed(3) : "", // Total m2 per LHK
-          row.Mesin || "",
-          row.Nomor_SPK || "",
-          row.Nama_Order || "",
-          row.Panjang || 0,
-          row.Lebar || 0,
-          0, // Jml_Order (placeholder)
-          row.Qty_Cetak || 0,
-        ]);
-      });
+      // Hitung Teks Status Bahan secara presisi seperti di aplikasi web
+      let statusBahanText = "PAS";
+      const sisaMeter = Number(header.SisaMeterAkhir || 0);
+      if (sisaMeter < 0) {
+        statusBahanText = `SURPLUS ${Math.abs(sisaMeter).toFixed(1)}m`;
+      } else if (sisaMeter > 0) {
+        statusBahanText = `SISA ${sisaMeter.toFixed(1)}m`;
+      }
+
+      if (targetDetails.length > 0) {
+        targetDetails.forEach((dtl, index) => {
+          const row = [
+            // Kolom Master (Hanya muncul di baris pertama grup detail)
+            { v: index === 0 ? header.Nomor : "", s: styleDataCellCenter },
+            {
+              v: index === 0 ? header.Shift || "-" : "",
+              s: styleDataCellCenter,
+            },
+            { v: index === 0 ? tglHeader : "", s: styleDataCellCenter },
+            {
+              v: index === 0 ? header.Mesin || "-" : "",
+              s: styleDataCellCenter,
+            },
+            {
+              v: index === 0 ? header.NomorSPK || header.nomor_spk || "-" : "",
+              s: styleDataCellCenter,
+            },
+            {
+              v: index === 0 ? header.NamaOrder || header.nama_spk || "-" : "",
+              s: styleDataCell,
+            },
+            {
+              v: index === 0 ? Number(header.spk_panjang || 0) : "",
+              s: styleDataCellRight,
+            },
+            {
+              v: index === 0 ? Number(header.spk_lebar || 0) : "",
+              s: styleDataCellRight,
+            },
+            {
+              v: index === 0 ? Number(header.JumlahOrder || 0) : "",
+              s: styleDataCellRight,
+            },
+            {
+              v:
+                index === 0
+                  ? Number(header.TotalCetak || header.cetak_meter || 0)
+                  : "",
+              s: styleDataCellRight,
+            },
+            {
+              v: index === 0 ? Number(header.PanjangBahanAwal || 0) : "",
+              s: styleDataCellRight,
+            },
+            { v: index === 0 ? sisaMeter : "", s: styleDataCellRight },
+            { v: index === 0 ? statusBahanText : "", s: styleDataCellCenter },
+            {
+              v: index === 0 ? header.Kode_bahan || "-" : "",
+              s: styleDataCellCenter,
+            },
+            {
+              v: index === 0 ? header.nama_Bahan || "-" : "",
+              s: styleDataCell,
+            },
+
+            // Kolom Detail (Selalu muncul di setiap baris item detail)
+            {
+              v: dtl.cetak1 !== undefined ? Number(dtl.cetak1) : 0,
+              s: styleDataCellRight,
+            },
+            {
+              v: dtl.cetak2 !== undefined ? Number(dtl.cetak2) : 0,
+              s: styleDataCellRight,
+            },
+            {
+              v: dtl.cetak3 !== undefined ? Number(dtl.cetak3) : 0,
+              s: styleDataCellRight,
+            },
+            {
+              v: dtl.cetak4 !== undefined ? Number(dtl.cetak4) : 0,
+              s: styleDataCellRight,
+            },
+            {
+              v: dtl.cetak5 !== undefined ? Number(dtl.cetak5) : 0,
+              s: styleDataCellRight,
+            },
+            {
+              v: Number(dtl.totalcetak || dtl.TotalCetak || dtl.Qty_Cetak || 0),
+              s: styleDataCellRight,
+            },
+          ];
+          worksheetData.push(row);
+        });
+      } else {
+        // Fallback jika tidak ada data detail sama sekali
+        const row = [
+          { v: header.Nomor, s: styleDataCellCenter },
+          { v: header.Shift || "-", s: styleDataCellCenter },
+          { v: tglHeader, s: styleDataCellCenter },
+          { v: header.Mesin || "-", s: styleDataCellCenter },
+          { v: header.NomorSPK || "-", s: styleDataCellCenter },
+          { v: header.NamaOrder || "-", s: styleDataCell },
+          { v: Number(header.spk_panjang || 0), s: styleDataCellRight },
+          { v: Number(header.spk_lebar || 0), s: styleDataCellRight },
+          { v: Number(header.JumlahOrder || 0), s: styleDataCellRight },
+          { v: Number(header.TotalCetak || 0), s: styleDataCellRight },
+          { v: Number(header.PanjangBahanAwal || 0), s: styleDataCellRight },
+          { v: sisaMeter, s: styleDataCellRight },
+          { v: statusBahanText, s: styleDataCellCenter },
+          { v: header.Kode_bahan || "-", s: styleDataCellCenter },
+          { v: header.nama_Bahan || "-", s: styleDataCell },
+          // Nilai detail di-set 0 jika kosong
+          { v: 0, s: styleDataCellRight },
+          { v: 0, s: styleDataCellRight },
+          { v: 0, s: styleDataCellRight },
+          { v: 0, s: styleDataCellRight },
+          { v: 0, s: styleDataCellRight },
+          { v: 0, s: styleDataCellRight },
+        ];
+        worksheetData.push(row);
+      }
     });
 
     const ws = XLSX.utils.aoa_to_sheet(worksheetData);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "LHK_Mesin");
+    ws["!merges"] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 20 } }];
 
-    // Set Width Kolom
+    // Set Lebar Kolom Excel yang Sesuai Panjang Karakter Data
     ws["!cols"] = [
-      { wch: 12 },
+      { wch: 22 },
       { wch: 6 },
-      { wch: 15 },
-      { wch: 10 },
-      { wch: 20 },
+      { wch: 12 },
+      { wch: 8 },
+      { wch: 18 },
       { wch: 40 },
-      { wch: 8 },
-      { wch: 8 },
       { wch: 10 },
       { wch: 10 },
+      { wch: 12 },
+      { wch: 12 },
+      { wch: 12 },
+      { wch: 10 },
+      { wch: 15 },
+      { wch: 25 },
+      { wch: 30 },
+      { wch: 10 },
+      { wch: 10 },
+      { wch: 10 },
+      { wch: 10 },
+      { wch: 10 },
+      { wch: 15 },
     ];
 
-    XLSX.writeFile(wb, `LHK_Mesin_MMT_${filters.startDate}.xlsx`);
-    toast.success("Excel berhasil diunduh");
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "LHK_Mesin");
+    XLSX.writeFile(wb, fileName);
+    toast.success("Excel berhasil diunduh dengan gaya sinkron!");
   } catch (error) {
     console.error("Export Error:", error);
     toast.error("Gagal mengekspor data.");

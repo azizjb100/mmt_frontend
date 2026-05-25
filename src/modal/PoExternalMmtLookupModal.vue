@@ -126,7 +126,7 @@ const toast = useToast();
 
 // --- State ---
 // Sesuaikan dengan route API yang kita buat sebelumnya
-const API_URL = "/mmt/po-ext-mmt/lookup-bpb";
+const API_URL = "/mmt/po-external-mmt/lookup-bpb";
 const poList = ref<PoHeader[]>([]);
 const searchTerm = ref("");
 const loading = ref(false);

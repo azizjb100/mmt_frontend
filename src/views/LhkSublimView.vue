@@ -5,12 +5,10 @@
     class="custom-font"
   >
     <template #header-actions>
-      <!-- Tambah Baru -->
       <v-btn size="x-small" color="primary" @click="handleCreate">
         <v-icon start size="14">mdi-plus</v-icon> Baru
       </v-btn>
 
-      <!-- Ubah -->
       <v-btn
         size="x-small"
         color="warning"
@@ -20,7 +18,6 @@
         <v-icon start size="14">mdi-pencil</v-icon> Ubah
       </v-btn>
 
-      <!-- Input Bahan -->
       <v-btn
         size="x-small"
         color="secondary"
@@ -32,7 +29,6 @@
 
       <v-divider vertical class="mx-2" />
 
-      <!-- Hapus -->
       <v-btn
         size="x-small"
         color="error"
@@ -42,7 +38,6 @@
         <v-icon start size="14">mdi-delete</v-icon> Hapus
       </v-btn>
 
-      <!-- Cetak Slip -->
       <v-btn
         size="x-small"
         color="info"
@@ -51,10 +46,19 @@
       >
         <v-icon start size="14">mdi-printer</v-icon> Slip
       </v-btn>
+
+      <v-btn
+        size="x-small"
+        color="success"
+        :disabled="masterData.length === 0"
+        @click="exportToExcel"
+        :loading="loading.master"
+      >
+        <v-icon start size="14">mdi-file-excel</v-icon> Export Excel
+      </v-btn>
     </template>
 
     <div class="browse-content">
-      <!-- Filter Section -->
       <v-card flat class="mb-4 border">
         <v-card-text class="pa-3">
           <div class="d-flex align-center flex-wrap ga-4">
@@ -87,13 +91,13 @@
               color="primary"
               @click="fetchMasterData"
               style="font-size: 11px"
+              :loading="loading.master"
             >
               <v-icon start size="14">mdi-magnify</v-icon> Refresh
             </v-btn>
 
             <v-spacer />
 
-            <!-- Legend Status -->
             <div class="d-flex align-center ga-2 italic">
               <v-icon color="error" size="14">mdi-alert-circle</v-icon>
               <span class="text-error" style="font-size: 11px"
@@ -104,7 +108,6 @@
         </v-card-text>
       </v-card>
 
-      <!-- Table Master -->
       <v-data-table
         v-model:selected="selected"
         v-model:expanded="expanded"
@@ -120,8 +123,8 @@
         fixed-header
         :row-props="getRowProps"
         @click:row="handleRowClick"
+        @update:expanded="loadDetails"
       >
-        <!-- Custom Drawing untuk Nomor (Warna Merah jika belum lengkap) -->
         <template #[`item.Nomor`]="{ item }">
           <span
             :class="item.Lengkap !== 'Y' ? 'text-error font-weight-bold' : ''"
@@ -130,12 +133,20 @@
           </span>
         </template>
 
-        <!-- Total Meter format -->
         <template #[`item.total_meter`]="{ item }">
           {{ Number(item.total_meter || 0).toFixed(2) }}
         </template>
 
-        <!-- Nested Detail Table -->
+        <template #[`item.Lengkap`]="{ item }">
+          <v-chip
+            size="x-small"
+            :color="item.Lengkap === 'Y' ? 'success' : 'error'"
+            variant="flat"
+          >
+            {{ item.Lengkap === "Y" ? "YA" : "TIDAK" }}
+          </v-chip>
+        </template>
+
         <template #expanded-row="{ columns, item }">
           <tr>
             <td :colspan="columns.length" class="bg-grey-lighten-4 pa-4">
@@ -151,14 +162,15 @@
                   density="compact"
                   hide-default-footer
                   class="custom-table"
+                  :items-per-page="-1"
                 >
-                  <template #[`item.Ukuran`]="{ item }">
-                    {{ item.Panjang }} x {{ item.Lebar }}
+                  <template #[`item.Ukuran`]="{ item: detailItem }">
+                    {{ detailItem.Panjang }} x {{ detailItem.Lebar }}
                   </template>
 
-                  <template #[`item.Jumlah_Meter`]="{ item }">
+                  <template #[`item.Jumlah_Meter`]="{ item: detailItem }">
                     <span class="font-weight-bold">
-                      {{ Number(item.Jumlah_Meter || 0).toFixed(2) }}
+                      {{ Number(detailItem.Jumlah_Meter || 0).toFixed(2) }}
                     </span>
                   </template>
                 </v-data-table>
@@ -178,22 +190,33 @@ import { useToast } from "vue-toastification";
 import Swal from "sweetalert2";
 import PageLayout from "../components/PageLayout.vue";
 import api from "@/services/api";
-import { format, subDays } from "date-fns";
+import * as XLSX from "xlsx-js-style";
 
 const router = useRouter();
 const toast = useToast();
 
 // --- State ---
-const selected = ref([]);
-const expanded = ref([]);
-const masterData = ref([]);
+const selected = ref<any[]>([]);
+const expanded = ref<any[]>([]);
+const masterData = ref<any[]>([]);
 const details = ref<Record<string, any[]>>({});
 const loading = reactive({ master: false });
-const loadingDetails = ref(new Set());
+const loadingDetails = ref<Set<string>>(new Set());
+
+// Mengambil tanggal default secara manual demi performa & anti crash format regional
+const getTodayString = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
+const get30DaysAgoString = () => {
+  const d = new Date();
+  d.setDate(d.getDate() - 30);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
 
 const filters = reactive({
-  startDate: format(subDays(new Date(), 30), "yyyy-MM-dd"), // 30 hari seperti Tekstil
-  endDate: format(new Date(), "yyyy-MM-dd"),
+  startDate: get30DaysAgoString(),
+  endDate: getTodayString(),
 });
 
 // --- Table Headers (Master Sublim) ---
@@ -202,8 +225,13 @@ const masterHeaders = [
   { title: "Tanggal", key: "Tanggal", width: "120px" },
   { title: "Gudang", key: "Nama_Gudang" },
   { title: "Shift", key: "Shift", width: "80px" },
-  { title: "Cetak (m²)", key: "total_meter", align: "end", width: "100px" },
-  { title: "Lengkap", key: "Lengkap", width: "80px", align: "center" },
+  {
+    title: "Cetak (m²)",
+    key: "total_meter",
+    align: "end" as const,
+    width: "100px",
+  },
+  { title: "Lengkap", key: "Lengkap", width: "80px", align: "center" as const },
 ];
 
 // --- Table Headers (Detail Sublim) ---
@@ -213,9 +241,9 @@ const detailHeaders = [
   { title: "Nama SPK", key: "Nama_SPK" },
   { title: "Ukuran", key: "Ukuran", width: "110px" },
   { title: "Bahan", key: "Bahan" },
-  { title: "J. Order", key: "J_Order", align: "end", width: "80px" },
-  { title: "J. Hasil", key: "Jumlah", align: "end", width: "80px" },
-  { title: "Mtr²", key: "Jumlah_Meter", align: "end", width: "90px" },
+  { title: "J. Order", key: "J_Order", align: "end" as const, width: "80px" },
+  { title: "J. Hasil", key: "Jumlah", align: "end" as const, width: "80px" },
+  { title: "Mtr²", key: "Jumlah_Meter", align: "end" as const, width: "90px" },
 ];
 
 // --- Computed ---
@@ -223,12 +251,11 @@ const isSingleSelected = computed(() => selected.value.length === 1);
 const selectedItemNomor = computed(() => selected.value[0]);
 
 // --- Methods ---
-
 const fetchMasterData = async () => {
   loading.master = true;
   try {
     const response = await api.get("/mmt/lhk-sublim", { params: filters });
-    masterData.value = response.data;
+    masterData.value = response.data || [];
   } catch (error) {
     toast.error("Gagal mengambil data master");
   } finally {
@@ -236,21 +263,34 @@ const fetchMasterData = async () => {
   }
 };
 
-// Expand Row Logic
-watch(expanded, async (newVal) => {
-  const lastExpanded = newVal[newVal.length - 1];
-  if (lastExpanded && !details.value[lastExpanded]) {
-    loadingDetails.value.add(lastExpanded);
+// Expand Row Logic (Melalui event Vuetify data table atau watch expanded)
+const loadDetails = async (expandedKeys: any[]) => {
+  if (expandedKeys.length === 0) return;
+  const lastExpanded = expandedKeys[expandedKeys.length - 1];
+  const nomorKey =
+    typeof lastExpanded === "object" ? lastExpanded.Nomor : lastExpanded;
+
+  if (nomorKey && !details.value[nomorKey]) {
+    loadingDetails.value.add(nomorKey);
     try {
-      const res = await api.get(`/mmt/lhk-sublim/detail/${lastExpanded}`);
-      details.value[lastExpanded] = res.data;
+      const res = await api.get(`/mmt/lhk-sublim/detail/${nomorKey}`);
+      details.value[nomorKey] = res.data || [];
     } catch (e) {
       toast.error("Gagal memuat detail");
     } finally {
-      loadingDetails.value.delete(lastExpanded);
+      loadingDetails.value.delete(nomorKey);
     }
   }
-});
+};
+
+// Mengaktifkan load rincian manual sinkron dengan v-data-table update expanded event
+watch(
+  expanded,
+  (newVal) => {
+    loadDetails(newVal);
+  },
+  { deep: true },
+);
 
 const getRowProps = ({ item }: any) => {
   return {
@@ -313,6 +353,223 @@ const handlePrint = () => {
     `/api/report/lhk-sublim-slip/${selectedItemNomor.value}`,
     "_blank",
   );
+};
+
+// --- Fungsi Baru: Export Excel Hasil Kerja Sublim MMT ---
+const exportToExcel = async () => {
+  if (masterData.value.length === 0) {
+    toast.warning("Tidak ada data untuk diekspor");
+    return;
+  }
+
+  loading.master = true;
+  try {
+    // 1. Pre-fetch detail data dari API untuk baris master yang belum terbuka
+    for (const header of masterData.value) {
+      if (
+        !details.value[header.Nomor] ||
+        details.value[header.Nomor].length === 0
+      ) {
+        try {
+          const res = await api.get(`/mmt/lhk-sublim/detail/${header.Nomor}`);
+          details.value[header.Nomor] = res.data || [];
+        } catch (e) {
+          console.error(
+            `Gagal pre-fetch detail sublim nomor ${header.Nomor}:`,
+            e,
+          );
+          details.value[header.Nomor] = [];
+        }
+      }
+    }
+
+    const fileName = `LHK_Sublim_MMT_${filters.startDate}_to_${filters.endDate}.xlsx`;
+
+    // Style Definition
+    const styleHeaderMain = {
+      fill: { fgColor: { rgb: "B3E5FC" } }, // Biru Muda khas Kaosan MMT
+      font: { bold: true, color: { rgb: "000000" }, sz: 10 },
+      alignment: { horizontal: "center", vertical: "center", wrapText: true },
+      border: {
+        top: { style: "thin", color: { rgb: "000000" } },
+        bottom: { style: "thin", color: { rgb: "000000" } },
+        left: { style: "thin", color: { rgb: "000000" } },
+        right: { style: "thin", color: { rgb: "000000" } },
+      },
+    };
+
+    const styleDataCell = {
+      font: { sz: 10 },
+      border: {
+        top: { style: "thin", color: { rgb: "000000" } },
+        bottom: { style: "thin", color: { rgb: "000000" } },
+        left: { style: "thin", color: { rgb: "000000" } },
+        right: { style: "thin", color: { rgb: "000000" } },
+      },
+      alignment: { vertical: "center" },
+    };
+
+    const styleDataCellCenter = {
+      ...styleDataCell,
+      alignment: { horizontal: "center", vertical: "center" },
+    };
+
+    const styleDataCellRight = {
+      ...styleDataCell,
+      alignment: { horizontal: "right", vertical: "center" },
+    };
+
+    // Format Tanggal Manual Lokal Anti-Crash (Bebas dari Bug library Date-fns regional)
+    const formatTglManual = (dateStr: string) => {
+      if (!dateStr) return "-";
+      try {
+        if (dateStr.includes("-")) {
+          const parts = dateStr.split("T")[0].split("-");
+          if (parts.length === 3) {
+            if (parts[0].length === 4) {
+              return `${parts[2]}/${parts[1]}/${parts[0]}`; // yyyy-mm-dd -> dd/mm/yyyy
+            }
+            return `${parts[0]}/${parts[1]}/${parts[2]}`; // dd-mm-yyyy -> dd/mm/yyyy
+          }
+        }
+        return dateStr;
+      } catch {
+        return dateStr;
+      }
+    };
+
+    const worksheetData = [];
+    worksheetData.push([
+      {
+        v: "LAPORAN HASIL KERJA SUBLIM MMT",
+        s: { font: { bold: true, sz: 14 } },
+      },
+    ]);
+    worksheetData.push([
+      {
+        v: `Periode : ${formatTglManual(filters.startDate)} s/d ${formatTglManual(filters.endDate)}`,
+        s: { font: { sz: 10 } },
+      },
+    ]);
+    worksheetData.push([]);
+
+    // Headers Kolom Excel
+    const headersTable = [
+      { v: "NOMOR LHK", s: styleHeaderMain },
+      { v: "TANGGAL", s: styleHeaderMain },
+      { v: "GUDANG", s: styleHeaderMain },
+      { v: "SHIFT", s: styleHeaderMain },
+      { v: "TOTAL (M²)", s: styleHeaderMain },
+      { v: "LENGKAP", s: styleHeaderMain },
+      { v: "NO URUT", s: styleHeaderMain },
+      { v: "NOMOR SPK", s: styleHeaderMain },
+      { v: "NAMA SPK / ORDER", s: styleHeaderMain },
+      { v: "UKURAN (PxL)", s: styleHeaderMain },
+      { v: "BAHAN", s: styleHeaderMain },
+      { v: "JML ORDER", s: styleHeaderMain },
+      { v: "JML HASIL", s: styleHeaderMain },
+      { v: "TOTAL DETAIL (M²)", s: styleHeaderMain },
+    ];
+    worksheetData.push(headersTable);
+
+    masterData.value.forEach((header: any) => {
+      const targetDetails = details.value[header.Nomor] || [];
+      const tglHeader = header.Tanggal ? formatTglManual(header.Tanggal) : "";
+      const statusLengkap = header.Lengkap === "Y" ? "YA" : "TIDAK";
+
+      if (targetDetails.length > 0) {
+        targetDetails.forEach((dtl: any, index: number) => {
+          const ukuranText =
+            dtl.Panjang && dtl.Lebar ? `${dtl.Panjang} x ${dtl.Lebar}` : "-";
+
+          const row = [
+            { v: index === 0 ? header.Nomor : "", s: styleDataCellCenter },
+            { v: index === 0 ? tglHeader : "", s: styleDataCellCenter },
+            {
+              v: index === 0 ? header.Nama_Gudang || "-" : "",
+              s: styleDataCell,
+            },
+            {
+              v: index === 0 ? header.Shift || "-" : "",
+              s: styleDataCellCenter,
+            },
+            {
+              v: index === 0 ? Number(header.total_meter || 0) : "",
+              s: styleDataCellRight,
+            },
+            { v: index === 0 ? statusLengkap : "", s: styleDataCellCenter },
+
+            // Detail Columns
+            { v: dtl.lmsd_no_urut || index + 1, s: styleDataCellCenter },
+            { v: dtl.Nomor_SPK || "-", s: styleDataCellCenter },
+            { v: dtl.Nama_SPK || "-", s: styleDataCell },
+            { v: ukuranText, s: styleDataCellCenter },
+            { v: dtl.Bahan || "-", s: styleDataCell },
+            {
+              v: dtl.J_Order !== undefined ? Number(dtl.J_Order) : 0,
+              s: styleDataCellRight,
+            },
+            {
+              v: dtl.Jumlah !== undefined ? Number(dtl.Jumlah) : 0,
+              s: styleDataCellRight,
+            },
+            {
+              v: dtl.Jumlah_Meter !== undefined ? Number(dtl.Jumlah_Meter) : 0,
+              s: styleDataCellRight,
+            },
+          ];
+          worksheetData.push(row);
+        });
+      } else {
+        const row = [
+          { v: header.Nomor, s: styleDataCellCenter },
+          { v: tglHeader, s: styleDataCellCenter },
+          { v: header.Nama_Gudang || "-", s: styleDataCell },
+          { v: header.Shift || "-", s: styleDataCellCenter },
+          { v: Number(header.total_meter || 0), s: styleDataCellRight },
+          { v: statusLengkap, s: styleDataCellCenter },
+          { v: "-", s: styleDataCellCenter },
+          { v: "-", s: styleDataCellCenter },
+          { v: "Tidak ada data detail pekerjaan sublim", s: styleDataCell },
+          { v: "-", s: styleDataCellCenter },
+          { v: "-", s: styleDataCell },
+          { v: 0, s: styleDataCellRight },
+          { v: 0, s: styleDataCellRight },
+          { v: 0, s: styleDataCellRight },
+        ];
+        worksheetData.push(row);
+      }
+    });
+
+    const ws = XLSX.utils.aoa_to_sheet(worksheetData);
+    ws["!merges"] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 13 } }];
+    ws["!cols"] = [
+      { wch: 22 },
+      { wch: 12 },
+      { wch: 20 },
+      { wch: 8 },
+      { wch: 15 },
+      { wch: 10 },
+      { wch: 8 },
+      { wch: 18 },
+      { wch: 35 },
+      { wch: 15 },
+      { wch: 20 },
+      { wch: 12 },
+      { wch: 12 },
+      { wch: 15 },
+    ];
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "LHK_Sublim");
+    XLSX.writeFile(wb, fileName);
+    toast.success("Excel LHK Sublim berhasil diunduh");
+  } catch (error) {
+    console.error("Export Error:", error);
+    toast.error("Gagal mengekspor data ke Excel.");
+  } finally {
+    loading.master = false;
+  }
 };
 
 onMounted(() => {

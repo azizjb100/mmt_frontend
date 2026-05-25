@@ -7,6 +7,7 @@ import { format, subDays } from "date-fns";
 import PageLayout from "../components/PageLayout.vue";
 import { useAuthStore } from "@/stores/authStore";
 import GudangLookup from "@/modal/GudangLookupView.vue";
+import * as XLSX from "xlsx-js-style";
 
 // --- State ---
 const authStore = useAuthStore();
@@ -37,11 +38,30 @@ const toast = useToast();
 const router = useRouter();
 const API_STBJ = "/mmt/stbj";
 
+// --- Table Headers Config (Disesuaikan Eksak dengan Gambar Nyata) ---
+const masterHeaders = [
+  { title: "Nomor STBJ", key: "Nomor", minWidth: "160px", fixed: true },
+  { title: "Tanggal", key: "Tanggal", minWidth: "120px" },
+  { title: "GudangKode", key: "GudangKode", minWidth: "100px" },
+  { title: "Gudang", key: "Gudang", minWidth: "180px" },
+  { title: "Keterangan", key: "Keterangan", minWidth: "200px" },
+  { title: "User", key: "Usr", minWidth: "100px" },
+  { title: "", key: "data-table-expand", minWidth: "40px" },
+] as any[];
+
+const detailHeaders = [
+  { title: "Nomor SPK", key: "Spk_Nomor", minWidth: "140px" },
+  { title: "Nama", key: "Nama", minWidth: "220px" },
+  { title: "Ukuran", key: "Ukuran", minWidth: "180px" },
+  { title: "Size", key: "Size", align: "center" as const, minWidth: "80px" },
+  { title: "Jumlah", key: "Jumlah", align: "end" as const, minWidth: "90px" },
+  { title: "Koli", key: "Koli", align: "end" as const, minWidth: "80px" },
+  { title: "Keterangan", key: "Keterangan", minWidth: "150px" },
+] as any[];
+
 // --- Fetch Daftar Gudang untuk Dropdown ---
 const fetchGudangOptions = async () => {
   loadingGudang.value = true;
-
-  // FIX: Gunakan user?.divisi (huruf kecil) sesuai hasil console log Anda
   const currentDivisi = user?.divisi;
 
   try {
@@ -52,7 +72,6 @@ const fetchGudangOptions = async () => {
       },
     });
 
-    // Mapping ke format Vuetify Autocomplete
     gudangOptions.value = (response.data.data || []).map((g: any) => ({
       title: `${g.Kode} - ${g.Nama}`,
       value: g.Kode,
@@ -88,7 +107,6 @@ const fetchData = async () => {
 const openLookup = () => (isLookupVisible.value = true);
 
 const onGudangSelected = (gudang: { Kode: string; Nama: string }) => {
-  // Tambahkan ke opsi dropdown jika belum ada agar label muncul benar
   const exists = gudangOptions.value.some((opt) => opt.value === gudang.Kode);
   if (!exists) {
     gudangOptions.value.push({
@@ -96,7 +114,7 @@ const onGudangSelected = (gudang: { Kode: string; Nama: string }) => {
       value: gudang.Kode,
     });
   }
-  filters.gdgKode = gudang.Kode; // Ini akan memicu watcher fetchData
+  filters.gdgKode = gudang.Kode;
   isLookupVisible.value = false;
 };
 
@@ -106,7 +124,6 @@ const handleNew = () => router.push({ name: "StbjNew" });
 const handleEdit = () => {
   if (!selectedItem.value) return;
   const item = selectedItem.value;
-  // Validasi Hak Akses & Penerimaan (Logika Delphi)
   if (user?.CABANG && user.CABANG !== "" && item.Usr !== user.kdUser) {
     toast.warning(`Data milik ${item.Usr}. Anda tidak boleh mengubah.`);
     return;
@@ -170,7 +187,9 @@ const loadDetails = async (newlyExpandedItems: any[]) => {
     const res = await api.get(`${API_STBJ}/browse/detail`, {
       params: { nomor: itemToLoad.Nomor },
     });
-    details.value[itemToLoad.Nomor] = res.data || [];
+
+    // Perbaikan mapping fallback rincian array dari server
+    details.value[itemToLoad.Nomor] = res.data?.data || res.data || [];
   } catch (err) {
     toast.error(`Gagal memuat detail ${itemToLoad.Nomor}`);
   } finally {
@@ -179,6 +198,225 @@ const loadDetails = async (newlyExpandedItems: any[]) => {
 };
 
 const handleRowClick = (_event: any, row: any) => (selected.value = [row.item]);
+
+const getRowProps = (data: any) => {
+  const isSelected = selected.value.some((s) => s.Nomor === data.item.Nomor);
+  return {
+    class: isSelected ? "row-selected" : "",
+  };
+};
+
+// Format Tanggal Manual Lokal Anti-Crash
+const formatTglManual = (dateStr: string) => {
+  if (!dateStr) return "-";
+  try {
+    if (dateStr.includes("-")) {
+      const parts = dateStr.split("T")[0].split("-");
+      if (parts.length === 3) {
+        if (parts[0].length === 4) {
+          return `${parts[2]}/${parts[1]}/${parts[0]}`;
+        }
+        return `${parts[0]}/${parts[1]}/${parts[2]}`;
+      }
+    }
+    return dateStr;
+  } catch {
+    return dateStr;
+  }
+};
+
+// --- Fungsi Export Excel yang Sinkron dengan Gambar Nyata ---
+const exportToExcel = async () => {
+  if (masterData.value.length === 0) {
+    toast.warning("Tidak ada data untuk diekspor");
+    return;
+  }
+
+  loading.value = true;
+  try {
+    // 1. Pre-fetch detail data otomatis dari server jika belum ter-cache
+    for (const header of masterData.value) {
+      if (
+        !details.value[header.Nomor] ||
+        details.value[header.Nomor].length === 0
+      ) {
+        try {
+          const res = await api.get(`${API_STBJ}/browse/detail`, {
+            params: { nomor: header.Nomor },
+          });
+          details.value[header.Nomor] = res.data?.data || res.data || [];
+        } catch (e) {
+          console.error(
+            `Gagal pre-fetch detail STBJ nomor ${header.Nomor}:`,
+            e,
+          );
+          details.value[header.Nomor] = [];
+        }
+      }
+    }
+
+    const fileName = `Laporan_STBJ_${filters.startDate}_to_${filters.endDate}.xlsx`;
+
+    // Style Definition
+    const styleHeaderMain = {
+      fill: { fgColor: { rgb: "B3E5FC" } },
+      font: { bold: true, color: { rgb: "000000" }, sz: 10 },
+      alignment: { horizontal: "center", vertical: "center", wrapText: true },
+      border: {
+        top: { style: "thin", color: { rgb: "000000" } },
+        bottom: { style: "thin", color: { rgb: "000000" } },
+        left: { style: "thin", color: { rgb: "000000" } },
+        right: { style: "thin", color: { rgb: "000000" } },
+      },
+    };
+
+    const styleDataCell = {
+      font: { sz: 10 },
+      border: {
+        top: { style: "thin", color: { rgb: "000000" } },
+        bottom: { style: "thin", color: { rgb: "000000" } },
+        left: { style: "thin", color: { rgb: "000000" } },
+        right: { style: "thin", color: { rgb: "000000" } },
+      },
+      alignment: { vertical: "center" },
+    };
+
+    const styleDataCellCenter = {
+      ...styleDataCell,
+      alignment: { horizontal: "center", vertical: "center" },
+    };
+
+    const styleDataCellRight = {
+      ...styleDataCell,
+      alignment: { horizontal: "right", vertical: "center" },
+    };
+
+    const worksheetData = [];
+    worksheetData.push([
+      {
+        v: "LAPORAN SURAT TANDA BARANG JADI (STBJ)",
+        s: { font: { bold: true, sz: 14 } },
+      },
+    ]);
+    worksheetData.push([
+      {
+        v: `Periode : ${formatTglManual(filters.startDate)} s/d ${formatTglManual(filters.endDate)}`,
+        s: { font: { sz: 10 } },
+      },
+    ]);
+    worksheetData.push([]);
+
+    // Headers Kolom Excel (Disesuaikan Nyata)
+    const headersTable = [
+      { v: "NOMOR STBJ", s: styleHeaderMain },
+      { v: "TANGGAL", s: styleHeaderMain },
+      { v: "GUDANG KODE", s: styleHeaderMain },
+      { v: "GUDANG NAMA", s: styleHeaderMain },
+      { v: "KETERANGAN HEADER", s: styleHeaderMain },
+      { v: "USER CREATED", s: styleHeaderMain },
+      { v: "NOMOR SPK", s: styleHeaderMain },
+      { v: "NAMA SPK / ORDER", s: styleHeaderMain },
+      { v: "UKURAN", s: styleHeaderMain },
+      { v: "SIZE", s: styleHeaderMain },
+      { v: "JUMLAH", s: styleHeaderMain },
+      { v: "KOLI", s: styleHeaderMain },
+      { v: "KETERANGAN DETAIL", s: styleHeaderMain },
+    ];
+    worksheetData.push(headersTable);
+
+    masterData.value.forEach((header) => {
+      const targetDetails = details.value[header.Nomor] || [];
+      const tglHeader = header.Tanggal ? formatTglManual(header.Tanggal) : "";
+
+      if (targetDetails.length > 0) {
+        targetDetails.forEach((dtl, index) => {
+          worksheetData.push([
+            { v: index === 0 ? header.Nomor : "", s: styleDataCellCenter },
+            { v: index === 0 ? tglHeader : "", s: styleDataCellCenter },
+            {
+              v:
+                index === 0
+                  ? header.GudangKode || header.GudangAsal || "-"
+                  : "",
+              s: styleDataCellCenter,
+            },
+            {
+              v: index === 0 ? header.Gudang || header.Nama_Gudang || "-" : "",
+              s: styleDataCell,
+            },
+            { v: index === 0 ? header.Keterangan || "" : "", s: styleDataCell },
+            { v: index === 0 ? header.Usr || "-" : "", s: styleDataCellCenter },
+
+            // Kolom Detail Nyata (Dengan Fallback Robust Camelcase/Snakecase)
+            {
+              v: dtl.Spk_Nomor || dtl.Nomor_SPK || "-",
+              s: styleDataCellCenter,
+            },
+            { v: dtl.Nama || dtl.Nama_SPK || "-", s: styleDataCell },
+            { v: dtl.Ukuran || "-", s: styleDataCellCenter },
+            { v: dtl.Size || "-", s: styleDataCellCenter },
+            {
+              v: dtl.Jumlah !== undefined ? Number(dtl.Jumlah) : 0,
+              s: styleDataCellRight,
+            },
+            {
+              v: dtl.Koli !== undefined ? Number(dtl.Koli) : 0,
+              s: styleDataCellRight,
+            },
+            { v: dtl.Keterangan || "", s: styleDataCell },
+          ]);
+        });
+      } else {
+        worksheetData.push([
+          { v: header.Nomor, s: styleDataCellCenter },
+          { v: tglHeader, s: styleDataCellCenter },
+          {
+            v: header.GudangKode || header.GudangAsal || "-",
+            s: styleDataCellCenter,
+          },
+          { v: header.Gudang || header.Nama_Gudang || "-", s: styleDataCell },
+          { v: header.Keterangan || "", s: styleDataCell },
+          { v: header.Usr || "-", s: styleDataCellCenter },
+          { v: "-", s: styleDataCellCenter },
+          { v: "Tidak ada data rincian pekerjaan", s: styleDataCell },
+          { v: "-", s: styleDataCellCenter },
+          { v: "-", s: styleDataCellCenter },
+          { v: 0, s: styleDataCellRight },
+          { v: 0, s: styleDataCellRight },
+          { v: "", s: styleDataCell },
+        ]);
+      }
+    });
+
+    const ws = XLSX.utils.aoa_to_sheet(worksheetData);
+    ws["!merges"] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 12 } }];
+    ws["!cols"] = [
+      { wch: 22 },
+      { wch: 12 },
+      { wch: 15 },
+      { wch: 25 },
+      { wch: 25 },
+      { wch: 12 },
+      { wch: 18 },
+      { wch: 35 },
+      { wch: 18 },
+      { wch: 10 },
+      { wch: 12 },
+      { wch: 10 },
+      { wch: 20 },
+    ];
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "STBJ");
+    XLSX.writeFile(wb, fileName);
+    toast.success("Excel STBJ berhasil diunduh");
+  } catch (error) {
+    console.error("Export Error:", error);
+    toast.error("Gagal mengekspor data ke Excel.");
+  } finally {
+    loading.value = false;
+  }
+};
 
 // --- Lifecycle & Watchers ---
 onMounted(() => {
@@ -216,6 +454,15 @@ watch(
       <v-btn variant="text" size="x-small" @click="fetchData" :loading="loading"
         ><v-icon>mdi-refresh</v-icon> Refresh</v-btn
       >
+      <v-btn
+        size="x-small"
+        color="success"
+        :disabled="masterData.length === 0"
+        @click="exportToExcel"
+        :loading="loading"
+      >
+        <v-icon start>mdi-file-excel</v-icon> Export Excel
+      </v-btn>
     </template>
 
     <v-card flat class="mb-2">
@@ -277,6 +524,7 @@ watch(
       @click:row="handleRowClick"
       show-select
       select-strategy="single"
+      :row-props="getRowProps"
     >
       <template #item.Nomor="{ item }">
         <v-chip
@@ -287,6 +535,10 @@ watch(
         >
           {{ item.Nomor }}
         </v-chip>
+      </template>
+
+      <template #item.Tanggal="{ item }">
+        {{ formatTglManual(item.Tanggal) }}
       </template>
 
       <template #expanded-row="{ columns, item }">

@@ -451,46 +451,57 @@ onMounted(() => {
                   hide-details
                 />
               </v-col>
-              <v-col cols="2" md="2"
-                ><v-text-field
+              <v-col cols="2" md="2">
+                <v-text-field
                   v-model.number="ink.c"
                   label="C"
                   type="number"
+                  step="any"
                   density="compact"
                   variant="underlined"
                   hide-details
                   color="cyan"
-              /></v-col>
-              <v-col cols="2" md="2"
-                ><v-text-field
+                />
+              </v-col>
+
+              <v-col cols="2" md="2">
+                <v-text-field
                   v-model.number="ink.m"
                   label="M"
                   type="number"
+                  step="any"
                   density="compact"
                   variant="underlined"
                   hide-details
                   color="magenta"
-              /></v-col>
-              <v-col cols="2" md="2"
-                ><v-text-field
+                />
+              </v-col>
+
+              <v-col cols="2" md="2">
+                <v-text-field
                   v-model.number="ink.y"
                   label="Y"
                   type="number"
+                  step="any"
                   density="compact"
                   variant="underlined"
                   hide-details
                   color="amber-darken-2"
-              /></v-col>
-              <v-col cols="2" md="2"
-                ><v-text-field
+                />
+              </v-col>
+
+              <v-col cols="2" md="2">
+                <v-text-field
                   v-model.number="ink.k"
                   label="K"
                   type="number"
+                  step="any"
                   density="compact"
                   variant="underlined"
                   hide-details
                   color="black"
-              /></v-col>
+                />
+              </v-col>
               <v-col cols="1"
                 ><v-btn
                   icon="mdi-delete"

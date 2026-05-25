@@ -105,9 +105,6 @@ onMounted(() => {
     </div>
 
     <div v-if="printData" class="po-page">
-      <div v-if="printData.Header.IsAcc !== 'Y'" class="watermark">
-        DRAFT / BELUM ACC
-      </div>
       <header class="po-header">
         <div class="company-section">
           <h1 class="company-name">CV. KENCANA PRINT</h1>
@@ -185,20 +182,28 @@ onMounted(() => {
       </div>
 
       <div class="summary-area">
-        <div class="notes-section">
-          <div class="notes-header">Notes and Instructions</div>
-          <p>
-            Harga Include PPN {{ printData.Header.PpnRate || "11" }}% <br />
-            Include Pengiriman ke CV. Kencana Print Jeron <br />
-            Pengiriman tgl {{ printData.Header.TglPengiriman || "N/A" }}
-          </p>
-          <p class="delivery-address">
-            **alamat pengiriman di:**<br />
-            {{
-              printData.Header.AlamatPabrik ||
-              "CV Kencana Print Jeron RT01 RW03 Demen, Jeron, Nogosari Boyolali, Jawa Tengah"
-            }}
-          </p>
+        <!-- Menggunakan Wrapper agar Notes dan Watermark terjaga dalam satu kolom kiri -->
+        <div class="notes-section-wrapper">
+          <div class="notes-section">
+            <div class="notes-header">Notes and Instructions</div>
+            <p>
+              Harga Include PPN {{ printData.Header.PpnRate || "11" }}% <br />
+              Include Pengiriman ke CV. Kencana Print Jeron <br />
+              Pengiriman tgl {{ printData.Header.TglPengiriman || "N/A" }}
+            </p>
+            <p class="delivery-address">
+              <strong>alamat pengiriman di:</strong><br />
+              {{
+                printData.Header.AlamatPabrik ||
+                "CV Kencana Print Jeron RT01 RW03 Demen, Jeron, Nogosari Boyolali, Jawa Tengah"
+              }}
+            </p>
+          </div>
+
+          <!-- WATERMARK PINDAH KE SINI: Kecil, Horizontal, Merah Informatif -->
+          <div v-if="printData.Header.IsAcc !== 'Y'" class="watermark">
+            * DRAFT / BELUM DI-ACC OLEH MANAGER *
+          </div>
         </div>
 
         <div class="total-summary-wrapper">
@@ -245,7 +250,7 @@ onMounted(() => {
 }
 
 .po-page {
-  position: relative; /* Penting agar watermark tetap di dalam halaman */
+  position: relative;
   font-family: Arial, sans-serif;
   font-size: 10pt;
   background: white;
@@ -255,36 +260,43 @@ onMounted(() => {
   padding: 10mm 15mm;
   box-sizing: border-box;
   box-shadow: 0 0 8px rgba(0, 0, 0, 0.1);
-  overflow: hidden; /* Mencegah watermark keluar dari batas kertas */
+  overflow: hidden;
 }
 
 /* =================================================================
-   WATERMARK (DIPERBAIKI)
+   WATERMARK BARU (KECIL & HORIZONTAL DI BAWAH NOTES)
    ================================================================= */
+.notes-section-wrapper {
+  width: 60%;
+}
+
+.notes-section {
+  width: 100%;
+}
+
 .watermark {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%) rotate(-45deg);
-
-  /* Ukuran diperkecil agar proporsional */
-  font-size: 45pt;
-  color: rgba(255, 0, 0, 0.12); /* Merah sangat tipis */
+  margin-top: 8px;
+  font-size: 9pt;
+  color: #d32f2f; /* Warna merah tegas agar jelas terbaca */
   font-weight: bold;
-  z-index: 0;
-  pointer-events: none;
-  white-space: nowrap;
+  letter-spacing: 0.5px;
   text-transform: uppercase;
+  font-style: italic;
 
-  /* Border disesuaikan */
-  border: 6px solid rgba(255, 0, 0, 0.12);
-  padding: 10px 30px;
+  /* Reset properti absolut dari versi sebelumnya */
+  position: static;
+  transform: none;
+  border: none;
+  padding: 0;
+  white-space: normal;
+  z-index: auto;
+  pointer-events: auto;
 
   -webkit-print-color-adjust: exact;
   print-color-adjust: exact;
 }
 
-/* Pastikan konten utama tetap di atas watermark */
+/* Pastikan konten utama tetap di atas */
 .po-header,
 .vendor-section,
 .items-table-wrapper,
@@ -392,11 +404,6 @@ onMounted(() => {
   align-items: flex-start;
 }
 
-.notes-section {
-  width: 60%;
-  border: 1px solid black;
-}
-
 .notes-header {
   background-color: #000080;
   color: white;
@@ -485,9 +492,8 @@ onMounted(() => {
   }
 
   .watermark {
-    /* Gunakan warna abu-abu tipis saat print agar tidak boros tinta */
-    color: rgba(150, 150, 150, 0.15) !important;
-    border-color: rgba(150, 150, 150, 0.15) !important;
+    /* Tetap berwarna merah saat dicetak agar draf teridentifikasi jelas */
+    color: #d32f2f !important;
   }
 
   .items-table thead th,

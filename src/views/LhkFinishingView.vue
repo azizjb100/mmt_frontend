@@ -44,11 +44,12 @@
       </v-btn>
       <v-btn
         size="small"
-        color="info"
-        :disabled="!isSingleSelected"
+        color="success"
+        :disabled="headers.length === 0"
         @click="handleExportDetail"
+        :loading="loading.headers"
       >
-        <v-icon start>mdi-download</v-icon> Export Detail
+        <v-icon start>mdi-file-excel</v-icon> Export Detail
       </v-btn>
     </template>
 
@@ -77,7 +78,12 @@
               style="max-width: 150px"
             />
 
-            <v-btn variant="text" size="small" @click="fetchHeaders">
+            <v-btn
+              variant="text"
+              size="small"
+              @click="fetchHeaders"
+              :loading="loading.headers"
+            >
               <v-icon>mdi-refresh</v-icon> Refresh
             </v-btn>
             <v-spacer />
@@ -126,22 +132,30 @@
 
           <template #expanded-row="{ columns, item }">
             <tr>
-              <td :colspan="columns.length">
-                <div class="detail-container pa-2">
+              <td :colspan="columns.length" class="pa-0">
+                <div class="detail-container pa-4 bg-grey-lighten-4">
                   <div class="detail-table-wrapper">
                     <div
                       v-if="isLoadingDetails(item.Nomor)"
-                      class="text-center pa-4 text-caption"
+                      class="text-center pa-4 text-caption text-grey"
                     >
+                      <v-progress-circular
+                        indeterminate
+                        size="20"
+                        color="primary"
+                        class="mr-2"
+                      />
                       Memuat detail...
                     </div>
 
                     <v-data-table
-                      v-else
+                      v-else-if="
+                        details[item.Nomor] && details[item.Nomor].length
+                      "
                       :headers="detailHeaders"
-                      :items="details[item.Nomor] || []"
+                      :items="details[item.Nomor]"
                       density="compact"
-                      class="detail-table elevation-0"
+                      class="detail-table elevation-1 rounded bg-white"
                       :items-per-page="-1"
                       hide-default-footer
                     >
@@ -171,14 +185,8 @@
                       }}</template>
                     </v-data-table>
 
-                    <div
-                      v-if="
-                        !isLoadingDetails(item.Nomor) &&
-                        !details[item.Nomor]?.length
-                      "
-                      class="text-center pa-4 text-caption"
-                    >
-                      Tidak ada data detail.
+                    <div v-else class="text-center pa-4 text-caption text-grey">
+                      Tidak ada data detail untuk nomor {{ item.Nomor }}.
                     </div>
                   </div>
                 </div>
@@ -200,6 +208,7 @@ import api from "@/services/api";
 import type { AxiosError } from "axios";
 import { format, subDays, parseISO, isValid } from "date-fns";
 import PageLayout from "../components/PageLayout.vue";
+import * as XLSX from "xlsx-js-style";
 
 // --- Interfaces ---
 interface LhkFinishingHeader {
@@ -217,6 +226,7 @@ interface LhkFinishingDetail {
   Nomor_SPK?: string;
   Nama_SPK?: string;
   J_Order?: number;
+  J_Potong?: number;
   J_Seaming?: number;
   J_MataAyam?: number;
   J_Coly?: number;
@@ -276,7 +286,7 @@ const getRowTextColor = (item: LhkFinishingItem) => {
   return item.Lengkap !== "Y" ? "text-red font-weight-bold" : "";
 };
 
-// --- Headers (Vuetify accepts arrays of objects with `title` and `key`) ---
+// --- Headers Config ---
 const masterHeaders = [
   { title: "Nomor", key: "Nomor", minWidth: "180px", fixed: true },
   { title: "Tanggal", key: "Tanggal", minWidth: "120px" },
@@ -291,7 +301,7 @@ const detailHeaders = [
   { title: "Nomor SPK", key: "Nomor_SPK", minWidth: "150px" },
   { title: "Nama SPK", key: "Nama_SPK", minWidth: "250px" },
   { title: "Jml Order", key: "J_Order", align: "end" },
-  { title: "Jml Potomg", key: "J_Potong", align: "end" },
+  { title: "Jml Potong", key: "J_Potong", align: "end" },
   { title: "Jml Seaming", key: "J_Seaming", align: "end" },
   { title: "Jml Mata Ayam", key: "J_MataAyam", align: "end" },
   { title: "Jml Coly", key: "J_Coly", align: "end" },
@@ -302,8 +312,6 @@ const detailHeaders = [
 ] as any[];
 
 // --- API calls ---
-
-// Mengatasi ReferenceError: fetchGudangList is not defined
 const fetchGudangList = async () => {
   try {
     console.log("INFO: Simulating fetching Gudang List.");
@@ -312,41 +320,17 @@ const fetchGudangList = async () => {
   }
 };
 
-const handleACC = async () => {
-  if (!selectedRow.value) return;
-
-  // Cek jika sudah di-ACC sebelumnya (opsional, tergantung logic backend)
-  if (selectedRow.value.Lengkap === "Y") {
-    toast.info("Data ini sudah lengkap/ACC.");
-    return;
-  }
-
-  if (
-    confirm(
-      `Apakah Anda yakin ingin memberikan ACC untuk nomor ${selectedRow.value.Nomor}?`,
-    )
-  ) {
-    try {
-      await api.post(`${API_BASE_URL}/acc/${selectedRow.value.Nomor}`);
-      toast.success(`LHK ${selectedRow.value.Nomor} berhasil di-ACC.`);
-      await fetchHeaders();
-    } catch (error) {
-      console.error("ACC error:", error);
-      toast.error("Gagal melakukan ACC data.");
-    }
-  }
-};
-
 const handleRowClick = (_event: any, { item }: any) => {
-  selected.value = [item];
+  const isSelected = selected.value.some((s) => s.Nomor === item.Nomor);
+  if (isSelected) {
+    selected.value = [];
+  } else {
+    selected.value = [item];
+  }
 };
 
-/**
- * Memberikan properti tambahan pada baris (styling)
- */
 const getRowProps = (data: any) => {
   const isSelected = selected.value.some((s) => s.Nomor === data.item.Nomor);
-
   return {
     style: { cursor: "pointer" },
     class: isSelected ? "v-table-row-selected bg-blue-lighten-5" : "",
@@ -356,14 +340,12 @@ const getRowProps = (data: any) => {
 const handleAccClick = () => {
   if (selectedRow.value) {
     router.push({
-      // Pastikan Nama ini SAMA PERSIS dengan di router (Case Sensitive)
       name: "LhkFinishingAcc",
       params: { nomor: selectedRow.value.Nomor },
     });
   }
 };
 
-// Pastikan fungsi handleEditClick juga tetap ada untuk pengeditan biasa
 const handleEditClick = () => {
   if (selectedRow.value) {
     router.push({
@@ -382,12 +364,7 @@ const fetchHeaders = async () => {
         endDate: filters.endDate,
       },
     });
-
-    // PERBAIKAN DI SINI:
-    // response.data adalah body dari API { success: true, data: [...] }
-    // Jadi kita butuh response.data.data
     headers.value = response.data.data || [];
-
     selected.value = [];
     expanded.value = [];
   } catch (err) {
@@ -398,18 +375,13 @@ const fetchHeaders = async () => {
   }
 };
 
-// Script Section
 const loadDetails = async (newlyExpandedItems: LhkFinishingItem[]) => {
-  // Update state expanded lokal
   expanded.value = newlyExpandedItems;
-
   if (newlyExpandedItems.length === 0) return;
 
-  // Cari item yang baru saja di-expand dan belum ada di cache 'details'
   const itemToLoad = newlyExpandedItems.find(
     (item) => !details.value[item.Nomor],
   );
-
   if (!itemToLoad) return;
 
   loadingDetails.value.add(itemToLoad.Nomor);
@@ -417,9 +389,6 @@ const loadDetails = async (newlyExpandedItems: LhkFinishingItem[]) => {
     const res = await api.get(`${API_BASE_URL}/details`, {
       params: { nomor: itemToLoad.Nomor },
     });
-
-    // Pastikan mapping data sesuai dengan struktur backend (Result.data.data.Detail)
-    // Karena kita baru merombak backend, pastikan kita mengambil array .Detail nya
     const result = res.data.data;
     details.value[itemToLoad.Nomor] = result.Detail || result || [];
   } catch (err) {
@@ -431,17 +400,250 @@ const loadDetails = async (newlyExpandedItems: LhkFinishingItem[]) => {
   }
 };
 
-// --- Actions ---
+// --- Fungsi Perbaikan Utama: Export Detail Finishing ---
+const handleExportDetail = async () => {
+  loading.value.headers = true;
+  try {
+    // 1. Fetch data detail otomatis dari server jika belum ter-cache di client
+    for (const header of headers.value) {
+      if (
+        !details.value[header.Nomor] ||
+        details.value[header.Nomor].length === 0
+      ) {
+        try {
+          const res = await api.get(`${API_BASE_URL}/details`, {
+            params: { nomor: header.Nomor },
+          });
+          const result = res.data.data;
+          details.value[header.Nomor] = result.Detail || result || [];
+        } catch (e) {
+          console.error(`Gagal pre-fetch detail finishing ${header.Nomor}:`, e);
+          details.value[header.Nomor] = [];
+        }
+      }
+    }
+
+    const fileName = `LHK_Finishing_MMT_${filters.startDate}_to_${filters.endDate}.xlsx`;
+
+    // Style Definition
+    const styleHeaderMain = {
+      fill: { fgColor: { rgb: "B3E5FC" } },
+      font: { bold: true, color: { rgb: "000000" }, sz: 10 },
+      alignment: { horizontal: "center", vertical: "center", wrapText: true },
+      border: {
+        top: { style: "thin", color: { rgb: "000000" } },
+        bottom: { style: "thin", color: { rgb: "000000" } },
+        left: { style: "thin", color: { rgb: "000000" } },
+        right: { style: "thin", color: { rgb: "000000" } },
+      },
+    };
+
+    const styleDataCell = {
+      font: { sz: 10 },
+      border: {
+        top: { style: "thin", color: { rgb: "000000" } },
+        bottom: { style: "thin", color: { rgb: "000000" } },
+        left: { style: "thin", color: { rgb: "000000" } },
+        right: { style: "thin", color: { rgb: "000000" } },
+      },
+      alignment: { vertical: "center" },
+    };
+
+    const styleDataCellCenter = {
+      ...styleDataCell,
+      alignment: { horizontal: "center", vertical: "center" },
+    };
+
+    const styleDataCellRight = {
+      ...styleDataCell,
+      alignment: { horizontal: "right", vertical: "center" },
+    };
+
+    // Format Tanggal Manual Lokal Anti-Crash
+    const formatTglManual = (dateStr: string) => {
+      if (!dateStr) return "-";
+      try {
+        if (dateStr.includes("-")) {
+          const parts = dateStr.split("T")[0].split("-");
+          if (parts.length === 3) {
+            return `${parts[2]}/${parts[1]}/${parts[0]}`;
+          }
+        }
+        return safeFormatDate(dateStr) || dateStr;
+      } catch {
+        return dateStr;
+      }
+    };
+
+    const worksheetData = [];
+    worksheetData.push([
+      {
+        v: "LAPORAN HASIL KERJA FINISHING MMT",
+        s: { font: { bold: true, sz: 14 } },
+      },
+    ]);
+    worksheetData.push([
+      {
+        v: `Periode : ${formatTglManual(filters.startDate)} s/d ${formatTglManual(filters.endDate)}`,
+        s: { font: { sz: 10 } },
+      },
+    ]);
+    worksheetData.push([]);
+
+    // Headers Kolom Worksheet
+    const headersTable = [
+      { v: "NOMOR LHK", s: styleHeaderMain },
+      { v: "TANGGAL", s: styleHeaderMain },
+      { v: "KODE GUDANG", s: styleHeaderMain },
+      { v: "NAMA GUDANG", s: styleHeaderMain },
+      { v: "SHIFT", s: styleHeaderMain },
+      { v: "OPERATOR", s: styleHeaderMain },
+      { v: "NOMOR SPK", s: styleHeaderMain },
+      { v: "NAMA SPK", s: styleHeaderMain },
+      { v: "JML ORDER", s: styleHeaderMain },
+      { v: "JML POTONG", s: styleHeaderMain },
+      { v: "JML SEAMING", s: styleHeaderMain },
+      { v: "JML MATA AYAM", s: styleHeaderMain },
+      { v: "JML COLY", s: styleHeaderMain },
+      { v: "JML BS", s: styleHeaderMain },
+      { v: "QTY MATA AYAM", s: styleHeaderMain },
+      { v: "QTY XBANNER", s: styleHeaderMain },
+      { v: "QTY PLASTIK", s: styleHeaderMain },
+    ];
+    worksheetData.push(headersTable);
+
+    headers.value.forEach((header) => {
+      const targetDetails = details.value[header.Nomor] || [];
+      const tglHeader = header.Tanggal ? formatTglManual(header.Tanggal) : "";
+
+      if (targetDetails.length > 0) {
+        targetDetails.forEach((dtl, index) => {
+          const row = [
+            { v: index === 0 ? header.Nomor : "", s: styleDataCellCenter },
+            { v: index === 0 ? tglHeader : "", s: styleDataCellCenter },
+            {
+              v: index === 0 ? header.Gudang || "-" : "",
+              s: styleDataCellCenter,
+            },
+            {
+              v: index === 0 ? header.Nama_Gudang || "-" : "",
+              s: styleDataCell,
+            },
+            {
+              v: index === 0 ? header.Shift || "-" : "",
+              s: styleDataCellCenter,
+            },
+            { v: index === 0 ? header.Operator || "-" : "", s: styleDataCell },
+
+            // Detail Columns
+            { v: dtl.Nomor_SPK || "-", s: styleDataCellCenter },
+            { v: dtl.Nama_SPK || "-", s: styleDataCell },
+            {
+              v: dtl.J_Order !== undefined ? Number(dtl.J_Order) : 0,
+              s: styleDataCellRight,
+            },
+            {
+              v: dtl.J_Potong !== undefined ? Number(dtl.J_Potong) : 0,
+              s: styleDataCellRight,
+            },
+            {
+              v: dtl.J_Seaming !== undefined ? Number(dtl.J_Seaming) : 0,
+              s: styleDataCellRight,
+            },
+            {
+              v: dtl.J_MataAyam !== undefined ? Number(dtl.J_MataAyam) : 0,
+              s: styleDataCellRight,
+            },
+            {
+              v: dtl.J_Coly !== undefined ? Number(dtl.J_Coly) : 0,
+              s: styleDataCellRight,
+            },
+            {
+              v: dtl.J_Bs !== undefined ? Number(dtl.J_Bs) : 0,
+              s: styleDataCellRight,
+            },
+            {
+              v: dtl.Mata_Ayam !== undefined ? Number(dtl.Mata_Ayam) : 0,
+              s: styleDataCellRight,
+            },
+            {
+              v: dtl.XBanner !== undefined ? Number(dtl.XBanner) : 0,
+              s: styleDataCellRight,
+            },
+            {
+              v: dtl.Plastik !== undefined ? Number(dtl.Plastik) : 0,
+              s: styleDataCellRight,
+            },
+          ];
+          worksheetData.push(row);
+        });
+      } else {
+        const row = [
+          { v: header.Nomor, s: styleDataCellCenter },
+          { v: tglHeader, s: styleDataCellCenter },
+          { v: header.Gudang || "-", s: styleDataCellCenter },
+          { v: header.Nama_Gudang || "-", s: styleDataCell },
+          { v: header.Shift || "-", s: styleDataCellCenter },
+          { v: header.Operator || "-", s: styleDataCell },
+          { v: "-", s: styleDataCellCenter },
+          { v: "Tidak ada data detail pekerjaan", s: styleDataCell },
+          { v: 0, s: styleDataCellRight },
+          { v: 0, s: styleDataCellRight },
+          { v: 0, s: styleDataCellRight },
+          { v: 0, s: styleDataCellRight },
+          { v: 0, s: styleDataCellRight },
+          { v: 0, s: styleDataCellRight },
+          { v: 0, s: styleDataCellRight },
+          { v: 0, s: styleDataCellRight },
+          { v: 0, s: styleDataCellRight },
+        ];
+        worksheetData.push(row);
+      }
+    });
+
+    const ws = XLSX.utils.aoa_to_sheet(worksheetData);
+    ws["!merges"] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 16 } }];
+    ws["!cols"] = [
+      { wch: 22 },
+      { wch: 12 },
+      { wch: 15 },
+      { wch: 20 },
+      { wch: 8 },
+      { wch: 18 },
+      { wch: 18 },
+      { wch: 35 },
+      { wch: 12 },
+      { wch: 12 },
+      { wch: 12 },
+      { wch: 15 },
+      { wch: 12 },
+      { wch: 12 },
+      { wch: 15 },
+      { wch: 15 },
+      { wch: 15 },
+    ];
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "LHK_Finishing");
+    XLSX.writeFile(wb, fileName);
+    toast.success("Excel Detail Finishing berhasil diunduh");
+  } catch (error) {
+    console.error("Export Error:", error);
+    toast.error("Gagal mengekspor data ke Excel.");
+  } finally {
+    loading.value.headers = false;
+  }
+};
+
 const handleNewEdit = (mode: "new" | "edit" | "rekap") => {
   if (mode === "new") {
     router.push({ name: "LhkFinishingNew" });
   } else if (mode === "edit" && selectedRow.value) {
     router.push({
-      name: "LhkCetakEdit", // Pastikan nama route ini sudah benar di router
+      name: "LhkCetakEdit",
       params: { nomor: selectedRow.value.Nomor },
     });
   } else if (mode === "rekap") {
-    // Navigasi ke halaman Rekap Finishing
     router.push({ name: "LhkFinishingRekap" });
   }
 };
@@ -463,11 +665,6 @@ const handleDelete = async () => {
   }
 };
 
-const handleBahan = () => {
-  if (!selectedRow.value) return;
-  alert(`TODO: Buka form Bahan untuk LHK ${selectedRow.value.Nomor}`);
-};
-
 const handlePrint = () => {
   if (!selectedRow.value) return;
   alert(`TODO: Cetak LHK ${selectedRow.value.Nomor}`);
@@ -475,7 +672,7 @@ const handlePrint = () => {
 
 // --- Lifecycle ---
 onMounted(() => {
-  fetchGudangList(); // Dipanggil di onMounted
+  fetchGudangList();
   fetchHeaders();
 });
 
@@ -484,9 +681,23 @@ watch(filters, fetchHeaders, { deep: true });
 
 <style scoped>
 :deep(.v-data-table__tr.v-table-row-selected) {
-  background-color: #e3f2fd !important; /* Biru muda */
+  background-color: #e3f2fd !important;
 }
 :deep(.v-data-table__tr:hover) {
   background-color: #f5f5f5 !important;
+}
+.text-red {
+  color: #f44336 !important;
+}
+.font-weight-bold {
+  font-weight: bold !important;
+}
+.desktop-table :deep(th),
+.desktop-table :deep(td) {
+  font-size: 11px !important;
+}
+:deep(.v-data-table-header th) {
+  background-color: #f5f5f5 !important;
+  font-weight: bold !important;
 }
 </style>

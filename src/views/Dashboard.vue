@@ -271,6 +271,7 @@ const allMenuGroups = [
         path: "/mmt/Finance/browse",
         items: [
           { name: "PO Bahan MMT", path: "/mmt/po-bahan-mmt" },
+          { name: "PO External MMT", path: "/mmt/po-external-mmt" },
           { name: "Invoice", path: "/mmt/invoice" },
           { name: "Retur Beli", path: "/mmt/retur-beli" },
           { name: "Voucher Pelunasan", path: "/mmt/voucher-pembelian" },

@@ -37,10 +37,19 @@
       >
         <v-icon start size="14">mdi-printer</v-icon> Slip
       </v-btn>
+
+      <v-btn
+        size="x-small"
+        color="success"
+        :disabled="masterData.length === 0"
+        @click="exportToExcel"
+        :loading="loading.master"
+      >
+        <v-icon start size="14">mdi-file-excel</v-icon> Export Excel
+      </v-btn>
     </template>
 
     <div class="browse-content">
-      <!-- Filter Section -->
       <v-card flat class="mb-4 border">
         <v-card-text class="pa-3">
           <div class="d-flex align-center flex-wrap ga-4">
@@ -73,6 +82,7 @@
               color="primary"
               @click="fetchMasterData"
               style="font-size: 11px"
+              :loading="loading.master"
             >
               <v-icon start size="14">mdi-magnify</v-icon> Refresh
             </v-btn>
@@ -80,7 +90,6 @@
         </v-card-text>
       </v-card>
 
-      <!-- Main Data Table -->
       <v-data-table
         v-model:selected="selected"
         v-model:expanded="expanded"
@@ -96,7 +105,6 @@
         fixed-header
         @click:row="handleRowClick"
       >
-        <!-- Custom Column for Jenis (M/S/T Logic) -->
         <template #item.Jenis="{ item }">
           <v-chip
             size="x-small"
@@ -107,7 +115,6 @@
           </v-chip>
         </template>
 
-        <!-- Nested Detail Table -->
         <template #expanded-row="{ columns, item }">
           <tr>
             <td :colspan="columns.length" class="bg-grey-lighten-4 pa-4">
@@ -141,33 +148,34 @@
 import { ref, reactive, computed, onMounted, watch } from "vue";
 import { useRouter } from "vue-router";
 import { useToast } from "vue-toastification";
-import Swal from "sweetalert2"; // Pastikan di-import
+import Swal from "sweetalert2";
 import PageLayout from "../components/PageLayout.vue";
 import api from "@/services/api";
 import { format, subDays } from "date-fns";
+import * as XLSX from "xlsx-js-style";
 
 const router = useRouter();
 const toast = useToast();
 
 // --- State ---
-const selected = ref([]);
-const expanded = ref([]);
-const masterData = ref([]);
+const selected = ref<any[]>([]);
+const expanded = ref<any[]>([]);
+const masterData = ref<any[]>([]);
 const details = ref<Record<string, any[]>>({});
 const loading = reactive({ master: false });
-const loadingDetails = ref(new Set());
+const loadingDetails = ref<Set<string>>(new Set());
 
 const filters = reactive({
   startDate: format(subDays(new Date(), 30), "yyyy-MM-dd"),
   endDate: format(new Date(), "yyyy-MM-dd"),
 });
 
-// --- Table Headers (Sesuai SQLMaster & SQLDetail Delphi) ---
+// --- Table Headers ---
 const masterHeaders = [
   { title: "Nomor", key: "nomor", width: "150px" },
   { title: "Tanggal", key: "Tanggal", width: "120px" },
   { title: "Gudang", key: "Nama_Gudang" },
-  { title: "Jenis", key: "Jenis", width: "100px" }, // M/S/T Logic
+  { title: "Jenis", key: "Jenis", width: "100px" },
   { title: "Keterangan", key: "Keterangan" },
 ];
 
@@ -176,8 +184,8 @@ const detailHeaders = [
   { title: "No. SPK", key: "Nomor_SPK" },
   { title: "Nama SPK", key: "Nama_SPK" },
   { title: "Ukuran", key: "Ukuran" },
-  { title: "J_Order", key: "J_Order", align: "end" },
-  { title: "J_Proof", key: "J_Proof", align: "end" },
+  { title: "J_Order", key: "J_Order", align: "end" as const },
+  { title: "J_Proof", key: "J_Proof", align: "end" as const },
   { title: "Keterangan", key: "Keterangan" },
 ];
 
@@ -186,7 +194,6 @@ const isSingleSelected = computed(() => selected.value.length === 1);
 const selectedItem = computed(() => selected.value[0]);
 
 // --- Methods ---
-
 const getJenisColor = (jenis: string) => {
   if (jenis === "MMT") return "blue";
   if (jenis === "SUBLIM") return "purple";
@@ -197,9 +204,8 @@ const getJenisColor = (jenis: string) => {
 const fetchMasterData = async () => {
   loading.master = true;
   try {
-    // API endpoint disesuaikan untuk Proof MMT
     const response = await api.get("/mmt/lhk-proof", { params: filters });
-    masterData.value = response.data;
+    masterData.value = response.data || [];
   } catch (error) {
     toast.error("Gagal mengambil data master");
   } finally {
@@ -207,30 +213,35 @@ const fetchMasterData = async () => {
   }
 };
 
-// Logika SQLDetail saat expand (On-demand loading)
 watch(expanded, async (newVal) => {
   if (newVal.length === 0) return;
-  const lastExpanded = newVal[newVal.length - 1];
+  const lastExpanded: any = newVal[newVal.length - 1];
+  const noKey =
+    typeof lastExpanded === "object" ? lastExpanded.nomor : lastExpanded;
 
-  if (lastExpanded && !details.value[lastExpanded]) {
-    loadingDetails.value.add(lastExpanded);
+  if (noKey && !details.value[noKey]) {
+    loadingDetails.value.add(noKey);
     try {
-      const res = await api.get(`/mmt/lhk-proof/detail/${lastExpanded}`);
-      details.value[lastExpanded] = res.data;
+      const res = await api.get(`/mmt/lhk-proof/detail/${noKey}`);
+      details.value[noKey] = res.data || [];
     } catch (e) {
       toast.error("Gagal memuat detail");
     } finally {
-      loadingDetails.value.delete(lastExpanded);
+      loadingDetails.value.delete(noKey);
     }
   }
 });
 
 const handleRowClick = (event: any, { item }: any) => {
-  selected.value = [item.nomor];
+  const isAlreadySelected = selected.value.some((s: any) => s === item.nomor);
+  if (isAlreadySelected) {
+    selected.value = [];
+  } else {
+    selected.value = [item.nomor];
+  }
 };
 
 const handleCreate = () => {
-  // Pastikan 'L' besar jika di router/index.ts menggunakan 'LHKProofMMTNew'
   router.push({ name: "LHKProofMMTNew" });
 };
 
@@ -273,9 +284,198 @@ const handlePrint = () => {
   window.open(`/api/report/lhk-proof-slip/${selectedItem.value}`, "_blank");
 };
 
-onMounted(() => {
-  fetchMasterData();
-});
+// --- Fungsi Baru: Export Excel Gaya Rapi ---
+const exportToExcel = async () => {
+  loading.master = true;
+  try {
+    // 1. Ambil detail data jika belum ter-cache
+    for (const header of masterData.value) {
+      if (
+        !details.value[header.nomor] ||
+        details.value[header.nomor].length === 0
+      ) {
+        try {
+          const res = await api.get(`/mmt/lhk-proof/detail/${header.nomor}`);
+          details.value[header.nomor] = res.data || [];
+        } catch (e) {
+          console.error(
+            `Gagal pre-fetch detail proof nomor ${header.nomor}:`,
+            e,
+          );
+          details.value[header.nomor] = [];
+        }
+      }
+    }
+
+    const fileName = `LHK_Proof_MMT_${filters.startDate}_to_${filters.endDate}.xlsx`;
+
+    // Style Definition
+    const styleHeaderMain = {
+      fill: { fgColor: { rgb: "B3E5FC" } },
+      font: { bold: true, color: { rgb: "000000" }, sz: 10 },
+      alignment: { horizontal: "center", vertical: "center", wrapText: true },
+      border: {
+        top: { style: "thin", color: { rgb: "000000" } },
+        bottom: { style: "thin", color: { rgb: "000000" } },
+        left: { style: "thin", color: { rgb: "000000" } },
+        right: { style: "thin", color: { rgb: "000000" } },
+      },
+    };
+
+    const styleDataCell = {
+      font: { sz: 10 },
+      border: {
+        top: { style: "thin", color: { rgb: "000000" } },
+        bottom: { style: "thin", color: { rgb: "000000" } },
+        left: { style: "thin", color: { rgb: "000000" } },
+        right: { style: "thin", color: { rgb: "000000" } },
+      },
+      alignment: { vertical: "center" },
+    };
+
+    const styleDataCellCenter = {
+      ...styleDataCell,
+      alignment: { horizontal: "center", vertical: "center" },
+    };
+
+    const styleDataCellRight = {
+      ...styleDataCell,
+      alignment: { horizontal: "right", vertical: "center" },
+    };
+
+    const formatTglManual = (dateStr: string) => {
+      if (!dateStr) return "-";
+      try {
+        if (dateStr.includes("-")) {
+          const parts = dateStr.split("T")[0].split("-");
+          if (parts.length === 3) {
+            return `${parts[2]}/${parts[1]}/${parts[0]}`;
+          }
+        }
+        return dateStr;
+      } catch {
+        return dateStr;
+      }
+    };
+
+    const worksheetData = [];
+    worksheetData.push([
+      {
+        v: "LAPORAN HASIL KERJA PROOF MMT",
+        s: { font: { bold: true, sz: 14 } },
+      },
+    ]);
+    worksheetData.push([
+      {
+        v: `Periode : ${formatTglManual(filters.startDate)} s/d ${formatTglManual(filters.endDate)}`,
+        s: { font: { sz: 10 } },
+      },
+    ]);
+    worksheetData.push([]);
+
+    // Headers Kolom Excel
+    const headersTable = [
+      { v: "NOMOR LHK", s: styleHeaderMain },
+      { v: "TANGGAL", s: styleHeaderMain },
+      { v: "GUDANG", s: styleHeaderMain },
+      { v: "JENIS", s: styleHeaderMain },
+      { v: "KETERANGAN MASTER", s: styleHeaderMain },
+      { v: "NO URUT", s: styleHeaderMain },
+      { v: "NOMOR SPK", s: styleHeaderMain },
+      { v: "NAMA SPK / ORDER", s: styleHeaderMain },
+      { v: "UKURAN (PxL)", s: styleHeaderMain },
+      { v: "J_ORDER", s: styleHeaderMain },
+      { v: "J_PROOF", s: styleHeaderMain },
+      { v: "KETERANGAN DETAIL", s: styleHeaderMain },
+    ];
+    worksheetData.push(headersTable);
+
+    masterData.value.forEach((header) => {
+      const targetDetails = details.value[header.nomor] || [];
+      const tglHeader = formatTglManual(header.Tanggal || "");
+
+      if (targetDetails.length > 0) {
+        targetDetails.forEach((dtl, index) => {
+          const ukuranText =
+            dtl.Panjang && dtl.Lebar ? `${dtl.Panjang} x ${dtl.Lebar}` : "-";
+
+          const row = [
+            { v: index === 0 ? header.nomor : "", s: styleDataCellCenter },
+            { v: index === 0 ? tglHeader : "", s: styleDataCellCenter },
+            {
+              v: index === 0 ? header.Nama_Gudang || "-" : "",
+              s: styleDataCell,
+            },
+            {
+              v: index === 0 ? header.Jenis || "-" : "",
+              s: styleDataCellCenter,
+            },
+            { v: index === 0 ? header.Keterangan || "" : "", s: styleDataCell },
+
+            // Detail Columns
+            { v: dtl.No_Urut || index + 1, s: styleDataCellCenter },
+            { v: dtl.Nomor_SPK || "-", s: styleDataCellCenter },
+            { v: dtl.Nama_SPK || "-", s: styleDataCell },
+            { v: ukuranText, s: styleDataCellCenter },
+            {
+              v: dtl.J_Order !== undefined ? Number(dtl.J_Order) : 0,
+              s: styleDataCellRight,
+            },
+            {
+              v: dtl.J_Proof !== undefined ? Number(dtl.J_Proof) : 0,
+              s: styleDataCellRight,
+            },
+            { v: dtl.Keterangan || "", s: styleDataCell },
+          ];
+          worksheetData.push(row);
+        });
+      } else {
+        const row = [
+          { v: header.nomor, s: styleDataCellCenter },
+          { v: tglHeader, s: styleDataCellCenter },
+          { v: header.Nama_Gudang || "-", s: styleDataCell },
+          { v: header.Jenis || "-", s: styleDataCellCenter },
+          { v: header.Keterangan || "", s: styleDataCell },
+          { v: "-", s: styleDataCellCenter },
+          { v: "-", s: styleDataCellCenter },
+          { v: "Tidak ada data detail proofing", s: styleDataCell },
+          { v: "-", s: styleDataCellCenter },
+          { v: 0, s: styleDataCellRight },
+          { v: 0, s: styleDataCellRight },
+          { v: "", s: styleDataCell },
+        ];
+        worksheetData.push(row);
+      }
+    });
+
+    const ws = XLSX.utils.aoa_to_sheet(worksheetData);
+    ws["!merges"] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 11 } }];
+    ws["!cols"] = [
+      { wch: 22 },
+      { wch: 12 },
+      { wch: 20 },
+      { wch: 10 },
+      { wch: 25 },
+      { wch: 8 },
+      { wch: 18 },
+      { wch: 35 },
+      { wch: 15 },
+      { wch: 12 },
+      { wch: 12 },
+      { wch: 25 },
+    ];
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "LHK_Proof");
+    XLSX.writeFile(wb, fileName);
+    toast.success("Excel Hasil Kerja Proof berhasil diunduh");
+  } catch (error) {
+    console.error("Export Error:", error);
+    toast.error("Gagal mengekspor data ke Excel.");
+  } finally {
+    loading.master = false;
+  }
+};
 </script>
 
 <style scoped>

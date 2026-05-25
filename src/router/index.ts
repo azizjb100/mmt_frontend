@@ -103,6 +103,7 @@ import LhkTekstilApproveView from '@/views/LhkTekstilApproveView.vue';
 import JadwalKirimPrintView from '@/views/JadwalKirimPrintView.vue';
 import LapMonSublimView from '@/views/LapMonSublimView.vue';
 import FormPoExtMmtView from '@/views/FormPoExtMmtView.vue';
+import POExternalMmtView from '@/views/POExternalMmtView.vue';
 
 
 
@@ -225,7 +226,10 @@ const routes: RouteRecordRaw[] = [
             },
             { path: 'mmt/voucher-pembelian', name: 'VoucherPelunasanBrowse', component: PelunasanPembelianView },
             { path: 'mmt/voucher-pembelian/new', name: 'VoucherPelunasanNew', component: FormPelunasanPembelianView },
+            { path: 'mmt/po-external-mmt', name: 'POExternalMmtBrowse', component: POExternalMmtView },
             { path: 'mmt/po-external-mmt/new', name: 'POExternalMmtNew', component: FormPoExtMmtView },
+            { path: 'mmt/po-external-mmt/edit/:nomor', name: 'POExternalMmtEdit', component: FormPoExtMmtView, props: { isEditMode: true } },
+            // { path: 'mmt/po-external-mmt/print/:nomor', name: 'POExternalMmtPrint', component: POExternalMmtPrintView, props: true },
             { path: 'mmt/po-bahan-mmt', name: 'POBahanMmtBrowse', component: POBahanMmtView },
             {
                 // 2. Rute untuk Halaman Input Baru

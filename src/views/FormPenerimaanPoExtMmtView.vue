@@ -46,7 +46,7 @@ const router = useRouter();
 const route = useRoute();
 const toast = useToast();
 
-const API_URL = "/mmt/po-ext-mmt";
+const API_URL = "/mmt/po-external-mmt";
 const API_PENERIMAAN_URL = "/mmt/penerimaan-po-ext-mmt";
 
 const isEditMode = ref(!!route.params.nomor);
@@ -126,7 +126,9 @@ const isFormValid = computed(() => {
 const handlePoSelect = async (po: any) => {
   isSaving.value = true;
   try {
-    const response = await api.get(`/mmt/po-ext-mmt/lookup-bpb/${po.Nomor}`);
+    const response = await api.get(
+      `/mmt/po-external-mmt/lookup-bpb/${po.Nomor}`,
+    );
 
     // PERBAIKAN: Ambil properti 'data' di dalam response.data
     const d = response.data.data;

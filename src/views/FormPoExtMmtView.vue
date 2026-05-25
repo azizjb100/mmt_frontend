@@ -54,8 +54,8 @@ interface FormDataState {
   cabang: string;
   supKode: string;
   supNama: string;
-  supAlamat: string; // Mengikuti struktur po-bahan
-  supKota: string; // Mengikuti struktur po-bahan
+  supAlamat: string;
+  supKota: string;
   bahanSendiri: boolean;
   hasGambar: boolean;
   statusBpb: string;
@@ -83,7 +83,7 @@ const router = useRouter();
 const route = useRoute();
 const toast = useToast();
 
-const API_URL = "/mmt/po-external";
+const API_URL = "/mmt/po-external-mmt";
 const API_SUPPLIER_DETAIL = "/supplier/detail"; // Endpoint detail supplier dari po-bahan
 
 // --- UI & Modal Controls ---
@@ -242,7 +242,7 @@ const initGridDefaults = () => {
   ];
 };
 
-const refreshData = async () => {
+const refreshData = () => {
   isEditMode.value = false;
   xminta5.value = "";
   xurut5.value = 0;
@@ -274,85 +274,171 @@ const refreshData = async () => {
   formData.totalHeader = 0;
 
   initGridDefaults();
-
-  try {
-    const res = await api.get(`${API_URL}/date-close/PO EXT MMT`);
-    zCloseDate.value = res.data.closeDate;
-  } catch (err) {
-    console.error("Gagal mengambil status periode closing", err);
-  }
 };
 
 const loadDataAll = async (nomorPo: string) => {
   if (!nomorPo) return;
+  isSaving.value = true;
+
   try {
+    // 1. Ambil data utama PO dari API lookup backend
     const response = await api.get(`${API_URL}/${nomorPo}`);
-    const { header, alokasi, custom, dp, pinStatus } = response.data;
+    const res = response.data.data || response.data;
 
-    isEditMode.value = true;
-    formData.nomor = header.poe_nomor;
-    formData.tanggal = format(parseISO(header.poe_tanggal), "yyyy-MM-dd");
-    formData.dateline = format(parseISO(header.poe_dateline), "yyyy-MM-dd");
-    formData.nomorSpk = header.poe_spk_nomor;
-    formData.namaSpk = header.spk_nama;
-    formData.divisi = header.divisi;
-    formData.joKode = header.spk_jo_kode;
-    formData.joNama = header.jo_nama;
-    formData.bahan = header.spk_kain;
-    formData.ukuran = header.spk_ukuran;
-    formData.panjang = Number(header.spk_panjang) || 0;
-    formData.lebar = Number(header.spk_lebar) || 0;
-    formData.jumlahSpk = Number(header.spk_jumlah) || 0;
-    formData.finishing = header.poe_finishing;
-    formData.keterangan = header.poe_ket;
-    formData.supKode = header.poe_sup;
-    formData.supNama = header.Sup_nama;
-    formData.supAlamat = header.Sup_alamat;
-    formData.supKota = header.Sup_kota;
-    formData.bahanSendiri = header.poe_bahansendiri === "Y";
-    formData.statusBpb = header.poe_status;
-    formData.jmlPo = Number(header.poe_jumlah) || 0;
-    formData.tarif = Number(header.poe_tarif) || 0;
-    formData.hasGambar = header.has_gambar === "Y";
+    if (res && res.header) {
+      const h = res.header;
+      isEditMode.value = true;
 
-    if (pinStatus) {
-      xminta5.value = pinStatus.status;
-      xurut5.value = pinStatus.urut;
+      // Mapping data form header berdasarkan response database
+      formData.nomor = h.poe_nomor;
+      formData.tanggal = h.poe_tanggal
+        ? format(parseISO(h.poe_tanggal), "yyyy-MM-dd")
+        : format(new Date(), "yyyy-MM-dd");
+      formData.dateline = h.poe_dateline
+        ? format(parseISO(h.poe_dateline), "yyyy-MM-dd")
+        : format(new Date(), "yyyy-MM-dd");
+      formData.nomorSpk = h.poe_spk_nomor || "";
+      formData.namaSpk = h.spk_nama || "";
+      formData.divisi = h.divisi || "";
+      formData.joKode = h.spk_jo_kode || "";
+      formData.joNama = h.jo_nama || "";
+      formData.bahan = h.spk_kain || "";
+      formData.ukuran = h.spk_ukuran || "";
+      formData.panjang = Number(h.spk_panjang) || 0;
+      formData.lebar = Number(h.spk_lebar) || 0;
+      formData.jumlahSpk = Number(h.spk_jumlah) || 0;
+      formData.finishing = h.poe_finishing || "";
+      formData.keterangan = h.poe_ket || "";
+      formData.cabang = h.poe_cab || "P05";
+
+      // Data Supplier
+      formData.supKode = h.poe_sup || "";
+      formData.supNama = h.Sup_nama || "";
+      formData.supAlamat = h.Sup_alamat || "";
+      formData.supKota = h.Sup_kota || "";
+
+      // Checkbox Flags & Status
+      formData.bahanSendiri = h.poe_bahansendiri === "Y";
+      formData.statusBpb = h.poe_status || "";
+      formData.hasGambar = h.has_gambar === "Y";
+
+      // Nilai Utama Tarif & Qty
+      formData.jmlPo = Number(h.poe_jumlah) || 0;
+      formData.tarif = Number(h.poe_tarif) || 0;
+
+      // ------------------------------------------------------------
+      // 2. AMBIL STATUS LOCK PIN APPROVAL SECARA DINAMIS (Sama dengan LHK pattern)
+      // ------------------------------------------------------------
+      try {
+        const pinRes = await api.get(`${API_URL}/check-pin/${nomorPo}`);
+        const pinData = pinRes.data.data || pinRes.data;
+        if (pinData) {
+          xurut5.value = Number(pinData.pin_urut) || 0;
+          if (pinData.pin_acc === "" && pinData.pin_dipakai === "") {
+            xminta5.value = "WAIT";
+          } else if (pinData.pin_acc === "Y" && pinData.pin_dipakai === "") {
+            xminta5.value = "ACC";
+          } else if (pinData.pin_acc === "N") {
+            xminta5.value = "TOLAK";
+          } else if (pinData.pin_acc === "Y" && pinData.pin_dipakai === "Y") {
+            xminta5.value = "";
+          }
+        } else {
+          xminta5.value = "";
+          xurut5.value = 0;
+        }
+      } catch (e) {
+        console.error("Gagal memuat status PIN kuncian akuntansi:", e);
+        xminta5.value = "";
+      }
+
+      // ------------------------------------------------------------
+      // 3. MAPPING DETAIL ALOKASI KOTA
+      // ------------------------------------------------------------
+      formData.detailAlokasi.splice(0, formData.detailAlokasi.length);
+      if (Array.isArray(res.alokasi) && res.alokasi.length > 0) {
+        formData.detailAlokasi = res.alokasi.map((a: any) => ({
+          alokasi: true,
+          kota: a.poeda_kota,
+          jumlah: Number(a.poeda_jumlah) || 0,
+        }));
+      } else {
+        formData.detailAlokasi = [{ alokasi: false, kota: "", jumlah: 0 }];
+      }
+
+      // ------------------------------------------------------------
+      // 4. MAPPING DETAIL ITEM CUSTOM
+      // ------------------------------------------------------------
+      formData.detailCustom.splice(0, formData.detailCustom.length);
+      if (Array.isArray(res.custom) && res.custom.length > 0) {
+        formData.detailCustom = res.custom.map((c: any) => ({
+          nama: c.poed_nama,
+          panjang: Number(c.poed_panjang) || 0,
+          lebar: Number(c.poed_lebar) || 0,
+          jumlah: Number(c.poed_jumlah) || 0,
+          harga: Number(c.poed_harga) || 0,
+          total: Number(c.poed_total) || 0,
+        }));
+      } else {
+        formData.detailCustom = [
+          { nama: "", panjang: 0, lebar: 0, jumlah: 0, harga: 0, total: 0 },
+        ];
+      }
+
+      // ------------------------------------------------------------
+      // 5. MAPPING DETAIL DP DENGAN LOOPING TERPISAH (POLA ASYNC LHK)
+      // ------------------------------------------------------------
+      formData.detailDp.splice(0, formData.detailDp.length);
+
+      if (Array.isArray(res.dp) && res.dp.length > 0) {
+        for (const d of res.dp) {
+          let namaBankFromDb = d.rek_nama || "";
+
+          // Pola LHK: Jika nama bank kosong di detail, tembak API bantuan finance secara dinamis
+          if (!namaBankFromDb && d.poed2_akun) {
+            try {
+              const resBank = await api.get(
+                `/finance/rekening/${d.poed2_akun}`,
+              );
+              const b = resBank.data.data || resBank.data;
+              namaBankFromDb = b.rek_nama || b.NamaBank || "";
+            } catch (e) {
+              console.error(
+                `Gagal ambil detail rekening/bank untuk kode: ${d.poed2_akun}`,
+                e,
+              );
+            }
+          }
+
+          formData.detailDp.push({
+            tanggal: d.poed2_tanggal
+              ? format(parseISO(d.poed2_tanggal), "yyyy-MM-dd")
+              : "",
+            nominal: Number(d.poed2_nominal) || 0,
+            akun: d.poed2_akun || "",
+            namabank: namaBankFromDb,
+            link: d.poed2_link || "",
+          });
+        }
+      }
+
+      // Jika data DP kosong setelah loop, buatkan baris instan kosong siap pakai
+      if (formData.detailDp.length === 0) {
+        formData.detailDp = [
+          { tanggal: "", nominal: 0, akun: "", namabank: "", link: "" },
+        ];
+      }
+
+      // Hitung ulang total header utama
+      hitungKalkulasiHeader();
+      toast.success(`Berhasil memuat transaksi: ${nomorPo}`);
     }
-
-    if (alokasi && alokasi.length) {
-      formData.detailAlokasi = alokasi.map((a: any) => ({
-        alokasi: true,
-        kota: a.poeda_kota,
-        jumlah: Number(a.poeda_jumlah) || 0,
-      }));
-    }
-
-    if (custom && custom.length) {
-      formData.detailCustom = custom.map((c: any) => ({
-        nama: c.poed_nama,
-        panjang: Number(c.poed_panjang) || 0,
-        lebar: Number(c.poed_lebar) || 0,
-        jumlah: Number(c.poed_jumlah) || 0,
-        harga: Number(c.poed_harga) || 0,
-        total: Number(c.poed_total) || 0,
-      }));
-    }
-
-    if (dp && dp.length) {
-      formData.detailDp = dp.map((d: any) => ({
-        tanggal: format(parseISO(d.poed2_tanggal), "yyyy-MM-dd"),
-        nominal: Number(d.poed2_nominal) || 0,
-        akun: d.poed2_akun,
-        namabank: d.rek_nama,
-        link: d.poed2_link,
-      }));
-    }
-
-    hitungKalkulasiHeader();
-  } catch (err) {
-    toast.error("Nomor transaksi tersebut tidak ditemukan.");
+  } catch (error: any) {
+    console.error("Load Error PO External:", error);
+    toast.error("Gagal memuat data transaksi.");
     refreshData();
+  } finally {
+    isSaving.value = false;
   }
 };
 
@@ -390,31 +476,56 @@ const handleSupplierSelect = async (sup: LookupItem) => {
   isSupplierModalVisible.value = false;
 };
 
-const handleSpkSelect = (spk: any) => {
-  formData.nomorSpk = spk.spk_nomor;
-  formData.namaSpk = spk.spk_nama;
-  formData.divisi = spk.divisi;
-  formData.joKode = spk.spk_jo_kode;
-  formData.joNama = spk.jo_nama;
-  formData.bahan = spk.spk_kain;
-  formData.ukuran = spk.spk_ukuran;
-  formData.panjang = Number(spk.spk_panjang) || 0;
-  formData.lebar = Number(spk.spk_lebar) || 0;
-  formData.jumlahSpk = Number(spk.spk_jumlah) || 0;
-  formData.hasGambar = spk.has_gambar === "Y";
+const handleSpkSelect = (payload: any) => {
+  console.log("Payload mentah yang diterima dari modal:", payload);
 
-  if (!isEditMode.value) {
-    formData.finishing = spk.spk_finishing;
-    formData.keterangan = spk.spk_keterangan;
+  if (!payload) return;
 
-    if (spk.alokasi && spk.alokasi.length) {
-      formData.detailAlokasi = spk.alokasi.map((a: any) => ({
-        alokasi: false,
-        kota: a.kota,
-        jumlah: Number(a.jml) || 0,
-      }));
-    }
+  let spk = payload;
+  if (payload.item) spk = payload.item;
+  if (payload.raw) spk = payload.raw;
+
+  console.log("Data SPK setelah diekstrak:", spk);
+
+  // PERBAIKAN: Tambahkan spk.Spk di urutan paling depan karena di console terbaca 'Spk'
+  const nomorSpkTerpilih = spk.Spk || spk.SPK || spk.spk || spk.spk_nomor || "";
+
+  if (!nomorSpkTerpilih) {
+    console.error(
+      "Gagal mendeteksi nomor SPK! Periksa key properti pada console.",
+    );
+    return; // Hentikan proses jika memang kosong
   }
+
+  // Masukkan ke state reactive form
+  formData.nomorSpk = nomorSpkTerpilih;
+  formData.namaSpk = spk.Nama || spk.nama || "";
+  formData.divisi = spk.Divisi || spk.divisi || "";
+  formData.bahan = spk.Bahan || spk.bahan || "";
+  formData.ukuran = spk.Ukuran || spk.ukuran || "";
+  formData.panjang = Number(spk.Panjang) || 0;
+  formData.lebar = Number(spk.Lebar) || 0;
+  formData.jumlahSpk = Number(spk.Jumlah) || 0;
+
+  // Isi otomatis jumlah PO utama dengan Qty SPK jika nilai awal masih 0
+  if (formData.jmlPo === 0) {
+    formData.jmlPo = Number(spk.Jumlah) || 0;
+  }
+
+  // Tentukan Jenis Order otomatis berdasarkan prefix nomor SPK
+  if (formData.nomorSpk) {
+    const prefix = formData.nomorSpk.substring(3, 5); // Mengambil KO, MT, LT, dll.
+    formData.joKode = prefix;
+    formData.joNama = prefix === "MT" ? "MMT / BANNER" : "KONVEKSI / KAOS";
+  }
+
+  formData.hasGambar = spk.design_done === "Y" || spk.design_baru === "Y";
+  formData.keterangan = spk.Kepentingan || "";
+
+  // Sediakan row alokasi default
+  formData.detailAlokasi = [{ alokasi: false, kota: "", jumlah: 0 }];
+
+  // Tutup modal setelah data berhasil di-mapping
   isSpkModalVisible.value = false;
 };
 
@@ -508,9 +619,28 @@ const saveForm = async () => {
   }
 };
 
-onMounted(() => {
+// --- Perbaikan onMounted pada Halaman Form ---
+onMounted(async () => {
   getCurrentUser();
-  refreshData();
+  refreshData(); // Bersihkan / isi default form di awal
+
+  // Deteksi parameter nomor dari rute (diambil dari router.push halaman browse)
+  const nomorDariParams = route.params.nomor as string;
+
+  if (nomorDariParams) {
+    console.log("Mendeteksi Mode Edit untuk Nomor PO:", nomorDariParams);
+    // Jalankan fungsi load data pola asynchronous LHK yang sudah kita buat
+    await loadDataAll(nomorDariParams);
+  } else {
+    console.log("Mendeteksi Mode Input Transaksi Baru");
+    // Jalankan API kuncian date-close bulanan secara background hanya jika transaksi baru
+    try {
+      const res = await api.get(`${API_URL}/date-close/PO EXT MMT`);
+      zCloseDate.value = res.data.closeDate;
+    } catch (err) {
+      console.error("Gagal mengambil status periode closing", err);
+    }
+  }
 });
 </script>
 
@@ -639,11 +769,15 @@ onMounted(() => {
                   v-model="formData.nomorSpk"
                   readonly
                   append-inner-icon="mdi-magnify"
-                  @click="!isFormReadOnly && (isSpkModalVisible = true)"
+                  @click:control="!isFormReadOnly && (isSpkModalVisible = true)"
+                  @click:append-inner="
+                    !isFormReadOnly && (isSpkModalVisible = true)
+                  "
                   density="compact"
                   variant="outlined"
                   color="blue"
                   hide-details
+                  style="cursor: pointer"
                 />
               </v-col>
               <v-col cols="12">
@@ -757,7 +891,7 @@ onMounted(() => {
           </v-card-text>
         </v-card>
 
-        <!-- SUPPLIER DATA CARD (DISESUAIKAN DENGAN PO BAHAN) -->
+        <!-- SUPPLIER DATA CARD -->
         <v-card flat border class="mt-2">
           <v-card-title
             class="text-caption font-weight-bold py-1 bg-grey-lighten-4"
@@ -856,7 +990,8 @@ onMounted(() => {
                 >
                   TOTAL NOTA UTAMA
                 </span>
-                <span class="text-h6 font-weight-black px-2 white--text">
+                <!-- PERBAIKAN: white--text diubah ke text-white -->
+                <span class="text-h6 font-weight-black px-2 text-white">
                   Rp {{ Number(formData.totalHeader).toLocaleString() }}
                 </span>
               </v-card>
@@ -970,7 +1105,8 @@ onMounted(() => {
                 />
               </template>
               <template #bottom>
-                <div class="pa-2 border-t d-flex align-center justify-between">
+                <!-- PERBAIKAN: justify-between dihapus, mengandalkan v-spacer di dalam d-flex -->
+                <div class="pa-2 border-t d-flex align-center">
                   <v-btn
                     size="x-small"
                     color="primary"
