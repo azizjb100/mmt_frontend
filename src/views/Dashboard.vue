@@ -251,8 +251,16 @@ const rolePermissions = {
     "STBJ",
     "Jadwal Kirim",
     "LHK",
-    "LHK Mesin Cetak",
-    "LHK Tekstil",
+    // --- Perubahan & Penambahan Sub-Menu LHK di bawah ini ---
+    "LHK Cetak (Mesin)", // Disamakan dengan allMenuGroups
+    "LHK Approval Cetak", // Ditambahkan
+    "LHK Tekstil", // Sudah cocok
+    "LHK Approval Tekstil", // Ditambahkan
+    "LHK Finishing", // Ditambahkan
+    "LHK Proof", // Ditambahkan
+    "LHK Sublim", // Ditambahkan
+    "LHK RTR", // Ditambahkan
+    // --------------------------------------------------------
     "Laporan",
     "Produksi MMT",
     "Stok & Bahan MMT",
@@ -283,8 +291,16 @@ const rolePermissions = {
     "Stok Opname",
     "Koreksi Stok",
     "LHK",
-    "LHK Mesin Cetak",
+    // --- Sesuaikan juga untuk Role 4 jika mereka berhak melihatnya ---
+    "LHK Cetak (Mesin)",
+    "LHK Approval Cetak",
     "LHK Tekstil",
+    "LHK Approval Tekstil",
+    "LHK Finishing",
+    "LHK Proof",
+    "LHK Sublim",
+    "LHK RTR",
+    // -----------------------------------------------------------------
     "Laporan",
     "Produksi MMT",
     "Stok & Bahan MMT",
