@@ -1,20 +1,6 @@
 <template>
   <PageLayout title="Laporan Stok Bahan Penolong" icon="mdi-hand-heart">
-    <template #header-actions>
-      <v-btn
-        size="x-small"
-        color="info"
-        variant="text"
-        @click="fetchReport"
-        :loading="loading.report"
-      >
-        <v-icon start>mdi-refresh</v-icon> Refresh
-      </v-btn>
-
-      <v-btn size="x-small" color="success" @click="exportToExcel">
-        <v-icon start>mdi-file-excel</v-icon> Export
-      </v-btn>
-    </template>
+    <template #header-actions> </template>
 
     <div class="lsbp-wrapper">
       <v-card
@@ -42,6 +28,19 @@
           />
 
           <v-spacer />
+          <v-btn
+            size="x-small"
+            color="info"
+            variant="text"
+            @click="fetchReport"
+            :loading="loading.report"
+          >
+            <v-icon start>mdi-refresh</v-icon> Refresh
+          </v-btn>
+
+          <v-btn size="x-small" color="success" @click="exportToExcel">
+            <v-icon start>mdi-file-excel</v-icon> Export
+          </v-btn>
 
           <v-text-field
             v-model="searchQuery"

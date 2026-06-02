@@ -17,11 +17,13 @@ const authStore = useAuthStore();
 
 // --- Interfaces ---
 interface BPBPOExtDetail {
-  Kode: string;
-  Nama_Bahan: string;
-  Satuan: string;
-  Jumlah: number;
-  Keterangan: string;
+  NomorPO: string;
+  NoUrut: number;
+  KodeBrg: string; // 🌟 SESUAIKAN: dari Kode -> KodeBrg (alias SQL)
+  NamaBrg: string; // 🌟 SESUAIKAN: dari Nama_Bahan -> NamaBrg (alias SQL)
+  QtyPO: number; // 🌟 SESUAIKAN: dari Jumlah -> QtyPO (alias SQL)
+  Satuan?: string;
+  Keterangan?: string;
 }
 
 interface BPBPOExtHeader {
@@ -35,7 +37,7 @@ interface BPBPOExtHeader {
   Supplier: string;
   Jumlah: number;
   Keterangan: string;
-  Detail?: BPBPOExtDetail[];
+  details?: BPBPOExtDetail[];
 }
 
 // --- State ---
@@ -84,6 +86,7 @@ const fetchData = async () => {
         cab: cbCab.value,
       },
     });
+    // Pastikan menangkap response.data.data yang dibungkus oleh controller baru
     masterData.value = response.data.data || [];
   } catch (err) {
     toast.error("Gagal mengambil data Penerimaan PO External.");
@@ -92,7 +95,9 @@ const fetchData = async () => {
   }
 };
 
-const handleRowClick = (_event: any, row: any) => {
+const handleRowClick = (event: any, row: any) => {
+  // Jika yang diklik adalah elemen tombol expand, jangan overwrite array selected
+  if (event.target.closest(".v-data-table__expand-icon")) return;
   selected.value = [row.item];
 };
 
@@ -119,7 +124,7 @@ const handleEdit = () => {
   }
 
   router.push({
-    name: "BPBPOextMmtEdit",
+    name: "PenerimaanPOExternalMmmtEdit",
     params: { nomor: item.Nomor },
   });
 };
@@ -298,24 +303,20 @@ watch([startDate, endDate, cbCab], fetchData);
                     <v-table density="compact">
                       <thead>
                         <tr>
-                          <th>Kode Bahan</th>
-                          <th>Nama Bahan</th>
-                          <th>Satuan</th>
-                          <th class="text-right">Qty</th>
-                          <th>Keterangan</th>
+                          <th>Kode Bahan / Kota</th>
+                          <th>Nama Bahan / Alokasi</th>
+                          <th class="text-right">Qty PO</th>
                         </tr>
                       </thead>
                       <tbody>
-                        <tr v-for="dtl in item.Detail" :key="dtl.Kode">
-                          <td>{{ dtl.Kode }}</td>
-                          <td>{{ dtl.Nama_Bahan }}</td>
-                          <td>{{ dtl.Satuan }}</td>
-                          <td class="text-right">{{ dtl.Jumlah }}</td>
-                          <td>{{ dtl.Keterangan }}</td>
+                        <tr v-for="(dtl, index) in item.details" :key="index">
+                          <td>{{ dtl.KodeBrg }}</td>
+                          <td>{{ dtl.NamaBrg }}</td>
+                          <td class="text-right">{{ dtl.QtyPO }}</td>
                         </tr>
-                        <tr v-if="!item.Detail?.length">
-                          <td colspan="5" class="text-center">
-                            Tidak ada detail
+                        <tr v-if="!item.details?.length">
+                          <td colspan="3" class="text-center pa-2 text-grey">
+                            Tidak ada data detail alokasi kota.
                           </td>
                         </tr>
                       </tbody>

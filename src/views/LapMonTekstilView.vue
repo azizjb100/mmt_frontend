@@ -1,27 +1,8 @@
 <template>
   <PageLayout title="Laporan Monitoring Tekstil" icon="mdi-printer-settings">
-    <template #header-actions>
-      <v-btn
-        size="x-small"
-        color="info"
-        variant="text"
-        @click="fetchReport"
-        :loading="loading.report"
-      >
-        <v-icon start>mdi-refresh</v-icon> Refresh
-      </v-btn>
-      <v-btn
-        size="x-small"
-        color="success"
-        @click="exportToExcel"
-        :disabled="allData.length === 0"
-      >
-        <v-icon start>mdi-file-excel</v-icon> Export Excel
-      </v-btn>
-    </template>
+    <template #header-actions> </template>
 
     <div class="browse-content">
-      <!-- Filter Section -->
       <v-card flat class="border-bottom mb-1">
         <v-card-text class="py-2 px-3">
           <div class="filter-section d-flex align-center flex-wrap ga-3">
@@ -43,7 +24,26 @@
               variant="outlined"
               style="max-width: 140px"
             />
+            <v-btn
+              size="x-small"
+              color="info"
+              variant="text"
+              @click="fetchReport"
+              :loading="loading.report"
+            >
+              <v-icon start>mdi-refresh</v-icon> Refresh
+            </v-btn>
+
+            <v-btn
+              size="x-small"
+              color="success"
+              @click="exportToExcel"
+              :disabled="allData.length === 0"
+            >
+              <v-icon start>mdi-file-excel</v-icon> Export Excel
+            </v-btn>
             <v-spacer />
+
             <v-text-field
               v-model="searchQuery"
               label="Cari No. SPK atau Nama Order..."
@@ -57,127 +57,151 @@
         </v-card-text>
       </v-card>
 
-      <!-- Table Section -->
-      <div class="table-container">
-        <v-data-table
-          :items="paginatedData"
-          :loading="loading.report"
-          :headers="[]"
-          density="compact"
-          class="desktop-table elevation-1"
-          hide-default-footer
-          :items-per-page="-1"
+      <div class="text-caption text-primary mb-1 px-1 d-flex align-center ga-1">
+        <v-icon size="small" color="primary">mdi-information</v-icon>
+        <span
+          >Gaya Grid DevExpress: Geser sub-header ke kanan/kiri. Seluruh nilai
+          lajur vertikal akan ikut pindah secara sinkron.</span
         >
-          <template #thead>
-            <thead>
-              <tr class="header-row-1">
-                <th rowspan="2">PERUSH</th>
-                <th rowspan="2">TGL SPK</th>
-                <th rowspan="2">DEADLINE</th>
-                <th rowspan="2">NAMA ORDER</th>
-                <th colspan="2">UKURAN</th>
-                <th rowspan="2">NO SPK</th>
-                <th colspan="2">ORDER SPK</th>
-                <th rowspan="2">JENIS KAIN</th>
-                <th rowspan="2">KURANG</th>
-                <th colspan="3" class="bg-blue-lighten-4">HASIL CETAK - PCS</th>
-                <th colspan="3" class="bg-green-lighten-4">
-                  HASIL CETAK - METER
-                </th>
-              </tr>
-              <tr class="header-row-2">
-                <th>PANJANG</th>
-                <th>LEBAR</th>
-                <th>PCS</th>
-                <th>METER</th>
-                <th class="bg-blue-lighten-5">MX01</th>
-                <th class="bg-blue-lighten-5">MX02</th>
-                <th class="bg-blue-lighten-5">MX03</th>
-                <!-- Tambah ini -->
-                <th class="bg-blue-lighten-5">TOTAL</th>
-                <!-- METER -->
-                <th class="bg-green-lighten-5">MX01</th>
-                <th class="bg-green-lighten-5">MX02</th>
-                <th class="bg-green-lighten-5">MX03</th>
-                <!-- Tambah ini -->
-                <th class="bg-green-lighten-5">TOTAL</th>
-              </tr>
-            </thead>
-          </template>
-
-          <template v-slot:item="{ item }">
-            <tr
-              class="data-row"
-              :class="{ 'row-empty': !item.jmlcetak || item.jmlcetak == 0 }"
-            >
-              <td class="text-center">{{ item.spk_perush_kode }}</td>
-              <td class="text-center">{{ formatDate(item.spk_tanggal) }}</td>
-              <td class="text-center">{{ formatDate(item.spk_dateline) }}</td>
-              <td class="text-left">{{ item.spk_nama }}</td>
-              <td class="text-right">
-                {{ formatNumber(item.spk_panjang) }}
-              </td>
-              <td class="text-right">{{ formatNumber(item.spk_lebar) }}</td>
-              <td class="text-center font-weight-bold">{{ item.spk_nomor }}</td>
-              <td class="text-right">{{ formatNumber(item.spk_jumlah, 0) }}</td>
-              <td class="text-right">
-                {{ formatNumber(item.order_meter, 2) }}
-              </td>
-              <td class="text-left">{{ item.spk_kain }}</td>
-              <td class="text-right text-error font-weight-bold">
-                {{ formatNumber(item.jmlkurang, 0) }}
-              </td>
-              <td class="text-right">{{ formatNumber(item.mx01, 0) }}</td>
-              <td class="text-right">{{ formatNumber(item.mx02, 0) }}</td>
-              <td class="text-right">{{ formatNumber(item.mx03, 0) }}</td>
-              <td class="text-right font-weight-bold">
-                {{ formatNumber(item.jmlcetak, 0) }}
-              </td>
-              <td class="text-right">{{ formatNumber(item.jmx01, 2) }}</td>
-              <td class="text-right">{{ formatNumber(item.jmx02, 2) }}</td>
-              <td class="text-right">{{ formatNumber(item.jmx03, 2) }}</td>
-              <td class="text-right font-weight-bold">
-                {{ formatNumber(item.cetak_meter, 2) }}
-              </td>
-            </tr>
-          </template>
-
-          <template #tfoot v-if="filteredData.length > 0">
-            <tr class="table-footer">
-              <td colspan="7" class="text-right font-weight-bold">
-                GRAND TOTAL (Filtered):
-              </td>
-              <td class="text-right">
-                {{ formatNumber(reportTotals.spk_jumlah, 0) }}
-              </td>
-              <td class="text-right">
-                {{ formatNumber(reportTotals.order_meter, 2) }}
-              </td>
-              <td colspan="2"></td>
-              <td class="text-right">
-                {{ formatNumber(reportTotals.mx01, 0) }}
-              </td>
-              <td class="text-right">
-                {{ formatNumber(reportTotals.mx02, 0) }}
-              </td>
-              <td class="text-right">
-                {{ formatNumber(reportTotals.jmlcetak, 0) }}
-              </td>
-              <td class="text-right">
-                {{ formatNumber(reportTotals.jmx01, 2) }}
-              </td>
-              <td class="text-right">
-                {{ formatNumber(reportTotals.jmx02, 2) }}
-              </td>
-              <td class="text-right">
-                {{ formatNumber(reportTotals.cetak_meter, 2) }}
-              </td>
-            </tr>
-          </template>
-        </v-data-table>
       </div>
 
-      <!-- Pagination Controls -->
+      <div class="grid-table-container">
+        <div class="grid-table-viewport">
+          <div class="grid-table-header-group">
+            <div
+              v-for="(group, gIdx) in dynamicGroups"
+              :key="'group-' + gIdx"
+              class="grid-group-th text-center"
+              :class="group.class"
+              :style="{
+                width: group.width + 'px',
+                minWidth: group.width + 'px',
+                height: group.rowspan === 2 ? '56px' : '28px',
+                lineHeight: group.rowspan === 2 ? '56px' : '28px',
+              }"
+            >
+              {{ group.label }}
+            </div>
+          </div>
+
+          <div class="grid-table-main-view">
+            <draggable
+              v-model="columns"
+              item-key="field"
+              class="draggable-columns-binder"
+              handle=".grid-sub-th"
+              ghost-class="column-drag-ghost"
+            >
+              <template #item="{ element: col, index: colIdx }">
+                <div
+                  class="grid-column-vertical-stack"
+                  :style="{
+                    width: col.width + 'px',
+                    minWidth: col.width + 'px',
+                  }"
+                >
+                  <div
+                    class="grid-sub-th text-center"
+                    :class="{ 'hidden-sub-title': col.group === 'NONE' }"
+                  >
+                    <v-icon size="x-small" class="mr-1 text-blue-grey-lighten-3"
+                      >mdi-drag-vertical</v-icon
+                    >
+                    <span>{{ col.label }}</span>
+                  </div>
+
+                  <div class="grid-column-body-cells">
+                    <div
+                      v-for="(item, rowIdx) in paginatedData"
+                      :key="'row-' + rowIdx"
+                      class="grid-data-td"
+                      :class="[
+                        col.class,
+                        rowIdx % 2 === 1 ? 'zebra-stripe-row' : '',
+                        !item.jmlcetak || item.jmlcetak == 0
+                          ? 'row-empty-sublim'
+                          : '',
+                      ]"
+                    >
+                      <template v-if="col.type === 'number'">
+                        <span
+                          :class="{
+                            'font-weight-bold text-red':
+                              col.field === 'jmlkurang',
+                          }"
+                        >
+                          {{
+                            formatNumber(
+                              getValueByField(item, col.field),
+                              col.dec,
+                            )
+                          }}
+                        </span>
+                      </template>
+                      <template v-else-if="col.type === 'date'">
+                        {{ formatOnlyDate(getValueByField(item, col.field)) }}
+                      </template>
+                      <template v-else>
+                        {{ getValueByField(item, col.field) || "-" }}
+                      </template>
+                    </div>
+
+                    <div
+                      v-if="filteredData.length === 0"
+                      class="grid-data-td text-center text-grey-lighten-1"
+                    >
+                      -
+                    </div>
+                  </div>
+
+                  <div
+                    class="grid-footer-td font-weight-bold"
+                    :class="col.class"
+                  >
+                    <span v-if="colIdx === 0">GRAND TOTAL:</span>
+                    <span v-else-if="col.sum">
+                      <template v-if="col.field === 'total_pcs_aktual'">
+                        {{
+                          formatNumber(
+                            filteredData.reduce(
+                              (a, b) =>
+                                a +
+                                (Number(b.mx01 || 0) +
+                                  Number(b.mx02 || 0) +
+                                  Number(b.mx03 || 0)),
+                              0,
+                            ),
+                            0,
+                          )
+                        }}
+                      </template>
+                      <template v-else-if="col.field === 'total_mtr_aktual'">
+                        {{
+                          formatNumber(
+                            filteredData.reduce(
+                              (a, b) =>
+                                a +
+                                (Number(b.jmx01 || 0) +
+                                  Number(b.jmx02 || 0) +
+                                  Number(b.jmx03 || 0)),
+                              0,
+                            ),
+                            col.dec,
+                          )
+                        }}
+                      </template>
+                      <template v-else>
+                        {{ formatNumber(sumField(col.field), col.dec) }}
+                      </template>
+                    </span>
+                  </div>
+                </div>
+              </template>
+            </draggable>
+          </div>
+        </div>
+      </div>
+
       <div
         class="d-flex justify-space-between align-center mt-3"
         v-if="filteredData.length > 0"
@@ -226,16 +250,242 @@ import { ref, onMounted, computed, watch } from "vue";
 import PageLayout from "../components/PageLayout.vue";
 import api from "@/services/api";
 import XLSX from "xlsx-js-style";
+import { parseISO, isValid, format } from "date-fns";
 import { saveAs } from "file-saver";
+import draggable from "vuedraggable";
 
-// --- STATE ---
+// --- URUTAN DAN KONFIGURASI SCHEMA GRID TEKSTIL (SINKRON DENGAN DATA MAKRO TEKSTIL) ---
+const columns = ref([
+  {
+    label: "PERUSH",
+    field: "spk_perush_kode",
+    class: "text-center",
+    type: "string",
+    group: "NONE",
+    width: 85,
+  },
+  {
+    label: "TGL SPK",
+    field: "spk_tanggal",
+    class: "text-center",
+    type: "date",
+    group: "NONE",
+    width: 105,
+  },
+  {
+    label: "DEADLINE",
+    field: "spk_dateline",
+    class: "text-center",
+    type: "date",
+    group: "NONE",
+    width: 105,
+  },
+  {
+    label: "NAMA ORDER",
+    field: "spk_nama",
+    class: "text-left",
+    type: "string",
+    group: "NONE",
+    width: 280,
+  },
+
+  // Group UKURAN
+  {
+    label: "PANJANG",
+    field: "spk_panjang",
+    class: "text-right",
+    type: "number",
+    dec: 2,
+    group: "UKURAN",
+    width: 90,
+  },
+  {
+    label: "LEBAR",
+    field: "spk_lebar",
+    class: "text-right",
+    type: "number",
+    dec: 2,
+    group: "UKURAN",
+    width: 90,
+  },
+
+  // Dokumen SPK Mandiri
+  {
+    label: "NO SPK",
+    field: "spk_nomor",
+    class: "text-center",
+    type: "string",
+    group: "NONE",
+    width: 130,
+  },
+
+  // Group ORDER SPK
+  {
+    label: "PCS",
+    field: "spk_jumlah",
+    class: "text-right",
+    type: "number",
+    dec: 0,
+    sum: true,
+    group: "ORDER SPK",
+    width: 90,
+  },
+  {
+    label: "METER",
+    field: "order_meter",
+    class: "text-right",
+    type: "number",
+    dec: 2,
+    sum: true,
+    group: "ORDER SPK",
+    width: 105,
+  },
+
+  // Detail Tekstil Lainnya
+  {
+    label: "JENIS KAIN",
+    field: "spk_kain",
+    class: "text-left",
+    type: "string",
+    group: "NONE",
+    width: 200,
+  },
+  {
+    label: "KURANG",
+    field: "jmlkurang",
+    class: "text-right",
+    type: "number",
+    dec: 0,
+    sum: true,
+    group: "NONE",
+    width: 90,
+  },
+
+  // Group HASIL CETAK - PCS (MX01, MX02, MX03)
+  {
+    label: "MX01",
+    field: "mx01",
+    class: "text-right",
+    type: "number",
+    dec: 0,
+    sum: true,
+    group: "HASIL CETAK - PCS",
+    width: 80,
+  },
+  {
+    label: "MX02",
+    field: "mx02",
+    class: "text-right",
+    type: "number",
+    dec: 0,
+    sum: true,
+    group: "HASIL CETAK - PCS",
+    width: 80,
+  },
+  {
+    label: "MX03",
+    field: "mx03",
+    class: "text-right",
+    type: "number",
+    dec: 0,
+    sum: true,
+    group: "HASIL CETAK - PCS",
+    width: 80,
+  },
+  {
+    label: "TOTAL",
+    field: "total_pcs_aktual",
+    class: "text-right font-weight-bold",
+    type: "number",
+    dec: 0,
+    sum: true,
+    group: "HASIL CETAK - PCS",
+    width: 95,
+  },
+
+  // Group HASIL CETAK - METER (jmx01, jmx02, jmx03)
+  {
+    label: "MX01",
+    field: "jmx01",
+    class: "text-right",
+    type: "number",
+    dec: 2,
+    sum: true,
+    group: "HASIL CETAK - METER",
+    width: 85,
+  },
+  {
+    label: "MX02",
+    field: "jmx02",
+    class: "text-right",
+    type: "number",
+    dec: 2,
+    sum: true,
+    group: "HASIL CETAK - METER",
+    width: 85,
+  },
+  {
+    label: "MX03",
+    field: "jmx03",
+    class: "text-right",
+    type: "number",
+    dec: 2,
+    sum: true,
+    group: "HASIL CETAK - METER",
+    width: 85,
+  },
+  {
+    label: "TOTAL",
+    field: "total_mtr_aktual",
+    class: "text-right font-weight-bold",
+    type: "number",
+    dec: 2,
+    sum: true,
+    group: "HASIL CETAK - METER",
+    width: 95,
+  },
+]);
+
+// --- TRACKING REAL-TIME BANDED HEADER MERGE WIDTH ---
+const dynamicGroups = computed(() => {
+  const groups = [];
+  let currentGroup = null;
+
+  columns.value.forEach((col) => {
+    if (col.group === "NONE") {
+      groups.push({
+        label: col.label,
+        width: col.width,
+        colspan: 1,
+        rowspan: 2,
+        class: "header-cell-dark",
+      });
+      currentGroup = null;
+    } else {
+      if (currentGroup && currentGroup.label === col.group) {
+        currentGroup.width += col.width;
+        currentGroup.colspan += 1;
+      } else {
+        currentGroup = {
+          label: col.group,
+          width: col.width,
+          colspan: 1,
+          rowspan: 1,
+          class: "header-cell-light",
+        };
+        groups.push(currentGroup);
+      }
+    }
+  });
+  return groups;
+});
+
+// --- STATE MANAGEMENT ---
 const allData = ref([]);
 const loading = ref({ report: false });
 const searchQuery = ref("");
 const startDate = ref(new Date().toISOString().substr(0, 7) + "-01");
 const endDate = ref(new Date().toISOString().substr(0, 10));
-
-// --- PAGINATION STATE ---
 const currentPage = ref(1);
 const itemsPerPage = ref(50);
 
@@ -244,39 +494,54 @@ watch([searchQuery, startDate, endDate], () => {
   currentPage.value = 1;
 });
 
-// --- UTILS ---
-const formatNumber = (val, decimal = 3) => {
-  if (val === null || val === undefined || val === 0) return "0";
-
-  // Menggunakan parseFloat untuk membuang nol yang tidak perlu
-  // kemudian diformat sesuai locale Indonesia
-  const formatted = parseFloat(val).toFixed(decimal);
-  return parseFloat(formatted).toLocaleString("id-ID");
+// --- UTILS LAYOUT FORMATTER ---
+const formatNumber = (val, dec = 0) => {
+  if (val === null || val === undefined || isNaN(val)) return "0";
+  return parseFloat(parseFloat(val).toFixed(dec)).toLocaleString("id-ID", {
+    minimumFractionDigits: dec,
+    maximumFractionDigits: dec,
+  });
 };
 
-const formatDate = (dateStr) => {
-  if (!dateStr) return "-";
-  return dateStr.substring(0, 10);
+const formatOnlyDate = (dateStr) => {
+  if (!dateStr || dateStr === "-") return "-";
+  const date = parseISO(dateStr);
+  return isValid(date) ? format(date, "dd/MM/yyyy") : dateStr.substring(0, 10);
 };
 
-// --- API LOGIC ---
+const getValueByField = (item, field) => {
+  if (field === "total_pcs_aktual") {
+    return (
+      Number(item.mx01 || 0) + Number(item.mx02 || 0) + Number(item.mx03 || 0)
+    );
+  }
+  if (field === "total_mtr_aktual") {
+    return (
+      Number(item.jmx01 || 0) +
+      Number(item.jmx02 || 0) +
+      Number(item.jmx03 || 0)
+    );
+  }
+  return item[field];
+};
+
+// --- DATA LOGIC ---
 const fetchReport = async () => {
   loading.value.report = true;
   try {
     const res = await api.get("/mmt/monitoring-tekstil", {
       params: { startDate: startDate.value, endDate: endDate.value },
     });
-    allData.value = res.data;
+    allData.value = res.data || [];
   } catch (error) {
-    console.error("Gagal load data:", error);
+    console.error("Gagal load data tekstil:", error);
   } finally {
     loading.value.report = false;
   }
 };
 
-// --- COMPUTED LOGIC ---
 const filteredData = computed(() => {
-  const query = searchQuery.value.toLowerCase();
+  const query = searchQuery.value.toLowerCase().trim();
   return allData.value.filter(
     (row) =>
       !query ||
@@ -286,259 +551,404 @@ const filteredData = computed(() => {
   );
 });
 
+const sumField = (fieldName) => {
+  return filteredData.value.reduce((sum, item) => {
+    const val = parseFloat(item[fieldName]);
+    return sum + (isNaN(val) ? 0 : val);
+  }, 0);
+};
+
 const totalPages = computed(() => {
   if (itemsPerPage.value === -1) return 1;
-  return Math.ceil(filteredData.value.length / itemsPerPage.value);
+  return Math.ceil(filteredData.value.length / itemsPerPage.value) || 1;
 });
 
 const paginatedData = computed(() => {
   if (itemsPerPage.value === -1) return filteredData.value;
   const start = (currentPage.value - 1) * itemsPerPage.value;
-  const end = start + itemsPerPage.value;
-  return filteredData.value.slice(start, end);
+  return filteredData.value.slice(start, start + itemsPerPage.value);
 });
 
-const reportTotals = computed(() => {
-  return filteredData.value.reduce(
-    (acc, row) => {
-      acc.spk_jumlah += row.spk_jumlah || 0;
-      acc.order_meter += row.order_meter || 0;
-      acc.mx01 += row.mx01 || 0;
-      acc.mx02 += row.mx02 || 0;
-      acc.jmlcetak += row.jmlcetak || 0;
-      acc.jmx01 += row.jmx01 || 0;
-      acc.jmx02 += row.jmx02 || 0;
-      acc.cetak_meter += row.cetak_meter || 0;
-      return acc;
-    },
-    {
-      spk_jumlah: 0,
-      order_meter: 0,
-      mx01: 0,
-      mx02: 0,
-      jmlcetak: 0,
-      jmx01: 0,
-      jmx02: 0,
-      cetak_meter: 0,
-    },
-  );
-});
-
-// --- EXCEL EXPORT LOGIC ---
+// --- EXPORT TO EXCEL ENGINE DENGAN BORDER HITAM TEGAS & FORMAT 2 DESIMAL ---
 const exportToExcel = () => {
-  const fileName = `Monitoring_Tekstil_${startDate.value}_to_${endDate.value}.xlsx`;
+  const fileName = `Laporan_Monitoring_Tekstil_${startDate.value}.xlsx`;
 
-  // 1. Styles
-  const styleHeader = {
-    fill: { fgColor: { rgb: "E1F5FE" } },
-    font: { bold: true, color: { rgb: "01579B" }, sz: 10 },
+  const formatDateIndo = (dateStr) => {
+    if (!dateStr) return "-";
+    const date = parseISO(dateStr);
+    if (!isValid(date)) return dateStr;
+    const bulanIndo = [
+      "Januari",
+      "Februari",
+      "Maret",
+      "April",
+      "Mei",
+      "Juni",
+      "Juli",
+      "Agustus",
+      "September",
+      "Oktober",
+      "November",
+      "Desember",
+    ];
+    return `${date.getDate()} ${bulanIndo[date.getMonth()]} ${date.getFullYear()}`;
+  };
+
+  // Border keliling hitam murni tegas
+  const borderTegasHitam = {
+    top: { style: "thin", color: { rgb: "000000" } },
+    bottom: { style: "thin", color: { rgb: "000000" } },
+    left: { style: "thin", color: { rgb: "000000" } },
+    right: { style: "thin", color: { rgb: "000000" } },
+  };
+
+  const styleHeaderMain = {
+    fill: { fgColor: { rgb: "E3F2FD" } },
+    font: { bold: true, color: { rgb: "000000" }, name: "Calibri", sz: 10 },
     alignment: { horizontal: "center", vertical: "center", wrapText: true },
+    border: borderTegasHitam,
+  };
+
+  const styleHeaderSub = {
+    ...styleHeaderMain,
+    fill: { fgColor: { rgb: "F0F8FF" } },
+  };
+
+  const styleDataCell = {
+    font: { name: "Calibri", sz: 10, color: { rgb: "000000" } },
+    alignment: { vertical: "center" },
+    border: borderTegasHitam,
+  };
+
+  const styleFooter = {
+    ...styleDataCell,
+    fill: { fgColor: { rgb: "F5F5F5" } },
+    font: { bold: true, name: "Calibri", sz: 10, color: { rgb: "000000" } },
     border: {
-      top: { style: "thin" },
-      bottom: { style: "thin" },
-      left: { style: "thin" },
-      right: { style: "thin" },
+      top: { style: "thin", color: { rgb: "000000" } },
+      bottom: { style: "double", color: { rgb: "000000" } },
+      left: { style: "thin", color: { rgb: "000000" } },
+      right: { style: "thin", color: { rgb: "000000" } },
     },
   };
 
-  const styleData = {
-    font: { sz: 9 },
-    border: {
-      top: { style: "thin" },
-      bottom: { style: "thin" },
-      left: { style: "thin" },
-      right: { style: "thin" },
+  const wsData = [];
+  wsData.push([
+    {
+      v: "LAPORAN MONITORING TEKSTIL",
+      s: {
+        font: { bold: true, sz: 16, name: "Calibri", color: { rgb: "000000" } },
+      },
     },
-  };
-
-  // 2. Build Rows
-  const rows = [];
-
-  // Header Row 1
-  rows.push([
-    { v: "PERUSH", s: styleHeader },
-    { v: "TGL SPK", s: styleHeader },
-    { v: "DEADLINE", s: styleHeader },
-    { v: "NAMA ORDER", s: styleHeader },
-    { v: "UKURAN", s: styleHeader },
-    { v: "", s: styleHeader }, // Merge Ukuran
-    { v: "NO SPK", s: styleHeader },
-    { v: "ORDER SPK", s: styleHeader },
-    { v: "", s: styleHeader }, // Merge Order
-    { v: "JENIS KAIN", s: styleHeader },
-    { v: "KURANG", s: styleHeader },
-    { v: "HASIL CETAK - PCS", s: styleHeader },
-    { v: "", s: styleHeader },
-    { v: "", s: styleHeader },
-    { v: "HASIL CETAK - METER", s: styleHeader },
-    { v: "", s: styleHeader },
-    { v: "", s: styleHeader },
   ]);
-
-  // Header Row 2
-  rows.push([
-    { v: "", s: styleHeader },
-    { v: "", s: styleHeader },
-    { v: "", s: styleHeader },
-    { v: "", s: styleHeader },
-    { v: "PANJANG", s: styleHeader },
-    { v: "LEBAR", s: styleHeader },
-    { v: "", s: styleHeader },
-    { v: "PCS", s: styleHeader },
-    { v: "METER", s: styleHeader },
-    { v: "", s: styleHeader },
-    { v: "", s: styleHeader },
-    { v: "MX01", s: styleHeader },
-    { v: "MX02", s: styleHeader },
-    { v: "TOTAL", s: styleHeader },
-    { v: "MX01", s: styleHeader },
-    { v: "MX02", s: styleHeader },
-    { v: "TOTAL", s: styleHeader },
+  wsData.push([
+    {
+      v: `Periode: ${formatDateIndo(startDate.value)} s/d ${formatDateIndo(endDate.value)}`,
+      s: {
+        font: { bold: true, sz: 12, name: "Calibri", color: { rgb: "000000" } },
+      },
+    },
   ]);
+  wsData.push([
+    {
+      v: "Kategori: MX",
+      s: {
+        font: {
+          bold: false,
+          sz: 11,
+          name: "Calibri",
+          color: { rgb: "000000" },
+        },
+      },
+    },
+  ]);
+  wsData.push([]);
 
-  // Data Rows
-  filteredData.value.forEach((item) => {
-    const isYellow = !item.jmlcetak || item.jmlcetak == 0;
-    const cellStyle = isYellow
-      ? { ...styleData, fill: { fgColor: { rgb: "FFF9C4" } } }
-      : styleData;
+  const excelHeaderRow1 = [];
+  const excelHeaderRow2 = [];
+  const excelMerges = [];
 
-    rows.push([
-      { v: item.spk_perush_kode, s: cellStyle },
-      { v: formatDate(item.spk_tanggal), s: cellStyle },
-      { v: formatDate(item.spk_dateline), s: cellStyle },
-      { v: item.spk_nama, s: cellStyle },
-      { v: item.spk_panjang, s: cellStyle, t: "n", z: "#,##0.###" },
-      { v: item.spk_lebar, s: cellStyle, t: "n", z: "#,##0.###" },
-      { v: item.spk_nomor, s: cellStyle },
-      { v: item.spk_jumlah, s: cellStyle, t: "n" },
-      { v: item.order_meter, s: cellStyle, t: "n", z: "#,##0.###" },
-      { v: item.spk_kain, s: cellStyle },
-      {
-        v: item.jmlkurang,
-        s: { ...cellStyle, font: { color: { rgb: "FF0000" }, bold: true } },
-        t: "n",
-      },
-      { v: item.mx01 || 0, s: cellStyle, t: "n" },
-      { v: item.mx02 || 0, s: cellStyle, t: "n" },
-      {
-        v: item.jmlcetak || 0,
-        s: { ...cellStyle, font: { bold: true } },
-        t: "n",
-      },
-      { v: item.jmx01 || 0, s: cellStyle, t: "n", z: "#,##0.00" },
-      { v: item.jmx02 || 0, s: cellStyle, t: "n", z: "#,##0.00" },
-      {
-        v: item.cetak_meter || 0,
-        s: { ...cellStyle, font: { bold: true } },
-        t: "n",
-        z: "#,##0.00",
-      },
-    ]);
+  dynamicGroups.value.forEach((group) => {
+    excelHeaderRow1.push({ v: group.label, s: styleHeaderMain });
+    for (let i = 1; i < group.colspan; i++) {
+      excelHeaderRow1.push({ v: "", s: styleHeaderMain });
+    }
   });
 
-  // Footer Row
-  rows.push([
-    { v: "GRAND TOTAL", s: styleHeader },
-    "",
-    "",
-    "",
-    "",
-    "",
-    "",
-    { v: reportTotals.value.spk_jumlah, s: styleHeader, t: "n" },
-    {
-      v: reportTotals.value.order_meter,
-      s: styleHeader,
-      t: "n",
-      z: "#,##0.00",
-    },
-    "",
-    "",
-    { v: reportTotals.value.mx01, s: styleHeader, t: "n" },
-    { v: reportTotals.value.mx02, s: styleHeader, t: "n" },
-    { v: reportTotals.value.mx03, s: styleHeader, t: "n" },
-    { v: reportTotals.value.jmlcetak, s: styleHeader, t: "n" },
-    { v: reportTotals.value.jmx01, s: styleHeader, t: "n", z: "#,##0.00" },
-    { v: reportTotals.value.jmx02, s: styleHeader, t: "n", z: "#,##0.00" },
-    { v: reportTotals.value.jmx03, s: styleHeader, t: "n", z: "#,##0.00" },
-    {
-      v: reportTotals.value.cetak_meter,
-      s: styleHeader,
-      t: "n",
-      z: "#,##0.00",
-    },
-  ]);
+  columns.value.forEach((col) => {
+    excelHeaderRow2.push({ v: col.label, s: styleHeaderSub });
+  });
 
-  const worksheet = XLSX.utils.aoa_to_sheet(rows);
+  wsData.push(excelHeaderRow1);
+  wsData.push(excelHeaderRow2);
 
-  // Merge cells (s = start, e = end, r = row, c = col)
-  worksheet["!merges"] = [
-    { s: { r: 0, c: 0 }, e: { r: 1, c: 0 } }, // Perush
-    { s: { r: 0, c: 1 }, e: { r: 1, c: 1 } }, // Tgl
-    { s: { r: 0, c: 2 }, e: { r: 1, c: 2 } }, // Deadline
-    { s: { r: 0, c: 3 }, e: { r: 1, c: 3 } }, // Nama
-    { s: { r: 0, c: 4 }, e: { r: 0, c: 5 } }, // Ukuran
-    { s: { r: 0, c: 6 }, e: { r: 1, c: 6 } }, // No SPK
-    { s: { r: 0, c: 7 }, e: { r: 0, c: 8 } }, // Order
-    { s: { r: 0, c: 9 }, e: { r: 1, c: 9 } }, // Jenis
-    { s: { r: 0, c: 10 }, e: { r: 1, c: 10 } }, // Kurang
-    { s: { r: 0, c: 11 }, e: { r: 0, c: 13 } }, // Cetak Pcs
-    { s: { r: 0, c: 14 }, e: { r: 0, c: 16 } }, // Cetak Meter
-    { s: { r: rows.length - 1, c: 0 }, e: { r: rows.length - 1, c: 6 } }, // Footer Grand Total
-  ];
+  let currentExcelCol = 0;
+  dynamicGroups.value.forEach((group) => {
+    if (group.rowspan === 2) {
+      excelMerges.push({
+        s: { r: 4, c: currentExcelCol },
+        e: { r: 5, c: currentExcelCol },
+      });
+      currentExcelCol += 1;
+    } else {
+      excelMerges.push({
+        s: { r: 4, c: currentExcelCol },
+        e: { r: 4, c: currentExcelCol + group.colspan - 1 },
+      });
+      currentExcelCol += group.colspan;
+    }
+  });
 
-  const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, worksheet, "Laporan Monitoring");
-  const excelBuffer = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
-  saveAs(new Blob([excelBuffer]), fileName);
+  excelMerges.push({
+    s: { r: filteredData.value.length + 6, c: 0 },
+    e: { r: filteredData.value.length + 6, c: 3 },
+  });
+
+  // Map Data Value ke Lajur Baris Excel
+  filteredData.value.forEach((item) => {
+    const row = [];
+    columns.value.forEach((col) => {
+      const value = getValueByField(item, col.field);
+      if (col.type === "number") {
+        const isDecimalCol =
+          col.field.includes("panjang") ||
+          col.field.includes("lebar") ||
+          col.field.includes("meter") ||
+          col.field.includes("jmx") ||
+          col.field === "total_mtr_aktual";
+        const finalNum = isDecimalCol
+          ? Number(parseFloat(value || 0).toFixed(2))
+          : Number(value || 0);
+
+        row.push({
+          v: finalNum,
+          s: {
+            ...styleDataCell,
+            alignment: { horizontal: "right" },
+            t: "n",
+            z: isDecimalCol ? "#,##0.00" : "#,##0",
+          },
+        });
+      } else if (col.type === "date") {
+        row.push({
+          v: formatOnlyDate(value),
+          s: { ...styleDataCell, alignment: { horizontal: "center" } },
+        });
+      } else {
+        row.push({ v: value || "", s: styleDataCell });
+      }
+    });
+    wsData.push(row);
+  });
+
+  // Map Footer Grand Total ke Excel
+  const excelFooter = [];
+  columns.value.forEach((col, idx) => {
+    if (idx === 0) {
+      excelFooter.push({
+        v: "GRAND TOTAL:",
+        s: { ...styleFooter, alignment: { horizontal: "right" } },
+      });
+    } else if (col.sum) {
+      let sumVal = 0;
+      if (col.field === "total_pcs_aktual") {
+        sumVal = filteredData.value.reduce(
+          (a, b) =>
+            a +
+            (Number(b.mx01 || 0) + Number(b.mx02 || 0) + Number(b.mx03 || 0)),
+          0,
+        );
+      } else if (col.field === "total_mtr_aktual") {
+        sumVal = filteredData.value.reduce(
+          (a, b) =>
+            a +
+            (Number(b.jmx01 || 0) +
+              Number(b.jmx02 || 0) +
+              Number(b.jmx03 || 0)),
+          0,
+        );
+      } else {
+        sumVal = sumField(col.field);
+      }
+
+      const isDecimalCol =
+        col.field.includes("panjang") ||
+        col.field.includes("lebar") ||
+        col.field.includes("meter") ||
+        col.field.includes("jmx") ||
+        col.field === "total_mtr_aktual";
+      const finalSum = isDecimalCol
+        ? Number(parseFloat(sumVal).toFixed(2))
+        : Number(sumVal);
+
+      excelFooter.push({
+        v: finalSum,
+        s: { ...styleFooter, t: "n", z: isDecimalCol ? "#,##0.00" : "#,##0" },
+      });
+    } else {
+      excelFooter.push({ v: "", s: styleFooter });
+    }
+  });
+  wsData.push(excelFooter);
+
+  const ws = XLSX.utils.aoa_to_sheet(wsData);
+  ws["!merges"] = excelMerges;
+  ws["!cols"] = columns.value.map((c) => ({ wch: c.width / 7.2 }));
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Tekstil_Monitoring");
+  const wbout = XLSX.write(wb, { bookType: "xlsx", type: "binary" });
+  const s2ab = (s) => {
+    const buf = new ArrayBuffer(s.length);
+    const view = new Uint8Array(buf);
+    for (let i = 0; i < s.length; i++) view[i] = s.charCodeAt(i) & 0xff;
+    return buf;
+  };
+  saveAs(
+    new Blob([s2ab(wbout)], { type: "application/octet-stream" }),
+    fileName,
+  );
 };
 
 onMounted(fetchReport);
 </script>
 
 <style scoped>
-.table-container {
-  border: 1px solid #b3e5fc;
+.grid-table-container {
+  border: 1px solid #4ba3e3;
   border-radius: 4px;
-  background-color: white;
-  max-height: calc(100vh - 280px);
   overflow: auto;
+  max-height: calc(100vh - 260px);
+  background: white;
 }
 
-.desktop-table :deep(thead th) {
-  background-color: #e1f5fe !important;
-  color: #01579b !important;
-  font-size: 10px !important;
-  font-weight: bold !important;
-  text-align: center !important;
-  border: 1px solid #b3e5fc !important;
-  height: 35px !important;
-  position: sticky;
-  top: 0;
-  z-index: 10;
+.grid-table-viewport {
+  display: block;
+  width: max-content;
+  position: relative;
 }
 
-.desktop-table :deep(.header-row-2 th) {
-  top: 35px;
+/* Row 1: Group Header */
+.grid-table-header-group {
+  display: flex;
+  flex-direction: row;
+  height: 28px;
+  background: #e3f2fd;
 }
 
-.desktop-table :deep(td) {
-  font-size: 11px !important;
-  border-bottom: 1px solid #f0f0f0 !important;
-  border-right: 1px solid #f0f0f0 !important;
+.grid-group-th {
+  font-size: 10px;
+  font-weight: bold;
+  border-right: 0.5px solid #bbdefb;
+  border-bottom: 0.5px solid #bbdefb;
+  box-sizing: border-box;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+  padding: 0 4px;
 }
 
-.row-empty td {
+.header-cell-light {
+  background: #e3f2fd;
+  color: #0d47a1;
+  height: 28px;
+  line-height: 28px;
+}
+
+.header-cell-dark {
+  background: #bbdefb;
+  color: #0d47a1;
+  position: relative;
+  z-index: 50;
+}
+
+/* Row 2: Draggable Sub-Header */
+.grid-table-main-view {
+  display: block;
+}
+
+.draggable-columns-binder {
+  display: flex;
+  flex-direction: row;
+}
+
+.grid-column-vertical-stack {
+  display: flex;
+  flex-direction: column;
+}
+
+.grid-sub-th {
+  font-size: 10px;
+  font-weight: bold;
+  background: #f0f8ff;
+  color: #333333;
+  height: 28px;
+  line-height: 28px;
+  border-right: 0.5px solid #bbdefb;
+  border-bottom: 0.5px solid #bbdefb;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  cursor: grab;
+  padding: 0 4px;
+  white-space: nowrap;
+}
+
+.grid-sub-th:active {
+  cursor: grabbing;
+}
+
+.hidden-sub-title {
+  visibility: hidden;
+  height: 28px;
+  pointer-events: none;
+}
+
+/* Body Lajur Data Value - Normal Text No Bold */
+.grid-data-td {
+  font-size: 11px;
+  font-weight: normal;
+  height: 28px;
+  line-height: 28px;
+  padding: 0 8px;
+  border-right: 0.5px solid #f5f5f5;
+  border-bottom: 0.5px solid #f5f5f5;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  box-sizing: border-box;
+  background: white;
+}
+
+.zebra-stripe-row {
+  background-color: #f9fbfd !important;
+}
+
+.row-empty-sublim {
   background-color: #ffffff !important;
 }
 
-.table-footer td {
-  background-color: #f5f5f5 !important;
-  font-weight: bold;
-  border-top: 2px solid #b3e5fc !important;
-  position: sticky;
-  bottom: 0;
-  z-index: 5;
+/* Summary Footer */
+.grid-footer-td {
+  background: #f5f5f5;
+  color: #212121;
+  font-size: 11px;
+  height: 30px;
+  line-height: 30px;
+  padding: 0 8px;
+  border-right: 0.5px solid #9e9e9e;
+  border-top: 2px solid #9e9e9e;
+  border-bottom: 2px solid #9e9e9e;
+  box-sizing: border-box;
+}
+
+.column-drag-ghost {
+  opacity: 0.3;
+  background: #b3e5fc !important;
+}
+
+.text-red {
+  color: #d32f2f !important;
 }
 </style>

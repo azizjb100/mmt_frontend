@@ -237,7 +237,7 @@ const loadingGudang = ref(false);
 const isLookupVisible = ref(false);
 
 const filters = reactive({
-  startDate: format(new Date(), "yyyy-MM-01"),
+  startDate: format(new Date(), "yyyy-MM-dd"), // <-- Diubah ke yyyy-MM-dd agar menjadi hari ini
   endDate: format(new Date(), "yyyy-MM-dd"),
   gudang: user?.divisi == 1 ? "WH-010" : user?.GDG_KODE || "",
   search: "",

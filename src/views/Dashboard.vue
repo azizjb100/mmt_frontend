@@ -72,11 +72,66 @@
                   <li
                     v-for="subItem in item.items"
                     :key="subItem.name"
-                    class="card-item"
+                    class="card-item dynamic-sub"
+                    :class="{ 'item-disabled': subItem.isDisabled }"
                   >
-                    <router-link :to="subItem.path" @click="closeAllMenus">
-                      {{ subItem.name }}
-                    </router-link>
+                    <template v-if="subItem.isSubGroup">
+                      <a
+                        v-if="!subItem.isDisabled"
+                        class="sub-dropdown-toggle level-4-toggle"
+                        @mouseenter="activeSubLevel4 = subItem.name"
+                      >
+                        {{ subItem.name }}
+                        <span class="icon-arrow">»</span>
+                      </a>
+
+                      <span v-else class="disabled-link">
+                        {{ subItem.name }}
+                        <span class="mdi mdi-lock-outline"></span>
+                      </span>
+
+                      <ul
+                        v-if="
+                          !subItem.isDisabled &&
+                          activeSubLevel4 === subItem.name
+                        "
+                        class="sub-menu-popup level-4-popup shadow-md"
+                        @mouseleave="activeSubLevel4 = null"
+                      >
+                        <li
+                          v-for="deepItem in subItem.items"
+                          :key="deepItem.name"
+                          class="card-item"
+                          :class="{ 'item-disabled': deepItem.isDisabled }"
+                        >
+                          <router-link
+                            v-if="!deepItem.isDisabled"
+                            :to="deepItem.path"
+                            @click="closeAllMenus"
+                          >
+                            {{ deepItem.name }}
+                          </router-link>
+                          <span v-else class="disabled-link">
+                            {{ deepItem.name }}
+                            <span class="mdi mdi-lock-outline"></span>
+                          </span>
+                        </li>
+                      </ul>
+                    </template>
+
+                    <template v-else>
+                      <router-link
+                        v-if="!subItem.isDisabled"
+                        :to="subItem.path"
+                        @click="closeAllMenus"
+                      >
+                        {{ subItem.name }}
+                      </router-link>
+                      <span v-else class="disabled-link">
+                        {{ subItem.name }}
+                        <span class="mdi mdi-lock-outline"></span>
+                      </span>
+                    </template>
                   </li>
                 </ul>
               </li>
@@ -129,8 +184,9 @@ const router = useRouter();
 
 // State Navigasi
 const isMobileMenuOpen = ref(false);
-const activeMenu = ref(null); // Level 1: File, Daftar, Transaksi, Laporan
-const activeSubMenu = ref(null); // Level 2: Daftar (Sub), Finance, LHK, dll
+const activeMenu = ref<string | null>(null); // Level 1: File, Daftar, Laporan, dll
+const activeSubMenu = ref<string | null>(null); // Level 2 & 3
+const activeSubLevel4 = ref<string | null>(null); // Level 4 khusus sub-monitoring MMT
 
 // Fungsi Logout
 const handleLogout = () => {
@@ -140,33 +196,34 @@ const handleLogout = () => {
 
 // --- LOGIC TOGGLE MENU ---
 
-// Toggle Menu Utama (Level 1)
 const toggleMenu = (menuName: string) => {
   if (activeMenu.value !== menuName) {
-    activeSubMenu.value = null; // Reset Level 2 jika pindah menu utama
+    activeSubMenu.value = null;
+    activeSubLevel4.value = null;
   }
   activeMenu.value = activeMenu.value === menuName ? null : menuName;
 };
 
-// Toggle Sub-Group (Level 2 ke Level 3)
-// Menggunakan stop propagation agar klik tidak 'tembus' ke penutup menu
 const toggleSubMenu = (subName: string) => {
+  if (activeSubMenu.value !== subName) {
+    activeSubLevel4.value = null;
+  }
   activeSubMenu.value = activeSubMenu.value === subName ? null : subName;
 };
 
-// Menutup semua menu saat link diklik (Navigasi Berhasil)
 const closeAllMenus = () => {
   activeMenu.value = null;
   activeSubMenu.value = null;
+  activeSubLevel4.value = null;
   isMobileMenuOpen.value = false;
 };
 
-// Menutup menu jika klik di luar area navbar
 const handleClickOutside = (e: MouseEvent) => {
   const target = e.target as HTMLElement;
   if (!target.closest(".dropdown")) {
     activeMenu.value = null;
     activeSubMenu.value = null;
+    activeSubLevel4.value = null;
   }
 };
 
@@ -190,7 +247,6 @@ const rolePermissions = {
     "Realisasi Produksi",
     "Planning Produksi",
     "Stok Opname",
-    // "Koreksi Stok",
     "Retur Produksi",
     "STBJ",
     "Jadwal Kirim",
@@ -199,9 +255,22 @@ const rolePermissions = {
     "LHK Tekstil",
     "Laporan",
     "Produksi MMT",
+    "Stok & Bahan MMT",
+    "Monitoring & Dokumen",
+    "Lap. Monitoring Divisi",
     "LS Bahan Utama",
     "LS Bahan Penolong",
-    "Lap. Mon LMKP MMT",
+    "Kartu Stok Produksi",
+    "Laporan SPK MMT",
+    "Laporan LHK",
+    "Lap. Monitoring Kurang Produksi MMT",
+    "Lap. Pemakaian Bahan",
+    "Lap. Mon Cetak",
+    "Lap. Mon Finishing",
+    "Lap. Mon Tekstil",
+    "Lap. Mon Proof",
+    "Lap. Mon Sublim",
+    "Lap. BS & Sisa Digital Printing",
   ],
   2: ["File", "Ganti Password", "Customer", "Sales", "Laporan", "Penjualan"],
   4: [
@@ -218,9 +287,22 @@ const rolePermissions = {
     "LHK Tekstil",
     "Laporan",
     "Produksi MMT",
+    "Stok & Bahan MMT",
+    "Monitoring & Dokumen",
+    "Lap. Monitoring Divisi",
     "LS Bahan Utama",
     "LS Bahan Penolong",
-    "Lap. Mon LMKP MMT",
+    "Kartu Stok Produksi",
+    "Laporan SPK MMT",
+    "Laporan LHK",
+    "Lap. Monitoring Kurang Produksi MMT",
+    "Lap. Pemakaian Bahan",
+    "Lap. Mon Cetak",
+    "Lap. Mon Finishing",
+    "Lap. Mon Tekstil",
+    "Lap. Mon Proof",
+    "Lap. Mon Sublim",
+    "Lap. BS & Sisa Digital Printing",
   ],
 };
 
@@ -235,21 +317,7 @@ const allMenuGroups = [
   },
   {
     name: "Daftar",
-    items: [
-      { name: "Supplier", path: "/daftar/supplier" },
-      // { name: "Kode Bayar", path: "/daftar/kode-bayar" },
-      // { name: "Jenis Barang", path: "/daftar/jenis-barang" },
-      // { name: "Gudang", path: "/daftar/gudang" },
-      // { name: "Jasa", path: "/daftar/jasa" },
-      // { name: "Gudang Produksi", path: "/daftar/gudang-produksi" },
-      // { name: "Komponen SPK", path: "/daftar/komponen-spk" },
-      // { name: "Customer", path: "/daftar/customer" },
-      // { name: "Tanda Terima", path: "/daftar/tanda-terima" },
-      // { name: "Jenis Order", path: "/daftar/jenis-order" },
-      // { name: "Sales", path: "/daftar/sales" },
-      // { name: "Barang", path: "/daftar/barang" },
-      // { name: "Jenis Potongan", path: "/daftar/jenis-potongan" },
-    ],
+    items: [{ name: "Supplier", path: "/daftar/supplier" }],
   },
   {
     name: "Transaksi",
@@ -278,15 +346,12 @@ const allMenuGroups = [
           { name: "Laporan Outstanding", path: "/laporan/mmt/lap-hutang" },
         ],
       },
-
       {
         name: "Daftar Permintaan Pembelian",
         path: "/mmt/pengajuan-permintaan",
       },
       { name: "Purchase Request (PR)", path: "/mmt/permintaan-bahan" },
-
       { name: "Penerimaan Bahan", path: "/mmt/penerimaan-bahan" },
-
       { name: "Retur Produksi", path: "/mmt/retur-produksi" },
       { name: "Mutasi Bahan", path: "/mmt/mutasi-gudang" },
       { name: "Koreksi Stok", path: "/mmt/koreksi-stok" },
@@ -307,7 +372,6 @@ const allMenuGroups = [
           { name: "LHK Approval Cetak", path: "/mmt/lhk/cetak-mmt" },
           { name: "LHK Tekstil", path: "/mmt/lhk/tekstil" },
           { name: "LHK Approval Tekstil", path: "/mmt/lhk/tekstil/approve" },
-
           { name: "LHK Finishing", path: "/mmt/lhk/finishing" },
           { name: "LHK Proof", path: "/mmt/lhk/proof" },
           { name: "LHK Sublim", path: "/mmt/lhk/sublim" },
@@ -409,43 +473,47 @@ const allMenuGroups = [
         isSubGroup: true,
         path: "/laporan/mmt/browse",
         items: [
+          {
+            name: "Monitoring & Dokumen",
+            isSubGroup: true,
+            items: [
+              {
+                name: "Lap. Monitoring Kurang Produksi MMT",
+                path: "/laporan/mmt/lap-mon-lmkp-mmt",
+              },
+
+              { name: "Lap. Mon Cetak", path: "/laporan/mmt/lap-mon-cetak" },
+              {
+                name: "Lap. Mon Finishing",
+                path: "/laporan/mmt/lap-mon-finishing",
+              },
+              {
+                name: "Lap. Mon Tekstil",
+                path: "/laporan/mmt/lap-mon-tekstil",
+              },
+              { name: "Lap. Mon Proof", path: "/laporan/mmt/lap-mon-proof" },
+              { name: "Lap. Mon Sublim", path: "/laporan/mmt/lap-mon-sublim" },
+            ],
+          },
           { name: "LS Bahan Utama", path: "/laporan/mmt/ls-bahan-utama" },
-          { name: "LS Bahan Penolong", path: "/laporan/mmt/ls-bahan-penolong" },
           {
-            name: "Kartu Stok Produksi",
-            path: "/laporan/mmt/kartu-stok-produksi",
+            name: "LS Bahan Penolong",
+            path: "/laporan/mmt/ls-bahan-penolong",
           },
-          { name: "Laporan SPK MMT", path: "/laporan/mmt/lap-spk-mmt" },
-          { name: "Laporan LHK", path: "/laporan/mmt/lap-lhk" },
-          {
-            name: "Lap. Monitoring Kurang Produksi MMT",
-            path: "/laporan/mmt/lap-mon-lmkp-mmt",
-          },
+          // {
+          //   name: "Kartu Stok Produksi",
+          //   path: "/laporan/mmt/kartu-stok-produksi",
+          // },
           {
             name: "Lap. Pemakaian Bahan",
             path: "/laporan/mmt/lap-pemakaian-bahan",
           },
-          { name: "Lap. Mon Cetak", path: "/laporan/mmt/lap-mon-cetak" },
-          {
-            name: "Lap. Mon Finishing",
-            path: "/laporan/mmt/lap-mon-finishing",
-          },
-          { name: "Lap. Mon Tekstil", path: "/laporan/mmt/lap-mon-tekstil" },
-          { name: "Lap. Mon Proof", path: "/laporan/mmt/lap-mon-proof" },
-          { name: "Lap. Mon Sublim", path: "/laporan/mmt/lap-mon-sublim" },
+          { name: "Laporan SPK MMT", path: "/laporan/mmt/lap-spk-mmt" },
+          { name: "Laporan LHK", path: "/laporan/mmt/lap-lhk" },
           // {
-          //   name: "Lap. Plan Produksi",
-          //   path: "/laporan/mmt/lap-plan-produksi",
+          //   name: "Lap. BS & Sisa Digital Printing",
+          //   path: "/laporan/mmt/stok-jadi",
           // },
-          // { name: "Lap. Barang Jadi", path: "/laporan/mmt/lap-barang-jadi" },
-          // { name: "LS Tinta", path: "/laporan/mmt/lap-stok-tinta" },
-          // { name: "Lap. Bahan Kain", path: "/laporan/mmt/lap-bahan-kain" },
-          // { name: "LS Bahan Kain", path: "/laporan/mmt/ls-bahan-kain" },
-          // { name: "Kartu Stock Bahan", path: "/laporan/mmt/mon-jadwal-kirim" },
-          {
-            name: "Lap. BS & Sisa Digital Printing",
-            path: "/laporan/mmt/stok-jadi",
-          },
         ],
       },
       {
@@ -481,10 +549,27 @@ const menuGroups = computed(() => {
         let canAccess = allowedTitles.includes(item.name);
 
         if (item.isSubGroup && item.items) {
-          item.items = item.items.map((subItem: any) => ({
-            ...subItem,
-            isDisabled: !allowedTitles.includes(subItem.name),
-          }));
+          item.items = item.items.map((subItem: any) => {
+            // Cek jika Level 3 juga merupakan sub-group (Level 4)
+            if (subItem.isSubGroup && subItem.items) {
+              subItem.items = subItem.items.map((deepItem: any) => ({
+                ...deepItem,
+                isDisabled: !allowedTitles.includes(deepItem.name),
+              }));
+              const anyDeepAllowed = subItem.items.some(
+                (deep: any) => !deep.isDisabled,
+              );
+              return {
+                ...subItem,
+                isDisabled:
+                  !anyDeepAllowed && !allowedTitles.includes(subItem.name),
+              };
+            }
+            return {
+              ...subItem,
+              isDisabled: !allowedTitles.includes(subItem.name),
+            };
+          });
           const anySubAllowed = item.items.some((sub: any) => !sub.isDisabled);
           if (anySubAllowed) canAccess = true;
         }
@@ -617,7 +702,7 @@ const menuGroups = computed(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 5px;
+  padding: 5px 5px;
   color: var(--color-text-main);
   text-decoration: none;
   font-size: 0.875rem;
@@ -633,61 +718,80 @@ const menuGroups = computed(() => {
   color: white !important;
 }
 
-/* 5. SUB-MENU (LEVEL 3) - PERBAIKAN UTAMA */
+/* 5. SUB-MENU (LEVEL 3) */
 .sub-dropdown {
   position: relative;
 }
 
 .sub-menu-popup {
   position: absolute;
-  left: 100%; /* Geser ke kanan menu level 2 */
-  top: -8px; /* Sedikit ke atas agar sejajar */
+  left: 100%;
+  top: -8px;
   min-width: 260px;
   margin-left: 6px;
-  padding: 0;
-  background-color: white !important; /* Latar belakang solid */
+  padding: 6px;
+  background-color: white !important;
   z-index: 1300;
   list-style: none;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
-  box-shadow: 10px 10px 30px rgba(0, 0, 0, 0.18); /* Shadow kuat agar tidak menempel tabel */
-  overflow: hidden;
+  box-shadow: 10px 10px 30px rgba(0, 0, 0, 0.18);
 }
 
 .card-item {
   background-color: white;
-  border-bottom: 1px solid #f1f5f9;
+  margin-bottom: 2px;
 }
 
 .card-item:last-child {
-  border-bottom: none;
+  margin-bottom: 0;
 }
 
 .card-item a {
   display: block !important;
-  padding: 5px !important;
+  padding: 5px 12px !important;
   background-color: white !important;
   color: var(--color-text-main) !important;
   font-weight: 500;
+  border-radius: 6px;
   transition: all 0.2s;
 }
 
 .card-item a:hover {
   background-color: var(--color-primary-light) !important;
   color: var(--color-primary) !important;
-  padding-left: 22px !important; /* Animasi geser */
 }
 
-/* 6. DISABLED & LOCK */
+/* 6. SUB-MENU BARU (LEVEL 4) */
+.card-item.dynamic-sub {
+  position: relative;
+}
+
+.level-4-toggle {
+  display: flex !important;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+
+.level-4-popup {
+  position: absolute;
+  left: 100%;
+  top: -6px;
+  margin-left: 6px;
+  z-index: 1400;
+}
+
+/* 7. DISABLED & LOCK */
 .item-disabled {
   pointer-events: none;
-  opacity: 0.6;
+  opacity: 0.5;
 }
 
 .disabled-link {
   display: flex;
   justify-content: space-between;
-  padding: 10px 14px;
+  padding: 8px 12px;
   color: var(--color-text-muted);
   font-size: 0.875rem;
   background-color: #f8fafc;
@@ -695,7 +799,7 @@ const menuGroups = computed(() => {
   margin-bottom: 2px;
 }
 
-/* 7. MOBILE RESPONSIVE */
+/* 8. MOBILE RESPONSIVE */
 .mobile-toggle {
   display: none;
   background: none;
@@ -741,7 +845,7 @@ const menuGroups = computed(() => {
     position: static;
     visibility: visible;
     opacity: 1;
-    display: none; /* Default tutup di mobile */
+    display: none;
     box-shadow: none;
     border: none;
     padding: 10px 20px;
@@ -761,10 +865,20 @@ const menuGroups = computed(() => {
     border-left: 2px solid var(--color-primary);
     border-radius: 0;
     background-color: transparent !important;
+    padding: 0;
+  }
+
+  .level-4-popup {
+    position: static;
+    box-shadow: none;
+    border: none;
+    margin-left: 15px;
+    border-left: 2px dashed var(--color-primary);
+    background-color: transparent !important;
   }
 }
 
-/* 8. USER & MISC */
+/* 9. USER & MISC */
 .navbar-user {
   display: flex;
   align-items: center;

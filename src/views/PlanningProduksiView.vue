@@ -112,16 +112,15 @@ const detailHeaders = [
 
 // --- Click Row & Delphi Logika Style Gabungan ---
 const handleRowClick = (_event: any, row: any) => {
-  selected.value = [row.item];
+  // Pastikan ekstraksi objek baris aman baik dari event Vuetify lama maupun baru
+  const itemData = row.item?.raw || row.item || row;
+  selected.value = [itemData];
 };
 
 const getRowProps = ({ item }: { item: PlanningMaster }) => {
   return {
     class: {
-      // 1. Efek warna biru saat baris diklik (Replikasi Penerimaan Bahan)
       "row-selected": selected.value.some((s) => s.Nomor === item.Nomor),
-
-      // 2. Logika visual Delphi berdasarkan sisa status kerja
       "style-kirim-zero": item.Plan_kirim === 0,
       "style-finishing-zero": item.Plan_kirim > 0 && item.Plan_finishing === 0,
       "style-cetak-zero":
@@ -135,7 +134,6 @@ const fetchData = async () => {
   loading.value = true;
   try {
     const response = await api.get("/mmt/planning-produksi/planning-mmt", {
-      // Ubah key di bawah ini agar sesuai dengan yang dicari oleh controller backend
       params: {
         startDate: startDate.value,
         endDate: endDate.value,
@@ -149,10 +147,16 @@ const fetchData = async () => {
   }
 };
 
+// --- PERBAIKAN: Dialihkan menuju form pengisian planning mmt ---
 const handleEdit = () => {
   if (selected.value.length > 0) {
     const nomor = selected.value[0].Nomor;
-    router.push({ name: "PlanningProduksiEdit", params: { id: nomor } });
+    // Menggunakan name: 'PlanningProduksiMMTForm' sesuai indeks router anda
+    // Menggunakan params: { nomor } sesuai parameter tangkapan onMounted di form
+    router.push({
+      name: "PlanningProduksiMMTForm",
+      params: { nomor: nomor },
+    });
   }
 };
 
@@ -174,7 +178,7 @@ watch([startDate, endDate], fetchData);
       <v-btn
         size="x-small"
         color="primary"
-        prepend-icon="mdi-pencil"
+        prepend-icon="mdi-calendar-plus"
         :disabled="!selected.length"
         @click="handleEdit"
       >
@@ -244,7 +248,6 @@ watch([startDate, endDate], fetchData);
           @click:row="handleRowClick"
           :row-props="getRowProps"
         >
-          <!-- Format Tanggal Dateline (dd/mm/yyyy) -->
           <template #item.Dateline="{ item }">
             {{
               item.Dateline
@@ -253,7 +256,6 @@ watch([startDate, endDate], fetchData);
             }}
           </template>
 
-          <!-- Status Plan Cetak -->
           <template #item.Plancetak="{ item }">
             <v-chip
               :color="item.Plancetak > 0 ? 'success' : 'error'"
@@ -264,7 +266,6 @@ watch([startDate, endDate], fetchData);
             </v-chip>
           </template>
 
-          <!-- Status Plan Finishing -->
           <template #item.Plan_finishing="{ item }">
             <v-chip
               :color="item.Plan_finishing > 0 ? 'warning' : 'error'"
@@ -275,7 +276,6 @@ watch([startDate, endDate], fetchData);
             </v-chip>
           </template>
 
-          <!-- Status Plan Kirim -->
           <template #item.Plan_kirim="{ item }">
             <v-chip
               :color="item.Plan_kirim > 0 ? 'info' : 'error'"
@@ -286,7 +286,6 @@ watch([startDate, endDate], fetchData);
             </v-chip>
           </template>
 
-          <!-- Detail Table Row Expand -->
           <template #expanded-row="{ columns, item }">
             <tr>
               <td :colspan="columns.length" class="pa-0 border-0">
@@ -317,24 +316,19 @@ watch([startDate, endDate], fetchData);
 </template>
 
 <style scoped>
-/* 1. Aturan Ukuran Teks & Tinggi Baris Ringkas (11px & 32px) */
 :deep(.v-data-table) {
   font-size: 11px !important;
 }
-
 :deep(.v-data-table-header th) {
   font-size: 11px !important;
   height: 32px !important;
   font-weight: bold !important;
   background-color: #f5f5f5 !important;
 }
-
 :deep(.v-data-table td) {
   font-size: 11px !important;
   height: 32px !important;
 }
-
-/* 2. Style Interaksi Klik Baris (Warna Biru) */
 :deep(.row-selected) {
   background-color: #d8efff !important;
 }
@@ -347,23 +341,19 @@ watch([startDate, endDate], fetchData);
 :deep(.v-data-table__tr) {
   cursor: pointer;
 }
-
-/* 3. Container Detail Harian */
 .detail-container {
   padding: 0 !important;
   background-color: #f9f9f9;
   border-top: 1px solid rgba(0, 0, 0, 0.12);
 }
-
-/* 4. Replikasi Kombinasi cxStyle Delphi (Dipertahankan di atas warna seleksi) */
 :deep(.style-kirim-zero:not(.row-selected)) {
-  background-color: #ffebee !important; /* Merah Muda jika belum kirim */
+  background-color: #ffebee !important;
 }
 :deep(.style-finishing-zero:not(.row-selected)) {
-  border-left: 4px solid #ff9800 !important; /* Batas Oranye jika belum finishing */
+  border-left: 4px solid #ff9800 !important;
 }
 :deep(.style-cetak-zero:not(.row-selected)) {
-  color: #d32f2f !important; /* Teks Merah jika belum cetak */
+  color: #d32f2f !important;
   font-weight: bold;
 }
 </style>

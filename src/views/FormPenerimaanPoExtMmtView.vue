@@ -3,8 +3,7 @@ import { ref, onMounted, computed, reactive } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import api from "@/services/api";
 import PageLayout from "../components/PageLayout.vue";
-import POLookupModal from "@/modal/PoExternalMmtLookupModal.vue"; // Modal baru untuk cari PO
-// import GudangProduksiLookupModal from "@/modal/GudangProduksiLookupModal.vue"; // Modal baru untuk tujuan
+import POLookupModal from "@/modal/PoExternalMmtLookupModal.vue";
 import { format } from "date-fns";
 import { useToast } from "vue-toastification";
 
@@ -30,7 +29,8 @@ interface FormDataState {
   supKota: string;
   cabang: string;
   finishing: string;
-  keteranganHeader: string;
+  keteranganHeader: string; // Memo catatan asli dari PO
+  keteranganBpb: string; // Catatan baru untuk penerimaan barang ini
   jmlPo: number;
   sudahTerima: number;
   terimaBaru: number;
@@ -52,10 +52,8 @@ const API_PENERIMAAN_URL = "/mmt/penerimaan-po-ext-mmt";
 const isEditMode = ref(!!route.params.nomor);
 const isSaving = ref(false);
 const isPoModalVisible = ref(false);
-const isGpTujuanModalVisible = ref(false);
 const currentUserKode = ref("");
 
-// Fungsi untuk mengambil user dari localStorage (pola yang sama)
 const getCurrentUser = () => {
   for (let i = 0; i < localStorage.length; i++) {
     const key = localStorage.key(i);
@@ -97,6 +95,7 @@ const formData = reactive<FormDataState>({
   cabang: "",
   finishing: "",
   keteranganHeader: "",
+  keteranganBpb: "",
   jmlPo: 0,
   sudahTerima: 0,
   terimaBaru: 0,
@@ -108,8 +107,6 @@ const formData = reactive<FormDataState>({
 });
 
 // --- Computed ---
-
-// Replikasi logika edtkurang (sisa PO)
 const sisaKurang = computed(() => {
   const totalPo = Number(formData.jmlPo) || 0;
   const sudah = Number(formData.sudahTerima) || 0;
@@ -122,19 +119,14 @@ const isFormValid = computed(() => {
 });
 
 // --- Methods ---
-
 const handlePoSelect = async (po: any) => {
   isSaving.value = true;
   try {
-    const response = await api.get(
-      `/mmt/po-external-mmt/lookup-bpb/${po.Nomor}`,
-    );
-
-    // PERBAIKAN: Ambil properti 'data' di dalam response.data
+    const response = await api.get(`/mmt/po-external-mmt/detail/${po.Nomor}`);
     const d = response.data.data;
 
     if (!d) {
-      toast.error("Data PO tidak ditemukan dalam respon server");
+      toast.error("Data Detail PO tidak ditemukan dalam respon server");
       return;
     }
 
@@ -151,20 +143,21 @@ const handlePoSelect = async (po: any) => {
     formData.panjang = d.spk_panjang;
     formData.lebar = d.spk_lebar;
     formData.jumlahSpk = d.spk_jumlah;
+
+    // 🌟 MAPPING SUPPLIER (Menampilkan Kode & Nama)
     formData.supKode = d.poe_sup;
     formData.supNama = d.Sup_nama;
     formData.supAlamat = d.Sup_alamat;
     formData.supKota = d.Sup_kota;
+
     formData.cabang = d.poe_cab;
     formData.finishing = d.poe_finishing;
-    formData.keteranganHeader = d.poe_ket;
+    formData.keteranganHeader = d.poe_ket; // Keterangan asli dari PO
     formData.jmlPo = d.poe_jumlah;
     formData.bahanSendiri = d.poe_bahansendiri === "Y";
-
-    // AMBIL LANGSUNG dari d (Sudah ada di respon API Anda)
     formData.sudahTerima = d.totalTerima || 0;
 
-    // Logika penentuan gudang otomatis
+    // Logika penentuan kode gudang belakang layar (Tetap dipertahankan untuk payload simpan)
     if (formData.cabang === "P02") {
       formData.gpTujuanKode = "GP020";
       formData.gpTujuanNama = "06.GD KOLI P1";
@@ -186,23 +179,31 @@ const handlePoSelect = async (po: any) => {
 const loaddataall = async (nomor: string) => {
   isSaving.value = true;
   try {
-    const response = await api.get(`${API_URL}/${nomor}`);
-    const d = response.data;
+    // 🌟 PERBAIKAN: Gunakan API_PENERIMAAN_URL, bukan API_URL!
+    const response = await api.get(`${API_PENERIMAAN_URL}/${nomor}`);
 
-    // Mapping state sesuai struktur response detail
-    Object.assign(formData, {
-      nomor: d.bpe_nomor,
-      tanggal: format(new Date(d.bpe_tanggal), "yyyy-MM-dd"),
-      nomorPo: d.bpe_po,
-      terimaBaru: d.bpe_jumlah,
-      keteranganHeader: d.bpe_ket,
-      // ... mapping field lainnya dari response
-    });
+    // Ambil object data dari backend
+    const d = response.data.data || response.data;
 
-    // Muat info PO pendukung
-    if (formData.nomorPo) await handlePoSelect({ Nomor: formData.nomorPo });
+    if (!d) {
+      toast.error("Data Penerimaan (BPB) tidak ditemukan.");
+      return;
+    }
+
+    // Mapping state dari response database tbpbpoexternal_hdr
+    formData.nomor = d.bpe_nomor;
+    formData.tanggal = format(new Date(d.bpe_tanggal), "yyyy-MM-dd");
+    formData.nomorPo = d.bpe_po;
+    formData.terimaBaru = Number(d.bpe_jumlah) || 0;
+    formData.keteranganBpb = d.bpe_ket || "";
+
+    // 🌟 Sinkronisasi Otomatis: Tarik data spesifikasi PO referensinya
+    if (formData.nomorPo) {
+      await handlePoSelect({ Nomor: formData.nomorPo });
+    }
   } catch (error) {
-    toast.error("Gagal memuat data BPB.");
+    console.error("Error Load BPB:", error);
+    toast.error("Gagal memuat data riwayat BPB.");
   } finally {
     isSaving.value = false;
   }
@@ -221,7 +222,7 @@ const saveForm = async (saveAndNew: boolean) => {
       Supplier: formData.supKode,
       GpAsal: formData.gpAsalKode,
       GpTujuan: formData.gpTujuanKode,
-      Keterangan: formData.keteranganHeader,
+      Keterangan: formData.keteranganBpb,
       JumlahTerima: formData.terimaBaru,
     };
 
@@ -349,7 +350,7 @@ onMounted(() => {
 
         <v-card flat border class="mt-4">
           <v-card-title class="text-subtitle-1 py-2 bg-grey-lighten-4"
-            >Gudang & Supplier</v-card-title
+            >Supplier & Catatan PO</v-card-title
           >
           <v-divider />
           <v-card-text>
@@ -364,25 +365,36 @@ onMounted(() => {
                   hide-details
                 />
               </v-col>
-              <v-col cols="12">
+
+              <v-col cols="4">
                 <v-text-field
-                  label="Gudang Tujuan"
-                  v-model="formData.gpTujuanNama"
-                  @click="isGpTujuanModalVisible = true"
-                  append-inner-icon="mdi-magnify"
+                  label="Kode Sup"
+                  v-model="formData.supKode"
                   readonly
                   density="compact"
-                  variant="outlined"
+                  variant="filled"
                   hide-details
                 />
               </v-col>
-              <v-col cols="12">
+              <v-col cols="8">
                 <v-text-field
-                  label="Supplier"
+                  label="Nama Supplier"
                   v-model="formData.supNama"
                   readonly
                   density="compact"
                   variant="filled"
+                  hide-details
+                />
+              </v-col>
+
+              <v-col cols="12">
+                <v-textarea
+                  label="Keterangan Header PO (Memo)"
+                  v-model="formData.keteranganHeader"
+                  readonly
+                  variant="filled"
+                  density="compact"
+                  rows="2"
                   hide-details
                 />
               </v-col>
@@ -400,42 +412,46 @@ onMounted(() => {
               >
               <v-card-text class="pt-4">
                 <v-row dense>
-                  <v-col cols="4"
-                    ><v-text-field
+                  <v-col cols="4">
+                    <v-text-field
                       label="Bahan"
                       v-model="formData.bahan"
                       readonly
                       density="compact"
                       variant="outlined"
                       hide-details
-                  /></v-col>
-                  <v-col cols="4"
-                    ><v-text-field
+                    />
+                  </v-col>
+                  <v-col cols="4">
+                    <v-text-field
                       label="Ukuran"
                       v-model="formData.ukuran"
                       readonly
                       density="compact"
                       variant="outlined"
                       hide-details
-                  /></v-col>
-                  <v-col cols="2"
-                    ><v-text-field
+                    />
+                  </v-col>
+                  <v-col cols="2">
+                    <v-text-field
                       label="Panjang"
                       v-model="formData.panjang"
                       readonly
                       density="compact"
                       variant="outlined"
                       hide-details
-                  /></v-col>
-                  <v-col cols="2"
-                    ><v-text-field
+                    />
+                  </v-col>
+                  <v-col cols="2">
+                    <v-text-field
                       label="Lebar"
                       v-model="formData.lebar"
                       readonly
                       density="compact"
                       variant="outlined"
                       hide-details
-                  /></v-col>
+                    />
+                  </v-col>
                 </v-row>
               </v-card-text>
             </v-card>
@@ -490,7 +506,7 @@ onMounted(() => {
           <v-col cols="12" class="mt-2">
             <v-textarea
               label="Keterangan / Catatan Penerimaan"
-              v-model="formData.keteranganHeader"
+              v-model="formData.keteranganBpb"
               variant="outlined"
               density="compact"
               rows="3"
@@ -504,17 +520,6 @@ onMounted(() => {
       :isVisible="isPoModalVisible"
       @close="isPoModalVisible = false"
       @select="handlePoSelect"
-    />
-    <GudangProduksiLookupModal
-      :isVisible="isGpTujuanModalVisible"
-      @close="isGpTujuanModalVisible = false"
-      @select="
-        (g) => {
-          formData.gpTujuanKode = g.Kode;
-          formData.gpTujuanNama = g.Nama;
-          isGpTujuanModalVisible = false;
-        }
-      "
     />
   </PageLayout>
 </template>

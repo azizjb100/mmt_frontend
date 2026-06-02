@@ -1,21 +1,5 @@
 <template>
   <PageLayout title="Laporan Stok Bahan Utama" icon="mdi-factory">
-    <template #header-actions>
-      <v-btn
-        size="x-small"
-        color="info"
-        variant="text"
-        @click="fetchReport"
-        :loading="loading.report"
-      >
-        <v-icon start>mdi-refresh</v-icon> Refresh
-      </v-btn>
-
-      <v-btn size="x-small" color="success" @click="exportToExcel">
-        <v-icon start>mdi-file-excel</v-icon> Export
-      </v-btn>
-    </template>
-
     <div class="lsbu-wrapper">
       <v-card
         class="mb-3 pa-3 filter-card rounded-strong transition-smooth"
@@ -54,6 +38,27 @@
             icon="mdi-magnify-plus-outline"
             prepend-inner-icon="mdi-magnify-plus-outline"
           />
+
+          <v-btn
+            size="small"
+            color="info"
+            variant="outlined"
+            @click="fetchReport"
+            :loading="loading.report"
+            class="text-none"
+          >
+            <v-icon start>mdi-refresh</v-icon> Refresh
+          </v-btn>
+
+          <v-btn 
+            size="small" 
+            color="success" 
+            @click="exportToExcel"
+            class="text-none"
+          >
+            <v-icon start>mdi-file-excel</v-icon> Export
+          </v-btn>
+
           <v-spacer />
 
           <v-text-field

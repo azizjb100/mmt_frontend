@@ -264,7 +264,7 @@
 
               <template #[`item.sudahcetak`]="{ item }">
                 <div class="text-end text-blue-darken-2 font-weight-bold">
-                  {{ item.sudahcetak || 0 }}
+                  {{ item.total_pernah_cetak || 0 }}
                 </div>
               </template>
 
@@ -623,35 +623,23 @@ const handleMesinSelect = (mesin: any) => {
 };
 
 const recalculateCombine = () => {
-  totalPanjangTerpakai.value = 0;
-  totalLebarGabungan.value = 0;
-
   detailData.value.forEach((d) => {
-    if (
-      d.padding === "" ||
-      d.padding === null ||
-      d.padding === undefined ||
-      d.padding < 0
-    ) {
-      d.padding = 0;
-    }
+    // 1. Hitung realisasi cetak LHK hari ini dari cetak 1-7
+    d.totalcetak =
+      (d.cetak1 || 0) +
+      (d.cetak2 || 0) +
+      (d.cetak3 || 0) +
+      (d.cetak4 || 0) +
+      (d.cetak5 || 0) +
+      (d.cetak6 || 0) +
+      (d.cetak7 || 0);
 
-    let totalCetakRow = 0;
-    for (let i = 1; i <= 7; i++) {
-      totalCetakRow += parseInt(d[`cetak${i}`] || 0);
-    }
-    d.totalcetak = totalCetakRow;
-    d.kurangcetak = d.kurangcetak_asli - totalCetakRow;
+    // 2. KUNCI UTAMA: Update total_pernah_cetak secara real-time di frontend
+    // Akumulasi Lama + Inputan Baru Hari Ini
+    d.total_pernah_cetak = (d.sudahcetak || 0) + d.totalcetak;
 
-    if (totalCetakRow > d.kurangcetak_asli) {
-      toast.warning(
-        `SPK ${d.nomor_spk} input (${totalCetakRow}) melebihi sisa order (${d.kurangcetak_asli})`,
-      );
-    }
-  });
-
-  nextTick(() => {
-    autoFillLayout(true);
+    // 3. Hitung sisa kurang cetak SPK terbaru
+    d.kurangcetak = Math.max(0, (d.jumlah || 0) - d.total_pernah_cetak);
   });
 };
 
@@ -917,9 +905,9 @@ const loadDataLHK = async () => {
       formData.panjang_bs = parseFloat(h.panjang_bs || 0);
       formData.lebar_bs = parseFloat(h.lebar_bs || 0);
 
-      formData.mesin_kode = h.Kode_Mesin || h.lth_mesin_kode || "";
+      formData.mesin_kode = h.Mesin || h.Kode_Mesin || h.lth_mesin_kode || "";
       formData.mesin_nama =
-        h.Nama_Mesin || h.mesin_nama || h.lth_mesin_nama || "";
+        h.Mesin || h.Nama_Mesin || h.mesin_nama || h.lth_mesin_nama || "";
 
       if (formData.barcode_input) await handleBarcodeScan();
 
@@ -928,12 +916,21 @@ const loadDataLHK = async () => {
           d.Jumlah_SPK || d.Jumlah || d.spk_qty || d.ltd_qty_order || 0,
         );
 
+        // Ambil data kumulatif dari subquery backend baru
         const sdhCetak = parseInt(
-          d.Sudah_Cetak || d.spk_sudah_cetak || d.ltd_sdh_cetak || 0,
+          d.sudah_cetak_sebelumnya || d.Sudah_Cetak || d.spk_sudah_cetak || 0,
         );
+
+        // Ambil akumulasi total (LHK Lalu + LHK Sekarang)
+        const totalPernahCetak = parseInt(d.total_pernah_cetak || 0);
 
         const sisaKurangAsli = parseInt(
           d.Kurang_Cetak || d.ltd_kurang_cetak || qtyOrder - sdhCetak,
+        );
+
+        // Ambil jumlah realisasi cetak LHK ini dari database (Bukan di-set 0)
+        const realisasiCetakHariIni = parseInt(
+          d.Jml_Cetak || d.totalcetak || 0,
         );
 
         return {
@@ -942,18 +939,24 @@ const loadDataLHK = async () => {
           panjang_spk: parseFloat(d.Panjang || d.spk_panjang || 0),
           lebar_spk: parseFloat(d.Lebar || d.spk_lebar || 0),
           jumlah: qtyOrder,
+
+          // Petakan data akumulasi ke dalam object state
           sudahcetak: sdhCetak,
+          total_pernah_cetak: totalPernahCetak,
           kurangcetak_asli: sisaKurangAsli,
+
           padding: parseFloat(d.Padding || d.ltd_padding || 0),
           orientasi: d.Orientasi || d.ltd_orientasi || "lebar",
-          cetak1: parseInt(d.ltd_cetak1 ?? d.Cetak_1 ?? 0),
-          cetak2: parseInt(d.ltd_cetak2 ?? d.Cetak_2 ?? 0),
-          cetak3: parseInt(d.ltd_cetak3 ?? d.Cetak_3 ?? 0),
-          cetak4: parseInt(d.ltd_cetak4 ?? d.Cetak_4 ?? 0),
-          cetak5: parseInt(d.ltd_cetak5 ?? d.Cetak_5 ?? 0),
-          cetak6: parseInt(d.ltd_cetak6 ?? d.Cetak_6 ?? 0),
-          cetak7: parseInt(d.ltd_cetak7 ?? d.Cetak_7 ?? 0),
-          totalcetak: 0,
+          cetak1: parseInt(d.ltd_cetak1 ?? d.Cetak_1 ?? d.cetak1 ?? 0),
+          cetak2: parseInt(d.ltd_cetak2 ?? d.Cetak_2 ?? d.cetak2 ?? 0),
+          cetak3: parseInt(d.ltd_cetak3 ?? d.Cetak_3 ?? d.cetak3 ?? 0),
+          cetak4: parseInt(d.ltd_cetak4 ?? d.Cetak_4 ?? d.cetak4 ?? 0),
+          cetak5: parseInt(d.ltd_cetak5 ?? d.Cetak_5 ?? d.cetak5 ?? 0),
+          cetak6: parseInt(d.ltd_cetak6 ?? d.Cetak_6 ?? d.cetak6 ?? 0),
+          cetak7: parseInt(d.ltd_cetak7 ?? d.Cetak_7 ?? d.cetak7 ?? 0),
+
+          // Ambil nilai simpanan asli dari DB, bukan 0 kosong
+          totalcetak: realisasiCetakHariIni,
           kurangcetak: 0,
         };
       });
@@ -970,11 +973,9 @@ const handleSave = async (status: string) => {
   if (!formData.mesin_kode) {
     return toast.error("Silakan pilih mesin terlebih dahulu pada kolom kiri!");
   }
-
   if (status === "POSTED" && !isFormValid.value) {
     return toast.error("Cek kelengkapan data & pastikan sisa stok memadai.");
   }
-
   if (
     status === "POSTED" &&
     !confirm("Apakah Anda yakin ingin menyimpan dan MEMOTONG STOK bahan?")
@@ -984,17 +985,13 @@ const handleSave = async (status: string) => {
 
   isSaving.value = true;
   try {
-    // 1. Ambil nilai sisa otomatis dalam satuan YARD langsung dari computed property Anda
     const sisaOtomatisYard = sisaStokOtomatisYrd.value;
-
-    // EVALUASI SISA FINAL: Paksa hasilnya menjadi maksimal 2 angka di belakang koma
     const sisaFinalYard =
       formData.sisa_panjang_manual !== null &&
       formData.sisa_panjang_manual !== ""
         ? parseFloat(Number(formData.sisa_panjang_manual).toFixed(2))
         : parseFloat(Number(sisaOtomatisYard).toFixed(2));
 
-    // SINKRONISASI: Sesuaikan properti objek detail agar dibaca dengan benar oleh backend
     const formattedDetails = detailData.value.map((d) => {
       return {
         ...d,
@@ -1002,9 +999,10 @@ const handleSave = async (status: string) => {
         panjang_per_pcs: parseFloat(d.panjang_spk || 0),
         jumlah_cetak: parseInt(d.totalcetak || 0),
 
-        // Kirim sisa bahan (dalam YARD) ke tingkat detail barang
-        sisabahan: sisaFinalYard,
+        // Mengirim data ambil bahan dari header ke tiap baris detail
+        ltd_ambil_bahan: parseFloat(formData.panjang_bahan || 0),
 
+        sisabahan: sisaFinalYard,
         cetak_1: parseInt(d.cetak1 || 0),
         cetak_2: parseInt(d.cetak2 || 0),
         cetak_3: parseInt(d.cetak3 || 0),
@@ -1027,7 +1025,7 @@ const handleSave = async (status: string) => {
 
     await api.post("/mmt/lhk-tekstil-mmt", payload);
     toast.success("Sukses menyimpan data dengan status: " + status);
-    router.push("/mmt/lhk-tekstil");
+    router.push("/mmt/lhk/tekstil");
   } catch (e: any) {
     const errMsg =
       e.response?.data?.message || "Gagal mengirim data ke server.";

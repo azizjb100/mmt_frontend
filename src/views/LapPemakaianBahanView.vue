@@ -1,22 +1,9 @@
 <template>
   <PageLayout title="Laporan Pemakaian Bahan" icon="mdi-printer">
-    <template #header-actions>
-      <v-btn
-        size="x-small"
-        color="info"
-        variant="text"
-        @click="fetchReport"
-        :loading="loading.report"
-      >
-        <v-icon start>mdi-refresh</v-icon> Refresh
-      </v-btn>
-      <v-btn size="x-small" color="success" @click="exportToExcel">
-        <v-icon start>mdi-file-excel</v-icon> Export
-      </v-btn>
-    </template>
+    <template #header-actions> </template>
 
     <div class="production-wrapper">
-      <v-card class="mb-3 pa-3 filter-card rounded-strong" elevation="0">
+      <v-card class="mb-1 pa-3 filter-card" flat>
         <div class="filter-section d-flex align-center flex-wrap ga-3">
           <span class="text-caption font-weight-bold">Periode:</span>
           <v-text-field
@@ -36,6 +23,23 @@
             variant="outlined"
             style="max-width: 140px"
           />
+          <v-btn
+            size="x-small"
+            color="info"
+            variant="text"
+            @click="fetchReport"
+            :loading="loading.report"
+          >
+            <v-icon start>mdi-refresh</v-icon> Refresh
+          </v-btn>
+          <v-btn
+            size="x-small"
+            color="success"
+            @click="exportToExcel"
+            :disabled="allData.length === 0"
+          >
+            <v-icon start>mdi-file-excel</v-icon> Export Excel
+          </v-btn>
           <v-spacer />
           <v-text-field
             v-model="searchQuery"
@@ -49,195 +53,143 @@
         </div>
       </v-card>
 
-      <v-card class="table-container rounded-strong" elevation="0">
-        <v-data-table
-          :items="filteredData"
-          :loading="loading.report"
-          density="compact"
-          class="desktop-table elevation-1"
-          :items-per-page="-1"
-          hide-default-header
-          hide-default-footer
+      <div class="text-caption text-primary mb-1 px-1 d-flex align-center ga-1">
+        <v-icon size="small" color="primary">mdi-information</v-icon>
+        <span
+          >Gaya Grid DevExpress: Geser sub-header ke kanan/kiri. Seluruh nilai
+          lajur vertikal akan ikut pindah secara sinkron.</span
         >
-          <template #thead>
-            <thead>
-              <tr class="header-row-1">
-                <th rowspan="2" class="sticky-col-1">TGL</th>
-                <th rowspan="2">SHIFT</th>
-                <th colspan="3" class="bg-orange-header">TOLERANSI BAHAN</th>
-                <th rowspan="2" style="min-width: 250px">NAMA ORDER SPK</th>
-                <th rowspan="2">NO. SPK</th>
-                <th colspan="5" class="bg-grey-header">UKURAN / JENIS BAHAN</th>
-                <th colspan="2" class="bg-green-header">ORDER SPK</th>
-                <th colspan="2" class="bg-yellow-header">HASIL CETAK</th>
-                <th colspan="4" class="bg-dark-green-header">
-                  AMBIL BAHAN / SISA
-                </th>
-                <th colspan="6" class="bg-waste-header">TOTAL WASTE / LOST</th>
-                <th colspan="4" class="bg-ink-header">TINTA MT 02</th>
-                <th colspan="4" class="bg-ink-header-alt">TINTA MT 03</th>
-                <th colspan="4" class="bg-ink-header">TINTA MT 04</th>
-                <th colspan="4" class="bg-ink-header-alt">TINTA MT 05</th>
-              </tr>
-              <tr class="header-row-2">
-                <th class="bg-orange-sub">S 1,2</th>
-                <th class="bg-orange-sub">S 3,4</th>
-                <th class="bg-orange-sub">%</th>
-                <th class="bg-grey-sub">P</th>
-                <th class="bg-grey-sub">L</th>
-                <th class="bg-grey-sub">GSM</th>
-                <th class="bg-grey-sub">MSN</th>
-                <th class="bg-grey-sub">BARCODE</th>
-                <th class="bg-green-sub">PCS</th>
-                <th class="bg-green-sub">M2</th>
-                <th class="bg-yellow-sub">PCS</th>
-                <th class="bg-yellow-sub">M2</th>
-                <th class="bg-dark-green-sub">AMB.P</th>
-                <th class="bg-dark-green-sub">AMB.L</th>
-                <th class="bg-dark-green-sub">SISA.P</th>
-                <th class="bg-dark-green-sub">SISA.L</th>
-                <th class="bg-waste-sub">WASTE</th>
-                <th class="bg-waste-sub">%</th>
-                <th class="bg-waste-sub">LOST</th>
-                <th class="bg-waste-sub">%</th>
-                <th class="bg-waste-sub">TOTAL</th>
-                <th class="bg-waste-sub">%</th>
-                <th class="bg-ink-sub">C</th>
-                <th class="bg-ink-sub">M</th>
-                <th class="bg-ink-sub">Y</th>
-                <th class="bg-ink-sub">K</th>
-                <th class="bg-ink-sub-alt">C</th>
-                <th class="bg-ink-sub-alt">M</th>
-                <th class="bg-ink-sub-alt">Y</th>
-                <th class="bg-ink-sub-alt">K</th>
-                <th class="bg-ink-sub">C</th>
-                <th class="bg-ink-sub">M</th>
-                <th class="bg-ink-sub">Y</th>
-                <th class="bg-ink-sub">K</th>
-                <th class="bg-ink-sub-alt">C</th>
-                <th class="bg-ink-sub-alt">M</th>
-                <th class="bg-ink-sub-alt">Y</th>
-                <th class="bg-ink-sub-alt">K</th>
-              </tr>
-            </thead>
-          </template>
+      </div>
 
-          <template v-slot:item="{ item }">
-            <tr
-              :class="{
-                'row-total-style': item.isTotal || item.tgl === 'TOTAL',
+      <div class="grid-table-container">
+        <div class="grid-table-viewport">
+          <div class="grid-table-header-group">
+            <div
+              v-for="(group, gIdx) in dynamicGroups"
+              :key="'group-' + gIdx"
+              class="grid-group-th text-center"
+              :class="group.class"
+              :style="{
+                width: group.width + 'px',
+                minWidth: group.width + 'px',
+                height: group.rowspan === 2 ? '56px' : '28px',
+                lineHeight: group.rowspan === 2 ? '56px' : '28px',
               }"
             >
-              <td class="sticky-col-1 bg-white">{{ item.tgl || "-" }}</td>
-              <td class="text-center">{{ item.shift || "-" }}</td>
-              <td class="text-right">{{ formatNumber(item.s12, 1) }}</td>
-              <td class="text-right">{{ formatNumber(item.s34, 1) }}</td>
-              <td class="text-right bg-orange-light">
-                {{ formatNumber(item.persenToleransi, 1) }}%
-              </td>
-              <td class="text-left text-caption font-weight-medium">
-                {{ item.namaOrder || "-" }}
-              </td>
-              <td class="text-center font-weight-bold">
-                {{ item.noSpk || "-" }}
-              </td>
-              <td class="text-right">{{ item.p || 0 }}</td>
-              <td class="text-right">{{ item.l || 0 }}</td>
-              <td class="text-center">{{ item.gsm || "-" }}</td>
-              <td class="text-center font-weight-bold blue--text">
-                {{ item.kodeMesin || "-" }}
-              </td>
-              <td class="text-caption">{{ item.barcodeRoll || "-" }}</td>
-              <td class="text-center bg-green-light">
-                {{ item.orderPcs || 0 }}
-              </td>
-              <td class="text-right bg-green-light font-weight-bold">
-                {{ formatNumber(item.orderLuas, 1) }}
-              </td>
-              <td class="text-center bg-yellow-light">
-                {{ item.hasilQty || 0 }}
-              </td>
-              <td class="text-right bg-yellow-light font-weight-bold">
-                {{ formatNumber(item.hasilLuas, 1) }}
-              </td>
-              <td class="text-right">{{ formatNumber(item.ambilP, 1) }}</td>
-              <td class="text-right">{{ formatNumber(item.ambilL, 1) }}</td>
-              <td class="text-right text-success font-weight-bold">
-                {{ formatNumber(item.sisaBahanP, 1) }}
-              </td>
-              <td class="text-right text-success">
-                {{ formatNumber(item.sisaBahanL, 1) }}
-              </td>
-              <td class="text-right">{{ formatNumber(item.wasteM2, 1) }}</td>
-              <td class="text-right">
-                {{ formatNumber(item.wastePersen, 1) }}%
-              </td>
-              <td class="text-right">{{ formatNumber(item.lostM2, 1) }}</td>
-              <td class="text-right">
-                {{ formatNumber(item.lostPersen, 1) }}%
-              </td>
-              <td class="text-right font-weight-bold">
-                {{ formatNumber(item.totalWasteM2, 1) }}
-              </td>
-              <td class="text-right font-weight-bold">
-                {{ formatNumber(item.totalWastePersen, 1) }}%
-              </td>
+              {{ group.label }}
+            </div>
+          </div>
 
-              <td class="text-right ink-c">
-                {{ formatNumber(item.inkC_MT02, 1) }}
-              </td>
-              <td class="text-right ink-m">
-                {{ formatNumber(item.inkM_MT02, 1) }}
-              </td>
-              <td class="text-right ink-y">
-                {{ formatNumber(item.inkY_MT02, 1) }}
-              </td>
-              <td class="text-right ink-k">
-                {{ formatNumber(item.inkK_MT02, 1) }}
-              </td>
+          <div class="grid-table-main-view">
+            <draggable
+              v-model="columns"
+              item-key="field"
+              class="draggable-columns-binder"
+              handle=".grid-sub-th"
+              ghost-class="column-drag-ghost"
+            >
+              <template #item="{ element: col, index: colIdx }">
+                <div
+                  class="grid-column-vertical-stack"
+                  :style="{
+                    width: col.width + 'px',
+                    minWidth: col.width + 'px',
+                  }"
+                >
+                  <div
+                    class="grid-sub-th text-center"
+                    :class="[
+                      col.subClass,
+                      { 'hidden-sub-title': col.group === 'NONE' },
+                    ]"
+                  >
+                    <v-icon size="x-small" class="mr-1 text-blue-grey-lighten-3"
+                      >mdi-drag-vertical</v-icon
+                    >
+                    <span>{{ col.label }}</span>
+                  </div>
 
-              <td class="text-right ink-c">
-                {{ formatNumber(item.inkC_MT03, 1) }}
-              </td>
-              <td class="text-right ink-m">
-                {{ formatNumber(item.inkM_MT03, 1) }}
-              </td>
-              <td class="text-right ink-y">
-                {{ formatNumber(item.inkY_MT03, 1) }}
-              </td>
-              <td class="text-right ink-k">
-                {{ formatNumber(item.inkK_MT03, 1) }}
-              </td>
+                  <div class="grid-column-body-cells">
+                    <div
+                      v-for="(item, rowIdx) in paginatedData"
+                      :key="'row-' + rowIdx"
+                      class="grid-data-td"
+                      :class="[
+                        col.class,
+                        col.cellBg,
+                        rowIdx % 2 === 1 ? 'zebra-stripe-row' : '',
+                      ]"
+                    >
+                      <template v-if="col.type === 'number'">
+                        <span :class="col.textClass">
+                          {{
+                            formatNumber(
+                              getValueByField(item, col.field),
+                              col.dec,
+                            )
+                          }}{{ col.isPercent ? "%" : "" }}
+                        </span>
+                      </template>
+                      <template v-else-if="col.type === 'date'">
+                        {{ formatOnlyDate(getValueByField(item, col.field)) }}
+                      </template>
+                      <template v-else>
+                        <span :class="col.textClass">{{
+                          getValueByField(item, col.field)
+                        }}</span>
+                      </template>
+                    </div>
 
-              <td class="text-right ink-c">
-                {{ formatNumber(item.inkC_MT04, 1) }}
-              </td>
-              <td class="text-right ink-m">
-                {{ formatNumber(item.inkM_MT04, 1) }}
-              </td>
-              <td class="text-right ink-y">
-                {{ formatNumber(item.inkY_MT04, 1) }}
-              </td>
-              <td class="text-right ink-k">
-                {{ formatNumber(item.inkK_MT04, 1) }}
-              </td>
+                    <div
+                      v-if="filteredData.length === 0"
+                      class="grid-data-td text-center text-grey-lighten-1"
+                    >
+                      -
+                    </div>
+                  </div>
 
-              <td class="text-right ink-c">
-                {{ formatNumber(item.inkC_MT05, 1) }}
-              </td>
-              <td class="text-right ink-m">
-                {{ formatNumber(item.inkM_MT05, 1) }}
-              </td>
-              <td class="text-right ink-y">
-                {{ formatNumber(item.inkY_MT05, 1) }}
-              </td>
-              <td class="text-right ink-k">
-                {{ formatNumber(item.inkK_MT05, 1) }}
-              </td>
-            </tr>
-          </template>
-        </v-data-table>
-      </v-card>
+                  <div
+                    class="grid-footer-td font-weight-bold text-right"
+                    :class="col.class"
+                  >
+                    <span v-if="colIdx === 0">TOTAL SUM:</span>
+                    <span v-else-if="col.sum">
+                      {{ formatNumber(sumField(col.field), col.dec)
+                      }}{{ col.isPercent ? "%" : "" }}
+                    </span>
+                  </div>
+                </div>
+              </template>
+            </draggable>
+          </div>
+        </div>
+      </div>
+
+      <div
+        class="d-flex justify-space-between align-center mt-3"
+        v-if="filteredData.length > 0"
+      >
+        <span class="text-caption text-grey-darken-1"
+          >Total {{ filteredData.length }} Record</span
+        >
+        <div class="d-flex align-center ga-2">
+          <v-btn
+            size="x-small"
+            icon="mdi-chevron-left"
+            @click="currentPage--"
+            :disabled="currentPage === 1"
+          />
+          <span class="text-caption"
+            >Halaman {{ currentPage }} / {{ totalPages }}</span
+          >
+          <v-btn
+            size="x-small"
+            icon="mdi-chevron-right"
+            @click="currentPage++"
+            :disabled="currentPage === totalPages"
+          />
+        </div>
+      </div>
     </div>
   </PageLayout>
 </template>
@@ -246,14 +198,559 @@
 import { ref, computed, onMounted } from "vue";
 import PageLayout from "../components/PageLayout.vue";
 import api from "@/services/api";
-import * as XLSX from "xlsx-js-style";
+import XLSX from "xlsx-js-style";
+import { parseISO, isValid, format } from "date-fns";
+import { saveAs } from "file-saver";
+import draggable from "vuedraggable";
 
+// --- STATE MANAGEMENT ---
 const startDate = ref(new Date().toISOString().substr(0, 10));
 const endDate = ref(new Date().toISOString().substr(0, 10));
 const searchQuery = ref("");
 const loading = ref({ report: false });
 const productionData = ref([]);
+const allData = computed(() => productionData.value);
+const currentPage = ref(1);
+const itemsPerPage = ref(25);
 
+// --- ARSITEKTUR STRUKTUR KOLOM PEMAKAIAN BAHAN (SINKRON SAMA GAMBAR DAN EXCEL) ---
+// --- SINKRONISASI SCHEMA ARRAY STRUKTUR KOLOM PEMAKAIAN BAHAN (FIX KEY API NEW) ---
+const columns = ref([
+  {
+    label: "TGL",
+    field: "tgl",
+    class: "text-center",
+    type: "string",
+    group: "NONE",
+    width: 100,
+  },
+  {
+    label: "SHIFT",
+    field: "shift",
+    class: "text-center",
+    type: "string",
+    group: "NONE",
+    width: 70,
+  },
+
+  // Group TOLERANSI BAHAN
+  {
+    label: "S 1,2",
+    field: "s12",
+    class: "text-right",
+    type: "number",
+    dec: 2,
+    group: "TOLERANSI BAHAN",
+    width: 80,
+    subClass: "bg-orange-sub",
+  },
+  {
+    label: "S 3,4",
+    field: "s34",
+    class: "text-right",
+    type: "number",
+    dec: 2,
+    group: "TOLERANSI BAHAN",
+    width: 80,
+    subClass: "bg-orange-sub",
+  },
+  {
+    label: "%",
+    field: "persenToleransi",
+    class: "text-right",
+    type: "number",
+    dec: 2,
+    group: "TOLERANSI BAHAN",
+    width: 75,
+    isPercent: true,
+    cellBg: "bg-orange-light",
+    subClass: "bg-orange-sub",
+  },
+
+  {
+    label: "NAMA ORDER SPK",
+    field: "namaOrder",
+    class: "text-left",
+    type: "string",
+    group: "NONE",
+    width: 250,
+  },
+  {
+    label: "NO. SPK",
+    field: "noSpk",
+    class: "text-center font-weight-bold",
+    type: "string",
+    group: "NONE",
+    width: 120,
+  },
+
+  // Group UKURAN / JENIS BAHAN
+  {
+    label: "P",
+    field: "p",
+    class: "text-right",
+    type: "number",
+    dec: 2,
+    group: "UKURAN / JENIS BAHAN",
+    width: 70,
+    subClass: "bg-grey-sub",
+  },
+  {
+    label: "L",
+    field: "l",
+    class: "text-right",
+    type: "number",
+    dec: 2,
+    group: "UKURAN / JENIS BAHAN",
+    width: 70,
+    subClass: "bg-grey-sub",
+  },
+  {
+    label: "GSM",
+    field: "gsm",
+    class: "text-center",
+    type: "string",
+    group: "UKURAN / JENIS BAHAN",
+    width: 80,
+    subClass: "bg-grey-sub",
+  },
+  {
+    label: "MSN",
+    field: "kodeMesin",
+    class: "text-center font-weight-bold blue--text",
+    type: "string",
+    group: "UKURAN / JENIS BAHAN",
+    width: 85,
+    subClass: "bg-grey-sub",
+  },
+  {
+    label: "BARCODE",
+    field: "barcodeRoll",
+    class: "text-left",
+    type: "string",
+    group: "UKURAN / JENIS BAHAN",
+    width: 140,
+    subClass: "bg-grey-sub",
+  },
+
+  // Group ORDER SPK (DI-PERBAIKI MENYESUAIKAN KEY JSON API BARU)
+  {
+    label: "PCS",
+    field: "orderPcs",
+    class: "text-right",
+    type: "number",
+    dec: 0,
+    sum: true,
+    group: "ORDER SPK",
+    width: 80,
+    cellBg: "bg-green-light",
+    subClass: "bg-green-sub",
+  },
+  {
+    label: "M2",
+    field: "orderLuas",
+    class: "text-right font-weight-bold",
+    type: "number",
+    dec: 2,
+    sum: true,
+    group: "ORDER SPK",
+    width: 95,
+    cellBg: "bg-green-light",
+    subClass: "bg-green-sub",
+  },
+
+  // Group HASIL CETAK
+  {
+    label: "PCS",
+    field: "hasilQty",
+    class: "text-right",
+    type: "number",
+    dec: 0,
+    sum: true,
+    group: "HASIL CETAK",
+    width: 80,
+    cellBg: "bg-yellow-light",
+    subClass: "bg-yellow-sub",
+  },
+  {
+    label: "M2",
+    field: "hasilLuas",
+    class: "text-right font-weight-bold",
+    type: "number",
+    dec: 2,
+    sum: true,
+    group: "HASIL CETAK",
+    width: 95,
+    cellBg: "bg-yellow-light",
+    subClass: "bg-yellow-sub",
+  },
+
+  // Group AMBIL BAHAN / SISA
+  {
+    label: "AMB.P",
+    field: "ambilP",
+    class: "text-right",
+    type: "number",
+    dec: 2,
+    sum: true,
+    group: "AMBIL BAHAN / SISA",
+    width: 85,
+    subClass: "bg-dark-green-sub",
+  },
+  {
+    label: "AMB.L",
+    field: "ambilL",
+    class: "text-right",
+    type: "number",
+    dec: 2,
+    sum: true,
+    group: "AMBIL BAHAN / SISA",
+    width: 85,
+    subClass: "bg-dark-green-sub",
+  },
+  {
+    label: "SISA.P",
+    field: "sisaBahanP",
+    class: "text-right text-success font-weight-bold",
+    type: "number",
+    dec: 2,
+    sum: true,
+    group: "AMBIL BAHAN / SISA",
+    width: 85,
+    subClass: "bg-dark-green-sub",
+  },
+  {
+    label: "SISA.L",
+    field: "sisaBahanL",
+    class: "text-right text-success",
+    type: "number",
+    dec: 2,
+    sum: true,
+    group: "AMBIL BAHAN / SISA",
+    width: 85,
+    subClass: "bg-dark-green-sub",
+  },
+
+  // Group TOTAL WASTE / LOST
+  {
+    label: "WASTE",
+    field: "wasteM2",
+    class: "text-right",
+    type: "number",
+    dec: 2,
+    sum: true,
+    group: "TOTAL WASTE / LOST",
+    width: 85,
+    subClass: "bg-waste-sub",
+  },
+  {
+    label: "%",
+    field: "wastePersen",
+    class: "text-right",
+    type: "number",
+    dec: 2,
+    isPercent: true,
+    group: "TOTAL WASTE / LOST",
+    width: 75,
+    subClass: "bg-waste-sub",
+  },
+  {
+    label: "LOST",
+    field: "lostM2",
+    class: "text-right",
+    type: "number",
+    dec: 2,
+    sum: true,
+    group: "TOTAL WASTE / LOST",
+    width: 85,
+    subClass: "bg-waste-sub",
+  },
+  {
+    label: "%",
+    field: "lostPersen",
+    class: "text-right",
+    type: "number",
+    dec: 2,
+    isPercent: true,
+    group: "TOTAL WASTE / LOST",
+    width: 75,
+    subClass: "bg-waste-sub",
+  },
+  {
+    label: "TOTAL",
+    field: "totalWasteM2",
+    class: "text-right font-weight-bold",
+    type: "number",
+    dec: 2,
+    sum: true,
+    group: "TOTAL WASTE / LOST",
+    width: 95,
+    subClass: "bg-waste-sub",
+  },
+  {
+    label: "%",
+    field: "totalWastePersen",
+    class: "text-right font-weight-bold",
+    type: "number",
+    dec: 2,
+    isPercent: true,
+    group: "TOTAL WASTE / LOST",
+    width: 75,
+    subClass: "bg-waste-sub",
+  },
+
+  // TINTA MT02
+  {
+    label: "C",
+    field: "inkC_MT02",
+    class: "text-right",
+    type: "number",
+    dec: 2,
+    sum: true,
+    group: "TINTA MT 02",
+    width: 65,
+    textClass: "ink-c",
+    subClass: "bg-ink-sub",
+  },
+  {
+    label: "M",
+    field: "inkM_MT02",
+    class: "text-right",
+    type: "number",
+    dec: 2,
+    sum: true,
+    group: "TINTA MT 02",
+    width: 65,
+    textClass: "ink-m",
+    subClass: "bg-ink-sub",
+  },
+  {
+    label: "Y",
+    field: "inkY_MT02",
+    class: "text-right",
+    type: "number",
+    dec: 2,
+    sum: true,
+    group: "TINTA MT 02",
+    width: 65,
+    textClass: "ink-y",
+    subClass: "bg-ink-sub",
+  },
+  {
+    label: "K",
+    field: "inkK_MT02",
+    class: "text-right",
+    type: "number",
+    dec: 2,
+    sum: true,
+    group: "TINTA MT 02",
+    width: 65,
+    textClass: "ink-k",
+    subClass: "bg-ink-sub",
+  },
+
+  // TINTA MT03
+  {
+    label: "C",
+    field: "inkC_MT03",
+    class: "text-right",
+    type: "number",
+    dec: 2,
+    sum: true,
+    group: "TINTA MT 03",
+    width: 65,
+    textClass: "ink-c",
+    subClass: "bg-ink-sub-alt",
+  },
+  {
+    label: "M",
+    field: "inkM_MT03",
+    class: "text-right",
+    type: "number",
+    dec: 2,
+    sum: true,
+    group: "TINTA MT 03",
+    width: 65,
+    textClass: "ink-m",
+    subClass: "bg-ink-sub-alt",
+  },
+  {
+    label: "Y",
+    field: "inkY_MT03",
+    class: "text-right",
+    type: "number",
+    dec: 2,
+    sum: true,
+    group: "TINTA MT 03",
+    width: 65,
+    textClass: "ink-y",
+    subClass: "bg-ink-sub-alt",
+  },
+  {
+    label: "K",
+    field: "inkK_MT03",
+    class: "text-right",
+    type: "number",
+    dec: 2,
+    sum: true,
+    group: "TINTA MT 03",
+    width: 65,
+    textClass: "ink-k",
+    subClass: "bg-ink-sub-alt",
+  },
+
+  // TINTA MT04
+  {
+    label: "C",
+    field: "inkC_MT04",
+    class: "text-right",
+    type: "number",
+    dec: 2,
+    sum: true,
+    group: "TINTA MT 04",
+    width: 65,
+    textClass: "ink-c",
+    subClass: "bg-ink-sub",
+  },
+  {
+    label: "M",
+    field: "inkM_MT04",
+    class: "text-right",
+    type: "number",
+    dec: 2,
+    sum: true,
+    group: "TINTA MT 04",
+    width: 65,
+    textClass: "ink-m",
+    subClass: "bg-ink-sub",
+  },
+  {
+    label: "Y",
+    field: "inkY_MT04",
+    class: "text-right",
+    type: "number",
+    dec: 2,
+    sum: true,
+    group: "TINTA MT 04",
+    width: 65,
+    textClass: "ink-y",
+    subClass: "bg-ink-sub",
+  },
+  {
+    label: "K",
+    field: "inkK_MT04",
+    class: "text-right",
+    type: "number",
+    dec: 2,
+    sum: true,
+    group: "TINTA MT 04",
+    width: 65,
+    textClass: "ink-k",
+    subClass: "bg-ink-sub",
+  },
+
+  // TINTA MT05
+  {
+    label: "C",
+    field: "inkC_MT05",
+    class: "text-right",
+    type: "number",
+    dec: 2,
+    sum: true,
+    group: "TINTA MT 05",
+    width: 65,
+    textClass: "ink-c",
+    subClass: "bg-ink-sub-alt",
+  },
+  {
+    label: "M",
+    field: "inkM_MT05",
+    class: "text-right",
+    type: "number",
+    dec: 2,
+    sum: true,
+    group: "TINTA MT 05",
+    width: 65,
+    textClass: "ink-m",
+    subClass: "bg-ink-sub-alt",
+  },
+  {
+    label: "Y",
+    field: "inkY_MT05",
+    class: "text-right",
+    type: "number",
+    dec: 2,
+    sum: true,
+    group: "TINTA MT 05",
+    width: 65,
+    textClass: "ink-y",
+    subClass: "bg-ink-sub-alt",
+  },
+  {
+    label: "K",
+    field: "inkK_MT05",
+    class: "text-right",
+    type: "number",
+    dec: 2,
+    sum: true,
+    group: "TINTA MT 05",
+    width: 65,
+    textClass: "ink-k",
+    subClass: "bg-ink-sub-alt",
+  },
+]);
+
+// --- HITUNG KEMBALI LEBAR DAN COLSPAN GROUP HEADER SECARA REAL-TIME ---
+const dynamicGroups = computed(() => {
+  const groups = [];
+  let currentGroup = null;
+
+  columns.value.forEach((col) => {
+    if (col.group === "NONE") {
+      groups.push({
+        label: col.label,
+        width: col.width,
+        colspan: 1,
+        rowspan: 2,
+        class: "header-cell-dark",
+      });
+      currentGroup = null;
+    } else {
+      let cssClass = "header-cell-light";
+      if (col.group === "TOLERANSI BAHAN") cssClass = "bg-orange-header-sublim";
+      else if (col.group === "UKURAN / JENIS BAHAN")
+        cssClass = "bg-grey-header-sublim";
+      else if (col.group === "ORDER SPK") cssClass = "bg-green-header-sublim";
+      else if (col.group === "HASIL CETAK")
+        cssClass = "bg-yellow-header-sublim";
+      else if (col.group === "AMBIL BAHAN / SISA")
+        cssClass = "bg-dark-green-header-sublim";
+      else if (col.group === "TOTAL WASTE / LOST")
+        cssClass = "bg-waste-header-sublim";
+      else if (col.group.includes("MT 02") || col.group.includes("MT 04"))
+        cssClass = "bg-ink-header-sublim";
+      else if (col.group.includes("MT 03") || col.group.includes("MT 05"))
+        cssClass = "bg-ink-header-alt-sublim";
+
+      if (currentGroup && currentGroup.label === col.group) {
+        currentGroup.width += col.width;
+        currentGroup.colspan += 1;
+      } else {
+        currentGroup = {
+          label: col.group,
+          width: col.width,
+          colspan: 1,
+          rowspan: 1,
+          class: cssClass,
+        };
+        groups.push(currentGroup);
+      }
+    }
+  });
+  return groups;
+});
+
+// --- DATA LOGIC ---
 const fetchReport = async () => {
   loading.value.report = true;
   try {
@@ -288,559 +785,481 @@ const formatNumber = (val, dec = 1) => {
   });
 };
 
-const exportToExcel = () => {
-  if (productionData.value.length === 0) {
-    toast.warning("Tidak ada data untuk di-export.");
-    return;
-  }
-
-  loading.value = true;
-  try {
-    const fileName = `Laporan_Pemakaian_Bahan_Shift_Group_${startDate.value}.xlsx`;
-
-    // ==========================================
-    // 1. DEFINISI STYLE KOMPONEN EXCEL
-    // ==========================================
-    const styleBaseTh = {
-      font: { bold: true, color: { rgb: "000000" }, sz: 9 },
-      alignment: { horizontal: "center", vertical: "center", wrapText: true },
-      border: {
-        top: { style: "thin", color: { rgb: "000000" } },
-        bottom: { style: "thin", color: { rgb: "000000" } },
-        left: { style: "thin", color: { rgb: "000000" } },
-        right: { style: "thin", color: { rgb: "000000" } },
-      },
-    };
-
-    const styleHeader = (bgColor, isTextWhite) => ({
-      ...styleBaseTh,
-      fill: { fgColor: { rgb: bgColor } },
-      font: {
-        ...styleBaseTh.font,
-        color: { rgb: isTextWhite ? "FFFFFF" : "000000" },
-      },
-    });
-
-    const styleDataCell = {
-      font: { sz: 9 },
-      border: {
-        top: { style: "thin", color: { rgb: "000000" } },
-        bottom: { style: "thin", color: { rgb: "000000" } },
-        left: { style: "thin", color: { rgb: "000000" } },
-        right: { style: "thin", color: { rgb: "000000" } },
-      },
-      alignment: { vertical: "center" },
-    };
-
-    const styleDataCellCenter = {
-      ...styleDataCell,
-      alignment: { horizontal: "center", vertical: "center" },
-    };
-    const styleDataCellRight = {
-      ...styleDataCell,
-      alignment: { horizontal: "right", vertical: "center" },
-    };
-
-    const styleGroupHeader = {
-      fill: { fgColor: { rgb: "E1F5FE" } }, // Warna biru soft penanda Shift
-      font: { bold: true, sz: 11, color: { rgb: "01579B" } },
-      alignment: { vertical: "center" },
-    };
-
-    const styleSummaryTinta = {
-      fill: { fgColor: { rgb: "FFFBEB" } }, // Kuning gading untuk total tinta
-      font: { bold: true, sz: 9 },
-      border: {
-        top: { style: "thin", color: { rgb: "000000" } },
-        bottom: { style: "double", color: { rgb: "000000" } },
-        left: { style: "thin", color: { rgb: "000000" } },
-        right: { style: "thin", color: { rgb: "000000" } },
-      },
-    };
-
-    const formatTanggalIndo = (dateStr) => {
-      if (!dateStr) return "";
-      const bulanIndo = [
-        "Januari",
-        "Februari",
-        "Maret",
-        "April",
-        "Mei",
-        "Juni",
-        "Juli",
-        "Agustus",
-        "September",
-        "Oktober",
-        "November",
-        "Desember",
-      ];
-      try {
-        const [year, month, day] = dateStr.split("-");
-        return `${parseInt(day, 10)} ${bulanIndo[parseInt(month, 10) - 1]} ${year}`;
-      } catch (e) {
-        return dateStr;
-      }
-    };
-
-    const wsData = [];
-    const merges = [];
-
-    // Judul Dokumen Atas
-    wsData.push([
-      {
-        v: "LAPORAN PEMAKAIAN BAHAN & REKAP KONSUMSI TINTA PER SHIFT",
-        s: { font: { bold: true, sz: 14, color: { rgb: "1E3A8A" } } },
-      },
-    ]);
-    wsData.push([
-      {
-        v: `Periode: ${formatTanggalIndo(startDate.value)} s/d ${formatTanggalIndo(endDate.value)}`,
-        s: { font: { italic: true, sz: 10, color: { rgb: "475569" } } },
-      },
-    ]);
-    wsData.push([]);
-    merges.push({ s: { r: 0, c: 0 }, e: { r: 0, c: 39 } });
-
-    // ==========================================
-    // 2. LOGIKA GROUPING FRONTEND (SPK dimasukkan per Shift)
-    // ==========================================
-    const groupedMap = new Map();
-
-    productionData.value.forEach((row) => {
-      if (!row.tgl || row.tgl === "TOTAL") return; // Skip row total bawaan backend jika ada
-
-      const key = `${row.tgl}_Shift_${row.shift || "1"}`;
-
-      if (!groupedMap.has(key)) {
-        groupedMap.set(key, {
-          tgl: row.tgl,
-          shift: row.shift || "1",
-          spkList: [],
-          // Tampung akumulasi tinta maksimal per mesin khusus shift ini
-          tinta: {
-            MT02: { C: 0, M: 0, Y: 0, K: 0 },
-            MT03: { C: 0, M: 0, Y: 0, K: 0 },
-            MT04: { C: 0, M: 0, Y: 0, K: 0 },
-            MT05: { C: 0, M: 0, Y: 0, K: 0 },
-          },
-        });
-      }
-
-      const currentGroup = groupedMap.get(key);
-
-      // Masukkan SPK ke dalam list shift ini
-      currentGroup.spkList.push(row);
-
-      // Akumulasi/ambil nilai tinta terbesar atau total di shift ini
-      const engines = ["MT02", "MT03", "MT04", "MT05"];
-      const colors = ["C", "M", "Y", "K"];
-      engines.forEach((eng) => {
-        colors.forEach((ch) => {
-          const val = parseFloat(row[`ink${ch}_${eng}`]) || 0;
-          // Menggunakan Math.max karena nilai tinta biasanya terisi kumulatif di baris terakhir shift
-          if (val > currentGroup.tinta[eng][ch]) {
-            currentGroup.tinta[eng][ch] = val;
-          }
-        });
-      });
-    });
-
-    // ==========================================
-    // 3. MATRIKS BUILDING (AOA) BERDASARKAN GRUP SHIFT
-    // ==========================================
-    groupedMap.forEach((group) => {
-      const bannerRowIdx = wsData.length;
-      let tglIndo = group.tgl.includes("-")
-        ? group.tgl.split("-").reverse().join("/")
-        : group.tgl;
-
-      // A. BANNER UTAMA SHIFT
-      const groupRow = [
-        {
-          v: `📅 TANGGAL: ${tglIndo}   |   🕒 SHIFT: ${group.shift}`,
-          s: styleGroupHeader,
-        },
-      ];
-      for (let i = 1; i < 40; i++)
-        groupRow.push({ v: "", s: styleGroupHeader });
-      wsData.push(groupRow);
-      merges.push({
-        s: { r: bannerRowIdx, c: 0 },
-        e: { r: bannerRowIdx, c: 39 },
-      });
-
-      // B. DOUBLE HEADER TABEL (ROW 1)
-      const r1Idx = wsData.length;
-      const row1 = new Array(40)
-        .fill(null)
-        .map(() => ({ v: "", s: styleBaseTh }));
-
-      row1[0] = { v: "TOLERANSI BAHAN", s: styleHeader("FCE4D6") };
-      for (let i = 1; i < 3; i++) row1[i].s = styleHeader("FCE4D6");
-      merges.push({ s: { r: r1Idx, c: 0 }, e: { r: r1Idx, c: 2 } });
-
-      row1[3] = { v: "NAMA ORDER SPK", s: styleHeader("FFFFFF") };
-      merges.push({ s: { r: r1Idx, c: 3 }, e: { r: r1Idx + 1, c: 3 } });
-
-      row1[4] = { v: "NO. SPK", s: styleHeader("FFFFFF") };
-      merges.push({ s: { r: r1Idx, c: 4 }, e: { r: r1Idx + 1, c: 4 } });
-
-      row1[5] = { v: "UKURAN / JENIS BAHAN", s: styleHeader("E2EFDA") };
-      for (let i = 6; i < 10; i++) row1[i].s = styleHeader("E2EFDA");
-      merges.push({ s: { r: r1Idx, c: 5 }, e: { r: r1Idx, c: 9 } });
-
-      row1[10] = { v: "ORDER SPK", s: styleHeader("A9D08E") };
-      row1[11].s = styleHeader("A9D08E");
-      merges.push({ s: { r: r1Idx, c: 10 }, e: { r: r1Idx, c: 11 } });
-
-      row1[12] = { v: "HASIL CETAK", s: styleHeader("FFF2CC") };
-      row1[13].s = styleHeader("FFF2CC");
-      merges.push({ s: { r: r1Idx, c: 12 }, e: { r: r1Idx, c: 13 } });
-
-      row1[14] = { v: "AMBIL BAHAN / SISA", s: styleHeader("548235", true) };
-      for (let i = 15; i < 18; i++) row1[i].s = styleHeader("548235", true);
-      merges.push({ s: { r: r1Idx, c: 14 }, e: { r: r1Idx, c: 17 } });
-
-      row1[18] = { v: "TOTAL WASTE / LOST", s: styleHeader("DBDBDB") };
-      for (let i = 19; i < 24; i++) row1[i].s = styleHeader("DBDBDB");
-      merges.push({ s: { r: r1Idx, c: 18 }, e: { r: r1Idx, c: 23 } });
-
-      const tintaHeads = [
-        { c: 24, t: "TINTA MT 02", rgb: "FFFF00" },
-        { c: 28, t: "TINTA MT 03", rgb: "FEF9C3" },
-        { c: 32, t: "TINTA MT 04", rgb: "FFFF00" },
-        { c: 36, t: "TINTA MT 05", rgb: "FEF9C3" },
-      ];
-      tintaHeads.forEach((th) => {
-        row1[th.c] = { v: th.t, s: styleHeader(th.rgb) };
-        for (let i = 1; i < 4; i++) row1[th.c + i].s = styleHeader(th.rgb);
-        merges.push({ s: { r: r1Idx, c: th.c }, e: { r: r1Idx, c: th.c + 3 } });
-      });
-      wsData.push(row1);
-
-      // C. DOUBLE HEADER TABEL (ROW 2 - SUB LABEL TEKNIS)
-      const row2 = new Array(40)
-        .fill(null)
-        .map(() => ({ v: "", s: styleBaseTh }));
-      const subLabels = [
-        { c: 0, v: "S 1,2", bg: "F8CBAD" },
-        { c: 1, v: "S 3,4", bg: "F8CBAD" },
-        { c: 2, v: "%", bg: "F8CBAD" },
-        { c: 5, v: "P", bg: "C6E0B4" },
-        { c: 6, v: "L", bg: "C6E0B4" },
-        { c: 7, v: "GSM", bg: "C6E0B4" },
-        { c: 8, v: "MSN", bg: "C6E0B4" },
-        { c: 9, v: "BARCODE", bg: "C6E0B4" },
-        { c: 10, v: "PCS", bg: "7AB35A" },
-        { c: 11, v: "M2", bg: "7AB35A" },
-        { c: 12, v: "PCS", bg: "FFE699" },
-        { c: 13, v: "M2", bg: "FFE699" },
-        { c: 14, v: "AMB.P", bg: "385723", w: true },
-        { c: 15, v: "AMB.L", bg: "385723", w: true },
-        { c: 16, v: "SISA.P", bg: "385723", w: true },
-        { c: 17, v: "SISA.L", bg: "385723", w: true },
-        { c: 18, v: "WASTE", bg: "BFBFBF" },
-        { c: 19, v: "%", bg: "BFBFBF" },
-        { c: 20, v: "LOST", bg: "BFBFBF" },
-        { c: 21, v: "%", bg: "BFBFBF" },
-        { c: 22, v: "TOTAL", bg: "BFBFBF" },
-        { c: 23, v: "%", bg: "BFBFBF" },
-      ];
-      subLabels.forEach((sl) => {
-        row2[sl.c] = { v: sl.v, s: styleHeader(sl.bg, sl.w) };
-      });
-
-      const subTintaBgs = ["E2E200", "FDE047", "E2E200", "FDE047"];
-      [24, 28, 32, 36].forEach((startC, tIdx) => {
-        ["C", "M", "Y", "K"].forEach((ch, o) => {
-          row2[startC + o] = { v: ch, s: styleHeader(subTintaBgs[tIdx]) };
-        });
-      });
-      row2[3].s = styleBaseTh;
-      row2[4].s = styleBaseTh;
-      wsData.push(row2);
-
-      // D. LOOPING DAFTAR SPK DI DALAM SHIFT INI
-      group.spkList.forEach((dtl) => {
-        const dRow = new Array(40)
-          .fill(null)
-          .map(() => ({ v: "", s: styleDataCell }));
-        const valMapping = [
-          dtl.s12,
-          dtl.s34,
-          dtl.persenToleransi,
-          dtl.namaOrder,
-          dtl.noSpk,
-          dtl.p,
-          dtl.l,
-          dtl.gsm,
-          dtl.kodeMesin,
-          dtl.barcodeRoll,
-          dtl.orderPcs,
-          dtl.orderLuas,
-          dtl.hasilQty,
-          dtl.hasilLuas,
-          dtl.ambilP,
-          dtl.ambilL,
-          dtl.sisaBahanP,
-          dtl.sisaBahanL,
-          dtl.wasteM2,
-          dtl.wastePersen,
-          dtl.lostM2,
-          dtl.lostPersen,
-          dtl.totalWasteM2,
-          dtl.totalWastePersen,
-        ];
-
-        valMapping.forEach((val, cIdx) => {
-          let alignStyle = { ...styleDataCell };
-          if (cIdx === 3)
-            alignStyle.alignment = { horizontal: "left", vertical: "center" };
-          else if ([4, 7, 8, 9].includes(cIdx))
-            alignStyle.alignment = { horizontal: "center", vertical: "center" };
-          else
-            alignStyle.alignment = { horizontal: "right", vertical: "center" };
-
-          let cleanVal = val;
-          if ([2, 19, 21, 23].includes(cIdx) && typeof val === "number") {
-            cleanVal = `${val.toFixed(1)}%`;
-          }
-          dRow[cIdx] = {
-            v: cleanVal !== undefined && cleanVal !== null ? cleanVal : "-",
-            s: alignStyle,
-          };
-        });
-        wsData.push(dRow);
-      });
-
-      // E. BARIS TOTAL KONSUMSI TINTA (Hanya Muncul 1 Kali di Akhir Shift)
-      const rSumIdx = wsData.length;
-      const rowSum = new Array(40)
-        .fill(null)
-        .map(() => ({ v: "", s: styleSummaryTinta }));
-
-      rowSum[0] = {
-        v: "🧪 TOTAL KONSUMSI TINTA (LITER) SHIFT INI:",
-        s: {
-          ...styleSummaryTinta,
-          alignment: { horizontal: "right", vertical: "center" },
-        },
-      };
-      merges.push({ s: { r: rSumIdx, c: 0 }, e: { r: rSumIdx, c: 23 } });
-
-      const inkEngines = [
-        { base: 24, prefix: "MT02" },
-        { base: 28, prefix: "MT03" },
-        { base: 32, prefix: "MT04" },
-        { base: 36, prefix: "MT05" },
-      ];
-
-      inkEngines.forEach((eng) => {
-        ["C", "M", "Y", "K"].forEach((ch, o) => {
-          const finalInkVal = group.tinta[eng.prefix][ch];
-          rowSum[eng.base + o] = {
-            v: finalInkVal > 0 ? Number(finalInkVal) : "-",
-            s: {
-              ...styleSummaryTinta,
-              alignment: { horizontal: "center", vertical: "center" },
-            },
-          };
-        });
-      });
-
-      wsData.push(rowSum);
-      wsData.push([]); // Spasi baris pemisah antar shift
-    });
-
-    // ==========================================
-    // 4. GENERATE DAN DOWNLOADING PROCESS
-    // ==========================================
-    const ws = XLSX.utils.aoa_to_sheet(wsData);
-    ws["!merges"] = merges;
-
-    ws["!cols"] = [
-      { wch: 10 },
-      { wch: 10 },
-      { wch: 8 },
-      { wch: 40 },
-      { wch: 18 },
-      { wch: 10 },
-      { wch: 10 },
-      { wch: 10 },
-      { wch: 10 },
-      { wch: 16 },
-      { wch: 8 },
-      { wch: 14 },
-      { wch: 8 },
-      { wch: 14 },
-      { wch: 12 },
-      { wch: 12 },
-      { wch: 12 },
-      { wch: 12 },
-      { wch: 12 },
-      { wch: 8 },
-      { wch: 12 },
-      { wch: 8 },
-      { wch: 12 },
-      { wch: 8 },
-    ];
-    for (let i = 24; i < 40; i++) ws["!cols"].push({ wch: 6 });
-
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Laporan Pemakaian");
-    XLSX.writeFile(wb, fileName);
-
-    toast.success("Export Excel Berhasil!");
-  } catch (error) {
-    console.error("Export error:", error);
-    toast.error("Gagal melakukan export excel.");
-  } finally {
-    loading.value = false;
-  }
+const formatOnlyDate = (dateStr) => {
+  if (!dateStr || dateStr === "-") return "-";
+  return dateStr.substring(0, 10);
 };
 
-onMounted(() => {
-  fetchReport();
+const getValueByField = (item, field) => {
+  return item[field];
+};
+
+const sumField = (fieldName) => {
+  return filteredData.value.reduce((sum, item) => {
+    const val = parseFloat(item[fieldName]);
+    return sum + (isNaN(val) ? 0 : val);
+  }, 0);
+};
+
+const totalPages = computed(
+  () => Math.ceil(filteredData.value.length / itemsPerPage.value) || 1,
+);
+const paginatedData = computed(() => {
+  const start = (currentPage.value - 1) * itemsPerPage.value;
+  return filteredData.value.slice(start, start + itemsPerPage.value);
 });
+
+// --- ENGINE EXPORT TO EXCEL FIXED 2 DESIMAL, BORDER HITAM & TEXT HITAM ---
+const exportToExcel = () => {
+  if (productionData.value.length === 0) return;
+
+  const fileName = `Laporan_Pemakaian_Bahan_${startDate.value}.xlsx`;
+
+  const formatTanggalIndo = (dateStr) => {
+    if (!dateStr) return "";
+    const bulanIndo = [
+      "Januari",
+      "Februari",
+      "Maret",
+      "April",
+      "Mei",
+      "Juni",
+      "Juli",
+      "Agustus",
+      "September",
+      "Oktober",
+      "November",
+      "Desember",
+    ];
+    try {
+      const [year, month, day] = dateStr.split("-");
+      return `${parseInt(day, 10)} ${bulanIndo[parseInt(month, 10) - 1]} ${year}`;
+    } catch (e) {
+      return dateStr;
+    }
+  };
+
+  const borderTegasHitam = {
+    top: { style: "thin", color: { rgb: "000000" } },
+    bottom: { style: "thin", color: { rgb: "000000" } },
+    left: { style: "thin", color: { rgb: "000000" } },
+    right: { style: "thin", color: { rgb: "000000" } },
+  };
+
+  const styleHeaderMain = {
+    fill: { fgColor: { rgb: "E3F2FD" } },
+    font: { bold: true, color: { rgb: "000000" }, name: "Calibri", sz: 10 },
+    alignment: { horizontal: "center", vertical: "center", wrapText: true },
+    border: borderTegasHitam,
+  };
+
+  const styleDataCell = {
+    font: { name: "Calibri", sz: 10, color: { rgb: "000000" } },
+    alignment: { vertical: "center" },
+    border: borderTegasHitam,
+  };
+
+  const styleFooter = {
+    ...styleDataCell,
+    fill: { fgColor: { rgb: "F5F5F5" } },
+    font: { bold: true, name: "Calibri", sz: 10, color: { rgb: "000000" } },
+    border: {
+      top: { style: "thin", color: { rgb: "000000" } },
+      bottom: { style: "double", color: { rgb: "000000" } },
+      left: { style: "thin", color: { rgb: "000000" } },
+      right: { style: "thin", color: { rgb: "000000" } },
+    },
+  };
+
+  const wsData = [];
+  wsData.push([
+    {
+      v: "LAPORAN PEMAKAIAN BAHAN & KONSUMSI TINTA",
+      s: {
+        font: { bold: true, sz: 16, name: "Calibri", color: { rgb: "000000" } },
+      },
+    },
+  ]);
+  wsData.push([
+    {
+      v: `Periode: ${formatTanggalIndo(startDate.value)} s/d ${formatTanggalIndo(endDate.value)}`,
+      s: {
+        font: { bold: true, sz: 12, name: "Calibri", color: { rgb: "000000" } },
+      },
+    },
+  ]);
+  wsData.push([
+    {
+      v: "Kategori: BAHAN",
+      s: {
+        font: {
+          bold: false,
+          sz: 11,
+          name: "Calibri",
+          color: { rgb: "000000" },
+        },
+      },
+    },
+  ]);
+  wsData.push([]);
+
+  const excelHeaderRow1 = [];
+  const excelHeaderRow2 = [];
+  const excelMerges = [];
+
+  dynamicGroups.value.forEach((group) => {
+    let headerColor = "E3F2FD";
+    if (group.label === "TOLERANSI BAHAN") headerColor = "FCE4D6";
+    else if (group.label === "UKURAN / JENIS BAHAN") headerColor = "E2EFDA";
+    else if (group.label === "ORDER SPK") headerColor = "A9D08E";
+    else if (group.label === "HASIL CETAK") headerColor = "FFF2CC";
+    else if (group.label === "AMBIL BAHAN / SISA") headerColor = "C6E0B4";
+    else if (group.label === "TOTAL WASTE / LOST") headerColor = "DBDBDB";
+
+    excelHeaderRow1.push({
+      v: group.label,
+      s: { ...styleHeaderMain, fill: { fgColor: { rgb: headerColor } } },
+    });
+    for (let i = 1; i < group.colspan; i++) {
+      excelHeaderRow1.push({
+        v: "",
+        s: { ...styleHeaderMain, fill: { fgColor: { rgb: headerColor } } },
+      });
+    }
+  });
+
+  columns.value.forEach((col) => {
+    let subColor = "F0F8FF";
+    if (col.group === "TOLERANSI BAHAN") subColor = "F8CBAD";
+    else if (col.group === "UKURAN / JENIS BAHAN") subColor = "C6E0B4";
+    else if (col.group === "ORDER SPK") subColor = "7AB35A";
+    else if (col.group === "HASIL CETAK") subColor = "FFE699";
+
+    excelHeaderRow2.push({
+      v: col.label,
+      s: { ...styleHeaderMain, fill: { fgColor: { rgb: subColor } } },
+    });
+  });
+
+  wsData.push(excelHeaderRow1);
+  wsData.push(excelHeaderRow2);
+
+  let currentExcelCol = 0;
+  dynamicGroups.value.forEach((group) => {
+    if (group.rowspan === 2) {
+      excelMerges.push({
+        s: { r: 4, c: currentExcelCol },
+        e: { r: 5, c: currentExcelCol },
+      });
+      currentExcelCol += 1;
+    } else {
+      excelMerges.push({
+        s: { r: 4, c: currentExcelCol },
+        e: { r: 4, c: currentExcelCol + group.colspan - 1 },
+      });
+      currentExcelCol += group.colspan;
+    }
+  });
+
+  excelMerges.push({
+    s: { r: filteredData.value.length + 6, c: 0 },
+    e: { r: filteredData.value.length + 6, c: 1 },
+  });
+
+  // Map Value Row dengan Pembulatan toFixed(2)
+  filteredData.value.forEach((item) => {
+    const row = [];
+    columns.value.forEach((col) => {
+      const value = getValueByField(item, col.field);
+      if (col.type === "number") {
+        const finalNum =
+          col.dec === 2
+            ? Number(parseFloat(value || 0).toFixed(2))
+            : Number(value || 0);
+        let numberFormat = col.dec === 2 ? "#,##0.00" : "#,##0";
+        if (col.isPercent) numberFormat = "0.0'%'";
+
+        row.push({
+          v: finalNum,
+          s: {
+            ...styleDataCell,
+            alignment: { horizontal: "right" },
+            t: "n",
+            z: numberFormat,
+          },
+        });
+      } else {
+        row.push({
+          v: value || "",
+          s:
+            col.field === "namaOrder"
+              ? { ...styleDataCell, alignment: { horizontal: "left" } }
+              : { ...styleDataCell, alignment: { horizontal: "center" } },
+        });
+      }
+    });
+    wsData.push(row);
+  });
+
+  // Map Footer Row Sum
+  const excelFooter = [];
+  columns.value.forEach((col, idx) => {
+    if (idx === 0) {
+      excelFooter.push({
+        v: "TOTAL SUM:",
+        s: { ...styleFooter, alignment: { horizontal: "right" } },
+      });
+    } else if (col.sum) {
+      const sumVal = sumField(col.field);
+      const finalSum =
+        col.dec === 2 ? Number(parseFloat(sumVal).toFixed(2)) : Number(sumVal);
+      excelFooter.push({
+        v: finalSum,
+        s: { ...styleFooter, t: "n", z: col.dec === 2 ? "#,##0.00" : "#,##0" },
+      });
+    } else {
+      excelFooter.push({ v: "", s: styleFooter });
+    }
+  });
+  wsData.push(excelFooter);
+
+  const ws = XLSX.utils.aoa_to_sheet(wsData);
+  ws["!merges"] = excelMerges;
+  ws["!cols"] = columns.value.map((c) => ({ wch: c.width / 7.2 }));
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Pemakaian_Bahan");
+  const wbout = XLSX.write(wb, { bookType: "xlsx", type: "binary" });
+  const s2ab = (s) => {
+    const buf = new ArrayBuffer(s.length);
+    const view = new Uint8Array(buf);
+    for (let i = 0; i < s.length; i++) view[i] = s.charCodeAt(i) & 0xff;
+    return buf;
+  };
+  saveAs(
+    new Blob([s2ab(wbout)], { type: "application/octet-stream" }),
+    fileName,
+  );
+};
+
+onMounted(fetchReport);
 </script>
 
 <style scoped>
-.production-wrapper {
+.grid-table-container {
+  border: 1px solid #4ba3e3;
+  border-radius: 4px;
+  overflow: auto;
+  max-height: calc(100vh - 260px);
+  background: white;
+}
+
+.grid-table-viewport {
+  display: block;
+  width: max-content;
+  position: relative;
+}
+
+/* Row 1: CSS Group Header Layout */
+.grid-table-header-group {
+  display: flex;
+  flex-direction: row;
+  height: 28px;
+  background: #e3f2fd;
+}
+
+.grid-group-th {
+  font-size: 10px;
+  font-weight: bold;
+  border-right: 0.5px solid #bbdefb;
+  border-bottom: 0.5px solid #bbdefb;
+  box-sizing: border-box;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+  padding: 0 4px;
+}
+
+.header-cell-light {
+  background: #e3f2fd;
+  color: #0d47a1;
+  height: 28px;
+  line-height: 28px;
+}
+.header-cell-dark {
+  background: #bbdefb;
+  color: #0d47a1;
+  position: relative;
+  z-index: 50;
+}
+
+/* Custom Variasi Background Sesuai Kebutuhan LHK Bahan */
+.bg-orange-header-sublim {
+  background-color: #fce4d6 !important;
+  color: #c65911 !important;
+}
+.bg-grey-header-sublim {
+  background-color: #e2efda !important;
+  color: #375623 !important;
+}
+.bg-green-header-sublim {
+  background-color: #a9d08e !important;
+  color: #375623 !important;
+}
+.bg-yellow-header-sublim {
+  background-color: #fff2cc !important;
+  color: #7f6000 !important;
+}
+.bg-dark-green-header-sublim {
+  background-color: #c6e0b4 !important;
+  color: #375623 !important;
+}
+.bg-waste-header-sublim {
+  background-color: #dbdbdb !important;
+  color: #333333 !important;
+}
+.bg-ink-header-sublim {
+  background-color: #ffff00 !important;
+  color: #000000 !important;
+}
+.bg-ink-header-alt-sublim {
+  background-color: #fef9c3 !important;
+  color: #000000 !important;
+}
+
+/* Row 2: CSS Sub-Header Draggable Stack */
+.grid-table-main-view {
+  display: block;
+}
+.draggable-columns-binder {
+  display: flex;
+  flex-direction: row;
+}
+.grid-column-vertical-stack {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  font-family: "Inter", sans-serif;
-}
-.table-container {
-  border: 1px solid #cbd5e1;
-  border-radius: 8px !important;
-  overflow: auto;
-  max-height: calc(100vh - 220px);
 }
 
-.desktop-table :deep(table) {
-  border-collapse: separate;
-  border-spacing: 0;
-}
-.desktop-table :deep(thead th) {
-  font-size: 10px !important;
-  font-weight: 800 !important;
-  padding: 4px 6px !important;
-  border-right: 1px solid #94a3b8 !important;
-  border-bottom: 1px solid #94a3b8 !important;
-  color: #1e293b !important;
-  text-transform: uppercase;
-  text-align: center !important;
-  position: sticky !important;
-}
-
-/* Sticky Header Adjustment */
-.desktop-table :deep(.header-row-1) th {
-  top: 0;
-  z-index: 20;
-}
-.desktop-table :deep(.header-row-2) th {
-  top: 29px; /* Jarak dari atas untuk row kedua */
-  z-index: 15;
+.grid-sub-th {
+  font-size: 10px;
+  font-weight: bold;
+  background: #f0f8ff;
+  color: #333333;
+  height: 28px;
+  line-height: 28px;
+  border-right: 0.5px solid #bbdefb;
+  border-bottom: 0.5px solid #bbdefb;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  cursor: grab;
+  padding: 0 4px;
+  white-space: nowrap;
 }
 
-/* Color Sections */
-.bg-orange-header {
-  background-color: #fce4d6 !important;
+.grid-sub-th:active {
+  cursor: grabbing;
 }
+.hidden-sub-title {
+  visibility: hidden;
+  height: 28px;
+  pointer-events: none;
+}
+
+/* Variasi Warna Sub-Header Baris Kedua */
 .bg-orange-sub {
   background-color: #f8cbad !important;
-}
-.bg-grey-header {
-  background-color: #e2efda !important;
 }
 .bg-grey-sub {
   background-color: #c6e0b4 !important;
 }
-.bg-green-header {
-  background-color: #a9d08e !important;
-}
 .bg-green-sub {
   background-color: #7ab35a !important;
 }
-.bg-yellow-header {
-  background-color: #fff2cc !important;
-}
 .bg-yellow-sub {
   background-color: #ffe699 !important;
-}
-.bg-dark-green-header {
-  background-color: #548235 !important;
-  color: white !important;
 }
 .bg-dark-green-sub {
   background-color: #385723 !important;
   color: white !important;
 }
-.bg-waste-header {
-  background-color: #dbdbdb !important;
-}
 .bg-waste-sub {
   background-color: #bfbfbf !important;
 }
-
-/* Ink Colors MT02 & MT04 */
-.bg-ink-header {
-  background-color: #ffff00 !important;
-}
 .bg-ink-sub {
   background-color: #e2e200 !important;
-}
-
-/* Ink Colors MT03 & MT05 (Alt untuk pembeda visual) */
-.bg-ink-header-alt {
-  background-color: #fef9c3 !important;
 }
 .bg-ink-sub-alt {
   background-color: #fde047 !important;
 }
 
-.bg-orange-light {
-  background-color: #fff2e6;
-}
-.bg-green-light {
-  background-color: #f1f8e9;
-}
-.bg-yellow-light {
-  background-color: #fffde7;
+/* Body Cells Isian Teks */
+.grid-data-td {
+  font-size: 11px;
+  font-weight: normal;
+  height: 28px;
+  line-height: 28px;
+  padding: 0 8px;
+  border-right: 0.5px solid #f5f5f5;
+  border-bottom: 0.5px solid #f5f5f5;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  box-sizing: border-box;
+  background: white;
 }
 
-/* Font Colors Tinta */
+.zebra-stripe-row {
+  background-color: #f9fbfd !important;
+}
+.bg-orange-light {
+  background-color: #fff2e6 !important;
+}
+.bg-green-light {
+  background-color: #f1f8e9 !important;
+}
+.bg-yellow-light {
+  background-color: #fffde7 !important;
+}
+
+/* Color Tinta Vertikal */
 .ink-c {
-  color: #00aeef;
+  color: #00aeef !important;
   font-weight: bold;
 }
 .ink-m {
-  color: #ec008c;
+  color: #ec008c !important;
   font-weight: bold;
 }
 .ink-y {
-  color: #ca8a04;
+  color: #ca8a04 !important;
   font-weight: bold;
-  text-shadow: 0.2px 0.2px 0px #999;
 }
 .ink-k {
-  color: #000000;
+  color: #000000 !important;
   font-weight: bold;
 }
 
-.sticky-col-1 {
-  position: sticky;
-  left: 0;
-  z-index: 10;
-  border-right: 2px solid #74addc !important;
+/* Summary Footer */
+.grid-footer-td {
+  background: #f5f5f5;
+  color: #212121;
+  font-size: 11px;
+  height: 30px;
+  line-height: 30px;
+  padding: 0 8px;
+  border-right: 0.5px solid #9e9e9e;
+  border-top: 2px solid #9e9e9e;
+  border-bottom: 2px solid #9e9e9e;
+  box-sizing: border-box;
 }
 
-.desktop-table :deep(td) {
-  font-size: 11px !important;
-  border-right: 1px solid #e2e8f0 !important;
-  border-bottom: 1px solid #e2e8f0 !important;
-  white-space: nowrap;
-  padding: 4px 8px !important;
+.column-drag-ghost {
+  opacity: 0.3;
+  background: #b3e5fc !important;
+}
+.text-red {
+  color: #d32f2f !important;
 }
 </style>

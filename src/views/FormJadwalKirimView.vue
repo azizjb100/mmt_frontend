@@ -335,8 +335,8 @@ const saveForm = async (saveAndNew: boolean) => {
       Object.assign(formData, {
         nomor: "AUTO",
         tanggal: format(new Date(), "yyyy-MM-dd"),
-        gudangKode: "",
-        gudangNama: "",
+        gudangKode: "WH-010", // <-- Tetap set ke default WH-010
+        gudangNama: "GUDANG JADI MMT",
         spkNomor: "",
         spkNama: "",
         spkUkuran: "",

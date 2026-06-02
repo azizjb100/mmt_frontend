@@ -104,6 +104,7 @@ import JadwalKirimPrintView from '@/views/JadwalKirimPrintView.vue';
 import LapMonSublimView from '@/views/LapMonSublimView.vue';
 import FormPoExtMmtView from '@/views/FormPoExtMmtView.vue';
 import POExternalMmtView from '@/views/POExternalMmtView.vue';
+import FormPlanningProduksiView from '@/views/FormPlanningProduksiView.vue';
 
 
 
@@ -434,6 +435,7 @@ const routes: RouteRecordRaw[] = [
             { path: 'mmt/lhk/rtr', name: 'LHKRTRMMT', component: LhkRtrView },
             { path: 'mmt/lhk/rtr/new', name: 'LHKRTRMMTNew', component: FormLhkRtrView },
             { path: 'mmt/lhk/rtr/edit/:nomor', name: 'LHKRTRMMTEdit', component: FormLhkRtrView },
+            { path: 'mmt/planning-produksi-form', name: 'PlanningProduksiMMTForm', component: FormPlanningProduksiView },
 
             { path: 'mmt/bs-digital', name: 'BS & Sisa Digital Print', component: ComingSoon },
             { path: 'mmt/bs-tekstil', name: 'BS & Sisa Tekstil', component: ComingSoon },
@@ -441,6 +443,8 @@ const routes: RouteRecordRaw[] = [
             { path: 'mmt/po-paperprint', name: 'PO Paperprint MMT', component: POPaperprintView },
             { path: 'mmt/penerimaan-po-external', name: 'Penerimaan PO External MMT', component: PenerimaanPoExtMmtView },
             { path: 'mmt/penerimaan-po-external/new', name: 'PenerimaanPOExternalMmmtNew', component: FormPenerimaanPoExtMmtView },
+            { path: 'mmt/penerimaan-po-external/edit/:nomor', name: 'PenerimaanPOExternalMmmtEdit', component: FormPenerimaanPoExtMmtView },
+
 
             // Rute untuk "Produksi MMT"
             { path: 'produksi-mmt/mon/cetak', name: 'Monitoring Cetak MMT', component: ComingSoon },
