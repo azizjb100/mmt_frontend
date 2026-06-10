@@ -227,9 +227,30 @@
             </template>
 
             <template #[`item.lhk_nomor`]="{ item }">
-              <div :class="item.isManual ? 'text-grey italic' : 'lhk-chip'">
+              <div v-if="item.isManual" class="text-grey italic">MANUAL</div>
+              <div
+                v-else-if="!item.lhk_nomor"
+                class="text-amber-darken-4 font-weight-bold italic"
+              >
+                (AUTO)
+              </div>
+              <div v-else class="lhk-chip">
                 {{ item.lhk_nomor }}
               </div>
+            </template>
+
+            <template #[`item.lhk_mesin`]="{ item }">
+              <span class="font-weight-bold text-blue-darken-3">{{
+                item.lhk_mesin || "-"
+              }}</span>
+            </template>
+
+            <template #[`item.shift`]="{ item }">
+              <div class="text-center">{{ item.shift }}</div>
+            </template>
+
+            <template #[`item.mesin`]="{ item }">
+              <span class="font-weight-medium">{{ item.mesin || "-" }}</span>
             </template>
 
             <template #[`item.nomor_spk`]="{ item }">
@@ -239,14 +260,7 @@
             </template>
 
             <template #[`item.keterangan`]="{ item }">
-              <div class="py-1">
-                <div class="text-body-2 font-weight-medium">
-                  {{ item.keterangan }}
-                </div>
-                <div class="text-caption text-grey italic" v-if="item.mesin">
-                  Mesin: {{ item.mesin }}
-                </div>
-              </div>
+              <span class="font-weight-medium">{{ item.keterangan }}</span>
             </template>
 
             <template #[`item.qty`]="{ item, index }">
@@ -277,10 +291,9 @@
               />
             </template>
 
-            <!-- Custom Footer Total -->
             <template #body.append v-if="detailData.length > 0">
               <tr class="bg-blue-lighten-5 font-weight-bold">
-                <td colspan="4" class="text-end text-uppercase">
+                <td colspan="7" class="text-end text-uppercase">
                   Total Keseluruhan :
                 </td>
                 <td class="text-end text-primary">
@@ -356,12 +369,15 @@ const detailData = ref([]);
 
 const headers = [
   { title: "No", key: "no", width: "50px", sortable: false },
-  { title: "Nomor LHK", key: "lhk_nomor", width: "160px" },
-  { title: "No. SPK", key: "nomor_spk", width: "140px" },
-  { title: "Detail Bahan / Keterangan", key: "keterangan", minWidth: "200px" },
-  { title: "Jumlah (Pcs)", key: "qty", align: "end", width: "110px" },
-  { title: "Luas Produksi", key: "total_m2", align: "end", width: "130px" },
-  { title: "", key: "actions", width: "50px", sortable: false },
+  { title: "No. LHK Tekstil", key: "lhk_nomor", width: "150px" },
+  { title: "No. LHK Mesin Tekstil", key: "lhk_mesin", width: "160px" },
+  { title: "Shift", key: "shift", width: "80px", align: "center" },
+  { title: "Mesin", key: "mesin", width: "100px" },
+  { title: "No SPK", key: "nomor_spk", width: "130px" },
+  { title: "Nama Produk", key: "keterangan", minWidth: "200px" },
+  { title: "QTY", key: "qty", align: "end", width: "100px" },
+  { title: "Meter²", key: "total_m2", align: "end", width: "120px" },
+  { title: "", key: "actions", width: "50px", sortable: false }, // Tetap mempertahankan tombol hapus baris
 ];
 
 // --- Handlers Tinta ---
@@ -394,6 +410,7 @@ const handleSpkSelect = (spk) => {
 
   detailData.value.push({
     lhk_nomor: "MANUAL",
+    lhk_mesin: "-", // default manual
     shift: formData.shift,
     nomor_spk: spk.Spk || spk.spk_nomor,
     keterangan: spk.Nama || spk.spk_nama || "Input Manual",
@@ -434,12 +451,14 @@ const calculateRowM2 = (index) => {
 
 const handleLhkTekstilSelect = (selectedItems) => {
   selectedItems.forEach((item) => {
-    const isExist = detailData.value.some((d) => d.lhk_nomor === item.Nomor);
+    const isExist = detailData.value.some((d) => d.lhk_mesin === item.Nomor);
     if (!isExist) {
       const jmlCetak = item.Jml_Cetak || 0;
       const totalMeter = item.Total_Meter || 0;
+
       detailData.value.push({
-        lhk_nomor: item.Nomor,
+        lhk_nomor: "", // Kosong / Belum ada Nomor Approval (Akan digenerate backend)
+        lhk_mesin: item.Nomor, // Nomor LHK asal ditaruh di kolom LHK Mesin Tekstil
         shift: item.Shift,
         keterangan: `${item.Nama_Bahan} (${item.Barcode || "-"})`,
         total_m2: totalMeter,
@@ -462,63 +481,99 @@ const removeRow = (idx) => {
   detailData.value.splice(idx, 1);
 };
 
-const handleSave = async () => {
+const handleSave = async (status = "APPROVE") => {
+  // 1. Validasi: Minimal harus ada rincian pekerjaan
   if (detailData.value.length === 0) {
-    return toast.error("Daftar rincian pengerjaan masih kosong!");
+    toast.error("Daftar rincian pengerjaan masih kosong!");
+    return;
   }
 
+  // 2. Validasi Tinta: Pastikan mesin di inputan tinta sudah dipilih jika ada nilai tintanya
   const invalidInk = inkDetails.value.find(
     (ink) =>
-      (ink.c > 0 || ink.m > 0 || ink.y > 0 || ink.k > 0) && !ink.msn_kode,
+      (Number(ink.c) > 0 ||
+        Number(ink.m) > 0 ||
+        Number(ink.y) > 0 ||
+        Number(ink.k) > 0) &&
+      !ink.msn_kode,
   );
+
   if (invalidInk) {
-    return toast.error("Ada pemakaian tinta tetapi mesin belum dipilih!");
+    toast.error("Ada pemakaian tinta tapi mesin belum dipilih!");
+    return;
   }
 
   if (!window.confirm("Simpan & Approve data rekap tekstil ini?")) return;
 
   isSaving.value = true;
+
   try {
+    // 3. Susun Payload disinkronkan dengan skema database asli (tlhk_cetakmmt_ink / tlhk_tekstilmmt)
     const payload = {
       header: {
+        nomor:
+          isEditMode.value && formData.nomor !== "AUTO"
+            ? formData.nomor
+            : "AUTO",
         tanggal: formData.tanggal,
         shift: Number(formData.shift) || 1,
-        admin: formData.admin,
-        lstatus: "APPROVE",
+        admin: formData.admin || authStore.user?.name || "ADMIN",
+        gdgKode: formData.gdg_kode || "G01",
+        lstatus: status, // Nilainya 'APPROVE'
       },
+
+      // Data Rincian Pengerjaan Tekstil
       details: detailData.value.map((d) => ({
-        lhk_nomor: d.lhk_nomor,
-        total_m2: Number(d.total_m2) || 0,
+        lhk_nomor: d.lhk_nomor || "", // Kolom NO. LHK TEKSTIL (Kosong saat baru / AUTO)
+        lhk_mesin: d.lhk_mesin || "MANUAL", // Kolom NO. LHK MESIN TEKSTIL (Berisi MMT-LHK-T.xxxx)
+        shift: Number(d.shift) || Number(formData.shift) || 1,
         mesin: d.mesin || "",
         nomor_spk: d.nomor_spk || "",
         brg_kode: d.brg_kode || "",
-        jumlah_cetak: Number(d.qty) || 0,
-        panjang_per_pcs: Number(d.panjang) || 0,
-        lebar_spk: Number(d.lebar) || 0,
+        qty: Number(d.qty) || 0,
+        total_m2: Number(d.total_m2) || 0,
+        lebar: Number(d.lebar) || 0,
+        panjang: Number(d.panjang) || 0,
       })),
+
+      // DATA TINTA: Disesuaikan dengan kolom tabel `tlhk_cetakmmt_ink` (lci_msn_kode, lci_c, dst.)
       inkData: inkDetails.value
-        .filter((ink) => ink.msn_kode !== "")
+        .filter((ink) => {
+          const hasMachine = ink.msn_kode && ink.msn_kode.trim() !== "";
+          const hasValues =
+            Number(ink.c) > 0 ||
+            Number(ink.m) > 0 ||
+            Number(ink.y) > 0 ||
+            Number(ink.k) > 0;
+          return hasMachine && hasValues; // Hanya kirim jika ada mesin DAN ada pemakaian tinta asli
+        })
         .map((ink) => ({
-          msn_kode: ink.msn_kode,
-          c: Number(ink.c) || 0,
-          m: Number(ink.m) || 0,
-          y: Number(ink.y) || 0,
-          k: Number(ink.k) || 0,
+          lci_msn_kode: ink.msn_kode,
+          lci_tipe: "Tekstil",
+          lci_c: Number(ink.c) || 0,
+          lci_m: Number(ink.m) || 0,
+          lci_y: Number(ink.y) || 0,
+          lci_k: Number(ink.k) || 0,
         })),
-      existingNomor:
-        isEditMode.value && formData.nomor !== "AUTO" ? formData.nomor : null,
     };
 
+    // Panggil endpoint approval tekstil mmt Anda
     const res = await api.post("/mmt/lhk-tekstil-mmt/approve", payload);
-    if (res.data.success || res.data?.data?.success) {
-      toast.success(res.data.message || "Approval berhasil disimpan");
+
+    if (res.data?.success || res.data?.data?.success) {
+      toast.success(
+        res.data.message ||
+          "Data approval berhasil disimpan beserta pemakaian tinta",
+      );
       router.push("/mmt/lhk/tekstil/approve");
     } else {
       toast.error(res.data?.message || "Gagal menyimpan data");
     }
-  } catch (e) {
-    console.error("Save Error:", e);
-    toast.error(e.response?.data?.message || "Terjadi kesalahan sistem");
+  } catch (error) {
+    console.error("Save Error:", error);
+    toast.error(
+      error.response?.data?.message || "Terjadi kesalahan saat menyimpan data",
+    );
   } finally {
     isSaving.value = false;
   }
@@ -534,22 +589,35 @@ const loadDataAll = async (nomor) => {
       formData.nomor = res.Nomor;
       formData.tanggal = res.Tanggal;
       formData.shift = res.Shift;
-      formData.admin = res.Admin || res.Operator || formData.admin;
+      formData.admin = res.Admin || formData.admin;
 
       if (res.details) {
-        detailData.value = res.details.map((d) => ({
-          lhk_nomor: d.lhk_nomor || d.Nomor_Lhk || "MANUAL",
-          shift: d.Shift,
-          mesin: d.Mesin || d.mesin,
-          nomor_spk: d.Nomor_SPK || d.nomor_spk,
-          keterangan: d.Keterangan || d.keterangan || d.Nama_Bahan,
-          qty: Number(d.Jml_Cetak || d.jumlah_cetak || 0),
-          total_m2: Number(d.m2_cetak || d.total_m2 || 0),
-          lebar: d.Lebar_Spk || d.lebar_spk || 0,
-          panjang: d.Panjang_Per_Pcs || d.panjang_per_pcs || 0,
-          brg_kode: d.Kode_Bahan || d.brg_kode,
-          isManual: d.lhk_nomor === "MANUAL" || !d.lhk_nomor,
-        }));
+        detailData.value = res.details.map((d) => {
+          const isManualRow =
+            d.Nomor_Lhk_Mesin === "MANUAL" || !d.Nomor_Lhk_Mesin;
+
+          return {
+            // Kolom LHK Tekstil diisi nomor rekap/approval utama
+            lhk_nomor: d.Nomor_App || res.Nomor,
+
+            // Kolom LHK Mesin Tekstil diisi nomor LHK asal dari database
+            lhk_mesin: isManualRow ? "MANUAL" : d.Nomor_Lhk_Mesin,
+
+            shift: d.ShiftDetail || d.Shift || res.Shift,
+            mesin: d.Mesin || "-",
+            nomor_spk: d.Nomor_SPK || "",
+            keterangan: d.Nama_Bahan || "Input Manual",
+            qty: Number(d.Jml_Cetak || 0),
+            total_m2: Number(d.Total_Panjang || 0),
+            lebar: Number(d.Lebar || 0),
+            panjang:
+              Number(d.Jml_Cetak) > 0
+                ? Number(d.Total_Panjang) / Number(d.Jml_Cetak)
+                : 0,
+            brg_kode: d.Kode_Bahan || "",
+            isManual: isManualRow,
+          };
+        });
       }
 
       if (res.inkData && res.inkData.length > 0) {

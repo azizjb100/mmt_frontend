@@ -6,6 +6,7 @@
         color="orange-darken-2"
         @click="handleSave('DRAFT')"
         :loading="isSaving"
+        :disabled="isSaving || !isFormValid"
       >
         <v-icon start>mdi-file-clock</v-icon> Simpan Sementara
       </v-btn>
@@ -448,8 +449,12 @@
                             placeholder="P. BS"
                             density="compact"
                             variant="outlined"
-                            hide-details
+                            hide-details="auto"
+                            type="number"
                             class="mb-1 bg-white"
+                            :rules="[
+                              (v) => (v !== null && v !== '') || 'Wajib diisi',
+                            ]"
                           />
 
                           <v-text-field
@@ -457,8 +462,12 @@
                             placeholder="L. BS"
                             density="compact"
                             variant="outlined"
-                            hide-details
+                            hide-details="auto"
+                            type="number"
                             class="bg-white"
+                            :rules="[
+                              (v) => (v !== null && v !== '') || 'Wajib diisi',
+                            ]"
                           />
                         </v-col>
                       </v-row>
@@ -561,7 +570,7 @@ import { format } from "date-fns";
 import api from "@/services/api";
 import { useToast } from "vue-toastification";
 import MesinLookupView from "@/modal/MesinLookupModal.vue";
-import SpkLookupView from "@/modal/SpkLookupModal.vue";
+import SpkLookupView from "@/modal/SpkMesinLookupModal.vue";
 import PageLayout from "../components/PageLayout.vue";
 import { useAuthStore } from "@/stores/authStore";
 
@@ -819,6 +828,10 @@ const isFormValid = computed(
     formData.mesin &&
     formData.barcode_input &&
     detailData.length > 0,
+  formData.panjang_bs !== null &&
+    formData.panjang_bs !== "" &&
+    formData.lebar_bs !== null &&
+    formData.lebar_bs !== "",
 );
 
 const recalculateCombine = () => {
@@ -1317,7 +1330,7 @@ const generateNextAfalBarcode = (originalBarcode: string) => {
 const handleSave = async (statusValue: "DRAFT" | "POSTED" = "DRAFT") => {
   recalculateCombine();
 
-  // 1. Validasi Panjang Bahan (Wajib > 0)
+  // 1. Validasi Panjang Bahan Utama
   const panjangBahan = Number(formData.Panjang_bahan || 0);
   if (panjangBahan <= 0) {
     toast.error(
@@ -1326,7 +1339,20 @@ const handleSave = async (statusValue: "DRAFT" | "POSTED" = "DRAFT") => {
     return;
   }
 
-  // 2. Validasi Over Production & Required Form
+  // 🔥 VALIDASI UTAMA: Paksa P & L BS tidak boleh kosong (null / string kosong)
+  if (
+    formData.panjang_bs === null ||
+    formData.panjang_bs === "" ||
+    formData.lebar_bs === null ||
+    formData.lebar_bs === ""
+  ) {
+    toast.error(
+      "Gagal Simpan: Panjang dan Lebar BS / Rusak tidak boleh kosong! Jika tidak ada BS, silakan isi dengan angka 0.",
+    );
+    return; // Stop proses di sini, tidak akan masuk ke API
+  }
+
+  // 2. Validasi Over Production
   let isOverProduction = false;
   let overMessages = "";
 
@@ -1337,7 +1363,6 @@ const handleSave = async (statusValue: "DRAFT" | "POSTED" = "DRAFT") => {
     }
   });
 
-  // Jika Over Production, beri peringatan tapi boleh lanjut jika dikonfirmasi
   if (isOverProduction && statusValue === "POSTED") {
     const projut = confirm(
       `PERHATIAN: Ada kelebihan jumlah cetak:${overMessages}\n\nTetap lanjutkan simpan?`,
@@ -1345,13 +1370,12 @@ const handleSave = async (statusValue: "DRAFT" | "POSTED" = "DRAFT") => {
     if (!projut) return;
   }
 
-  // Validasi data wajib (Operator, Mesin, dll)
+  // Validasi data wajib lainnya (Operator, Mesin, dll)
   if (!isFormValid.value) {
     toast.error("Mohon lengkapi data wajib (Operator, Mesin, Barcode, SPK)");
     return;
   }
 
-  // Konfirmasi final jika ingin POSTED (Potong Stok)
   if (
     statusValue === "POSTED" &&
     !confirm("Simpan Hasil akan MEMOTONG STOK. Lanjutkan?")
@@ -1375,8 +1399,11 @@ const handleSave = async (statusValue: "DRAFT" | "POSTED" = "DRAFT") => {
         lstatus: statusValue,
         luser_create: currentUser,
         luser_modified: currentUser,
-        lpanjang_bs: formData.panjang_bs || 0,
-        llebar_bs: formData.lebar_bs || 0,
+
+        // Kirim nilai apa adanya ke backend (tidak di-fallback ke || 0 agar backend tahu jika ada bypass)
+        lpanjang_bs: formData.panjang_bs,
+        llebar_bs: formData.lebar_bs,
+
         lpanjang_afal: panjangSisaLayoutGanjil.value,
         llebar_afal: lebarSisaLayoutGanjil.value,
       },
@@ -1392,7 +1419,6 @@ const handleSave = async (statusValue: "DRAFT" | "POSTED" = "DRAFT") => {
           sisabahan: formData.sisa_panjang_manual ?? sisaStokOtomatis.value,
           sisabahanlebar: formData.sisa_lebar_manual ?? 0,
         };
-        // Map C1 - C7
         for (let i = 1; i <= 7; i++) {
           detailEntry[`cetak${i}`] = d[`cetak${i}`] || 0;
         }
@@ -1409,7 +1435,6 @@ const handleSave = async (statusValue: "DRAFT" | "POSTED" = "DRAFT") => {
       if (statusValue === "POSTED") {
         router.push("/mmt/lhk/cetak");
       } else if (!isEditMode.value) {
-        // Jika simpan draft pertama kali, pindah ke mode edit
         formData.nomor = response.data.nomor;
         isEditMode.value = true;
         router.replace(`/mmt/lhk-cetak/edit/${response.data.nomor}`);

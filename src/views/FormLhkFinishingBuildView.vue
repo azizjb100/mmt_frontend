@@ -154,6 +154,18 @@
               />
             </template>
 
+            <template #[`item.qty_bs`]="{ item }">
+              <v-text-field
+                v-model.number="item.qty_bs"
+                type="number"
+                density="compact"
+                variant="underlined"
+                hide-details
+                placeholder="0"
+                class="custom-input-black text-error font-weight-bold"
+              />
+            </template>
+
             <template #[`item.pengali_ma`]="{ item }">
               <v-text-field
                 v-model.number="item.pengali_ma"
@@ -303,6 +315,7 @@ const dynamicHeaders = computed(() => {
     { title: "No. SPK", key: "spk_nomor", width: "120px" },
     { title: "Produk", key: "spk_nama" },
     { title: "Hasil (Pcs)", key: "qty_hasil", align: "end", width: "100px" },
+    { title: "BS (Pcs)", key: "qty_bs", align: "end", width: "90px" },
   ];
 
   if (formData.proses === "MATA_AYAM" || formData.proses === "KOLI") {

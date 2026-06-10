@@ -492,9 +492,9 @@ const exportToExcel = async () => {
 
     const fileName = `LHK_Mesin_MMT_${filters.startDate}_to_${filters.endDate}.xlsx`;
 
-    // 2. Styling Definition (Gaya Penerimaan Bahan)
+    // 2. Styling Definition (Catatan: Style butuh xlsx-style, jika pakai xlsx standar ini akan diabaikan tapi aman)
     const styleHeaderMain = {
-      fill: { fgColor: { rgb: "B3E5FC" } }, // Biru Muda
+      fill: { fgColor: { rgb: "B3E5FC" } },
       font: { bold: true, color: { rgb: "000000" }, sz: 10 },
       alignment: { horizontal: "center", vertical: "center", wrapText: true },
       border: {
@@ -565,7 +565,7 @@ const exportToExcel = async () => {
     ]);
     worksheetData.push([]);
 
-    // Header Kolom Baru disesuaikan eksak seperti gambar browse aplikasi
+    // Header Kolom
     const headers = [
       { v: "NOMOR LHK", s: styleHeaderMain },
       { v: "SHIFT", s: styleHeaderMain },
@@ -591,12 +591,11 @@ const exportToExcel = async () => {
     ];
     worksheetData.push(headers);
 
-    // Iterasi Data & Pemetaan Baris dengan Akurasi Properti Fleksibel Fallback
+    // Iterasi Data Master & Detail
     masterData.value.forEach((header) => {
       const targetDetails = details.value[header.Nomor] || [];
       const tglHeader = header.Tanggal ? safeFormatDate(header.Tanggal) : "";
 
-      // Hitung Teks Status Bahan secara presisi seperti di aplikasi web
       let statusBahanText = "PAS";
       const sisaMeter = Number(header.SisaMeterAkhir || 0);
       if (sisaMeter < 0) {
@@ -608,112 +607,187 @@ const exportToExcel = async () => {
       if (targetDetails.length > 0) {
         targetDetails.forEach((dtl, index) => {
           const row = [
-            // Kolom Master (Hanya muncul di baris pertama grup detail)
-            { v: index === 0 ? header.Nomor : "", s: styleDataCellCenter },
+            // Kolom Master (Baris pertama grup detail diisi data, baris sisanya diisi null agar tidak merusak SUM)
             {
-              v: index === 0 ? header.Shift || "-" : "",
-              s: styleDataCellCenter,
-            },
-            { v: index === 0 ? tglHeader : "", s: styleDataCellCenter },
-            {
-              v: index === 0 ? header.Mesin || "-" : "",
+              v: index === 0 ? header.Nomor : null,
+              t: "s",
               s: styleDataCellCenter,
             },
             {
-              v: index === 0 ? header.NomorSPK || header.nomor_spk || "-" : "",
+              v: index === 0 ? header.Shift || "-" : null,
+              t: "s",
               s: styleDataCellCenter,
             },
             {
-              v: index === 0 ? header.NamaOrder || header.nama_spk || "-" : "",
+              v: index === 0 ? tglHeader : null,
+              t: "s",
+              s: styleDataCellCenter,
+            },
+            {
+              v: index === 0 ? header.Mesin || "-" : null,
+              t: "s",
+              s: styleDataCellCenter,
+            },
+            {
+              v:
+                index === 0 ? header.NomorSPK || header.nomor_spk || "-" : null,
+              t: "s",
+              s: styleDataCellCenter,
+            },
+            {
+              v:
+                index === 0 ? header.NamaOrder || header.nama_spk || "-" : null,
+              t: "s",
               s: styleDataCell,
             },
+
+            // Menggunakan tipe 'n' (Number) dan format '0.00' atau '0' agar bisa di-SUM
             {
-              v: index === 0 ? Number(header.spk_panjang || 0) : "",
+              v: index === 0 ? Number(header.spk_panjang || 0) : null,
+              t: "n",
+              z: "#,##0.00",
               s: styleDataCellRight,
             },
             {
-              v: index === 0 ? Number(header.spk_lebar || 0) : "",
+              v: index === 0 ? Number(header.spk_lebar || 0) : null,
+              t: "n",
+              z: "#,##0.00",
               s: styleDataCellRight,
             },
             {
-              v: index === 0 ? Number(header.JumlahOrder || 0) : "",
+              v: index === 0 ? Number(header.JumlahOrder || 0) : null,
+              t: "n",
+              z: "#,##0",
               s: styleDataCellRight,
             },
             {
               v:
                 index === 0
                   ? Number(header.TotalCetak || header.cetak_meter || 0)
-                  : "",
+                  : null,
+              t: "n",
+              z: "#,##0.00",
               s: styleDataCellRight,
             },
             {
-              v: index === 0 ? Number(header.PanjangBahanAwal || 0) : "",
+              v: index === 0 ? Number(header.PanjangBahanAwal || 0) : null,
+              t: "n",
+              z: "#,##0.00",
               s: styleDataCellRight,
             },
-            { v: index === 0 ? sisaMeter : "", s: styleDataCellRight },
-            { v: index === 0 ? statusBahanText : "", s: styleDataCellCenter },
             {
-              v: index === 0 ? header.Kode_bahan || "-" : "",
+              v: index === 0 ? sisaMeter : null,
+              t: "n",
+              z: "#,##0.00",
+              s: styleDataCellRight,
+            },
+
+            {
+              v: index === 0 ? statusBahanText : null,
+              t: "s",
               s: styleDataCellCenter,
             },
             {
-              v: index === 0 ? header.nama_Bahan || "-" : "",
+              v: index === 0 ? header.Kode_bahan || "-" : null,
+              t: "s",
+              s: styleDataCellCenter,
+            },
+            {
+              v: index === 0 ? header.nama_Bahan || "-" : null,
+              t: "s",
               s: styleDataCell,
             },
 
-            // Kolom Detail (Selalu muncul di setiap baris item detail)
+            // Kolom Detail (Selalu Angka Murni per Baris)
             {
               v: dtl.cetak1 !== undefined ? Number(dtl.cetak1) : 0,
+              t: "n",
+              z: "#,##0.00",
               s: styleDataCellRight,
             },
             {
               v: dtl.cetak2 !== undefined ? Number(dtl.cetak2) : 0,
+              t: "n",
+              z: "#,##0.00",
               s: styleDataCellRight,
             },
             {
               v: dtl.cetak3 !== undefined ? Number(dtl.cetak3) : 0,
+              t: "n",
+              z: "#,##0.00",
               s: styleDataCellRight,
             },
             {
               v: dtl.cetak4 !== undefined ? Number(dtl.cetak4) : 0,
+              t: "n",
+              z: "#,##0.00",
               s: styleDataCellRight,
             },
             {
               v: dtl.cetak5 !== undefined ? Number(dtl.cetak5) : 0,
+              t: "n",
+              z: "#,##0.00",
               s: styleDataCellRight,
             },
             {
               v: Number(dtl.totalcetak || dtl.TotalCetak || dtl.Qty_Cetak || 0),
+              t: "n",
+              z: "#,##0.00",
               s: styleDataCellRight,
             },
           ];
           worksheetData.push(row);
         });
       } else {
-        // Fallback jika tidak ada data detail sama sekali
+        // Fallback jika detail kosong
         const row = [
-          { v: header.Nomor, s: styleDataCellCenter },
-          { v: header.Shift || "-", s: styleDataCellCenter },
-          { v: tglHeader, s: styleDataCellCenter },
-          { v: header.Mesin || "-", s: styleDataCellCenter },
-          { v: header.NomorSPK || "-", s: styleDataCellCenter },
-          { v: header.NamaOrder || "-", s: styleDataCell },
-          { v: Number(header.spk_panjang || 0), s: styleDataCellRight },
-          { v: Number(header.spk_lebar || 0), s: styleDataCellRight },
-          { v: Number(header.JumlahOrder || 0), s: styleDataCellRight },
-          { v: Number(header.TotalCetak || 0), s: styleDataCellRight },
-          { v: Number(header.PanjangBahanAwal || 0), s: styleDataCellRight },
-          { v: sisaMeter, s: styleDataCellRight },
-          { v: statusBahanText, s: styleDataCellCenter },
-          { v: header.Kode_bahan || "-", s: styleDataCellCenter },
-          { v: header.nama_Bahan || "-", s: styleDataCell },
-          // Nilai detail di-set 0 jika kosong
-          { v: 0, s: styleDataCellRight },
-          { v: 0, s: styleDataCellRight },
-          { v: 0, s: styleDataCellRight },
-          { v: 0, s: styleDataCellRight },
-          { v: 0, s: styleDataCellRight },
-          { v: 0, s: styleDataCellRight },
+          { v: header.Nomor, t: "s", s: styleDataCellCenter },
+          { v: header.Shift || "-", t: "s", s: styleDataCellCenter },
+          { v: tglHeader, t: "s", s: styleDataCellCenter },
+          { v: header.Mesin || "-", t: "s", s: styleDataCellCenter },
+          { v: header.NomorSPK || "-", t: "s", s: styleDataCellCenter },
+          { v: header.NamaOrder || "-", t: "s", s: styleDataCell },
+          {
+            v: Number(header.spk_panjang || 0),
+            t: "n",
+            z: "#,##0.00",
+            s: styleDataCellRight,
+          },
+          {
+            v: Number(header.spk_lebar || 0),
+            t: "n",
+            z: "#,##0.00",
+            s: styleDataCellRight,
+          },
+          {
+            v: Number(header.JumlahOrder || 0),
+            t: "n",
+            z: "#,##0",
+            s: styleDataCellRight,
+          },
+          {
+            v: Number(header.TotalCetak || 0),
+            t: "n",
+            z: "#,##0.00",
+            s: styleDataCellRight,
+          },
+          {
+            v: Number(header.PanjangBahanAwal || 0),
+            t: "n",
+            z: "#,##0.00",
+            s: styleDataCellRight,
+          },
+          { v: sisaMeter, t: "n", z: "#,##0.00", s: styleDataCellRight },
+          { v: statusBahanText, t: "s", s: styleDataCellCenter },
+          { v: header.Kode_bahan || "-", t: "s", s: styleDataCellCenter },
+          { v: header.nama_Bahan || "-", t: "s", s: styleDataCell },
+          // Detail 0
+          { v: 0, t: "n", z: "#,##0.00", s: styleDataCellRight },
+          { v: 0, t: "n", z: "#,##0.00", s: styleDataCellRight },
+          { v: 0, t: "n", z: "#,##0.00", s: styleDataCellRight },
+          { v: 0, t: "n", z: "#,##0.00", s: styleDataCellRight },
+          { v: 0, t: "n", z: "#,##0.00", s: styleDataCellRight },
+          { v: 0, t: "n", z: "#,##0.00", s: styleDataCellRight },
         ];
         worksheetData.push(row);
       }
@@ -722,7 +796,7 @@ const exportToExcel = async () => {
     const ws = XLSX.utils.aoa_to_sheet(worksheetData);
     ws["!merges"] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 20 } }];
 
-    // Set Lebar Kolom Excel yang Sesuai Panjang Karakter Data
+    // Set Lebar Kolom Excel
     ws["!cols"] = [
       { wch: 22 },
       { wch: 6 },
@@ -750,7 +824,7 @@ const exportToExcel = async () => {
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "LHK_Mesin");
     XLSX.writeFile(wb, fileName);
-    toast.success("Excel berhasil diunduh dengan gaya sinkron!");
+    toast.success("Excel berhasil diunduh dan siap diolah!");
   } catch (error) {
     console.error("Export Error:", error);
     toast.error("Gagal mengekspor data.");
@@ -758,7 +832,6 @@ const exportToExcel = async () => {
     loading.value.headers = false;
   }
 };
-
 const fetchGudangList = async () => {
   try {
     console.log("INFO: Simulating fetching Gudang List.");

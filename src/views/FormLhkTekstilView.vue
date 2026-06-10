@@ -399,10 +399,13 @@
                             label="P. BS (M)"
                             density="compact"
                             variant="outlined"
-                            hide-details
+                            hide-details="auto"
                             type="number"
                             class="bg-white"
                             @input="recalculateCombine"
+                            :rules="[
+                              (v) => (v !== null && v !== '') || 'Wajib diisi',
+                            ]"
                           />
                         </v-col>
                         <v-col cols="6">
@@ -411,9 +414,12 @@
                             label="L. BS (M)"
                             density="compact"
                             variant="outlined"
-                            hide-details
+                            hide-details="auto"
                             type="number"
                             class="bg-white"
+                            :rules="[
+                              (v) => (v !== null && v !== '') || 'Wajib diisi',
+                            ]"
                           />
                         </v-col>
                       </v-row>
@@ -532,8 +538,8 @@ const formData = reactive({
   lebar_bahan: 0,
   panjang_bahan: 0, // Ini dalam satuan YARD dari database
   sisa_panjang_manual: null as number | null,
-  panjang_bs: 0, // Ini dalam satuan METER
-  lebar_bs: 0, // Ini dalam satuan METER
+  panjang_bs: null as number | null,
+  lebar_bs: null as number | null,
   mesin_kode: "",
   mesin_nama: "",
 });
@@ -972,6 +978,16 @@ const loadDataLHK = async () => {
 const handleSave = async (status: string) => {
   if (!formData.mesin_kode) {
     return toast.error("Silakan pilih mesin terlebih dahulu pada kolom kiri!");
+  }
+  if (
+    formData.panjang_bs === null ||
+    formData.panjang_bs === "" ||
+    formData.lebar_bs === null ||
+    formData.lebar_bs === ""
+  ) {
+    return toast.error(
+      "Gagal Simpan: Panjang dan Lebar BS / Rusak tidak boleh kosong! Jika tidak ada BS, silakan isi dengan angka 0.",
+    );
   }
   if (status === "POSTED" && !isFormValid.value) {
     return toast.error("Cek kelengkapan data & pastikan sisa stok memadai.");

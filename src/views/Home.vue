@@ -328,60 +328,73 @@
             class="overflow-x-auto border border-slate-100 rounded-2xl"
           >
             <!-- VIEW 1: TABEL DETAIL DEADLINE CETAK -->
+            <!-- VIEW 1: TABEL DETAIL DEADLINE CETAK -->
             <table
               v-if="modalType === 'deadline'"
-              class="w-full text-left border-collapse text-xs"
+              class="w-full text-left border-collapse modern-blue-table table-layout-fixed"
             >
               <thead>
-                <tr
-                  class="bg-slate-50 border-b border-slate-100 text-slate-500 uppercase tracking-wider font-semibold"
-                >
-                  <th class="py-3.5 px-4 w-12 text-center">No</th>
-                  <th class="py-3.5 px-3">No. SPK</th>
-                  <th class="py-3.5 px-3">Nama Produk / File</th>
-                  <th class="py-3.5 px-3 text-right">Qty Order</th>
-                  <th class="py-3.5 px-3 text-right">Sudah Cetak</th>
-                  <th class="py-3.5 px-3 text-right">Sisa Cetak</th>
-                  <th class="py-3.5 px-3 text-center">Tgl Input</th>
-                  <th class="py-3.5 px-4 text-center">Sisa Waktu</th>
+                <tr class="thead-tr">
+                  <th class="py-3 px-2 w-[45px] text-center">No</th>
+                  <th class="py-3 px-2 w-[115px]">No. SPK</th>
+                  <th class="py-3 px-2 w-[340px]">Nama Produk / File</th>
+                  <th class="py-3 px-2 text-right w-[85px]">Qty Order</th>
+                  <th class="py-3 px-2 text-right w-[95px]">Sudah Cetak</th>
+                  <th class="py-3 px-2 text-right w-[90px]">Sisa Cetak</th>
+                  <th class="py-3 px-2 text-center w-[105px]">Deadline</th>
+                  <th class="py-3 px-3 text-center w-[125px]">Sisa Waktu</th>
                 </tr>
               </thead>
-              <tbody class="divide-y divide-slate-100 text-slate-600">
+              <tbody class="divide-y divide-blue-50/50 text-slate-600">
                 <tr
                   v-for="(item, index) in totalModalData"
                   :key="index"
-                  class="hover:bg-slate-50/50 transition-colors"
+                  class="tbody-tr transition-colors duration-150"
                 >
                   <td
-                    class="py-3.5 px-4 text-center font-medium text-slate-400"
+                    class="py-2.5 px-2 text-center text-slate-400 font-medium"
                   >
                     {{ index + 1 }}
                   </td>
-                  <td class="py-3.5 px-3 font-mono font-medium text-slate-700">
+                  <td
+                    class="py-2.5 px-2 font-mono font-semibold text-slate-700 cell-spk-bg"
+                  >
                     {{ item.no_spk }}
                   </td>
-                  <td class="py-3.5 px-3 font-semibold text-slate-800">
+                  <!-- Teks panjang dipotong otomatis dengan titik-titik (...), arahkan mouse untuk melihat teks penuh -->
+                  <td
+                    class="py-2.5 px-2 font-medium text-slate-800 cell-ellipsis"
+                    :title="item.nama_produk"
+                  >
                     {{ item.nama_produk }}
                   </td>
-                  <td class="py-3.5 px-3 text-right text-slate-500">
-                    {{ item.qty_order }} {{ item.unit }}
+                  <td
+                    class="py-2.5 px-2 text-right text-slate-600 font-medium font-mono"
+                  >
+                    {{ item.qty_order }}
                   </td>
-                  <td class="py-3.5 px-3 text-right text-green-600 font-medium">
-                    {{ item.sudah_cetak }} {{ item.unit }}
+                  <td
+                    class="py-2.5 px-2 text-right text-green-600 font-semibold font-mono"
+                  >
+                    {{ item.sudah_cetak }}
                   </td>
-                  <td class="py-3.5 px-3 text-right font-bold text-slate-800">
-                    {{ item.qty }} {{ item.unit }}
+                  <td
+                    class="py-2.5 px-2 text-right font-bold text-slate-900 font-mono cell-sisa-bg"
+                  >
+                    {{ item.qty }}
                   </td>
-                  <td class="py-3.5 px-3 text-center text-slate-400">
+                  <td class="py-2.5 px-2 text-center text-slate-500 font-mono">
                     {{ formatDate(item.tanggal_spk) }}
                   </td>
-                  <td class="py-3.5 px-4 text-center">
+                  <td class="py-2.5 px-3 text-center whitespace-nowrap">
+                    <!-- Badge Sisa Waktu dengan tema warna cerah modern -->
                     <span
                       :class="[
-                        item.menit_sisa <= 60
-                          ? 'bg-red-100 text-red-700 font-bold'
-                          : 'bg-amber-100 text-amber-700',
-                        'px-2 py-0.5 rounded text-[10px]',
+                        item.sisa_waktu &&
+                        item.sisa_waktu.toLowerCase().includes('lewat')
+                          ? 'bg-red-50 text-red-600 border border-red-100 font-semibold'
+                          : 'bg-amber-50 text-amber-600 border border-amber-100 font-medium',
+                        'inline-block px-2.5 py-0.5 rounded-full text-[11px] min-w-[95px] text-center tracking-wide shadow-sm',
                       ]"
                     >
                       {{ item.sisa_waktu }}
@@ -747,5 +760,56 @@ onMounted(async () => {
 canvas {
   width: 100% !important;
   height: 100% !important;
+}
+
+.modern-blue-table.table-layout-fixed {
+  table-layout: fixed !important;
+  width: 100%;
+}
+
+/* Ukuran Font Seragam untuk Seluruh Isi Tabel */
+.modern-blue-table th,
+.modern-blue-table td {
+  font-size: 12px !important;
+  vertical-align: middle !important;
+}
+
+/* Header Tabel (Ice Blue) */
+.modern-blue-table thead tr {
+  background-color: #f0f9ff !important; /* Biru muda es */
+  border-bottom: 2px solid #bae6fd !important;
+}
+
+.modern-blue-table th {
+  color: #0369a1 !important; /* Teks biru navy kontras */
+  font-weight: 700 !important;
+  height: 36px !important;
+}
+
+/* Row Data Body */
+.modern-blue-table .tbody-tr {
+  height: 36px !important;
+}
+
+/* Efek Hover Baris Soft Blue */
+.modern-blue-table .tbody-tr:hover {
+  background-color: #f0f7ff !important;
+  cursor: pointer;
+}
+
+/* Aksen Background Tipis Kolom Tertentu */
+.modern-blue-table .cell-spk-bg {
+  background-color: #f8fafc/50;
+}
+
+.modern-blue-table .cell-sisa-bg {
+  background-color: #fef3c7/20; /* Highlight kuning tipis pada angka sisa cetak */
+}
+
+/* Mekanisme Pemotongan Nama File yang Kepanjangan (...) */
+.modern-blue-table .cell-ellipsis {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 </style>

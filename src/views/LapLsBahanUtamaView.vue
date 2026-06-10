@@ -50,9 +50,9 @@
             <v-icon start>mdi-refresh</v-icon> Refresh
           </v-btn>
 
-          <v-btn 
-            size="small" 
-            color="success" 
+          <v-btn
+            size="small"
+            color="success"
             @click="exportToExcel"
             class="text-none"
           >
@@ -90,148 +90,50 @@
             { title: 'ALL', value: -1 },
           ]"
           @update:items-per-page="itemsPerPage = Number($event)"
+          show-expand
+          v-model:expanded="expandedRows"
+          @update:expanded="onRowExpand"
         >
           <template #thead>
             <thead>
               <tr class="header-row-1">
+                <th rowspan="2" class="bg-blue-main" style="width: 40px"></th>
+
                 <th
                   rowspan="2"
                   class="text-center sticky-col-1 bg-blue-main"
                   :style="{ width: colWidths.kode + 'px' }"
                 >
                   KODE
-                  <div
-                    class="resizer"
-                    @mousedown.stop="onResizeStart($event, 'kode')"
-                  ></div>
                 </th>
-
                 <th
                   rowspan="2"
                   class="text-center sticky-col-2 bg-blue-main"
                   :style="{ width: colWidths.Nama + 'px' }"
                 >
                   NAMA BAHAN
-                  <div
-                    class="resizer"
-                    @mousedown.stop="onResizeStart($event, 'Nama')"
-                  ></div>
                 </th>
-
                 <th
                   rowspan="2"
                   class="text-center bg-blue-main"
                   style="width: 150px"
                 >
-                  <div class="d-flex align-center justify-center ga-1">
-                    JENIS
-                    <v-menu :close-on-content-click="false" location="bottom">
-                      <template v-slot:activator="{ props }">
-                        <v-btn
-                          icon="mdi-filter-variant"
-                          variant="text"
-                          size="small"
-                          v-bind="props"
-                          :color="
-                            selectedJenis !== 'SEMUA' ? 'warning' : 'white'
-                          "
-                        ></v-btn>
-                      </template>
-                      <v-list
-                        density="compact"
-                        class="pa-2"
-                        style="min-width: 200px"
-                      >
-                        <v-radio-group v-model="selectedJenis" hide-details>
-                          <v-radio
-                            v-for="opt in jenisOptions"
-                            :key="opt"
-                            :label="opt"
-                            :value="opt"
-                            class="mb-1"
-                          ></v-radio>
-                        </v-radio-group>
-                      </v-list>
-                    </v-menu>
-                  </div>
+                  JENIS
                 </th>
-
                 <th
                   rowspan="2"
                   class="text-center bg-blue-main"
                   style="width: 150px"
                 >
-                  <div class="d-flex align-center justify-center ga-1">
-                    TYPE
-                    <v-menu :close-on-content-click="false" location="bottom">
-                      <template v-slot:activator="{ props }">
-                        <v-btn
-                          icon="mdi-filter-variant"
-                          variant="text"
-                          size="small"
-                          v-bind="props"
-                          :color="
-                            selectedType !== 'SEMUA' ? 'warning' : 'white'
-                          "
-                        ></v-btn>
-                      </template>
-                      <v-list
-                        density="compact"
-                        class="pa-2"
-                        style="min-width: 200px"
-                      >
-                        <v-radio-group v-model="selectedType" hide-details>
-                          <v-radio
-                            v-for="opt in typeOptions"
-                            :key="opt"
-                            :label="opt"
-                            :value="opt"
-                            class="mb-1"
-                          ></v-radio>
-                        </v-radio-group>
-                      </v-list>
-                    </v-menu>
-                  </div>
+                  TYPE
                 </th>
-
                 <th
                   rowspan="2"
                   class="text-center bg-blue-main"
                   style="width: 150px"
                 >
-                  <div class="d-flex align-center justify-center ga-1">
-                    STATUS
-                    <v-menu :close-on-content-click="false" location="bottom">
-                      <template v-slot:activator="{ props }">
-                        <v-btn
-                          icon="mdi-filter-variant"
-                          variant="text"
-                          size="small"
-                          v-bind="props"
-                          :color="
-                            selectedStatus !== 'SEMUA' ? 'warning' : 'white'
-                          "
-                        ></v-btn>
-                      </template>
-                      <v-list
-                        density="compact"
-                        class="pa-2"
-                        style="min-width: 200px"
-                      >
-                        <v-radio-group v-model="selectedStatus" hide-details>
-                          <v-radio
-                            v-for="opt in statusOptions"
-                            :key="opt"
-                            :label="opt"
-                            :value="opt"
-                            class="mb-1"
-                          ></v-radio>
-                        </v-radio-group>
-                      </v-list>
-                    </v-menu>
-                  </div>
+                  STATUS
                 </th>
-
                 <th
                   colspan="3"
                   class="text-center bg-blue-sub spesifikasi-header"
@@ -256,14 +158,21 @@
                 >
                   KELUAR
                 </th>
+                <th colspan="2" class="text-center bg-blue-sub">RETUR</th>
                 <th
                   :colspan="canSeeNominal ? 3 : 2"
                   class="text-center bg-blue-sub"
                 >
                   STOCK AKHIR
                 </th>
+                <th
+                  rowspan="2"
+                  class="text-center bg-blue-main"
+                  style="width: 250px"
+                >
+                  KETERANGAN
+                </th>
               </tr>
-
               <tr class="header-row-2">
                 <th class="text-center spesifikasi-child">PANJANG</th>
                 <th class="text-center">LEBAR</th>
@@ -279,28 +188,39 @@
                 <th v-if="canSeeNominal" class="text-center">NOMINAL (Rp)</th>
                 <th class="text-center">ROLL</th>
                 <th class="text-center">M2</th>
+                <th class="text-center">ROLL</th>
+                <th class="text-center">M2</th>
                 <th v-if="canSeeNominal" class="text-center">NOMINAL (Rp)</th>
               </tr>
             </thead>
           </template>
 
-          <template v-slot:item="{ item }">
-            <tr class="data-row">
-              <td class="text-left sticky-col-1 bg-white">
-                {{ item.kode }}
+          <template
+            v-slot:item="{ item, internalItem, isExpanded, toggleExpand }"
+          >
+            <tr
+              class="data-row"
+              @click="toggleExpand(internalItem)"
+              style="cursor: pointer"
+            >
+              <td class="text-center">
+                <v-icon
+                  :icon="
+                    isExpanded(internalItem)
+                      ? 'mdi-chevron-down'
+                      : 'mdi-chevron-right'
+                  "
+                ></v-icon>
               </td>
-              <td class="text-left sticky-col-2 bg-white">
-                {{ item.Nama }}
-              </td>
+              <td class="text-left sticky-col-1 bg-white">{{ item.kode }}</td>
+              <td class="text-left sticky-col-2 bg-white">{{ item.Nama }}</td>
               <td class="text-left">{{ item.jb_nama }}</td>
               <td class="text-left">{{ item.type_barang }}</td>
               <td class="text-left">{{ item.status_barang }}</td>
               <td class="text-right spesifikasi-panjang">
                 {{ formatNumber(item.Panjang, 2) }}
               </td>
-              <td class="text-right">
-                {{ formatNumber(item.Lebar, 2) }}
-              </td>
+              <td class="text-right">{{ formatNumber(item.Lebar, 2) }}</td>
               <td class="text-right spesifikasi-m2roll">
                 {{ formatNumber(item.m2, 2) }}
               </td>
@@ -313,23 +233,23 @@
               <td v-if="canSeeNominal" class="text-right font-weight-bold">
                 {{ formatNumber(item.stok_awal_nominal, 0) }}
               </td>
-              <td class="text-center">
-                {{ formatNumber(item.terima_q, 0) }}
-              </td>
+              <td class="text-center">{{ formatNumber(item.terima_q, 0) }}</td>
               <td class="text-right spesifikasi-m2roll">
                 {{ formatNumber(item.terima_m, 2) }}
               </td>
               <td v-if="canSeeNominal" class="text-right font-weight-bold">
                 {{ formatNumber(item.terima_nominal, 0) }}
               </td>
-              <td class="text-center">
-                {{ formatNumber(item.keluar_q, 0) }}
-              </td>
+              <td class="text-center">{{ formatNumber(item.keluar_q, 0) }}</td>
               <td class="text-right spesifikasi-m2roll">
                 {{ formatNumber(item.keluar_m, 2) }}
               </td>
               <td v-if="canSeeNominal" class="text-right font-weight-bold">
                 {{ formatNumber(item.keluar_nominal, 0) }}
+              </td>
+              <td class="text-center">{{ formatNumber(item.retur_q, 0) }}</td>
+              <td class="text-right spesifikasi-m2roll">
+                {{ formatNumber(item.retur_m, 2) }}
               </td>
               <td class="text-center">
                 {{ formatNumber(item.stok_akhir_q, 0) }}
@@ -340,64 +260,174 @@
               <td v-if="canSeeNominal" class="text-right font-weight-bold">
                 {{ formatNumber(item.stok_akhir_nominal, 0) }}
               </td>
-            </tr>
-          </template>
-
-          <template #tfoot>
-            <tr class="table-footer">
-              <td
-                colspan="5"
-                class="text-right font-weight-bold sticky-footer-title"
-              >
-                TOTAL:
-              </td>
-
-              <td colspan="3"></td>
-
-              <td class="text-end font-weight-bold">
-                {{ formatNumber(reportTotals.stok_awal_q, 0) }}
-              </td>
-              <td class="text-end font-weight-bold">
-                {{ formatNumber(reportTotals.stok_awal_m, 2) }}
-              </td>
-              <td v-if="canSeeNominal" class="text-end font-weight-bold">
-                {{ formatNumber(reportTotals.stok_awal_nominal, 0) }}
-              </td>
-
-              <td class="text-end font-weight-bold">
-                {{ formatNumber(reportTotals.terima_q, 0) }}
-              </td>
-              <td class="text-end font-weight-bold">
-                {{ formatNumber(reportTotals.terima_m, 2) }}
-              </td>
-              <td v-if="canSeeNominal" class="text-end font-weight-bold">
-                {{ formatNumber(reportTotals.terima_nominal, 0) }}
-              </td>
-
-              <td class="text-end font-weight-bold">
-                {{ formatNumber(reportTotals.keluar_q, 0) }}
-              </td>
-              <td class="text-end font-weight-bold">
-                {{ formatNumber(reportTotals.keluar_m, 2) }}
-              </td>
-              <td v-if="canSeeNominal" class="text-end font-weight-bold">
-                {{ formatNumber(reportTotals.keluar_nominal, 0) }}
-              </td>
-
-              <td class="text-end font-weight-bold">
-                {{ formatNumber(reportTotals.stok_akhir_q, 0) }}
-              </td>
-              <td class="text-end font-weight-bold">
-                {{ formatNumber(reportTotals.stok_akhir_m, 2) }}
-              </td>
-              <td v-if="canSeeNominal" class="text-end font-weight-bold">
-                {{ formatNumber(reportTotals.stok_akhir_nominal, 0) }}
+              <td class="text-left" style="min-width: 230px" @click.stop>
+                <div class="d-flex align-center ga-1">
+                  <v-text-field
+                    v-model="item.keterangan"
+                    density="compact"
+                    hide-details
+                    variant="underlined"
+                    placeholder="Alasan..."
+                    class="text-caption"
+                  />
+                  <v-btn
+                    icon="mdi-floppy"
+                    size="x-small"
+                    color="success"
+                    variant="text"
+                    @click="simpanKeteranganBarang(item)"
+                  />
+                </div>
               </td>
             </tr>
           </template>
+
+          /* 2. TEMPLATE KONTEN DI DALAM BARIS EXPANDED */
+          <template v-slot:expanded-row="{ columns, item }">
+            <tr>
+              <td :colspan="columns.length" class="bg-grey-lighten-4 pa-3">
+                <v-card
+                  variant="outlined"
+                  color="blue-lighten-3"
+                  class="bg-white rounded-lg pa-2"
+                >
+                  <div
+                    class="text-subtitle-2 font-weight-bold text-blue-darken-3 mb-2 d-flex align-center ga-2"
+                  >
+                    <v-icon size="small">mdi-clock-history</v-icon>
+                    Histori Transaksi Kronologis Log Gudang: {{ item.Nama }} ({{
+                      item.kode
+                    }})
+                  </div>
+
+                  <v-progress-linear
+                    v-if="expandedLoading[item.kode]"
+                    indeterminate
+                    color="primary"
+                    class="mb-2"
+                  />
+
+                  <v-table
+                    v-else
+                    density="compact"
+                    class="expanded-detail-table"
+                  >
+                    <thead>
+                      <tr class="bg-grey-lighten-2 text-caption">
+                        <th class="text-center font-weight-bold">TANGGAL</th>
+                        <th class="text-center font-weight-bold">
+                          JENIS MUTASI
+                        </th>
+                        <th class="text-center font-weight-bold">KATEGORI</th>
+                        <th class="text-left font-weight-bold">
+                          NO. REF / SPK
+                        </th>
+                        <th class="text-left font-weight-bold">BARCODE ROLL</th>
+                        <th class="text-center font-weight-bold text-success">
+                          IN (ROLL)
+                        </th>
+                        <th class="text-right font-weight-bold text-success">
+                          IN (M2)
+                        </th>
+                        <th class="text-center font-weight-bold text-error">
+                          OUT (ROLL)
+                        </th>
+                        <th class="text-right font-weight-bold text-error">
+                          OUT (M2)
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr
+                        v-if="
+                          !expandedData[item.kode] ||
+                          expandedData[item.kode].length === 0
+                        "
+                      >
+                        <td
+                          colspan="9"
+                          class="text-center text-grey text-caption py-3"
+                        >
+                          Tidak ada mutasi transaksi pada periode ini.
+                        </td>
+                      </tr>
+                      <tr
+                        v-for="(log, idx) in expandedData[item.kode]"
+                        :key="idx"
+                        class="text-caption"
+                      >
+                        <td class="text-center">
+                          {{ log.tanggal ? log.tanggal.substring(0, 10) : "-" }}
+                        </td>
+                        <td class="text-center">
+                          <v-chip
+                            size="x-small"
+                            :color="
+                              log.jenis_mutasi.includes('MASUK')
+                                ? 'success'
+                                : log.jenis_mutasi.includes('RETUR')
+                                  ? 'warning'
+                                  : 'error'
+                            "
+                            class="font-weight-bold"
+                          >
+                            {{ log.jenis_mutasi }}
+                          </v-chip>
+                        </td>
+                        <td class="text-center">
+                          <v-chip
+                            size="x-small"
+                            variant="outlined"
+                            :color="log.kategori === 'SCRAP' ? 'red' : 'indigo'"
+                            >{{ log.kategori || "ROLL" }}</v-chip
+                          >
+                        </td>
+                        <td class="text-left">
+                          <strong>{{ log.no_referensi }}</strong>
+                          <div class="text-grey text-xxs" v-if="log.no_spk">
+                            SPK: {{ log.no_spk }}
+                          </div>
+                        </td>
+                        <td
+                          class="text-left text-green-darken-4 font-weight-medium"
+                        >
+                          {{ log.barcode }}
+                        </td>
+                        <td class="text-center font-weight-bold text-success">
+                          {{
+                            log.qty_in > 0 ? formatNumber(log.qty_in, 0) : "-"
+                          }}
+                        </td>
+                        <td class="text-right text-success">
+                          {{
+                            log.meter_in > 0
+                              ? formatNumber(log.meter_in, 2)
+                              : "-"
+                          }}
+                        </td>
+                        <td class="text-center font-weight-bold text-error">
+                          {{
+                            log.qty_out > 0 ? formatNumber(log.qty_out, 0) : "-"
+                          }}
+                        </td>
+                        <td class="text-right text-error">
+                          {{
+                            log.meter_out > 0
+                              ? formatNumber(log.meter_out, 2)
+                              : "-"
+                          }}
+                        </td>
+                      </tr>
+                    </tbody>
+                  </v-table>
+                </v-card>
+              </td>
+            </tr>
+          </template>
+
+          <template #tfoot> </template>
         </v-data-table>
       </v-card>
-
       <GudangLookupView
         :is-visible="showGudangLookup"
         @close="showGudangLookup = false"
@@ -455,7 +485,43 @@ const selectedStatus = ref("SEMUA");
 const selectedType = ref("SEMUA");
 const selectedJenis = ref("SEMUA");
 
-// 3. Update logika filteredData (Tambahkan matchJenis)
+const expandedRows = ref([]);
+const expandedData = reactive({}); // Menampung data detail berdasarkan kode barang { 'KODE_A': [...] }
+const expandedLoading = reactive({}); // Menampung status loading reaktif per kode barang { 'KODE_A': true/false }
+
+// Pemicu aksi ketika baris tabel di-expand / diklik
+const onRowExpand = async (newExpanded) => {
+  if (newExpanded.length === 0) return;
+
+  // Ambil data kode barang terakhir yang di-expand oleh user
+  const targetKode = newExpanded[newExpanded.length - 1];
+
+  // Jika data histori untuk kode barang tersebut sudah pernah diambil sebelumnya, tidak perlu hit API ulang
+  if (expandedData[targetKode]) return;
+
+  expandedLoading[targetKode] = true;
+  try {
+    const res = await api.get("/mmt/lap-bahan-baku/detail", {
+      params: {
+        startDate: startDate.value,
+        endDate: endDate.value,
+        gdgKode: selectedGudang.value,
+        brgKode: targetKode,
+      },
+    });
+
+    if (res.data.success) {
+      expandedData[targetKode] = res.data.data;
+    } else {
+      expandedData[targetKode] = [];
+    }
+  } catch (error) {
+    console.error("Gagal memuat log expanded detail:", error);
+    expandedData[targetKode] = [];
+  } finally {
+    expandedLoading[targetKode] = false;
+  }
+};
 
 // Ambil list status unik untuk isi dropdown
 const statusOptions = computed(() => {
@@ -580,7 +646,7 @@ watch(searchQuery, () => {
   currentPage.value = 1;
 });
 
-// TOTALS (Calculated from current page)
+// TOTALS (Calculated from current page, updated with retur)
 const reportTotals = computed(() => {
   return filteredData.value.reduce(
     (acc, row) => {
@@ -593,6 +659,9 @@ const reportTotals = computed(() => {
       acc.keluar_q += parseFloat(row.keluar_q || 0);
       acc.keluar_m += parseFloat(row.keluar_m || 0);
       acc.keluar_nominal += parseFloat(row.keluar_nominal || 0);
+      // Tambahan akumulasi retur
+      acc.retur_q += parseFloat(row.retur_q || 0);
+      acc.retur_m += parseFloat(row.retur_m || 0);
       acc.stok_akhir_q += parseFloat(row.stok_akhir_q || 0);
       acc.stok_akhir_m += parseFloat(row.stok_akhir_m || 0);
       acc.stok_akhir_nominal += parseFloat(row.stok_akhir_nominal || 0);
@@ -608,6 +677,8 @@ const reportTotals = computed(() => {
       keluar_q: 0,
       keluar_m: 0,
       keluar_nominal: 0,
+      retur_q: 0, // Inisialisasi total retur roll
+      retur_m: 0, // Inisialisasi total retur meter
       stok_akhir_q: 0,
       stok_akhir_m: 0,
       stok_akhir_nominal: 0,
@@ -690,6 +761,9 @@ const exportToExcel = () => {
     { v: "KELUAR", s: styleHeaderMain },
     { v: "", s: styleHeaderMain },
     ...(canSeeNominal.value ? [{ v: "", s: styleHeaderMain }] : []),
+    // Header Utama Retur di Excel
+    { v: "RETUR", s: styleHeaderMain },
+    { v: "", s: styleHeaderMain },
     { v: "STOCK AKHIR", s: styleHeaderMain },
     { v: "", s: styleHeaderMain },
     ...(canSeeNominal.value ? [{ v: "", s: styleHeaderMain }] : []),
@@ -715,6 +789,9 @@ const exportToExcel = () => {
     { v: "ROLL", s: styleHeaderSub },
     { v: "M2", s: styleHeaderSub },
     ...(canSeeNominal.value ? [{ v: "NOMINAL (RP)", s: styleHeaderSub }] : []),
+    // Sub Header Retur di Excel
+    { v: "ROLL", s: styleHeaderSub },
+    { v: "M2", s: styleHeaderSub },
     { v: "ROLL", s: styleHeaderSub },
     { v: "M2", s: styleHeaderSub },
     ...(canSeeNominal.value ? [{ v: "NOMINAL (RP)", s: styleHeaderSub }] : []),
@@ -788,6 +865,18 @@ const exportToExcel = () => {
         s: { ...styleDataCell, alignment: { horizontal: "right" } },
       });
 
+    // Tambah push data Retur ke baris Excel
+    dataRow.push(
+      {
+        v: row.retur_q,
+        s: { ...styleDataCell, alignment: { horizontal: "center" } },
+      },
+      {
+        v: row.retur_m,
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+      },
+    );
+
     dataRow.push(
       {
         v: row.stok_akhir_q,
@@ -837,6 +926,12 @@ const exportToExcel = () => {
   if (canSeeNominal.value)
     footerRow.push({ v: reportTotals.value.keluar_nominal, s: styleFooter });
 
+  // Tambah data total Retur di footer Excel
+  footerRow.push(
+    { v: reportTotals.value.retur_q, s: styleFooter },
+    { v: reportTotals.value.retur_m, s: styleFooter },
+  );
+
   footerRow.push(
     { v: reportTotals.value.stok_akhir_q, s: styleFooter },
     { v: reportTotals.value.stok_akhir_m, s: styleFooter },
@@ -853,7 +948,7 @@ const exportToExcel = () => {
   const ws = XLSX.utils.aoa_to_sheet(wsData);
   const offset = 4;
   const merges = [
-    { s: { r: 0, c: 0 }, e: { r: 0, c: 4 } }, // Judul
+    { s: { r: 0, c: 0 }, e: { r: 0, c: 4 } },
     { s: { r: offset, c: 0 }, e: { r: offset + 1, c: 0 } }, // KODE
     { s: { r: offset, c: 1 }, e: { r: offset + 1, c: 1 } }, // NAMA
     { s: { r: offset, c: 2 }, e: { r: offset + 1, c: 2 } }, // JENIS
@@ -863,15 +958,31 @@ const exportToExcel = () => {
     { s: { r: wsData.length - 1, c: 0 }, e: { r: wsData.length - 1, c: 7 } }, // TOTAL
   ];
 
-  const colStep = canSeeNominal.value ? 3 : 2;
+  // Dynamic merges based on nominal visibility
+  const nominalStep = canSeeNominal.value ? 3 : 2;
   let currC = 8;
-  for (let i = 0; i < 4; i++) {
+
+  // Merge STOCK AWAL, TERIMA, KELUAR
+  for (let i = 0; i < 3; i++) {
     merges.push({
       s: { r: offset, c: currC },
-      e: { r: offset, c: currC + colStep - 1 },
+      e: { r: offset, c: currC + nominalStep - 1 },
     });
-    currC += colStep;
+    currC += nominalStep;
   }
+
+  // Merge untuk RETUR (selalu 2 kolom: ROLL dan M2, tidak ada nominal)
+  merges.push({
+    s: { r: offset, c: currC },
+    e: { r: offset, c: currC + 1 },
+  });
+  currC += 2;
+
+  // Merge STOCK AKHIR
+  merges.push({
+    s: { r: offset, c: currC },
+    e: { r: offset, c: currC + nominalStep - 1 },
+  });
 
   ws["!merges"] = merges;
   ws["!cols"] = [
@@ -891,6 +1002,7 @@ onMounted(fetchReport);
 </script>
 
 <style scoped>
+/* CSS styles default tetap dipertahankan */
 .lsbu-wrapper {
   display: flex;
   flex-direction: column;
@@ -1048,8 +1160,33 @@ onMounted(fetchReport);
   display: none !important;
 }
 
+.expanded-detail-table :deep(table) {
+  background-color: #ffffff !important;
+  border: 1px solid #e0e0e0 !important;
+}
+
+.expanded-detail-table :deep(th) {
+  background-color: #f5f5f5 !important;
+  color: #333333 !important;
+  font-size: 10px !important;
+  height: 28px !important;
+  border-bottom: 2px solid #bdbdbd !important;
+}
+
+.expanded-detail-table :deep(td) {
+  font-size: 11px !important;
+  padding: 4px 8px !important;
+  border-bottom: 1px solid #e0e0e0 !important;
+  background-color: #ffffff !important;
+}
+
+.text-xxs {
+  font-size: 9px !important;
+  line-height: 1;
+}
+
 .bg-blue-main {
-  background-color: #74addc !important; /* Sesuaikan dengan warna di gambar Anda */
+  background-color: #74addc !important;
 }
 
 :deep(.v-btn--icon.v-btn--size-small) {
@@ -1057,10 +1194,9 @@ onMounted(fetchReport);
   height: 24px;
 }
 
-/* Memastikan teks header tidak terdorong terlalu jauh jika ada icon */
 .d-flex.align-center.justify-center.ga-1 {
   position: relative;
-  padding-left: 20px; /* Memberi ruang agar teks tetap di tengah */
+  padding-left: 20px;
 }
 
 .desktop-table :deep(th.spesifikasi-header, th.spesifikasi-child) {
