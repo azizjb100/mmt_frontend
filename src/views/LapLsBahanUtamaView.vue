@@ -98,7 +98,6 @@
             <thead>
               <tr class="header-row-1">
                 <th rowspan="2" class="bg-blue-main" style="width: 40px"></th>
-
                 <th
                   rowspan="2"
                   class="text-center sticky-col-1 bg-blue-main"
@@ -136,32 +135,32 @@
                 </th>
                 <th
                   colspan="3"
-                  class="text-center bg-blue-sub spesifikasi-header"
+                  class="text-center bg-blue-main spesifikasi-header"
                 >
                   SPESIFIKASI
                 </th>
                 <th
                   :colspan="canSeeNominal ? 3 : 2"
-                  class="text-center bg-blue-sub"
+                  class="text-center bg-blue-main"
                 >
                   STOCK AWAL
                 </th>
                 <th
                   :colspan="canSeeNominal ? 3 : 2"
-                  class="text-center bg-blue-sub"
+                  class="text-center bg-blue-main"
                 >
                   TERIMA
                 </th>
                 <th
                   :colspan="canSeeNominal ? 3 : 2"
-                  class="text-center bg-blue-sub"
+                  class="text-center bg-blue-main"
                 >
                   KELUAR
                 </th>
-                <th colspan="2" class="text-center bg-blue-sub">RETUR</th>
+                <th colspan="2" class="text-center bg-blue-main">RETUR</th>
                 <th
                   :colspan="canSeeNominal ? 3 : 2"
-                  class="text-center bg-blue-sub"
+                  class="text-center bg-blue-main"
                 >
                   STOCK AKHIR
                 </th>
@@ -174,36 +173,44 @@
                 </th>
               </tr>
               <tr class="header-row-2">
-                <th class="text-center spesifikasi-child">PANJANG</th>
-                <th class="text-center">LEBAR</th>
-                <th class="text-center">M2/ROLL</th>
-                <th class="text-center">ROLL</th>
-                <th class="text-center">M2</th>
-                <th v-if="canSeeNominal" class="text-center">NOMINAL (Rp)</th>
-                <th class="text-center">ROLL</th>
-                <th class="text-center">M2</th>
-                <th v-if="canSeeNominal" class="text-center">NOMINAL (Rp)</th>
-                <th class="text-center">ROLL</th>
-                <th class="text-center">M2</th>
-                <th v-if="canSeeNominal" class="text-center">NOMINAL (Rp)</th>
-                <th class="text-center">ROLL</th>
-                <th class="text-center">M2</th>
-                <th class="text-center">ROLL</th>
-                <th class="text-center">M2</th>
-                <th v-if="canSeeNominal" class="text-center">NOMINAL (Rp)</th>
+                <th class="text-center bg-blue-sub spesifikasi-child">
+                  PANJANG
+                </th>
+                <th class="text-center bg-blue-sub">LEBAR</th>
+                <th class="text-center bg-blue-sub">M2/ROLL</th>
+                <th class="text-center bg-blue-sub">ROLL</th>
+                <th class="text-center bg-blue-sub">M2</th>
+                <th v-if="canSeeNominal" class="text-center bg-blue-sub">
+                  NOMINAL (Rp)
+                </th>
+                <th class="text-center bg-blue-sub">ROLL</th>
+                <th class="text-center bg-blue-sub">M2</th>
+                <th v-if="canSeeNominal" class="text-center bg-blue-sub">
+                  NOMINAL (Rp)
+                </th>
+                <th class="text-center bg-blue-sub">ROLL</th>
+                <th class="text-center bg-blue-sub">M2</th>
+                <th v-if="canSeeNominal" class="text-center bg-blue-sub">
+                  NOMINAL (Rp)
+                </th>
+                <th class="text-center bg-blue-sub">ROLL</th>
+                <th class="text-center bg-blue-sub">M2</th>
+                <th class="text-center bg-blue-sub">ROLL</th>
+                <th class="text-center bg-blue-sub">M2</th>
+                <th v-if="canSeeNominal" class="text-center bg-blue-sub">
+                  NOMINAL (Rp)
+                </th>
               </tr>
             </thead>
           </template>
 
-          <template
-            v-slot:item="{ item, internalItem, isExpanded, toggleExpand }"
-          >
+          <template #item="{ item, internalItem, isExpanded, toggleExpand }">
             <tr
               class="data-row"
               @click="toggleExpand(internalItem)"
               style="cursor: pointer"
             >
-              <td class="text-center">
+              <td class="text-center" @click.stop="toggleExpand(internalItem)">
                 <v-icon
                   :icon="
                     isExpanded(internalItem)
@@ -227,30 +234,24 @@
               <td class="text-center">
                 {{ formatNumber(item.stok_awal_q, 0) }}
               </td>
-              <td class="text-right spesifikasi-m2roll">
+              <td class="text-right">
                 {{ formatNumber(item.stok_awal_m, 2) }}
               </td>
               <td v-if="canSeeNominal" class="text-right font-weight-bold">
                 {{ formatNumber(item.stok_awal_nominal, 0) }}
               </td>
               <td class="text-center">{{ formatNumber(item.terima_q, 0) }}</td>
-              <td class="text-right spesifikasi-m2roll">
-                {{ formatNumber(item.terima_m, 2) }}
-              </td>
+              <td class="text-right">{{ formatNumber(item.terima_m, 2) }}</td>
               <td v-if="canSeeNominal" class="text-right font-weight-bold">
                 {{ formatNumber(item.terima_nominal, 0) }}
               </td>
               <td class="text-center">{{ formatNumber(item.keluar_q, 0) }}</td>
-              <td class="text-right spesifikasi-m2roll">
-                {{ formatNumber(item.keluar_m, 2) }}
-              </td>
+              <td class="text-right">{{ formatNumber(item.keluar_m, 2) }}</td>
               <td v-if="canSeeNominal" class="text-right font-weight-bold">
                 {{ formatNumber(item.keluar_nominal, 0) }}
               </td>
               <td class="text-center">{{ formatNumber(item.retur_q, 0) }}</td>
-              <td class="text-right spesifikasi-m2roll">
-                {{ formatNumber(item.retur_m, 2) }}
-              </td>
+              <td class="text-right">{{ formatNumber(item.retur_m, 2) }}</td>
               <td class="text-center">
                 {{ formatNumber(item.stok_akhir_q, 0) }}
               </td>
@@ -267,7 +268,7 @@
                     density="compact"
                     hide-details
                     variant="underlined"
-                    placeholder="Alasan..."
+                    placeholder="Catatan Singkat..."
                     class="text-caption"
                   />
                   <v-btn
@@ -280,160 +281,260 @@
                 </div>
               </td>
             </tr>
-          </template>
 
-          /* 2. TEMPLATE KONTEN DI DALAM BARIS EXPANDED */
-          <template v-slot:expanded-row="{ columns, item }">
-            <tr>
-              <td :colspan="columns.length" class="bg-grey-lighten-4 pa-3">
+            <tr v-if="isExpanded(internalItem)" class="detail-row">
+              <td></td>
+              <td :colspan="canSeeNominal ? 23 : 19">
                 <v-card
-                  variant="outlined"
-                  color="blue-lighten-3"
-                  class="bg-white rounded-lg pa-2"
+                  class="pa-3 ma-2 elevation-0"
+                  style="background-color: #f8fafc; border: 1px solid #e2e8f0"
                 >
-                  <div
-                    class="text-subtitle-2 font-weight-bold text-blue-darken-3 mb-2 d-flex align-center ga-2"
-                  >
-                    <v-icon size="small">mdi-clock-history</v-icon>
-                    Histori Transaksi Kronologis Log Gudang: {{ item.Nama }} ({{
-                      item.kode
-                    }})
-                  </div>
+                  <v-row>
+                    <v-col cols="12" md="8">
+                      <div class="font-weight-bold mb-2">
+                        Histori Transaksi: {{ item.Nama }} ({{ item.kode }})
+                      </div>
 
-                  <v-progress-linear
-                    v-if="expandedLoading[item.kode]"
-                    indeterminate
-                    color="primary"
-                    class="mb-2"
-                  />
+                      <v-progress-linear
+                        v-if="expandedLoading[item.kode]"
+                        indeterminate
+                        color="primary"
+                        class="mb-2"
+                      />
 
-                  <v-table
-                    v-else
-                    density="compact"
-                    class="expanded-detail-table"
-                  >
-                    <thead>
-                      <tr class="bg-grey-lighten-2 text-caption">
-                        <th class="text-center font-weight-bold">TANGGAL</th>
-                        <th class="text-center font-weight-bold">
-                          JENIS MUTASI
-                        </th>
-                        <th class="text-center font-weight-bold">KATEGORI</th>
-                        <th class="text-left font-weight-bold">
-                          NO. REF / SPK
-                        </th>
-                        <th class="text-left font-weight-bold">BARCODE ROLL</th>
-                        <th class="text-center font-weight-bold text-success">
-                          IN (ROLL)
-                        </th>
-                        <th class="text-right font-weight-bold text-success">
-                          IN (M2)
-                        </th>
-                        <th class="text-center font-weight-bold text-error">
-                          OUT (ROLL)
-                        </th>
-                        <th class="text-right font-weight-bold text-error">
-                          OUT (M2)
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr
-                        v-if="
-                          !expandedData[item.kode] ||
-                          expandedData[item.kode].length === 0
-                        "
+                      <v-table
+                        v-else
+                        density="compact"
+                        class="expanded-detail-table"
                       >
-                        <td
-                          colspan="9"
-                          class="text-center text-grey text-caption py-3"
-                        >
-                          Tidak ada mutasi transaksi pada periode ini.
-                        </td>
-                      </tr>
-                      <tr
-                        v-for="(log, idx) in expandedData[item.kode]"
-                        :key="idx"
-                        class="text-caption"
-                      >
-                        <td class="text-center">
-                          {{ log.tanggal ? log.tanggal.substring(0, 10) : "-" }}
-                        </td>
-                        <td class="text-center">
-                          <v-chip
-                            size="x-small"
-                            :color="
-                              log.jenis_mutasi.includes('MASUK')
-                                ? 'success'
-                                : log.jenis_mutasi.includes('RETUR')
-                                  ? 'warning'
-                                  : 'error'
+                        <thead>
+                          <tr>
+                            <th>No. Bukti</th>
+                            <th>Tanggal</th>
+                            <th>Barcode</th>
+                            <th class="text-right">Masuk (Q)</th>
+                            <th class="text-right">Masuk (M)</th>
+                            <th class="text-right">Keluar (Q)</th>
+                            <th class="text-right">Keluar (M)</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr
+                            v-for="(log, idx) in expandedData[item.kode]"
+                            :key="idx"
+                          >
+                            <td>{{ log.no_referensi }}</td>
+                            <td>{{ log.tanggal }}</td>
+                            <td>{{ log.barcode }}</td>
+                            <td class="text-right">
+                              {{ formatNumber(log.qty_in, 0) }}
+                            </td>
+                            <td class="text-right">
+                              {{ formatNumber(log.qty_out, 2) }}
+                            </td>
+                            <td class="text-right">
+                              {{ formatNumber(log.meter_in, 0) }}
+                            </td>
+                            <td class="text-right">
+                              {{ formatNumber(log.meter_out, 2) }}
+                            </td>
+                          </tr>
+
+                          <tr
+                            v-if="
+                              !expandedData[item.kode] ||
+                              expandedData[item.kode].length === 0
                             "
-                            class="font-weight-bold"
                           >
-                            {{ log.jenis_mutasi }}
-                          </v-chip>
-                        </td>
-                        <td class="text-center">
-                          <v-chip
-                            size="x-small"
-                            variant="outlined"
-                            :color="log.kategori === 'SCRAP' ? 'red' : 'indigo'"
-                            >{{ log.kategori || "ROLL" }}</v-chip
-                          >
-                        </td>
-                        <td class="text-left">
-                          <strong>{{ log.no_referensi }}</strong>
-                          <div class="text-grey text-xxs" v-if="log.no_spk">
-                            SPK: {{ log.no_spk }}
-                          </div>
-                        </td>
-                        <td
-                          class="text-left text-green-darken-4 font-weight-medium"
+                            <td colspan="7" class="text-center text-grey">
+                              Tidak ada histori transaksi pada periode ini.
+                            </td>
+                          </tr>
+                        </tbody>
+                      </v-table>
+                    </v-col>
+
+                    <v-col
+                      cols="12"
+                      md="4"
+                      style="border-left: 1px solid #e2e8f0"
+                    >
+                      <div
+                        class="d-flex align-center justify-space-between mb-2"
+                      >
+                        <span class="font-weight-bold"
+                          >Keterangan Khusus / Log Kondisi</span
                         >
-                          {{ log.barcode }}
-                        </td>
-                        <td class="text-center font-weight-bold text-success">
-                          {{
-                            log.qty_in > 0 ? formatNumber(log.qty_in, 0) : "-"
-                          }}
-                        </td>
-                        <td class="text-right text-success">
-                          {{
-                            log.meter_in > 0
-                              ? formatNumber(log.meter_in, 2)
-                              : "-"
-                          }}
-                        </td>
-                        <td class="text-center font-weight-bold text-error">
-                          {{
-                            log.qty_out > 0 ? formatNumber(log.qty_out, 0) : "-"
-                          }}
-                        </td>
-                        <td class="text-right text-error">
-                          {{
-                            log.meter_out > 0
-                              ? formatNumber(log.meter_out, 2)
-                              : "-"
-                          }}
-                        </td>
-                      </tr>
-                    </tbody>
-                  </v-table>
+                        <v-btn
+                          size="x-small"
+                          color="primary"
+                          prepend-icon="mdi-plus"
+                          class="text-none"
+                          @click="bukaPopupKeterangan(item)"
+                        >
+                          Tambah Keterangan
+                        </v-btn>
+                      </div>
+
+                      <v-list
+                        density="compact"
+                        lines="two"
+                        bg-color="transparent"
+                        class="pa-0"
+                      >
+                        <template
+                          v-if="
+                            item.log_keterangan &&
+                            item.log_keterangan.length > 0
+                          "
+                        >
+                          <v-list-item
+                            v-for="(note, nIdx) in item.log_keterangan"
+                            :key="nIdx"
+                            class="pa-1 border-bottom"
+                          >
+                            <v-list-item-title
+                              class="text-body-2 font-weight-bold"
+                            >
+                              {{ note.keterangan }}
+                            </v-list-item-title>
+                            <v-list-item-subtitle class="text-xxs text-grey">
+                              Oleh: {{ note.user_update }} |
+                              {{ note.created_at }}
+                            </v-list-item-subtitle>
+                          </v-list-item>
+                        </template>
+                        <div
+                          v-else
+                          class="text-caption text-grey text-center py-4"
+                        >
+                          Belum ada keterangan khusus (cth: barang berjamur,
+                          retur supplier dll).
+                        </div>
+                      </v-list>
+                    </v-col>
+                  </v-row>
                 </v-card>
               </td>
             </tr>
           </template>
 
-          <template #tfoot> </template>
+          <template #tfoot>
+            <tr class="table-footer">
+              <td
+                colspan="6"
+                class="text-right font-weight-bold sticky-footer-title"
+              >
+                TOTAL:
+              </td>
+              <td colspan="3"></td>
+              <td class="text-end font-weight-bold">
+                {{ formatNumber(reportTotals.stok_awal_q, 0) }}
+              </td>
+              <td class="text-end font-weight-bold">
+                {{ formatNumber(reportTotals.stok_awal_m, 2) }}
+              </td>
+              <td v-if="canSeeNominal" class="text-end font-weight-bold">
+                {{ formatNumber(reportTotals.stok_awal_nominal, 0) }}
+              </td>
+              <td class="text-end font-weight-bold">
+                {{ formatNumber(reportTotals.terima_q, 0) }}
+              </td>
+              <td class="text-end font-weight-bold">
+                {{ formatNumber(reportTotals.terima_m, 2) }}
+              </td>
+              <td v-if="canSeeNominal" class="text-end font-weight-bold">
+                {{ formatNumber(reportTotals.terima_nominal, 0) }}
+              </td>
+              <td class="text-end font-weight-bold">
+                {{ formatNumber(reportTotals.keluar_q, 0) }}
+              </td>
+              <td class="text-end font-weight-bold">
+                {{ formatNumber(reportTotals.keluar_m, 2) }}
+              </td>
+              <td v-if="canSeeNominal" class="text-end font-weight-bold">
+                {{ formatNumber(reportTotals.keluar_nominal, 0) }}
+              </td>
+              <td class="text-end font-weight-bold">
+                {{ formatNumber(reportTotals.retur_q, 0) }}
+              </td>
+              <td class="text-end font-weight-bold">
+                {{ formatNumber(reportTotals.retur_m, 2) }}
+              </td>
+              <td class="text-end font-weight-bold">
+                {{ formatNumber(reportTotals.stok_akhir_q, 0) }}
+              </td>
+              <td class="text-end font-weight-bold">
+                {{ formatNumber(reportTotals.stok_akhir_m, 2) }}
+              </td>
+              <td v-if="canSeeNominal" class="text-end font-weight-bold">
+                {{ formatNumber(reportTotals.stok_akhir_nominal, 0) }}
+              </td>
+              <td></td>
+            </tr>
+          </template>
         </v-data-table>
       </v-card>
+
       <GudangLookupView
         :is-visible="showGudangLookup"
         @close="showGudangLookup = false"
         @select="onSelectGudang"
       />
     </div>
+
+    <v-dialog v-model="dialogKeterangan.show" max-width="500px">
+      <v-card rounded="lg">
+        <v-card-title
+          class="bg-blue-main text-white text-h6 d-flex align-center"
+        >
+          <v-icon start>mdi-comment-plus-outline</v-icon>
+          Tambah Keterangan Barang
+        </v-card-title>
+
+        <v-card-text class="pt-4">
+          <div class="mb-2 text-body-2">
+            <strong>Barang:</strong> {{ dialogKeterangan.namaBarang }} ({{
+              dialogKeterangan.brgKode
+            }})
+          </div>
+
+          <v-textarea
+            v-model="dialogKeterangan.teks"
+            label="Tulis keterangan kondisi / kendala lapangan di sini..."
+            variant="outlined"
+            rows="4"
+            density="comfortable"
+            auto-grow
+            placeholder="Contoh: Bulan ini ada 1 roll dikembalikan ke supplier karena berjamur."
+            hide-details
+          ></v-textarea>
+        </v-card-text>
+
+        <v-divider></v-divider>
+
+        <v-card-actions class="pa-3">
+          <v-spacer></v-spacer>
+          <v-btn
+            variant="text"
+            class="text-none"
+            @click="dialogKeterangan.show = false"
+            :disabled="dialogKeterangan.submitting"
+          >
+            Batal
+          </v-btn>
+          <v-btn
+            color="primary"
+            variant="flat"
+            class="text-none px-4"
+            @click="simpanKeteranganKhusus"
+            :loading="dialogKeterangan.submitting"
+          >
+            Simpan Keterangan
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </PageLayout>
 </template>
 
@@ -453,7 +554,6 @@ const canSeeNominal = computed(() => {
   return bagian === "FINANCE" || bagian === "AUDIT" || jabatan === "MANAGER";
 });
 
-// Utility functions
 const formatDate = (date) => {
   const d = new Date(date);
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -486,22 +586,17 @@ const selectedType = ref("SEMUA");
 const selectedJenis = ref("SEMUA");
 
 const expandedRows = ref([]);
-const expandedData = reactive({}); // Menampung data detail berdasarkan kode barang { 'KODE_A': [...] }
-const expandedLoading = reactive({}); // Menampung status loading reaktif per kode barang { 'KODE_A': true/false }
+const expandedData = reactive({});
+const expandedLoading = reactive({});
 
-// Pemicu aksi ketika baris tabel di-expand / diklik
 const onRowExpand = async (newExpanded) => {
   if (newExpanded.length === 0) return;
-
-  // Ambil data kode barang terakhir yang di-expand oleh user
   const targetKode = newExpanded[newExpanded.length - 1];
-
-  // Jika data histori untuk kode barang tersebut sudah pernah diambil sebelumnya, tidak perlu hit API ulang
   if (expandedData[targetKode]) return;
 
   expandedLoading[targetKode] = true;
   try {
-    const res = await api.get("/mmt/lap-bahan-baku/detail", {
+    const res = await api.get("/mmt/laporan-ls-bahan-utama/detail", {
       params: {
         startDate: startDate.value,
         endDate: endDate.value,
@@ -523,7 +618,25 @@ const onRowExpand = async (newExpanded) => {
   }
 };
 
-// Ambil list status unik untuk isi dropdown
+const simpanKeteranganBarang = async (item) => {
+  try {
+    const periodeBulan = startDate.value.substring(0, 7);
+    const response = await api.post("/mmt/lap-bahan-baku/keterangan", {
+      periode: periodeBulan,
+      gdgKode: selectedGudang.value,
+      brgKode: item.kode,
+      keterangan: item.keterangan,
+      userUpdate: authStore.user?.username || "SYSTEM",
+    });
+    if (response.data.success) {
+      console.log(`Keterangan ${item.kode} berhasil disimpan.`);
+    }
+  } catch (error) {
+    console.error("Gagal menyimpan keterangan:", error);
+    alert("Gagal menyimpan keterangan.");
+  }
+};
+
 const statusOptions = computed(() => {
   const statuses = allData.value
     .map((item) => item.status_barang || "-")
@@ -550,19 +663,15 @@ const filteredData = computed(() => {
       !query ||
       row.kode?.toLowerCase().includes(query) ||
       row.Nama?.toLowerCase().includes(query);
-
     const matchStatus =
       selectedStatus.value === "SEMUA" ||
       (row.status_barang || "-") === selectedStatus.value;
-
     const matchType =
       selectedType.value === "SEMUA" ||
       (row.type_barang || "-") === selectedType.value;
-
     const matchJenis =
       selectedJenis.value === "SEMUA" ||
       (row.jb_nama || "-") === selectedJenis.value;
-
     return matchSearch && matchStatus && matchType && matchJenis;
   });
 });
@@ -580,11 +689,9 @@ const onSelectGudang = (gudang) => {
   fetchReport();
 };
 
-// Pagination State
 const itemsPerPage = ref(10);
 const currentPage = ref(1);
 
-// Logic Resize
 const colWidths = reactive({ kode: 100, Nama: 300, jb_nama: 100, status: 80 });
 const resizingColumn = ref(null);
 const startX = ref(0);
@@ -610,7 +717,76 @@ const onResizeEnd = () => {
   document.removeEventListener("mouseup", onResizeEnd);
 };
 
-// Data Logic
+// --- Tambahkan State Baru Ini di Bawah Reactive / Ref Anda ---
+const dialogKeterangan = reactive({
+  show: false,
+  brgKode: "",
+  namaBarang: "",
+  teks: "",
+  submitting: false,
+  itemRef: null, // Menyimpan object referensi baris untuk update UI instant
+});
+
+// --- Fungsi untuk membuka pop-up ---
+const bukaPopupKeterangan = (item) => {
+  dialogKeterangan.brgKode = item.kode;
+  dialogKeterangan.namaBarang = item.Nama;
+  dialogKeterangan.teks = ""; // Reset form teks
+  dialogKeterangan.itemRef = item;
+  dialogKeterangan.show = true;
+};
+
+// --- Fungsi untuk submit post data ke API backend ---
+const simpanKeteranganKhusus = async () => {
+  if (!dialogKeterangan.teks.trim()) {
+    alert("Keterangan tidak boleh kosong");
+    return;
+  }
+
+  dialogKeterangan.submitting = true;
+  try {
+    const response = await api.post(
+      "/mmt/laporan-ls-bahan-utama/tambah-keterangan",
+      {
+        periode: startDate.value.substring(0, 7), // Format YYYY-MM
+        gdgKode: selectedGudang.value,
+        brgKode: dialogKeterangan.brgKode,
+        keterangan: dialogKeterangan.teks,
+        userUpdate: authStore.user?.username || "SYSTEM",
+      },
+    );
+
+    if (response.data.success) {
+      // Jika berhasil, masukkan data baru langsung ke dalam array local agar UI terupdate otomatis
+      if (!dialogKeterangan.itemRef.log_keterangan) {
+        dialogKeterangan.itemRef.log_keterangan = [];
+      }
+
+      // Mengikuti struktur object data penampil log
+      dialogKeterangan.itemRef.log_keterangan.unshift({
+        keterangan: dialogKeterangan.teks,
+        user_update: authStore.user?.username || "SYSTEM",
+        created_at: new Date().toLocaleDateString("id-ID", {
+          day: "2-digit",
+          month: "short",
+          year: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+      });
+
+      dialogKeterangan.show = false;
+    } else {
+      alert(response.data.message || "Gagal menyimpan keterangan khusus");
+    }
+  } catch (error) {
+    console.error("Gagal simpan log keterangan khusus:", error);
+    alert("Terjadi kesalahan sistem server.");
+  } finally {
+    dialogKeterangan.submitting = false;
+  }
+};
+
 const fetchReport = async () => {
   loading.value.report = true;
   try {
@@ -629,24 +805,13 @@ const fetchReport = async () => {
   }
 };
 
-const paginatedData = computed(() => {
-  if (itemsPerPage.value === -1) return filteredData.value;
-
-  const perPage = Number(itemsPerPage.value) || 10;
-  const page = Math.max(1, Number(currentPage.value) || 1);
-  const start = (page - 1) * perPage;
-  return filteredData.value.slice(start, start + perPage);
-});
-
 watch(itemsPerPage, () => {
   currentPage.value = 1;
 });
-
 watch(searchQuery, () => {
   currentPage.value = 1;
 });
 
-// TOTALS (Calculated from current page, updated with retur)
 const reportTotals = computed(() => {
   return filteredData.value.reduce(
     (acc, row) => {
@@ -659,7 +824,6 @@ const reportTotals = computed(() => {
       acc.keluar_q += parseFloat(row.keluar_q || 0);
       acc.keluar_m += parseFloat(row.keluar_m || 0);
       acc.keluar_nominal += parseFloat(row.keluar_nominal || 0);
-      // Tambahan akumulasi retur
       acc.retur_q += parseFloat(row.retur_q || 0);
       acc.retur_m += parseFloat(row.retur_m || 0);
       acc.stok_akhir_q += parseFloat(row.stok_akhir_q || 0);
@@ -677,8 +841,8 @@ const reportTotals = computed(() => {
       keluar_q: 0,
       keluar_m: 0,
       keluar_nominal: 0,
-      retur_q: 0, // Inisialisasi total retur roll
-      retur_m: 0, // Inisialisasi total retur meter
+      retur_q: 0,
+      retur_m: 0,
       stok_akhir_q: 0,
       stok_akhir_m: 0,
       stok_akhir_nominal: 0,
@@ -694,7 +858,6 @@ const exportToExcel = () => {
 
   const fileName = `Laporan_Stok_Bahan_Utama_${startDate.value}.xlsx`;
 
-  // --- DEFINISI STYLE ---
   const styleHeaderMain = {
     fill: { fgColor: { rgb: "B3E5FC" } },
     font: { bold: true, color: { rgb: "000000" }, sz: 10 },
@@ -711,7 +874,6 @@ const exportToExcel = () => {
     ...styleHeaderMain,
     fill: { fgColor: { rgb: "E1F5FE" } },
   };
-
   const styleDataCell = {
     font: { sz: 10 },
     border: {
@@ -722,17 +884,13 @@ const exportToExcel = () => {
     },
     alignment: { vertical: "center" },
   };
-
   const styleFooter = {
     ...styleDataCell,
     fill: { fgColor: { rgb: "F0F4F8" } },
     font: { bold: true, sz: 10 },
   };
 
-  // --- 1. SUSUN DATA (AOA) ---
   const wsData = [];
-
-  // Baris Judul & Info
   wsData.push([
     { v: "LAPORAN STOK BAHAN UTAMA", s: { font: { bold: true, sz: 14 } } },
   ]);
@@ -740,9 +898,8 @@ const exportToExcel = () => {
   wsData.push([
     { v: `Gudang  : ${selectedGudangNama.value} (${selectedGudang.value})` },
   ]);
-  wsData.push([]); // Baris kosong
+  wsData.push([]);
 
-  // --- 2. HEADER ROW 1 ---
   const headerRow1 = [
     { v: "KODE", s: styleHeaderMain },
     { v: "NAMA BAHAN", s: styleHeaderMain },
@@ -761,16 +918,15 @@ const exportToExcel = () => {
     { v: "KELUAR", s: styleHeaderMain },
     { v: "", s: styleHeaderMain },
     ...(canSeeNominal.value ? [{ v: "", s: styleHeaderMain }] : []),
-    // Header Utama Retur di Excel
     { v: "RETUR", s: styleHeaderMain },
     { v: "", s: styleHeaderMain },
     { v: "STOCK AKHIR", s: styleHeaderMain },
     { v: "", s: styleHeaderMain },
     ...(canSeeNominal.value ? [{ v: "", s: styleHeaderMain }] : []),
+    { v: "KETERANGAN", s: styleHeaderMain }, // Tambahan Header Excel
   ];
   wsData.push(headerRow1);
 
-  // --- 3. HEADER ROW 2 ---
   const headerRow2 = [
     { v: "", s: styleHeaderMain },
     { v: "", s: styleHeaderMain },
@@ -789,16 +945,15 @@ const exportToExcel = () => {
     { v: "ROLL", s: styleHeaderSub },
     { v: "M2", s: styleHeaderSub },
     ...(canSeeNominal.value ? [{ v: "NOMINAL (RP)", s: styleHeaderSub }] : []),
-    // Sub Header Retur di Excel
     { v: "ROLL", s: styleHeaderSub },
     { v: "M2", s: styleHeaderSub },
     { v: "ROLL", s: styleHeaderSub },
     { v: "M2", s: styleHeaderSub },
     ...(canSeeNominal.value ? [{ v: "NOMINAL (RP)", s: styleHeaderSub }] : []),
+    { v: "", s: styleHeaderSub }, // Sub header penyeimbang keterangan
   ];
   wsData.push(headerRow2);
 
-  // --- 4. DATA BODY ---
   filteredData.value.forEach((row) => {
     const dataRow = [
       { v: row.kode, s: styleDataCell },
@@ -865,7 +1020,6 @@ const exportToExcel = () => {
         s: { ...styleDataCell, alignment: { horizontal: "right" } },
       });
 
-    // Tambah push data Retur ke baris Excel
     dataRow.push(
       {
         v: row.retur_q,
@@ -893,10 +1047,11 @@ const exportToExcel = () => {
         s: { ...styleDataCell, alignment: { horizontal: "right" } },
       });
 
+    dataRow.push({ v: row.keterangan || "", s: styleDataCell }); // Cetak Keterangan ke Excel
+
     wsData.push(dataRow);
   });
 
-  // --- 5. FOOTER TOTAL ---
   const footerRow = [
     { v: "TOTAL", s: { ...styleFooter, alignment: { horizontal: "right" } } },
     { v: "", s: styleFooter },
@@ -926,7 +1081,6 @@ const exportToExcel = () => {
   if (canSeeNominal.value)
     footerRow.push({ v: reportTotals.value.keluar_nominal, s: styleFooter });
 
-  // Tambah data total Retur di footer Excel
   footerRow.push(
     { v: reportTotals.value.retur_q, s: styleFooter },
     { v: reportTotals.value.retur_m, s: styleFooter },
@@ -941,28 +1095,26 @@ const exportToExcel = () => {
       v: reportTotals.value.stok_akhir_nominal,
       s: styleFooter,
     });
+  footerRow.push({ v: "", s: styleFooter }); // Footer Keterangan Kosong
 
   wsData.push(footerRow);
 
-  // --- 6. MERGE & DOWNLOAD ---
   const ws = XLSX.utils.aoa_to_sheet(wsData);
   const offset = 4;
   const merges = [
     { s: { r: 0, c: 0 }, e: { r: 0, c: 4 } },
-    { s: { r: offset, c: 0 }, e: { r: offset + 1, c: 0 } }, // KODE
-    { s: { r: offset, c: 1 }, e: { r: offset + 1, c: 1 } }, // NAMA
-    { s: { r: offset, c: 2 }, e: { r: offset + 1, c: 2 } }, // JENIS
-    { s: { r: offset, c: 3 }, e: { r: offset + 1, c: 3 } }, // TYPE
-    { s: { r: offset, c: 4 }, e: { r: offset + 1, c: 4 } }, // STATUS
-    { s: { r: offset, c: 5 }, e: { r: offset, c: 7 } }, // SPESIFIKASI
-    { s: { r: wsData.length - 1, c: 0 }, e: { r: wsData.length - 1, c: 7 } }, // TOTAL
+    { s: { r: offset, c: 0 }, e: { r: offset + 1, c: 0 } },
+    { s: { r: offset, c: 1 }, e: { r: offset + 1, c: 1 } },
+    { s: { r: offset, c: 2 }, e: { r: offset + 1, c: 2 } },
+    { s: { r: offset, c: 3 }, e: { r: offset + 1, c: 3 } },
+    { s: { r: offset, c: 4 }, e: { r: offset + 1, c: 4 } },
+    { s: { r: offset, c: 5 }, e: { r: offset, c: 7 } },
+    { s: { r: wsData.length - 1, c: 0 }, e: { r: wsData.length - 1, c: 7 } },
   ];
 
-  // Dynamic merges based on nominal visibility
   const nominalStep = canSeeNominal.value ? 3 : 2;
   let currC = 8;
 
-  // Merge STOCK AWAL, TERIMA, KELUAR
   for (let i = 0; i < 3; i++) {
     merges.push({
       s: { r: offset, c: currC },
@@ -971,18 +1123,17 @@ const exportToExcel = () => {
     currC += nominalStep;
   }
 
-  // Merge untuk RETUR (selalu 2 kolom: ROLL dan M2, tidak ada nominal)
-  merges.push({
-    s: { r: offset, c: currC },
-    e: { r: offset, c: currC + 1 },
-  });
+  merges.push({ s: { r: offset, c: currC }, e: { r: offset, c: currC + 1 } });
   currC += 2;
 
-  // Merge STOCK AKHIR
   merges.push({
     s: { r: offset, c: currC },
     e: { r: offset, c: currC + nominalStep - 1 },
   });
+  currC += nominalStep;
+
+  // Merge Vertikal Kolom Keterangan di Excel Header
+  merges.push({ s: { r: offset, c: currC }, e: { r: offset + 1, c: currC } });
 
   ws["!merges"] = merges;
   ws["!cols"] = [
@@ -1002,7 +1153,6 @@ onMounted(fetchReport);
 </script>
 
 <style scoped>
-/* CSS styles default tetap dipertahankan */
 .lsbu-wrapper {
   display: flex;
   flex-direction: column;
@@ -1019,11 +1169,6 @@ onMounted(fetchReport);
   box-shadow: var(--shadow-sm) !important;
 }
 
-.filter-card:hover {
-  transform: none !important;
-  box-shadow: var(--shadow-sm) !important;
-}
-
 .table-container {
   border: var(--content-border, 1px solid #dcdcdc);
   border-radius: var(--border-radius-lg) !important;
@@ -1031,17 +1176,6 @@ onMounted(fetchReport);
   background: var(--content-bg, #ffffff);
   overflow: auto;
   max-height: calc(100vh - 220px);
-}
-
-.page-of-indicator {
-  position: absolute;
-  right: 150px;
-  bottom: 12px;
-  z-index: 5;
-  pointer-events: none;
-  font-size: 12px;
-  color: #334155;
-  font-weight: 500;
 }
 
 .desktop-table :deep(table) {
@@ -1086,10 +1220,10 @@ onMounted(fetchReport);
   padding: 6px 8px !important;
   white-space: nowrap;
   background-color: #ffffff;
-  border-bottom: 1px solid #8dbde3 !important;
 }
 
-.desktop-table :deep(tbody td:nth-child(1)) {
+/* PERBAIKAN: Posisi child diubah dari 1&2 ke 2&3 karena terdorong kolom expand */
+.desktop-table :deep(tbody td:nth-child(2)) {
   position: sticky;
   left: 0;
   z-index: 10;
@@ -1097,7 +1231,7 @@ onMounted(fetchReport);
   font-weight: 600;
 }
 
-.desktop-table :deep(tbody td:nth-child(2)) {
+.desktop-table :deep(tbody td:nth-child(3)) {
   position: sticky;
   left: 100px;
   z-index: 10;
@@ -1129,20 +1263,6 @@ onMounted(fetchReport);
   background: #d2d9e0 !important;
 }
 
-.resizer {
-  position: absolute;
-  right: 0;
-  top: 0;
-  bottom: 0;
-  width: 5px;
-  cursor: col-resize;
-  z-index: 10;
-}
-
-.resizer:hover {
-  background: rgba(0, 0, 0, 0.1);
-}
-
 .sticky-col-1 {
   position: sticky;
   left: 0;
@@ -1160,6 +1280,10 @@ onMounted(fetchReport);
   display: none !important;
 }
 
+.expanded-wrapper {
+  width: 100%;
+  overflow-x: auto;
+}
 .expanded-detail-table :deep(table) {
   background-color: #ffffff !important;
   border: 1px solid #e0e0e0 !important;
@@ -1187,16 +1311,6 @@ onMounted(fetchReport);
 
 .bg-blue-main {
   background-color: #74addc !important;
-}
-
-:deep(.v-btn--icon.v-btn--size-small) {
-  width: 24px;
-  height: 24px;
-}
-
-.d-flex.align-center.justify-center.ga-1 {
-  position: relative;
-  padding-left: 20px;
 }
 
 .desktop-table :deep(th.spesifikasi-header, th.spesifikasi-child) {

@@ -4,13 +4,12 @@ import { useRouter } from "vue-router";
 import { useToast } from "vue-toastification";
 import api from "@/services/api";
 import { format } from "date-fns";
-import PageLayout from "../components/PageLayout.vue"; // Pastikan import ini ada
+import PageLayout from "../components/PageLayout.vue";
 
 const router = useRouter();
 const toast = useToast();
 
 // --- State ---
-// Sesuaikan dengan pola Penerimaan: selected berisi OBJECT, bukan string
 const selected = ref<any[]>([]);
 const expanded = ref([]);
 const masterData = ref([]);
@@ -26,25 +25,88 @@ const filters = reactive({
   keyword: "",
 });
 
-// --- Computed ---
-// Logika ini yang menentukan tombol aktif/muncul
 const isSingleSelected = computed(() => selected.value.length === 1);
-
 const selectedItem = computed(() =>
   isSingleSelected.value ? selected.value[0] : null,
 );
 
-// --- Headers ---
+// --- KEBUTUHAN BARU: HEADERS LENGKAP SESUAI PERMINTAAN ---
 const headers = [
-  { title: "Nomor SPK", key: "SPK", width: "150px" },
-  { title: "Tanggal", key: "Tanggal", width: "120px" },
-  { title: "Nama Pesanan", key: "Nama" },
-  { title: "Order", key: "Jumlah", align: "end" },
-  { title: "Prod", key: "Sudah_Cetak", align: "end" },
-  { title: "Sisa", key: "Kurang_Cetak", align: "end" },
-  { title: "Status", key: "STATUS", width: "90px" },
-  { title: "Tipe", key: "Tipe_SPK", width: "90px" },
-  { title: "", key: "data-table-expand" },
+  { title: "Nomor SPK", key: "SPK", width: "140px", fixed: true },
+  { title: "MO", key: "MO", width: "100px" },
+  { title: "CMO", key: "CMO", width: "120px" },
+  { title: "Tanggal", key: "Tanggal", width: "110px" },
+  { title: "Deadline", key: "Deadline", width: "110px" },
+  { title: "Kepentingan", key: "Kepentingan", width: "120px" },
+  { title: "Divisi", key: "Divisi", width: "90px" },
+  { title: "Nama Pesanan", key: "Nama", width: "250px" },
+  { title: "Cabang", key: "Cabang", width: "90px" },
+  { title: "Workshop", key: "Workshop", width: "120px" },
+  { title: "Pending", key: "Pending", width: "100px" },
+  { title: "Ket Pending", key: "Ket_Pending", width: "180px" },
+  { title: "Tipe", key: "Tipe_SPK", width: "100px" },
+  { title: "Panjang", key: "Panjang", width: "90px", align: "end" },
+  { title: "Lebar", key: "Lebar", width: "90px", align: "end" },
+  { title: "Gramasi", key: "Gramasi", width: "100px" },
+  { title: "Kain/Bahan", key: "Bahan", width: "150px" },
+  { title: "Finishing", key: "Finishing", width: "130px" },
+  { title: "Pesan", key: "Pesan", width: "150px" },
+  { title: "PraSJ", key: "PraSJ", width: "90px", align: "end" },
+  { title: "Kirim", key: "Kirim", width: "90px", align: "end" },
+  { title: "Kurang", key: "Kurang_Cetak", width: "90px", align: "end" },
+  { title: "Sales", key: "Sales", width: "120px" },
+  { title: "Created By", key: "Created", width: "110px" },
+  { title: "Group Customer", key: "Group_Customer", width: "150px" },
+  { title: "PO", key: "PO", width: "120px" },
+  { title: "Ket PO", key: "Ket_PO", width: "150px" },
+  { title: "Dateline PO", key: "Dateline_PO", width: "110px" },
+  { title: "Status", key: "STATUS", width: "100px" },
+  { title: "Alasan Close", key: "Alasan_Close", width: "180px" },
+  { title: "No Penawaran", key: "No_Penawaran", width: "140px" },
+  { title: "MAP", key: "MAP", width: "100px" },
+  // --- Kolom Jalur Produksi & Realisasi ---
+  { title: "Potong", key: "Potong", width: "90px", align: "end" },
+  { title: "Repeat", key: "Repeat", width: "90px" },
+  { title: "QC Potong", key: "QC_Potong", width: "100px", align: "end" },
+  { title: "Bordir", key: "Bordir", width: "90px", align: "end" },
+  { title: "Cetak", key: "Sudah_Cetak", width: "90px", align: "end" }, // Sudah_Cetak mapped to Cetak
+  { title: "QC Cetak", key: "QC_Cetak", width: "100px", align: "end" },
+  { title: "DC", key: "DC", width: "90px", align: "end" },
+  { title: "Jahit", key: "Jahit", width: "90px", align: "end" },
+  { title: "Lipat", key: "Lipat", width: "90px", align: "end" },
+  { title: "Jadi", key: "Jadi", width: "90px", align: "end" },
+  // --- Kolom Sisa / Minus Produksi ---
+  { title: "Kurang Jadi", key: "Kurang_Jadi", width: "110px", align: "end" },
+  {
+    title: "Kurang Potong",
+    key: "Kurang_Potong",
+    width: "120px",
+    align: "end",
+  },
+  {
+    title: "Kurang Bordir",
+    key: "Kurang_Bordir",
+    width: "120px",
+    align: "end",
+  },
+  {
+    title: "Kurang Cetak",
+    key: "Kurang_Cetak_Prod",
+    width: "120px",
+    align: "end",
+  },
+  {
+    title: "Kurang QC Cetak",
+    key: "Kurang_QC_Cetak",
+    width: "130px",
+    align: "end",
+  },
+  { title: "Kurang Jahit", key: "Kurang_Jahit", width: "110px", align: "end" },
+  { title: "Kurang Lipat", key: "Kurang_Lipat", width: "110px", align: "end" },
+  { title: "Aktif", key: "Aktif", width: "80px" },
+  { title: "ACC PIN", key: "Ngedit", width: "100px" }, // Logika Ngedit
+  { title: "Acc MO", key: "Acc_MO", width: "100px" },
+  { title: "", key: "data-table-expand", fixed: true, align: "end" },
 ];
 
 const detailHeaders = [
@@ -54,7 +116,6 @@ const detailHeaders = [
   { title: "Kurang", key: "Kurang", align: "end" },
 ];
 
-// --- Methods ---
 const getStatusColor = (item: any) => {
   if (item.STATUS === "Closed") return "grey";
   if (item.Ngedit === "WAIT") return "blue";
@@ -76,44 +137,30 @@ const fetchData = async () => {
 };
 
 const handleRowClick = (_event: any, row: any) => {
-  // Samakan dengan pola Penerimaan Bahan
   selected.value = [row.item];
 };
-
-const getRowProps = ({ item }: any) => {
-  return {
-    class: item?.SPK === selectedItem.value?.SPK ? "row-selected" : "",
-  };
-};
+const getRowProps = ({ item }: any) => ({
+  class: item?.SPK === selectedItem.value?.SPK ? "row-selected" : "",
+});
 
 const handlePrint = () => {
-  // 1. Validasi apakah ada data yang dipilih
   if (!selectedItem.value) {
     toast.error("Pilih satu SPK terlebih dahulu.");
     return;
   }
-
   const nomorSpk = selectedItem.value.SPK;
-  const statusAcc = selectedItem.value.Ngedit; // Mengambil status dari kolom Ngedit
-
-  // 2. Cek apakah sudah ACC (berdasarkan logika backend Anda)
-  // Berdasarkan backend: 'ACC' berarti pin sudah disetujui
+  const statusAcc = selectedItem.value.Ngedit;
   if (statusAcc !== "ACC" && statusAcc !== "") {
     toast.warning(
       `SPK ${nomorSpk} belum di-ACC atau masih ${statusAcc}, tidak bisa cetak.`,
     );
     return;
   }
-
   toast.info(`Membuka Print Preview SPK ${nomorSpk}`);
-  router.push({
-    name: "SpkPrint",
-    params: { nomor: nomorSpk },
-  });
+  router.push({ name: "SpkPrint", params: { nomor: nomorSpk } });
 };
 
 const handleCreate = () => router.push({ name: "spk-form" });
-
 const handleEdit = () => {
   if (!selectedItem.value) return;
   if (selectedItem.value.STATUS === "Closed")
@@ -121,7 +168,6 @@ const handleEdit = () => {
   router.push(`/mmt/spk/edit/${selectedItem.value.SPK}`);
 };
 
-// Detail size logic
 watch(expanded, async (newVal) => {
   const lastExpanded = newVal[newVal.length - 1] as any;
   if (lastExpanded && !details.value[lastExpanded]) {
@@ -129,6 +175,8 @@ watch(expanded, async (newVal) => {
     try {
       const res = await api.get(`/mmt/spk/detail-size/${lastExpanded}`);
       details.value[lastExpanded] = res.data;
+    } catch {
+      toast.error("Gagal memuat detail size");
     } finally {
       loadingDetails.value.delete(lastExpanded);
     }
@@ -141,30 +189,24 @@ onMounted(fetchData);
 <template>
   <PageLayout title="Monitoring SPK" icon="mdi-file-find">
     <template #header-actions>
-      <v-btn size="x-small" color="primary" @click="handleCreate">
-        <v-icon start>mdi-plus</v-icon> Baru
-      </v-btn>
-
+      <v-btn size="x-small" color="primary" @click="handleCreate"
+        ><v-icon start>mdi-plus</v-icon> Baru</v-btn
+      >
       <v-btn
         size="x-small"
         color="warning"
         :disabled="!isSingleSelected"
         @click="handleEdit"
+        ><v-icon start>mdi-pencil</v-icon> Ubah</v-btn
       >
-        <v-icon start>mdi-pencil</v-icon> Ubah
-      </v-btn>
-
       <v-divider vertical class="mx-2" />
-
-      <!-- Tombol Cetak yang diperbaiki -->
       <v-btn
         size="x-small"
         color="info"
         :disabled="!isSingleSelected"
         @click="handlePrint"
+        ><v-icon start>mdi-printer</v-icon> Cetak SPK</v-btn
       >
-        <v-icon start>mdi-printer</v-icon> Cetak SPK
-      </v-btn>
     </template>
 
     <div class="browse-content">
@@ -180,7 +222,6 @@ onMounted(fetchData);
               variant="outlined"
               style="max-width: 150px"
             />
-
             <v-label>Selesai:</v-label>
             <v-text-field
               v-model="filters.endDate"
@@ -190,7 +231,6 @@ onMounted(fetchData);
               variant="outlined"
               style="max-width: 150px"
             />
-
             <v-select
               v-model="filters.cabang"
               :items="listCabang"
@@ -200,7 +240,6 @@ onMounted(fetchData);
               variant="outlined"
               style="min-width: 120px"
             />
-
             <v-text-field
               v-model="filters.keyword"
               label="Cari SPK / Nama"
@@ -210,20 +249,21 @@ onMounted(fetchData);
               append-inner-icon="mdi-magnify"
               @keyup.enter="fetchData"
             />
-
             <v-btn
               variant="text"
               size="x-small"
               @click="fetchData"
               :loading="loading.master"
+              ><v-icon>mdi-refresh</v-icon> Refresh</v-btn
             >
-              <v-icon>mdi-refresh</v-icon> Refresh
-            </v-btn>
           </div>
         </v-card-text>
       </v-card>
 
-      <div class="table-container">
+      <div
+        class="table-container shadow-1"
+        style="width: 100%; overflow-x: auto"
+      >
         <v-data-table
           v-model:selected="selected"
           v-model:expanded="expanded"
@@ -239,13 +279,18 @@ onMounted(fetchData);
           show-expand
           @click:row="handleRowClick"
           :row-props="getRowProps"
+          style="white-space: nowrap"
         >
-          <!-- Format Tanggal -->
           <template #item.Tanggal="{ value }">
             {{ value ? format(new Date(value), "dd/MM/yyyy") : "" }}
           </template>
+          <template #item.Deadline="{ value }">
+            {{ value ? format(new Date(value), "dd/MM/yyyy") : "-" }}
+          </template>
+          <template #item.Dateline_PO="{ value }">
+            {{ value ? format(new Date(value), "dd/MM/yyyy") : "-" }}
+          </template>
 
-          <!-- Status Chip -->
           <template #item.SPK="{ item }">
             <v-chip
               :color="getStatusColor(item)"
@@ -257,7 +302,6 @@ onMounted(fetchData);
             </v-chip>
           </template>
 
-          <!-- Design Status -->
           <template #item.Nama="{ item }">
             <div
               :class="
@@ -270,11 +314,10 @@ onMounted(fetchData);
             </div>
           </template>
 
-          <!-- Expanded Row (Detail Size) -->
           <template #expanded-row="{ columns, item }">
             <tr>
               <td :colspan="columns.length" class="bg-grey-lighten-4 pa-3">
-                <v-card variant="outlined" flat>
+                <v-card variant="outlined" flat style="max-width: 600px">
                   <v-data-table
                     :headers="detailHeaders"
                     :items="details[item.SPK] || []"
@@ -301,5 +344,8 @@ onMounted(fetchData);
 }
 .desktop-table :deep(tbody tr:hover) {
   cursor: pointer;
+}
+.table-container {
+  max-height: calc(100vh - 210px);
 }
 </style>

@@ -2,11 +2,11 @@
 import { ref, onMounted, nextTick, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import api from "@/services/api";
-import { format } from "date-fns";
+import { format, parseISO } from "date-fns";
 
 interface SpkData {
   SPK: string;
-  PO_Nomor?: string; // Tambahkan jika ada di DB
+  PO?: string;
   Nama: string;
   Tanggal: string;
   Jumlah: number;
@@ -14,22 +14,52 @@ interface SpkData {
   Bahan: string;
   Gramasi: string;
   Finishing?: string;
-  DateLine?: string;
+  Deadline?: string;
   Workshop?: string;
   StatusClient?: string;
   Alokasi?: string;
-  Keterangan?: string;
+  Pesan?: string;
   Tipe_SPK: string;
   Ngedit: string;
-  Design_Image?: string; // URL gambar desain
-  QR_Data?: string; // Data untuk QR Code
-  DibuatOleh?: string;
+  Design_Image?: string;
+  QR_Data?: string;
+  Created?: string;
+  Kepentingan?: string;
+  MO?: string;
+  CMO?: string;
 }
 
 const route = useRoute();
 const router = useRouter();
 const printData = ref<SpkData | null>(null);
 const isLoading = ref(true);
+
+// PERBAIKAN: Arahkan langsung ke IP/Domain Server Backend Anda (Port 8003)
+// Silakan ganti localhost dengan IP server produksi jika di-deploy (misal: 192.168.1.191 atau 103.94.238.252)
+const BACKEND_URL = "http://localhost:8003";
+
+const getAssetUrl = (path: string) => {
+  if (!path) return "";
+  if (path.startsWith("http")) return path;
+  return `${BACKEND_URL}/images/${path}`;
+};
+
+// Fungsi pembantu format tanggal agar aman dari masalah sync browser
+const formatDateSafe = (
+  dateString: string | undefined,
+  formatStr: string = "dd MMM yyyy",
+) => {
+  if (!dateString) return "-";
+  try {
+    // Menangani format ISO maupun format mentah MySQL datetime string
+    const date = dateString.includes("T")
+      ? parseISO(dateString)
+      : new Date(dateString);
+    return isNaN(date.getTime()) ? "-" : format(date, formatStr);
+  } catch (e) {
+    return "-";
+  }
+};
 
 const fetchPrintData = async (nomor: string) => {
   try {
@@ -59,15 +89,15 @@ watch(isLoading, (newValue) => {
       setTimeout(() => {
         window.print();
 
-        const returnBack = () => {
-          // Beri sedikit delay agar browser tidak lag setelah dialog print tutup
+        // PERBAIKAN: Manajemen event listener yang bersih untuk mencegah lag memori browser
+        const handleAfterPrint = () => {
+          window.removeEventListener("afterprint", handleAfterPrint);
           setTimeout(() => {
             router.back();
-          }, 500);
-          window.removeEventListener("afterprint", returnBack);
+          }, 300);
         };
 
-        window.addEventListener("afterprint", returnBack);
+        window.addEventListener("afterprint", handleAfterPrint);
       }, 1000);
     });
   }
@@ -90,131 +120,155 @@ onMounted(() => {
         <header class="header-section">
           <div class="title-group">
             <h1 class="main-title">SURAT PERINTAH KERJA</h1>
-            <div class="po-number">
-              PO : {{ printData.PO_Nomor || "A3697026010004" }}
-            </div>
+            <div class="po-number">PO : {{ printData.PO || "-" }}</div>
           </div>
         </header>
 
+        <div class="sub-header-info">
+          <div
+            class="urgent-tag"
+            v-if="
+              printData.Kepentingan === 'TOP URGENT' ||
+              printData.Kepentingan === 'URGENT'
+            "
+          >
+            {{ printData.Kepentingan }}
+          </div>
+          <div class="type-tag">
+            Tipe SPK : <span>{{ printData.Tipe_SPK || "Medium" }}</span>
+          </div>
+        </div>
+
         <main class="content-section">
-          <div class="info-row highlight-row">
-            <div class="urgent-tag">TOP URGENT</div>
-            <div class="type-tag">
-              Tipe SPK : <strong>{{ printData.Tipe_SPK || "Premium" }}</strong>
-            </div>
-          </div>
+          <table class="details-table">
+            <tr>
+              <td class="label">Nomor SPK</td>
+              <td class="val">: {{ printData.SPK }}</td>
+            </tr>
+            <tr>
+              <td class="label">Tanggal SPK</td>
+              <td class="val">: {{ formatDateSafe(printData.Tanggal) }}</td>
+            </tr>
+            <tr>
+              <td class="label">Jenis Order</td>
+              <td class="val">: MMT OUTDOOR</td>
+            </tr>
+            <tr>
+              <td class="label">Nama Desain</td>
+              <td class="val">: {{ printData.Nama }}</td>
+            </tr>
+            <tr>
+              <td class="label">Jumlah</td>
+              <td class="val">: {{ printData.Jumlah }}</td>
+            </tr>
+            <tr>
+              <td class="label">Ukuran</td>
+              <td class="val">: {{ printData.Ukuran }}</td>
+            </tr>
+            <tr>
+              <td class="label">Bahan</td>
+              <td class="val">: {{ printData.Bahan }}</td>
+            </tr>
+            <tr>
+              <td class="label">Gramasi</td>
+              <td class="val">: {{ printData.Gramasi || "-" }}</td>
+            </tr>
+            <tr>
+              <td class="label">Finishing</td>
+              <td class="val">: {{ printData.Finishing || "-" }}</td>
+            </tr>
+            <tr>
+              <td class="label">Date Line</td>
+              <td class="val">: {{ formatDateSafe(printData.Deadline) }}</td>
+            </tr>
+            <tr>
+              <td class="label">Workshop</td>
+              <td class="val">: {{ printData.Workshop || "P05 (MMT)" }}</td>
+            </tr>
+            <tr>
+              <td class="label">Status Client</td>
+              <td class="val">
+                :
+                <span class="highlight-bg">{{
+                  printData.StatusClient || "PERFECT"
+                }}</span>
+              </td>
+            </tr>
+            <tr>
+              <td class="label">Alokasi</td>
+              <td class="val">: {{ printData.Alokasi || "TIDAK" }}</td>
+            </tr>
+            <tr>
+              <td class="label">Keterangan</td>
+              <td class="val-notes">
+                :
+                <span class="notes-content">{{ printData.Pesan || "-" }}</span>
+              </td>
+            </tr>
+          </table>
 
-          <div class="details-grid">
-            <div class="grid-item">
-              <span class="label">Nomor SPK</span
-              ><span class="val">: {{ printData.SPK }}</span>
-            </div>
-            <div class="grid-item">
-              <span class="label">Tanggal SPK</span
-              ><span class="val"
-                >:
-                {{
-                  printData.Tanggal
-                    ? format(new Date(printData.Tanggal), "dd MMM yyyy")
-                    : "-"
-                }}</span
-              >
-            </div>
-            <div class="grid-item">
-              <span class="label">Jenis Order</span
-              ><span class="val">: MMT OUTDOOR</span>
-            </div>
-            <div class="grid-item">
-              <span class="label">Nama Desain</span
-              ><span class="val">: {{ printData.Nama }}</span>
-            </div>
-            <div class="grid-item">
-              <span class="label">Jumlah</span
-              ><span class="val">: {{ printData.Jumlah }}</span>
-            </div>
-            <div class="grid-item">
-              <span class="label">Ukuran</span
-              ><span class="val">: {{ printData.Ukuran }}</span>
-            </div>
-            <div class="grid-item">
-              <span class="label">Bahan</span
-              ><span class="val">: {{ printData.Bahan }}</span>
-            </div>
-            <div class="grid-item">
-              <span class="label">Gramasi</span
-              ><span class="val">: {{ printData.Gramasi }}</span>
-            </div>
-            <div class="grid-item">
-              <span class="label">Finishing</span
-              ><span class="val">: {{ printData.Finishing || "-" }}</span>
-            </div>
-            <div class="grid-item">
-              <span class="label">Date Line</span
-              ><span class="val">: {{ printData.DateLine || "-" }}</span>
-            </div>
-            <div class="grid-item">
-              <span class="label">Workshop</span
-              ><span class="val"
-                >: {{ printData.Workshop || "P05 (MMT)" }}</span
-              >
-            </div>
-            <div class="grid-item">
-              <span class="label">Status Client</span
-              ><span class="val"
-                >: <span class="highlight-text">PERFECT</span></span
-              >
-            </div>
-            <div class="grid-item">
-              <span class="label">Alokasi</span
-              ><span class="val">: {{ printData.Alokasi || "TIDAK" }}</span>
-            </div>
-            <div class="grid-item">
-              <span class="label">Keterangan</span
-              ><span class="val">: {{ printData.Keterangan || "-" }}</span>
-            </div>
-          </div>
-
-          <div class="instruction-box">
-            Mohon cetakan yang bagus dan kirim sesuai dateline.<br />Packing
-            gulung
-          </div>
-
-          <div class="approval-section">
-            <table class="approval-table">
-              <tr>
-                <th>MO</th>
-                <th>CMO</th>
-              </tr>
-              <tr>
-                <td class="sign-area">
-                  <img
-                    src="https://upload.wikimedia.org/wikipedia/commons/3/3a/Jon_Kirsch_Signature.png"
-                    class="signature-img"
-                  />
-                  <div class="signer-name">BELLA</div>
-                </td>
-                <td class="sign-area text-center">NO</td>
-              </tr>
-            </table>
-          </div>
-
-          <div class="footer-assets">
-            <div class="design-preview">
+          <div class="footer-block">
+            <div class="design-preview-container">
               <img
-                src="https://via.placeholder.com/150x80"
-                alt="Design Preview"
+                :src="
+                  printData.Design_Image
+                    ? getAssetUrl(printData.Design_Image)
+                    : getAssetUrl(`${printData.SPK}.jpg`)
+                "
+                class="design-image"
+                @error="
+                  (e: any) =>
+                    (e.target.src =
+                      'https://via.placeholder.com/180x150?text=No+Image')
+                "
               />
             </div>
-            <div class="qr-preview">
-              <img
-                src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=Example"
-                alt="QR"
-              />
+
+            <div class="validation-container">
+              <table class="approval-table">
+                <thead>
+                  <tr>
+                    <th>MO</th>
+                    <th>CMO</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="sign-cell">
+                      <img
+                        v-if="printData.MO"
+                        :src="getAssetUrl(`sign_${printData.MO}.jpg`)"
+                        class="signature-img"
+                        @error="(e: any) => (e.target.style.display = 'none')"
+                      />
+                      <div class="signer-name">{{ printData.MO || "N/A" }}</div>
+                    </td>
+                    <td class="sign-cell">
+                      <img
+                        v-if="printData.CMO"
+                        :src="getAssetUrl(`sign_${printData.CMO}.jpg`)"
+                        class="signature-img"
+                        @error="(e: any) => (e.target.style.display = 'none')"
+                      />
+                      <div class="signer-name" v-if="!printData.CMO">NO</div>
+                      <div class="signer-name" v-else>{{ printData.CMO }}</div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+
+              <div class="qr-wrapper">
+                <img
+                  :src="`https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=${encodeURIComponent(printData.QR_Data || printData.SPK)}`"
+                  alt="QR Validation"
+                  class="qr-code-img"
+                />
+              </div>
             </div>
           </div>
 
-          <div class="print-meta">
-            Dibuat Oleh: {{ printData.DibuatOleh || "BELLA" }}
+          <div class="print-meta-text">
+            Dibuat Oleh: {{ printData.Created || "-" }}
             {{ format(new Date(), "dd-MM-yyyy HH:mm:ss") }}
           </div>
         </main>
@@ -224,167 +278,226 @@ onMounted(() => {
 </template>
 
 <style scoped>
-/* Reset & Base */
+/* CSS Anda sudah sangat bagus, tidak ada perubahan yang merusak layout */
 .print-container {
   background: #525659;
   min-height: 100vh;
   padding: 20px;
   display: flex;
   justify-content: center;
-}
-.loading {
-  color: white;
-  text-align: center;
-  margin-top: 50px;
+  align-items: flex-start;
 }
 
-/* Page Layout - Lanskap A4 agar muat 2 SPK */
 .page-wrapper {
   background: white;
-  width: 297mm; /* Lebar A4 Lanskap */
+  width: 297mm;
   height: 210mm;
-  padding: 5mm;
+  padding: 8mm 6mm;
   display: flex;
   justify-content: space-between;
   box-sizing: border-box;
+  position: relative;
 }
 
 .spk-card {
-  width: 48%; /* Bagi dua kolom */
-  border: 0px solid #eee;
-  padding: 5px;
-  position: relative;
-  font-family: Arial, sans-serif;
-  color: #000;
-}
-
-/* Header */
-.header-section {
-  border-bottom: 2px solid #000;
-  margin-bottom: 5px;
-  padding-bottom: 2px;
-}
-.title-group {
-  display: flex;
-  align-items: baseline;
-  gap: 20px;
-}
-.main-title {
-  font-size: 16pt;
-  font-weight: bold;
-  text-decoration: underline;
-  margin: 0;
-}
-.po-number {
-  font-size: 14pt;
-  font-weight: bold;
-}
-
-/* Grid Info */
-.info-row {
-  display: flex;
-  justify-content: flex-end;
-  gap: 50px;
-  margin: 5px 0;
-}
-.urgent-tag {
-  color: red;
-  font-weight: bold;
-  font-size: 10pt;
-}
-.type-tag {
-  font-size: 9pt;
-}
-
-.details-grid {
+  width: 48.5%;
+  height: 100%;
   display: flex;
   flex-direction: column;
-  gap: 1px;
-}
-.grid-item {
-  display: flex;
-  font-size: 8.5pt;
-  line-height: 1.2;
-}
-.label {
-  width: 90px;
-}
-.val {
-  flex: 1;
-}
-
-.highlight-text {
-  background-color: yellow;
-  font-weight: bold;
-  padding: 0 5px;
-}
-
-.instruction-box {
-  font-size: 7.5pt;
-  margin-top: 5px;
-  font-style: italic;
-  border-left: 2px solid #ccc;
-  padding-left: 10px;
-}
-
-/* Approval Table */
-.approval-section {
-  margin-top: 40px;
-  display: flex;
-  justify-content: center;
-}
-.approval-table {
-  width: 60%;
-  border-collapse: collapse;
-  border: 1px solid black;
-}
-.approval-table th,
-.approval-table td {
-  border: 1px solid black;
-  font-size: 8pt;
-  height: 20px;
-}
-.approval-table th {
-  width: 50%;
-  background: #f9f9f9;
-}
-.sign-area {
-  height: 40px;
   position: relative;
-  vertical-align: bottom;
-  text-align: center;
-}
-.signature-img {
-  height: 35px;
-  position: absolute;
-  top: 0;
-  left: 25%;
-  opacity: 0.8;
-}
-.signer-name {
-  font-size: 7pt;
-  font-weight: bold;
+  font-family: Arial, Helvetica, sans-serif;
+  color: #000;
+  box-sizing: border-box;
 }
 
-/* Assets */
-.footer-assets {
+.header-section {
+  border-bottom: 2px solid #000;
+  padding-bottom: 4px;
+}
+
+.title-group {
   display: flex;
   justify-content: space-between;
   align-items: flex-end;
-  margin-top: 10px;
-}
-.design-preview img {
-  width: 120px;
-  border: 1px solid #ddd;
-}
-.qr-preview img {
-  width: 60px;
 }
 
-.print-meta {
-  font-size: 7pt;
+.main-title {
+  font-size: 14pt;
+  font-weight: bold;
+  text-decoration: underline;
+  margin: 0;
+  letter-spacing: 0.5px;
+}
+
+.po-number {
+  font-size: 11pt;
+  font-weight: bold;
+}
+
+.sub-header-info {
+  position: absolute;
+  top: 35px;
+  right: 0;
   text-align: right;
-  margin-top: 10px;
+  z-index: 10;
+}
+
+.urgent-tag {
+  color: #ff0000;
+  font-weight: bold;
+  font-size: 9pt;
+  margin-bottom: 2px;
+}
+
+.type-tag {
+  font-size: 8pt;
+}
+.type-tag span {
+  font-weight: bold;
+}
+
+.content-section {
+  margin-top: 8px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.details-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: auto;
+}
+
+.details-table td {
+  padding: 2px 0;
+  font-size: 9pt;
+  vertical-align: top;
+}
+
+.details-table td.label {
+  width: 100px;
+}
+
+.details-table td.val {
+  font-weight: normal;
+}
+
+.highlight-bg {
+  background-color: #ffff00;
+  font-weight: bold;
+  padding: 0 4px;
+}
+
+.val-notes {
+  font-size: 8.5pt !important;
+}
+
+.notes-content {
+  font-size: 8.5pt;
+  white-space: pre-wrap;
+}
+
+.footer-block {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  margin-top: 15px;
+  width: 100%;
+  height: 140px;
+}
+
+.design-preview-container {
+  width: 45%;
+  height: 100%;
+  border: 1px dashed #777;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #fafafa;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.design-image {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+.validation-container {
+  width: 52%;
+  height: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+}
+
+.approval-table {
+  width: 65%;
+  border-collapse: collapse;
+  margin-bottom: 5px;
+}
+
+.approval-table th,
+.approval-table td {
+  border: 1px solid #000;
+  text-align: center;
+  font-size: 8pt;
+}
+
+.approval-table th {
+  background: #f2f2f2;
+  font-weight: bold;
+  padding: 2px 0;
+  width: 50%;
+}
+
+.sign-cell {
+  height: 60px;
+  vertical-align: bottom;
+  padding-bottom: 4px;
+  position: relative;
+}
+
+.signature-img {
+  position: absolute;
+  top: 5px;
+  left: 50%;
+  transform: translateX(-50%);
+  max-height: 40px;
+  max-width: 90%;
+  object-fit: contain;
+}
+
+.signer-name {
+  font-size: 7.5pt;
+  font-weight: bold;
+}
+
+.qr-wrapper {
+  width: 30%;
+  text-align: right;
+}
+
+.qr-code-img {
+  width: 75px;
+  height: 75px;
+  object-fit: contain;
+}
+
+.print-meta-text {
+  font-size: 7pt;
+  text-align: left;
+  margin-top: 6px;
+  color: #333;
+}
+
+.floating-action {
+  position: fixed;
+  top: 20px;
+  left: 20px;
+  z-index: 9999;
 }
 
 @media print {
@@ -392,29 +505,37 @@ onMounted(() => {
     size: A4 landscape;
     margin: 0;
   }
-  /* Pastikan container tidak memiliki padding yang menggeser layout saat diprint */
+
+  html,
+  body {
+    background: #fff !important;
+  }
+
   .print-container {
     padding: 0 !important;
     background: white !important;
-    display: block !important; /* Pastikan tidak flex saat print */
+    display: block !important;
   }
+
   .no-print {
     display: none !important;
   }
-  .page-wrapper {
-    box-shadow: none;
-    margin: 0;
-    width: 297mm;
-    height: 210mm;
-    padding: 0; /* Reset padding agar pas dengan kertas */
-  }
-}
 
-/* Tambahan agar di layar tetap terlihat bagus meskipun batal print */
-.no-print.loading {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
+  .page-wrapper {
+    box-shadow: none !important;
+    margin: 0 !important;
+    width: 297mm !important;
+    height: 210mm !important;
+    padding: 8mm 6mm !important;
+    background: white !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .highlight-bg {
+    background-color: #ffff00 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
 }
 </style>
