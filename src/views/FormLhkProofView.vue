@@ -1046,6 +1046,12 @@ const handleSave = async (statusValue: "DRAFT" | "POSTED" = "DRAFT") => {
   isSaving.value = true;
   try {
     const currentUser = authStore.user?.kdUser || "SYSTEM";
+
+    // Ambil nilai sisa bahan dan bersihkan dari pecahan float javascript yang kepanjangan
+    const sisaPanjangFinal =
+      formData.sisa_panjang_manual ?? sisaStokOtomatis.value;
+    const sisaLebarFinal = formData.sisa_lebar_manual ?? formData.Lebar_bahan;
+
     const payload = {
       header: {
         nomor: formData.nomor,
@@ -1056,31 +1062,30 @@ const handleSave = async (statusValue: "DRAFT" | "POSTED" = "DRAFT") => {
         operator: formData.operator,
         mesin: formData.mesin,
         barcode_input: formData.barcode_input,
-        keterangan: formData.keterangan,
+        keterangan: formData.keterangan || "",
         user: currentUser,
-        panjang_bs: formData.panjang_bs,
-        lebar_bs: formData.lebar_bs,
-
-        // 🔥 PERBAIKAN DI SINI: Kirim lstatus agar terbaca oleh backend service
+        panjang_bs: Number(formData.panjang_bs) || 0,
+        lebar_bs: Number(formData.lebar_bs) || 0,
         lstatus: statusValue,
       },
       details: detailData.value.map((d) => {
         const detailEntry: any = {
           nomor_spk: d.nomor_spk,
-          panjang: d.panjang_spk,
-          lebar: d.lebar_spk,
-          aktual_proof: d.totalcetak,
+          panjang: Number(d.panjang_spk) || 0,
+          lebar: Number(d.lebar_spk) || 0,
+          aktual_proof: Number(d.totalcetak) || 0,
           barcode_detail: formData.barcode_input,
-          jenis_bahan: d.nomor_spk,
-          lokasi: d.lokasi,
-          keterangan: d.keterangan,
-
-          panjang_roll_awal: formData.Panjang_bahan,
-          sisabahan: formData.sisa_panjang_manual ?? sisaStokOtomatis.value,
-          sisabahanlebar: formData.sisa_lebar_manual ?? formData.Lebar_bahan,
+          jenis_bahan: d.nomor_spk, // Menyesuaikan preferensi DB Anda sebelumnya
+          lokasi: d.lokasi || "",
+          keterangan: d.keterangan || "",
+          panjang_roll_awal: Number(formData.Panjang_bahan) || 0,
+          // Batasi 2 angka di belakang koma untuk akurasi meter lari kartu stok
+          sisabahan: parseFloat(Number(sisaPanjangFinal).toFixed(2)),
+          sisabahanlebar: parseFloat(Number(sisaLebarFinal).toFixed(2)),
         };
-        for (let i = 1; i <= 7; i++)
-          detailEntry[`cetak${i}`] = d[`cetak${i}`] || 0;
+        for (let i = 1; i <= 7; i++) {
+          detailEntry[`cetak${i}`] = Number(d[`cetak${i}`]) || 0;
+        }
         return detailEntry;
       }),
     };
@@ -1090,10 +1095,25 @@ const handleSave = async (statusValue: "DRAFT" | "POSTED" = "DRAFT") => {
       toast.success(
         "Dokumen LHK Proofing berhasil dibukukan dengan status: " + statusValue,
       );
-      router.push({ name: "lhkProofBrowse" });
+
+      // Menggunakan replace atau push, pastikan name 'lhkProofBrowse' sudah didaftarkan di router/index.ts
+      router.push({ name: "LHKProofMMTBrowse" }).catch((err) => {
+        console.error("Gagal navigasi halaman:", err);
+      });
     }
   } catch (error: any) {
-    toast.error(error.response?.data?.message || "Koneksi API gagal.");
+    // PERBAIKAN LOGIKA ERROR: Agar jika router-nya yang crash, tidak memunculkan toast "Koneksi API gagal"
+    if (error.response) {
+      toast.error(
+        error.response.data?.message ||
+          "Terjadi kesalahan pada server backend.",
+      );
+    } else {
+      console.error("Client side error:", error);
+      toast.error(
+        "Gagal memproses data di aplikasi / halaman tujuan tidak ditemukan.",
+      );
+    }
   } finally {
     isSaving.value = false;
   }
