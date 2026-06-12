@@ -704,7 +704,7 @@ const exportToExcel = () => {
     e: { r: filteredData.value.length + 6, c: 3 },
   });
 
-  // Map Data Value ke Lajur Baris Excel
+  // --- 2. LOOP DATA VALUE (Perbaikan Posisi 't' dan 'z' ke Root Level) ---
   filteredData.value.forEach((item) => {
     const row = [];
     columns.value.forEach((col) => {
@@ -716,17 +716,18 @@ const exportToExcel = () => {
           col.field.includes("meter") ||
           col.field.includes("jmx") ||
           col.field === "total_mtr_aktual";
+
         const finalNum = isDecimalCol
           ? Number(parseFloat(value || 0).toFixed(2))
           : Number(value || 0);
 
         row.push({
           v: finalNum,
+          t: "n", // ROOT LEVEL (Excel mengenali sebagai Angka)
+          z: isDecimalCol ? "#,##0.00" : "#,##0", // ROOT LEVEL (Masking Tampilan)
           s: {
             ...styleDataCell,
             alignment: { horizontal: "right" },
-            t: "n",
-            z: isDecimalCol ? "#,##0.00" : "#,##0",
           },
         });
       } else if (col.type === "date") {
@@ -741,7 +742,7 @@ const exportToExcel = () => {
     wsData.push(row);
   });
 
-  // Map Footer Grand Total ke Excel
+  // --- 3. LOOP FOOTER GRAND TOTAL (Perbaikan Posisi 't' dan 'z') ---
   const excelFooter = [];
   columns.value.forEach((col, idx) => {
     if (idx === 0) {
@@ -777,13 +778,19 @@ const exportToExcel = () => {
         col.field.includes("meter") ||
         col.field.includes("jmx") ||
         col.field === "total_mtr_aktual";
+
       const finalSum = isDecimalCol
         ? Number(parseFloat(sumVal).toFixed(2))
         : Number(sumVal);
 
       excelFooter.push({
         v: finalSum,
-        s: { ...styleFooter, t: "n", z: isDecimalCol ? "#,##0.00" : "#,##0" },
+        t: "n", // ROOT LEVEL
+        z: isDecimalCol ? "#,##0.00" : "#,##0", // ROOT LEVEL
+        s: {
+          ...styleFooter,
+          alignment: { horizontal: "right" },
+        },
       });
     } else {
       excelFooter.push({ v: "", s: styleFooter });

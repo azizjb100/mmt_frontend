@@ -439,6 +439,12 @@ const prevPage = () => {
 const exportToExcel = () => {
   const fileName = `Laporan_Monitoring_Finishing_${startDate.value}.xlsx`;
 
+  // Helper aman untuk memastikan nilai di-cast ke Number murni (bukan teks)
+  const num = (value) => {
+    const parsed = Number(value);
+    return isNaN(parsed) ? 0 : parsed;
+  };
+
   // --- 1. Definisi Styles ---
   const styleHeaderMain = {
     fill: { fgColor: { rgb: "B3E5FC" } }, // Biru Muda
@@ -491,31 +497,31 @@ const exportToExcel = () => {
     { v: "DEADLINE", s: styleHeaderMain },
     { v: "NAMA ORDER", s: styleHeaderMain },
     { v: "UKURAN", s: styleHeaderMain },
-    { v: "", s: styleHeaderMain }, // Gabung untuk UKURAN
+    { v: "", s: styleHeaderMain },
     { v: "NO SPK", s: styleHeaderMain },
     { v: "JENIS KAIN", s: styleHeaderMain },
     { v: "ORDER SPK", s: styleHeaderMain },
-    { v: "", s: styleHeaderMain }, // Gabung untuk ORDER SPK
+    { v: "", s: styleHeaderMain },
     { v: "HASIL FINISHING", s: styleHeaderMain },
-    { v: "", s: styleHeaderMain }, // Gabung Finishing
-    { v: "", s: styleHeaderMain }, // Gabung Finishing
+    { v: "", s: styleHeaderMain },
+    { v: "", s: styleHeaderMain },
     { v: "SISA KEKURANGAN", s: styleHeaderMain },
-    { v: "", s: styleHeaderMain }, // Gabung Kekurangan
-    { v: "", s: styleHeaderMain }, // Gabung Kekurangan
+    { v: "", s: styleHeaderMain },
+    { v: "", s: styleHeaderMain },
     { v: "CTK L.", s: styleHeaderMain },
   ];
   wsData.push(headerRow1);
 
   // --- 4. Header Row 2 (Sub-Headers) ---
   const headerRow2 = [
-    { v: "", s: styleHeaderMain }, // Perusahaan
-    { v: "", s: styleHeaderMain }, // Tgl
-    { v: "", s: styleHeaderMain }, // Deadline
-    { v: "", s: styleHeaderMain }, // Nama Order
+    { v: "", s: styleHeaderMain },
+    { v: "", s: styleHeaderMain },
+    { v: "", s: styleHeaderMain },
+    { v: "", s: styleHeaderMain },
     { v: "PANJANG", s: styleHeaderSub },
     { v: "LEBAR", s: styleHeaderSub },
-    { v: "", s: styleHeaderMain }, // No SPK
-    { v: "", s: styleHeaderMain }, // Jenis
+    { v: "", s: styleHeaderMain },
+    { v: "", s: styleHeaderMain },
     { v: "QTY", s: styleHeaderSub },
     { v: "MTR", s: styleHeaderSub },
     { v: "SEAMING", s: styleHeaderSub },
@@ -524,11 +530,11 @@ const exportToExcel = () => {
     { v: "K.SEAM", s: styleHeaderSub },
     { v: "K.AYAM", s: styleHeaderSub },
     { v: "K.COLY", s: styleHeaderSub },
-    { v: "", s: styleHeaderMain }, // Ctk L
+    { v: "", s: styleHeaderMain },
   ];
   wsData.push(headerRow2);
 
-  // --- 5. Tambah Data Rows ---
+  // --- 5. Tambah Data Rows (Gunakan t: 'n' dan properti z untuk angka) ---
   filteredData.value.forEach((item) => {
     wsData.push([
       { v: item.perush, s: styleDataCell },
@@ -541,45 +547,46 @@ const exportToExcel = () => {
         s: { ...styleDataCell, alignment: { horizontal: "center" } },
       },
       { v: item.namaOrder, s: styleDataCell },
+
+      // Ukuran (Desimal 2 Digit)
       {
-        v: item.panjang,
+        v: num(item.panjang),
+        t: "n",
+        z: "#,##0.00",
         s: { ...styleDataCell, alignment: { horizontal: "right" } },
       },
       {
-        v: item.lebar,
+        v: num(item.lebar),
+        t: "n",
+        z: "#,##0.00",
         s: { ...styleDataCell, alignment: { horizontal: "right" } },
       },
+
       {
         v: item.noSpk,
         s: { ...styleDataCell, alignment: { horizontal: "center" } },
       },
       { v: item.jenisKain, s: styleDataCell },
+
+      // Order SPK (Qty = Integer, Meter = Desimal)
       {
-        v: item.spkJumlah,
+        v: num(item.spkJumlah),
+        t: "n",
+        z: "#,##0",
         s: { ...styleDataCell, alignment: { horizontal: "right" } },
       },
       {
-        v: item.orderMeter.toFixed(2),
+        v: num(item.orderMeter),
+        t: "n",
+        z: "#,##0.00",
         s: { ...styleDataCell, alignment: { horizontal: "right" } },
       },
+
+      // Hasil Finishing (Integer)
       {
-        v: item.jmlseaming,
-        s: {
-          ...styleDataCell,
-          alignment: { horizontal: "right" },
-          font: { color: { rgb: "2E7D32" } },
-        },
-      }, // Hijau
-      {
-        v: item.jmlmataayam,
-        s: {
-          ...styleDataCell,
-          alignment: { horizontal: "right" },
-          font: { color: { rgb: "2E7D32" } },
-        },
-      },
-      {
-        v: item.jmlcoly,
+        v: num(item.jmlseaming),
+        t: "n",
+        z: "#,##0",
         s: {
           ...styleDataCell,
           alignment: { horizontal: "right" },
@@ -587,15 +594,31 @@ const exportToExcel = () => {
         },
       },
       {
-        v: item.kSeaming,
+        v: num(item.jmlmataayam),
+        t: "n",
+        z: "#,##0",
         s: {
           ...styleDataCell,
           alignment: { horizontal: "right" },
-          font: { color: { rgb: "C62828" } },
+          font: { color: { rgb: "2E7D32" } },
         },
-      }, // Merah
+      },
       {
-        v: item.kMataayam,
+        v: num(item.jmlcoly),
+        t: "n",
+        z: "#,##0",
+        s: {
+          ...styleDataCell,
+          alignment: { horizontal: "right" },
+          font: { color: { rgb: "2E7D32" } },
+        },
+      },
+
+      // Sisa Kekurangan (Integer)
+      {
+        v: num(item.kSeaming),
+        t: "n",
+        z: "#,##0",
         s: {
           ...styleDataCell,
           alignment: { horizontal: "right" },
@@ -603,7 +626,9 @@ const exportToExcel = () => {
         },
       },
       {
-        v: item.kColy,
+        v: num(item.kMataayam),
+        t: "n",
+        z: "#,##0",
         s: {
           ...styleDataCell,
           alignment: { horizontal: "right" },
@@ -611,13 +636,27 @@ const exportToExcel = () => {
         },
       },
       {
-        v: item.cetakLuar,
+        v: num(item.kColy),
+        t: "n",
+        z: "#,##0",
+        s: {
+          ...styleDataCell,
+          alignment: { horizontal: "right" },
+          font: { color: { rgb: "C62828" } },
+        },
+      },
+
+      // Cetak Luar (Integer)
+      {
+        v: num(item.cetakLuar),
+        t: "n",
+        z: "#,##0",
         s: { ...styleDataCell, alignment: { horizontal: "right" } },
       },
     ]);
   });
 
-  // --- 6. Baris TOTAL ---
+  // --- 6. Baris TOTAL (Juga dipastikan menggunakan t: 'n') ---
   const footerRow = [
     {
       v: "GRAND TOTAL",
@@ -630,38 +669,82 @@ const exportToExcel = () => {
     { v: "", s: styleFooter },
     { v: "", s: styleFooter },
     { v: "", s: styleFooter },
-    { v: reportTotals.value.spkJumlah, s: styleFooter },
-    { v: reportTotals.value.orderMeter.toFixed(2), s: styleFooter },
-    { v: reportTotals.value.jmlseaming, s: styleFooter },
-    { v: reportTotals.value.jmlmataayam, s: styleFooter },
-    { v: reportTotals.value.jmlcoly, s: styleFooter },
-    { v: reportTotals.value.kSeaming, s: styleFooter },
-    { v: reportTotals.value.kMataayam, s: styleFooter },
-    { v: reportTotals.value.kColy, s: styleFooter },
-    { v: reportTotals.value.cetakLuar, s: styleFooter },
+    // Nilai totalan numerik murni
+    {
+      v: num(reportTotals.value.spkJumlah),
+      t: "n",
+      z: "#,##0",
+      s: { ...styleFooter, alignment: { horizontal: "right" } },
+    },
+    {
+      v: num(reportTotals.value.orderMeter),
+      t: "n",
+      z: "#,##0.00",
+      s: { ...styleFooter, alignment: { horizontal: "right" } },
+    },
+    {
+      v: num(reportTotals.value.jmlseaming),
+      t: "n",
+      z: "#,##0",
+      s: { ...styleFooter, alignment: { horizontal: "right" } },
+    },
+    {
+      v: num(reportTotals.value.jmlmataayam),
+      t: "n",
+      z: "#,##0",
+      s: { ...styleFooter, alignment: { horizontal: "right" } },
+    },
+    {
+      v: num(reportTotals.value.jmlcoly),
+      t: "n",
+      z: "#,##0",
+      s: { ...styleFooter, alignment: { horizontal: "right" } },
+    },
+    {
+      v: num(reportTotals.value.kSeaming),
+      t: "n",
+      z: "#,##0",
+      s: { ...styleFooter, alignment: { horizontal: "right" } },
+    },
+    {
+      v: num(reportTotals.value.kMataayam),
+      t: "n",
+      z: "#,##0",
+      s: { ...styleFooter, alignment: { horizontal: "right" } },
+    },
+    {
+      v: num(reportTotals.value.kColy),
+      t: "n",
+      z: "#,##0",
+      s: { ...styleFooter, alignment: { scientific: false } },
+    },
+    {
+      v: num(reportTotals.value.cetakLuar),
+      t: "n",
+      z: "#,##0",
+      s: { ...styleFooter, alignment: { horizontal: "right" } },
+    },
   ];
   wsData.push(footerRow);
 
   // --- 7. Konfigurasi Merge dan Ukuran Kolom ---
   const ws = XLSX.utils.aoa_to_sheet(wsData);
 
-  // r: baris (mulai dari 0), c: kolom (mulai dari 0)
   ws["!merges"] = [
-    { s: { r: 3, c: 0 }, e: { r: 4, c: 0 } }, // Perusahaan
-    { s: { r: 3, c: 1 }, e: { r: 4, c: 1 } }, // Tgl SPK
-    { s: { r: 3, c: 2 }, e: { r: 4, c: 2 } }, // Deadline
-    { s: { r: 3, c: 3 }, e: { r: 4, c: 3 } }, // Nama Order
-    { s: { r: 3, c: 4 }, e: { r: 3, c: 5 } }, // UKURAN (Pang & Leb)
-    { s: { r: 3, c: 6 }, e: { r: 4, c: 6 } }, // No SPK
-    { s: { r: 3, c: 7 }, e: { r: 4, c: 7 } }, // Jenis Kain
-    { s: { r: 3, c: 8 }, e: { r: 3, c: 9 } }, // ORDER SPK (Qty & Mtr)
-    { s: { r: 3, c: 10 }, e: { r: 3, c: 12 } }, // HASIL FINISHING (3 kolom)
-    { s: { r: 3, c: 13 }, e: { r: 3, c: 15 } }, // SISA KEKURANGAN (3 kolom)
-    { s: { r: 3, c: 16 }, e: { r: 4, c: 16 } }, // Ctk Luar
-    { s: { r: wsData.length - 1, c: 0 }, e: { r: wsData.length - 1, c: 7 } }, // Total Label
+    { s: { r: 3, c: 0 }, e: { r: 4, c: 0 } },
+    { s: { r: 3, c: 1 }, e: { r: 4, c: 1 } },
+    { s: { r: 3, c: 2 }, e: { r: 4, c: 2 } },
+    { s: { r: 3, c: 3 }, e: { r: 4, c: 3 } },
+    { s: { r: 3, c: 4 }, e: { r: 3, c: 5 } },
+    { s: { r: 3, c: 6 }, e: { r: 4, c: 6 } },
+    { s: { r: 3, c: 7 }, e: { r: 4, c: 7 } },
+    { s: { r: 3, c: 8 }, e: { r: 3, c: 9 } },
+    { s: { r: 3, c: 10 }, e: { r: 3, c: 12 } },
+    { s: { r: 3, c: 13 }, e: { r: 3, c: 15 } },
+    { s: { r: 3, c: 16 }, e: { r: 4, c: 16 } },
+    { s: { r: wsData.length - 1, c: 0 }, e: { r: wsData.length - 1, c: 7 } },
   ];
 
-  // Ukuran Kolom
   ws["!cols"] = [
     { wch: 20 },
     { wch: 12 },

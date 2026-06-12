@@ -107,6 +107,12 @@ const fetchReport = async () => {
 const exportToExcel = () => {
   const fileName = `Laporan_LMKP_${startDate.value}.xlsx`;
 
+  // Helper aman untuk memastikan nilai di-cast ke Number murni
+  const num = (value) => {
+    const parsed = Number(value);
+    return isNaN(parsed) ? 0 : parsed;
+  };
+
   const formatDateIndo = (dateStr) => {
     if (!dateStr) return "-";
     const date = parseISO(dateStr);
@@ -183,8 +189,8 @@ const exportToExcel = () => {
   ]);
   wsData.push([{ v: `Kategori: ${jenisIndex.value === "0" ? "MT" : "MX"}` }]);
   wsData.push([]);
-  // Header Row 1 (Row index 4)
-  // Total kolom sekarang adalah 22 (Index 0 s/d 21)
+
+  // Header Row 1
   const headerRow1 = [
     { v: "NOMOR SPK", s: styleHeaderMain }, // 0
     { v: "NAMA ORDER", s: styleHeaderMain }, // 1
@@ -192,31 +198,30 @@ const exportToExcel = () => {
     { v: "DEADLINE", s: styleHeaderMain }, // 3
     { v: "BAHAN", s: styleHeaderMain }, // 4
     { v: "GRAMASI", s: styleHeaderMain }, // 5
-    { v: "PRODUKSI (PCS)", s: styleHeaderMain }, // 6 (Akan di-merge 6 s/d 12)
+    { v: "PRODUKSI (PCS)", s: styleHeaderMain }, // 6
     "",
     "",
     "",
     "",
     "",
-    "", // 7, 8, 9, 10, 11, 12
+    "", // 7 s/d 12
     { v: "CTK L.", s: styleHeaderMain }, // 13
-    { v: "MESIN", s: styleHeaderMain }, // 14 (Akan di-merge 14 s/d 18)
+    { v: "MESIN", s: styleHeaderMain }, // 14
     "",
     "",
     "",
-    "", // 15, 16, 17, 18
-    { v: "PRODUKSI (METER)", s: styleHeaderMain }, // 19 (Akan di-merge 19 s/d 21)
+    "", // 15 s/d 18
+    { v: "PRODUKSI (METER)", s: styleHeaderMain }, // 19
     "",
     "", // 20, 21
   ];
 
-  // Isi cell kosong dengan style agar border muncul
   headerRow1.forEach((cell, idx) => {
     if (cell === "") headerRow1[idx] = { v: "", s: styleHeaderMain };
   });
   wsData.push(headerRow1);
 
-  // Header Row 2 (Row index 5)
+  // Header Row 2
   const subPcs = [
     "Order",
     "Kirim",
@@ -229,15 +234,14 @@ const exportToExcel = () => {
   const subMesin = ["MT02", "MT03", "MT04", "MT05", "MI"];
   const subMeter = ["K-KRM", "K-CTK", "K-CLY"];
 
-  const headerRow2 = Array(6).fill({ v: "", s: styleHeaderMain }); // Untuk vertical merge (0-5)
-  subPcs.forEach((h) => headerRow2.push({ v: h, s: styleHeaderSub })); // 6-12
-  headerRow2.push({ v: "", s: styleHeaderMain }); // Untuk vertical merge CTK L. (13)
-  subMesin.forEach((h) => headerRow2.push({ v: h, s: styleHeaderSub })); // 14-18
-  subMeter.forEach((h) => headerRow2.push({ v: h, s: styleHeaderSub })); // 19-21
+  const headerRow2 = Array(6).fill({ v: "", s: styleHeaderMain });
+  subPcs.forEach((h) => headerRow2.push({ v: h, s: styleHeaderSub }));
+  headerRow2.push({ v: "", s: styleHeaderMain });
+  subMesin.forEach((h) => headerRow2.push({ v: h, s: styleHeaderSub }));
+  subMeter.forEach((h) => headerRow2.push({ v: h, s: styleHeaderSub }));
   wsData.push(headerRow2);
 
   // --- 3. Tambah Baris Data ---
-  // Gunakan filteredData agar yang di-export sesuai dengan hasil pencarian user
   filteredData.value.forEach((item) => {
     wsData.push([
       {
@@ -258,38 +262,58 @@ const exportToExcel = () => {
         v: item.spk_gramasi,
         s: { ...styleDataCell, alignment: { horizontal: "center" } },
       },
+
+      // Produksi PCS (Integer murni, gunakan t: "n" dan z)
       {
-        v: Number(item.spk_jumlah),
+        v: num(item.spk_jumlah),
+        t: "n",
+        z: "#,##0",
         s: { ...styleDataCell, alignment: { horizontal: "right" } },
       },
       {
-        v: Number(item.spk_jumlah_kirim),
+        v: num(item.spk_jumlah_kirim),
+        t: "n",
+        z: "#,##0",
         s: { ...styleDataCell, alignment: { horizontal: "right" } },
       },
       {
-        v: Number(item.krg_kirim),
+        v: num(item.krg_kirim),
+        t: "n",
+        z: "#,##0",
         s: { ...styleDataCell, alignment: { horizontal: "right" } },
       },
       {
-        v: Number(item.krg_Seaming),
+        v: num(item.krg_Seaming),
+        t: "n",
+        z: "#,##0",
         s: { ...styleDataCell, alignment: { horizontal: "right" } },
       },
       {
-        v: Number(item.krg_mataayam),
+        v: num(item.krg_mataayam),
+        t: "n",
+        z: "#,##0",
         s: { ...styleDataCell, alignment: { horizontal: "right" } },
       },
       {
-        v: Number(item.krg_Cetak),
+        v: num(item.krg_Cetak),
+        t: "n",
+        z: "#,##0",
         s: { ...styleDataCell, alignment: { horizontal: "right" } },
       },
       {
-        v: Number(item.krg_coly),
+        v: num(item.krg_coly),
+        t: "n",
+        z: "#,##0",
         s: { ...styleDataCell, alignment: { horizontal: "right" } },
       },
       {
-        v: Number(item.cetak_luarx),
+        v: num(item.cetak_luarx),
+        t: "n",
+        z: "#,##0",
         s: { ...styleDataCell, alignment: { horizontal: "right" } },
       },
+
+      // Kolom Mesin (Teks/Nama Mesin tetap general)
       {
         v: item.mt02 || 0,
         s: { ...styleDataCell, alignment: { horizontal: "center" } },
@@ -310,32 +334,25 @@ const exportToExcel = () => {
         v: item.mi || 0,
         s: { ...styleDataCell, alignment: { horizontal: "center" } },
       },
+
+      // Produksi Meter (Desimal murni)
       {
-        v: Number(item.krg_kirim_meter || 0),
-        s: {
-          ...styleDataCell,
-          alignment: { horizontal: "right" },
-          t: "n",
-          z: "#,##0.00",
-        },
+        v: num(item.krg_kirim_meter),
+        t: "n",
+        z: "#,##0.00",
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
       },
       {
-        v: Number(item.krg_Cetak_meter || 0),
-        s: {
-          ...styleDataCell,
-          alignment: { horizontal: "right" },
-          t: "n",
-          z: "#,##0.00",
-        },
+        v: num(item.krg_Cetak_meter),
+        t: "n",
+        z: "#,##0.00",
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
       },
       {
-        v: Number(item.krg_coly_meter || 0),
-        s: {
-          ...styleDataCell,
-          alignment: { horizontal: "right" },
-          t: "n",
-          z: "#,##0.00",
-        },
+        v: num(item.krg_coly_meter),
+        t: "n",
+        z: "#,##0.00",
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
       },
     ]);
   });
@@ -346,62 +363,110 @@ const exportToExcel = () => {
       v: "TOTAL (FILTERED)",
       s: { ...styleFooter, alignment: { horizontal: "right" } },
     },
-    ...Array(5).fill({ v: "", s: styleFooter }), // Spacer untuk merge kolom 0-5
-    { v: totals.value.spk_jumlah, s: styleFooter },
-    { v: totals.value.spk_jumlah_kirim, s: styleFooter },
-    { v: totals.value.krg_kirim, s: styleFooter },
-    { v: totals.value.krg_Seaming, s: styleFooter },
-    { v: totals.value.krg_mataayam, s: styleFooter },
-    { v: totals.value.krg_Cetak, s: styleFooter },
-    { v: totals.value.krg_coly, s: styleFooter },
-    { v: totals.value.cetak_luarx, s: styleFooter },
-    ...Array(5).fill({ v: "", s: styleFooter }), // Spacer kolom mesin
+    ...Array(5).fill({ v: "", s: styleFooter }),
+
+    // Totalan PCS (Integer murni)
     {
-      v: Number(totals.value.krg_kirim_meter),
-      s: { ...styleFooter, t: "n", z: "#,##0.00" },
+      v: num(totals.value.spk_jumlah),
+      t: "n",
+      z: "#,##0",
+      s: { ...styleFooter, alignment: { horizontal: "right" } },
     },
     {
-      v: Number(totals.value.krg_Cetak_meter),
-      s: { ...styleFooter, t: "n", z: "#,##0.00" },
+      v: num(totals.value.spk_jumlah_kirim),
+      t: "n",
+      z: "#,##0",
+      s: { ...styleFooter, alignment: { horizontal: "right" } },
     },
     {
-      v: Number(totals.value.krg_coly_meter),
-      s: { ...styleFooter, t: "n", z: "#,##0.00" },
+      v: num(totals.value.krg_kirim),
+      t: "n",
+      z: "#,##0",
+      s: { ...styleFooter, alignment: { horizontal: "right" } },
+    },
+    {
+      v: num(totals.value.krg_Seaming),
+      t: "n",
+      z: "#,##0",
+      s: { ...styleFooter, alignment: { horizontal: "right" } },
+    },
+    {
+      v: num(totals.value.krg_mataayam),
+      t: "n",
+      z: "#,##0",
+      s: { ...styleFooter, alignment: { horizontal: "right" } },
+    },
+    {
+      v: num(totals.value.krg_Cetak),
+      t: "n",
+      z: "#,##0",
+      s: { ...styleFooter, alignment: { horizontal: "right" } },
+    },
+    {
+      v: num(totals.value.krg_coly),
+      t: "n",
+      z: "#,##0",
+      s: { ...styleFooter, alignment: { horizontal: "right" } },
+    },
+    {
+      v: num(totals.value.cetak_luarx),
+      t: "n",
+      z: "#,##0",
+      s: { ...styleFooter, alignment: { horizontal: "right" } },
+    },
+
+    ...Array(5).fill({ v: "", s: styleFooter }),
+
+    // Totalan Meter (Desimal murni)
+    {
+      v: num(totals.value.krg_kirim_meter),
+      t: "n",
+      z: "#,##0.00",
+      s: { ...styleFooter, alignment: { horizontal: "right" } },
+    },
+    {
+      v: num(totals.value.krg_Cetak_meter),
+      t: "n",
+      z: "#,##0.00",
+      s: { ...styleFooter, alignment: { horizontal: "right" } },
+    },
+    {
+      v: num(totals.value.krg_coly_meter),
+      t: "n",
+      z: "#,##0.00",
+      s: { ...styleFooter, alignment: { horizontal: "right" } },
     },
   ];
   wsData.push(footerRow);
 
   const ws = XLSX.utils.aoa_to_sheet(wsData);
 
-  // --- 5. Konfigurasi Merge (Koordinat r: baris, c: kolom) ---
+  // --- 5. Konfigurasi Merge ---
   ws["!merges"] = [
-    // Vertical Merges (Header Row 1 ke Row 2)
-    { s: { r: 4, c: 0 }, e: { r: 5, c: 0 } }, // NOMOR
-    { s: { r: 4, c: 1 }, e: { r: 5, c: 1 } }, // NAMA
-    { s: { r: 4, c: 2 }, e: { r: 5, c: 2 } }, // TANGGAL
-    { s: { r: 4, c: 3 }, e: { r: 5, c: 3 } }, // DEADLINE
-    { s: { r: 4, c: 4 }, e: { r: 5, c: 4 } }, // BAHAN
-    { s: { r: 4, c: 5 }, e: { r: 5, c: 5 } }, // GRAMASI
-    { s: { r: 4, c: 13 }, e: { r: 5, c: 13 } }, // CTK L.
+    { s: { r: 4, c: 0 }, e: { r: 5, c: 0 } },
+    { s: { r: 4, c: 1 }, e: { r: 5, c: 1 } },
+    { s: { r: 4, c: 2 }, e: { r: 5, c: 2 } },
+    { s: { r: 4, c: 3 }, e: { r: 5, c: 3 } },
+    { s: { r: 4, c: 4 }, e: { r: 5, c: 4 } },
+    { s: { r: 4, c: 5 }, e: { r: 5, c: 5 } },
+    { s: { r: 4, c: 13 }, e: { r: 5, c: 13 } },
 
-    // Horizontal Merges (Group Headers)
-    { s: { r: 4, c: 6 }, e: { r: 4, c: 12 } }, // PRODUKSI (PCS)
-    { s: { r: 4, c: 14 }, e: { r: 4, c: 18 } }, // MESIN
-    { s: { r: 4, c: 19 }, e: { r: 4, c: 21 } }, // PRODUKSI (METER)
+    { s: { r: 4, c: 6 }, e: { r: 4, c: 12 } },
+    { s: { r: 4, c: 14 }, e: { r: 4, c: 18 } },
+    { s: { r: 4, c: 19 }, e: { r: 4, c: 21 } },
 
-    // Footer Merge
     { s: { r: wsData.length - 1, c: 0 }, e: { r: wsData.length - 1, c: 5 } },
   ];
 
   // Lebar Kolom
   ws["!cols"] = [
-    { wch: 15 }, // NOMOR
-    { wch: 30 }, // NAMA
-    { wch: 12 }, // TANGGAL
-    { wch: 12 }, // DEADLINE
-    { wch: 20 }, // BAHAN
-    { wch: 10 }, // GRAMASI
-    ...Array(16).fill({ wch: 10 }), // Sisanya
+    { wch: 15 },
+    { wch: 30 },
+    { wch: 12 },
+    { wch: 12 },
+    { wch: 20 },
+    { wch: 10 },
+    ...Array(16).fill({ wch: 12 }),
   ];
 
   const wb = XLSX.utils.book_new();

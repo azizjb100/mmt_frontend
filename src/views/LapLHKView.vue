@@ -365,6 +365,12 @@ const exportToExcel = async () => {
   const workbook = new ExcelJS.Workbook();
   const worksheet = workbook.addWorksheet("Rekap Produksi");
 
+  // Helper aman casting ke Number
+  const num = (value) => {
+    const parsed = Number(value);
+    return isNaN(parsed) ? 0 : parsed;
+  };
+
   worksheet.columns = [
     { header: "Mesin", key: "Mesin", width: 15 },
     {
@@ -377,16 +383,28 @@ const exportToExcel = async () => {
   ];
 
   dataRekap.value.perMesin.forEach((item) => {
-    const kapTotal = item.Kapasitas * selectedDaysCount.value;
-    const persen = calculatePercent(item.Total_Meter, kapTotal);
+    const kapTotal = num(item.Kapasitas) * num(selectedDaysCount.value);
 
-    worksheet.addRow({
+    // Pastikan hasil persentase berupa angka desimal murni (misal: 0.75 untuk 75%)
+    const persenValue = kapTotal > 0 ? num(item.Total_Meter) / kapTotal : 0;
+
+    const row = worksheet.addRow({
       Mesin: item.Mesin,
       KapasitasDinamis: kapTotal,
-      Total_Meter: item.Total_Meter,
-      Load: persen + "%",
+      Total_Meter: num(item.Total_Meter),
+      Load: persenValue, // MASUKKAN ANGKA DESIMAL MURNI
     });
+
+    // Terapkan format angka murni ke baris data
+    row.getCell("KapasitasDinamis").numFmt = "#,##0.00";
+    row.getCell("Total_Meter").numFmt = "#,##0.00";
+    row.getCell("Load").numFmt = "0.0%"; // FORMAT PERSEN EXCEL (Bisa di-SUM / Diolah)
+
+    row.getCell("KapasitasDinamis").alignment = { horizontal: "right" };
+    row.getCell("Total_Meter").alignment = { horizontal: "right" };
+    row.getCell("Load").alignment = { horizontal: "right" };
   });
+
   const buffer = await workbook.xlsx.writeBuffer();
   saveAs(
     new Blob([buffer]),
@@ -397,6 +415,11 @@ const exportToExcel = async () => {
 const exportOutputDigitalPrint = async () => {
   const workbook = new ExcelJS.Workbook();
   const worksheet = workbook.addWorksheet("OUTPUT DIGITAL PRINT");
+
+  const num = (value) => {
+    const parsed = Number(value);
+    return isNaN(parsed) ? 0 : parsed;
+  };
 
   // 1. INFO HEADER (Boyolali, Bulan, Divisi)
   worksheet.addRow(["OUT PUT DIGITAL PRINT"]).font = { bold: true, size: 14 };
@@ -421,7 +444,7 @@ const exportOutputDigitalPrint = async () => {
   const header2 = ["", "", ""];
 
   for (let i = 1; i <= daysInMonth; i++) {
-    header1.push("OUT PUT"); // Label atas untuk dimerge
+    header1.push("OUT PUT");
     header2.push(
       format(
         new Date(startObj.getFullYear(), startObj.getMonth(), i),
@@ -435,71 +458,86 @@ const exportOutputDigitalPrint = async () => {
   const row6 = worksheet.addRow(header1);
   const row7 = worksheet.addRow(header2);
 
-  // 4. MERGING HEADER (A6:A7, B6:B7, C6:C7, D6:n6, Last:Last)
+  // 4. MERGING HEADER
   worksheet.mergeCells("A6:A7");
   worksheet.mergeCells("B6:B7");
   worksheet.mergeCells("C6:C7");
 
-  // Hitung kolom terakhir untuk OUT PUT (Kolom D adalah index 4)
-  const lastOutPutCol = 3 + daysInMonth; // index kolom
-  worksheet.mergeCells(6, 4, 6, lastOutPutCol); // Merge baris 6 dari kolom 4 sampai kolom tanggal terakhir
+  const lastOutPutCol = 3 + daysInMonth;
+  worksheet.mergeCells(6, 4, 6, lastOutPutCol);
 
   const jumlahColIndex = 4 + daysInMonth;
-  worksheet.mergeCells(6, jumlahColIndex, 7, jumlahColIndex); // Merge JUMLAH
+  worksheet.mergeCells(6, jumlahColIndex, 7, jumlahColIndex);
 
   // 5. MENGISI DATA BARIS
   dataRekap.value.perMesin.forEach((item) => {
-    const rowData: any[] = [
+    const rowData = [
       item.Mesin,
       "meter",
-      item.Target || "", // Tambahkan target jika ada di data
+      item.Target ? num(item.Target) : "", // Target berupa angka jika ada
     ];
 
-    // Loop tanggal 1 s/d End
     let totalBaris = 0;
     for (let i = 1; i <= daysInMonth; i++) {
-      // Cari data harian yang memiliki mesin yang sama DAN tanggal yang sama
       const dailyData = dataRekap.value.perHari.find((h) => {
         const hDate = new Date(h.Tanggal);
-        // Gunakan getUTCDate jika API Anda mengirimkan format ISO UTC
         const tglData = hDate.getDate();
         return h.Mesin === item.Mesin && tglData === i;
       });
 
-      const val = dailyData ? Number(dailyData.Total_Meter) : 0;
+      const val = dailyData ? num(dailyData.Total_Meter) : 0;
       rowData.push(val);
       totalBaris += val;
     }
     rowData.push(totalBaris);
-    worksheet.addRow(rowData);
+
+    const dataRow = worksheet.addRow(rowData);
+
+    // SUNTIKKAN FORMAT ANGKA UNTUK SETIAP SEL DATA DINAMIS
+    // Kolom Target (Kolom 3)
+    if (item.Target) {
+      dataRow.getCell(3).numFmt = "#,##0.00";
+      dataRow.getCell(3).alignment = { horizontal: "right" };
+    }
+
+    // Kolom Tanggal Dinamis (Mulai kolom 4 s/d Kolom Jumlah paling kanan)
+    for (let colIdx = 4; colIdx <= jumlahColIndex; colIdx++) {
+      const cell = dataRow.getCell(colIdx);
+      cell.numFmt = "#,##0.00"; // Terapkan desimal murni desimal 2 digit
+      cell.alignment = { horizontal: "right" };
+    }
   });
 
   // 6. STYLING (Border, Warna Kuning, Alignment)
   worksheet.eachRow((row, rowNumber) => {
-    row.eachCell((cell) => {
+    row.eachCell((cell, colNumber) => {
+      // Untuk baris data, biarkan perataan kolom angka tetap kanan (right) agar rapi
+      if (rowNumber > 7 && colNumber >= 3) {
+        cell.alignment = { vertical: "middle", horizontal: "right" };
+      } else {
+        cell.alignment = { vertical: "middle", horizontal: "center" };
+      }
+
       cell.border = {
         top: { style: "thin" },
         left: { style: "thin" },
         bottom: { style: "thin" },
         right: { style: "thin" },
       };
-      cell.alignment = { vertical: "middle", horizontal: "center" };
 
       // Header (Baris 6 & 7)
       if (rowNumber === 6 || rowNumber === 7) {
         cell.fill = {
           type: "pattern",
           pattern: "solid",
-          fgColor: { argb: "FFFFF200" }, // Kuning sesuai gambar
+          fgColor: { argb: "FFFFF200" },
         };
         cell.font = { bold: true, size: 10 };
+        cell.alignment = { vertical: "middle", horizontal: "center" };
       }
 
       // Kolom JUMLAH (paling kanan)
-      if (
-        cell.address.startsWith(worksheet.getColumn(jumlahColIndex).letter) &&
-        rowNumber > 5
-      ) {
+      if (colNumber === jumlahColIndex && rowNumber > 5) {
         cell.fill = {
           type: "pattern",
           pattern: "solid",

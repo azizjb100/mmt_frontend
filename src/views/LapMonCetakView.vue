@@ -254,7 +254,7 @@
   </PageLayout>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, onMounted, computed } from "vue";
 import PageLayout from "../components/PageLayout.vue";
 import api from "@/services/api";
@@ -406,7 +406,13 @@ const exportToExcel = async () => {
   const workbook = new ExcelJS.Workbook();
   const worksheet = workbook.addWorksheet("Monitoring Cetak");
 
-  // Define Headers (2 rows)
+  // Helper aman untuk memaksa konversi ke tipe Number murni
+  const num = (value: any): number => {
+    const parsed = Number(value);
+    return isNaN(parsed) ? 0 : parsed;
+  };
+
+  // Define Headers (2 rows) - Total 23 Kolom
   const headerRow1 = [
     "PERUSAHAAN",
     "TGL LHK",
@@ -414,23 +420,23 @@ const exportToExcel = async () => {
     "DEADLINE",
     "NAMA ORDER",
     "UKURAN",
-    "",
-    "NO SPK",
+    "", // F & G
+    "NO SPK", // H
     "ORDER SPK",
-    "",
-    "JENIS",
+    "", // I & J
+    "JENIS", // K
     "HASIL CETAK (PCS)",
     "",
     "",
     "",
-    "",
-    "TOTAL QTY",
+    "", // L, M, N, O, P
+    "TOTAL QTY", // Q
     "HASIL CETAK (MTR)",
     "",
     "",
     "",
-    "",
-    "KURANG",
+    "", // R, S, T, U, V
+    "KURANG", // W
   ];
 
   const headerRow2 = [
@@ -440,22 +446,22 @@ const exportToExcel = async () => {
     "",
     "",
     "PANG",
-    "LEB",
+    "LEB", // F & G
     "",
     "PCS",
-    "MTR",
+    "MTR", // I & J
     "",
     "MT01",
     "MT02",
     "MT03",
     "MT04",
-    "MT05",
+    "MT05", // L s/d P
     "",
     "JMT01",
     "JMT02",
     "JMT03",
     "JMT04",
-    "JMT05",
+    "JMT05", // R s/d V
     "",
   ];
 
@@ -499,44 +505,50 @@ const exportToExcel = async () => {
     });
   });
 
-  // Add Data
+  // Add Data - Dipastikan 23 elemen array agar pas dengan struktur header
   filteredData.value.forEach((item) => {
     const dataRow = worksheet.addRow([
-      item.perush,
-      item.tglLhk,
-      item.tglSpk,
-      item.deadline,
-      item.namaOrder,
-      item.panjang,
-      item.lebar,
-      item.noSpk,
-      item.pcs,
-      item.order_meter,
-      item.jenis,
-      item.mt01,
-      item.mt02,
-      item.mt03,
-      item.mt04,
-      item.mt05,
-      item.jmlcetak + item.cetak_luar,
-      item.jmt01,
-      item.jmt02,
-      item.jmt03,
-      item.jmt04,
-      item.jmt05,
-      item.jmlkurang,
+      item.perush, // 1 (A)
+      item.tglLhk, // 2 (B)
+      item.tglSpk, // 3 (C)
+      item.deadline, // 4 (D)
+      item.namaOrder, // 5 (E)
+      num(item.panjang), // 6 (F) -> Desimal
+      num(item.lebar), // 7 (G) -> Desimal
+      item.noSpk, // 8 (H)
+      num(item.pcs), // 9 (I) -> Integer
+      num(item.order_meter), // 10 (J) -> Desimal
+      item.jenis, // 11 (K)
+      num(item.mt01), // 12 (L) -> Integer
+      num(item.mt02), // 13 (M) -> Integer
+      num(item.mt03), // 14 (N) -> Integer
+      num(item.mt04), // 15 (O) -> Integer
+      num(item.mt05), // 16 (P) -> Integer
+      num(item.jmlcetak) + num(item.cetak_luar), // 17 (Q) -> Integer
+      num(item.jmt01), // 18 (R) -> Desimal
+      num(item.jmt02), // 19 (S) -> Desimal
+      num(item.jmt03), // 20 (T) -> Desimal
+      num(item.jmt04), // 21 (U) -> Desimal
+      num(item.jmt05), // 22 (V) -> Desimal
+      num(item.jmlkurang), // 23 (W) -> Integer
     ]);
 
-    // Format numeric columns
+    // Terapkan format desimal (2 digit di belakang koma) & rata kanan
     [6, 7, 10, 18, 19, 20, 21, 22].forEach((col) => {
-      dataRow.getCell(col).numFmt = "#,##0.00";
+      const cell = dataRow.getCell(col);
+      cell.numFmt = "#,##0.00";
+      cell.alignment = { horizontal: "right" };
     });
+
+    // Terapkan format integer (tanpa desimal) & rata kanan
     [9, 12, 13, 14, 15, 16, 17, 23].forEach((col) => {
-      dataRow.getCell(col).numFmt = "#,##0";
+      const cell = dataRow.getCell(col);
+      cell.numFmt = "#,##0";
+      cell.alignment = { horizontal: "right" };
     });
   });
 
-  // Add Grand Total
+  // Add Grand Total - Pas 23 Kolom
   const totalRow = worksheet.addRow([
     "GRAND TOTAL",
     "",
@@ -545,31 +557,44 @@ const exportToExcel = async () => {
     "",
     "",
     "",
-    "",
-    reportTotals.value.pcs,
-    reportTotals.value.order_meter,
-    "",
-    reportTotals.value.mt01,
-    reportTotals.value.mt02,
-    reportTotals.value.mt03,
-    reportTotals.value.mt04,
-    reportTotals.value.mt05,
-    reportTotals.value.jmlcetak + reportTotals.value.cetak_luar,
-    reportTotals.value.jmt01,
-    reportTotals.value.jmt02,
-    reportTotals.value.jmt03,
-    reportTotals.value.jmt04,
-    reportTotals.value.jmt05,
-    reportTotals.value.jmlkurang,
+    "", // 1 s/d 8
+    num(reportTotals.value.pcs), // 9
+    num(reportTotals.value.order_meter), // 10
+    "", // 11
+    num(reportTotals.value.mt01), // 12
+    num(reportTotals.value.mt02), // 13
+    num(reportTotals.value.mt03), // 14
+    num(reportTotals.value.mt04), // 15
+    num(reportTotals.value.mt05), // 16
+    num(reportTotals.value.jmlcetak) + num(reportTotals.value.cetak_luar), // 17
+    num(reportTotals.value.jmt01), // 18
+    num(reportTotals.value.jmt02), // 19
+    num(reportTotals.value.jmt03), // 20
+    num(reportTotals.value.jmt04), // 21
+    num(reportTotals.value.jmt05), // 22
+    num(reportTotals.value.jmlkurang), // 23
   ]);
 
-  totalRow.eachCell((cell) => {
+  // Style Grand Total & Format Angka Seluruh Baris Total
+  totalRow.eachCell((cell, colNumber) => {
     cell.font = { bold: true };
     cell.fill = {
       type: "pattern",
       pattern: "solid",
       fgColor: { argb: "FFF0F4F8" },
     };
+    cell.border = {
+      top: { style: "thin" },
+      bottom: { style: "double" },
+    };
+
+    if ([6, 7, 10, 18, 19, 20, 21, 22].includes(colNumber)) {
+      cell.numFmt = "#,##0.00";
+      cell.alignment = { horizontal: "right" };
+    } else if ([9, 12, 13, 14, 15, 16, 17, 23].includes(colNumber)) {
+      cell.numFmt = "#,##0";
+      cell.alignment = { horizontal: "right" };
+    }
   });
 
   worksheet.columns.forEach((col) => {
@@ -657,7 +682,6 @@ onMounted(fetchReport);
   z-index: 30;
   background: #f0f4f8 !important;
 }
-/* Hapus selector yang menyembunyikan thead agar header custom muncul */
 .desktop-table :deep(thead.v-data-table__thead) {
   display: none !important;
 }

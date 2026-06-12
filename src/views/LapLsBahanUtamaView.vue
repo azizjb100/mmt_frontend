@@ -858,6 +858,12 @@ const exportToExcel = () => {
 
   const fileName = `Laporan_Stok_Bahan_Utama_${startDate.value}.xlsx`;
 
+  // Helper aman untuk memastikan nilai di-cast ke Number murni
+  const num = (value) => {
+    const parsed = Number(value);
+    return isNaN(parsed) ? 0 : parsed;
+  };
+
   const styleHeaderMain = {
     fill: { fgColor: { rgb: "B3E5FC" } },
     font: { bold: true, color: { rgb: "000000" }, sz: 10 },
@@ -907,24 +913,29 @@ const exportToExcel = () => {
     { v: "TYPE", s: styleHeaderMain },
     { v: "STATUS", s: styleHeaderMain },
     { v: "SPESIFIKASI", s: styleHeaderMain },
-    { v: "", s: styleHeaderMain },
-    { v: "", s: styleHeaderMain },
+    "",
+    "", // Gabung Spesifikasi
     { v: "STOCK AWAL", s: styleHeaderMain },
-    { v: "", s: styleHeaderMain },
-    ...(canSeeNominal.value ? [{ v: "", s: styleHeaderMain }] : []),
+    "",
+    ...(canSeeNominal.value ? [""] : []),
     { v: "TERIMA", s: styleHeaderMain },
-    { v: "", s: styleHeaderMain },
-    ...(canSeeNominal.value ? [{ v: "", s: styleHeaderMain }] : []),
+    "",
+    ...(canSeeNominal.value ? [""] : []),
     { v: "KELUAR", s: styleHeaderMain },
-    { v: "", s: styleHeaderMain },
-    ...(canSeeNominal.value ? [{ v: "", s: styleHeaderMain }] : []),
+    "",
+    ...(canSeeNominal.value ? [""] : []),
     { v: "RETUR", s: styleHeaderMain },
-    { v: "", s: styleHeaderMain },
+    "",
     { v: "STOCK AKHIR", s: styleHeaderMain },
-    { v: "", s: styleHeaderMain },
-    ...(canSeeNominal.value ? [{ v: "", s: styleHeaderMain }] : []),
-    { v: "KETERANGAN", s: styleHeaderMain }, // Tambahan Header Excel
+    "",
+    ...(canSeeNominal.value ? [""] : []),
+    { v: "KETERANGAN", s: styleHeaderMain },
   ];
+
+  // Isi cell kosong headerRow1 dengan style agar border muncul
+  headerRow1.forEach((cell, idx) => {
+    if (cell === "") headerRow1[idx] = { v: "", s: styleHeaderMain };
+  });
   wsData.push(headerRow1);
 
   const headerRow2 = [
@@ -950,10 +961,11 @@ const exportToExcel = () => {
     { v: "ROLL", s: styleHeaderSub },
     { v: "M2", s: styleHeaderSub },
     ...(canSeeNominal.value ? [{ v: "NOMINAL (RP)", s: styleHeaderSub }] : []),
-    { v: "", s: styleHeaderSub }, // Sub header penyeimbang keterangan
+    { v: "", s: styleHeaderSub },
   ];
   wsData.push(headerRow2);
 
+  // --- 2. LOOP DATA VALUE (Root Level 't' dan 'z') ---
   filteredData.value.forEach((row) => {
     const dataRow = [
       { v: row.kode, s: styleDataCell },
@@ -961,97 +973,143 @@ const exportToExcel = () => {
       { v: row.jb_nama || "", s: styleDataCell },
       { v: row.type_barang || "-", s: styleDataCell },
       { v: row.status_barang || "-", s: styleDataCell },
+
+      // Spesifikasi (Desimal)
       {
-        v: row.Panjang,
+        v: num(row.Panjang),
+        t: "n",
+        z: "#,##0.00",
         s: { ...styleDataCell, alignment: { horizontal: "right" } },
       },
       {
-        v: row.Lebar,
+        v: num(row.Lebar),
+        t: "n",
+        z: "#,##0.00",
         s: { ...styleDataCell, alignment: { horizontal: "right" } },
       },
       {
-        v: row.m2,
+        v: num(row.m2),
+        t: "n",
+        z: "#,##0.00",
         s: { ...styleDataCell, alignment: { horizontal: "right" } },
       },
+
+      // Stock Awal
       {
-        v: row.stok_awal_q,
+        v: num(row.stok_awal_q),
+        t: "n",
+        z: "#,##0",
         s: { ...styleDataCell, alignment: { horizontal: "center" } },
       },
       {
-        v: row.stok_awal_m,
+        v: num(row.stok_awal_m),
+        t: "n",
+        z: "#,##0.00",
         s: { ...styleDataCell, alignment: { horizontal: "right" } },
       },
     ];
-    if (canSeeNominal.value)
+    if (canSeeNominal.value) {
       dataRow.push({
-        v: row.stok_awal_nominal,
+        v: num(row.stok_awal_nominal),
+        t: "n",
+        z: "#,##0",
         s: { ...styleDataCell, alignment: { horizontal: "right" } },
       });
+    }
 
+    // Terima
     dataRow.push(
       {
-        v: row.terima_q,
+        v: num(row.terima_q),
+        t: "n",
+        z: "#,##0",
         s: { ...styleDataCell, alignment: { horizontal: "center" } },
       },
       {
-        v: row.terima_m,
+        v: num(row.terima_m),
+        t: "n",
+        z: "#,##0.00",
         s: { ...styleDataCell, alignment: { horizontal: "right" } },
       },
     );
-    if (canSeeNominal.value)
+    if (canSeeNominal.value) {
       dataRow.push({
-        v: row.terima_nominal,
+        v: num(row.terima_nominal),
+        t: "n",
+        z: "#,##0",
         s: { ...styleDataCell, alignment: { horizontal: "right" } },
       });
+    }
 
+    // Keluar
     dataRow.push(
       {
-        v: row.keluar_q,
+        v: num(row.keluar_q),
+        t: "n",
+        z: "#,##0",
         s: { ...styleDataCell, alignment: { horizontal: "center" } },
       },
       {
-        v: row.keluar_m,
+        v: num(row.keluar_m),
+        t: "n",
+        z: "#,##0.00",
         s: { ...styleDataCell, alignment: { horizontal: "right" } },
       },
     );
-    if (canSeeNominal.value)
+    if (canSeeNominal.value) {
       dataRow.push({
-        v: row.keluar_nominal,
+        v: num(row.keluar_nominal),
+        t: "n",
+        z: "#,##0",
         s: { ...styleDataCell, alignment: { horizontal: "right" } },
       });
+    }
 
+    // Retur (Hanya Roll & M2, tidak ada nominal)
     dataRow.push(
       {
-        v: row.retur_q,
+        v: num(row.retur_q),
+        t: "n",
+        z: "#,##0",
         s: { ...styleDataCell, alignment: { horizontal: "center" } },
       },
       {
-        v: row.retur_m,
+        v: num(row.retur_m),
+        t: "n",
+        z: "#,##0.00",
         s: { ...styleDataCell, alignment: { horizontal: "right" } },
       },
     );
 
+    // Stock Akhir
     dataRow.push(
       {
-        v: row.stok_akhir_q,
+        v: num(row.stok_akhir_q),
+        t: "n",
+        z: "#,##0",
         s: { ...styleDataCell, alignment: { horizontal: "center" } },
       },
       {
-        v: row.stok_akhir_m,
+        v: num(row.stok_akhir_m),
+        t: "n",
+        z: "#,##0.00",
         s: { ...styleDataCell, alignment: { horizontal: "right" } },
       },
     );
-    if (canSeeNominal.value)
+    if (canSeeNominal.value) {
       dataRow.push({
-        v: row.stok_akhir_nominal,
+        v: num(row.stok_akhir_nominal),
+        t: "n",
+        z: "#,##0",
         s: { ...styleDataCell, alignment: { horizontal: "right" } },
       });
+    }
 
-    dataRow.push({ v: row.keterangan || "", s: styleDataCell }); // Cetak Keterangan ke Excel
-
+    dataRow.push({ v: row.keterangan || "", s: styleDataCell });
     wsData.push(dataRow);
   });
 
+  // --- 3. SUMMARY FOOTER TOTAL (Root Level 't' dan 'z') ---
   const footerRow = [
     { v: "TOTAL", s: { ...styleFooter, alignment: { horizontal: "right" } } },
     { v: "", s: styleFooter },
@@ -1061,41 +1119,112 @@ const exportToExcel = () => {
     { v: "", s: styleFooter },
     { v: "", s: styleFooter },
     { v: "", s: styleFooter },
-    { v: reportTotals.value.stok_awal_q, s: styleFooter },
-    { v: reportTotals.value.stok_awal_m, s: styleFooter },
+    {
+      v: num(reportTotals.value.stok_awal_q),
+      t: "n",
+      z: "#,##0",
+      s: { ...styleFooter, alignment: { horizontal: "center" } },
+    },
+    {
+      v: num(reportTotals.value.stok_awal_m),
+      t: "n",
+      z: "#,##0.00",
+      s: { ...styleFooter, alignment: { horizontal: "right" } },
+    },
   ];
-  if (canSeeNominal.value)
-    footerRow.push({ v: reportTotals.value.stok_awal_nominal, s: styleFooter });
-
-  footerRow.push(
-    { v: reportTotals.value.terima_q, s: styleFooter },
-    { v: reportTotals.value.terima_m, s: styleFooter },
-  );
-  if (canSeeNominal.value)
-    footerRow.push({ v: reportTotals.value.terima_nominal, s: styleFooter });
-
-  footerRow.push(
-    { v: reportTotals.value.keluar_q, s: styleFooter },
-    { v: reportTotals.value.keluar_m, s: styleFooter },
-  );
-  if (canSeeNominal.value)
-    footerRow.push({ v: reportTotals.value.keluar_nominal, s: styleFooter });
-
-  footerRow.push(
-    { v: reportTotals.value.retur_q, s: styleFooter },
-    { v: reportTotals.value.retur_m, s: styleFooter },
-  );
-
-  footerRow.push(
-    { v: reportTotals.value.stok_akhir_q, s: styleFooter },
-    { v: reportTotals.value.stok_akhir_m, s: styleFooter },
-  );
-  if (canSeeNominal.value)
+  if (canSeeNominal.value) {
     footerRow.push({
-      v: reportTotals.value.stok_akhir_nominal,
-      s: styleFooter,
+      v: num(reportTotals.value.stok_awal_nominal),
+      t: "n",
+      z: "#,##0",
+      s: { ...styleFooter, alignment: { horizontal: "right" } },
     });
-  footerRow.push({ v: "", s: styleFooter }); // Footer Keterangan Kosong
+  }
+
+  footerRow.push(
+    {
+      v: num(reportTotals.value.terima_q),
+      t: "n",
+      z: "#,##0",
+      s: { ...styleFooter, alignment: { horizontal: "center" } },
+    },
+    {
+      v: num(reportTotals.value.terima_m),
+      t: "n",
+      z: "#,##0.00",
+      s: { ...styleFooter, alignment: { horizontal: "right" } },
+    },
+  );
+  if (canSeeNominal.value) {
+    footerRow.push({
+      v: num(reportTotals.value.terima_nominal),
+      t: "n",
+      z: "#,##0",
+      s: { ...styleFooter, alignment: { horizontal: "right" } },
+    });
+  }
+
+  footerRow.push(
+    {
+      v: num(reportTotals.value.keluar_q),
+      t: "n",
+      z: "#,##0",
+      s: { ...styleFooter, alignment: { horizontal: "center" } },
+    },
+    {
+      v: num(reportTotals.value.keluar_m),
+      t: "n",
+      z: "#,##0.00",
+      s: { ...styleFooter, alignment: { horizontal: "right" } },
+    },
+  );
+  if (canSeeNominal.value) {
+    footerRow.push({
+      v: num(reportTotals.value.keluar_nominal),
+      t: "n",
+      z: "#,##0",
+      s: { ...styleFooter, alignment: { horizontal: "right" } },
+    });
+  }
+
+  footerRow.push(
+    {
+      v: num(reportTotals.value.retur_q),
+      t: "n",
+      z: "#,##0",
+      s: { ...styleFooter, alignment: { horizontal: "center" } },
+    },
+    {
+      v: num(reportTotals.value.retur_m),
+      t: "n",
+      z: "#,##0.00",
+      s: { ...styleFooter, alignment: { horizontal: "right" } },
+    },
+  );
+
+  footerRow.push(
+    {
+      v: num(reportTotals.value.stok_akhir_q),
+      t: "n",
+      z: "#,##0",
+      s: { ...styleFooter, alignment: { horizontal: "center" } },
+    },
+    {
+      v: num(reportTotals.value.stok_akhir_m),
+      t: "n",
+      z: "#,##0.00",
+      s: { ...styleFooter, alignment: { horizontal: "right" } },
+    },
+  );
+  if (canSeeNominal.value) {
+    footerRow.push({
+      v: num(reportTotals.value.stok_akhir_nominal),
+      t: "n",
+      z: "#,##0",
+      s: { ...styleFooter, alignment: { horizontal: "right" } },
+    });
+  }
+  footerRow.push({ v: "", s: styleFooter });
 
   wsData.push(footerRow);
 
@@ -1108,7 +1237,9 @@ const exportToExcel = () => {
     { s: { r: offset, c: 2 }, e: { r: offset + 1, c: 2 } },
     { s: { r: offset, c: 3 }, e: { r: offset + 1, c: 3 } },
     { s: { r: offset, c: 4 }, e: { r: offset + 1, c: 4 } },
-    { s: { r: offset, c: 5 }, e: { r: offset, c: 7 } },
+    { s: { r: offset, c: 5 }, e: { r: offset + 1, c: 5 } }, // Perbaikan vertikal merge panjang
+    { s: { r: offset, c: 6 }, e: { r: offset + 1, c: 6 } }, // Perbaikan vertikal merge lebar
+    { s: { r: offset, c: 7 }, e: { r: offset + 1, c: 7 } }, // Perbaikan vertikal merge m2/roll
     { s: { r: wsData.length - 1, c: 0 }, e: { r: wsData.length - 1, c: 7 } },
   ];
 
@@ -1132,7 +1263,6 @@ const exportToExcel = () => {
   });
   currC += nominalStep;
 
-  // Merge Vertikal Kolom Keterangan di Excel Header
   merges.push({ s: { r: offset, c: currC }, e: { r: offset + 1, c: currC } });
 
   ws["!merges"] = merges;
@@ -1142,6 +1272,7 @@ const exportToExcel = () => {
     { wch: 15 },
     { wch: 12 },
     { wch: 12 },
+    ...Array(20).fill({ wch: 12 }),
   ];
 
   const wb = XLSX.utils.book_new();

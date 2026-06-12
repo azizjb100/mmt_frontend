@@ -30,7 +30,7 @@ const selectedItem = computed(() =>
   isSingleSelected.value ? selected.value[0] : null,
 );
 
-// --- KEBUTUHAN BARU: HEADERS LENGKAP SESUAI PERMINTAAN ---
+// --- HEADERS TABLE BROWSE ---
 const headers = [
   { title: "Nomor SPK", key: "SPK", width: "140px", fixed: true },
   { title: "MO", key: "MO", width: "100px" },
@@ -64,18 +64,16 @@ const headers = [
   { title: "Alasan Close", key: "Alasan_Close", width: "180px" },
   { title: "No Penawaran", key: "No_Penawaran", width: "140px" },
   { title: "MAP", key: "MAP", width: "100px" },
-  // --- Kolom Jalur Produksi & Realisasi ---
   { title: "Potong", key: "Potong", width: "90px", align: "end" },
   { title: "Repeat", key: "Repeat", width: "90px" },
   { title: "QC Potong", key: "QC_Potong", width: "100px", align: "end" },
   { title: "Bordir", key: "Bordir", width: "90px", align: "end" },
-  { title: "Cetak", key: "Sudah_Cetak", width: "90px", align: "end" }, // Sudah_Cetak mapped to Cetak
+  { title: "Cetak", key: "Sudah_Cetak", width: "90px", align: "end" },
   { title: "QC Cetak", key: "QC_Cetak", width: "100px", align: "end" },
   { title: "DC", key: "DC", width: "90px", align: "end" },
   { title: "Jahit", key: "Jahit", width: "90px", align: "end" },
   { title: "Lipat", key: "Lipat", width: "90px", align: "end" },
   { title: "Jadi", key: "Jadi", width: "90px", align: "end" },
-  // --- Kolom Sisa / Minus Produksi ---
   { title: "Kurang Jadi", key: "Kurang_Jadi", width: "110px", align: "end" },
   {
     title: "Kurang Potong",
@@ -104,7 +102,7 @@ const headers = [
   { title: "Kurang Jahit", key: "Kurang_Jahit", width: "110px", align: "end" },
   { title: "Kurang Lipat", key: "Kurang_Lipat", width: "110px", align: "end" },
   { title: "Aktif", key: "Aktif", width: "80px" },
-  { title: "ACC PIN", key: "Ngedit", width: "100px" }, // Logika Ngedit
+  { title: "ACC PIN", key: "Ngedit", width: "100px" },
   { title: "Acc MO", key: "Acc_MO", width: "100px" },
   { title: "", key: "data-table-expand", fixed: true, align: "end" },
 ];
@@ -139,6 +137,7 @@ const fetchData = async () => {
 const handleRowClick = (_event: any, row: any) => {
   selected.value = [row.item];
 };
+
 const getRowProps = ({ item }: any) => ({
   class: item?.SPK === selectedItem.value?.SPK ? "row-selected" : "",
 });
@@ -150,6 +149,8 @@ const handlePrint = () => {
   }
   const nomorSpk = selectedItem.value.SPK;
   const statusAcc = selectedItem.value.Ngedit;
+
+  // PERBAIKAN: Mengikuti logika Delphi, jika statusAcc adalah 'ACC' atau kosong '', diperbolehkan cetak.
   if (statusAcc !== "ACC" && statusAcc !== "") {
     toast.warning(
       `SPK ${nomorSpk} belum di-ACC atau masih ${statusAcc}, tidak bisa cetak.`,
@@ -189,24 +190,26 @@ onMounted(fetchData);
 <template>
   <PageLayout title="Monitoring SPK" icon="mdi-file-find">
     <template #header-actions>
-      <v-btn size="x-small" color="primary" @click="handleCreate"
-        ><v-icon start>mdi-plus</v-icon> Baru</v-btn
-      >
+      <v-btn size="x-small" color="primary" @click="handleCreate">
+        <v-icon start>mdi-plus</v-icon> Baru
+      </v-btn>
       <v-btn
         size="x-small"
         color="warning"
         :disabled="!isSingleSelected"
         @click="handleEdit"
-        ><v-icon start>mdi-pencil</v-icon> Ubah</v-btn
       >
+        <v-icon start>mdi-pencil</v-icon> Ubah
+      </v-btn>
       <v-divider vertical class="mx-2" />
       <v-btn
         size="x-small"
         color="info"
         :disabled="!isSingleSelected"
         @click="handlePrint"
-        ><v-icon start>mdi-printer</v-icon> Cetak SPK</v-btn
       >
+        <v-icon start>mdi-printer</v-icon> Cetak SPK
+      </v-btn>
     </template>
 
     <div class="browse-content">
@@ -254,8 +257,9 @@ onMounted(fetchData);
               size="x-small"
               @click="fetchData"
               :loading="loading.master"
-              ><v-icon>mdi-refresh</v-icon> Refresh</v-btn
             >
+              <v-icon>mdi-refresh</v-icon> Refresh
+            </v-btn>
           </div>
         </v-card-text>
       </v-card>

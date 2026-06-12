@@ -394,6 +394,12 @@ const exportToExcel = () => {
 
   const fileName = `Laporan_SPK_MMT_${startDate.value}.xlsx`;
 
+  // Helper aman untuk memastikan nilai di-cast ke Number murni
+  const num = (value) => {
+    const parsed = Number(value);
+    return isNaN(parsed) ? 0 : parsed;
+  };
+
   // --- DEFINISI STYLE ---
   const styleHeaderMain = {
     fill: { fgColor: { rgb: "B3E5FC" } }, // Biru Muda
@@ -443,8 +449,7 @@ const exportToExcel = () => {
   ]);
   wsData.push([]); // Baris Kosong
 
-  // --- 2. HEADER ROW 1 (Header Grup) ---
-  // Kita buat 3 baris header karena ada 3 level (JUMLAH CETAK -> PCS -> MESIN)
+  // --- 2. HEADER ROW 1 ---
   const headerRow1 = [
     { v: "NAMA ORDER", s: styleHeaderMain },
     { v: "NOMOR SPK", s: styleHeaderMain },
@@ -459,34 +464,57 @@ const exportToExcel = () => {
     { v: "FINISHING", s: styleHeaderMain },
     { v: "ORDER", s: styleHeaderMain },
     { v: "JUMLAH CETAK", s: styleHeaderMain },
-    ...Array(5).fill({ v: "", s: styleHeaderMain }), // Sisa kolom Jml Cetak
+    "",
+    "",
+    "",
+    "",
+    "", // Sisa kolom Jml Cetak
     { v: "JML SEAMING", s: styleHeaderMain },
     { v: "JML MATA AYAM", s: styleHeaderMain },
     { v: "JML COLY", s: styleHeaderMain },
     { v: "JML JADI", s: styleHeaderMain },
     { v: "JML KIRIM", s: styleHeaderMain },
     { v: "MESIN CETAK (METER)", s: styleHeaderMain },
-    ...Array(5).fill({ v: "", s: styleHeaderMain }), // Sisa kolom Mesin Meter
+    "",
+    "",
+    "",
+    "",
+    "", // Sisa kolom Mesin Meter
     { v: "SEAMING (M)", s: styleHeaderMain },
     { v: "KIRIM (M)", s: styleHeaderMain },
   ];
+
+  headerRow1.forEach((cell, idx) => {
+    if (cell === "") headerRow1[idx] = { v: "", s: styleHeaderMain };
+  });
   wsData.push(headerRow1);
 
-  // --- 3. HEADER ROW 2 (Sub-Group) ---
+  // --- 3. HEADER ROW 2 ---
   const headerRow2 = [
-    ...Array(12).fill({ v: "", s: styleHeaderMain }), // Bawah identitas kosong
+    ...Array(12).fill({ v: "", s: styleHeaderMain }),
     { v: "PCS", s: styleHeaderSub },
-    ...Array(4).fill({ v: "", s: styleHeaderSub }),
+    "",
+    "",
+    "",
+    "",
     { v: "TOTAL", s: styleHeaderSub },
     ...Array(5).fill({ v: "", s: styleHeaderMain }),
     { v: "TOTAL", s: styleHeaderSub },
-    ...Array(5).fill({ v: "", s: styleHeaderSub }),
+    "",
+    "",
+    "",
+    "",
+    "",
     { v: "", s: styleHeaderMain },
     { v: "", s: styleHeaderMain },
   ];
+
+  headerRow2.forEach((cell, idx) => {
+    if (cell === "") headerRow2[idx] = { v: "", s: styleHeaderSub };
+  });
   wsData.push(headerRow2);
 
-  // --- 4. HEADER ROW 3 (Nama Mesin/Unit) ---
+  // --- 4. HEADER ROW 3 ---
   const headerRow3 = [
     ...Array(12).fill({ v: "", s: styleHeaderMain }),
     { v: "MT01", s: styleHeaderSub },
@@ -495,7 +523,11 @@ const exportToExcel = () => {
     { v: "MT04", s: styleHeaderSub },
     { v: "MT05", s: styleHeaderSub },
     { v: "TOTAL", s: styleHeaderSub },
-    ...Array(5).fill({ v: "", s: styleHeaderMain }), // Seaming s/d Kirim
+    { v: "JML SEAMING", s: styleHeaderSub },
+    { v: "JML MATA AYAM", s: styleHeaderSub },
+    { v: "JML COLY", s: styleHeaderSub },
+    { v: "JML JADI", s: styleHeaderSub },
+    { v: "JML KIRIM", s: styleHeaderSub },
     { v: "MT01", s: styleHeaderSub },
     { v: "MT02", s: styleHeaderSub },
     { v: "MT03", s: styleHeaderSub },
@@ -505,10 +537,13 @@ const exportToExcel = () => {
     { v: "METER", s: styleHeaderSub },
     { v: "METER", s: styleHeaderSub },
   ];
+
+  headerRow3.forEach((cell, idx) => {
+    if (cell === "") headerRow3[idx] = { v: "", s: styleHeaderSub };
+  });
   wsData.push(headerRow3);
 
   // --- 5. DATA BODY ---
-  const rowData: any[] = [];
   gridApi.value?.forEachNodeAfterFilterAndSort((node) => {
     const item = node.data;
     wsData.push([
@@ -531,42 +566,159 @@ const exportToExcel = () => {
         s: { ...styleDataCell, alignment: { horizontal: "center" } },
       },
       { v: item.spk_gramasi, s: styleDataCell },
+
+      // Ukuran P & L (Desimal)
       {
-        v: item.PANJANG,
+        v: num(item.PANJANG),
+        t: "n",
+        z: "#,##0.00",
         s: { ...styleDataCell, alignment: { horizontal: "center" } },
       },
       {
-        v: item.LEBAR,
+        v: num(item.LEBAR),
+        t: "n",
+        z: "#,##0.00",
         s: { ...styleDataCell, alignment: { horizontal: "center" } },
       },
+
       { v: item.KAIN, s: styleDataCell },
       { v: item.FINISHING, s: styleDataCell },
+
+      // Order Qty (Integer)
       {
-        v: item.spk_jumlah,
+        v: num(item.spk_jumlah),
+        t: "n",
+        z: "#,##0",
         s: { ...styleDataCell, alignment: { horizontal: "center" } },
       },
-      // PCS Mesin
-      { v: item.mt01, s: styleDataCell },
-      { v: item.mt02, s: styleDataCell },
-      { v: item.mt03, s: styleDataCell },
-      { v: item.mt04, s: styleDataCell },
-      { v: item.mt05, s: styleDataCell },
-      { v: item.JML_CETAK, s: { ...styleDataCell, font: { bold: true } } },
-      // Finishings
-      { v: item.JML_seaming, s: styleDataCell },
-      { v: item.JML_mataayam, s: styleDataCell },
-      { v: item.JML_coly, s: styleDataCell },
-      { v: item.JML_JADI, s: styleDataCell },
-      { v: item.JML_KIRIM, s: styleDataCell },
-      // Mesin Meter
-      { v: item.mt01_m, s: styleDataCell },
-      { v: item.mt02_m, s: styleDataCell },
-      { v: item.mt03_m, s: styleDataCell },
-      { v: item.mt04_m, s: styleDataCell },
-      { v: item.mt05_m, s: styleDataCell },
-      { v: item.M_CETAK, s: { ...styleDataCell, font: { bold: true } } },
-      { v: item.m_seaming, s: styleDataCell },
-      { v: item.JML_meter_KIRIM, s: styleDataCell },
+
+      // PCS Mesin Cetak & Total Cetak (Integer)
+      {
+        v: num(item.mt01),
+        t: "n",
+        z: "#,##0",
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+      },
+      {
+        v: num(item.mt02),
+        t: "n",
+        z: "#,##0",
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+      },
+      {
+        v: num(item.mt03),
+        t: "n",
+        z: "#,##0",
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+      },
+      {
+        v: num(item.mt04),
+        t: "n",
+        z: "#,##0",
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+      },
+      {
+        v: num(item.mt05),
+        t: "n",
+        z: "#,##0",
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+      },
+      {
+        v: num(item.JML_CETAK),
+        t: "n",
+        z: "#,##0",
+        s: {
+          ...styleDataCell,
+          alignment: { horizontal: "right" },
+          font: { bold: true },
+        },
+      },
+
+      // Finishings PCS (Integer)
+      {
+        v: num(item.JML_seaming),
+        t: "n",
+        z: "#,##0",
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+      },
+      {
+        v: num(item.JML_mataayam),
+        t: "n",
+        z: "#,##0",
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+      },
+      {
+        v: num(item.JML_coly),
+        t: "n",
+        z: "#,##0",
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+      },
+      {
+        v: num(item.JML_JADI),
+        t: "n",
+        z: "#,##0",
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+      },
+      {
+        v: num(item.JML_KIRIM),
+        t: "n",
+        z: "#,##0",
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+      },
+
+      // Mesin Meter & Finishing Meter (Desimal)
+      {
+        v: num(item.mt01_m),
+        t: "n",
+        z: "#,##0.00",
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+      },
+      {
+        v: num(item.mt02_m),
+        t: "n",
+        z: "#,##0.00",
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+      },
+      {
+        v: num(item.mt03_m),
+        t: "n",
+        z: "#,##0.00",
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+      },
+      {
+        v: num(item.mt04_m),
+        t: "n",
+        z: "#,##0.00",
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+      },
+      {
+        v: num(item.mt05_m),
+        t: "n",
+        z: "#,##0.00",
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+      },
+      {
+        v: num(item.M_CETAK),
+        t: "n",
+        z: "#,##0.00",
+        s: {
+          ...styleDataCell,
+          alignment: { horizontal: "right" },
+          font: { bold: true },
+        },
+      },
+      {
+        v: num(item.m_seaming),
+        t: "n",
+        z: "#,##0.00",
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+      },
+      {
+        v: num(item.JML_meter_KIRIM),
+        t: "n",
+        z: "#,##0.00",
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+      },
     ]);
   });
 
@@ -574,42 +726,146 @@ const exportToExcel = () => {
   const footerRow = [
     { v: "TOTAL", s: { ...styleFooter, alignment: { horizontal: "center" } } },
     ...Array(10).fill({ v: "", s: styleFooter }),
-    { v: totals.value.spk_jumlah, s: styleFooter },
-    { v: totals.value.mt01, s: styleFooter },
-    { v: totals.value.mt02, s: styleFooter },
-    { v: totals.value.mt03, s: styleFooter },
-    { v: totals.value.mt04, s: styleFooter },
-    { v: totals.value.mt05, s: styleFooter },
-    { v: totals.value.JML_CETAK, s: styleFooter },
-    { v: totals.value.JML_seaming, s: styleFooter },
-    { v: totals.value.JML_mataayam, s: styleFooter },
-    { v: totals.value.JML_coly, s: styleFooter },
-    { v: totals.value.JML_JADI, s: styleFooter },
-    { v: totals.value.JML_KIRIM, s: styleFooter },
-    { v: totals.value.mt01_m, s: styleFooter },
-    { v: totals.value.mt02_m, s: styleFooter },
-    { v: totals.value.mt03_m, s: styleFooter },
-    { v: totals.value.mt04_m, s: styleFooter },
-    { v: totals.value.mt05_m, s: styleFooter },
-    { v: totals.value.M_CETAK, s: styleFooter },
-    { v: totals.value.m_seaming, s: styleFooter },
-    { v: totals.value.JML_meter_KIRIM, s: styleFooter },
+
+    // Totalan unit PCS (Integer)
+    {
+      v: num(totals.value.spk_jumlah),
+      t: "n",
+      z: "#,##0",
+      s: { ...styleFooter, alignment: { horizontal: "center" } },
+    },
+    {
+      v: num(totals.value.mt01),
+      t: "n",
+      z: "#,##0",
+      s: { ...styleFooter, alignment: { horizontal: "right" } },
+    },
+    {
+      v: num(totals.value.mt02),
+      t: "n",
+      z: "#,##0",
+      s: { ...styleFooter, alignment: { horizontal: "right" } },
+    },
+    {
+      v: num(totals.value.mt03),
+      t: "n",
+      z: "#,##0",
+      s: { ...styleFooter, alignment: { horizontal: "right" } },
+    },
+    {
+      v: num(totals.value.mt04),
+      t: "n",
+      z: "#,##0",
+      s: { ...styleFooter, alignment: { horizontal: "right" } },
+    },
+    {
+      v: num(totals.value.mt05),
+      t: "n",
+      z: "#,##0",
+      s: { ...styleFooter, alignment: { horizontal: "right" } },
+    },
+    {
+      v: num(totals.value.JML_CETAK),
+      t: "n",
+      z: "#,##0",
+      s: { ...styleFooter, alignment: { horizontal: "right" } },
+    },
+    {
+      v: num(totals.value.JML_seaming),
+      t: "n",
+      z: "#,##0",
+      s: { ...styleFooter, alignment: { horizontal: "right" } },
+    },
+    {
+      v: num(totals.value.JML_mataayam),
+      t: "n",
+      z: "#,##0",
+      s: { ...styleFooter, alignment: { horizontal: "right" } },
+    },
+    {
+      v: num(totals.value.JML_coly),
+      t: "n",
+      z: "#,##0",
+      s: { ...styleFooter, alignment: { horizontal: "right" } },
+    },
+    {
+      v: num(totals.value.JML_JADI),
+      t: "n",
+      z: "#,##0",
+      s: { ...styleFooter, alignment: { horizontal: "right" } },
+    },
+    {
+      v: num(totals.value.JML_KIRIM),
+      t: "n",
+      z: "#,##0",
+      s: { ...styleFooter, alignment: { horizontal: "right" } },
+    },
+
+    // Totalan unit METER (Desimal)
+    {
+      v: num(totals.value.mt01_m),
+      t: "n",
+      z: "#,##0.00",
+      s: { ...styleFooter, alignment: { horizontal: "right" } },
+    },
+    {
+      v: num(totals.value.mt02_m),
+      t: "n",
+      z: "#,##0.00",
+      s: { ...styleFooter, alignment: { horizontal: "right" } },
+    },
+    {
+      v: num(totals.value.mt03_m),
+      t: "n",
+      z: "#,##0.00",
+      s: { ...styleFooter, alignment: { horizontal: "right" } },
+    },
+    {
+      v: num(totals.value.mt04_m),
+      t: "n",
+      z: "#,##0.00",
+      s: { ...styleFooter, alignment: { horizontal: "right" } },
+    },
+    {
+      v: num(totals.value.mt05_m),
+      t: "n",
+      z: "#,##0.00",
+      s: { ...styleFooter, alignment: { horizontal: "right" } },
+    },
+    {
+      v: num(totals.value.M_CETAK),
+      t: "n",
+      z: "#,##0.00",
+      s: { ...styleFooter, alignment: { horizontal: "right" } },
+    },
+    {
+      v: num(totals.value.m_seaming),
+      t: "n",
+      z: "#,##0.00",
+      s: { ...styleFooter, alignment: { horizontal: "right" } },
+    },
+    {
+      v: num(totals.value.JML_meter_KIRIM),
+      t: "n",
+      z: "#,##0.00",
+      s: { ...styleFooter, alignment: { horizontal: "right" } },
+    },
   ];
   wsData.push(footerRow);
 
   const ws = XLSX.utils.aoa_to_sheet(wsData);
 
   // --- 7. MERGE CONFIG ---
-  const offset = 3; // Baris data dimulai dari index 3
+  const offset = 3;
   ws["!merges"] = [
-    { s: { r: 0, c: 0 }, e: { r: 0, c: 4 } }, // Judul
+    { s: { r: 0, c: 0 }, e: { r: 0, c: 4 } },
     // Identitas Vertical Merge (3 baris)
     ...Array(12)
       .fill(0)
       .map((_, i) => ({ s: { r: offset, c: i }, e: { r: offset + 2, c: i } })),
     // Group Jumlah Cetak
     { s: { r: offset, c: 12 }, e: { r: offset, c: 17 } },
-    { s: { r: offset + 1, c: 12 }, e: { r: offset + 1, c: 16 } }, // PCS
+    { s: { r: offset + 1, c: 12 }, e: { r: offset + 1, c: 16 } },
     // Vertical merge for Total Cetak & Seaming dkk
     ...Array(6)
       .fill(0)
@@ -619,7 +875,7 @@ const exportToExcel = () => {
       })),
     // Group Mesin Meter
     { s: { r: offset, c: 23 }, e: { r: offset, c: 28 } },
-    { s: { r: offset + 1, c: 23 }, e: { r: offset + 1, c: 27 } }, // Sub Group Meter
+    { s: { r: offset + 1, c: 23 }, e: { r: offset + 1, c: 27 } },
     // Vertical merge Meter s/d Kirim
     { s: { r: offset, c: 29 }, e: { r: offset + 2, c: 29 } },
     { s: { r: offset, c: 30 }, e: { r: offset + 2, c: 30 } },
@@ -633,7 +889,8 @@ const exportToExcel = () => {
     { wch: 12 },
     { wch: 12 },
     { wch: 15 },
-  ]; // Lebar Kolom
+    ...Array(26).fill({ wch: 11 }),
+  ];
 
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Laporan SPK MMT");

@@ -34,8 +34,7 @@ const router = useRouter();
 const printData = ref<SpkData | null>(null);
 const isLoading = ref(true);
 
-// PERBAIKAN: Arahkan langsung ke IP/Domain Server Backend Anda (Port 8003)
-// Silakan ganti localhost dengan IP server produksi jika di-deploy (misal: 192.168.1.191 atau 103.94.238.252)
+// Jalur server backend yang memetakan alias statis ke /mnt/image
 const BACKEND_URL = "http://localhost:8003";
 
 const getAssetUrl = (path: string) => {
@@ -44,14 +43,12 @@ const getAssetUrl = (path: string) => {
   return `${BACKEND_URL}/images/${path}`;
 };
 
-// Fungsi pembantu format tanggal agar aman dari masalah sync browser
 const formatDateSafe = (
   dateString: string | undefined,
   formatStr: string = "dd MMM yyyy",
 ) => {
   if (!dateString) return "-";
   try {
-    // Menangani format ISO maupun format mentah MySQL datetime string
     const date = dateString.includes("T")
       ? parseISO(dateString)
       : new Date(dateString);
@@ -66,6 +63,7 @@ const fetchPrintData = async (nomor: string) => {
     const response = await api.get(`/mmt/spk/print/${nomor}`);
     const data = response.data;
 
+    // PERBAIKAN: Izinkan cetak jika berstatus 'ACC' ATAU kosong '' (Untuk akomodasi data Memo internal)
     if (data.Ngedit !== "ACC" && data.Ngedit !== "") {
       alert(`SPK ${nomor} belum di-ACC, tidak dapat dicetak.`);
       router.back();
@@ -89,7 +87,6 @@ watch(isLoading, (newValue) => {
       setTimeout(() => {
         window.print();
 
-        // PERBAIKAN: Manajemen event listener yang bersih untuk mencegah lag memori browser
         const handleAfterPrint = () => {
           window.removeEventListener("afterprint", handleAfterPrint);
           setTimeout(() => {
@@ -239,7 +236,9 @@ onMounted(() => {
                         v-if="printData.MO"
                         :src="getAssetUrl(`sign_${printData.MO}.jpg`)"
                         class="signature-img"
-                        @error="(e: any) => (e.target.style.display = 'none')"
+                        @error="
+                          (e: any) => (e.target.style.visibility = 'hidden')
+                        "
                       />
                       <div class="signer-name">{{ printData.MO || "N/A" }}</div>
                     </td>
@@ -248,10 +247,11 @@ onMounted(() => {
                         v-if="printData.CMO"
                         :src="getAssetUrl(`sign_${printData.CMO}.jpg`)"
                         class="signature-img"
-                        @error="(e: any) => (e.target.style.display = 'none')"
+                        @error="
+                          (e: any) => (e.target.style.visibility = 'hidden')
+                        "
                       />
-                      <div class="signer-name" v-if="!printData.CMO">NO</div>
-                      <div class="signer-name" v-else>{{ printData.CMO }}</div>
+                      <div class="signer-name">{{ printData.CMO || "NO" }}</div>
                     </td>
                   </tr>
                 </tbody>
@@ -268,7 +268,7 @@ onMounted(() => {
           </div>
 
           <div class="print-meta-text">
-            Dibuat Oleh: {{ printData.Created || "-" }}
+            Dibuat Oleh: {{ printData.Created || "-" }} |
             {{ format(new Date(), "dd-MM-yyyy HH:mm:ss") }}
           </div>
         </main>
@@ -278,7 +278,6 @@ onMounted(() => {
 </template>
 
 <style scoped>
-/* CSS Anda sudah sangat bagus, tidak ada perubahan yang merusak layout */
 .print-container {
   background: #525659;
   min-height: 100vh;
@@ -287,7 +286,6 @@ onMounted(() => {
   justify-content: center;
   align-items: flex-start;
 }
-
 .page-wrapper {
   background: white;
   width: 297mm;
@@ -298,7 +296,6 @@ onMounted(() => {
   box-sizing: border-box;
   position: relative;
 }
-
 .spk-card {
   width: 48.5%;
   height: 100%;
@@ -309,18 +306,15 @@ onMounted(() => {
   color: #000;
   box-sizing: border-box;
 }
-
 .header-section {
   border-bottom: 2px solid #000;
   padding-bottom: 4px;
 }
-
 .title-group {
   display: flex;
   justify-content: space-between;
   align-items: flex-end;
 }
-
 .main-title {
   font-size: 14pt;
   font-weight: bold;
@@ -328,12 +322,10 @@ onMounted(() => {
   margin: 0;
   letter-spacing: 0.5px;
 }
-
 .po-number {
   font-size: 11pt;
   font-weight: bold;
 }
-
 .sub-header-info {
   position: absolute;
   top: 35px;
@@ -341,63 +333,49 @@ onMounted(() => {
   text-align: right;
   z-index: 10;
 }
-
 .urgent-tag {
   color: #ff0000;
   font-weight: bold;
   font-size: 9pt;
   margin-bottom: 2px;
 }
-
 .type-tag {
   font-size: 8pt;
 }
 .type-tag span {
   font-weight: bold;
 }
-
 .content-section {
   margin-top: 8px;
   flex: 1;
   display: flex;
   flex-direction: column;
 }
-
 .details-table {
   width: 100%;
   border-collapse: collapse;
   margin-bottom: auto;
 }
-
 .details-table td {
   padding: 2px 0;
   font-size: 9pt;
   vertical-align: top;
 }
-
 .details-table td.label {
   width: 100px;
 }
-
-.details-table td.val {
-  font-weight: normal;
-}
-
 .highlight-bg {
   background-color: #ffff00;
   font-weight: bold;
   padding: 0 4px;
 }
-
 .val-notes {
   font-size: 8.5pt !important;
 }
-
 .notes-content {
   font-size: 8.5pt;
   white-space: pre-wrap;
 }
-
 .footer-block {
   display: flex;
   justify-content: space-between;
@@ -406,7 +384,6 @@ onMounted(() => {
   width: 100%;
   height: 140px;
 }
-
 .design-preview-container {
   width: 45%;
   height: 100%;
@@ -418,13 +395,11 @@ onMounted(() => {
   box-sizing: border-box;
   overflow: hidden;
 }
-
 .design-image {
   max-width: 100%;
   max-height: 100%;
   object-fit: contain;
 }
-
 .validation-container {
   width: 52%;
   height: 100%;
@@ -432,34 +407,29 @@ onMounted(() => {
   justify-content: space-between;
   align-items: flex-end;
 }
-
 .approval-table {
   width: 65%;
   border-collapse: collapse;
   margin-bottom: 5px;
 }
-
 .approval-table th,
 .approval-table td {
   border: 1px solid #000;
   text-align: center;
   font-size: 8pt;
 }
-
 .approval-table th {
   background: #f2f2f2;
   font-weight: bold;
   padding: 2px 0;
   width: 50%;
 }
-
 .sign-cell {
   height: 60px;
   vertical-align: bottom;
   padding-bottom: 4px;
   position: relative;
 }
-
 .signature-img {
   position: absolute;
   top: 5px;
@@ -469,30 +439,25 @@ onMounted(() => {
   max-width: 90%;
   object-fit: contain;
 }
-
 .signer-name {
   font-size: 7.5pt;
   font-weight: bold;
 }
-
 .qr-wrapper {
   width: 30%;
   text-align: right;
 }
-
 .qr-code-img {
   width: 75px;
   height: 75px;
   object-fit: contain;
 }
-
 .print-meta-text {
   font-size: 7pt;
   text-align: left;
   margin-top: 6px;
   color: #333;
 }
-
 .floating-action {
   position: fixed;
   top: 20px;
@@ -505,22 +470,18 @@ onMounted(() => {
     size: A4 landscape;
     margin: 0;
   }
-
   html,
   body {
     background: #fff !important;
   }
-
   .print-container {
     padding: 0 !important;
     background: white !important;
     display: block !important;
   }
-
   .no-print {
     display: none !important;
   }
-
   .page-wrapper {
     box-shadow: none !important;
     margin: 0 !important;
@@ -531,7 +492,6 @@ onMounted(() => {
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
-
   .highlight-bg {
     background-color: #ffff00 !important;
     -webkit-print-color-adjust: exact;

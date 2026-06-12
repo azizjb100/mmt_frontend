@@ -966,7 +966,7 @@ const exportToExcel = () => {
     e: { r: filteredData.value.length + 6, c: 1 },
   });
 
-  // Map Value Row dengan Pembulatan toFixed(2)
+  // --- 2. LOOP DATA VALUE (Perbaikan Letak Atribut 't' dan 'z') ---
   filteredData.value.forEach((item) => {
     const row = [];
     columns.value.forEach((col) => {
@@ -981,11 +981,11 @@ const exportToExcel = () => {
 
         row.push({
           v: finalNum,
+          t: "n", // ROOT LEVEL (Excel mendeteksi Angka murni)
+          z: numberFormat, // ROOT LEVEL (Format Masking tampilan)
           s: {
             ...styleDataCell,
             alignment: { horizontal: "right" },
-            t: "n",
-            z: numberFormat,
           },
         });
       } else {
@@ -1001,7 +1001,7 @@ const exportToExcel = () => {
     wsData.push(row);
   });
 
-  // Map Footer Row Sum
+  // --- 3. LOOP SUMMARY FOOTER TOTAL (Perbaikan Letak Atribut 't' dan 'z') ---
   const excelFooter = [];
   columns.value.forEach((col, idx) => {
     if (idx === 0) {
@@ -1013,9 +1013,15 @@ const exportToExcel = () => {
       const sumVal = sumField(col.field);
       const finalSum =
         col.dec === 2 ? Number(parseFloat(sumVal).toFixed(2)) : Number(sumVal);
+
       excelFooter.push({
         v: finalSum,
-        s: { ...styleFooter, t: "n", z: col.dec === 2 ? "#,##0.00" : "#,##0" },
+        t: "n", // ROOT LEVEL
+        z: col.dec === 2 ? "#,##0.00" : "#,##0", // ROOT LEVEL
+        s: {
+          ...styleFooter,
+          alignment: { horizontal: "right" },
+        },
       });
     } else {
       excelFooter.push({ v: "", s: styleFooter });

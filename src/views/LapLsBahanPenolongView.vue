@@ -608,6 +608,12 @@ const exportToExcel = () => {
 
   const fileName = `Laporan_Stok_Bahan_Penolong_${startDate.value}.xlsx`;
 
+  // Helper aman untuk memastikan nilai di-cast ke Number murni
+  const num = (value) => {
+    const parsed = Number(value);
+    return isNaN(parsed) ? 0 : parsed;
+  };
+
   // --- DEFINISI STYLE ---
   const styleHeaderMain = {
     fill: { fgColor: { rgb: "B3E5FC" } },
@@ -646,7 +652,7 @@ const exportToExcel = () => {
   // --- 1. STRUKTUR DATA (AOA) ---
   const wsData = [];
 
-  // Baris Judul & Info (Hanya gunakan variabel yang ada di script kamu)
+  // Baris Judul & Info
   wsData.push([
     { v: "LAPORAN STOK BAHAN PENOLONG", s: { font: { bold: true, sz: 14 } } },
   ]);
@@ -660,19 +666,23 @@ const exportToExcel = () => {
     { v: "JENIS", s: styleHeaderMain },
     { v: "STATUS", s: styleHeaderMain },
     { v: "SPESIFIKASI", s: styleHeaderMain },
-    { v: "", s: styleHeaderMain },
-    { v: "", s: styleHeaderMain },
+    "",
+    "", // Gabung Spesifikasi
     { v: "STOCK AWAL", s: styleHeaderMain },
-    { v: "", s: styleHeaderMain },
+    "", // Gabung Stock Awal
     { v: "TERIMA", s: styleHeaderMain },
-    { v: "", s: styleHeaderMain },
+    "", // Gabung Terima
     { v: "KELUAR", s: styleHeaderMain },
-    { v: "", s: styleHeaderMain },
+    "", // Gabung Keluar
     { v: "RETUR/SISA", s: styleHeaderMain },
-    { v: "", s: styleHeaderMain },
+    "", // Gabung Retur
     { v: "STOCK AKHIR", s: styleHeaderMain },
-    { v: "", s: styleHeaderMain },
+    "", // Gabung Akhir
   ];
+
+  headerRow1.forEach((cell, idx) => {
+    if (cell === "") headerRow1[idx] = { v: "", s: styleHeaderMain };
+  });
   wsData.push(headerRow1);
 
   // --- 3. HEADER BARIS 2 ---
@@ -697,69 +707,107 @@ const exportToExcel = () => {
   ];
   wsData.push(headerRow2);
 
-  // --- 4. DATA BODY ---
+  // --- 4. DATA BODY (Root Level 't' dan 'z') ---
   filteredData.value.forEach((row) => {
     wsData.push([
       { v: row.kode, s: styleDataCell },
       { v: row.Nama, s: styleDataCell },
       { v: row.jb_nama || "", s: styleDataCell },
       { v: row.status || "", s: styleDataCell },
+
+      // Spesifikasi (Desimal 2 Digit)
       {
-        v: row.Lebar,
+        v: num(row.Lebar),
+        t: "n",
+        z: "#,##0.00",
         s: { ...styleDataCell, alignment: { horizontal: "right" } },
       },
       {
-        v: row.Panjang,
+        v: num(row.Panjang),
+        t: "n",
+        z: "#,##0.00",
         s: { ...styleDataCell, alignment: { horizontal: "right" } },
       },
       {
-        v: row.m2,
+        v: num(row.m2),
+        t: "n",
+        z: "#,##0.00",
         s: { ...styleDataCell, alignment: { horizontal: "right" } },
       },
+
+      // Stock Awal (Roll = Integer, M2 = Desimal)
       {
-        v: row.stok_awal_q,
+        v: num(row.stok_awal_q),
+        t: "n",
+        z: "#,##0",
         s: { ...styleDataCell, alignment: { horizontal: "center" } },
       },
       {
-        v: row.stok_awal_m,
+        v: num(row.stok_awal_m),
+        t: "n",
+        z: "#,##0.00",
         s: { ...styleDataCell, alignment: { horizontal: "right" } },
       },
+
+      // Terima
       {
-        v: row.terima_q,
+        v: num(row.terima_q),
+        t: "n",
+        z: "#,##0",
         s: { ...styleDataCell, alignment: { horizontal: "center" } },
       },
       {
-        v: row.terima_m,
+        v: num(row.terima_m),
+        t: "n",
+        z: "#,##0.00",
         s: { ...styleDataCell, alignment: { horizontal: "right" } },
       },
+
+      // Keluar
       {
-        v: row.keluar_q,
+        v: num(row.keluar_q),
+        t: "n",
+        z: "#,##0",
         s: { ...styleDataCell, alignment: { horizontal: "center" } },
       },
       {
-        v: row.keluar_m,
+        v: num(row.keluar_m),
+        t: "n",
+        z: "#,##0.00",
         s: { ...styleDataCell, alignment: { horizontal: "right" } },
       },
+
+      // Retur/Sisa
       {
-        v: row.retur_q,
+        v: num(row.retur_q),
+        t: "n",
+        z: "#,##0",
         s: { ...styleDataCell, alignment: { horizontal: "center" } },
       },
       {
-        v: row.retur_m,
+        v: num(row.retur_m),
+        t: "n",
+        z: "#,##0.00",
         s: { ...styleDataCell, alignment: { horizontal: "right" } },
       },
+
+      // Stock Akhir
       {
-        v: row.stok_akhir_q,
+        v: num(row.stok_akhir_q),
+        t: "n",
+        z: "#,##0",
         s: { ...styleDataCell, alignment: { horizontal: "center" } },
       },
       {
-        v: row.stok_akhir_m,
+        v: num(row.stok_akhir_m),
+        t: "n",
+        z: "#,##0.00",
         s: { ...styleDataCell, alignment: { horizontal: "right" } },
       },
     ]);
   });
 
-  // --- 5. BARIS TOTAL ---
+  // --- 5. BARIS TOTAL (Root Level 't' dan 'z') ---
   const footerRow = [
     { v: "TOTAL", s: { ...styleFooter, alignment: { horizontal: "right" } } },
     { v: "", s: styleFooter },
@@ -768,16 +816,68 @@ const exportToExcel = () => {
     { v: "", s: styleFooter },
     { v: "", s: styleFooter },
     { v: "", s: styleFooter },
-    { v: reportTotals.value.stok_awal_q, s: styleFooter },
-    { v: reportTotals.value.stok_awal_m, s: styleFooter },
-    { v: reportTotals.value.terima_q, s: styleFooter },
-    { v: reportTotals.value.terima_m, s: styleFooter },
-    { v: reportTotals.value.keluar_q, s: styleFooter },
-    { v: reportTotals.value.keluar_m, s: styleFooter },
-    { v: reportTotals.value.retur_q, s: styleFooter },
-    { v: reportTotals.value.retur_m, s: styleFooter },
-    { v: reportTotals.value.stok_akhir_q, s: styleFooter },
-    { v: reportTotals.value.stok_akhir_m, s: styleFooter },
+
+    // Totalan Angka Murni
+    {
+      v: num(reportTotals.value.stok_awal_q),
+      t: "n",
+      z: "#,##0",
+      s: { ...styleFooter, alignment: { horizontal: "center" } },
+    },
+    {
+      v: num(reportTotals.value.stok_awal_m),
+      t: "n",
+      z: "#,##0.00",
+      s: { ...styleFooter, alignment: { horizontal: "right" } },
+    },
+    {
+      v: num(reportTotals.value.terima_q),
+      t: "n",
+      z: "#,##0",
+      s: { ...styleFooter, alignment: { horizontal: "center" } },
+    },
+    {
+      v: num(reportTotals.value.terima_m),
+      t: "n",
+      z: "#,##0.00",
+      s: { ...styleFooter, alignment: { horizontal: "right" } },
+    },
+    {
+      v: num(reportTotals.value.keluar_q),
+      t: "n",
+      z: "#,##0",
+      s: { ...styleFooter, alignment: { horizontal: "center" } },
+    },
+    {
+      v: num(reportTotals.value.keluar_m),
+      t: "n",
+      z: "#,##0.00",
+      s: { ...styleFooter, alignment: { horizontal: "right" } },
+    },
+    {
+      v: num(reportTotals.value.retur_q),
+      t: "n",
+      z: "#,##0",
+      s: { ...styleFooter, alignment: { horizontal: "center" } },
+    },
+    {
+      v: num(reportTotals.value.retur_m),
+      t: "n",
+      z: "#,##0.00",
+      s: { ...styleFooter, alignment: { horizontal: "right" } },
+    },
+    {
+      v: num(reportTotals.value.stok_akhir_q),
+      t: "n",
+      z: "#,##0",
+      s: { ...styleFooter, alignment: { horizontal: "center" } },
+    },
+    {
+      v: num(reportTotals.value.stok_akhir_m),
+      t: "n",
+      z: "#,##0.00",
+      s: { ...styleFooter, alignment: { horizontal: "right" } },
+    },
   ];
   wsData.push(footerRow);
 
@@ -786,22 +886,31 @@ const exportToExcel = () => {
   // --- 6. KONFIGURASI MERGE ---
   const offset = 3;
   ws["!merges"] = [
-    { s: { r: 0, c: 0 }, e: { r: 0, c: 3 } }, // Judul
+    { s: { r: 0, c: 0 }, e: { r: 0, c: 3 } },
     { s: { r: offset, c: 0 }, e: { r: offset + 1, c: 0 } }, // KODE
     { s: { r: offset, c: 1 }, e: { r: offset + 1, c: 1 } }, // NAMA
     { s: { r: offset, c: 2 }, e: { r: offset + 1, c: 2 } }, // JENIS
     { s: { r: offset, c: 3 }, e: { r: offset + 1, c: 3 } }, // STATUS
-    { s: { r: offset, c: 4 }, e: { r: offset, c: 6 } }, // SPESIFIKASI
-    { s: { r: offset, c: 7 }, e: { r: offset, c: 8 } }, // STOCK AWAL
-    { s: { r: offset, c: 9 }, e: { r: offset, c: 10 } }, // TERIMA
-    { s: { r: offset, c: 11 }, e: { r: offset, c: 12 } }, // KELUAR
-    { s: { r: offset, c: 13 }, e: { r: offset, c: 14 } }, // RETUR
-    { s: { r: offset, c: 15 }, e: { r: offset, c: 16 } }, // AKHIR
-    { s: { r: wsData.length - 1, c: 0 }, e: { r: wsData.length - 1, c: 6 } }, // TOTAL
+    { s: { r: offset, c: 4 }, e: { r: offset + 1, c: 4 } }, // LEBAR
+    { s: { r: offset, c: 5 }, e: { r: offset + 1, c: 5 } }, // PANJANG
+    { s: { r: offset, c: 6 }, e: { r: offset + 1, c: 6 } }, // M2
+    { s: { r: offset, c: 7 }, e: { r: offset + 1, c: 7 } }, // ROLL AWAL
+    { s: { r: offset, c: 8 }, e: { r: offset + 1, c: 8 } }, // M2 AWAL
+    { s: { r: wsData.length - 1, c: 0 }, e: { r: wsData.length - 1, c: 6 } },
   ];
 
-  ws["!cols"] = Array(17).fill({ wch: 10 });
-  ws["!cols"][1] = { wch: 35 };
+  // Merge horizontal sub grup transaksional harian
+  let currC = 9;
+  for (let i = 0; i < 4; i++) {
+    ws["!merges"].push({
+      s: { r: offset, c: currC },
+      e: { r: offset, c: currC + 1 },
+    });
+    currC += 2;
+  }
+
+  ws["!cols"] = Array(17).fill({ wch: 12 });
+  ws["!cols"][1] = { wch: 35 }; // Nama bahan diperlebar
 
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Stok");
