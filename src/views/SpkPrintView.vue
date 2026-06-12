@@ -216,11 +216,21 @@ onMounted(() => {
           <div class="footer-block">
             <div class="design-preview-container">
               <img
-                src="https://103.94.238.252/file-gambar/JA-MT-009564.jpg"
-                style="width: 300px"
-                @load="console.log('LOAD BERHASIL')"
-                @error="console.log('ERROR GAGAL')"
-              />>
+                :src="
+                  printData.Design_Image
+                    ? getAssetUrl(printData.Design_Image)
+                    : getAssetUrl(`${printData.SPK}.jpg`)
+                "
+                class="design-image"
+                @load="(e) => console.log('LOAD:', e.target.src)"
+                @error="
+                  (e) => {
+                    console.log('ERROR:', e.target.src);
+                    e.target.onerror = null;
+                    handleImageLoad();
+                  }
+                "
+              />
             </div>
 
             <div class="validation-container">
