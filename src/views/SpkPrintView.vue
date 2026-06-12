@@ -36,14 +36,16 @@ const isLoading = ref(true);
 
 // Jalur server backend yang memetakan alias statis ke /mnt/image
 // Ganti di SpkPrint.vue
+// Di dalam file SpkPrint.vue Anda:
+
 const BACKEND_URL = "http://103.94.238.252:8003";
 
 const getAssetUrl = (path: string) => {
   if (!path) return "";
   if (path.startsWith("http")) return path;
 
-  // Browser akan otomatis mendeteksi domain/IP yang sedang aktif di URL bar
-  return `/images/${path}`;
+  // PERBAIKAN: Paksa browser menembak ke port 8003 server backend, bukan relative path
+  return `${BACKEND_URL}/images/${path}`;
 };
 
 const formatDateSafe = (
