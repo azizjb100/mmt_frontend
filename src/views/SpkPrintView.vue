@@ -34,21 +34,22 @@ const router = useRouter();
 const printData = ref<SpkData | null>(null);
 const isLoading = ref(true);
 
-// Jalur server backend yang memetakan alias statis ke /mnt/image
-// Ganti di SpkPrint.vue
-// Di dalam file SpkPrint.vue Anda:
+// Flag untuk melacak status pemuatan file gambar utama dari server
+const isImageLoaded = ref(false);
 
-const BACKEND_URL = "http://103.94.238.252:8003";
+const handleImageLoad = () => {
+  isImageLoaded.value = true;
+};
 
 const getAssetUrl = (path: string) => {
   if (!path) return "";
   if (path.startsWith("http")) return path;
 
-  // PERBAIKAN: Arahkan ke jalur '/file-gambar/' sesuai dengan lokasi di Nginx Anda
-  // Menggunakan relative path agar otomatis mendukung HTTP/HTTPS tanpa port 8003
+  // Relative path disesuaikan dengan konfigurasi rute statis di Nginx (/file-gambar/)
   return `/file-gambar/${path}`;
 };
 
+// Fungsi pembantu format tanggal agar aman dari masalah sinkronisasi browser
 const formatDateSafe = (
   dateString: string | undefined,
   formatStr: string = "dd MMM yyyy",
@@ -69,7 +70,7 @@ const fetchPrintData = async (nomor: string) => {
     const response = await api.get(`/mmt/spk/print/${nomor}`);
     const data = response.data;
 
-    // PERBAIKAN: Izinkan cetak jika berstatus 'ACC' ATAU kosong '' (Untuk akomodasi data Memo internal)
+    // Izinkan cetak jika berstatus 'ACC' ATAU kosong '' (Untuk akomodasi data Memo internal)
     if (data.Ngedit !== "ACC" && data.Ngedit !== "") {
       alert(`SPK ${nomor} belum di-ACC, tidak dapat dicetak.`);
       router.back();
@@ -87,9 +88,11 @@ const fetchPrintData = async (nomor: string) => {
   }
 };
 
-watch(isLoading, (newValue) => {
-  if (newValue === false && printData.value) {
+// PERBAIKAN UTAMA: Otomatis memicu printer HANYA ketika data teks SELESAI dimuat dan gambar SELESAI diunduh
+watch([isLoading, isImageLoaded], ([newLoading, newImgLoaded]) => {
+  if (newLoading === false && newImgLoaded === true && printData.value) {
     nextTick(() => {
+      // Jeda 300ms guna memastikan siklus render layout Vuetify/HTML selesai sempurna
       setTimeout(() => {
         window.print();
 
@@ -101,7 +104,7 @@ watch(isLoading, (newValue) => {
         };
 
         window.addEventListener("afterprint", handleAfterPrint);
-      }, 1000);
+      }, 300);
     });
   }
 });
@@ -213,18 +216,11 @@ onMounted(() => {
           <div class="footer-block">
             <div class="design-preview-container">
               <img
-                :src="
-                  printData.Design_Image
-                    ? getAssetUrl(printData.Design_Image)
-                    : getAssetUrl(`${printData.SPK}.jpg`)
-                "
-                class="design-image"
-                @error="
-                  (e: any) =>
-                    (e.target.src =
-                      'https://via.placeholder.com/180x150?text=No+Image')
-                "
-              />
+                src="https://103.94.238.252/file-gambar/JA-MT-009564.jpg"
+                style="width: 300px"
+                @load="console.log('LOAD BERHASIL')"
+                @error="console.log('ERROR GAGAL')"
+              />>
             </div>
 
             <div class="validation-container">
