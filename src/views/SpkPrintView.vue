@@ -44,8 +44,9 @@ const getAssetUrl = (path: string) => {
   if (!path) return "";
   if (path.startsWith("http")) return path;
 
-  // PERBAIKAN: Paksa browser menembak ke port 8003 server backend, bukan relative path
-  return `${BACKEND_URL}/images/${path}`;
+  // PERBAIKAN: Arahkan ke jalur '/file-gambar/' sesuai dengan lokasi di Nginx Anda
+  // Menggunakan relative path agar otomatis mendukung HTTP/HTTPS tanpa port 8003
+  return `/file-gambar/${path}`;
 };
 
 const formatDateSafe = (
