@@ -35,12 +35,15 @@ const printData = ref<SpkData | null>(null);
 const isLoading = ref(true);
 
 // Jalur server backend yang memetakan alias statis ke /mnt/image
-const BACKEND_URL = "http://localhost:8003";
+// Ganti di SpkPrint.vue
+const BACKEND_URL = "http://103.94.238.252:8003";
 
 const getAssetUrl = (path: string) => {
   if (!path) return "";
   if (path.startsWith("http")) return path;
-  return `${BACKEND_URL}/images/${path}`;
+
+  // Browser akan otomatis mendeteksi domain/IP yang sedang aktif di URL bar
+  return `/images/${path}`;
 };
 
 const formatDateSafe = (
