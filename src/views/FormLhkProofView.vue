@@ -553,7 +553,7 @@ import { format } from "date-fns";
 import api from "@/services/api";
 import { useToast } from "vue-toastification";
 import MesinLookupView from "@/modal/MesinLookupModal.vue";
-import SpkLookupView from "@/modal/SpkLookupModal.vue"; // Menembak view baru non-memo
+import SpkLookupView from "@/modal/SpkMemoLookupModal.vue"; // Menembak view baru non-memo
 import PageLayout from "../components/PageLayout.vue";
 import { useAuthStore } from "@/stores/authStore";
 
@@ -932,14 +932,18 @@ const handleSpkSelect = (spk: any) => {
     return;
   }
 
+  // Fallback: jika panjang/lebar bernilai 0 (khas Memo), coba gunakan dimensi default cetak (misal 1 x 1 meter atau sesuaikan kebutuhan produksi)
+  const pSpk = parseFloat(spk.Panjang) || 0;
+  const lSpk = parseFloat(spk.Lebar) || 0;
+
   const newEntry: any = {
     nomor_spk: code,
-    nama_spk: spk.Nama,
-    panjang_spk: spk.Panjang || 0,
-    lebar_spk: spk.Lebar || 0,
-    jumlah: spk.Jumlah,
-    sudahcetak: spk.Sudah_Cetak || 0,
-    kurangcetak_asli: spk.Kurang_Cetak || 0,
+    nama_spk: spk.Nama || spk.spk_nama || "",
+    panjang_spk: pSpk === 0 ? 1.0 : pSpk, // Set default 1 meter jika data mentah bernilai 0
+    lebar_spk: lSpk === 0 ? 1.0 : lSpk, // Set default 1 meter jika data mentah bernilai 0
+    jumlah: parseFloat(spk.Jumlah || spk.Jumlah_Order || 1),
+    sudahcetak: parseFloat(spk.Sudah_Cetak || 0),
+    kurangcetak_asli: parseFloat(spk.Kurang_Cetak || 1),
     padding: 3,
     tile: 1,
     orientasi: "lebar",
