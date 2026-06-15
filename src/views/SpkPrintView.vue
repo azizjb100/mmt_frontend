@@ -4,6 +4,12 @@ import { useRoute, useRouter } from "vue-router";
 import api from "@/services/api";
 import { format, parseISO } from "date-fns";
 
+interface AlokasiItem {
+  Lokasi: string;
+  Jumlah_M2?: number;
+  Keterangan: string;
+}
+
 interface SpkData {
   SPK: string;
   PO?: string;
@@ -18,6 +24,7 @@ interface SpkData {
   Workshop?: string;
   StatusClient?: string;
   Alokasi?: string;
+  alokasiDetails?: AlokasiItem[];
   Pesan?: string;
   Tipe_SPK: string;
   Ngedit: string;
@@ -65,6 +72,13 @@ const formatDateSafe = (
   }
 };
 
+const getTotalAlokasi = (items: AlokasiItem[] | undefined) => {
+  if (!items) return 0;
+  // Jika jumlah alokasi berdasarkan baris data di spksb (misal total meter lari / pcs)
+  // sesuaikan dengan kolom total jumlah yang Anda inginkan.
+  return items.length;
+};
+
 const fetchPrintData = async (nomor: string) => {
   try {
     const response = await api.get(`/mmt/spk/print/${nomor}`);
@@ -92,18 +106,10 @@ const fetchPrintData = async (nomor: string) => {
 watch([isLoading, isImageLoaded], ([newLoading, newImgLoaded]) => {
   if (newLoading === false && newImgLoaded === true && printData.value) {
     nextTick(() => {
-      // Jeda 300ms guna memastikan siklus render layout Vuetify/HTML selesai sempurna
       setTimeout(() => {
         window.print();
-
-        const handleAfterPrint = () => {
-          window.removeEventListener("afterprint", handleAfterPrint);
-          setTimeout(() => {
-            router.back();
-          }, 300);
-        };
-
-        window.addEventListener("afterprint", handleAfterPrint);
+        // HAPUS LISENER window.addEventListener("afterprint") dari sini
+        // Biarkan user kembali secara manual menggunakan tombol "Kembali" yang sudah Anda sediakan di atas (.floating-action)
       }, 300);
     });
   }
@@ -121,98 +127,146 @@ onMounted(() => {
       <v-btn color="grey" @click="router.back()" class="ml-2">Kembali</v-btn>
     </div>
 
-    <div v-if="printData" class="page-wrapper">
-      <div class="spk-card" v-for="i in 2" :key="i">
-        <header class="header-section">
-          <div class="title-group">
-            <h1 class="main-title">SURAT PERINTAH KERJA</h1>
-            <div class="po-number">PO : {{ printData.PO || "-" }}</div>
-          </div>
-        </header>
+    <div v-if="printData">
+      <div
+        v-if="printData.Alokasi === 'YA' || printData.Alokasi === 'Y'"
+        class="page-wrapper-alokasi"
+      >
+        <div class="left-content-block">
+          <header class="header-section">
+            <div class="title-group">
+              <h1 class="main-title">SURAT PERINTAH KERJA</h1>
+              <div class="po-number">PO : {{ printData.PO || "-" }}</div>
+            </div>
+          </header>
 
-        <div class="sub-header-info">
-          <div
-            class="urgent-tag"
-            v-if="
-              printData.Kepentingan === 'TOP URGENT' ||
-              printData.Kepentingan === 'URGENT'
-            "
-          >
-            {{ printData.Kepentingan }}
+          <div class="sub-header-info">
+            <div
+              class="urgent-tag"
+              v-if="
+                printData.Kepentingan === 'TOP URGENT' ||
+                printData.Kepentingan === 'URGENT'
+              "
+            >
+              {{ printData.Kepentingan }}
+            </div>
+            <div class="type-tag">
+              Tipe SPK : <span>{{ printData.Tipe_SPK || "Medium" }}</span>
+            </div>
           </div>
-          <div class="type-tag">
-            Tipe SPK : <span>{{ printData.Tipe_SPK || "Medium" }}</span>
-          </div>
+
+          <main class="content-section">
+            <table class="details-table">
+              <tr>
+                <td class="label">Nomor SPK</td>
+                <td>: {{ printData.SPK }}</td>
+              </tr>
+              <tr>
+                <td class="label">Tanggal SPK</td>
+                <td>: {{ formatDateSafe(printData.Tanggal) }}</td>
+              </tr>
+              <tr>
+                <td class="label">Jenis Order</td>
+                <td>: MMT OUTDOOR</td>
+              </tr>
+              <tr>
+                <td class="label">Nama Desain</td>
+                <td>: {{ printData.Nama }}</td>
+              </tr>
+              <tr>
+                <td class="label">Jumlah</td>
+                <td>: {{ printData.Jumlah }}</td>
+              </tr>
+              <tr>
+                <td class="label">Ukuran</td>
+                <td>: {{ printData.Ukuran }}</td>
+              </tr>
+              <tr>
+                <td class="label">Bahan</td>
+                <td>: {{ printData.Bahan }}</td>
+              </tr>
+              <tr>
+                <td class="label">Gramasi</td>
+                <td>: {{ printData.Gramasi || "-" }}</td>
+              </tr>
+              <tr>
+                <td class="label">Finishing</td>
+                <td>: {{ printData.Finishing || "-" }}</td>
+              </tr>
+              <tr>
+                <td class="label">Date Line</td>
+                <td>: {{ formatDateSafe(printData.Deadline) }}</td>
+              </tr>
+              <tr>
+                <td class="label">Workshop</td>
+                <td>: {{ printData.Workshop || "P05 (MMT)" }}</td>
+              </tr>
+              <tr>
+                <td class="label">Status Client</td>
+                <td>
+                  :
+                  <span class="highlight-bg">{{
+                    printData.StatusClient || "PERFECT"
+                  }}</span>
+                </td>
+              </tr>
+              <tr>
+                <td class="label">Alokasi</td>
+                <td>: {{ printData.Alokasi || "TIDAK" }}</td>
+              </tr>
+              <tr>
+                <td class="label">Keterangan</td>
+                <td class="val-notes">
+                  :
+                  <span class="notes-content">{{
+                    printData.Pesan || "-"
+                  }}</span>
+                </td>
+              </tr>
+            </table>
+          </main>
         </div>
 
-        <main class="content-section">
-          <table class="details-table">
-            <tr>
-              <td class="label">Nomor SPK</td>
-              <td class="val">: {{ printData.SPK }}</td>
-            </tr>
-            <tr>
-              <td class="label">Tanggal SPK</td>
-              <td class="val">: {{ formatDateSafe(printData.Tanggal) }}</td>
-            </tr>
-            <tr>
-              <td class="label">Jenis Order</td>
-              <td class="val">: MMT OUTDOOR</td>
-            </tr>
-            <tr>
-              <td class="label">Nama Desain</td>
-              <td class="val">: {{ printData.Nama }}</td>
-            </tr>
-            <tr>
-              <td class="label">Jumlah</td>
-              <td class="val">: {{ printData.Jumlah }}</td>
-            </tr>
-            <tr>
-              <td class="label">Ukuran</td>
-              <td class="val">: {{ printData.Ukuran }}</td>
-            </tr>
-            <tr>
-              <td class="label">Bahan</td>
-              <td class="val">: {{ printData.Bahan }}</td>
-            </tr>
-            <tr>
-              <td class="label">Gramasi</td>
-              <td class="val">: {{ printData.Gramasi || "-" }}</td>
-            </tr>
-            <tr>
-              <td class="label">Finishing</td>
-              <td class="val">: {{ printData.Finishing || "-" }}</td>
-            </tr>
-            <tr>
-              <td class="label">Date Line</td>
-              <td class="val">: {{ formatDateSafe(printData.Deadline) }}</td>
-            </tr>
-            <tr>
-              <td class="label">Workshop</td>
-              <td class="val">: {{ printData.Workshop || "P05 (MMT)" }}</td>
-            </tr>
-            <tr>
-              <td class="label">Status Client</td>
-              <td class="val">
-                :
-                <span class="highlight-bg">{{
-                  printData.StatusClient || "PERFECT"
-                }}</span>
-              </td>
-            </tr>
-            <tr>
-              <td class="label">Alokasi</td>
-              <td class="val">: {{ printData.Alokasi || "TIDAK" }}</td>
-            </tr>
-            <tr>
-              <td class="label">Keterangan</td>
-              <td class="val-notes">
-                :
-                <span class="notes-content">{{ printData.Pesan || "-" }}</span>
-              </td>
-            </tr>
+        <div class="right-content-block">
+          <div class="alokasi-title">ALOKASI PENGIRIMAN :</div>
+          <table class="alokasi-table">
+            <thead>
+              <tr>
+                <th>Alokasi</th>
+                <th style="width: 80px; text-align: right">Jumlah</th>
+              </tr>
+            </thead>
+            <tbody>
+              <template
+                v-if="
+                  printData.alokasiDetails &&
+                  printData.alokasiDetails.length > 0
+                "
+              >
+                <tr v-for="(alk, idx) in printData.alokasiDetails" :key="idx">
+                  <td>{{ alk.Lokasi || "-" }}</td>
+                  <td style="text-align: right">
+                    {{ alk.Jumlah_M2 || printData.Jumlah }}
+                  </td>
+                </tr>
+              </template>
+              <template v-else>
+                <tr>
+                  <td style="color: #666; font-style: italic">
+                    TERLAMPIR (Lihat Keterangan)
+                  </td>
+                  <td style="text-align: right">{{ printData.Jumlah }}</td>
+                </tr>
+              </template>
+              <tr class="font-weight-bold">
+                <td>Total</td>
+                <td style="text-align: right">{{ printData.Jumlah }}</td>
+              </tr>
+            </tbody>
           </table>
+        </div>
 
+        <div class="absolute-footer-wrapper">
           <div class="footer-block">
             <div class="design-preview-container">
               <img
@@ -222,17 +276,9 @@ onMounted(() => {
                     : getAssetUrl(`${printData.SPK}.jpg`)
                 "
                 class="design-image"
-                @load="(e) => console.log('LOAD:', e.target.src)"
-                @error="
-                  (e) => {
-                    console.log('ERROR:', e.target.src);
-                    e.target.onerror = null;
-                    handleImageLoad();
-                  }
-                "
+                @error="handleImageLoad"
               />
             </div>
-
             <div class="validation-container">
               <table class="approval-table">
                 <thead>
@@ -268,7 +314,6 @@ onMounted(() => {
                   </tr>
                 </tbody>
               </table>
-
               <div class="qr-wrapper">
                 <img
                   :src="`https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=${encodeURIComponent(printData.QR_Data || printData.SPK)}`"
@@ -278,18 +323,176 @@ onMounted(() => {
               </div>
             </div>
           </div>
-
           <div class="print-meta-text">
             Dibuat Oleh: {{ printData.Created || "-" }} |
             {{ format(new Date(), "dd-MM-yyyy HH:mm:ss") }}
           </div>
-        </main>
+        </div>
+      </div>
+
+      <div v-else class="page-wrapper-double">
+        <div class="spk-card-double" v-for="i in 2" :key="i">
+          <header class="header-section">
+            <div class="title-group">
+              <h1 class="main-title">SURAT PERINTAH KERJA</h1>
+              <div class="po-number">PO : {{ printData.PO || "-" }}</div>
+            </div>
+          </header>
+
+          <div class="sub-header-info-double">
+            <div
+              class="urgent-tag"
+              v-if="
+                printData.Kepentingan === 'TOP URGENT' ||
+                printData.Kepentingan === 'URGENT'
+              "
+            >
+              {{ printData.Kepentingan }}
+            </div>
+            <div class="type-tag">
+              Tipe SPK : <span>{{ printData.Tipe_SPK || "Medium" }}</span>
+            </div>
+          </div>
+
+          <main class="content-section">
+            <table class="details-table">
+              <tr>
+                <td class="label">Nomor SPK</td>
+                <td>: {{ printData.SPK }}</td>
+              </tr>
+              <tr>
+                <td class="label">Tanggal SPK</td>
+                <td>: {{ formatDateSafe(printData.Tanggal) }}</td>
+              </tr>
+              <tr>
+                <td class="label">Jenis Order</td>
+                <td>: MMT OUTDOOR</td>
+              </tr>
+              <tr>
+                <td class="label">Nama Desain</td>
+                <td>: {{ printData.Nama }}</td>
+              </tr>
+              <tr>
+                <td class="label">Jumlah</td>
+                <td>: {{ printData.Jumlah }}</td>
+              </tr>
+              <tr>
+                <td class="label">Ukuran</td>
+                <td>: {{ printData.Ukuran }}</td>
+              </tr>
+              <tr>
+                <td class="label">Bahan</td>
+                <td>: {{ printData.Bahan }}</td>
+              </tr>
+              <tr>
+                <td class="label">Gramasi</td>
+                <td>: {{ printData.Gramasi || "-" }}</td>
+              </tr>
+              <tr>
+                <td class="label">Finishing</td>
+                <td>: {{ printData.Finishing || "-" }}</td>
+              </tr>
+              <tr>
+                <td class="label">Date Line</td>
+                <td>: {{ formatDateSafe(printData.Deadline) }}</td>
+              </tr>
+              <tr>
+                <td class="label">Workshop</td>
+                <td>: {{ printData.Workshop || "P05 (MMT)" }}</td>
+              </tr>
+              <tr>
+                <td class="label">Status Client</td>
+                <td>
+                  :
+                  <span class="highlight-bg">{{
+                    printData.StatusClient || "PERFECT"
+                  }}</span>
+                </td>
+              </tr>
+              <tr>
+                <td class="label">Alokasi</td>
+                <td>: {{ printData.Alokasi || "TIDAK" }}</td>
+              </tr>
+              <tr>
+                <td class="label">Keterangan</td>
+                <td class="val-notes">
+                  :
+                  <span class="notes-content">{{
+                    printData.Pesan || "-"
+                  }}</span>
+                </td>
+              </tr>
+            </table>
+          </main>
+
+          <div class="footer-block-double">
+            <div class="design-preview-container-double">
+              <img
+                :src="
+                  printData.Design_Image
+                    ? getAssetUrl(printData.Design_Image)
+                    : getAssetUrl(`${printData.SPK}.jpg`)
+                "
+                class="design-image"
+                @error="handleImageLoad"
+              />
+            </div>
+            <div class="validation-container-double">
+              <table class="approval-table">
+                <thead>
+                  <tr>
+                    <th>MO</th>
+                    <th>CMO</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="sign-cell">
+                      <img
+                        v-if="printData.MO"
+                        :src="getAssetUrl(`${printData.MO}.jpg`)"
+                        class="signature-img"
+                        @error="
+                          (e: any) => (e.target.style.visibility = 'hidden')
+                        "
+                      />
+                      <div class="signer-name">{{ printData.MO || "N/A" }}</div>
+                    </td>
+                    <td class="sign-cell">
+                      <img
+                        v-if="printData.CMO"
+                        :src="getAssetUrl(`${printData.CMO}.jpg`)"
+                        class="signature-img"
+                        @error="
+                          (e: any) => (e.target.style.visibility = 'hidden')
+                        "
+                      />
+                      <div class="signer-name">{{ printData.CMO || "NO" }}</div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+              <div class="qr-wrapper">
+                <img
+                  :src="`https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=${encodeURIComponent(printData.QR_Data || printData.SPK)}`"
+                  alt="QR Validation"
+                  class="qr-code-img"
+                />
+              </div>
+            </div>
+          </div>
+          <div class="print-meta-text">
+            Dibuat Oleh: {{ printData.Created || "-" }} |
+            {{ format(new Date(), "dd-MM-yyyy HH:mm:ss") }}
+          </div>
+        </div>
       </div>
     </div>
   </div>
 </template>
 
 <style scoped>
+/* --- BASE PRINT CONTAINER --- */
 .print-container {
   background: #525659;
   min-height: 100vh;
@@ -297,30 +500,117 @@ onMounted(() => {
   display: flex;
   justify-content: center;
   align-items: flex-start;
+  font-family: Arial, Helvetica, sans-serif;
+  color: #000;
 }
-.page-wrapper {
+
+/* ========================================== */
+/* STYLE KONDISI 1: JIKA ADA ALOKASI (Full Halaman) */
+/* ========================================== */
+.page-wrapper-alokasi {
   background: white;
   width: 297mm;
   height: 210mm;
-  padding: 8mm 6mm;
+  padding: 10mm 10mm;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  box-sizing: border-box;
+  position: relative;
+}
+.left-content-block {
+  width: 65%;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+.right-content-block {
+  width: 32%;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  margin-top: 5px;
+}
+.absolute-footer-wrapper {
+  position: absolute;
+  bottom: 10mm;
+  left: 10mm;
+  right: 10mm;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ========================================== */
+/* STYLE KONDISI 2: JIKA TANPA ALOKASI (Double) */
+/* ========================================== */
+.page-wrapper-double {
+  background: white;
+  width: 297mm;
+  height: 200mm; /* Diturunkan dari 210mm untuk kompensasi margin default cetak browser */
+  max-height: 200mm;
+  padding: 6mm 8mm;
   display: flex;
   justify-content: space-between;
   box-sizing: border-box;
   position: relative;
+  overflow: hidden;
 }
-.spk-card {
+.spk-card-double {
   width: 48.5%;
   height: 100%;
   display: flex;
   flex-direction: column;
-  position: relative;
-  font-family: Arial, Helvetica, sans-serif;
-  color: #000;
+  position: relative; /* Menahan elemen absolute di bawahnya agar tidak lolos */
   box-sizing: border-box;
 }
+.sub-header-info-double {
+  position: absolute;
+  top: 35px;
+  right: 0;
+  text-align: right;
+  z-index: 10;
+}
+
+/* Mengubah footer double menjadi posisi absolut agar terkunci di dalam batas kertas gambar 2 */
+.footer-block-double {
+  position: absolute;
+  bottom: 15px; /* Jarak aman dari batas potong kertas bawah */
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  width: 100%;
+  height: 110px; /* Tinggi optimal untuk penampung tanda tangan, preview, dan QR */
+  box-sizing: border-box;
+}
+
+.design-preview-container-double {
+  width: 40%;
+  height: 95px;
+  border: 1px dashed #777;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #fafafa;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+.validation-container-double {
+  width: 57%;
+  height: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+}
+
+/* ========================================== */
+/* REUSABLE STYLES COMPONENT ELEMENT */
+/* ========================================== */
 .header-section {
   border-bottom: 2px solid #000;
   padding-bottom: 4px;
+  width: 100%;
 }
 .title-group {
   display: flex;
@@ -332,7 +622,6 @@ onMounted(() => {
   font-weight: bold;
   text-decoration: underline;
   margin: 0;
-  letter-spacing: 0.5px;
 }
 .po-number {
   font-size: 11pt;
@@ -340,7 +629,7 @@ onMounted(() => {
 }
 .sub-header-info {
   position: absolute;
-  top: 35px;
+  top: 32px;
   right: 0;
   text-align: right;
   z-index: 10;
@@ -352,24 +641,21 @@ onMounted(() => {
   margin-bottom: 2px;
 }
 .type-tag {
-  font-size: 8pt;
+  font-size: 8.5pt;
 }
 .type-tag span {
   font-weight: bold;
 }
 .content-section {
-  margin-top: 8px;
-  flex: 1;
-  display: flex;
-  flex-direction: column;
+  margin-top: 10px;
+  width: 100%;
 }
 .details-table {
   width: 100%;
   border-collapse: collapse;
-  margin-bottom: auto;
 }
 .details-table td {
-  padding: 2px 0;
+  padding: 1.5px 0; /* Diperketat sedikit agar teks naik ke atas */
   font-size: 9pt;
   vertical-align: top;
 }
@@ -388,11 +674,30 @@ onMounted(() => {
   font-size: 8.5pt;
   white-space: pre-wrap;
 }
+.alokasi-title {
+  font-size: 9.5pt;
+  font-weight: bold;
+  text-decoration: underline;
+  margin-bottom: 6px;
+}
+.alokasi-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.alokasi-table th,
+.alokasi-table td {
+  border: 1px solid #000;
+  padding: 4px 6px;
+  font-size: 8.5pt;
+}
+.alokasi-table th {
+  background-color: #f2f2f2;
+  font-weight: bold;
+}
 .footer-block {
   display: flex;
   justify-content: space-between;
   align-items: flex-end;
-  margin-top: 15px;
   width: 100%;
   height: 140px;
 }
@@ -437,17 +742,17 @@ onMounted(() => {
   width: 50%;
 }
 .sign-cell {
-  height: 60px;
+  height: 45px; /* Dioptimalkan dimensinya */
   vertical-align: bottom;
-  padding-bottom: 4px;
+  padding-bottom: 2px;
   position: relative;
 }
 .signature-img {
   position: absolute;
-  top: 5px;
+  top: 2px;
   left: 50%;
   transform: translateX(-50%);
-  max-height: 40px;
+  max-height: 30px;
   max-width: 90%;
   object-fit: contain;
 }
@@ -460,14 +765,14 @@ onMounted(() => {
   text-align: right;
 }
 .qr-code-img {
-  width: 75px;
-  height: 75px;
+  width: 62px;
+  height: 62px;
   object-fit: contain;
 }
 .print-meta-text {
   font-size: 7pt;
   text-align: left;
-  margin-top: 6px;
+  margin-top: 4px;
   color: #333;
 }
 .floating-action {
@@ -477,14 +782,18 @@ onMounted(() => {
   z-index: 9999;
 }
 
+/* --- PRINT MEDIA RULES --- */
 @media print {
   @page {
-    size: A4 landscape;
-    margin: 0;
+    size: A4 landscape !important;
+    margin: 0 !important;
   }
   html,
   body {
     background: #fff !important;
+    height: 210mm !important;
+    max-height: 210mm !important;
+    overflow: hidden !important;
   }
   .print-container {
     padding: 0 !important;
@@ -494,13 +803,29 @@ onMounted(() => {
   .no-print {
     display: none !important;
   }
-  .page-wrapper {
+  .page-wrapper-alokasi,
+  .page-wrapper-double {
     box-shadow: none !important;
     margin: 0 !important;
     width: 297mm !important;
     height: 210mm !important;
-    padding: 8mm 6mm !important;
+    max-height: 210mm !important;
     background: white !important;
+    overflow: hidden !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .page-wrapper-alokasi {
+    padding: 10mm 10mm !important;
+  }
+  .page-wrapper-double {
+    padding: 6mm 8mm !important;
+  }
+  .alokasi-table th,
+  .alokasi-table td,
+  .approval-table th,
+  .approval-table td {
+    border: 1px solid #000 !important;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }

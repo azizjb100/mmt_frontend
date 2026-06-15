@@ -359,7 +359,7 @@ const exportToExcel = async () => {
       return;
     }
 
-    const fileName = `LHK_Cetak_MMT_${filters.startDate}_to_${filters.endDate}.xlsx`;
+    const fileName = `LHK_Approval_Cetak_MMT_${filters.startDate}_to_${filters.endDate}.xlsx`;
 
     // Style Definition
     const styleHeaderMain = {
@@ -416,7 +416,7 @@ const exportToExcel = async () => {
     const worksheetData = [];
     worksheetData.push([
       {
-        v: "BROWSE HASIL KERJA CETAK MMT",
+        v: "LAPORAN HASIL KERJA APPROVAL CETAK MMT",
         s: { font: { bold: true, sz: 14 } },
       },
     ]);

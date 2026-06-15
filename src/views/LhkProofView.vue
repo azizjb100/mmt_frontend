@@ -284,7 +284,7 @@ const handlePrint = () => {
   window.open(`/api/report/lhk-proof-slip/${selectedItem.value}`, "_blank");
 };
 
-// --- Fungsi Baru: Export Excel Gaya Rapi ---
+// --- EXPORT LOGIC FIXED (LHK PROOF MMT WITH GRAND TOTAL & BORDERS) ---
 const exportToExcel = async () => {
   loading.master = true;
   try {
@@ -309,9 +309,14 @@ const exportToExcel = async () => {
 
     const fileName = `LHK_Proof_MMT_${filters.startDate}_to_${filters.endDate}.xlsx`;
 
-    // Style Definition
+    const num = (value) => {
+      const parsed = Number(value);
+      return isNaN(parsed) ? 0 : parsed;
+    };
+
+    // --- DEFINISI FORMAT STYLE DENGAN BACKGROUND BIRU MUDA & BORDER UTUH ---
     const styleHeaderMain = {
-      fill: { fgColor: { rgb: "B3E5FC" } },
+      fill: { fgColor: { rgb: "B3E5FC" } }, // Biru Muda Cerah Sesuai Gambar Contoh
       font: { bold: true, color: { rgb: "000000" }, sz: 10 },
       alignment: { horizontal: "center", vertical: "center", wrapText: true },
       border: {
@@ -325,7 +330,7 @@ const exportToExcel = async () => {
     const styleDataCell = {
       font: { sz: 10 },
       border: {
-        top: { style: "thin", color: { rgb: "000000" } },
+        top: { style: "thin", color: { rgb: "000000" } }, // Garis Kisi Tabel Tipis Hitam Utuh
         bottom: { style: "thin", color: { rgb: "000000" } },
         left: { style: "thin", color: { rgb: "000000" } },
         right: { style: "thin", color: { rgb: "000000" } },
@@ -343,7 +348,14 @@ const exportToExcel = async () => {
       alignment: { horizontal: "right", vertical: "center" },
     };
 
-    const formatTglManual = (dateStr: string) => {
+    const styleFooter = {
+      ...styleDataCell,
+      fill: { fgColor: { rgb: "F0F4F8" } }, // Background Abu Terang Grand Total
+      font: { bold: true, sz: 10 },
+    };
+
+    // Perbaikan: Hapus static typing ': string' agar aman di compiler Vite JS biasa
+    const formatTglManual = (dateStr) => {
       if (!dateStr) return "-";
       try {
         if (dateStr.includes("-")) {
@@ -373,7 +385,7 @@ const exportToExcel = async () => {
     ]);
     worksheetData.push([]);
 
-    // Headers Kolom Excel
+    // Tepat Mandatori 12 Kolom Header LHK Proofing
     const headersTable = [
       { v: "NOMOR LHK", s: styleHeaderMain },
       { v: "TANGGAL", s: styleHeaderMain },
@@ -390,66 +402,107 @@ const exportToExcel = async () => {
     ];
     worksheetData.push(headersTable);
 
+    // Variabel Akumulasi Angka Grand Total Bawah
+    let grandTotalOrder = 0;
+    let grandTotalProof = 0;
+
     masterData.value.forEach((header) => {
       const targetDetails = details.value[header.nomor] || [];
       const tglHeader = formatTglManual(header.Tanggal || "");
 
       if (targetDetails.length > 0) {
         targetDetails.forEach((dtl, index) => {
+          const isFirstRow = index === 0;
           const ukuranText =
             dtl.Panjang && dtl.Lebar ? `${dtl.Panjang} x ${dtl.Lebar}` : "-";
 
-          const row = [
-            { v: index === 0 ? header.nomor : "", s: styleDataCellCenter },
-            { v: index === 0 ? tglHeader : "", s: styleDataCellCenter },
+          const valOrder = num(dtl.J_Order);
+          const valProof = num(dtl.J_Proof);
+
+          grandTotalOrder += valOrder;
+          grandTotalProof += valProof;
+
+          worksheetData.push([
+            // Lajur Master Dokumen LHK (Mengganti string kosong "" menjadi "-" pembatas ber-border)
+            { v: isFirstRow ? header.nomor : "-", s: styleDataCellCenter },
+            { v: isFirstRow ? tglHeader : "-", s: styleDataCellCenter },
             {
-              v: index === 0 ? header.Nama_Gudang || "-" : "",
+              v: isFirstRow ? header.Nama_Gudang || "-" : "-",
               s: styleDataCell,
             },
             {
-              v: index === 0 ? header.Jenis || "-" : "",
+              v: isFirstRow ? header.Jenis || "-" : "-",
               s: styleDataCellCenter,
             },
-            { v: index === 0 ? header.Keterangan || "" : "", s: styleDataCell },
+            {
+              v: isFirstRow ? header.Keterangan || "-" : "-",
+              s: styleDataCell,
+            },
 
-            // Detail Columns
+            // Lajur Pecahan Item Transaksi Detail Proof
             { v: dtl.No_Urut || index + 1, s: styleDataCellCenter },
             { v: dtl.Nomor_SPK || "-", s: styleDataCellCenter },
             { v: dtl.Nama_SPK || "-", s: styleDataCell },
             { v: ukuranText, s: styleDataCellCenter },
-            {
-              v: dtl.J_Order !== undefined ? Number(dtl.J_Order) : 0,
-              s: styleDataCellRight,
-            },
-            {
-              v: dtl.J_Proof !== undefined ? Number(dtl.J_Proof) : 0,
-              s: styleDataCellRight,
-            },
-            { v: dtl.Keterangan || "", s: styleDataCell },
-          ];
-          worksheetData.push(row);
+
+            // Perbaikan Letak Atribut 't' dan 'z' ke Root Objek Sel Numerik Detail
+            { v: valOrder, t: "n", z: "#,##0", s: styleDataCellRight },
+            { v: valProof, t: "n", z: "#,##0", s: styleDataCellRight },
+            { v: dtl.Keterangan || "-", s: styleDataCell },
+          ]);
         });
       } else {
-        const row = [
+        worksheetData.push([
           { v: header.nomor, s: styleDataCellCenter },
           { v: tglHeader, s: styleDataCellCenter },
           { v: header.Nama_Gudang || "-", s: styleDataCell },
           { v: header.Jenis || "-", s: styleDataCellCenter },
-          { v: header.Keterangan || "", s: styleDataCell },
+          { v: header.Keterangan || "-", s: styleDataCell },
           { v: "-", s: styleDataCellCenter },
           { v: "-", s: styleDataCellCenter },
           { v: "Tidak ada data detail proofing", s: styleDataCell },
           { v: "-", s: styleDataCellCenter },
-          { v: 0, s: styleDataCellRight },
-          { v: 0, s: styleDataCellRight },
-          { v: "", s: styleDataCell },
-        ];
-        worksheetData.push(row);
+          { v: 0, t: "n", z: "#,##0", s: styleDataCellRight },
+          { v: 0, t: "n", z: "#,##0", s: styleDataCellRight },
+          { v: "-", s: styleDataCell },
+        ]);
       }
     });
 
+    // --- STRUKTUR GRAND TOTAL BAWAH DENGAN FULL KOTAK KISI GARIS ---
+    const footerRow = [
+      {
+        v: "GRAND TOTAL",
+        s: { ...styleFooter, alignment: { horizontal: "right" } },
+      },
+      ...Array(8).fill({ v: "", s: styleFooter }), // Spacer kolom kosong indeks 1 s/d 8 ber-border kotak
+      {
+        v: grandTotalOrder,
+        t: "n",
+        z: "#,##0",
+        s: { ...styleFooter, alignment: { horizontal: "right" } },
+      },
+      {
+        v: grandTotalProof,
+        t: "n",
+        z: "#,##0",
+        s: { ...styleFooter, alignment: { horizontal: "right" } },
+      },
+      { v: "", s: styleFooter },
+    ];
+    worksheetData.push(footerRow);
+
     const ws = XLSX.utils.aoa_to_sheet(worksheetData);
-    ws["!merges"] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 11 } }];
+
+    // Konfigurasi Merge (Judul atas & label GRAND TOTAL bawah dari kolom A s/d I)
+    ws["!merges"] = [
+      { s: { r: 0, c: 0 }, e: { r: 0, c: 11 } },
+      {
+        s: { r: worksheetData.length - 1, c: 0 },
+        e: { r: worksheetData.length - 1, c: 8 },
+      },
+    ];
+
     ws["!cols"] = [
       { wch: 22 },
       { wch: 12 },

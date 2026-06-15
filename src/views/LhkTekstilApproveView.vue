@@ -331,7 +331,7 @@ const handlePrint = () => {
   window.open(`/api/report/lhk-slip/${selectedItem.value}`, "_blank");
 };
 
-// --- Fungsi Export Excel ---
+// --- EXPORT LOGIC FIXED (LHK APPROVAL TEKSTIL MMT WITH GRAND TOTAL & BORDERS) ---
 const exportToExcel = async () => {
   loading.master = true;
   try {
@@ -359,9 +359,14 @@ const exportToExcel = async () => {
 
     const fileName = `LHK_Approval_Tekstil_${filters.startDate}_to_${filters.endDate}.xlsx`;
 
-    // Style Definition
+    const num = (value) => {
+      const parsed = Number(value);
+      return isNaN(parsed) ? 0 : parsed;
+    };
+
+    // --- DEFINISI FORMAT STYLE DENGAN BACKGROUND BIRU MUDA & BORDER UTUH ---
     const styleHeaderMain = {
-      fill: { fgColor: { rgb: "B3E5FC" } },
+      fill: { fgColor: { rgb: "B3E5FC" } }, // Background Biru Muda Cerah
       font: { bold: true, color: { rgb: "000000" }, sz: 10 },
       alignment: { horizontal: "center", vertical: "center", wrapText: true },
       border: {
@@ -375,7 +380,7 @@ const exportToExcel = async () => {
     const styleDataCell = {
       font: { sz: 10 },
       border: {
-        top: { style: "thin", color: { rgb: "000000" } },
+        top: { style: "thin", color: { rgb: "000000" } }, // Garis Tabel Tipis Hitam Utuh
         bottom: { style: "thin", color: { rgb: "000000" } },
         left: { style: "thin", color: { rgb: "000000" } },
         right: { style: "thin", color: { rgb: "000000" } },
@@ -393,8 +398,14 @@ const exportToExcel = async () => {
       alignment: { horizontal: "right", vertical: "center" },
     };
 
-    // Format Tanggal Manual Lokal Anti-Crash
-    const formatTglManual = (dateStr: string) => {
+    const styleFooter = {
+      ...styleDataCell,
+      fill: { fgColor: { rgb: "F0F4F8" } }, // Background Abu Terang Grand Total
+      font: { bold: true, sz: 10 },
+    };
+
+    // Perbaikan: Hapus static typing ': string' agar aman di compiler Vite JS biasa
+    const formatTglManual = (dateStr) => {
       if (!dateStr) return "-";
       try {
         if (dateStr.includes("-")) {
@@ -424,7 +435,7 @@ const exportToExcel = async () => {
     ]);
     worksheetData.push([]);
 
-    // Headers Kolom Excel
+    // Tepat Mandatori 11 Kolom Header Utama Bergaris
     const headers = [
       { v: "NOMOR APPROVAL", s: styleHeaderMain },
       { v: "TANGGAL", s: styleHeaderMain },
@@ -440,61 +451,125 @@ const exportToExcel = async () => {
     ];
     worksheetData.push(headers);
 
-    masterData.value.forEach((header: any) => {
+    // Variabel Akumulasi Angka Grand Total
+    let grandTotalMeterMaster = 0;
+    let grandTotalQtyDetail = 0;
+
+    // Perbaikan: Hapus static typing (: any)
+    masterData.value.forEach((header) => {
       const targetDetails = details.value[header.Nomor] || [];
       const tglHeader = formatTglManual(header.Tanggal || "");
 
+      // Perbaikan: Hapus static typing (: any, : number)
       if (targetDetails.length > 0) {
-        targetDetails.forEach((dtl: any, index: number) => {
+        targetDetails.forEach((dtl, index) => {
+          const isFirstRow = index === 0;
           const ukuranText =
             dtl.Panjang && dtl.Lebar ? `${dtl.Panjang} x ${dtl.Lebar}` : "-";
+          const detailCetakQty = num(dtl.Jml_Cetak || 0);
 
-          const row = [
-            { v: index === 0 ? header.Nomor : "", s: styleDataCellCenter },
-            { v: index === 0 ? tglHeader : "", s: styleDataCellCenter },
+          grandTotalMeterMaster += isFirstRow ? num(header.total_meter) : 0;
+          grandTotalQtyDetail += detailCetakQty;
+
+          worksheetData.push([
+            // Lajur Master Dokumen (Mengganti string kosong "" menjadi "-" pembatas ber-border)
+            { v: isFirstRow ? header.Nomor : "-", s: styleDataCellCenter },
+            { v: isFirstRow ? tglHeader : "-", s: styleDataCellCenter },
             {
-              v: index === 0 ? header.Nama_Gudang || "-" : "",
+              v: isFirstRow ? header.Nama_Gudang || "-" : "-",
               s: styleDataCell,
             },
             {
-              v: index === 0 ? header.Shift || "-" : "",
+              v: isFirstRow ? header.Shift || "-" : "-",
               s: styleDataCellCenter,
             },
-            {
-              v: index === 0 ? Number(header.total_meter || 0) : "",
-              s: styleDataCellRight,
-            },
 
-            // Item Detail
+            // Perbaikan Letak Atribut 't' dan 'z' ke Root Objek Sel Numerik Master
+            isFirstRow
+              ? {
+                  v: num(header.total_meter),
+                  t: "n",
+                  z: "#,##0.00",
+                  s: styleDataCellRight,
+                }
+              : { v: "-", s: styleDataCellCenter },
+
+            // Lajur Item Detail Pekerjaan SPK Individu
             { v: dtl.Mesin || "-", s: styleDataCellCenter },
             { v: dtl.Nomor_SPK || "-", s: styleDataCellCenter },
             { v: dtl.Nama_SPK || "-", s: styleDataCell },
             { v: ukuranText, s: styleDataCellCenter },
-            { v: Number(dtl.Jml_Cetak || 0), s: styleDataCellRight },
+
+            // Perbaikan Letak Atribut 't' dan 'z' ke Root Objek Sel Numerik Detail Qty
+            { v: detailCetakQty, t: "n", z: "#,##0", s: styleDataCellRight },
             { v: dtl.Nama || "-", s: styleDataCell },
-          ];
-          worksheetData.push(row);
+          ]);
         });
       } else {
-        const row = [
+        // Fallback jikalau baris master tidak memiliki data pecahan detail transaksi
+        grandTotalMeterMaster += num(header.total_meter);
+
+        worksheetData.push([
           { v: header.Nomor, s: styleDataCellCenter },
           { v: tglHeader, s: styleDataCellCenter },
           { v: header.Nama_Gudang || "-", s: styleDataCell },
           { v: header.Shift || "-", s: styleDataCellCenter },
-          { v: Number(header.total_meter || 0), s: styleDataCellRight },
+          {
+            v: num(header.total_meter),
+            t: "n",
+            z: "#,##0.00",
+            s: styleDataCellRight,
+          },
           { v: "-", s: styleDataCellCenter },
           { v: "-", s: styleDataCellCenter },
-          { v: "Tidak ada data detail pekerjaan", s: styleDataCell },
+          { v: "Tidak ada data detail pengerjaan", s: styleDataCell },
           { v: "-", s: styleDataCellCenter },
-          { v: 0, s: styleDataCellRight },
+          { v: 0, t: "n", z: "#,##0", s: styleDataCellRight },
           { v: "-", s: styleDataCell },
-        ];
-        worksheetData.push(row);
+        ]);
       }
     });
 
+    // --- STRUKTUR GRAND TOTAL BAWAH DENGAN FULL KOTAK KISI GARIS ---
+    const footerRow = [
+      {
+        v: "GRAND TOTAL",
+        s: { ...styleFooter, alignment: { horizontal: "right" } },
+      },
+      { v: "", s: styleFooter },
+      { v: "", s: styleFooter },
+      { v: "", s: styleFooter },
+      {
+        v: grandTotalMeterMaster,
+        t: "n",
+        z: "#,##0.00",
+        s: { ...styleFooter, alignment: { horizontal: "right" } },
+      },
+      { v: "", s: styleFooter },
+      { v: "", s: styleFooter },
+      { v: "", s: styleFooter },
+      { v: "", s: styleFooter },
+      {
+        v: grandTotalQtyDetail,
+        t: "n",
+        z: "#,##0",
+        s: { ...styleFooter, alignment: { horizontal: "right" } },
+      },
+      { v: "", s: styleFooter },
+    ];
+    worksheetData.push(footerRow);
+
     const ws = XLSX.utils.aoa_to_sheet(worksheetData);
-    ws["!merges"] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 10 } }];
+
+    // Konfigurasi Merge (Judul atas serta Label Teks GRAND TOTAL bawah kolom A s/d D)
+    ws["!merges"] = [
+      { s: { r: 0, c: 0 }, e: { r: 0, c: 10 } },
+      {
+        s: { r: worksheetData.length - 1, c: 0 },
+        e: { r: worksheetData.length - 1, c: 3 },
+      },
+    ];
+
     ws["!cols"] = [
       { wch: 22 },
       { wch: 12 },

@@ -487,23 +487,27 @@ const exportToExcel = () => {
 
   const formatDateIndo = (dateStr) => {
     if (!dateStr) return "-";
-    const date = parseISO(dateStr);
-    if (!isValid(date)) return dateStr;
-    const bulanIndo = [
-      "Januari",
-      "Februari",
-      "Maret",
-      "April",
-      "Mei",
-      "Juni",
-      "Juli",
-      "Agustus",
-      "September",
-      "Oktober",
-      "November",
-      "Desember",
-    ];
-    return `${date.getDate()} ${bulanIndo[date.getMonth()]} ${date.getFullYear()}`;
+    try {
+      const date = parseISO(dateStr);
+      if (!isValid(date)) return dateStr;
+      const bulanIndo = [
+        "Januari",
+        "Februari",
+        "Maret",
+        "April",
+        "Mei",
+        "Juni",
+        "Juli",
+        "Agustus",
+        "September",
+        "Oktober",
+        "November",
+        "Desember",
+      ];
+      return `${date.getDate()} ${bulanIndo[date.getMonth()]} ${date.getFullYear()}`;
+    } catch {
+      return dateStr;
+    }
   };
 
   const borderTegasHitam = {
@@ -514,7 +518,7 @@ const exportToExcel = () => {
   };
 
   const styleHeaderMain = {
-    fill: { fgColor: { rgb: "E3F2FD" } },
+    fill: { fgColor: { rgb: "B3E5FC" } }, // Diselaraskan ke Biru Muda Cerah MMT Anda
     font: { bold: true, color: { rgb: "000000" }, name: "Calibri", sz: 10 },
     alignment: { horizontal: "center", vertical: "center", wrapText: true },
     border: borderTegasHitam,
@@ -533,11 +537,11 @@ const exportToExcel = () => {
 
   const styleFooter = {
     ...styleDataCell,
-    fill: { fgColor: { rgb: "F5F5F5" } },
+    fill: { fgColor: { rgb: "F0F4F8" } }, // Disamakan dengan format abu terang totalan Anda
     font: { bold: true, name: "Calibri", sz: 10, color: { rgb: "000000" } },
     border: {
       top: { style: "thin", color: { rgb: "000000" } },
-      bottom: { style: "double", color: { rgb: "000000" } },
+      bottom: { style: "double", color: { rgb: "000000" } }, // Garis akuntansi ganda
       left: { style: "thin", color: { rgb: "000000" } },
       right: { style: "thin", color: { rgb: "000000" } },
     },
@@ -548,7 +552,7 @@ const exportToExcel = () => {
     {
       v: "LAPORAN MONITORING PROOF",
       s: {
-        font: { bold: true, sz: 16, name: "Calibri", color: { rgb: "000000" } },
+        font: { bold: true, sz: 14, name: "Calibri", color: { rgb: "000000" } },
       },
     },
   ]);
@@ -556,7 +560,7 @@ const exportToExcel = () => {
     {
       v: `Periode: ${formatDateIndo(startDate.value)} s/d ${formatDateIndo(endDate.value)}`,
       s: {
-        font: { bold: true, sz: 12, name: "Calibri", color: { rgb: "000000" } },
+        font: { bold: true, sz: 10, name: "Calibri", color: { rgb: "000000" } },
       },
     },
   ]);
@@ -566,7 +570,7 @@ const exportToExcel = () => {
       s: {
         font: {
           bold: false,
-          sz: 11,
+          sz: 10,
           name: "Calibri",
           color: { rgb: "000000" },
         },
@@ -610,7 +614,7 @@ const exportToExcel = () => {
     }
   });
 
-  // Gabungkan label title "TOTAL ORDER:" di footer
+  // Gabungkan label title "TOTAL ORDER:" di footer (Merge kolom 1 s/d 5)
   excelMerges.push({
     s: { r: filteredData.value.length + 6, c: 0 },
     e: { r: filteredData.value.length + 6, c: 4 },
@@ -629,27 +633,38 @@ const exportToExcel = () => {
         : styleDataCell;
 
       if (col.type === "number") {
-        const isDecimalCol = col.field === "panjang" || col.field === "lebar";
+        const isDecimalCol =
+          col.field === "panjang" ||
+          col.field === "lebar" ||
+          col.field === "m2" ||
+          col.field === "luas";
         const finalNum = isDecimalCol
           ? Number(parseFloat(value || 0).toFixed(2))
           : Number(value || 0);
 
+        // PERBAIKAN UTAMA: Pindahkan properti 't' dan 'z' sejajar dengan nilai 'v' (Root Level)
         row.push({
           v: finalNum,
+          t: "n",
+          z: isDecimalCol ? "#,##0.00" : "#,##0",
           s: {
             ...customCellStyle,
-            alignment: { horizontal: "right" },
-            t: "n",
-            z: isDecimalCol ? "#,##0.00" : "#,##0",
+            alignment: { horizontal: "right", vertical: "center" },
           },
         });
       } else if (col.type === "date") {
         row.push({
           v: formatOnlyDate(value),
-          s: { ...customCellStyle, alignment: { horizontal: "center" } },
+          s: {
+            ...customCellStyle,
+            alignment: { horizontal: "center", vertical: "center" },
+          },
         });
       } else {
-        row.push({ v: value || "", s: customCellStyle });
+        row.push({
+          v: value || "-", // Ganti string kosong dengan "-" agar gridline aman
+          s: customCellStyle,
+        });
       }
     });
     wsData.push(row);
@@ -661,16 +676,37 @@ const exportToExcel = () => {
     if (idx === 0) {
       excelFooter.push({
         v: "TOTAL ORDER:",
-        s: { ...styleFooter, alignment: { horizontal: "right" } },
+        s: {
+          ...styleFooter,
+          alignment: { horizontal: "right", vertical: "center" },
+        },
       });
     } else if (col.sum) {
       const sumVal = sumField(col.field);
+      const isDecimalSum =
+        col.field === "panjang" ||
+        col.field === "lebar" ||
+        col.field === "m2" ||
+        col.field === "luas";
+
+      // PERBAIKAN: Taruh 't' dan 'z' di tingkat root sel objek pada footer totalan agar bisa di-SUM otomatis
       excelFooter.push({
         v: Number(sumVal),
-        s: { ...styleFooter, t: "n", z: "#,##0" },
+        t: "n",
+        z: isDecimalSum ? "#,##0.00" : "#,##0",
+        s: {
+          ...styleFooter,
+          alignment: { horizontal: "right", vertical: "center" },
+        },
       });
     } else {
-      excelFooter.push({ v: "", s: styleFooter });
+      excelFooter.push({
+        v: "-",
+        s: {
+          ...styleFooter,
+          alignment: { horizontal: "center", vertical: "center" },
+        },
+      });
     }
   });
   wsData.push(excelFooter);
@@ -681,6 +717,7 @@ const exportToExcel = () => {
 
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Proof_Monitoring");
+
   const wbout = XLSX.write(wb, { bookType: "xlsx", type: "binary" });
   const s2ab = (s) => {
     const buf = new ArrayBuffer(s.length);
@@ -688,6 +725,7 @@ const exportToExcel = () => {
     for (let i = 0; i < s.length; i++) view[i] = s.charCodeAt(i) & 0xff;
     return buf;
   };
+
   saveAs(
     new Blob([s2ab(wbout)], { type: "application/octet-stream" }),
     fileName,

@@ -403,206 +403,282 @@ const prevPage = () => {
 
 // --- EXPORT LOGIC ---
 const exportToExcel = async () => {
-  const workbook = new ExcelJS.Workbook();
-  const worksheet = workbook.addWorksheet("Monitoring Cetak");
+  // Safe-guard jika state loading menggunakan properti headers atau master murni
+  if (loading.value) {
+    if (loading.value.headers !== undefined) loading.value.headers = true;
+    else if (loading.value.master !== undefined) loading.value.master = true;
+  }
 
-  // Helper aman untuk memaksa konversi ke tipe Number murni
-  const num = (value: any): number => {
-    const parsed = Number(value);
-    return isNaN(parsed) ? 0 : parsed;
-  };
+  try {
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet("Monitoring Cetak");
 
-  // Define Headers (2 rows) - Total 23 Kolom
-  const headerRow1 = [
-    "PERUSAHAAN",
-    "TGL LHK",
-    "TGL SPK",
-    "DEADLINE",
-    "NAMA ORDER",
-    "UKURAN",
-    "", // F & G
-    "NO SPK", // H
-    "ORDER SPK",
-    "", // I & J
-    "JENIS", // K
-    "HASIL CETAK (PCS)",
-    "",
-    "",
-    "",
-    "", // L, M, N, O, P
-    "TOTAL QTY", // Q
-    "HASIL CETAK (MTR)",
-    "",
-    "",
-    "",
-    "", // R, S, T, U, V
-    "KURANG", // W
-  ];
+    // Helper aman untuk memaksa konversi ke tipe Number murni
+    const num = (value) => {
+      const parsed = Number(value);
+      return isNaN(parsed) ? 0 : parsed;
+    };
 
-  const headerRow2 = [
-    "",
-    "",
-    "",
-    "",
-    "",
-    "PANG",
-    "LEB", // F & G
-    "",
-    "PCS",
-    "MTR", // I & J
-    "",
-    "MT01",
-    "MT02",
-    "MT03",
-    "MT04",
-    "MT05", // L s/d P
-    "",
-    "JMT01",
-    "JMT02",
-    "JMT03",
-    "JMT04",
-    "JMT05", // R s/d V
-    "",
-  ];
+    const formatTglManual = (dateStr) => {
+      if (!dateStr) return "-";
+      try {
+        if (dateStr.includes("-")) {
+          const parts = dateStr.split("T")[0].split("-");
+          if (parts.length === 3) {
+            return `${parts[2]}/${parts[1]}/${parts[0]}`;
+          }
+        }
+        return dateStr;
+      } catch {
+        return dateStr;
+      }
+    };
 
-  const row1 = worksheet.addRow(headerRow1);
-  const row2 = worksheet.addRow(headerRow2);
+    // =========================================================================
+    // ADD JUDUL LAPORAN ATAS (BARIS 1 - 3)
+    // =========================================================================
+    const titleRow = worksheet.addRow(["LAPORAN MONITORING CETAK"]);
+    titleRow.getCell(1).font = { bold: true, size: 14 };
 
-  // Merge Cells for Double Header
-  const merges = [
-    "A1:A2",
-    "B1:B2",
-    "C1:C2",
-    "D1:D2",
-    "E1:E2", // Single columns
-    "F1:G1", // UKURAN
-    "H1:H2", // NO SPK
-    "I1:J1", // ORDER SPK
-    "K1:K2", // JENIS
-    "L1:P1", // HASIL PCS
-    "Q1:Q2", // TOTAL QTY
-    "R1:V1", // HASIL MTR
-    "W1:W2", // KURANG
-  ];
-  merges.forEach((m) => worksheet.mergeCells(m));
+    // PERBAIKAN: Menggunakan startDate.value & endDate.value murni (Bebas dari ReferenceError filters)
+    const periodeStr = `Periode : ${formatTglManual(startDate.value)} s/d ${formatTglManual(endDate.value)}`;
+    const subtitleRow = worksheet.addRow([periodeStr]);
+    subtitleRow.getCell(1).font = { size: 10 };
 
-  // Style Headers
-  [row1, row2].forEach((row) => {
-    row.eachCell((cell) => {
+    worksheet.addRow([]); // Baris Kosong Pengaman (Baris 3)
+
+    // =========================================================================
+    // DEFINE DOUBLE HEADERS (SEKARANG BERGESER KE BARIS 4 & 5)
+    // =========================================================================
+    const headerRow1 = [
+      "PERUSAHAAN",
+      "TGL LHK",
+      "TGL SPK",
+      "DEADLINE",
+      "NAMA ORDER",
+      "UKURAN",
+      "", // F & G
+      "NO SPK", // H
+      "ORDER SPK",
+      "", // I & J
+      "JENIS", // K
+      "HASIL CETAK (PCS)",
+      "",
+      "",
+      "",
+      "", // L, M, N, O, P
+      "TOTAL QTY", // Q
+      "HASIL CETAK (MTR)",
+      "",
+      "",
+      "",
+      "", // R, S, T, U, V
+      "KURANG", // W
+    ];
+
+    const headerRow2 = [
+      "",
+      "",
+      "",
+      "",
+      "",
+      "PANG",
+      "LEB", // F & G
+      "",
+      "PCS",
+      "MTR", // I & J
+      "",
+      "MT01",
+      "MT02",
+      "MT03",
+      "MT04",
+      "MT05", // L s/d P
+      "",
+      "JMT01",
+      "JMT02",
+      "JMT03",
+      "JMT04",
+      "JMT05", // R s/d V
+      "",
+    ];
+
+    const row4 = worksheet.addRow(headerRow1); // Baris 4
+    const row5 = worksheet.addRow(headerRow2); // Baris 5
+
+    // Merge Koordinat: Disesuaikan presisi menempati baris 4-5
+    const merges = [
+      "A4:A5",
+      "B4:B5",
+      "C4:C5",
+      "D4:D5",
+      "E4:E5", // Lajur Single Master
+      "F4:G4", // UKURAN
+      "H4:H5", // NO SPK
+      "I4:J4", // ORDER SPK
+      "K4:K5", // JENIS
+      "L4:P4", // HASIL PCS
+      "Q4:Q5", // TOTAL QTY
+      "R4:V4", // HASIL MTR
+      "W4:W5", // KURANG
+    ];
+    merges.forEach((m) => worksheet.mergeCells(m));
+
+    // Style Double Headers Bergaris Kotak Biru Muda Cerah
+    [row4, row5].forEach((row) => {
+      row.eachCell((cell) => {
+        cell.fill = {
+          type: "pattern",
+          pattern: "solid",
+          fgColor: { argb: "FFB3E5FC" },
+        };
+        cell.font = { bold: true, size: 10, color: { argb: "FF000000" } };
+        cell.alignment = {
+          vertical: "middle",
+          horizontal: "center",
+          wrapText: true,
+        };
+        cell.border = {
+          top: { style: "thin", color: { argb: "FF000000" } },
+          bottom: { style: "thin", color: { argb: "FF000000" } },
+          left: { style: "thin", color: { argb: "FF000000" } },
+          right: { style: "thin", color: { argb: "FF000000" } },
+        };
+      });
+    });
+
+    // =========================================================================
+    // ADD DATA ROW
+    // =========================================================================
+    filteredData.value.forEach((item) => {
+      const dataRow = worksheet.addRow([
+        item.perush, // 1 (A)
+        item.tglLhk, // 2 (B)
+        item.tglSpk, // 3 (C)
+        item.deadline, // 4 (D)
+        item.namaOrder, // 5 (E)
+        num(item.panjang), // 6 (F)
+        num(item.lebar), // 7 (G)
+        item.noSpk, // 8 (H)
+        num(item.pcs), // 9 (I)
+        num(item.order_meter), // 10 (J)
+        item.jenis, // 11 (K)
+        num(item.mt01), // 12 (L)
+        num(item.mt02), // 13 (M)
+        num(item.mt03), // 14 (N)
+        num(item.mt04), // 15 (O)
+        num(item.mt05), // 16 (P)
+        num(item.jmlcetak) + num(item.cetak_luar), // 17 (Q)
+        num(item.jmt01), // 18 (R)
+        num(item.jmt02), // 19 (S)
+        num(item.jmt03), // 20 (T)
+        num(item.jmt04), // 21 (U)
+        num(item.jmt05), // 22 (V)
+        num(item.jmlkurang), // 23 (W)
+      ]);
+
+      // Berikan Garis Kisi Kotak Tipis di Setiap Sel Data
+      dataRow.eachCell((cell) => {
+        cell.border = {
+          top: { style: "thin", color: { argb: "FF000000" } },
+          bottom: { style: "thin", color: { argb: "FF000000" } },
+          left: { style: "thin", color: { argb: "FF000000" } },
+          right: { style: "thin", color: { argb: "FF000000" } },
+        };
+      });
+
+      // Format Desimal (2 angka belakang koma) & Rata Kanan
+      [6, 7, 10, 18, 19, 20, 21, 22].forEach((col) => {
+        const cell = dataRow.getCell(col);
+        cell.numFmt = "#,##0.00";
+        cell.alignment = { horizontal: "right", vertical: "middle" };
+      });
+
+      // Format Integer (Tanpa desimal) & Rata Kanan
+      [9, 12, 13, 14, 15, 16, 17, 23].forEach((col) => {
+        const cell = dataRow.getCell(col);
+        cell.numFmt = "#,##0";
+        cell.alignment = { horizontal: "right", vertical: "middle" };
+      });
+    });
+
+    // =========================================================================
+    // ADD GRAND TOTAL BOTTOM ROW
+    // =========================================================================
+    const totalRow = worksheet.addRow([
+      "GRAND TOTAL",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "", // 1 s/d 8
+      num(reportTotals.value.pcs), // 9
+      num(reportTotals.value.order_meter), // 10
+      "", // 11
+      num(reportTotals.value.mt01), // 12
+      num(reportTotals.value.mt02), // 13
+      num(reportTotals.value.mt03), // 14
+      num(reportTotals.value.mt04), // 15
+      num(reportTotals.value.mt05), // 16
+      num(reportTotals.value.jmlcetak) + num(reportTotals.value.cetak_luar), // 17
+      num(reportTotals.value.jmt01), // 18
+      num(reportTotals.value.jmt02), // 19
+      num(reportTotals.value.jmt03), // 20
+      num(reportTotals.value.jmt04), // 21
+      num(reportTotals.value.jmt05), // 22
+      num(reportTotals.value.jmlkurang), // 23
+    ]);
+
+    // Merge untuk label GRAND TOTAL bagian bawah laporan (A s/d H)
+    const currentTotalRowIndex = totalRow.number;
+    worksheet.mergeCells(`A${currentTotalRowIndex}:H${currentTotalRowIndex}`);
+
+    // Style Grand Total Lengkap Dengan Garis Kisi Kotak Tipis
+    totalRow.eachCell((cell, colNumber) => {
+      cell.font = { bold: true, size: 10 };
       cell.fill = {
         type: "pattern",
         pattern: "solid",
-        fgColor: { argb: "FFB3E5FC" },
+        fgColor: { argb: "FFF0F4F8" },
       };
-      cell.font = { bold: true, size: 10 };
-      cell.alignment = { vertical: "middle", horizontal: "center" };
       cell.border = {
-        top: { style: "thin" },
-        left: { style: "thin" },
-        bottom: { style: "thin" },
-        right: { style: "thin" },
+        top: { style: "thin", color: { argb: "FF000000" } },
+        bottom: { style: "double", color: { argb: "FF000000" } }, // Double accounting line bawah
+        left: { style: "thin", color: { argb: "FF000000" } },
+        right: { style: "thin", color: { argb: "FF000000" } },
       };
-    });
-  });
 
-  // Add Data - Dipastikan 23 elemen array agar pas dengan struktur header
-  filteredData.value.forEach((item) => {
-    const dataRow = worksheet.addRow([
-      item.perush, // 1 (A)
-      item.tglLhk, // 2 (B)
-      item.tglSpk, // 3 (C)
-      item.deadline, // 4 (D)
-      item.namaOrder, // 5 (E)
-      num(item.panjang), // 6 (F) -> Desimal
-      num(item.lebar), // 7 (G) -> Desimal
-      item.noSpk, // 8 (H)
-      num(item.pcs), // 9 (I) -> Integer
-      num(item.order_meter), // 10 (J) -> Desimal
-      item.jenis, // 11 (K)
-      num(item.mt01), // 12 (L) -> Integer
-      num(item.mt02), // 13 (M) -> Integer
-      num(item.mt03), // 14 (N) -> Integer
-      num(item.mt04), // 15 (O) -> Integer
-      num(item.mt05), // 16 (P) -> Integer
-      num(item.jmlcetak) + num(item.cetak_luar), // 17 (Q) -> Integer
-      num(item.jmt01), // 18 (R) -> Desimal
-      num(item.jmt02), // 19 (S) -> Desimal
-      num(item.jmt03), // 20 (T) -> Desimal
-      num(item.jmt04), // 21 (U) -> Desimal
-      num(item.jmt05), // 22 (V) -> Desimal
-      num(item.jmlkurang), // 23 (W) -> Integer
-    ]);
-
-    // Terapkan format desimal (2 digit di belakang koma) & rata kanan
-    [6, 7, 10, 18, 19, 20, 21, 22].forEach((col) => {
-      const cell = dataRow.getCell(col);
-      cell.numFmt = "#,##0.00";
-      cell.alignment = { horizontal: "right" };
+      if ([6, 7, 10, 18, 19, 20, 21, 22].includes(colNumber)) {
+        cell.numFmt = "#,##0.00";
+        cell.alignment = { horizontal: "right", vertical: "middle" };
+      } else if ([9, 12, 13, 14, 15, 16, 17, 23].includes(colNumber)) {
+        cell.numFmt = "#,##0";
+        cell.alignment = { horizontal: "right", vertical: "middle" };
+      }
     });
 
-    // Terapkan format integer (tanpa desimal) & rata kanan
-    [9, 12, 13, 14, 15, 16, 17, 23].forEach((col) => {
-      const cell = dataRow.getCell(col);
-      cell.numFmt = "#,##0";
-      cell.alignment = { horizontal: "right" };
+    // Penyetelan Ukuran Lebar Kolom
+    worksheet.columns.forEach((col, index) => {
+      if (index === 4) {
+        col.width = 45; // Kolom NAMA ORDER dibuat lebar agar tulisan spanduk mmt muat
+      } else {
+        col.width = 15;
+      }
     });
-  });
 
-  // Add Grand Total - Pas 23 Kolom
-  const totalRow = worksheet.addRow([
-    "GRAND TOTAL",
-    "",
-    "",
-    "",
-    "",
-    "",
-    "",
-    "", // 1 s/d 8
-    num(reportTotals.value.pcs), // 9
-    num(reportTotals.value.order_meter), // 10
-    "", // 11
-    num(reportTotals.value.mt01), // 12
-    num(reportTotals.value.mt02), // 13
-    num(reportTotals.value.mt03), // 14
-    num(reportTotals.value.mt04), // 15
-    num(reportTotals.value.mt05), // 16
-    num(reportTotals.value.jmlcetak) + num(reportTotals.value.cetak_luar), // 17
-    num(reportTotals.value.jmt01), // 18
-    num(reportTotals.value.jmt02), // 19
-    num(reportTotals.value.jmt03), // 20
-    num(reportTotals.value.jmt04), // 21
-    num(reportTotals.value.jmt05), // 22
-    num(reportTotals.value.jmlkurang), // 23
-  ]);
-
-  // Style Grand Total & Format Angka Seluruh Baris Total
-  totalRow.eachCell((cell, colNumber) => {
-    cell.font = { bold: true };
-    cell.fill = {
-      type: "pattern",
-      pattern: "solid",
-      fgColor: { argb: "FFF0F4F8" },
-    };
-    cell.border = {
-      top: { style: "thin" },
-      bottom: { style: "double" },
-    };
-
-    if ([6, 7, 10, 18, 19, 20, 21, 22].includes(colNumber)) {
-      cell.numFmt = "#,##0.00";
-      cell.alignment = { horizontal: "right" };
-    } else if ([9, 12, 13, 14, 15, 16, 17, 23].includes(colNumber)) {
-      cell.numFmt = "#,##0";
-      cell.alignment = { horizontal: "right" };
+    const buffer = await workbook.xlsx.writeBuffer();
+    // PERBAIKAN: Mengunduh file dengan parameter ref murni (.value)
+    saveAs(new Blob([buffer]), `Monitoring_Cetak_${startDate.value}.xlsx`);
+  } catch (error) {
+    console.error("Export Error:", error);
+    toast.error("Gagal mengekspor data laporan monitoring cetak.");
+  } finally {
+    if (loading.value) {
+      if (loading.value.headers !== undefined) loading.value.headers = false;
+      else if (loading.value.master !== undefined) loading.value.master = false;
     }
-  });
-
-  worksheet.columns.forEach((col) => {
-    col.width = 15;
-  });
-
-  const buffer = await workbook.xlsx.writeBuffer();
-  saveAs(new Blob([buffer]), `Monitoring_Cetak_${startDate.value}.xlsx`);
+  }
 };
 
 onMounted(fetchReport);

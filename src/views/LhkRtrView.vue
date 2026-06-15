@@ -256,7 +256,7 @@ const handlePrint = () => {
   toast.info(`Mencetak Slip: ${selectedNomor.value}`);
 };
 
-// --- Fungsi Export Excel ---
+// --- EXPORT LOGIC FIXED (LHK RTR MMT WITH GRAND TOTAL & BORDERS) ---
 const exportToExcel = async () => {
   loading.value.headers = true;
   try {
@@ -281,9 +281,14 @@ const exportToExcel = async () => {
 
     const fileName = `LHK_RTR_MMT_${filters.startDate}_to_${filters.endDate}.xlsx`;
 
-    // Style Definition
+    const num = (value) => {
+      const parsed = Number(value);
+      return isNaN(parsed) ? 0 : parsed;
+    };
+
+    // --- STRUKTUR FORMAT STYLING BORDER DAN BACKGROUND SESUAI CONTOH GAMBAR ---
     const styleHeaderMain = {
-      fill: { fgColor: { rgb: "B3E5FC" } },
+      fill: { fgColor: { rgb: "B3E5FC" } }, // Background Biru Muda Cerah
       font: { bold: true, color: { rgb: "000000" }, sz: 10 },
       alignment: { horizontal: "center", vertical: "center", wrapText: true },
       border: {
@@ -297,7 +302,7 @@ const exportToExcel = async () => {
     const styleDataCell = {
       font: { sz: 10 },
       border: {
-        top: { style: "thin", color: { rgb: "000000" } },
+        top: { style: "thin", color: { rgb: "000000" } }, // Garis Kisi Tabel Tipis Hitam Utuh
         bottom: { style: "thin", color: { rgb: "000000" } },
         left: { style: "thin", color: { rgb: "000000" } },
         right: { style: "thin", color: { rgb: "000000" } },
@@ -315,17 +320,21 @@ const exportToExcel = async () => {
       alignment: { horizontal: "right", vertical: "center" },
     };
 
-    const formatTglManual = (dateStr: string) => {
+    const styleFooter = {
+      ...styleDataCell,
+      fill: { fgColor: { rgb: "F0F4F8" } }, // Background Abu Terang Grand Total
+      font: { bold: true, sz: 10 },
+    };
+
+    const formatTglManual = (dateStr) => {
       if (!dateStr) return "-";
       try {
         if (dateStr.includes("-")) {
           const parts = dateStr.split("T")[0].split("-");
           if (parts.length === 3) {
-            // Jika masukan format yyyy-mm-dd
             if (parts[0].length === 4) {
               return `${parts[2]}/${parts[1]}/${parts[0]}`;
             }
-            // Jika masukan sudah dd-mm-yyyy
             return `${parts[0]}/${parts[1]}/${parts[2]}`;
           }
         }
@@ -347,7 +356,7 @@ const exportToExcel = async () => {
     ]);
     worksheetData.push([]);
 
-    // Headers Kolom Excel
+    // Tepat Mandatori 14 Kolom Header Utama LHK RTR Bergaris
     const headersTable = [
       { v: "NOMOR LHK", s: styleHeaderMain },
       { v: "TANGGAL", s: styleHeaderMain },
@@ -366,76 +375,144 @@ const exportToExcel = async () => {
     ];
     worksheetData.push(headersTable);
 
+    // Variabel Akumulasi Grand Total Bawah Laporan
+    let grandTotalM2Master = 0;
+    let grandTotalJumlahDetail = 0;
+    let grandTotalM2Detail = 0;
+
     masterData.value.forEach((header) => {
       const targetDetails = details.value[header.nomor] || [];
       const tglHeader = formatTglManual(header.Tanggal || "");
 
       if (targetDetails.length > 0) {
         targetDetails.forEach((dtl, index) => {
-          const row = [
-            { v: index === 0 ? header.nomor : "", s: styleDataCellCenter },
-            { v: index === 0 ? tglHeader : "", s: styleDataCellCenter },
+          const isFirstRow = index === 0;
+          const valJumlah = num(dtl.Jumlah);
+          const valM2Detail = num(dtl.Jumlah_meter);
+
+          grandTotalM2Master += isFirstRow ? num(header.total_meter) : 0;
+          grandTotalJumlahDetail += valJumlah;
+          grandTotalM2Detail += valM2Detail;
+
+          worksheetData.push([
+            // Lajur Master Dokumen (Mengganti string kosong "" menjadi "-" pembatas ber-border)
+            { v: isFirstRow ? header.nomor : "-", s: styleDataCellCenter },
+            { v: isFirstRow ? tglHeader : "-", s: styleDataCellCenter },
             {
-              v: index === 0 ? header.Gudang || "-" : "",
+              v: isFirstRow ? header.Gudang || "-" : "-",
               s: styleDataCellCenter,
             },
             {
-              v: index === 0 ? header.Nama_Gudang || "-" : "",
+              v: isFirstRow ? header.Nama_Gudang || "-" : "-",
               s: styleDataCell,
             },
-            {
-              v: index === 0 ? Number(header.total_meter || 0) : "",
-              s: styleDataCellRight,
-            },
 
-            // Detail Columns
+            // Perbaikan Letak Atribut 't' dan 'z' ke Root Objek Sel Master M2
+            isFirstRow
+              ? {
+                  v: num(header.total_meter),
+                  t: "n",
+                  z: "#,##0.00",
+                  s: styleDataCellRight,
+                }
+              : { v: "-", s: styleDataCellCenter },
+
+            // Lajur Detail Item Transaksi SPK Terurai (1 Baris 1 SPK)
             { v: dtl.No_Urut || index + 1, s: styleDataCellCenter },
             { v: dtl.Nomor_SPK || "-", s: styleDataCellCenter },
             { v: dtl.Nama_SPK || "-", s: styleDataCell },
+
+            // Perbaikan Letak Atribut 't' dan 'z' ke Root Objek Sel Numerik Detail
             {
-              v: dtl.Panjang !== undefined ? Number(dtl.Panjang) : 0,
+              v: dtl.Panjang !== undefined ? num(dtl.Panjang) : 0,
+              t: "n",
+              z: "#,##0.00",
               s: styleDataCellRight,
             },
             {
-              v: dtl.Lebar !== undefined ? Number(dtl.Lebar) : 0,
+              v: dtl.Lebar !== undefined ? num(dtl.Lebar) : 0,
+              t: "n",
+              z: "#,##0.00",
               s: styleDataCellRight,
             },
-            {
-              v: dtl.Jumlah !== undefined ? Number(dtl.Jumlah) : 0,
-              s: styleDataCellRight,
-            },
-            {
-              v: dtl.Jumlah_meter !== undefined ? Number(dtl.Jumlah_meter) : 0,
-              s: styleDataCellRight,
-            },
+            { v: valJumlah, t: "n", z: "#,##0", s: styleDataCellRight },
+            { v: valM2Detail, t: "n", z: "#,##0.00", s: styleDataCellRight },
             { v: dtl.Size || "-", s: styleDataCellCenter },
             { v: dtl.No_PO_Internal || "-", s: styleDataCellCenter },
-          ];
-          worksheetData.push(row);
+          ]);
         });
       } else {
-        const row = [
+        // Fallback jikalau baris master tidak memiliki data pecahan detail transaksi
+        grandTotalM2Master += num(header.total_meter);
+
+        worksheetData.push([
           { v: header.nomor, s: styleDataCellCenter },
           { v: tglHeader, s: styleDataCellCenter },
           { v: header.Gudang || "-", s: styleDataCellCenter },
           { v: header.Nama_Gudang || "-", s: styleDataCell },
-          { v: Number(header.total_meter || 0), s: styleDataCellRight },
+          {
+            v: num(header.total_meter),
+            t: "n",
+            z: "#,##0.00",
+            s: styleDataCellRight,
+          },
           { v: "-", s: styleDataCellCenter },
           { v: "-", s: styleDataCellCenter },
           { v: "Tidak ada data detail pekerjaan", s: styleDataCell },
-          { v: 0, s: styleDataCellRight },
-          { v: 0, s: styleDataCellRight },
-          { v: 0, s: styleDataCellRight },
-          { v: 0, s: styleDataCellRight },
+          { v: 0, t: "n", z: "#,##0.00", s: styleDataCellRight },
+          { v: 0, t: "n", z: "#,##0.00", s: styleDataCellRight },
+          { v: 0, t: "n", z: "#,##0", s: styleDataCellRight },
+          { v: 0, t: "n", z: "#,##0.00", s: styleDataCellRight },
           { v: "-", s: styleDataCellCenter },
           { v: "-", s: styleDataCellCenter },
-        ];
-        worksheetData.push(row);
+        ]);
       }
     });
 
+    // --- STRUKTUR GRAND TOTAL BAWAH DENGAN FULL KOTAK KISI GARIS ---
+    const footerRow = [
+      {
+        v: "GRAND TOTAL",
+        s: { ...styleFooter, alignment: { horizontal: "right" } },
+      },
+      { v: "", s: styleFooter },
+      { v: "", s: styleFooter },
+      { v: "", s: styleFooter },
+      {
+        v: grandTotalM2Master,
+        t: "n",
+        z: "#,##0.00",
+        s: { ...styleFooter, alignment: { horizontal: "right" } },
+      },
+      ...Array(5).fill({ v: "", s: styleFooter }), // Spacer kolom kosong indeks 5 s/d 9 ber-border kotak
+      {
+        v: grandTotalJumlahDetail,
+        t: "n",
+        z: "#,##0",
+        s: { ...styleFooter, alignment: { horizontal: "right" } },
+      },
+      {
+        v: grandTotalM2Detail,
+        t: "n",
+        z: "#,##0.00",
+        s: { ...styleFooter, alignment: { horizontal: "right" } },
+      },
+      { v: "", s: styleFooter },
+      { v: "", s: styleFooter },
+    ];
+    worksheetData.push(footerRow);
+
     const ws = XLSX.utils.aoa_to_sheet(worksheetData);
-    ws["!merges"] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 13 } }];
+
+    // Konfigurasi Merge (Judul atas & label GRAND TOTAL bawah dari kolom A s/d D)
+    ws["!merges"] = [
+      { s: { r: 0, c: 0 }, e: { r: 0, c: 13 } },
+      {
+        s: { r: worksheetData.length - 1, c: 0 },
+        e: { r: worksheetData.length - 1, c: 3 },
+      },
+    ];
+
     ws["!cols"] = [
       { wch: 22 },
       { wch: 12 },
@@ -445,9 +522,9 @@ const exportToExcel = async () => {
       { wch: 8 },
       { wch: 18 },
       { wch: 35 },
-      { wch: 10 },
-      { wch: 10 },
-      { wch: 10 },
+      { wch: 11 },
+      { wch: 11 },
+      { wch: 11 },
       { wch: 15 },
       { wch: 10 },
       { wch: 18 },
@@ -456,7 +533,7 @@ const exportToExcel = async () => {
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "LHK_RTR");
     XLSX.writeFile(wb, fileName);
-    toast.success("Excel RTR berhasil diunduh");
+    toast.success("Excel RTR berhasil diunduh dan rapi!");
   } catch (error) {
     console.error("Export Error:", error);
     toast.error("Gagal mengekspor data ke Excel.");
