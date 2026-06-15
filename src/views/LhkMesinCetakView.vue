@@ -206,7 +206,6 @@ import { useRouter } from "vue-router";
 import { useToast } from "vue-toastification";
 import { useAuthStore } from "../stores/authStore";
 
-import type { AxiosError } from "axios";
 import { format, subDays, parseISO, isValid } from "date-fns";
 import PageLayout from "../components/PageLayout.vue";
 import api from "@/services/api";
@@ -257,13 +256,13 @@ const selected = ref<LhkCetakHeader[]>([]);
 const expanded = ref<LhkCetakHeader[]>([]);
 const gudangList = ref<{ kode: string; nama: string }[]>([]);
 
+// PERBAIKAN 1: Menambahkan properti mesin pada reactive filters agar tidak undefined saat diekspor
 const filters = reactive({
   startDate: format(subDays(new Date(), 30), "yyyy-MM-dd"),
   endDate: format(new Date(), "yyyy-MM-dd"),
   search: "",
+  mesin: [],
 });
-
-// --- API calls ---
 
 // --- Computed ---
 const isSingleSelected = computed(() => selected.value.length === 1);
@@ -276,32 +275,26 @@ const handleNewEdit = (mode: "new" | "edit") => {
     router.push({ name: "LhkCetakCreate" });
   } else if (mode === "edit" && selectedRow.value) {
     router.push({
-      name: "LhkCetakEdit", // Pastikan sesuai dengan nama route di router/index.ts
+      name: "LhkCetakEdit",
       params: { nomor: selectedRow.value.Nomor },
     });
   }
 };
 
-// Pastikan fungsi handleEditClick (yang dipanggil di template) tersedia
 const handleEditClick = () => {
   handleNewEdit("edit");
 };
 
 const handleRowClick = (event: any, { item }: { item: LhkCetakHeader }) => {
-  // Mengecek apakah item yang diklik sudah ada di array 'selected'
   const isSelected = selected.value.some((s) => s.Nomor === item.Nomor);
-
   if (isSelected) {
-    // Jika diklik lagi pada baris yang sama, kosongkan pilihan (unselect)
     selected.value = [];
   } else {
-    // Jika diklik pada baris lain, jadikan item tersebut sebagai satu-satunya yang terpilih
     selected.value = [item];
   }
 };
 
 // --- Helpers ---
-
 const safeFormatDate = (dateString: string | undefined): string => {
   if (!dateString) return "";
   try {
@@ -322,7 +315,6 @@ const formatMeter = (value: number) => {
 
 const selectedNomor = computed(() => selected.value[0]?.Nomor || null);
 
-// Tambahkan Helper fungsi ini
 const getRowProps = ({ item }: any) => {
   return {
     class: item?.Nomor === selectedNomor.value ? "row-selected" : "",
@@ -332,21 +324,19 @@ const getRowProps = ({ item }: any) => {
 const isLoadingDetails = (nomor: string) => loadingDetails.value.has(nomor);
 
 const getRowTextColor = (item: LhkCetakItem) => {
-  // Kosongkan return agar tidak memberikan class warna merah
   return "";
 };
 
-// --- Headers (Sesuai SQL Delphi) ---
+// --- Headers ---
 const masterHeaders = [
   {
     title: "Nomor",
     key: "Nomor",
-    minWidth: "250px", // Ditambah agar tidak terpotong seperti di gambar
+    minWidth: "250px",
     width: "250px",
     fixed: true,
   },
   { title: "Shift", key: "Shift", minWidth: "50px" },
-  // ... sisanya tetap sama
   { title: "Tanggal", key: "Tanggal" },
   { title: "Mesin", key: "Mesin" },
   { title: "Nomor SPK", key: "NomorSPK" },
@@ -360,8 +350,6 @@ const masterHeaders = [
   { title: "Status Bahan", key: "status_bahan", align: "center" },
   { title: "Bahan", key: "Kode_bahan" },
   { title: "Nama Bahan", key: "nama_Bahan" },
-  // { title: "Tile", key: "Tile" },
-  // { title: "Ukuran Cetak", key: "UkuranCetak" },
 ] as any[];
 
 const detailHeaders = [
@@ -379,9 +367,6 @@ const detailHeaders = [
     align: "end",
     class: "font-weight-bold",
   },
-  // { title: "Cetak Meter", key: "cetakmeter", align: "end" },
-  // { title: "M2", key: "luasm2", align: "end" },
-  // { title: "Sisa Bahan", key: "sisabahan", align: "end" },
 ] as any[];
 
 const truncateString = (str: string, num: number) => {
@@ -390,30 +375,23 @@ const truncateString = (str: string, num: number) => {
   }
   return str;
 };
-// --- API calls ---
+
 const resizeTable = (tableSelector: string) => {
-  // 1. Dapatkan referensi ke tabel
   const wrapper = document.querySelector(tableSelector);
   if (!wrapper) return;
 
-  // Vuetify 3 memisahkan header dan body, cari thead dan tbody di dalam wrapper
   const thead = wrapper.querySelector("thead");
   const tbody = wrapper.querySelector("tbody");
-
   if (!thead || !tbody) return;
 
   const headers = thead.querySelectorAll("th");
 
-  // 2. Loop melalui semua header
   headers.forEach((header, index) => {
-    // Hapus resizer yang sudah ada
     let resizer = header.querySelector(".resizer");
     if (resizer) {
       resizer.remove();
     }
 
-    // HINDARI kolom select dan kolom expand (biasanya index 0 dan 1 pada V3)
-    // Kita hanya ingin resizable pada kolom data yang sebenarnya
     if (
       header.classList.contains("v-data-table__th--select") ||
       header.classList.contains("v-data-table__th--group")
@@ -421,29 +399,24 @@ const resizeTable = (tableSelector: string) => {
       return;
     }
 
-    // Buat resizer baru
     resizer = document.createElement("div");
     resizer.className = "resizer";
-    header.style.position = "relative"; // Atur posisi header
+    header.style.position = "relative";
 
     resizer.addEventListener("mousedown", (e: MouseEvent) => {
-      e.stopPropagation(); // Mencegah sorting
+      e.stopPropagation();
       let startX = e.clientX;
       let startWidth = header.offsetWidth;
 
-      // Dapatkan semua sel data (td) untuk kolom ini
       const columnCells = Array.from(
         tbody.querySelectorAll(`tr td:nth-child(${index + 1})`),
       ) as HTMLElement[];
 
       const handleMouseMove = (moveEvent: MouseEvent) => {
         const newWidth = startWidth + (moveEvent.clientX - startX);
-
-        // Atur lebar pada header (th)
         header.style.width = `${newWidth}px`;
         header.style.minWidth = `${newWidth}px`;
 
-        // Atur lebar pada semua sel data (td) yang sesuai
         columnCells.forEach((cell) => {
           cell.style.width = `${newWidth}px`;
           cell.style.minWidth = `${newWidth}px`;
@@ -465,34 +438,35 @@ const resizeTable = (tableSelector: string) => {
   });
 };
 
+// --- EXPORT LOGIC ---
 const exportToExcel = async () => {
   loading.value.headers = true;
   try {
-    // 1. Pre-fetch detail data jika belum ter-load
-    for (const header of masterData.value) {
-      if (
-        !details.value[header.Nomor] ||
-        details.value[header.Nomor].length === 0
-      ) {
-        try {
-          const res = await api.get(`${API_BASE_URL}/details`, {
-            params: { nomor: header.Nomor },
-          });
-          if (res.data && res.data.details) {
-            details.value[header.Nomor] = res.data.details;
-          } else {
-            details.value[header.Nomor] = res.data || [];
-          }
-        } catch (e) {
-          console.error(`Gagal pre-fetch detail nomor ${header.Nomor}:`, e);
-          details.value[header.Nomor] = [];
-        }
-      }
+    const payload = {
+      startDate: filters.startDate,
+      endDate: filters.endDate,
+      mesin:
+        filters.mesin && filters.mesin.length > 0
+          ? filters.mesin.join(",")
+          : undefined,
+    };
+
+    const res = await api.get(`${API_BASE_URL}/export`, { params: payload });
+    const rawData = res.data && res.data.data ? res.data.data : [];
+
+    if (rawData.length === 0) {
+      toast.warning("Tidak ada data untuk diekspor");
+      return;
     }
 
-    const fileName = `LHK_Mesin_MMT_${filters.startDate}_to_${filters.endDate}.xlsx`;
+    const fileName = `LHK_Cetak_MMT_${filters.startDate}_to_${filters.endDate}.xlsx`;
 
-    // 2. Styling Definition (Catatan: Style butuh xlsx-style, jika pakai xlsx standar ini akan diabaikan tapi aman)
+    const num = (value: any) => {
+      const parsed = Number(value);
+      return isNaN(parsed) ? 0 : parsed;
+    };
+
+    // Style Definition
     const styleHeaderMain = {
       fill: { fgColor: { rgb: "B3E5FC" } },
       font: { bold: true, color: { rgb: "000000" }, sz: 10 },
@@ -526,25 +500,23 @@ const exportToExcel = async () => {
       alignment: { horizontal: "right", vertical: "center" },
     };
 
-    const formatTanggalIndo = (dateStr: string) => {
-      if (!dateStr) return "";
-      const bulanIndo = [
-        "Januari",
-        "Februari",
-        "Maret",
-        "April",
-        "Mei",
-        "Juni",
-        "Juli",
-        "Agustus",
-        "September",
-        "Oktober",
-        "November",
-        "Desember",
-      ];
+    const styleFooter = {
+      ...styleDataCell,
+      fill: { fgColor: { rgb: "F0F4F8" } },
+      font: { bold: true, sz: 10 },
+    };
+
+    // PERBAIKAN 2: Menghapus tipe `: string` agar tidak crash compiler di setup vanilla JS
+    const formatTglManual = (dateStr: any) => {
+      if (!dateStr) return "-";
       try {
-        const [year, month, day] = dateStr.split("-");
-        return `${parseInt(day, 10)} ${bulanIndo[parseInt(month, 10) - 1]} ${year}`;
+        if (dateStr.includes("-")) {
+          const parts = dateStr.split("T")[0].split("-");
+          if (parts.length === 3) {
+            return `${parts[2]}/${parts[1]}/${parts[0]}`;
+          }
+        }
+        return safeFormatDate(dateStr) || dateStr;
       } catch {
         return dateStr;
       }
@@ -553,285 +525,163 @@ const exportToExcel = async () => {
     const worksheetData = [];
     worksheetData.push([
       {
-        v: "LAPORAN HASIL KERJA MESIN CETAK MMT",
+        v: "BROWSE HASIL KERJA CETAK MMT",
         s: { font: { bold: true, sz: 14 } },
       },
     ]);
     worksheetData.push([
       {
-        v: `Periode : ${formatTanggalIndo(filters.startDate)} s/d ${formatTanggalIndo(filters.endDate)}`,
+        v: `Tanggal : ${formatTglManual(filters.startDate)} s.d ${formatTglManual(filters.endDate)}`,
         s: { font: { sz: 10 } },
       },
     ]);
     worksheetData.push([]);
 
-    // Header Kolom
     const headers = [
       { v: "NOMOR LHK", s: styleHeaderMain },
-      { v: "SHIFT", s: styleHeaderMain },
       { v: "TANGGAL", s: styleHeaderMain },
+      { v: "SHIFT", s: styleHeaderMain },
+      { v: "TOTAL (M²)", s: styleHeaderMain },
       { v: "MESIN", s: styleHeaderMain },
       { v: "NOMOR SPK", s: styleHeaderMain },
-      { v: "NAMA SPK", s: styleHeaderMain },
+      { v: "NAMA ORDER", s: styleHeaderMain },
       { v: "PANJANG", s: styleHeaderMain },
       { v: "LEBAR", s: styleHeaderMain },
-      { v: "JML ORDER", s: styleHeaderMain },
-      { v: "JML CETAK", s: styleHeaderMain },
-      { v: "BAHAN AWAL", s: styleHeaderMain },
-      { v: "SISA", s: styleHeaderMain },
-      { v: "STATUS BAHAN", s: styleHeaderMain },
-      { v: "KODE BAHAN", s: styleHeaderMain },
-      { v: "NAMA BAHAN", s: styleHeaderMain },
-      { v: "CETAK 1", s: styleHeaderMain },
-      { v: "CETAK 2", s: styleHeaderMain },
-      { v: "CETAK 3", s: styleHeaderMain },
-      { v: "CETAK 4", s: styleHeaderMain },
-      { v: "CETAK 5", s: styleHeaderMain },
-      { v: "TOTAL DETAIL", s: styleHeaderMain },
+      { v: "QTY CETAK", s: styleHeaderMain },
+      { v: "TOTAL DETAIL (M²)", s: styleHeaderMain },
     ];
     worksheetData.push(headers);
 
-    // Iterasi Data Master & Detail
-    masterData.value.forEach((header) => {
-      const targetDetails = details.value[header.Nomor] || [];
-      const tglHeader = header.Tanggal ? safeFormatDate(header.Tanggal) : "";
+    let grandTotalM2Master = 0;
+    let grandTotalM2Detail = 0;
 
-      let statusBahanText = "PAS";
-      const sisaMeter = Number(header.SisaMeterAkhir || 0);
-      if (sisaMeter < 0) {
-        statusBahanText = `SURPLUS ${Math.abs(sisaMeter).toFixed(1)}m`;
-      } else if (sisaMeter > 0) {
-        statusBahanText = `SISA ${sisaMeter.toFixed(1)}m`;
+    const grouped = rawData.reduce((acc: any, item: any) => {
+      const noLhk = item.Nomor_LHK || item.Nomor || "TANPA_NOMOR";
+      if (!acc[noLhk]) {
+        acc[noLhk] = {
+          items: [],
+          totalM2: 0,
+          tanggal: item.Tanggal,
+          shift: item.Shift_LHK || item.Shift,
+        };
       }
+      acc[noLhk].items.push(item);
+      acc[noLhk].totalM2 += num(item.m2_cetak || item.cetak_meter || 0);
+      return acc;
+    }, {});
 
-      if (targetDetails.length > 0) {
-        targetDetails.forEach((dtl, index) => {
-          const row = [
-            // Kolom Master (Baris pertama grup detail diisi data, baris sisanya diisi null agar tidak merusak SUM)
-            {
-              v: index === 0 ? header.Nomor : null,
-              t: "s",
-              s: styleDataCellCenter,
-            },
-            {
-              v: index === 0 ? header.Shift || "-" : null,
-              t: "s",
-              s: styleDataCellCenter,
-            },
-            {
-              v: index === 0 ? tglHeader : null,
-              t: "s",
-              s: styleDataCellCenter,
-            },
-            {
-              v: index === 0 ? header.Mesin || "-" : null,
-              t: "s",
-              s: styleDataCellCenter,
-            },
-            {
-              v:
-                index === 0 ? header.NomorSPK || header.nomor_spk || "-" : null,
-              t: "s",
-              s: styleDataCellCenter,
-            },
-            {
-              v:
-                index === 0 ? header.NamaOrder || header.nama_spk || "-" : null,
-              t: "s",
-              s: styleDataCell,
-            },
+    Object.keys(grouped).forEach((nomorLhk) => {
+      const group = grouped[nomorLhk];
+      grandTotalM2Master += num(group.totalM2);
 
-            // Menggunakan tipe 'n' (Number) dan format '0.00' atau '0' agar bisa di-SUM
-            {
-              v: index === 0 ? Number(header.spk_panjang || 0) : null,
-              t: "n",
-              z: "#,##0.00",
-              s: styleDataCellRight,
-            },
-            {
-              v: index === 0 ? Number(header.spk_lebar || 0) : null,
-              t: "n",
-              z: "#,##0.00",
-              s: styleDataCellRight,
-            },
-            {
-              v: index === 0 ? Number(header.JumlahOrder || 0) : null,
-              t: "n",
-              z: "#,##0",
-              s: styleDataCellRight,
-            },
-            {
-              v:
-                index === 0
-                  ? Number(header.TotalCetak || header.cetak_meter || 0)
-                  : null,
-              t: "n",
-              z: "#,##0.00",
-              s: styleDataCellRight,
-            },
-            {
-              v: index === 0 ? Number(header.PanjangBahanAwal || 0) : null,
-              t: "n",
-              z: "#,##0.00",
-              s: styleDataCellRight,
-            },
-            {
-              v: index === 0 ? sisaMeter : null,
-              t: "n",
-              z: "#,##0.00",
-              s: styleDataCellRight,
-            },
+      group.items.forEach((row: any, index: number) => {
+        const isFirstRow = index === 0;
+        const tglFormatted = isFirstRow ? formatTglManual(group.tanggal) : null;
+        const detailM2 = num(row.m2_cetak || row.cetak_meter || 0);
+        grandTotalM2Detail += detailM2;
 
-            {
-              v: index === 0 ? statusBahanText : null,
-              t: "s",
-              s: styleDataCellCenter,
-            },
-            {
-              v: index === 0 ? header.Kode_bahan || "-" : null,
-              t: "s",
-              s: styleDataCellCenter,
-            },
-            {
-              v: index === 0 ? header.nama_Bahan || "-" : null,
-              t: "s",
-              s: styleDataCell,
-            },
-
-            // Kolom Detail (Selalu Angka Murni per Baris)
-            {
-              v: dtl.cetak1 !== undefined ? Number(dtl.cetak1) : 0,
-              t: "n",
-              z: "#,##0.00",
-              s: styleDataCellRight,
-            },
-            {
-              v: dtl.cetak2 !== undefined ? Number(dtl.cetak2) : 0,
-              t: "n",
-              z: "#,##0.00",
-              s: styleDataCellRight,
-            },
-            {
-              v: dtl.cetak3 !== undefined ? Number(dtl.cetak3) : 0,
-              t: "n",
-              z: "#,##0.00",
-              s: styleDataCellRight,
-            },
-            {
-              v: dtl.cetak4 !== undefined ? Number(dtl.cetak4) : 0,
-              t: "n",
-              z: "#,##0.00",
-              s: styleDataCellRight,
-            },
-            {
-              v: dtl.cetak5 !== undefined ? Number(dtl.cetak5) : 0,
-              t: "n",
-              z: "#,##0.00",
-              s: styleDataCellRight,
-            },
-            {
-              v: Number(dtl.totalcetak || dtl.TotalCetak || dtl.Qty_Cetak || 0),
-              t: "n",
-              z: "#,##0.00",
-              s: styleDataCellRight,
-            },
-          ];
-          worksheetData.push(row);
-        });
-      } else {
-        // Fallback jika detail kosong
-        const row = [
-          { v: header.Nomor, t: "s", s: styleDataCellCenter },
-          { v: header.Shift || "-", t: "s", s: styleDataCellCenter },
-          { v: tglHeader, t: "s", s: styleDataCellCenter },
-          { v: header.Mesin || "-", t: "s", s: styleDataCellCenter },
-          { v: header.NomorSPK || "-", t: "s", s: styleDataCellCenter },
-          { v: header.NamaOrder || "-", t: "s", s: styleDataCell },
+        worksheetData.push([
+          { v: isFirstRow ? nomorLhk : null, s: styleDataCellCenter },
+          { v: tglFormatted, s: styleDataCellCenter },
+          { v: isFirstRow ? group.shift || "-" : null, s: styleDataCellCenter },
           {
-            v: Number(header.spk_panjang || 0),
+            v: isFirstRow ? num(group.totalM2) : null,
+            t: "n",
+            z: "#,##0.00",
+            s: styleDataCellRight,
+          },
+          { v: row.Mesin || "-", s: styleDataCellCenter },
+          { v: row.Nomor_SPK || row.nomor_spk || "-", s: styleDataCellCenter },
+          {
+            v: row.Nama_Order || row.Nama_SPK || row.nama_spk || "-",
+            s: styleDataCell,
+          },
+          {
+            v: row.Panjang !== undefined ? num(row.Panjang) : 0,
             t: "n",
             z: "#,##0.00",
             s: styleDataCellRight,
           },
           {
-            v: Number(header.spk_lebar || 0),
+            v: row.Lebar !== undefined ? num(row.Lebar) : 0,
             t: "n",
             z: "#,##0.00",
             s: styleDataCellRight,
           },
           {
-            v: Number(header.JumlahOrder || 0),
+            v: num(row.Qty_Cetak || row.Jml_Cetak || row.totalcetak || 0),
             t: "n",
             z: "#,##0",
             s: styleDataCellRight,
           },
-          {
-            v: Number(header.TotalCetak || 0),
-            t: "n",
-            z: "#,##0.00",
-            s: styleDataCellRight,
-          },
-          {
-            v: Number(header.PanjangBahanAwal || 0),
-            t: "n",
-            z: "#,##0.00",
-            s: styleDataCellRight,
-          },
-          { v: sisaMeter, t: "n", z: "#,##0.00", s: styleDataCellRight },
-          { v: statusBahanText, t: "s", s: styleDataCellCenter },
-          { v: header.Kode_bahan || "-", t: "s", s: styleDataCellCenter },
-          { v: header.nama_Bahan || "-", t: "s", s: styleDataCell },
-          // Detail 0
-          { v: 0, t: "n", z: "#,##0.00", s: styleDataCellRight },
-          { v: 0, t: "n", z: "#,##0.00", s: styleDataCellRight },
-          { v: 0, t: "n", z: "#,##0.00", s: styleDataCellRight },
-          { v: 0, t: "n", z: "#,##0.00", s: styleDataCellRight },
-          { v: 0, t: "n", z: "#,##0.00", s: styleDataCellRight },
-          { v: 0, t: "n", z: "#,##0.00", s: styleDataCellRight },
-        ];
-        worksheetData.push(row);
-      }
+          { v: detailM2, t: "n", z: "#,##0.00", s: styleDataCellRight },
+        ]);
+      });
     });
 
-    const ws = XLSX.utils.aoa_to_sheet(worksheetData);
-    ws["!merges"] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 20 } }];
+    const footerRow = [
+      {
+        v: "GRAND TOTAL",
+        s: { ...styleFooter, alignment: { horizontal: "right" } },
+      },
+      { v: "", s: styleFooter },
+      { v: "", s: styleFooter },
+      {
+        v: grandTotalM2Master,
+        t: "n",
+        z: "#,##0.00",
+        s: { ...styleFooter, alignment: { horizontal: "right" } },
+      },
+      { v: "", s: styleFooter },
+      { v: "", s: styleFooter },
+      { v: "", s: styleFooter },
+      { v: "", s: styleFooter },
+      { v: "", s: styleFooter },
+      { v: "", s: styleFooter },
+      {
+        v: grandTotalM2Detail,
+        t: "n",
+        z: "#,##0.00",
+        s: { ...styleFooter, alignment: { horizontal: "right" } },
+      },
+    ];
+    worksheetData.push(footerRow);
 
-    // Set Lebar Kolom Excel
+    const ws = XLSX.utils.aoa_to_sheet(worksheetData);
+    ws["!merges"] = [
+      { s: { r: 0, c: 0 }, e: { r: 0, c: 10 } },
+      {
+        s: { r: worksheetData.length - 1, c: 0 },
+        e: { r: worksheetData.length - 1, c: 2 },
+      },
+    ];
+
     ws["!cols"] = [
       { wch: 22 },
-      { wch: 6 },
       { wch: 12 },
       { wch: 8 },
+      { wch: 15 },
+      { wch: 10 },
       { wch: 18 },
       { wch: 40 },
       { wch: 10 },
       { wch: 10 },
       { wch: 12 },
-      { wch: 12 },
-      { wch: 12 },
-      { wch: 10 },
-      { wch: 15 },
-      { wch: 25 },
-      { wch: 30 },
-      { wch: 10 },
-      { wch: 10 },
-      { wch: 10 },
-      { wch: 10 },
-      { wch: 10 },
-      { wch: 15 },
+      { wch: 18 },
     ];
 
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "LHK_Mesin");
+    XLSX.utils.book_append_sheet(wb, ws, "LHK_Cetak");
     XLSX.writeFile(wb, fileName);
-    toast.success("Excel berhasil diunduh dan siap diolah!");
+    toast.success("Excel berhasil diunduh");
   } catch (error) {
     console.error("Export Error:", error);
-    toast.error("Gagal mengekspor data.");
+    toast.error("Gagal mengekspor data ke Excel.");
   } finally {
     loading.value.headers = false;
   }
 };
+
 const fetchGudangList = async () => {
   try {
     console.log("INFO: Simulating fetching Gudang List.");
@@ -840,24 +690,20 @@ const fetchGudangList = async () => {
   }
 };
 
-// Fungsi untuk menghitung angka selisih
 const calculateSelisih = (item: LhkCetakHeader) => {
   const real = Number(item.TotalCetak || 0);
-  const target = Number(item.spk_panjang || 0); // Asumsi spk_panjang adalah standar bahan 70m
+  const target = Number(item.spk_panjang || 0);
   return real - target;
 };
 
-// Fungsi untuk menampilkan teks (Surplus 2.00m / Minus 1.50m)
 const calculateSelisihText = (item: LhkCetakHeader) => {
   const diff = calculateSelisih(item);
   const absDiff = Math.abs(diff).toFixed(2);
-
   if (diff > 0) return `Surplus ${absDiff} m`;
   if (diff < 0) return `Minus ${absDiff} m`;
   return "Pas";
 };
 
-// Fungsi untuk warna (Surplus = Hijau, Minus = Merah)
 const getSelisihClass = (diff: number) => {
   if (diff > 0) return "text-success font-weight-bold";
   if (diff < 0) return "text-error font-weight-bold";
@@ -875,13 +721,11 @@ const fetchMasterData = async () => {
       },
     });
     masterData.value = response.data || [];
-
     selected.value = [];
     expanded.value = [];
 
-    // Tambahkan delay kecil untuk memastikan DOM sudah dirender Vuetify
     await nextTick();
-    resizeTable(".desktop-table"); // Panggil setelah data dimuat dan dirender
+    resizeTable(".desktop-table");
   } catch (err) {
     toast.error("Gagal mengambil data LHK Cetak.");
   } finally {
@@ -905,20 +749,16 @@ const loadDetails = async (newlyExpandedItems: LhkCetakItem[]) => {
       params: { nomor: itemToLoad.Nomor },
     });
 
-    // Pastikan mengambil properti .details jika API mengembalikan Object {header, details}
-    // Jika API langsung mengembalikan Array, gunakan res.data
     if (res.data && res.data.details) {
       details.value[itemToLoad.Nomor] = res.data.details;
     } else {
       details.value[itemToLoad.Nomor] = res.data || [];
     }
   } catch (err) {
-    // WAJIB ADA: Menangani jika request gagal
     console.error("Error Fetch Detail:", err);
     toast.error(`Gagal memuat detail untuk ${itemToLoad.Nomor}`);
     details.value[itemToLoad.Nomor] = [];
   } finally {
-    // WAJIB ADA (ATAU CATCH): Membersihkan status loading
     loadingDetails.value.delete(itemToLoad.Nomor);
     loading.value.details = false;
   }
@@ -941,7 +781,6 @@ const handleDelete = async () => {
     confirm(`Yakin ingin menghapus LHK Cetak nomor ${selectedRow.value.Nomor}?`)
   ) {
     try {
-      // Logika delete dari Delphi
       await api.delete(`${API_BASE_URL}/${selectedRow.value.Nomor}`);
       await api.delete(`${API_BASE_URL}/detail/${selectedRow.value.Nomor}`);
       toast.success(`LHK ${selectedRow.value.Nomor} berhasil dihapus.`);
@@ -954,7 +793,6 @@ const handleDelete = async () => {
 
 const handleBahan = () => {
   if (!selectedRow.value) return;
-  // Menggantikan cxButton5Click (membuka form Bahan)
   router.push({
     name: "LhkCetakBahan",
     params: { nomor: selectedRow.value.Nomor },
@@ -963,14 +801,13 @@ const handleBahan = () => {
 
 const handlePrint = () => {
   if (!selectedRow.value) return;
-  // Menggantikan cxButton3Click (doslip)
   alert(`TODO: Mencetak LHK Cetak ${selectedRow.value.Nomor}`);
 };
 
 // --- Lifecycle ---
 onMounted(() => {
   fetchGudangList();
-  fetchMasterData(); // Menggantikan btnRefreshClick di FormShow
+  fetchMasterData();
 });
 
 watch(filters, fetchMasterData, { deep: true });

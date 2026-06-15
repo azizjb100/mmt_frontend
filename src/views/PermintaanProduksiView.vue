@@ -285,6 +285,12 @@ const handleExportExcel = async () => {
 
     const fileName = `Permintaan_Produksi_${startDate.value}_to_${endDate.value}.xlsx`;
 
+    // Helper aman untuk memastikan nilai di-cast ke Number murni
+    const num = (value) => {
+      const parsed = Number(value);
+      return isNaN(parsed) ? 0 : parsed;
+    };
+
     const styleHeaderMain = {
       fill: { fgColor: { rgb: "B3E5FC" } },
       font: { bold: true, color: { rgb: "000000" }, sz: 10 },
@@ -318,9 +324,16 @@ const handleExportExcel = async () => {
       alignment: { horizontal: "right", vertical: "center" },
     };
 
+    const styleFooter = {
+      ...styleDataCell,
+      fill: { fgColor: { rgb: "F0F4F8" } },
+      font: { bold: true, sz: 10 },
+    };
+
     const wsData = [];
 
-    const formatTanggalIndo = (dateStr: string) => {
+    // Perbaikan: Hapus type annotation (: string) agar aman di compiler Vite JS
+    const formatTanggalIndo = (dateStr) => {
       if (!dateStr) return "";
       const bulanIndo = [
         "Januari",
@@ -336,9 +349,13 @@ const handleExportExcel = async () => {
         "November",
         "Desember",
       ];
-      const [year, month, day] = dateStr.split("-");
-      const indexBulan = parseInt(month, 10) - 1;
-      return `${parseInt(day, 10)} ${bulanIndo[indexBulan]} ${year}`;
+      try {
+        const [year, month, day] = dateStr.split("-");
+        const indexBulan = parseInt(month, 10) - 1;
+        return `${parseInt(day, 10)} ${bulanIndo[indexBulan]} ${year}`;
+      } catch (e) {
+        return dateStr;
+      }
     };
 
     const periodeStr = `Periode : ${formatTanggalIndo(startDate.value)} s/d ${formatTanggalIndo(endDate.value)}`;
@@ -369,6 +386,9 @@ const handleExportExcel = async () => {
     ];
     wsData.push(tableHeaders);
 
+    // Variabel Penampung Grand Total Internal
+    let grandTotalJumlah = 0;
+
     masterData.value.forEach((header) => {
       const targetDetails =
         details.value[header.Nomor] || header.Details || header.Detail || [];
@@ -382,28 +402,37 @@ const handleExportExcel = async () => {
 
       if (targetDetails.length > 0) {
         targetDetails.forEach((dtl, index) => {
+          const itemJumlah = num(dtl.Jumlah);
+          grandTotalJumlah += itemJumlah;
+
           const row = [
-            { v: index === 0 ? header.Nomor : "", s: styleDataCellCenter },
-            { v: index === 0 ? tglHeader : "", s: styleDataCellCenter },
-            { v: index === 0 ? kodeGudang : "", s: styleDataCellCenter },
-            { v: index === 0 ? namaGudang : "", s: styleDataCell },
-            { v: index === 0 ? lokasi : "", s: styleDataCellCenter },
-            { v: index === 0 ? keteranganHeader : "", s: styleDataCell },
+            // Gunakan null pada baris detail lanjutan agar visual rapi & tidak merusak chain rumus
+            { v: index === 0 ? header.Nomor : null, s: styleDataCellCenter },
+            { v: index === 0 ? tglHeader : null, s: styleDataCellCenter },
+            { v: index === 0 ? kodeGudang : null, s: styleDataCellCenter },
+            { v: index === 0 ? namaGudang : null, s: styleDataCell },
+            { v: index === 0 ? lokasi : null, s: styleDataCellCenter },
+            { v: index === 0 ? keteranganHeader : null, s: styleDataCell },
+
             { v: dtl.brg_kode || dtl.Kode || "-", s: styleDataCellCenter },
             { v: dtl.brg_nama || dtl.Nama_Bahan || "-", s: styleDataCell },
+
+            // Perbaikan Letak Atribut 't' dan 'z' (Dipindah ke Root Level Objek Sel)
             {
-              v: dtl.Panjang !== null ? Number(dtl.Panjang) : 0,
+              v: dtl.Panjang !== null ? num(dtl.Panjang) : 0,
+              t: "n",
+              z: "#,##0.00",
               s: styleDataCellRight,
             },
             {
-              v: dtl.Lebar !== null ? Number(dtl.Lebar) : 0,
+              v: dtl.Lebar !== null ? num(dtl.Lebar) : 0,
+              t: "n",
+              z: "#,##0.00",
               s: styleDataCellRight,
             },
+
             { v: dtl.Satuan || "-", s: styleDataCellCenter },
-            {
-              v: dtl.Jumlah !== null ? Number(dtl.Jumlah) : 0,
-              s: styleDataCellRight,
-            },
+            { v: itemJumlah, t: "n", z: "#,##0.00", s: styleDataCellRight },
             { v: dtl.Nomor_SPK || "-", s: styleDataCellCenter },
           ];
           wsData.push(row);
@@ -418,18 +447,43 @@ const handleExportExcel = async () => {
           { v: keteranganHeader, s: styleDataCell },
           { v: "-", s: styleDataCellCenter },
           { v: "Tidak ada data detail", s: styleDataCell },
-          { v: 0, s: styleDataCellRight },
-          { v: 0, s: styleDataCellRight },
+          { v: 0, t: "n", z: "#,##0.00", s: styleDataCellRight },
+          { v: 0, t: "n", z: "#,##0.00", s: styleDataCellRight },
           { v: "-", s: styleDataCellCenter },
-          { v: 0, s: styleDataCellRight },
+          { v: 0, t: "n", z: "#,##0.00", s: styleDataCellRight },
           { v: "-", s: styleDataCellCenter },
         ];
         wsData.push(row);
       }
     });
 
+    // ==========================================
+    // Tambah Baris Total Bawah (Footer SUM)
+    // ==========================================
+    const footerRow = [
+      {
+        v: "GRAND TOTAL",
+        s: { ...styleFooter, alignment: { horizontal: "right" } },
+      },
+      ...Array(10).fill({ v: "", s: styleFooter }), // Spacer kolom indeks 1 s/d 10 dengan border
+      {
+        v: grandTotalJumlah,
+        t: "n",
+        z: "#,##0.00",
+        s: { ...styleFooter, alignment: { horizontal: "right" } },
+      },
+      { v: "", s: styleFooter },
+    ];
+    wsData.push(footerRow);
+
     const ws = XLSX.utils.aoa_to_sheet(wsData);
-    ws["!merges"] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 12 } }];
+
+    // Gabung baris judul atas & Label Total Footer (A s/d K)
+    ws["!merges"] = [
+      { s: { r: 0, c: 0 }, e: { r: 0, c: 12 } },
+      { s: { r: wsData.length - 1, c: 0 }, e: { r: wsData.length - 1, c: 10 } },
+    ];
+
     ws["!cols"] = [
       { wch: 22 },
       { wch: 12 },

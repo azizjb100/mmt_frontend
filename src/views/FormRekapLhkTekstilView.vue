@@ -249,8 +249,18 @@
               <div class="text-center">{{ item.shift }}</div>
             </template>
 
-            <template #[`item.mesin`]="{ item }">
-              <span class="font-weight-medium">{{ item.mesin || "-" }}</span>
+            <template #[`item.mesin`]="{ item, index }">
+              <v-text-field
+                v-model="item.mesin"
+                placeholder="Pilih Mesin..."
+                readonly
+                density="compact"
+                variant="underlined"
+                append-inner-icon="mdi-magnify"
+                hide-details
+                class="font-weight-medium"
+                @click="openMesinSearch(index)"
+              />
             </template>
 
             <template #[`item.nomor_spk`]="{ item }">
@@ -390,15 +400,25 @@ const openMesinSearch = (index) => {
   activeRowIndex.value = index;
   isMesinLookupVisible.value = true;
 };
+
 const handleMesinSelect = (mesin) => {
   const kodeMesin = mesin.msn_kode || mesin.Kode;
-  if (activeRowIndex.value !== null && activeRowIndex.value >= 1000) {
-    inkDetails.value[activeRowIndex.value - 1000].msn_kode = kodeMesin;
+
+  if (activeRowIndex.value !== null) {
+    if (activeRowIndex.value >= 1000) {
+      // Input untuk baris Tinta Pemakaian
+      inkDetails.value[activeRowIndex.value - 1000].msn_kode = kodeMesin;
+    } else {
+      // Input untuk baris Daftar Pekerjaan (Manual / Auto Kosong)
+      if (detailData.value[activeRowIndex.value]) {
+        detailData.value[activeRowIndex.value].mesin = kodeMesin;
+      }
+    }
   }
+
   isMesinLookupVisible.value = false;
   activeRowIndex.value = null;
 };
-
 // --- Handlers SPK Manual (BARU) ---
 const openSpkSearch = () => {
   isSpkLookupVisible.value = true;

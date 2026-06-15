@@ -229,12 +229,18 @@ const handleExportExcel = () => {
   try {
     const fileName = `Permintaan_Bahan_${startDate.value}_to_${endDate.value}.xlsx`;
 
+    // Helper aman untuk memastikan nilai di-cast ke Number murni
+    const num = (value) => {
+      const parsed = Number(value);
+      return isNaN(parsed) ? 0 : parsed;
+    };
+
     // ==========================================
-    // 1. DEFINISI STYLE EXCEL (PERSIS LAPORAN STOK)
+    // 1. DEFINISI STYLE EXCEL
     // ==========================================
     const styleHeaderMain = {
       fill: { fgColor: { rgb: "B3E5FC" } }, // Biru muda cerah
-      font: { bold: true, color: { rgb: "000000" }, sz: 10 }, // Teks Hitam Tebal
+      font: { bold: true, color: { rgb: "000000" }, sz: 10 },
       alignment: { horizontal: "center", vertical: "center", wrapText: true },
       border: {
         top: { style: "thin", color: { rgb: "000000" } },
@@ -247,7 +253,7 @@ const handleExportExcel = () => {
     const styleDataCell = {
       font: { sz: 10 },
       border: {
-        top: { style: "thin", color: { rgb: "000000" } }, // Border hitam tipis seluruh sisi
+        top: { style: "thin", color: { rgb: "000000" } },
         bottom: { style: "thin", color: { rgb: "000000" } },
         left: { style: "thin", color: { rgb: "000000" } },
         right: { style: "thin", color: { rgb: "000000" } },
@@ -265,13 +271,18 @@ const handleExportExcel = () => {
       alignment: { horizontal: "right", vertical: "center" },
     };
 
+    const styleFooter = {
+      ...styleDataCell,
+      fill: { fgColor: { rgb: "F0F4F8" } },
+      font: { bold: true, sz: 10 },
+    };
+
     // ==========================================
     // 2. SUSUN DATA (Array of Arrays / AOA)
     // ==========================================
     const wsData = [];
 
-    // Fungsi Helper untuk mengubah YYYY-MM-DD menjadi "DD Bulan YYYY" (Bahasa Indonesia)
-    const formatTanggalIndo = (dateStr: string) => {
+    const formatTanggalIndo = (dateStr) => {
       if (!dateStr) return "";
       const bulanIndo = [
         "Januari",
@@ -287,14 +298,18 @@ const handleExportExcel = () => {
         "November",
         "Desember",
       ];
-      const [year, month, day] = dateStr.split("-");
-      const indexBulan = parseInt(month, 10) - 1;
-      return `${parseInt(day, 10)} ${bulanIndo[indexBulan]} ${year}`;
+      try {
+        const [year, month, day] = dateStr.split("-");
+        const indexBulan = parseInt(month, 10) - 1;
+        return `${parseInt(day, 10)} ${bulanIndo[indexBulan]} ${year}`;
+      } catch (e) {
+        return dateStr;
+      }
     };
 
     const periodeStr = `Periode : ${formatTanggalIndo(startDate.value)} s/d ${formatTanggalIndo(endDate.value)}`;
 
-    // Baris Judul & Info Atas Laporan (Tanpa Border)
+    // Baris Judul
     wsData.push([
       {
         v: "LAPORAN TRANSAKSI PERMINTAAN BAHAN",
@@ -302,9 +317,9 @@ const handleExportExcel = () => {
       },
     ]);
     wsData.push([{ v: periodeStr, s: { font: { sz: 10 } } }]);
-    wsData.push([]); // Baris kosong
+    wsData.push([]);
 
-    // Header Tabel (Total 12 Kolom terstruktur)
+    // Header Tabel (Total 12 Kolom)
     const tableHeaders = [
       { v: "NOMOR PERMINTAAN", s: styleHeaderMain },
       { v: "TANGGAL", s: styleHeaderMain },
@@ -321,15 +336,18 @@ const handleExportExcel = () => {
     ];
     wsData.push(tableHeaders);
 
+    // Variabel Akumulasi Grand Total Internal Excel
+    let grandTotalOrder = 0;
+    let grandTotalTerima = 0;
+
     // Looping Isi Data Body
     masterData.value.forEach((header) => {
-      // Pemformatan tanggal internal baris data
-      const formatDataDate = (dStr: string | undefined | null) => {
+      const formatDataDate = (dStr) => {
         if (!dStr) return "-";
         if (dStr.includes("-")) {
           const parts = dStr.split("-");
           if (parts[0].length === 4)
-            return `${parts[2]}/${parts[1]}/${parts[0]}`; // yyyy-mm-dd -> dd/mm/yyyy
+            return `${parts[2]}/${parts[1]}/${parts[0]}`;
           return dStr.replace(/-/g, "/");
         }
         return dStr;
@@ -341,30 +359,44 @@ const handleExportExcel = () => {
 
       if (header.Detail && header.Detail.length > 0) {
         header.Detail.forEach((dtl, index) => {
+          const orderQty = num(dtl.Jumlah);
+          const terimaQty = num(dtl.Total_Diterima);
+
+          // Akumulasi total kedatangan bahan murni
+          grandTotalOrder += orderQty;
+          grandTotalTerima += terimaQty;
+
           const row = [
-            // Header utama dikosongkan pada baris detail ke-2 dst agar visual Excel rapi
-            { v: index === 0 ? header.Nomor : "", s: styleDataCellCenter },
-            { v: index === 0 ? tglHeader : "", s: styleDataCellCenter },
-            { v: index === 0 ? header.Nama : "", s: styleDataCell },
-            { v: index === 0 ? estDatang : "", s: styleDataCellCenter },
-            { v: index === 0 ? tglDatang : "", s: styleDataCellCenter },
-            { v: index === 0 ? header.Status_PO : "", s: styleDataCellCenter },
+            // Gunakan null pada baris detail ke-2 dst agar tidak merusak formatting rumus
+            { v: index === 0 ? header.Nomor : null, s: styleDataCellCenter },
+            { v: index === 0 ? tglHeader : null, s: styleDataCellCenter },
+            { v: index === 0 ? header.Nama : null, s: styleDataCell },
+            { v: index === 0 ? estDatang : null, s: styleDataCellCenter },
+            { v: index === 0 ? tglDatang : null, s: styleDataCellCenter },
             {
-              v: index === 0 ? header.Status_Diterima : "",
+              v: index === 0 ? header.Status_PO : null,
               s: styleDataCellCenter,
             },
-            { v: index === 0 ? header.Status_Acc : "", s: styleDataCellCenter },
+            {
+              v: index === 0 ? header.Status_Diterima : null,
+              s: styleDataCellCenter,
+            },
+            {
+              v: index === 0 ? header.Status_Acc : null,
+              s: styleDataCellCenter,
+            },
 
             // Bagian Detail Item Barang
             { v: dtl.Kode, s: styleDataCellCenter },
             { v: dtl.Nama_Bahan, s: styleDataCell },
-            { v: dtl.Jumlah, s: styleDataCellRight },
-            { v: dtl.Total_Diterima || 0, s: styleDataCellRight },
+
+            // Injeksi Angka Numerik Murni ke Root Level Objek
+            { v: orderQty, t: "n", z: "#,##0.00", s: styleDataCellRight },
+            { v: terimaQty, t: "n", z: "#,##0.00", s: styleDataCellRight },
           ];
           wsData.push(row);
         });
       } else {
-        // Jika dokumen kebetulan tidak memiliki detail item
         const row = [
           { v: header.Nomor, s: styleDataCellCenter },
           { v: tglHeader, s: styleDataCellCenter },
@@ -376,35 +408,62 @@ const handleExportExcel = () => {
           { v: header.Status_Acc, s: styleDataCellCenter },
           { v: "-", s: styleDataCellCenter },
           { v: "Tidak ada detail", s: styleDataCell },
-          { v: 0, s: styleDataCellRight },
-          { v: 0, s: styleDataCellRight },
+          { v: 0, t: "n", z: "#,##0.00", s: styleDataCellRight },
+          { v: 0, t: "n", z: "#,##0.00", s: styleDataCellRight },
         ];
         wsData.push(row);
       }
     });
 
     // ==========================================
+    // Tambah Baris Total Bawah (Footer SUM)
+    // ==========================================
+    const footerRow = [
+      {
+        v: "GRAND TOTAL",
+        s: { ...styleFooter, alignment: { horizontal: "right" } },
+      },
+      ...Array(9).fill({ v: "", s: styleFooter }), // Pembatas kolom kosong ber-style border
+      {
+        v: grandTotalOrder,
+        t: "n",
+        z: "#,##0.00",
+        s: { ...styleFooter, alignment: { horizontal: "right" } },
+      },
+      {
+        v: grandTotalTerima,
+        t: "n",
+        z: "#,##0.00",
+        s: { ...styleFooter, alignment: { horizontal: "right" } },
+      },
+    ];
+    wsData.push(footerRow);
+
+    // ==========================================
     // 3. PEMBUATAN WORKSHEET & PROSES DOWNLOAD
     // ==========================================
     const ws = XLSX.utils.aoa_to_sheet(wsData);
 
-    // Merge baris judul atas (Kolom A sampai L)
-    ws["!merges"] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 11 } }];
+    // Gabung baris judul atas & Label Total Footer
+    ws["!merges"] = [
+      { s: { r: 0, c: 0 }, e: { r: 0, c: 11 } },
+      { s: { r: wsData.length - 1, c: 0 }, e: { r: wsData.length - 1, c: 9 } },
+    ];
 
     // Setting Lebar Kolom Excel
     ws["!cols"] = [
-      { wch: 22 }, // NOMOR PERMINTAAN
-      { wch: 12 }, // TANGGAL
-      { wch: 25 }, // GUDANG
-      { wch: 18 }, // ESTIMASI DATANG
-      { wch: 18 }, // TANGGAL DATANG
-      { wch: 15 }, // STATUS PO
-      { wch: 15 }, // STATUS TERIMA
-      { wch: 15 }, // STATUS ACC
-      { wch: 15 }, // KODE BAHAN
-      { wch: 35 }, // NAMA BAHAN
-      { wch: 15 }, // JUMLAH ORDER
-      { wch: 15 }, // JUMLAH TERIMA
+      { wch: 22 },
+      { wch: 12 },
+      { wch: 25 },
+      { wch: 18 },
+      { wch: 18 },
+      { wch: 15 },
+      { wch: 15 },
+      { wch: 15 },
+      { wch: 15 },
+      { wch: 35 },
+      { wch: 15 },
+      { wch: 15 },
     ];
 
     const wb = XLSX.utils.book_new();

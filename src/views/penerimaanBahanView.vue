@@ -234,6 +234,32 @@ const handleExportHeaderExcel = () => {
       alignment: { horizontal: "center", vertical: "center" },
     };
 
+    // Helper format tanggal Indonesia bersih tanpa tipe data TypeScript
+    const formatTanggalIndo = (dateStr) => {
+      if (!dateStr) return "";
+      const bulanIndo = [
+        "Januari",
+        "Februari",
+        "Maret",
+        "April",
+        "Mei",
+        "Juni",
+        "Juli",
+        "Agustus",
+        "September",
+        "Oktober",
+        "November",
+        "Desember",
+      ];
+      try {
+        const [year, month, day] = dateStr.split("-");
+        const indexBulan = parseInt(month, 10) - 1;
+        return `${parseInt(day, 10)} ${bulanIndo[indexBulan]} ${year}`;
+      } catch (e) {
+        return dateStr;
+      }
+    };
+
     const wsData = [];
     const periodeStr = `Periode : ${formatTanggalIndo(startDate.value)} s/d ${formatTanggalIndo(endDate.value)}`;
 
@@ -301,6 +327,12 @@ const handleExportDetailExcel = () => {
   try {
     const fileName = `Laporan_Detail_Penerimaan_Bahan_${startDate.value}_to_${endDate.value}.xlsx`;
 
+    // Helper aman untuk memastikan nilai di-cast ke Number murni
+    const num = (value) => {
+      const parsed = Number(value);
+      return isNaN(parsed) ? 0 : parsed;
+    };
+
     const styleHeaderMain = {
       fill: { fgColor: { rgb: "B3E5FC" } }, // Biru Muda
       font: { bold: true, color: { rgb: "000000" }, sz: 10 },
@@ -334,6 +366,37 @@ const handleExportDetailExcel = () => {
       alignment: { horizontal: "right", vertical: "center" },
     };
 
+    const styleFooter = {
+      ...styleDataCell,
+      fill: { fgColor: { rgb: "F0F4F8" } },
+      font: { bold: true, sz: 10 },
+    };
+
+    const formatTanggalIndo = (dateStr) => {
+      if (!dateStr) return "";
+      const bulanIndo = [
+        "Januari",
+        "Februari",
+        "Maret",
+        "April",
+        "Mei",
+        "Juni",
+        "Juli",
+        "Agustus",
+        "September",
+        "Oktober",
+        "November",
+        "Desember",
+      ];
+      try {
+        const [year, month, day] = dateStr.split("-");
+        const indexBulan = parseInt(month, 10) - 1;
+        return `${parseInt(day, 10)} ${bulanIndo[indexBulan]} ${year}`;
+      } catch (e) {
+        return dateStr;
+      }
+    };
+
     const wsData = [];
     const periodeStr = `Periode : ${formatTanggalIndo(startDate.value)} s/d ${formatTanggalIndo(endDate.value)}`;
 
@@ -362,19 +425,29 @@ const handleExportDetailExcel = () => {
     ];
     wsData.push(tableHeaders);
 
+    let grandTotalPO = 0;
+    let grandTotalTerima = 0;
+
     masterData.value.forEach((header) => {
       if (header.Detail && header.Detail.length > 0) {
         header.Detail.forEach((dtl, index) => {
+          const poQty = num(dtl.Jumlah_PO);
+          const terimaQty = num(dtl.Jumlah_Terima);
+
+          grandTotalPO += poQty;
+          grandTotalTerima += terimaQty;
+
           wsData.push([
-            { v: index === 0 ? header.Nomor : "", s: styleDataCellCenter },
+            // Gunakan null pada detail lanjutan agar tidak mengunci cell dengan tipe String kosong ""
+            { v: index === 0 ? header.Nomor : null, s: styleDataCellCenter },
             {
-              v: index === 0 ? header.Tanggal || "-" : "",
+              v: index === 0 ? header.Tanggal || "-" : null,
               s: styleDataCellCenter,
             },
-            { v: index === 0 ? header.Gudang : "", s: styleDataCellCenter },
-            { v: index === 0 ? header.Supplier : "", s: styleDataCell },
+            { v: index === 0 ? header.Gudang : null, s: styleDataCellCenter },
+            { v: index === 0 ? header.Supplier : null, s: styleDataCell },
             {
-              v: index === 0 ? header.No_permintaan || "-" : "",
+              v: index === 0 ? header.No_permintaan || "-" : null,
               s: styleDataCellCenter,
             },
 
@@ -382,8 +455,11 @@ const handleExportDetailExcel = () => {
             { v: dtl.Kode, s: styleDataCellCenter },
             { v: dtl.Nama_Bahan, s: styleDataCell },
             { v: `${dtl.Panjang} x ${dtl.Lebar}`, s: styleDataCellCenter },
-            { v: dtl.Jumlah_PO || 0, s: styleDataCellRight },
-            { v: dtl.Jumlah_Terima || 0, s: styleDataCellRight },
+
+            // Perbaikan letak properti 't' dan 'z' ke tingkat Root Level objek sel
+            { v: poQty, t: "n", z: "#,##0.00", s: styleDataCellRight },
+            { v: terimaQty, t: "n", z: "#,##0.00", s: styleDataCellRight },
+
             { v: dtl.Satuan, s: styleDataCellCenter },
             { v: dtl.List_Barcode || "-", s: styleDataCell },
           ]);
@@ -398,16 +474,36 @@ const handleExportDetailExcel = () => {
           { v: "-", s: styleDataCellCenter },
           { v: "Tidak ada detail bahan", s: styleDataCell },
           { v: "-", s: styleDataCellCenter },
-          { v: 0, s: styleDataCellRight },
-          { v: 0, s: styleDataCellRight },
+          { v: 0, t: "n", z: "#,##0.00", s: styleDataCellRight },
+          { v: 0, t: "n", z: "#,##0.00", s: styleDataCellRight },
           { v: "-", s: styleDataCellCenter },
           { v: "-", s: styleDataCell },
         ]);
       }
     });
 
+    // Menambahkan Baris Total Rekapitulasi di Bagian Bawah Laporan Detail
+    const footerRow = [
+      {
+        v: "GRAND TOTAL",
+        s: { ...styleFooter, alignment: { horizontal: "right" } },
+      },
+      ...Array(7).fill({ v: "", s: styleFooter }), // Pembatas kolom kosong ber-style border (indeks 1 s/d 7)
+      { v: grandTotalPO, t: "n", z: "#,##0.00", s: styleFooter },
+      { v: grandTotalTerima, t: "n", z: "#,##0.00", s: styleFooter },
+      { v: "", s: styleFooter },
+      { v: "", s: styleFooter },
+    ];
+    wsData.push(footerRow);
+
     const ws = XLSX.utils.aoa_to_sheet(wsData);
-    ws["!merges"] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 11 } }];
+
+    // Gabung judul atas dan label Grand Total bawah (Kolom A s/d H)
+    ws["!merges"] = [
+      { s: { r: 0, c: 0 }, e: { r: 0, c: 11 } },
+      { s: { r: wsData.length - 1, c: 0 }, e: { r: wsData.length - 1, c: 7 } },
+    ];
+
     ws["!cols"] = [
       { wch: 22 },
       { wch: 15 },
