@@ -247,6 +247,7 @@ const rolePermissions = {
     "Realisasi Produksi",
     "Surat Perintah Kerja (SPK)",
     "Planning Produksi",
+    "Mutasi Bahan",
     "Stok Opname",
     "Retur Produksi",
     "STBJ",
