@@ -314,13 +314,13 @@ const routes: RouteRecordRaw[] = [
             },
             { path: 'mmt/mutasi-gudang', name: 'MutasiGudangBrowse', component: MutasiGudangView },
             {
-                path: 'mmt/realisasi-gudang/new',
+                path: 'mmt/mutasi-gudang/new',
                 name: 'MutasiGudangNew',
                 component: FormMutasiGudangView,
                 props: { isEditMode: false }
             },
             {
-                path: 'mmt/realisasi-gudang/edit/:nomor',
+                path: 'mmt/mutasi-gudang/edit/:nomor',
                 name: 'MutasigudangEdit',
                 component: MutasiGudangView,
                 props: true

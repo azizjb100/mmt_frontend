@@ -56,6 +56,7 @@ const authStore = useAuthStore();
 
 const API_URL_PERMINTAAN = "/mmt/permintaan-produksi-bahan";
 const API_URL_REALISASI = "/mmt/permintaan-produksi";
+const API_URL_MUTASI = "/mmt/mutasi-gudang";
 
 // --- State ---
 const isEditMode = ref(!!route.params.nomor);
@@ -331,7 +332,6 @@ const handleBahanSelect = (bahan: any) => {
 const saveForm = async (saveAndNew: boolean) => {
   isSaving.value = true;
 
-  // 1. Ambil detail yang valid
   const validDetails = formData.detail.filter(
     (d) => d.barcode.trim() !== "" && d.qty > 0,
   );
@@ -342,7 +342,6 @@ const saveForm = async (saveAndNew: boolean) => {
     return;
   }
 
-  // 2. Validasi Duplikasi Barcode
   const barcodeSet = new Set();
   for (const item of validDetails) {
     if (barcodeSet.has(item.barcode)) {
@@ -354,45 +353,40 @@ const saveForm = async (saveAndNew: boolean) => {
   }
 
   try {
-    // SESUAIKAN DENGAN CONTROLLER: { header, details, isEditMode }
     const payload = {
-      header: {
-        nomor: formData.nomor,
-        tanggal: formData.tanggal,
-        mnt_gdg_kode: formData.gudangKode,
-        mnt_lokasiproduksi: formData.lokasiProduksiKode,
-        mnt_keterangan: formData.keteranganHeader,
-        NomorMinta: formData.permintaanNomor,
-        mnt_permintaan: formData.permintaanNomor,
-        // Tetap kirim sebagai cadangan, tapi Controller akan prioritaskan req.user
-        user_create: authStore.KDUSER || "Unknown",
-      },
-      details: validDetails.map((d) => ({
-        sku: d.sku,
-        barcode: d.barcode,
+      Nomor: formData.nomor,
+      Tanggal: formData.tanggal,
+      GudangAsal: formData.gudangKode,
+      GudangTujuan: formData.lokasiProduksiKode,
+      Keterangan: formData.keteranganHeader,
+      Type: 2, // Sesuaikan dengan angka tipe kemarin
+
+      Details: validDetails.map((d) => ({
+        kode_barang: d.sku,
         qty: Number(d.qty),
-        satuan: d.satuan,
-        spk: d.spk || "0",
+
+        // PERBAIKAN: Isi dengan format tanggal hari ini (yyyy-MM-dd)
+        expired: format(new Date(), "yyyy-MM-dd"),
+
         keterangan: d.keterangan,
       })),
-      isEditMode: isEditMode.value,
+      isUpdate: isEditMode.value,
     };
+    // Tembak ke endpoint /mmt/mutasi-gudang
+    const response = await api.post(API_URL_MUTASI, payload);
 
-    // Pastikan menggunakan axios.post atau api.post
-    const response = await api.post(API_URL_REALISASI, payload);
-
-    toast.success(response.data.message || "Data berhasil disimpan.");
+    toast.success(response.data.message || "Data mutasi berhasil disimpan.");
 
     if (saveAndNew) {
       await refreshData();
     } else {
-      router.push({ name: "MutasiProduksiBrowse" });
+      router.push({ name: "MutasiGudangBrowse" });
     }
   } catch (error: any) {
     console.error("Save Error:", error.response?.data);
     const errorMsg =
       error.response?.data?.error || error.response?.data?.message;
-    toast.error(errorMsg || "Terjadi kesalahan saat menyimpan.");
+    toast.error(errorMsg || "Terjadi kesalahan saat menyimpan data mutasi.");
   } finally {
     isSaving.value = false;
   }

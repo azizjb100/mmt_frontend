@@ -1,16 +1,13 @@
 <script setup lang="ts">
-import { ref, onMounted, computed, reactive } from "vue";
+import { ref, onMounted, onBeforeUnmount, computed, reactive } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { format, parseISO } from "date-fns";
 import { useToast } from "vue-toastification";
 import api from "@/services/api";
 import PageLayout from "../components/PageLayout.vue";
 
-// --- Import Modals Lookup ---
-import SPKLookupModal from "@/modal/SpkLookupModal.vue";
-import MesinLookupModal from "@/modal/MesinLookupModal.vue"; // Pengganti uFrmbantuan (tmesin_mmt)
+import MesinLookupModal from "@/modal/MesinLookupModal.vue";
 
-// --- Interfaces ---
 interface PlanningDetailItem {
   tanggal: string;
   mesin: string;
@@ -41,25 +38,19 @@ interface FormDataState {
   sablon: boolean;
   sublim: boolean;
   bordir: boolean;
-
-  // Data Table (ClientDataSet clone)
   detailPlanning: PlanningDetailItem[];
 }
 
 const router = useRouter();
-const route = useRoute();
+const route = useRoute(); // Digunakan untuk menangkap parameter dari Browse SPK
 const toast = useToast();
-
 const API_URL = "/mmt/planning-produksi";
 
-// --- UI & Modal Controls ---
 const isEditMode = ref(false);
 const isSaving = ref(false);
-const isSpkModalVisible = ref(false);
 const isMesinModalVisible = ref(false);
 const activeDetailIndex = ref<number | null>(null);
 
-// --- Form State ---
 const formData = reactive<FormDataState>({
   nomorSpk: "",
   namaSpk: "",
@@ -79,17 +70,11 @@ const formData = reactive<FormDataState>({
   detailPlanning: [],
 });
 
-// --- Table Headers Configuration ---
 const headerPlanning = [
   { title: "No", key: "index", width: "50px", align: "center" as const },
   { title: "Tanggal", key: "tanggal", width: "140px" },
   { title: "Mesin", key: "mesin", width: "130px" },
-  {
-    title: "Cetak (M2/Pcs)",
-    key: "cetak",
-    width: "100px",
-    align: "end" as const,
-  },
+  { title: "Cetak (Pcs)", key: "cetak", width: "100px", align: "end" as const },
   {
     title: "Finishing",
     key: "finishing",
@@ -103,22 +88,29 @@ const headerPlanning = [
   { title: "Aksi", key: "actions", width: "60px", align: "center" as const },
 ];
 
-// --- Computed Footer Summary ---
 const totalCetak = computed(() =>
-  formData.detailPlanning.reduce((sum, item) => sum + (item.cetak || 0), 0),
+  formData.detailPlanning.reduce(
+    (sum, item) => sum + (Number(item.cetak) || 0),
+    0,
+  ),
 );
 const totalFinishing = computed(() =>
-  formData.detailPlanning.reduce((sum, item) => sum + (item.finishing || 0), 0),
+  formData.detailPlanning.reduce(
+    (sum, item) => sum + (Number(item.finishing) || 0),
+    0,
+  ),
 );
 const totalKirim = computed(() =>
-  formData.detailPlanning.reduce((sum, item) => sum + (item.kirim || 0), 0),
+  formData.detailPlanning.reduce(
+    (sum, item) => sum + (Number(item.kirim) || 0),
+    0,
+  ),
 );
 
-// --- Methods ---
 const initGridDefaults = () => {
   formData.detailPlanning = [
     {
-      tanggal: format(new Date(), "yyyy-MM-dd"),
+      tanggal: "",
       mesin: "",
       datang: 0,
       cetak: 0,
@@ -127,74 +119,17 @@ const initGridDefaults = () => {
       ketcetak: "",
       ketfinishing: "",
       ketkirim: "",
-      usr: localStorage.getItem("kdUser") || "",
-      dtusr: format(new Date(), "yyyy-MM-dd HH:mm:ss"),
+      usr: "",
+      dtusr: "",
     },
   ];
 };
 
-const refreshData = () => {
-  isEditMode.value = false;
-  formData.nomorSpk = "";
-  formData.namaSpk = "";
-  formData.tanggalSpk = "";
-  formData.dateline = "";
-  formData.jumlahSpk = 0;
-  formData.panjang = 0;
-  formData.lebar = 0;
-  formData.cabang = "";
-  formData.workshop = "";
-  formData.tipe = "";
-  formData.kain = "";
-  formData.finishing = "";
-  formData.sablon = false;
-  formData.sublim = false;
-  formData.bordir = false;
-  initGridDefaults();
-};
-
-// --- Check Duplicate Tanggal + Mesin (cltanggal/clmesin PropertiesEditValueChanged) ---
-const validateDuplicateRow = (index: number) => {
-  const currentRow = formData.detailPlanning[index];
-  if (!currentRow.tanggal || !currentRow.mesin) return;
-
-  const isDuplicate = formData.detailPlanning.some((item, idx) => {
-    return (
-      idx !== index &&
-      item.tanggal === currentRow.tanggal &&
-      item.mesin.toUpperCase() === currentRow.mesin.toUpperCase()
-    );
-  });
-
-  if (isDuplicate) {
-    toast.error(`Tanggal dan mesin ini sudah terinput di baris ${index + 1}`);
-    currentRow.mesin = ""; // Clear duplicate input
-  }
-};
-
-// --- Lookup Handlers ---
-const openMesinLookup = (index: number) => {
-  activeDetailIndex.value = index;
-  isMesinModalVisible.value = true;
-};
-
-const handleMesinSelect = (mesin: { Kode: string; Nama: string }) => {
-  if (activeDetailIndex.value !== null && mesin.Kode) {
-    formData.detailPlanning[activeDetailIndex.value].mesin = mesin.Kode;
-    validateDuplicateRow(activeDetailIndex.value);
-  }
-  isMesinModalVisible.value = null;
-};
-
-const handleSpkSelect = async (spk: any) => {
-  if (!spk) return;
-
-  const nomorSpk = spk.spk_nomor || spk.SPK || spk.Spk || "";
+// --- FUNGSI UTAMA: Load Otomatis Data SPK yang di-klik dari Browse ---
+const loadSpkFromBrowse = async (nomorSpk: string) => {
   if (!nomorSpk) return;
-
   isSaving.value = true;
   try {
-    // Load Master SPK & Existing Planning Detail (LoadDataAll clone)
     const response = await api.get(`${API_URL}/load-spk/${nomorSpk}`);
     const res = response.data.data;
 
@@ -218,7 +153,7 @@ const handleSpkSelect = async (spk: any) => {
       formData.sublim = h.spk_sublim === "Y";
       formData.bordir = h.spk_bordir === "Y";
 
-      // Detail mapping
+      // Jika sebelumnya sudah pernah di-planning oleh SPV, tampilkan datanya (Mode Edit)
       if (Array.isArray(res.detail) && res.detail.length > 0) {
         isEditMode.value = true;
         formData.detailPlanning = res.detail.map((d: any) => ({
@@ -235,23 +170,70 @@ const handleSpkSelect = async (spk: any) => {
           dtusr: d.plan_dtusr || "",
         }));
       } else {
+        // Jika SPK ini baru dan belum pernah di-planning, buka grid kosong siap isi
+        isEditMode.value = false;
         initGridDefaults();
       }
-      toast.success(`Berhasil memuat SPK: ${nomorSpk}`);
+    } else {
+      toast.error("Data SPK tidak ditemukan di database.");
     }
   } catch (error) {
-    console.error(error);
-    toast.error("Gagal memuat detail data SPK.");
+    toast.error("Gagal mengambil data SPK dari server.");
   } finally {
     isSaving.value = false;
-    isSpkModalVisible.value = false;
   }
 };
 
-// --- Grid Actions ---
+const handleRowFieldChange = (index: number) => {
+  const currentRow = formData.detailPlanning[index];
+  if (!currentRow.tanggal) return;
+
+  const isDuplicate = formData.detailPlanning.some((item, idx) => {
+    return (
+      idx !== index &&
+      item.tanggal === currentRow.tanggal &&
+      item.mesin.toUpperCase() === currentRow.mesin.toUpperCase() &&
+      currentRow.mesin !== ""
+    );
+  });
+
+  if (isDuplicate) {
+    toast.error(`Tanggal dan mesin ini sudah terinput dibaris ${index + 1}`);
+    currentRow.mesin = "";
+    return;
+  }
+
+  if (currentRow.tanggal !== "") {
+    // Otomatisasi pengisian log user & waktu persis logis Delphi
+    currentRow.usr = localStorage.getItem("kdUser") || "SPV_PRODUCTION";
+    currentRow.dtusr = format(new Date(), "yyyy-MM-dd HH:mm:ss");
+  }
+};
+
+const openMesinLookup = (index: number) => {
+  activeDetailIndex.value = index;
+  isMesinModalVisible.value = true;
+};
+
+const handleMesinSelect = (mesin: { Kode: string; Nama: string }) => {
+  if (activeDetailIndex.value !== null && mesin.Kode) {
+    formData.detailPlanning[activeDetailIndex.value].mesin = mesin.Kode;
+    handleRowFieldChange(activeDetailIndex.value);
+  }
+  isMesinModalVisible.value = false;
+};
+
+const validateCetakField = (index: number) => {
+  const currentRow = formData.detailPlanning[index];
+  if (currentRow.mesin.length < 2 && currentRow.cetak > 0) {
+    toast.error("Kode mesin belum diisi");
+    currentRow.cetak = 0;
+  }
+};
+
 const addRowPlanning = () => {
   formData.detailPlanning.push({
-    tanggal: format(new Date(), "yyyy-MM-dd"),
+    tanggal: "",
     mesin: "",
     datang: 0,
     cetak: 0,
@@ -260,8 +242,8 @@ const addRowPlanning = () => {
     ketcetak: "",
     ketfinishing: "",
     ketkirim: "",
-    usr: localStorage.getItem("kdUser") || "",
-    dtusr: format(new Date(), "yyyy-MM-dd HH:mm:ss"),
+    usr: "",
+    dtusr: "",
   });
 };
 
@@ -272,68 +254,96 @@ const removeRowPlanning = (index: number) => {
   }
 };
 
-// --- Save Action (simpandata dengan cek kapasitas tmesin_mmt) ---
-const saveForm = async () => {
-  if (!formData.nomorSpk) return toast.warning("SPK harus diisi.");
+const saveForm = async (forceSaveFlag = false) => {
+  if (!formData.nomorSpk)
+    return toast.warning("Tidak ada SPK yang di-planning.");
 
   if (
-    formData.detailPlanning.length === 1 &&
-    !formData.detailPlanning[0].mesin
+    formData.detailPlanning.length <= 1 &&
+    formData.detailPlanning[0].tanggal === ""
   ) {
-    return toast.warning("Tidak ada data, tidak dapat disimpan.");
+    return toast.warning("Tidak ada data planning, data tidak dapat disimpan.");
   }
 
-  // Validasi kolom mesin kosong sebelum post (VK_F10 loop validation)
   for (let i = 0; i < formData.detailPlanning.length; i++) {
     if (
-      formData.detailPlanning[i].tanggal &&
-      !formData.detailPlanning[i].mesin
+      formData.detailPlanning[i].tanggal !== "" &&
+      formData.detailPlanning[i].mesin === ""
     ) {
-      return toast.warning(`Cek inputan di baris ${i + 1}. Mesin wajib diisi.`);
+      return toast.warning(
+        `Cek kembali inputan di baris ${i + 1}. Kolom mesin wajib diisi.`,
+      );
     }
   }
 
-  if (!confirm("Yakin ingin simpan?")) return;
+  if (!forceSaveFlag) {
+    if (!confirm("Yakin ingin simpan data planning ini?")) return;
+  }
 
   isSaving.value = true;
   try {
-    // Tembak API payload untuk validasi server-side / simpan langsung
     const payload = {
       spk_nomor: formData.nomorSpk,
       panjang: formData.panjang,
       lebar: formData.lebar,
-      details: formData.detailPlanning,
+      details: formData.detailPlanning.filter((d) => d.tanggal !== ""),
+      forceSave: forceSaveFlag,
     };
 
     const response = await api.post(`${API_URL}/save`, payload);
 
-    // Handler alert kapasitas terlampaui (Confirmation MessageDlg pada Delphi)
     if (response.data?.overCapacityAlert) {
       const proceed = confirm(
-        `${response.data.message}\n\nTetap lanjutkan simpan?`,
+        `${response.data.message}\nTetap lanjutkan simpan ke database?`,
       );
-      if (!proceed) {
-        isSaving.value = false;
-        return;
+      if (proceed) {
+        await saveForm(true);
       }
-      // Jika user menekan OK, kirim flag force save
-      await api.post(`${API_URL}/save`, { ...payload, forceSave: true });
+      return;
     }
 
-    toast.success("Berhasil disimpan.");
-    refreshData();
+    toast.success("Planning Produksi Berhasil Disimpan.");
+    // Setelah sukses, arahkan kembali SPV ke halaman Browse SPK utama
+    router.push({ name: "BrowsePlanningProduksi" });
   } catch (err: any) {
-    toast.error(err.response?.data?.message || "Gagal Simpan.");
+    toast.error(err.response?.data?.message || "Gagal Simpan Data.");
   } finally {
     isSaving.value = false;
   }
 };
 
+const handleGlobalShortcuts = (e: KeyboardEvent) => {
+  if (e.key === "F10") {
+    e.preventDefault();
+    saveForm();
+  } else if (e.key === "F7") {
+    e.preventDefault();
+    if (confirm("Reset form planning saat ini?")) {
+      if (route.query.spk_nomor) {
+        loadSpkFromBrowse(route.query.spk_nomor as string);
+      }
+    }
+  }
+};
+
 onMounted(() => {
-  refreshData();
+  // Ambil nomor SPK dari query parameters URL string browser (?spk_nomor=xxx)
+  const querySpk = route.query.spk_nomor;
+  if (querySpk) {
+    loadSpkFromBrowse(querySpk as string);
+  } else {
+    toast.warning(
+      "Silakan pilih SPK terlebih dahulu dari halaman utama Browse.",
+    );
+    initGridDefaults();
+  }
+  window.addEventListener("keydown", handleGlobalShortcuts);
+});
+
+onBeforeUnmount(() => {
+  window.removeEventListener("keydown", handleGlobalShortcuts);
 });
 </script>
-
 <template>
   <PageLayout title="Planning Produksi MMT" icon="mdi-calendar-clock">
     <template #header-actions>

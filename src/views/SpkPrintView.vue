@@ -1,23 +1,3 @@
-Ada **3 perbaikan krusial** pada kode frontend Vue Anda agar data alokasi dari
-backend bisa tampil dengan sempurna, kalkulasi totalnya akurat (tidak sekadar
-menghitung jumlah baris), dan *event handler* gambar tidak terkunci ketika file
-gambar tidak ditemukan (*error*). Berikut adalah rincian bagian yang harus
-diperbaiki: ### 1. Poin-Poin Perbaikan Utama * **Properti Data Alokasi
-(`alokasiDetails` vs `Daftar_Alokasi`)**: Di backend (`spk.service.js`), kita
-mengemas data alokasi menggunakan nama properti **`Daftar_Alokasi`**. Di kode
-Vue Anda, *interface* dan *binding* data masih memanggil `alokasiDetails`. Ini
-harus disamakan menjadi `Daftar_Alokasi`. * **Kalkulasi Fungsi Total Alokasi
-(`getTotalAlokasi`)**: Fungsi lama Anda mengembalikan `items.length` (jumlah
-baris kota). Berdasarkan **Gambar 2**, kolom total harus mengakumulasikan isi
-nilai dari kuantitas alokasi tersebut (`SUM(Jumlah)`), contoh: $100 + 100 + 256
-... = 1056$. * **Siklus Pemicu Cetak Mesin (`@error="handleImageLoad"`)**: Di
-dalam komponen Anda, fungsi cetak otomatis `window.print()` dikunci oleh
-*watcher* `isImageLoaded === true`. Jika gambar tidak ditemukan (memicu
-`@error`), nilai `isImageLoaded` tidak akan pernah berubah menjadi `true`,
-akibatnya **proses print macet total**. Kita pasang `handleImageLoad` baik saat
-gambar sukses dimuat maupun saat *error* (*fallback image*). --- ### Kode
-Komponen Vue Hasil Perbaikan (`PrintSPK.vue`) Berikut adalah kode komponen
-frontend yang telah diperbaiki secara menyeluruh: ```vue
 <script setup lang="ts">
 import { ref, onMounted, nextTick, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
@@ -25,8 +5,8 @@ import api from "@/services/api";
 import { format, parseISO } from "date-fns";
 
 interface AlokasiItem {
-  Alokasi: string; // Menampung data Nama Kota
-  Jumlah: number; // Menampung kuantitas per alokasi
+  Alokasi: string;
+  Jumlah: number;
 }
 
 interface SpkData {
@@ -43,7 +23,7 @@ interface SpkData {
   Workshop?: string;
   StatusClient?: string;
   Alokasi?: string;
-  Daftar_Alokasi?: AlokasiItem[]; // PERBAIKAN: Samakan dengan nama properti dari backend
+  Daftar_Alokasi?: AlokasiItem[];
   Pesan?: string;
   Tipe_SPK: string;
   Ngedit: string;
@@ -60,24 +40,25 @@ const router = useRouter();
 const printData = ref<SpkData | null>(null);
 const isLoading = ref(true);
 
-// Melacak status pemuatan gambar utama agar printer tidak mencetak kertas kosong
+// State kontrol untuk pop-up konfirmasi alokasi
+const showAlokasiDialog = ref(false);
+const forceHideAlokasi = ref(false); // Mengabaikan tampilan alokasi jika user memilih "TIDAK"
+
+// Melacak status pemuatan gambar utama
 const isImageLoaded = ref(false);
 
 const handleImageLoad = () => {
   isImageLoaded.value = true;
 };
 
-// Menangani kasus jika gambar error/tidak ada di server agar proses print tetap berjalan
 const handleImageError = (e: any) => {
   e.target.src = "https://via.placeholder.com/180x150?text=No+Image";
-  isImageLoaded.value = true; // PERBAIKAN: Set true agar cetak otomatis tidak mengunci/stuck
+  isImageLoaded.value = true;
 };
 
 const getAssetUrl = (path: string) => {
   if (!path) return "";
   if (path.startsWith("http")) return path;
-
-  // Disesuaikan dengan konfigurasi rute statis di Nginx / Backend Port 8003
   return `/file-gambar/${path}`;
 };
 
@@ -96,7 +77,6 @@ const formatDateSafe = (
   }
 };
 
-// PERBAIKAN: Menghitung akumulasi SUM kuantitas alokasi (Sesuai Gambar 2)
 const getTotalAlokasi = (items: AlokasiItem[] | undefined) => {
   if (!items || items.length === 0) return printData.value?.Jumlah || 0;
   return items.reduce((sum, item) => sum + Number(item.Jumlah || 0), 0);
@@ -115,6 +95,11 @@ const fetchPrintData = async (nomor: string) => {
 
     printData.value = data;
     document.title = `SPK - ${data.SPK}`;
+
+    // LOGIKA POP-UP: Jika data memiliki alokasi, munculkan dialog pilihan dulu
+    if (data.Alokasi === "YA" || data.Alokasi === "Y") {
+      showAlokasiDialog.value = true;
+    }
   } catch (error) {
     console.error("Error fetching SPK print data:", error);
     alert("Gagal memuat data SPK.");
@@ -124,14 +109,36 @@ const fetchPrintData = async (nomor: string) => {
   }
 };
 
-// Memicu cetak otomatis ketika data teks dan elemen gambar selesai dimuat sempurna
+// Fungsi pemicu printer setelah user menentukan pilihan di Pop-up
+const triggerPrintWindow = () => {
+  nextTick(() => {
+    setTimeout(() => {
+      window.print();
+    }, 500);
+  });
+};
+
+// Pilihan 1: User memilih cetak DENGAN alokasi
+const chooseWithAlokasi = () => {
+  showAlokasiDialog.value = false;
+  forceHideAlokasi.value = false;
+  triggerPrintWindow();
+};
+
+// Pilihan 2: User memilih cetak TANPA alokasi (Sistem otomatis beralih ke mode Double Kiri-Kanan)
+const chooseWithoutAlokasi = () => {
+  showAlokasiDialog.value = false;
+  forceHideAlokasi.value = true; // Paksa sistem membaca seolah-olah tanpa alokasi
+  triggerPrintWindow();
+};
+
+// Watcher dimodifikasi agar tidak langsung nge-print jika dialog alokasi sedang aktif
 watch([isLoading, isImageLoaded], ([newLoading, newImgLoaded]) => {
   if (newLoading === false && newImgLoaded === true && printData.value) {
-    nextTick(() => {
-      setTimeout(() => {
-        window.print();
-      }, 500);
-    });
+    // Jika tidak ada alokasi sama sekali, langsung print mode double seperti biasa
+    if (printData.value.Alokasi !== "YA" && printData.value.Alokasi !== "Y") {
+      triggerPrintWindow();
+    }
   }
 });
 
@@ -147,9 +154,37 @@ onMounted(() => {
       <v-btn color="grey" @click="router.back()" class="ml-2">Kembali</v-btn>
     </div>
 
+    <v-dialog
+      v-model="showAlokasiDialog"
+      max-width="400"
+      persistent
+      class="no-print"
+    >
+      <v-card>
+        <v-card-title class="text-h6 justify-center d-flex pt-4">
+          Konfirmasi Cetak SPK
+        </v-card-title>
+        <v-card-text class="text-center text-body-1 py-4">
+          SPK ini memiliki data alokasi pengiriman.<br />
+          Apakah Anda ingin mencetak <strong>Dengan Alokasi</strong>?
+        </v-card-text>
+        <v-card-actions class="justify-center pb-4 gap-4">
+          <v-btn color="primary" variant="elevated" @click="chooseWithAlokasi">
+            YA (Dengan Alokasi)
+          </v-btn>
+          <v-btn color="error" variant="outlined" @click="chooseWithoutAlokasi">
+            TIDAK (Tanpa Alokasi)
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
     <div v-if="printData">
       <div
-        v-if="printData.Alokasi === 'YA' || printData.Alokasi === 'Y'"
+        v-if="
+          (printData.Alokasi === 'YA' || printData.Alokasi === 'Y') &&
+          !forceHideAlokasi
+        "
         class="page-wrapper-alokasi"
       >
         <div class="left-content-block">
@@ -232,7 +267,7 @@ onMounted(() => {
               </tr>
               <tr>
                 <td class="label">Alokasi</td>
-                <td>: {{ printData.Alokasi || "TIDAK" }}</td>
+                <td>: YA</td>
               </tr>
               <tr>
                 <td class="label">Keterangan</td>
@@ -443,7 +478,7 @@ onMounted(() => {
               </tr>
               <tr>
                 <td class="label">Alokasi</td>
-                <td>: {{ printData.Alokasi || "TIDAK" }}</td>
+                <td>: TIDAK</td>
               </tr>
               <tr>
                 <td class="label">Keterangan</td>
@@ -470,53 +505,62 @@ onMounted(() => {
                 @error="handleImageError"
               />
             </div>
-            <div class="validation-container-double">
-              <table class="approval-table">
-                <thead>
-                  <tr>
-                    <th>MO</th>
-                    <th>CMO</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td class="sign-cell">
-                      <img
-                        v-if="printData.MO"
-                        :src="getAssetUrl(`${printData.MO}.jpg`)"
-                        class="signature-img"
-                        @error="
-                          (e: any) => (e.target.style.visibility = 'hidden')
-                        "
-                      />
-                      <div class="signer-name">{{ printData.MO || "N/A" }}</div>
-                    </td>
-                    <td class="sign-cell">
-                      <img
-                        v-if="printData.CMO"
-                        :src="getAssetUrl(`${printData.CMO}.jpg`)"
-                        class="signature-img"
-                        @error="
-                          (e: any) => (e.target.style.visibility = 'hidden')
-                        "
-                      />
-                      <div class="signer-name">{{ printData.CMO || "NO" }}</div>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-              <div class="qr-wrapper">
-                <img
-                  :src="`https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=${encodeURIComponent(printData.QR_Data || printData.SPK)}`"
-                  alt="QR Validation"
-                  class="qr-code-img"
-                />
+
+            <div class="right-footer-wrapper-double">
+              <div class="validation-container-double">
+                <table class="approval-table">
+                  <thead>
+                    <tr>
+                      <th>MO</th>
+                      <th>CMO</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td class="sign-cell">
+                        <img
+                          v-if="printData.MO"
+                          :src="getAssetUrl(`${printData.MO}.jpg`)"
+                          class="signature-img"
+                          @error="
+                            (e: any) => (e.target.style.visibility = 'hidden')
+                          "
+                        />
+                        <div class="signer-name">
+                          {{ printData.MO || "N/A" }}
+                        </div>
+                      </td>
+                      <td class="sign-cell">
+                        <img
+                          v-if="printData.CMO"
+                          :src="getAssetUrl(`${printData.CMO}.jpg`)"
+                          class="signature-img"
+                          @error="
+                            (e: any) => (e.target.style.visibility = 'hidden')
+                          "
+                        />
+                        <div class="signer-name">
+                          {{ printData.CMO || "NO" }}
+                        </div>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+
+                <div class="qr-wrapper">
+                  <img
+                    :src="`https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=${encodeURIComponent(printData.QR_Data || printData.SPK)}`"
+                    alt="QR Validation"
+                    class="qr-code-img"
+                  />
+                </div>
+              </div>
+
+              <div class="print-meta-text-double">
+                Dibuat Oleh: {{ printData.Created || "-" }} |
+                {{ format(new Date(), "dd-MM-yyyy HH:mm:ss") }}
               </div>
             </div>
-          </div>
-          <div class="print-meta-text">
-            Dibuat Oleh: {{ printData.Created || "-" }} |
-            {{ format(new Date(), "dd-MM-yyyy HH:mm:ss") }}
           </div>
         </div>
       </div>
@@ -525,39 +569,69 @@ onMounted(() => {
 </template>
 
 <style scoped>
-/* Style pembatas kontainer cetakan */
+/* ==========================================================================
+   1. SCREEN PREVIEW MODE (Tampilan Layar Monitor Agar Lebih Menarik)
+   ========================================================================== */
 .print-container {
-  background: #525659;
+  background: radial-gradient(circle, #606468 0%, #3a3d40 100%);
   min-height: 100vh;
-  padding: 20px;
+  padding: 30px 20px;
   display: flex;
   justify-content: center;
   align-items: flex-start;
-  font-family: Arial, Helvetica, sans-serif;
-  color: #000;
+  font-family:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial,
+    sans-serif;
+  color: #111;
+  transition: background 0.3s ease;
+}
+
+/* Elevasi Kertas Cetak di Layar */
+.page-wrapper-alokasi,
+.page-wrapper-double {
+  background: #ffffff;
+  box-shadow:
+    0 14px 28px rgba(0, 0, 0, 0.25),
+    0 10px 10px rgba(0, 0, 0, 0.22);
+  border-radius: 6px;
+  box-sizing: border-box;
+  position: relative;
+  transition: transform 0.2s ease;
+}
+
+.page-wrapper-alokasi:hover,
+.page-wrapper-double:hover {
+  transform: translateY(-2px);
 }
 
 .page-wrapper-alokasi {
-  background: white;
   width: 297mm;
   height: 210mm;
-  padding: 10mm 10mm;
+  padding: 12mm 12mm;
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  box-sizing: border-box;
-  position: relative;
 }
 
+.page-wrapper-double {
+  width: 297mm;
+  height: 200mm;
+  padding: 8mm 10mm;
+  display: flex;
+  justify-content: space-between;
+  overflow: hidden;
+}
+
+/* Tata Letak Blok Konten */
 .left-content-block {
-  width: 65%;
+  width: 64%;
   display: flex;
   flex-direction: column;
   position: relative;
 }
 
 .right-content-block {
-  width: 32%;
+  width: 33%;
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
@@ -568,6 +642,7 @@ onMounted(() => {
   width: 100%;
   max-height: 380px;
   overflow-y: hidden;
+  border-radius: 4px;
 }
 
 .absolute-footer-wrapper {
@@ -579,18 +654,6 @@ onMounted(() => {
   flex-direction: column;
 }
 
-.page-wrapper-double {
-  background: white;
-  width: 297mm;
-  height: 200mm;
-  padding: 6mm 8mm;
-  display: flex;
-  justify-content: space-between;
-  box-sizing: border-box;
-  position: relative;
-  overflow: hidden;
-}
-
 .spk-card-double {
   width: 48.5%;
   height: 100%;
@@ -600,50 +663,12 @@ onMounted(() => {
   box-sizing: border-box;
 }
 
-.sub-header-info-double {
-  position: absolute;
-  top: 35px;
-  right: 0;
-  text-align: right;
-  z-index: 10;
-}
-
-.footer-block-double {
-  position: absolute;
-  bottom: 15px;
-  left: 0;
-  right: 0;
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-end;
-  width: 100%;
-  height: 110px;
-  box-sizing: border-box;
-}
-
-.design-preview-container-double {
-  width: 40%;
-  height: 95px;
-  border: 1px dashed #777;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: #fafafa;
-  box-sizing: border-box;
-  overflow: hidden;
-}
-
-.validation-container-double {
-  width: 57%;
-  height: 100%;
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-end;
-}
-
+/* ==========================================================================
+   2. REUSABLE COMPONENT ELEMENTS
+   ========================================================================== */
 .header-section {
-  border-bottom: 2px solid #000;
-  padding-bottom: 4px;
+  border-bottom: 2px solid #000000;
+  padding-bottom: 6px;
   width: 100%;
 }
 
@@ -654,42 +679,57 @@ onMounted(() => {
 }
 
 .main-title {
-  font-size: 14pt;
-  font-weight: bold;
+  font-size: 15pt;
+  font-weight: 800;
   text-decoration: underline;
   margin: 0;
+  letter-spacing: 0.5px;
 }
 
 .po-number {
   font-size: 11pt;
   font-weight: bold;
+  color: #222;
 }
 
+/* Status Kerja & Urgensi */
 .sub-header-info {
   position: absolute;
-  top: 32px;
+  top: 34px;
+  right: 0;
+  text-align: right;
+  z-index: 10;
+}
+
+.sub-header-info-double {
+  position: absolute;
+  top: 35px;
   right: 0;
   text-align: right;
   z-index: 10;
 }
 
 .urgent-tag {
-  color: #ff0000;
-  font-weight: bold;
-  font-size: 9pt;
+  color: #d32f2f;
+  font-weight: 800;
+  font-size: 9.5pt;
   margin-bottom: 2px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  animation: pulse 2s infinite;
 }
 
 .type-tag {
   font-size: 8.5pt;
+  color: #333;
 }
-
 .type-tag span {
   font-weight: bold;
 }
 
+/* Pengaturan Tabel Spesifikasi Utama */
 .content-section {
-  margin-top: 10px;
+  margin-top: 12px;
   width: 100%;
 }
 
@@ -699,19 +739,23 @@ onMounted(() => {
 }
 
 .details-table td {
-  padding: 1.5px 0;
+  padding: 2px 0;
   font-size: 9pt;
   vertical-align: top;
+  color: #000000;
 }
 
 .details-table td.label {
-  width: 100px;
+  width: 110px;
+  color: #333333;
+  font-weight: 600;
 }
 
 .highlight-bg {
   background-color: #ffff00;
   font-weight: bold;
-  padding: 0 4px;
+  padding: 1px 5px;
+  border-radius: 2px;
 }
 
 .val-notes {
@@ -721,13 +765,16 @@ onMounted(() => {
 .notes-content {
   font-size: 8.5pt;
   white-space: pre-wrap;
+  line-height: 1.3;
 }
 
+/* Pengaturan Tabel Alokasi */
 .alokasi-title {
-  font-size: 9.5pt;
+  font-size: 10pt;
   font-weight: bold;
   text-decoration: underline;
-  margin-bottom: 6px;
+  margin-bottom: 8px;
+  letter-spacing: 0.3px;
 }
 
 .alokasi-table {
@@ -737,16 +784,20 @@ onMounted(() => {
 
 .alokasi-table th,
 .alokasi-table td {
-  border: 1px solid #000;
-  padding: 3px 6px;
+  border: 1px solid #000000;
+  padding: 4px 8px;
   font-size: 8.5pt;
 }
 
 .alokasi-table th {
-  background-color: #f2f2f2;
+  background-color: #f5f5f2;
   font-weight: bold;
 }
 
+/* ==========================================================================
+   3. JALUR FOOTER & TANDA TANGAN (KONDISI 1 & KONDISI 2)
+   ========================================================================== */
+/* Kondisi 1: Footer Tunggal (Ada Alokasi) */
 .footer-block {
   display: flex;
   justify-content: space-between;
@@ -758,19 +809,14 @@ onMounted(() => {
 .design-preview-container {
   width: 45%;
   height: 100%;
-  border: 1px dashed #777;
+  border: 1px dashed #666666;
+  border-radius: 4px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #fafafa;
+  background: #fdfdfd;
   box-sizing: border-box;
   overflow: hidden;
-}
-
-.design-image {
-  max-width: 100%;
-  max-height: 100%;
-  object-fit: contain;
 }
 
 .validation-container {
@@ -781,96 +827,181 @@ onMounted(() => {
   align-items: flex-end;
 }
 
+/* Kondisi 2: Footer Berpasangan (Tanpa Alokasi / Double) */
+.footer-block-double {
+  position: absolute;
+  bottom: 15px;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  width: 100%;
+  height: 120px;
+  box-sizing: border-box;
+}
+
+.design-preview-container-double {
+  width: 40%;
+  height: 95px;
+  border: 1px dashed #666666;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #fdfdfd;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.right-footer-wrapper-double {
+  width: 57%;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.validation-container-double {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+}
+
+/* Komponen Gambar Desain, Validasi, TTD & QR */
+.design-image {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
 .approval-table {
   width: 65%;
   border-collapse: collapse;
-  margin-bottom: 5px;
+  margin-bottom: 2px;
 }
 
 .approval-table th,
 .approval-table td {
-  border: 1px solid #000;
+  border: 1px solid #000000;
   text-align: center;
   font-size: 8pt;
 }
 
 .approval-table th {
-  background: #f2f2f2;
+  background: #e1e2e5;
   font-weight: bold;
-  padding: 2px 0;
+  padding: 3px 0;
   width: 50%;
+  letter-spacing: 0.3px;
 }
 
 .sign-cell {
-  height: 45px;
+  height: 52px;
   vertical-align: bottom;
-  padding-bottom: 2px;
+  padding-bottom: 3px;
   position: relative;
+  background-color: #fff;
 }
 
 .signature-img {
   position: absolute;
-  top: 2px;
+  top: 3px;
   left: 50%;
   transform: translateX(-50%);
-  max-height: 30px;
+  max-height: 34px;
   max-width: 90%;
   object-fit: contain;
+  mix-blend-mode: multiply; /* Menghilangkan background putih pada file scan ttd */
 }
 
 .signer-name {
   font-size: 7.5pt;
   font-weight: bold;
+  text-transform: uppercase;
 }
 
 .qr-wrapper {
   width: 30%;
-  text-align: right;
+  display: flex;
+  justify-content: flex-end;
 }
 
 .qr-code-img {
-  width: 62px;
-  height: 62px;
+  width: 65px;
+  height: 65px;
   object-fit: contain;
+  border: 1px solid #eee;
+  padding: 2px;
+  background: #fff;
 }
 
+/* Metadata "Dibuat Oleh" */
 .print-meta-text {
   font-size: 7pt;
   text-align: left;
   margin-top: 4px;
-  color: #333;
+  color: #444444;
+}
+
+.print-meta-text-double {
+  font-size: 7pt;
+  text-align: left;
+  color: #444444;
+  width: 100%;
 }
 
 .floating-action {
   position: fixed;
-  top: 20px;
-  left: 20px;
+  top: 25px;
+  left: 25px;
   z-index: 9999;
 }
 
+/* Animasi Pulse lembut untuk Tag Urgent di monitor */
+@keyframes pulse {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+/* ==========================================================================
+   4. PRINT MEDIA RULES (Aturan Mutlak Ketika Fisik Dicetak Printer)
+   ========================================================================== */
 @media print {
   @page {
     size: A4 landscape !important;
     margin: 0 !important;
   }
+
   html,
   body {
-    background: #fff !important;
+    background: #ffffff !important;
     height: 210mm !important;
     max-height: 210mm !important;
     overflow: hidden !important;
   }
+
   .print-container {
     padding: 0 !important;
     background: white !important;
     display: block !important;
   }
+
   .no-print {
     display: none !important;
   }
+
   .page-wrapper-alokasi,
   .page-wrapper-double {
     box-shadow: none !important;
+    border-radius: 0 !important;
     margin: 0 !important;
     width: 297mm !important;
     height: 210mm !important;
@@ -880,32 +1011,42 @@ onMounted(() => {
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
+
   .page-wrapper-alokasi {
     padding: 10mm 10mm !important;
   }
+
   .page-wrapper-double {
     padding: 6mm 8mm !important;
   }
+
+  /* Menjaga presisi garis hitam solid bawaan Delphi */
   .alokasi-table th,
   .alokasi-table td,
   .approval-table th,
   .approval-table td {
-    border: 1px solid #000 !important;
+    border: 1px solid #000000 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
+
   .highlight-bg {
     background-color: #ffff00 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
+
   .alokasi-table td {
-    padding: 2px 6px;
+    padding: 2px 6px !important;
   }
+
   .text-uppercase {
     text-transform: uppercase;
   }
+
   .total-row td {
-    background-color: #fff;
-    border-top: 2px double #000 !important;
+    background-color: #ffffff !important;
+    border-top: 2px double #000000 !important;
   }
 }
 </style>
-
-```
