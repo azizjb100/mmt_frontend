@@ -324,7 +324,7 @@ onMounted(() => {
                     <td class="sign-cell">
                       <img
                         v-if="printData.MO"
-                        :src="getAssetUrl(`sign_${printData.MO}.jpg`)"
+                        :src="getAssetUrl(`${printData.MO}.jpg`)"
                         class="signature-img"
                         @error="
                           (e: any) => (e.target.style.visibility = 'hidden')
@@ -335,7 +335,7 @@ onMounted(() => {
                     <td class="sign-cell">
                       <img
                         v-if="printData.CMO"
-                        :src="getAssetUrl(`sign_${printData.CMO}.jpg`)"
+                        :src="getAssetUrl(`${printData.CMO}.jpg`)"
                         class="signature-img"
                         @error="
                           (e: any) => (e.target.style.visibility = 'hidden')
@@ -483,7 +483,7 @@ onMounted(() => {
                     <td class="sign-cell">
                       <img
                         v-if="printData.MO"
-                        :src="getAssetUrl(`sign_${printData.MO}.jpg`)"
+                        :src="getAssetUrl(`${printData.MO}.jpg`)"
                         class="signature-img"
                         @error="
                           (e: any) => (e.target.style.visibility = 'hidden')
@@ -494,7 +494,7 @@ onMounted(() => {
                     <td class="sign-cell">
                       <img
                         v-if="printData.CMO"
-                        :src="getAssetUrl(`sign_${printData.CMO}.jpg`)"
+                        :src="getAssetUrl(`${printData.CMO}.jpg`)"
                         class="signature-img"
                         @error="
                           (e: any) => (e.target.style.visibility = 'hidden')
