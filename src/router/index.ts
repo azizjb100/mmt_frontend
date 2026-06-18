@@ -105,6 +105,7 @@ import LapMonSublimView from '@/views/LapMonSublimView.vue';
 import FormPoExtMmtView from '@/views/FormPoExtMmtView.vue';
 import POExternalMmtView from '@/views/POExternalMmtView.vue';
 import FormPlanningProduksiView from '@/views/FormPlanningProduksiView.vue';
+import LapMonPlanVsLHKView from '@/views/LapMonPlanVsLHKView.vue';
 
 
 
@@ -355,6 +356,7 @@ const routes: RouteRecordRaw[] = [
                 props: true
             },
             { path: 'mmt/planning-produksi', name: 'PlanningProduksiBrowse', component: PlanningProduksiView },
+            { path: 'mmt/planning-produksi-form', name: 'PlanningProduksiMMTForm', component: FormPlanningProduksiView },
 
             // --- GRUP COMING SOON / UMUM (PATH DIBUAT RELATIF) ---
             { path: 'file/user', name: 'User', component: ComingSoon },
@@ -435,7 +437,7 @@ const routes: RouteRecordRaw[] = [
             { path: 'mmt/lhk/rtr', name: 'LHKRTRMMT', component: LhkRtrView },
             { path: 'mmt/lhk/rtr/new', name: 'LHKRTRMMTNew', component: FormLhkRtrView },
             { path: 'mmt/lhk/rtr/edit/:nomor', name: 'LHKRTRMMTEdit', component: FormLhkRtrView },
-            { path: 'mmt/planning-produksi-form', name: 'PlanningProduksiMMTForm', component: FormPlanningProduksiView },
+
 
             { path: 'mmt/bs-digital', name: 'BS & Sisa Digital Print', component: ComingSoon },
             { path: 'mmt/bs-tekstil', name: 'BS & Sisa Tekstil', component: ComingSoon },
@@ -461,6 +463,7 @@ const routes: RouteRecordRaw[] = [
             { path: 'laporan/mmt/lap-mon-tekstil', name: 'lapMonTekstil', component: LapMonTekstilView },
             { path: 'laporan/mmt/lap-mon-proof', name: 'lapMonProof', component: LapMonProofView },
             { path: 'laporan/mmt/lap-mon-sublim', name: 'lapMonSublim', component: LapMonSublimView },
+            { path: 'laporan/mmt/lap-mon-plan-vs-lhk', name: 'lapMonPlanVsLHK', component: LapMonPlanVsLHKView },
 
             { path: 'laporan/mmt/lap-spk-mmt', name: 'lapSpkMmt', component: LapSpkMmtView },            
             { path: 'laporan/mmt/lap-pemakaian-bahan', name: 'LapPemakaianBahan', component: LapPemakaianBahanView },

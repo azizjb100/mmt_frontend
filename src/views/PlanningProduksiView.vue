@@ -7,7 +7,6 @@ import * as XLSX from "xlsx";
 import { format, subDays } from "date-fns";
 import PageLayout from "../components/PageLayout.vue";
 
-// --- Interfaces ---
 interface PlanningDetail {
   Nomor: string;
   TglEstimasi: string;
@@ -37,10 +36,9 @@ interface PlanningMaster {
   Plancetak: number;
   Plan_finishing: number;
   Plan_kirim: number;
-  Detail?: PlanningDetail[];
+  detail?: PlanningDetail[];
 }
 
-// --- State ---
 const router = useRouter();
 const toast = useToast();
 const loading = ref(false);
@@ -48,13 +46,11 @@ const masterData = ref<PlanningMaster[]>([]);
 const selected = ref<PlanningMaster[]>([]);
 const expanded = ref<string[]>([]);
 
-// Filter Tanggal
 const startDate = ref(format(subDays(new Date(), 30), "yyyy-MM-dd"));
 const endDate = ref(format(new Date(), "yyyy-MM-dd"));
 
-// --- Headers (Urutan Kolom Sesuai Permintaan) ---
 const masterHeaders = [
-  { title: "Nomor", key: "Nomor", width: "130px", fixed: true },
+  { title: "Nomor SPK", key: "Nomor", width: "130px", fixed: true },
   { title: "Dateline", key: "Dateline", width: "110px" },
   { title: "Tipe", key: "Tipe", width: "90px" },
   { title: "Cabang", key: "Cab", width: "90px" },
@@ -110,36 +106,35 @@ const detailHeaders = [
   { title: "Ket. Cetak", key: "Ket_Cetak", minWidth: "200px" },
 ];
 
-// --- Click Row & Delphi Logika Style Gabungan ---
 const handleRowClick = (_event: any, row: any) => {
-  // Pastikan ekstraksi objek baris aman baik dari event Vuetify lama maupun baru
   const itemData = row.item?.raw || row.item || row;
   selected.value = [itemData];
 };
 
+// Modifikasi getRowProps agar hanya fokus memberikan style baris terpilih (Row Selection)
 const getRowProps = ({ item }: { item: PlanningMaster }) => {
   return {
     class: {
       "row-selected": selected.value.some((s) => s.Nomor === item.Nomor),
-      "style-kirim-zero": item.Plan_kirim === 0,
-      "style-finishing-zero": item.Plan_kirim > 0 && item.Plan_finishing === 0,
-      "style-cetak-zero":
-        item.Plan_kirim > 0 && item.Plan_finishing > 0 && item.Plancetak === 0,
     },
   };
 };
 
-// --- Actions ---
 const fetchData = async () => {
   loading.value = true;
   try {
-    const response = await api.get("/mmt/planning-produksi/planning-mmt", {
+    const response = await api.get("/mmt/planning-produksi/browse", {
       params: {
         startDate: startDate.value,
         endDate: endDate.value,
       },
     });
-    masterData.value = response.data;
+
+    if (response.data && response.data.success) {
+      masterData.value = response.data.data;
+    } else {
+      masterData.value = response.data;
+    }
   } catch (err) {
     toast.error("Gagal memuat data produksi");
   } finally {
@@ -147,15 +142,12 @@ const fetchData = async () => {
   }
 };
 
-// --- PERBAIKAN: Dialihkan menuju form pengisian planning mmt ---
 const handleEdit = () => {
   if (selected.value.length > 0) {
-    const nomor = selected.value[0].Nomor;
-    // Menggunakan name: 'PlanningProduksiMMTForm' sesuai indeks router anda
-    // Menggunakan params: { nomor } sesuai parameter tangkapan onMounted di form
+    const nomorSpk = selected.value[0].Nomor;
     router.push({
       name: "PlanningProduksiMMTForm",
-      params: { nomor: nomor },
+      query: { spk_nomor: nomorSpk },
     });
   }
 };
@@ -239,7 +231,7 @@ watch([startDate, endDate], fetchData);
           :loading="loading"
           item-value="Nomor"
           density="compact"
-          class="desktop-table elevation-1 border custom-table"
+          class="desktop-table elevation-1 border custom-table text-white-bg"
           show-select
           select-strategy="single"
           return-object
@@ -248,6 +240,21 @@ watch([startDate, endDate], fetchData);
           @click:row="handleRowClick"
           :row-props="getRowProps"
         >
+          <template #item.Nomor="{ item }">
+            <span
+              :class="
+                item.Plancetak > 0 ||
+                item.Plan_finishing > 0 ||
+                item.Plan_kirim > 0
+                  ? 'text-sudah-plan'
+                  : 'text-belum-plan'
+              "
+              class="font-weight-bold"
+            >
+              {{ item.Nomor }}
+            </span>
+          </template>
+
           <template #item.Dateline="{ item }">
             {{
               item.Dateline
@@ -292,7 +299,7 @@ watch([startDate, endDate], fetchData);
                 <div class="detail-container">
                   <v-data-table
                     :headers="detailHeaders"
-                    :items="item.Detail || []"
+                    :items="item.detail || []"
                     density="compact"
                     hide-default-footer
                     class="border-0 bg-transparent"
@@ -318,6 +325,7 @@ watch([startDate, endDate], fetchData);
 <style scoped>
 :deep(.v-data-table) {
   font-size: 11px !important;
+  background-color: #ffffff !important;
 }
 :deep(.v-data-table-header th) {
   font-size: 11px !important;
@@ -328,12 +336,10 @@ watch([startDate, endDate], fetchData);
 :deep(.v-data-table td) {
   font-size: 11px !important;
   height: 32px !important;
-}
-:deep(.row-selected) {
-  background-color: #d8efff !important;
+  background-color: #ffffff !important; /* Memaksa latar belakang baris default selalu putih */
 }
 :deep(.row-selected td) {
-  background-color: #d8efff !important;
+  background-color: #d8efff !important; /* Warna penanda khusus baris yang sedang diklik/dipilih */
 }
 :deep(.v-data-table__tr.row-selected:hover > td) {
   background-color: #c0e4ff !important;
@@ -346,14 +352,12 @@ watch([startDate, endDate], fetchData);
   background-color: #f9f9f9;
   border-top: 1px solid rgba(0, 0, 0, 0.12);
 }
-:deep(.style-kirim-zero:not(.row-selected)) {
-  background-color: #ffebee !important;
+
+/* CLASS WARNA SPESIFIK TEKS NOMOR SPK */
+.text-belum-plan {
+  color: #d32f2f !important; /* Merah jika belum masuk planning */
 }
-:deep(.style-finishing-zero:not(.row-selected)) {
-  border-left: 4px solid #ff9800 !important;
-}
-:deep(.style-cetak-zero:not(.row-selected)) {
-  color: #d32f2f !important;
-  font-weight: bold;
+.text-sudah-plan {
+  color: #212121 !important; /* Hitam jika sudah ada item planning */
 }
 </style>

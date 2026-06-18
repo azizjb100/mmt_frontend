@@ -18,10 +18,10 @@
           ></span>
         </button>
 
-        <div class="navbar-brand">
+        <router-link to="/" class="navbar-brand" @click="closeAllMenus">
           <span class="brand-icon mdi mdi-speedometer"></span>
           <span class="font-heading">MMT App</span>
-        </div>
+        </router-link>
       </div>
 
       <ul class="navbar-menu" :class="{ 'is-mobile-open': isMobileMenuOpen }">

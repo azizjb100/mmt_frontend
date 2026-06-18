@@ -184,6 +184,15 @@ const loadSpkFromBrowse = async (nomorSpk: string) => {
   }
 };
 
+const refreshData = () => {
+  const querySpk = route.query.spk_nomor;
+  if (querySpk) {
+    loadSpkFromBrowse(querySpk as string);
+  } else {
+    initGridDefaults();
+  }
+};
+
 const handleRowFieldChange = (index: number) => {
   const currentRow = formData.detailPlanning[index];
   if (!currentRow.tanggal) return;
@@ -254,7 +263,7 @@ const removeRowPlanning = (index: number) => {
   }
 };
 
-const saveForm = async (forceSaveFlag = false) => {
+const saveForm = async () => {
   if (!formData.nomorSpk)
     return toast.warning("Tidak ada SPK yang di-planning.");
 
@@ -276,36 +285,55 @@ const saveForm = async (forceSaveFlag = false) => {
     }
   }
 
-  if (!forceSaveFlag) {
-    if (!confirm("Yakin ingin simpan data planning ini?")) return;
-  }
+  if (!confirm("Yakin ingin simpan data planning ini?")) return;
 
   isSaving.value = true;
   try {
-    const payload = {
-      spk_nomor: formData.nomorSpk,
-      panjang: formData.panjang,
-      lebar: formData.lebar,
-      details: formData.detailPlanning.filter((d) => d.tanggal !== ""),
-      forceSave: forceSaveFlag,
-    };
+    let currentForceSave = false;
+    let keepTrying = true;
+    let finalResponse = null;
 
-    const response = await api.post(`${API_URL}/save`, payload);
+    // Gunakan perulangan while untuk menampung konfirmasi over-capacity
+    while (keepTrying) {
+      const payload = {
+        spk_nomor: formData.nomorSpk,
+        panjang: formData.panjang,
+        lebar: formData.lebar,
+        details: formData.detailPlanning.filter((d) => d.tanggal !== ""),
+        forceSave: currentForceSave,
+      };
 
-    if (response.data?.overCapacityAlert) {
-      const proceed = confirm(
-        `${response.data.message}\nTetap lanjutkan simpan ke database?`,
-      );
-      if (proceed) {
-        await saveForm(true);
+      const response = await api.post(`${API_URL}/save`, payload);
+
+      if (response.data?.overCapacityAlert) {
+        const proceed = confirm(
+          `${response.data.message}\nTetap lanjutkan simpan ke database?`,
+        );
+        if (proceed) {
+          currentForceSave = true; // Aktifkan flag force save untuk loop berikutnya
+          continue; // Ulang kirim data dengan payload baru
+        } else {
+          keepTrying = false; // Batalkan proses simpan
+          isSaving.value = false;
+          return;
+        }
       }
-      return;
+
+      // Jika sukses tanpa alert atau setelah forceSave disetujui
+      finalResponse = response.data;
+      keepTrying = false;
     }
 
-    toast.success("Planning Produksi Berhasil Disimpan.");
-    // Setelah sukses, arahkan kembali SPV ke halaman Browse SPK utama
-    router.push({ name: "BrowsePlanningProduksi" });
+    // Eksekusi toast sukses hanya dilakukan SATU KALI di akhir proses linear
+    if (
+      finalResponse &&
+      (finalResponse.success || finalResponse.status === "success")
+    ) {
+      toast.success("Berhasil disimpan.");
+      router.push({ name: "PlanningProduksiBrowse" }); // Sesuaikan nama rute browse Anda
+    }
   } catch (err: any) {
+    console.error(err);
     toast.error(err.response?.data?.message || "Gagal Simpan Data.");
   } finally {
     isSaving.value = false;
@@ -319,18 +347,21 @@ const handleGlobalShortcuts = (e: KeyboardEvent) => {
   } else if (e.key === "F7") {
     e.preventDefault();
     if (confirm("Reset form planning saat ini?")) {
-      if (route.query.spk_nomor) {
-        loadSpkFromBrowse(route.query.spk_nomor as string);
+      // PERBAIKAN: Selaraskan parameter penampung data saat reset form
+      const nomorSpk = route.params.nomor || route.query.spk_nomor;
+      if (nomorSpk) {
+        loadSpkFromBrowse(nomorSpk as string);
       }
     }
   }
 };
 
 onMounted(() => {
-  // Ambil nomor SPK dari query parameters URL string browser (?spk_nomor=xxx)
-  const querySpk = route.query.spk_nomor;
-  if (querySpk) {
-    loadSpkFromBrowse(querySpk as string);
+  // PERBAIKAN: Ambil dari params.nomor atau query.spk_nomor secara adaptif
+  const nomorSpk = route.params.nomor || route.query.spk_nomor;
+
+  if (nomorSpk) {
+    loadSpkFromBrowse(nomorSpk as string);
   } else {
     toast.warning(
       "Silakan pilih SPK terlebih dahulu dari halaman utama Browse.",
