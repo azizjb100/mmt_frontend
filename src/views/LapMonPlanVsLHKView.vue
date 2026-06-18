@@ -61,6 +61,7 @@
             </v-card-text>
           </v-card>
         </v-col>
+
         <v-col cols="12" md="4">
           <v-card color="green-darken-3" theme="dark" class="elevation-2">
             <v-card-text class="text-center py-4">
@@ -71,6 +72,7 @@
             </v-card-text>
           </v-card>
         </v-col>
+
         <v-col cols="12" md="4">
           <v-card
             :color="
@@ -98,17 +100,23 @@
           class="custom-table"
           hover
         >
-          <template #[`item.Plan_Meter`]="{ value }">
-            <span>{{ formatNumber(value, 2) }} m²</span>
+          <template #[`item.Plan_M2`]="{ item }">
+            <div class="text-right">
+              <div>{{ formatNumber(item.Plan_M2, 2) }} m²</div>
+              <div class="text-caption text-grey">{{ item.Plan_Qty }} pcs</div>
+            </div>
           </template>
 
-          <template #[`item.Lhk_Meter`]="{ value }">
-            <span class="font-weight-bold text-blue-darken-2"
-              >{{ formatNumber(value, 2) }} m²</span
-            >
+          <template #[`item.Lhk_M2`]="{ item }">
+            <div class="text-right">
+              <div class="font-weight-bold text-blue-darken-2">
+                {{ formatNumber(item.Lhk_M2, 2) }} m²
+              </div>
+              <div class="text-caption text-grey">{{ item.Lhk_Qty }} pcs</div>
+            </div>
           </template>
 
-          <template #[`item.Deviasi`]="{ value }">
+          <template #[`item.Deviasi_M2`]="{ value }">
             <span
               :class="
                 value < 0
@@ -145,17 +153,23 @@ import ExcelJS from "exceljs";
 import { saveAs } from "file-saver";
 import PageLayout from "../components/PageLayout.vue";
 
+// --- INTERFACES ---
 interface PlanVsLhkRow {
   Mesin: string;
-  No_SPK: string;
+  NomorSPK: string;
   NamaSPK: string;
   Bahan: string;
-  Plan_Meter: number;
-  Lhk_Meter: number;
-  Deviasi: number;
+  Lebar: number;
+  Panjang: number;
+  Plan_Qty: number;
+  Plan_M2: number;
+  Lhk_Qty: number;
+  Lhk_M2: number;
+  Deviasi_M2: number;
   Persentase: number;
 }
 
+// --- STATE ---
 const toast = useToast();
 const loading = ref(false);
 const reportData = ref<PlanVsLhkRow[]>([]);
@@ -165,9 +179,10 @@ const filters = reactive({
   end: format(new Date(), "yyyy-MM-dd"),
 });
 
+// --- HEADERS ---
 const headers = [
   { title: "MESIN", key: "Mesin", align: "start" as const, sortable: true },
-  { title: "NO SPK", key: "No_SPK", align: "start" as const },
+  { title: "NO SPK", key: "NomorSPK", align: "start" as const },
   {
     title: "NAMA ORDER / SPK",
     key: "NamaSPK",
@@ -175,19 +190,19 @@ const headers = [
     width: "220px",
   },
   { title: "BAHAN", key: "Bahan", align: "start" as const },
-  {
-    title: "PLAN (M²)",
-    key: "Plan_Meter",
-    align: "end" as const,
-    sortable: true,
-  },
+  { title: "PLAN (M²)", key: "Plan_M2", align: "end" as const, sortable: true },
   {
     title: "LHK REALISASI (M²)",
-    key: "Lhk_Meter",
+    key: "Lhk_M2",
     align: "end" as const,
     sortable: true,
   },
-  { title: "DEVIASI", key: "Deviasi", align: "end" as const, sortable: true },
+  {
+    title: "DEVIASI",
+    key: "Deviasi_M2",
+    align: "end" as const,
+    sortable: true,
+  },
   {
     title: "% CAPAIAN",
     key: "Persentase",
@@ -199,17 +214,15 @@ const headers = [
 // --- ANALYTICS SUMMARY ---
 const summary = computed(() => {
   const totalPlan = reportData.value.reduce(
-    (acc, curr) => acc + curr.Plan_Meter,
+    (acc, curr) => acc + Number(curr.Plan_M2 || 0),
     0,
   );
   const totalLhk = reportData.value.reduce(
-    (acc, curr) => acc + curr.Lhk_Meter,
+    (acc, curr) => acc + Number(curr.Lhk_M2 || 0),
     0,
   );
   const avgAchieved =
-    totalPlan > 0
-      ? Object.freeze(Number(((totalLhk / totalPlan) * 100).toFixed(1)))
-      : 0;
+    totalPlan > 0 ? Number(((totalLhk / totalPlan) * 100).toFixed(1)) : 0;
   return { totalPlan, totalLhk, avgAchieved };
 });
 
@@ -230,7 +243,6 @@ const getAchievedColor = (val: number) => {
 const loadReportData = async () => {
   loading.value = true;
   try {
-    // Memanggil endpoint baru yang menggabungkan master data plan dengan LHK realisasi
     const response = await api.get("/mmt/laporan-plan-vs-lhk", {
       params: {
         startDate: filters.start,
@@ -276,13 +288,13 @@ const exportToExcel = async () => {
   reportData.value.forEach((item) => {
     const row = worksheet.addRow({
       Mesin: item.Mesin,
-      No_SPK: item.No_SPK,
+      No_SPK: item.NomorSPK,
       NamaSPK: item.NamaSPK,
       Bahan: item.Bahan,
-      Plan_Meter: Number(item.Plan_Meter),
-      Lhk_Meter: Number(item.Lhk_Meter),
-      Deviasi: Number(item.Deviasi),
-      Persentase: Number(item.Persentase) / 100, // Menggunakan pecahan desimal murni untuk format % Excel
+      Plan_Meter: Number(item.Plan_M2 || 0),
+      Lhk_Meter: Number(item.Lhk_M2 || 0),
+      Deviasi: Number(item.Deviasi_M2 || 0),
+      Persentase: Number(item.Persentase || 0) / 100,
     });
 
     // Format Numbering cell
@@ -309,6 +321,7 @@ const exportToExcel = async () => {
   saveAs(new Blob([buffer]), `Laporan_Plan_VS_LHK_${filters.start}.xlsx`);
 };
 
+// --- LIFECYCLE ---
 onMounted(loadReportData);
 </script>
 
