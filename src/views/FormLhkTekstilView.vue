@@ -640,12 +640,12 @@ const recalculateCombine = () => {
       (d.cetak6 || 0) +
       (d.cetak7 || 0);
 
-    // 2. ALERT REAL-TIME: Menggunakan toast.warning agar berwarna kuning sesuai gambar
+    // 2. ALERT REAL-TIME
     if (newTotalCetak > Number(d.kurangcetak_asli || 0)) {
       toast.warning(
         `SPK ${d.nomor_spk} (Input: ${newTotalCetak} melebihi sisa order : ${d.kurangcetak_asli})`,
         {
-          timeout: 4000, // Toast akan hilang otomatis dalam 4 detik
+          timeout: 4000,
           closeOnClick: true,
           pauseOnHover: true,
         },
@@ -655,11 +655,18 @@ const recalculateCombine = () => {
     // 3. Simpan nilai total cetak baru ke object state
     d.totalcetak = newTotalCetak;
 
-    // 4. Update total_pernah_cetak (Akumulasi Lama + Inputan Baru Hari Ini)
+    // 4. Update total_pernah_cetak
     d.total_pernah_cetak = (d.sudahcetak || 0) + d.totalcetak;
 
     // 5. Hitung sisa kurang cetak SPK terbaru
     d.kurangcetak = Math.max(0, (d.jumlah || 0) - d.total_pernah_cetak);
+  });
+
+  // ============================================
+  // TRIGGER OTOMATIS LAYOUT DI SEBELAHNYA DISINI
+  // ============================================
+  nextTick(() => {
+    autoFillLayout(true); // true agar berjalan "silent" tanpa toast mengganggu
   });
 };
 
@@ -670,6 +677,7 @@ const autoFillLayout = (isSilent = false) => {
     return;
   }
 
+  // Jika di-klik dari tombol manual (bukan isSilent), reset total offsets untuk kalkulasi ulang total dari nol
   if (!isSilent) {
     Object.keys(manualOffsets).forEach((key) => delete manualOffsets[key]);
   }
@@ -692,32 +700,44 @@ const autoFillLayout = (isSilent = false) => {
       spk.orientasi === "lebar" ? spk.lebar_spk : spk.panjang_spk + padM;
 
     for (let col = 0; col < totalCetak; col++) {
+      // Cek apakah pola penempatan melebihi lebar bahan tekstil, jika ya pindah ke baris (kolom x) berikutnya
       if (currentY > 0 && currentY + h > formData.lebar_bahan + 0.01) {
         currentStartX = maxOverallX;
         currentY = 0;
       }
 
+      // JIKA BELUM ADA POSISI (Kotak baru hasil tambah Qty), isi otomatis rapi di sebelahnya
       if (!manualOffsets[unitGlobalIdx]) {
         manualOffsets[unitGlobalIdx] = {
           x: currentStartX,
           y: currentY,
-          rotation: 0,
+          rotation: spk.orientasi === "panjang" ? 90 : 0,
         };
       }
 
+      // Ambil nilai posisi final (baik hasil hitung otomatis baru atau posisi lama)
       const edgeRight = manualOffsets[unitGlobalIdx].x + w;
       const edgeBottom = manualOffsets[unitGlobalIdx].y + h;
 
       if (edgeRight > maxOverallX) maxOverallX = edgeRight;
       if (edgeBottom > tempTotalLebar) tempTotalLebar = edgeBottom;
 
+      // Geser pointer Y ke bawah untuk kotak berikutnya di kolom yang sama
       currentY += h;
       unitGlobalIdx++;
     }
   });
 
+  // Bersihkan index sisa di manualOffsets jika Qty dikurangi oleh user
+  Object.keys(manualOffsets).forEach((key) => {
+    if (parseInt(key) >= unitGlobalIdx) {
+      delete manualOffsets[parseInt(key)];
+    }
+  });
+
   totalPanjangTerpakai.value = maxOverallX;
   totalLebarGabungan.value = tempTotalLebar;
+
   if (!isSilent) toast.success("Layout otomatis berhasil dioptimasi.");
 };
 
