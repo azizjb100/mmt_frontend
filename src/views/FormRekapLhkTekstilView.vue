@@ -458,32 +458,73 @@ const calculateRowM2 = (index) => {
   }
 };
 
-const handleLhkTekstilSelect = (selectedItems) => {
-  selectedItems.forEach((item) => {
+const handleLhkTekstilSelect = async (selectedItems) => {
+  for (const item of selectedItems) {
     const isExist = detailData.value.some((d) => d.lhk_mesin === item.Nomor);
     if (!isExist) {
-      const jmlCetak = item.Jml_Cetak || 0;
-      const totalMeter = item.Total_Meter || 0;
+      try {
+        // 1. Ambil rincian detail SPK asli di dalam LHK ini dari API yang sudah kita perbaiki
+        const res = await api.get("/mmt/lhk-tekstil-mmt/details", {
+          params: { nomor: item.Nomor },
+        });
 
-      detailData.value.push({
-        lhk_nomor: "",
-        lhk_mesin: item.Nomor,
-        shift: item.Shift,
-        keterangan: `${item.Nama_Bahan} (${item.Barcode || "-"})`,
-        total_m2: totalMeter,
-        brg_kode: item.Kode_Bahan,
-        barcode: item.Barcode,
-        mesin: item.Mesin,
-        nomor_spk: item.No_SPK,
-        qty: jmlCetak,
-        lebar: item.Lebar || 0,
-        panjang: jmlCetak > 0 ? totalMeter / jmlCetak : 0,
-        isManual: false,
-      });
+        const targetDetails = res.data?.details || res.data || [];
+
+        if (targetDetails.length > 0) {
+          // 2. Jika isi LHK memiliki banyak SPK, petakan semua baris detailnya ke tabel inputan
+          targetDetails.forEach((dtl) => {
+            const rowQty = Number(dtl.totalcetak || dtl.Jml_Cetak || 0);
+            const rowPanjang = Number(dtl.Panjang || 0);
+            const rowLebar = Number(dtl.Lebar || 0);
+
+            detailData.value.push({
+              lhk_nomor: "",
+              lhk_mesin: item.Nomor, // Nomor Dokumen Referensi LHK
+              shift: item.Shift, // Shift Kerja Asal
+              mesin: dtl.Mesin || item.Mesin, // Kode Mesin per SPK
+              nomor_spk: dtl.Nomor_SPK || dtl.nomor_spk || "-", // Nomor SPK Asli
+              keterangan:
+                dtl.Nama_SPK ||
+                dtl.nama_spk ||
+                `${item.Nama_Bahan} (${item.Barcode || "-"})`, // Nama SPK / Produk
+              qty: rowQty, // Jumlah Cetak (Pcs)
+              lebar: rowLebar, // Lebar Ukuran
+              panjang: rowPanjang, // Panjang Ukuran
+              total_m2: Number((rowPanjang * rowLebar * rowQty).toFixed(2)), // Hitung M2 otomatis per baris SPK
+              brg_kode: dtl.Kode_Bahan || item.Kode_Bahan,
+              barcode: item.Barcode || "",
+              isManual: false,
+            });
+          });
+        } else {
+          // Fallback jika karena suatu hal data sub-detail di database kosong, gunakan mapping header default
+          detailData.value.push({
+            lhk_nomor: "",
+            lhk_mesin: item.Nomor,
+            shift: item.Shift,
+            keterangan: `${item.Nama_Bahan} (${item.Barcode || "-"})`,
+            total_m2: Number(item.KurangCetak || 0),
+            brg_kode: item.Kode_Bahan,
+            barcode: item.Barcode,
+            mesin: item.Mesin,
+            nomor_spk: item.NomorSPK || "-",
+            qty: Number(item.TotalCetak || 0),
+            lebar: Number(item.Lebar || 0),
+            panjang:
+              Number(item.TotalCetak) > 0
+                ? Number(item.KurangCetak) / Number(item.TotalCetak)
+                : 0,
+            isManual: false,
+          });
+        }
+      } catch (err) {
+        console.error(`Gagal memecah detail SPK untuk LHK ${item.Nomor}:`, err);
+        toast.error(`Gagal memuat rincian SPK untuk dokumen ${item.Nomor}`);
+      }
     }
-  });
+  }
   isLhkTekstilVisible.value = false;
-  toast.success("Data LHK berhasil ditambahkan");
+  toast.success("Data LHK berhasil dipecah per SPK");
 };
 
 const removeRow = (idx) => {

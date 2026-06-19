@@ -229,7 +229,7 @@ const masterHeaders = [
   { title: "Tanggal", key: "Tanggal", width: "120px" },
   { title: "Gudang", key: "Nama_Gudang" },
   { title: "Shift", key: "Shift", width: "80px" },
-  { title: "Cetak (m)", key: "total_meter", align: "end" as const },
+  { title: "Cetak (m)", key: "Total_Meter", align: "end" as const },
 ];
 
 const detailHeaders = [
@@ -468,7 +468,7 @@ const exportToExcel = async () => {
             dtl.Panjang && dtl.Lebar ? `${dtl.Panjang} x ${dtl.Lebar}` : "-";
           const detailCetakQty = num(dtl.Jml_Cetak || 0);
 
-          grandTotalMeterMaster += isFirstRow ? num(header.total_meter) : 0;
+          grandTotalMeterMaster += isFirstRow ? num(header.Total_Meter) : 0;
           grandTotalQtyDetail += detailCetakQty;
 
           worksheetData.push([
@@ -487,7 +487,7 @@ const exportToExcel = async () => {
             // Perbaikan Letak Atribut 't' dan 'z' ke Root Objek Sel Numerik Master
             isFirstRow
               ? {
-                  v: num(header.total_meter),
+                  v: num(header.Total_Meter),
                   t: "n",
                   z: "#,##0.00",
                   s: styleDataCellRight,
@@ -507,7 +507,7 @@ const exportToExcel = async () => {
         });
       } else {
         // Fallback jikalau baris master tidak memiliki data pecahan detail transaksi
-        grandTotalMeterMaster += num(header.total_meter);
+        grandTotalMeterMaster += num(header.Total_Meter);
 
         worksheetData.push([
           { v: header.Nomor, s: styleDataCellCenter },
@@ -515,7 +515,7 @@ const exportToExcel = async () => {
           { v: header.Nama_Gudang || "-", s: styleDataCell },
           { v: header.Shift || "-", s: styleDataCellCenter },
           {
-            v: num(header.total_meter),
+            v: num(header.Total_Meter),
             t: "n",
             z: "#,##0.00",
             s: styleDataCellRight,

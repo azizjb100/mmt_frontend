@@ -1,13 +1,12 @@
 <template>
   <div
-    class="min-h-screen bg-[#F1F5F9] p-6 font-sans antialiased text-slate-800"
+    class="min-h-screen bg-[#EBF5FF] p-6 font-sans antialiased text-slate-800"
   >
-    <!-- HEADER -->
     <header
-      class="mx-auto mb-8 flex max-w-[1400px] flex-col gap-4 rounded-2xl bg-white px-6 py-4 shadow-sm border border-slate-100 md:flex-row md:items-center md:justify-between"
+      class="mx-auto mb-8 flex max-w-[1400px] flex-col gap-4 rounded-2xl bg-white px-6 py-4 shadow-sm border border-sky-100 md:flex-row md:items-center md:justify-between"
     >
       <div>
-        <h1 class="text-2xl font-bold tracking-tight text-slate-800">
+        <h1 class="text-2xl font-bold tracking-tight text-sky-900">
           Inventory Dashboard
         </h1>
         <div class="mt-1 flex items-center gap-3">
@@ -21,7 +20,7 @@
               >Live System</span
             >
           </div>
-          <span class="text-xs text-slate-400"
+          <span class="text-xs text-sky-400"
             >Last update: {{ lastUpdate }}</span
           >
         </div>
@@ -31,7 +30,7 @@
         <button
           @click="refreshAllData"
           :disabled="isLoading"
-          class="flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 active:scale-95 disabled:opacity-50"
+          class="flex items-center gap-2 rounded-xl bg-sky-500 px-5 py-2 text-sm font-semibold text-white shadow-sm hover:bg-sky-600 active:scale-95 disabled:opacity-50"
         >
           <i :class="['mdi mdi-refresh', { 'animate-spin': isLoading }]"></i>
           Sync Data
@@ -39,20 +38,19 @@
       </div>
     </header>
 
-    <!-- STATS CARDS -->
     <div
       class="mx-auto mb-8 grid max-w-[1400px] grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4"
     >
       <div
         v-for="(stat, index) in stats"
         :key="index"
-        class="rounded-3xl bg-white p-6 shadow-sm border border-slate-100 flex flex-col gap-4"
+        class="rounded-3xl bg-white p-6 shadow-sm border border-sky-100 flex flex-col gap-4"
       >
         <div class="flex items-center gap-3">
           <div
-            class="h-10 w-10 rounded-full bg-slate-100 flex items-center justify-center"
+            class="h-10 w-10 rounded-full bg-sky-50 flex items-center justify-center"
           >
-            <i :class="['mdi', stat.icon, 'text-lg text-slate-700']"></i>
+            <i :class="['mdi', stat.icon, 'text-lg text-sky-600']"></i>
           </div>
           <span
             :class="[
@@ -70,17 +68,16 @@
             <span class="text-xs text-slate-400">{{ stat.unit }}</span>
           </div>
         </div>
-        <div class="h-1 w-full rounded-full bg-slate-100 overflow-hidden">
-          <div class="h-full bg-blue-500/60" style="width: 40%"></div>
+        <div class="h-1 w-full rounded-full bg-sky-100 overflow-hidden">
+          <div class="h-full bg-sky-400" style="width: 40%"></div>
         </div>
       </div>
     </div>
 
-    <!-- CHARTS -->
     <div class="mx-auto grid max-w-[1400px] grid-cols-12 gap-6 mb-6">
       <div class="col-span-12 space-y-6 lg:col-span-8">
-        <div class="rounded-3xl bg-white p-6 shadow-sm border border-slate-100">
-          <h3 class="mb-6 text-sm font-semibold text-slate-700">
+        <div class="rounded-3xl bg-white p-6 shadow-sm border border-sky-100">
+          <h3 class="mb-6 text-sm font-semibold text-sky-800">
             Material Flow (Last 6 Months)
           </h3>
           <div class="h-[280px]">
@@ -90,33 +87,31 @@
       </div>
 
       <div class="col-span-12 space-y-6 lg:col-span-4">
-        <div class="rounded-3xl bg-white p-6 shadow-sm border border-slate-100">
-          <h3 class="mb-6 text-sm font-semibold text-slate-700">
+        <div class="rounded-3xl bg-white p-6 shadow-sm border border-sky-100">
+          <h3 class="mb-6 text-sm font-semibold text-sky-800">
             Material Composition
           </h3>
           <div class="relative h-[220px]">
             <canvas id="compositionChart"></canvas>
             <div class="absolute inset-0 flex items-center justify-center">
-              <span class="text-3xl font-bold text-slate-800">100%</span>
+              <span class="text-3xl font-bold text-sky-900">100%</span>
             </div>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- TABLES AREA -->
     <div class="mx-auto grid max-w-[1400px] grid-cols-12 gap-6">
-      <!-- 1. TABEL ANTREAN CETAK MEPEET DEADLINE -->
       <div class="col-span-12 lg:col-span-6">
         <div
-          class="rounded-3xl bg-white p-6 shadow-sm border border-slate-100 h-full flex flex-col"
+          class="rounded-3xl bg-white p-6 shadow-sm border border-sky-100 h-full flex flex-col"
         >
           <div class="mb-4 flex items-center justify-between">
             <div>
-              <h3 class="text-sm font-semibold text-slate-700">
+              <h3 class="text-sm font-semibold text-sky-800">
                 Top 10 SPK Cetak (Deadline)
               </h3>
-              <p class="text-xs text-slate-400 mt-0.5">
+              <p class="text-xs text-sky-400 mt-0.5">
                 SPK aktif yang perlu segera di produksi
               </p>
             </div>
@@ -127,48 +122,50 @@
             </span>
           </div>
 
-          <div class="overflow-x-auto flex-1">
-            <table class="w-full text-left border-collapse text-xs">
+          <div
+            class="overflow-x-auto flex-1 border border-sky-50 rounded-2xl bg-white"
+          >
+            <table
+              class="w-full text-left border-collapse modern-blue-table table-layout-fixed"
+            >
               <thead>
-                <tr
-                  class="border-b border-slate-100 text-slate-400 uppercase tracking-wider font-semibold"
-                >
-                  <th class="py-3 px-2 w-8 text-center">No</th>
-                  <th class="py-3 px-2">No. SPK / WO</th>
-                  <th class="py-3 px-2">Nama Produk / File</th>
-                  <th class="py-3 px-2 text-right">Sisa Cetak</th>
-                  <th class="py-3 px-2 text-center">Sisa Waktu</th>
+                <tr class="thead-tr">
+                  <th class="py-3 px-2 w-[45px] text-center">No</th>
+                  <th class="py-3 px-2 w-[115px]">No. SPK / WO</th>
+                  <th class="py-3 px-2 w-[220px]">Nama Produk / File</th>
+                  <th class="py-3 px-2 text-right w-[95px]">Sisa Cetak</th>
+                  <th class="py-3 px-2 text-center w-[105px]">Sisa Waktu</th>
                 </tr>
               </thead>
-              <tbody class="divide-y divide-slate-50 text-slate-600">
+              <tbody class="divide-y divide-sky-50/50">
                 <tr
                   v-for="(item, index) in topDeadlineCetak"
                   :key="index"
-                  class="hover:bg-slate-50/50 cursor-pointer transition-colors"
+                  class="tbody-tr transition-colors duration-150"
                   @click="openDetailModal('deadline')"
                 >
-                  <td class="py-3 px-2 text-center font-medium text-slate-400">
+                  <td class="py-2.5 px-2 text-center text-slate-950">
                     {{ index + 1 }}
                   </td>
-                  <td class="py-3 px-2 font-mono font-medium text-slate-700">
+                  <td class="py-2.5 px-2 text-slate-950">
                     {{ item.no_spk }}
                   </td>
                   <td
-                    class="py-3 px-2 font-semibold text-slate-800 max-w-[180px] truncate"
+                    class="py-2.5 px-2 text-slate-800 cell-ellipsis"
                     :title="item.nama_produk"
                   >
                     {{ item.nama_produk }}
                   </td>
-                  <td class="py-3 px-2 text-right font-medium text-slate-700">
+                  <td class="py-2.5 px-2 text-right text-slate-950">
                     {{ item.qty }} {{ item.unit }}
                   </td>
-                  <td class="py-3 px-2 text-center">
+                  <td class="py-2.5 px-2 text-center whitespace-nowrap">
                     <span
                       :class="[
                         item.menit_sisa <= 60
-                          ? 'bg-red-100 text-red-700 font-bold border border-red-200'
-                          : 'bg-amber-100 text-amber-700 font-medium',
-                        'px-2 py-0.5 rounded text-[10px]',
+                          ? 'bg-red-50 text-red-600 border border-red-100'
+                          : 'bg-amber-50 text-amber-600 border border-amber-100',
+                        'inline-block px-2 py-0.5 rounded min-w-[75px] text-center',
                       ]"
                     >
                       {{ item.sisa_waktu }}
@@ -186,19 +183,17 @@
         </div>
       </div>
 
-      <!-- 2. TABEL PERMINTAAN BAHAN PENDING -->
       <div class="col-span-12 lg:col-span-6">
         <div
-          class="rounded-3xl bg-white p-6 shadow-sm border border-slate-100 h-full flex flex-col"
+          class="rounded-3xl bg-white p-6 shadow-sm border border-sky-100 h-full flex flex-col"
         >
           <div class="mb-4 flex items-center justify-between">
             <div>
-              <h3 class="text-sm font-semibold text-slate-700">
+              <h3 class="text-sm font-semibold text-sky-800">
                 Permintaan Bahan Belum Terealisasi
               </h3>
-              <p class="text-xs text-slate-400 mt-0.5">
-                Bon pending penahan proses cetak (Klik baris untuk detail semua
-                data)
+              <p class="text-xs text-sky-400 mt-0.5">
+                Bon pending penahan proses cetak (Klik baris untuk detail)
               </p>
             </div>
             <span
@@ -208,46 +203,50 @@
             </span>
           </div>
 
-          <div class="overflow-x-auto flex-1">
-            <table class="w-full text-left border-collapse text-xs">
+          <div class="overflow-x-auto flex-1 border border-sky-50 rounded-2xl">
+            <table
+              class="w-full text-left border-collapse modern-blue-table table-layout-fixed"
+            >
               <thead>
-                <tr
-                  class="border-b border-slate-100 text-slate-400 uppercase tracking-wider font-semibold"
-                >
-                  <th class="py-3 px-2 w-8 text-center">No</th>
-                  <th class="py-3 px-2">Bahan / Material</th>
-                  <th class="py-3 px-2 text-center">Divisi</th>
-                  <th class="py-3 px-2 text-right">Qty Diminta</th>
-                  <th class="py-3 px-2 text-center">Status</th>
+                <tr class="thead-tr">
+                  <th class="py-3 px-2 w-[45px] text-center">No</th>
+                  <th class="py-3 px-2 w-[200px]">Bahan / Material</th>
+                  <th class="py-3 px-2 text-center w-[90px]">Divisi</th>
+                  <th class="py-3 px-2 text-right w-[110px]">Qty Diminta</th>
+                  <th class="py-3 px-2 text-center w-[115px]">Status</th>
                 </tr>
               </thead>
-              <tbody class="divide-y divide-slate-50 text-slate-600">
+              <tbody class="divide-y divide-sky-50/50">
                 <tr
                   v-for="(item, index) in permintaanBahanPending"
                   :key="index"
-                  class="hover:bg-slate-50/50 cursor-pointer transition-colors"
+                  class="tbody-tr transition-colors duration-150"
                   @click="openDetailModal('bahan')"
                 >
-                  <td class="py-3 px-2 text-center font-medium text-slate-400">
+                  <td
+                    class="py-2.5 px-2 text-center text-slate-950 font-semibold"
+                  >
                     {{ index + 1 }}
                   </td>
-                  <td class="py-3 px-2 font-semibold text-slate-800">
+                  <td class="py-2.5 px-2 text-slate-800 cell-ellipsis">
                     {{ item.nama_bahan }}
                   </td>
-                  <td class="py-3 px-2 text-center">
+                  <td class="py-2.5 px-2 text-center">
                     <span
-                      class="bg-slate-100 px-1.5 py-0.5 rounded text-slate-600"
+                      class="bg-sky-50 px-1.5 py-0.5 rounded text-sky-700 font-semibold"
                     >
                       {{ item.divisi }}
                     </span>
                   </td>
-                  <td class="py-3 px-2 text-right font-medium text-blue-600">
+                  <td
+                    class="py-2.5 px-2 text-right text-slate-950 font-semibold"
+                  >
                     {{ item.qty_minta }} {{ item.unit }}
                   </td>
-                  <td class="py-3 px-2 text-center">
+                  <td class="py-2.5 px-2 text-center">
                     <span
                       v-if="item.status_permintaan === 'PENDING'"
-                      class="inline-flex items-center gap-1 text-[10px] text-amber-600 bg-amber-50 border border-amber-100 px-2 py-0.5 rounded-full font-medium"
+                      class="inline-flex items-center gap-1 text-amber-600 bg-amber-50 border border-amber-100 px-2 py-0.5 rounded-full font-semibold"
                     >
                       <span
                         class="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse"
@@ -256,7 +255,7 @@
                     </span>
                     <span
                       v-else
-                      class="inline-flex items-center gap-1 text-[10px] text-slate-500 bg-slate-50 px-2 py-0.5 rounded-full font-medium"
+                      class="inline-flex items-center gap-1 text-slate-500 bg-slate-50 px-2 py-0.5 rounded-full font-semibold"
                     >
                       {{ item.status_permintaan }}
                     </span>
@@ -274,61 +273,52 @@
       </div>
     </div>
 
-    <!-- MODAL DETAIL POP-UP (DYNAMIC CONDITIONAL) -->
     <div
       v-if="isModalOpen"
       class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm"
       @click.self="closeModal"
     >
       <div
-        class="w-full max-w-5xl bg-white rounded-3xl shadow-xl border border-slate-100 max-h-[85vh] flex flex-col overflow-hidden"
+        class="w-full max-w-5xl bg-white rounded-3xl shadow-xl border border-sky-100 max-h-[85vh] flex flex-col overflow-hidden"
       >
-        <!-- Modal Header -->
         <div
-          class="px-6 py-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50"
+          class="px-6 py-5 border-b border-sky-100 flex items-center justify-between bg-sky-50/50"
         >
           <div v-if="modalType === 'deadline'">
-            <h3 class="text-base font-bold text-slate-800">
+            <h3 class="text-base font-bold text-sky-900">
               Seluruh Antrean Cetak Berdasarkan Deadline
             </h3>
-            <p class="text-xs text-slate-400 mt-0.5">
+            <p class="text-xs text-sky-400 mt-0.5">
               Menampilkan semua data SPK aktif yang masih memiliki sisa cetak
               produksi
             </p>
           </div>
           <div v-else-if="modalType === 'bahan'">
-            <h3 class="text-base font-bold text-slate-800">
+            <h3 class="text-base font-bold text-sky-900">
               Daftar Total Permintaan Bahan Belum Terealisasi
             </h3>
-            <p class="text-xs text-slate-400 mt-0.5">
+            <p class="text-xs text-sky-400 mt-0.5">
               Menampilkan seluruh total bon penyerahan/pembelian tanpa batasan
               data halaman utama
             </p>
           </div>
           <button
             @click="closeModal"
-            class="h-8 w-8 rounded-full flex items-center justify-center bg-white border border-slate-200 text-slate-400 hover:text-slate-600 shadow-sm transition-all active:scale-95"
+            class="h-8 w-8 rounded-full flex items-center justify-center bg-white border border-sky-200 text-sky-500 hover:text-sky-700 shadow-sm transition-all active:scale-95"
           >
             <i class="mdi mdi-close text-lg"></i>
           </button>
         </div>
 
-        <!-- Modal Body Content -->
         <div class="p-6 overflow-y-auto flex-1">
-          <!-- Loading State -->
-          <div v-if="isLoadingTotal" class="text-center py-12 text-slate-400">
+          <div v-if="isLoadingTotal" class="text-center py-12 text-sky-400">
             <i class="mdi mdi-refresh animate-spin text-2xl mr-2"></i>
             <span class="block mt-2 text-sm"
               >Memuat data lengkap dari server...</span
             >
           </div>
 
-          <div
-            v-else
-            class="overflow-x-auto border border-slate-100 rounded-2xl"
-          >
-            <!-- VIEW 1: TABEL DETAIL DEADLINE CETAK -->
-            <!-- VIEW 1: TABEL DETAIL DEADLINE CETAK -->
+          <div v-else class="overflow-x-auto border border-sky-100 rounded-2xl">
             <table
               v-if="modalType === 'deadline'"
               class="w-full text-left border-collapse modern-blue-table table-layout-fixed"
@@ -357,11 +347,10 @@
                     {{ index + 1 }}
                   </td>
                   <td
-                    class="py-2.5 px-2 font-mono font-semibold text-slate-700 cell-spk-bg"
+                    class="py-2.5 px-2 font-mono font-semibold text-sky-700 cell-spk-bg"
                   >
                     {{ item.no_spk }}
                   </td>
-                  <!-- Teks panjang dipotong otomatis dengan titik-titik (...), arahkan mouse untuk melihat teks penuh -->
                   <td
                     class="py-2.5 px-2 font-medium text-slate-800 cell-ellipsis"
                     :title="item.nama_produk"
@@ -387,7 +376,6 @@
                     {{ formatDate(item.tanggal_spk) }}
                   </td>
                   <td class="py-2.5 px-3 text-center whitespace-nowrap">
-                    <!-- Badge Sisa Waktu dengan tema warna cerah modern -->
                     <span
                       :class="[
                         item.sisa_waktu &&
@@ -404,29 +392,30 @@
               </tbody>
             </table>
 
-            <!-- VIEW 2: TABEL DETAIL PENDING BAHAN -->
             <table
               v-if="modalType === 'bahan'"
-              class="w-full text-left border-collapse text-xs"
+              class="w-full text-left border-collapse modern-blue-table table-layout-fixed"
             >
               <thead>
-                <tr
-                  class="bg-slate-50 border-b border-slate-100 text-slate-500 uppercase tracking-wider font-semibold"
-                >
+                <tr class="thead-tr">
                   <th class="py-3.5 px-4 w-12 text-center">No</th>
-                  <th class="py-3.5 px-3">No. Bon / Referensi</th>
-                  <th class="py-3.5 px-3">Bahan / Material</th>
-                  <th class="py-3.5 px-3 text-center">Divisi Peminta</th>
-                  <th class="py-3.5 px-3 text-right">Qty Diminta</th>
-                  <th class="py-3.5 px-3 text-center">Tanggal Input</th>
-                  <th class="py-3.5 px-4 text-center">Status</th>
+                  <th class="py-3.5 px-3 w-[150px]">No. Bon / Referensi</th>
+                  <th class="py-3.5 px-3 w-[240px]">Bahan / Material</th>
+                  <th class="py-3.5 px-3 text-center w-[110px]">
+                    Divisi Peminta
+                  </th>
+                  <th class="py-3.5 px-3 text-right w-[110px]">Qty Diminta</th>
+                  <th class="py-3.5 px-3 text-center w-[110px]">
+                    Tanggal Input
+                  </th>
+                  <th class="py-3.5 px-4 text-center w-[120px]">Status</th>
                 </tr>
               </thead>
-              <tbody class="divide-y divide-slate-100 text-slate-600">
+              <tbody class="divide-y divide-sky-50/50 text-slate-600">
                 <tr
                   v-for="(item, index) in totalModalData"
                   :key="index"
-                  class="hover:bg-slate-50/50 transition-colors"
+                  class="tbody-tr transition-colors duration-150"
                 >
                   <td
                     class="py-3.5 px-4 text-center font-medium text-slate-400"
@@ -436,18 +425,18 @@
                   <td class="py-3.5 px-3 font-mono font-medium text-slate-700">
                     {{ item.nomor_bon }}
                   </td>
-                  <td class="py-3.5 px-3 font-semibold text-slate-800">
+                  <td
+                    class="py-3.5 px-3 font-semibold text-slate-800 cell-ellipsis"
+                  >
                     {{ item.nama_bahan }}
                   </td>
                   <td class="py-3.5 px-3 text-center">
                     <span
-                      class="bg-slate-100 px-2 py-0.5 rounded text-slate-600 font-medium"
+                      class="bg-sky-50 px-2 py-0.5 rounded text-sky-700 font-medium"
                       >{{ item.divisi }}</span
                     >
                   </td>
-                  <td
-                    class="py-3.5 px-3 text-right font-semibold text-blue-600"
-                  >
+                  <td class="py-3.5 px-3 text-right font-semibold text-sky-600">
                     {{ item.qty_minta }} {{ item.unit }}
                   </td>
                   <td class="py-3.5 px-3 text-center text-slate-400">
@@ -467,30 +456,28 @@
               </tbody>
             </table>
 
-            <!-- Empty Handler -->
             <div
               v-if="totalModalData.length === 0 && !isLoadingTotal"
-              class="text-center py-8 text-slate-400"
+              class="text-center py-8 text-sky-400"
             >
               Tidak ada data ditemukan.
             </div>
           </div>
         </div>
 
-        <!-- Modal Footer -->
         <div
-          class="px-6 py-4 border-t border-slate-100 bg-slate-50/50 flex justify-between items-center text-xs text-slate-400"
+          class="px-6 py-4 border-t border-sky-100 bg-sky-50/50 flex justify-between items-center text-xs text-sky-400"
         >
           <div>
             Total:
-            <span class="font-bold text-slate-700">{{
+            <span class="font-bold text-sky-700">{{
               totalModalData.length
             }}</span>
             item data
           </div>
           <button
             @click="closeModal"
-            class="px-4 py-2 border border-slate-200 bg-white rounded-xl text-slate-600 font-semibold shadow-sm hover:bg-slate-50 transition-all active:scale-95"
+            class="px-4 py-2 border border-sky-200 bg-white rounded-xl text-sky-600 font-semibold shadow-sm hover:bg-sky-50 transition-all active:scale-95"
           >
             Tutup
           </button>
@@ -767,43 +754,54 @@ canvas {
   width: 100%;
 }
 
-/* Ukuran Font Seragam untuk Seluruh Isi Tabel */
+/* Ukuran Font, Jenis Font, & Warna Teks Seragam untuk Seluruh Isi Tabel (Termasuk tag span/badge di dalamnya) */
 .modern-blue-table th,
-.modern-blue-table td {
+.modern-blue-table td,
+.modern-blue-table span,
+.modern-blue-table td font {
   font-size: 12px !important;
+  font-family: inherit !important; /* Menghilangkan font-mono agar seragam */
   vertical-align: middle !important;
 }
 
-/* Header Tabel (Ice Blue) */
+/* Header Tabel (Ice Blue / Dominan Biru Muda) */
 .modern-blue-table thead tr {
-  background-color: #f0f9ff !important; /* Biru muda es */
-  border-bottom: 2px solid #bae6fd !important;
+  background-color: #e0f2fe !important; /* bg-sky-100 cerah rapi */
+  border-bottom: 2px solid #bae6fd !important; /* border-sky-200 */
 }
 
 .modern-blue-table th {
   color: #0369a1 !important; /* Teks biru navy kontras */
   font-weight: 700 !important;
-  height: 36px !important;
+  height: 38px !important;
 }
 
-/* Row Data Body */
+/* Row Data Body (Putih Bersih) */
 .modern-blue-table .tbody-tr {
-  height: 36px !important;
+  height: 38px !important;
+  background-color: #ffffff !important;
 }
 
 /* Efek Hover Baris Soft Blue */
 .modern-blue-table .tbody-tr:hover {
-  background-color: #f0f7ff !important;
+  background-color: #f0f9ff !important; /* hover:bg-sky-50 */
   cursor: pointer;
 }
 
-/* Aksen Background Tipis Kolom Tertentu */
+/* Paksa Warna Teks Nomor dan No. SPK Menjadi Hitam Pekat */
+.modern-blue-table .text-slate-950,
+.modern-blue-table td:first-child,
+.modern-blue-table td:nth-child(2) {
+  color: #0f172a !important; /* Hitam pekat slate-900/950 */
+}
+
+/* Membersihkan Aksen Background Kolom Tertentu Menjadi Transparan/Putih Bersih */
 .modern-blue-table .cell-spk-bg {
-  background-color: #f8fafc/50;
+  background-color: transparent !important;
 }
 
 .modern-blue-table .cell-sisa-bg {
-  background-color: #fef3c7/20; /* Highlight kuning tipis pada angka sisa cetak */
+  background-color: transparent !important; /* Menghilangkan highlight kuning/krem */
 }
 
 /* Mekanisme Pemotongan Nama File yang Kepanjangan (...) */

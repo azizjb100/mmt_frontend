@@ -631,7 +631,7 @@ const handleMesinSelect = (mesin: any) => {
 const recalculateCombine = () => {
   detailData.value.forEach((d) => {
     // 1. Hitung realisasi cetak LHK hari ini dari cetak 1-7
-    d.totalcetak =
+    const newTotalCetak =
       (d.cetak1 || 0) +
       (d.cetak2 || 0) +
       (d.cetak3 || 0) +
@@ -640,11 +640,25 @@ const recalculateCombine = () => {
       (d.cetak6 || 0) +
       (d.cetak7 || 0);
 
-    // 2. KUNCI UTAMA: Update total_pernah_cetak secara real-time di frontend
-    // Akumulasi Lama + Inputan Baru Hari Ini
+    // 2. ALERT REAL-TIME: Menggunakan toast.warning agar berwarna kuning sesuai gambar
+    if (newTotalCetak > Number(d.kurangcetak_asli || 0)) {
+      toast.warning(
+        `SPK ${d.nomor_spk} (Input: ${newTotalCetak} melebihi sisa order : ${d.kurangcetak_asli})`,
+        {
+          timeout: 4000, // Toast akan hilang otomatis dalam 4 detik
+          closeOnClick: true,
+          pauseOnHover: true,
+        },
+      );
+    }
+
+    // 3. Simpan nilai total cetak baru ke object state
+    d.totalcetak = newTotalCetak;
+
+    // 4. Update total_pernah_cetak (Akumulasi Lama + Inputan Baru Hari Ini)
     d.total_pernah_cetak = (d.sudahcetak || 0) + d.totalcetak;
 
-    // 3. Hitung sisa kurang cetak SPK terbaru
+    // 5. Hitung sisa kurang cetak SPK terbaru
     d.kurangcetak = Math.max(0, (d.jumlah || 0) - d.total_pernah_cetak);
   });
 };

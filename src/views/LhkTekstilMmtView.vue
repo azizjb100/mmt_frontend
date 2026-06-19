@@ -380,7 +380,14 @@ watch(
       loadingDetails.value.add(nomorLhk);
       try {
         const res = await api.get(`mmt/lhk-tekstil-mmt/detail/${nomorLhk}`);
-        details.value[nomorLhk] = res.data || [];
+
+        // PERBAIKAN DI SINI: Ambil array dari properti res.data.details
+        // Jika tidak ada, gunakan fallback res.data (jika response backend lama masih berupa array)
+        if (res.data && res.data.details) {
+          details.value[nomorLhk] = res.data.details;
+        } else {
+          details.value[nomorLhk] = res.data || [];
+        }
       } catch (e) {
         toast.error(`Gagal memuat detail untuk ${nomorLhk}`);
         details.value[nomorLhk] = [];
