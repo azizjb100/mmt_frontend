@@ -206,10 +206,10 @@ const num = (val: any) => {
 
 const handleNewEdit = (mode: "new" | "edit") => {
   if (mode === "new") {
-    router.push({ name: "LhkPolaCreate" });
+    router.push({ name: "LHKPolaMMTNew" }); // Disesuaikan dengan name router input form Anda
   } else if (mode === "edit" && selectedRow.value) {
     router.push({
-      name: "LhkPolaEdit",
+      name: "LHKPolaMMTEdit", // Disesuaikan dengan name router edit form Anda
       params: { nomor: selectedRow.value.Nomor },
     });
   }
@@ -259,10 +259,12 @@ const detailHeaders = [
 const fetchMasterData = async () => {
   loading.value.headers = true;
   try {
-    const res = await api.get<LhkPolaHeader[]>(API_BASE_URL, {
+    // Memanggil API utama GET /api/mmt/lhk-pola dengan query params filters
+    const res = await api.get(API_BASE_URL, {
       params: filters,
     });
-    masterData.value = res.data || [];
+    // Menghandle response jika dibungkus objek { success: true, data: [...] }
+    masterData.value = res.data.data || res.data || [];
     selected.value = [];
     await nextTick();
     resizeTable(".desktop-table");
@@ -282,10 +284,20 @@ const loadDetails = async (newlyExpandedItems: LhkPolaHeader[]) => {
 
   loadingDetails.value.add(itemToLoad.Nomor);
   try {
-    const res = await api.get(`${API_BASE_URL}/details`, {
-      params: { nomor: itemToLoad.Nomor },
-    });
-    details.value[itemToLoad.Nomor] = res.data.details || res.data || [];
+    // --- PERBAIKAN UTAMA: Disesuaikan rute Express `/detail/:nomor` ---
+    const res = await api.get(`${API_BASE_URL}/detail/${itemToLoad.Nomor}`);
+    const rawData = res.data.data || res.data || [];
+
+    // Sinkronisasi penamaan objek key biner dari database ke UI template
+    details.value[itemToLoad.Nomor] = rawData.map((d: any) => ({
+      nomor_spk: d.Nomor_SPK,
+      nama_spk: d.Nama_SPK,
+      jenis_pola: d.Jenis_Pola,
+      panjang: parseFloat(d.Panjang) || 0,
+      lebar: parseFloat(d.Lebar) || 0,
+      jml_pola: parseFloat(d.Jumlah) || 0,
+      keterangan: d.Keterangan || "",
+    }));
   } catch {
     toast.error(`Gagal memuat detail ${itemToLoad.Nomor}`);
     details.value[itemToLoad.Nomor] = [];
@@ -301,6 +313,7 @@ const handleDelete = async () => {
   )
     return;
   try {
+    // Memanggil API rute Express DELETE /api/mmt/lhk-pola/:nomor
     await api.delete(`${API_BASE_URL}/${selectedRow.value.Nomor}`);
     toast.success("Data berhasil dihapus.");
     fetchMasterData();
@@ -365,10 +378,19 @@ const exportToExcel = async () => {
   try {
     for (const h of masterData.value) {
       if (!details.value[h.Nomor] || details.value[h.Nomor].length === 0) {
-        const res = await api.get(`${API_BASE_URL}/details`, {
-          params: { nomor: h.Nomor },
-        });
-        details.value[h.Nomor] = res.data.details || res.data || [];
+        // Penyelarasan API `/detail/:nomor` untuk fungsi looping export
+        const res = await api.get(`${API_BASE_URL}/detail/${h.Nomor}`);
+        const rawData = res.data.data || res.data || [];
+
+        details.value[h.Nomor] = rawData.map((d: any) => ({
+          nomor_spk: d.Nomor_SPK,
+          nama_spk: d.Nama_SPK,
+          jenis_pola: d.Jenis_Pola,
+          panjang: parseFloat(d.Panjang) || 0,
+          lebar: parseFloat(d.Lebar) || 0,
+          jml_pola: parseFloat(d.Jumlah) || 0,
+          keterangan: d.Keterangan || "",
+        }));
       }
     }
 

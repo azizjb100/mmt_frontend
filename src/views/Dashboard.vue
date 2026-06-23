@@ -395,6 +395,8 @@ const allMenuGroups = [
           { name: "LHK Proof", path: "/mmt/lhk/proof" },
           { name: "LHK Paperprint", path: "/mmt/lhk/paperprint" },
           { name: "LHK Sublim", path: "/mmt/lhk/sublim" },
+          { name: "LHK Pola", path: "/mmt/lhk/pola" },
+          { name: "LHK Desain", path: "/mmt/lhk/desain" },
         ],
       },
       { name: "PO Paperprint", path: "/mmt/po-paperprint" },

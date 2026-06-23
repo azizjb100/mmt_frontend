@@ -206,10 +206,10 @@ const num = (val: any) => {
 
 const handleNewEdit = (mode: "new" | "edit") => {
   if (mode === "new") {
-    router.push({ name: "LhkPolaCreate" });
+    router.push({ name: "LHKDesainMMTNew" });
   } else if (mode === "edit" && selectedRow.value) {
     router.push({
-      name: "LhkPolaEdit",
+      name: "LHKDesainMMTEdit",
       params: { nomor: selectedRow.value.Nomor },
     });
   }
