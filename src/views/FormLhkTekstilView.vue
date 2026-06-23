@@ -516,7 +516,7 @@ import api from "@/services/api";
 import { useToast } from "vue-toastification";
 import PageLayout from "../components/PageLayout.vue";
 import MesinLookupView from "@/modal/MesinLookupModal.vue";
-import SpkLookupView from "@/modal/SpkLookupModal.vue";
+import SpkLookupView from "@/modal/SpkMesinLookupModal.vue";
 
 const toast = useToast();
 const route = useRoute();
