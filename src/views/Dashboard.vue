@@ -260,8 +260,8 @@ const rolePermissions = {
     "LHK Approval Tekstil", // Ditambahkan
     "LHK Finishing", // Ditambahkan
     "LHK Proof", // Ditambahkan
+    "LHK Paperprint", // Ditambahkan
     "LHK Sublim", // Ditambahkan
-    "LHK RTR", // Ditambahkan
     // --------------------------------------------------------
     "Laporan",
     "Produksi MMT",
@@ -393,8 +393,8 @@ const allMenuGroups = [
           { name: "LHK Approval Tekstil", path: "/mmt/lhk/tekstil/approve" },
           { name: "LHK Finishing", path: "/mmt/lhk/finishing" },
           { name: "LHK Proof", path: "/mmt/lhk/proof" },
+          { name: "LHK Paperprint", path: "/mmt/lhk/paperprint" },
           { name: "LHK Sublim", path: "/mmt/lhk/sublim" },
-          { name: "LHK RTR", path: "/mmt/lhk/rtr" },
         ],
       },
       { name: "PO Paperprint", path: "/mmt/po-paperprint" },

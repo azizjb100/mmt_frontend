@@ -147,9 +147,7 @@
                   <td class="py-2.5 px-2 text-center text-slate-950">
                     {{ index + 1 }}
                   </td>
-                  <td class="py-2.5 px-2 text-slate-950">
-                    {{ item.no_spk }}
-                  </td>
+                  <td class="py-2.5 px-2 text-slate-950">{{ item.no_spk }}</td>
                   <td
                     class="py-2.5 px-2 text-slate-800 cell-ellipsis"
                     :title="item.nama_produk"
@@ -234,9 +232,8 @@
                   <td class="py-2.5 px-2 text-center">
                     <span
                       class="bg-sky-50 px-1.5 py-0.5 rounded text-sky-700 font-semibold"
+                      >{{ item.divisi }}</span
                     >
-                      {{ item.divisi }}
-                    </span>
                   </td>
                   <td
                     class="py-2.5 px-2 text-right text-slate-950 font-semibold"
@@ -264,6 +261,99 @@
                 <tr v-if="permintaanBahanPending.length === 0">
                   <td colspan="5" class="text-center py-6 text-slate-400">
                     Semua bon permintaan bahan sudah dipenuhi gudang.
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="mx-auto grid max-w-[1400px] grid-cols-12 gap-6 mt-6">
+      <div class="col-span-12">
+        <div
+          class="rounded-3xl bg-white p-6 shadow-sm border border-sky-100 flex flex-col"
+        >
+          <div class="mb-4 flex items-center justify-between">
+            <div>
+              <h3 class="text-sm font-semibold text-sky-800">
+                Top 5 SPK Terencana Belum LHK (Realisasi Produksi)
+              </h3>
+              <p class="text-xs text-sky-400 mt-0.5">
+                SPK ter-planning yang belum dibuat LHK oleh operator mesin (Klik
+                baris untuk detail total)
+              </p>
+            </div>
+            <span
+              class="text-[10px] font-bold text-sky-600 bg-sky-50 border border-sky-100 px-2 py-0.5 rounded-full"
+            >
+              PLANNING IDLE
+            </span>
+          </div>
+
+          <div
+            class="overflow-x-auto flex-1 border border-sky-50 rounded-2xl bg-white"
+          >
+            <table
+              class="w-full text-left border-collapse modern-blue-table table-layout-fixed"
+            >
+              <thead>
+                <tr class="thead-tr">
+                  <th class="py-3 px-2 w-[45px] text-center">No</th>
+                  <th class="py-3 px-2 w-[120px]">No. SPK</th>
+                  <th class="py-3 px-2 w-[100px] text-center">Mesin</th>
+                  <th class="py-3 px-2 w-[220px]">Nama SPK / File</th>
+                  <th class="py-3 px-2 w-[150px]">Bahan</th>
+                  <th class="py-3 px-2 text-right w-[100px]">Plan Qty</th>
+                  <th class="py-3 px-2 text-right w-[100px]">Plan (M2)</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-sky-50/50">
+                <tr
+                  v-for="(item, index) in topPlanningBelumLhk"
+                  :key="index"
+                  class="tbody-tr transition-colors duration-150"
+                  @click="openDetailModal('planning_idle')"
+                >
+                  <td class="py-2.5 px-2 text-center text-slate-950">
+                    {{ index + 1 }}
+                  </td>
+                  <td class="py-2.5 px-2 text-slate-950 font-semibold">
+                    {{ item.NomorSPK }}
+                  </td>
+                  <td class="py-2.5 px-2 text-center">
+                    <span
+                      class="bg-blue-50 px-1.5 py-0.5 rounded text-blue-700 font-bold"
+                      >{{ item.Mesin }}</span
+                    >
+                  </td>
+                  <td
+                    class="py-2.5 px-2 text-slate-800 cell-ellipsis"
+                    :title="item.NamaSPK"
+                  >
+                    {{ item.NamaSPK }}
+                  </td>
+                  <td
+                    class="py-2.5 px-2 text-slate-600 cell-ellipsis"
+                    :title="item.Bahan"
+                  >
+                    {{ item.Bahan }}
+                  </td>
+                  <td
+                    class="py-2.5 px-2 text-right text-slate-950 font-semibold"
+                  >
+                    {{ item.Plan_Qty }}
+                  </td>
+                  <td
+                    class="py-2.5 px-2 text-right text-sky-700 font-mono font-semibold"
+                  >
+                    {{ item.Plan_M2 }} m²
+                  </td>
+                </tr>
+                <tr v-if="topPlanningBelumLhk.length === 0">
+                  <td colspan="7" class="text-center py-6 text-slate-400">
+                    Semua planning aktif sudah dikerjakan operator (LHK Klop).
                   </td>
                 </tr>
               </tbody>
@@ -302,6 +392,15 @@
               data halaman utama
             </p>
           </div>
+          <div v-else-if="modalType === 'planning_idle'">
+            <h3 class="text-base font-bold text-sky-900">
+              Daftar Lengkap SPK Terencana Belum Terealisasi (Belum LHK)
+            </h3>
+            <p class="text-xs text-sky-400 mt-0.5">
+              Menampilkan seluruh order planning mmt aktif yang belum tercatat
+              di data LHK Operator
+            </p>
+          </div>
           <button
             @click="closeModal"
             class="h-8 w-8 rounded-full flex items-center justify-center bg-white border border-sky-200 text-sky-500 hover:text-sky-700 shadow-sm transition-all active:scale-95"
@@ -335,7 +434,7 @@
                   <th class="py-3 px-3 text-center w-[125px]">Sisa Waktu</th>
                 </tr>
               </thead>
-              <tbody class="divide-y divide-blue-50/50 text-slate-600">
+              <tbody class="divide-y divide-sky-50/50 text-slate-600">
                 <tr
                   v-for="(item, index) in totalModalData"
                   :key="index"
@@ -456,6 +555,75 @@
               </tbody>
             </table>
 
+            <table
+              v-if="modalType === 'planning_idle'"
+              class="w-full text-left border-collapse modern-blue-table table-layout-fixed"
+            >
+              <thead>
+                <tr class="thead-tr">
+                  <th class="py-3.5 px-4 w-12 text-center">No</th>
+                  <th class="py-3.5 px-3 w-[120px]">No. SPK</th>
+                  <th class="py-3.5 px-3 w-[90px] text-center">Mesin</th>
+                  <th class="py-3.5 px-3 w-[260px]">Nama SPK / File</th>
+                  <th class="py-3.5 px-3 w-[180px]">Spesifikasi Bahan</th>
+                  <th class="py-3.5 px-3 text-center w-[120px]">
+                    Ukuran (LxP)
+                  </th>
+                  <th class="py-3.5 px-3 text-right w-[100px]">Plan Qty</th>
+                  <th class="py-3.5 px-3 text-right w-[110px]">Total M2</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-sky-50/50 text-slate-600">
+                <tr
+                  v-for="(item, index) in totalModalData"
+                  :key="index"
+                  class="tbody-tr transition-colors duration-150"
+                >
+                  <td
+                    class="py-3.5 px-4 text-center font-medium text-slate-400"
+                  >
+                    {{ index + 1 }}
+                  </td>
+                  <td class="py-3.5 px-3 font-mono font-bold text-slate-900">
+                    {{ item.NomorSPK }}
+                  </td>
+                  <td class="py-3.5 px-3 text-center">
+                    <span
+                      class="bg-blue-50 px-2 py-0.5 rounded text-blue-700 font-semibold"
+                      >{{ item.Mesin }}</span
+                    >
+                  </td>
+                  <td
+                    class="py-3.5 px-3 font-medium text-slate-800 cell-ellipsis"
+                    :title="item.NamaSPK"
+                  >
+                    {{ item.NamaSPK }}
+                  </td>
+                  <td
+                    class="py-3.5 px-3 text-slate-600 cell-ellipsis"
+                    :title="item.Bahan"
+                  >
+                    {{ item.Bahan }}
+                  </td>
+                  <td
+                    class="py-3.5 px-3 text-center font-mono text-xs text-slate-500"
+                  >
+                    {{ item.Lebar }} x {{ item.Panjang }}
+                  </td>
+                  <td
+                    class="py-3.5 px-3 text-right font-semibold text-slate-900"
+                  >
+                    {{ item.Plan_Qty }}
+                  </td>
+                  <td
+                    class="py-3.5 px-3 text-right font-bold text-sky-600 font-mono"
+                  >
+                    {{ item.Plan_M2 }} m²
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+
             <div
               v-if="totalModalData.length === 0 && !isLoadingTotal"
               class="text-center py-8 text-sky-400"
@@ -497,20 +665,23 @@ import api from "@/services/api";
 const ENDPOINT_SUMMARY = "/mmt/laporan-ls-bahan-utama/total-roll";
 const ENDPOINT_FLOW = "/mmt/laporan-ls-bahan-utama/flow-6-bulan";
 const ENDPOINT_DEADLINE = "mmt/dashboard/top-10-deadline";
-const ENDPOINT_DEADLINE_TOTAL = "mmt/dashboard/top-10-deadline-total"; // <--- Endpoint baru Anda di backend
+const ENDPOINT_DEADLINE_TOTAL = "mmt/dashboard/top-10-deadline-total";
 const ENDPOINT_PENDING_BAHAN = "mmt/dashboard/permintaan-pending";
 const ENDPOINT_PENDING_BAHAN_TOTAL = "mmt/dashboard/permintaan-pending-total";
+const ENDPOINT_PLANNING_IDLE = "mmt/dashboard/planning-belum-lhk";
+const ENDPOINT_PLANNING_IDLE_TOTAL = "mmt/dashboard/planning-belum-lhk-total";
 
 /* ================= STATE DASHBOARD ================= */
 const lastUpdate = ref(format(new Date(), "HH:mm:ss"));
 const isLoading = ref(false);
 const topDeadlineCetak = ref([]);
 const permintaanBahanPending = ref([]);
+const topPlanningBelumLhk = ref([]);
 
 /* ================= STATE DYNAMIC MODAL ================= */
 const isModalOpen = ref(false);
 const isLoadingTotal = ref(false);
-const modalType = ref(""); // Berisi 'deadline' atau 'bahan'
+const modalType = ref(""); // 'deadline', 'bahan', atau 'planning_idle'
 const totalModalData = ref([]);
 
 const stats = ref([
@@ -552,7 +723,6 @@ let flowChartInstance = null;
 let compositionChartInstance = null;
 
 /* ================= API CALLS FUNCTIONS ================= */
-
 const fetchSummary = async () => {
   try {
     const response = await api.get(ENDPOINT_SUMMARY);
@@ -587,11 +757,7 @@ const fetchDeadlineCetak = async () => {
   try {
     const response = await api.get(ENDPOINT_DEADLINE);
     const res = response.data;
-    if (res.success && res.data) {
-      topDeadlineCetak.value = res.data;
-    } else {
-      topDeadlineCetak.value = [];
-    }
+    topDeadlineCetak.value = res.success && res.data ? res.data : [];
   } catch (err) {
     console.error("Gagal mengambil data antrean cetak:", err);
     topDeadlineCetak.value = [];
@@ -602,14 +768,21 @@ const fetchPermintaanPending = async () => {
   try {
     const response = await api.get(ENDPOINT_PENDING_BAHAN);
     const res = response.data;
-    if (res.success && res.data) {
-      permintaanBahanPending.value = res.data;
-    } else {
-      permintaanBahanPending.value = [];
-    }
+    permintaanBahanPending.value = res.success && res.data ? res.data : [];
   } catch (err) {
     console.error("Gagal mengambil data permintaan pending:", err);
     permintaanBahanPending.value = [];
+  }
+};
+
+const fetchPlanningBelumLhk = async () => {
+  try {
+    const response = await api.get(ENDPOINT_PLANNING_IDLE);
+    const res = response.data;
+    topPlanningBelumLhk.value = res.success && res.data ? res.data : [];
+  } catch (err) {
+    console.error("Gagal mengambil data planning idle:", err);
+    topPlanningBelumLhk.value = [];
   }
 };
 
@@ -622,11 +795,11 @@ const openDetailModal = async (type) => {
 
   try {
     let response;
-    if (type === "deadline") {
-      response = await api.get(ENDPOINT_DEADLINE_TOTAL);
-    } else if (type === "bahan") {
+    if (type === "deadline") response = await api.get(ENDPOINT_DEADLINE_TOTAL);
+    else if (type === "bahan")
       response = await api.get(ENDPOINT_PENDING_BAHAN_TOTAL);
-    }
+    else if (type === "planning_idle")
+      response = await api.get(ENDPOINT_PLANNING_IDLE_TOTAL);
 
     const res = response?.data;
     if (res && res.success && res.data) {
@@ -645,6 +818,7 @@ const closeModal = () => {
   totalModalData.value = [];
 };
 
+/* ================= REFRESH SYSTEM ================= */
 const refreshAllData = async () => {
   isLoading.value = true;
   try {
@@ -653,6 +827,7 @@ const refreshAllData = async () => {
       fetchFlowData(),
       fetchDeadlineCetak(),
       fetchPermintaanPending(),
+      fetchPlanningBelumLhk(),
     ]);
     lastUpdate.value = format(new Date(), "HH:mm:ss");
   } catch (err) {
@@ -748,63 +923,46 @@ canvas {
   width: 100% !important;
   height: 100% !important;
 }
-
 .modern-blue-table.table-layout-fixed {
   table-layout: fixed !important;
   width: 100%;
 }
-
-/* Ukuran Font, Jenis Font, & Warna Teks Seragam untuk Seluruh Isi Tabel (Termasuk tag span/badge di dalamnya) */
 .modern-blue-table th,
 .modern-blue-table td,
 .modern-blue-table span,
 .modern-blue-table td font {
   font-size: 12px !important;
-  font-family: inherit !important; /* Menghilangkan font-mono agar seragam */
+  font-family: inherit !important;
   vertical-align: middle !important;
 }
-
-/* Header Tabel (Ice Blue / Dominan Biru Muda) */
 .modern-blue-table thead tr {
-  background-color: #e0f2fe !important; /* bg-sky-100 cerah rapi */
-  border-bottom: 2px solid #bae6fd !important; /* border-sky-200 */
+  background-color: #e0f2fe !important;
+  border-bottom: 2px solid #bae6fd !important;
 }
-
 .modern-blue-table th {
-  color: #0369a1 !important; /* Teks biru navy kontras */
+  color: #0369a1 !important;
   font-weight: 700 !important;
   height: 38px !important;
 }
-
-/* Row Data Body (Putih Bersih) */
 .modern-blue-table .tbody-tr {
   height: 38px !important;
   background-color: #ffffff !important;
 }
-
-/* Efek Hover Baris Soft Blue */
 .modern-blue-table .tbody-tr:hover {
-  background-color: #f0f9ff !important; /* hover:bg-sky-50 */
+  background-color: #f0f9ff !important;
   cursor: pointer;
 }
-
-/* Paksa Warna Teks Nomor dan No. SPK Menjadi Hitam Pekat */
 .modern-blue-table .text-slate-950,
 .modern-blue-table td:first-child,
 .modern-blue-table td:nth-child(2) {
-  color: #0f172a !important; /* Hitam pekat slate-900/950 */
+  color: #0f172a !important;
 }
-
-/* Membersihkan Aksen Background Kolom Tertentu Menjadi Transparan/Putih Bersih */
 .modern-blue-table .cell-spk-bg {
   background-color: transparent !important;
 }
-
 .modern-blue-table .cell-sisa-bg {
-  background-color: transparent !important; /* Menghilangkan highlight kuning/krem */
+  background-color: transparent !important;
 }
-
-/* Mekanisme Pemotongan Nama File yang Kepanjangan (...) */
 .modern-blue-table .cell-ellipsis {
   white-space: nowrap;
   overflow: hidden;

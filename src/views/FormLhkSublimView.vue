@@ -344,7 +344,7 @@ const isGudangLookupVisible = ref(false);
 const isSpkLookupVisible = ref(false);
 
 const formData = reactive({
-  lsb_nomor: "AUTO", // Dikunci ke AUTO untuk data baru seperti LHK Mesin
+  lsb_nomor: "AUTO",
   lsb_tanggal: format(new Date(), "yyyy-MM-dd"),
   lsb_gdg_kode: "GPM",
   gdg_nama: "GUDANG PRODUKSI MMT",
@@ -397,6 +397,64 @@ const totalMeterPekerjaan = computed(() => {
 const formTitle = computed(() =>
   isEdit.value ? "Ubah LHK Sublim Bahan" : "Input LHK Sublim Bahan",
 );
+
+// --- 🔥 FUNGSI BARU: Ambil Data Lama Saat Halaman Di-edit ---
+const fetchDetailLhk = async (nomorDokumen: string) => {
+  try {
+    isSaving.value = true;
+
+    // 1. Get Data Header
+    const resHeader = await api.get(`/mmt/lhk-sublim`, {
+      params: { startDate: "2020-01-01", endDate: "2030-12-31" },
+    });
+    const masterList = resHeader.data || [];
+    const matchedHeader = masterList.find((h: any) => h.Nomor === nomorDokumen);
+
+    if (matchedHeader) {
+      formData.lsb_nomor = matchedHeader.Nomor;
+      // Konversi format tanggal jika ada timestamp ISO (T00:00:00.000Z)
+      formData.lsb_tanggal = matchedHeader.Tanggal
+        ? matchedHeader.Tanggal.split("T")[0]
+        : format(new Date(), "yyyy-MM-dd");
+      formData.lsb_gdg_kode = matchedHeader.Kode_Gudang || "GPM";
+      formData.gdg_nama = matchedHeader.Nama_Gudang;
+      formData.lsb_shift = String(matchedHeader.Shift || "1");
+    }
+
+    // 2. Get Data Detail SPK & Matorkan dengan struktur Grid/Table Form
+    const resDetail = await api.get(`/mmt/lhk-sublim/detail/${nomorDokumen}`);
+    const detailList = resDetail.data || [];
+
+    if (detailList.length > 0) {
+      // Ambil info bahan dari item baris pertama detail untuk mengisi kolom master kiri
+      formData.brg_kode = detailList[0].Bahan_Kode || "";
+      formData.brg_nama = detailList[0].Bahan || "";
+      formData.Panjang_bahan = parseFloat(detailList[0].Panjang_Bahan || 0);
+      formData.Lebar_bahan = parseFloat(detailList[0].Lebar_Bahan || 0);
+
+      detailData.value = detailList.map((item: any) => {
+        const row = {
+          spk_nomor: item.Nomor_SPK,
+          spk_nama: item.Nama_SPK,
+          spk_panjang: parseFloat(item.Panjang || 0),
+          spk_lebar: parseFloat(item.Lebar || 0),
+          jumlah_sublim: parseFloat(item.Jumlah || 1),
+          jenis_bahan: item.Bahan_Kode || "",
+          nama_bahan: item.Bahan || "",
+          spk_jmlmeter: parseFloat(item.Jumlah_Meter || 0),
+        };
+        calculateRow(row);
+        return row;
+      });
+      toast.success("Data LHK berhasil dimuat");
+    }
+  } catch (e: any) {
+    console.error("Error Load Detail LHK:", e);
+    toast.error("Gagal memuat data lama: " + (e.message || "Server Error"));
+  } finally {
+    isSaving.value = false;
+  }
+};
 
 // --- Handle Scan Barcode Bahan Roll ---
 const handleBarcodeScan = async () => {
@@ -516,7 +574,7 @@ const removeRow = (index: number) => {
   detailData.value.splice(index, 1);
 };
 
-// --- Simpan Data (Gaya LHK Mesin Cetak) ---
+// --- Simpan Data ---
 const handleSave = async (shouldExit: boolean) => {
   if (detailData.value.length === 0)
     return toast.error("Detail pekerjaan kosong");
@@ -542,7 +600,6 @@ const handleSave = async (shouldExit: boolean) => {
         details: detailData.value,
       };
 
-      // 🔥 PERUBAHAN DI SINI: Sesuaikan dengan route baru backend Anda
       const response = await api.post("/mmt/lhk-sublim", payload);
 
       if (response.data.success) {
@@ -556,11 +613,9 @@ const handleSave = async (shouldExit: boolean) => {
           router.replace({ params: { nomor: response.data.nomor } });
         }
       } else {
-        // Jika backend mengirim success: false beserta log internalnya
         toast.error(response.data.message || "Gagal menyimpan data.");
       }
     } catch (e: any) {
-      // Menangkap pesan error detail dari sistem logging baru yang kita pasang di backend
       const serverErrorMessage = e.response?.data?.message || e.message;
       toast.error("Gagal menyimpan: " + serverErrorMessage);
     } finally {
@@ -570,10 +625,11 @@ const handleSave = async (shouldExit: boolean) => {
 };
 
 const resetForm = () => {
-  formData.lsb_nomor = "AUTO"; // Kembalikan ke kode AUTO aman
+  formData.lsb_nomor = "AUTO";
   formData.barcode_input = "";
   formData.barcode_spk = "";
   formData.brg_nama = "";
+  formData.brg_kode = "";
   formData.Panjang_bahan = 0;
   formData.Lebar_bahan = 0;
   detailData.value = [];
@@ -582,13 +638,17 @@ const resetForm = () => {
 
 const handleClose = () => router.push({ name: "LHKSublimMMT" });
 
+// --- 🔥 MODIFIKASI ONMOUNTED ---
 onMounted(() => {
-  const editNomor = route.params.nomor;
+  // Ambil param 'nomor' atau 'id' yang tersemat dari router path
+  const editNomor = route.params.nomor || route.params.id;
+
   if (editNomor && editNomor !== "new" && editNomor !== "create") {
     isEdit.value = true;
-    // Logic load data existing di sini jika diperlukan
+    fetchDetailLhk(String(editNomor)); // Eksekusi load data detail
   } else {
-    formData.lsb_nomor = "AUTO"; // Pastikan default data baru adalah AUTO
+    isEdit.value = false;
+    formData.lsb_nomor = "AUTO";
   }
 });
 </script>

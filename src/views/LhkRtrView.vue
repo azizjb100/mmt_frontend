@@ -234,8 +234,12 @@ const getRowProps = ({ item }: any) => ({
 });
 
 const handleNewEdit = (mode: "new" | "edit") => {
-  if (mode === "new") router.push("/mmt/lhk/rtr/new");
-  else router.push(`/mmt/lhk/rtr/edit/${selectedNomor.value}`);
+  if (mode === "new") {
+    router.push("/mmt/lhk/sublim/new"); // Disesuaikan ke sublim baru
+  } else {
+    // PERBAIKAN: Diarahkan ke modul mmt/lhk/sublim/edit/:nomor
+    router.push(`/mmt/lhk/sublim/edit/${selectedNomor.value}`);
+  }
 };
 
 const handleEditClick = () => handleNewEdit("edit");

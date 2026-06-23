@@ -106,7 +106,10 @@ import FormPoExtMmtView from '@/views/FormPoExtMmtView.vue';
 import POExternalMmtView from '@/views/POExternalMmtView.vue';
 import FormPlanningProduksiView from '@/views/FormPlanningProduksiView.vue';
 import LapMonPlanVsLHKView from '@/views/LapMonPlanVsLHKView.vue';
-
+import LhkPolaView from '@/views/LhkPolaView.vue';
+import FormLhkPolaView from '@/views/FormLhkPolaView.vue';
+import LhkDesainView from '@/views/LhkDesainView.vue';
+import FormLhkDesainView from '@/views/FormLhkDesainView.vue';
 
 
 
@@ -429,14 +432,21 @@ const routes: RouteRecordRaw[] = [
             { path: 'mmt/lhk/proof', name: 'LHKProofMMTBrowse', component: LhkProofView },
             { path: 'mmt/lhk/proof/new', name: 'LHKProofMMTNew', component: FormLhkProofView },
             { path: 'mmt/lhk/proof/edit/:nomor', name: 'LHKProofMMTEdit', component: FormLhkProofView },
-            { path: 'mmt/lhk/sublim', name: 'LHKSublimMMT', component: LhkSublimView },
-            { path: 'mmt/lhk/sublim/new', name: 'LHKSublimMMTNew', component: FormLhkSublimView },
-            { path: 'mmt/lhk/sublim/edit/:nomor', name: 'LHKSublimMMTEdit', component: FormLhkSublimView },
+
+            { path: 'mmt/lhk/pola', name: 'LHKPolaMMT', component: LhkPolaView },
+            { path: 'mmt/lhk/pola/new', name: 'LHKPolaMMTNew', component: FormLhkPolaView },
+            { path: 'mmt/lhk/pola/edit/:nomor', name: 'LHKPolaMMTEdit', component: FormLhkPolaView },
+            { path: 'mmt/lhk/desain', name: 'LHKDesainMMT', component: LhkDesainView },
+            { path: 'mmt/lhk/desain/new', name: 'LHKDesainMMTNew', component: FormLhkDesainView },
+            { path: 'mmt/lhk/desain/edit/:nomor', name: 'LHKDesainMMTEdit', component: FormLhkDesainView },
+            { path: 'mmt/lhk/paperprint', name: 'LHKSublimMMT', component: LhkSublimView },
+            { path: 'mmt/lhk/paperprint/new', name: 'LHKSublimMMTNew', component: FormLhkSublimView },
+            { path: 'mmt/lhk/paperprint/edit/:nomor', name: 'LHKSublimMMTEdit', component: FormLhkSublimView },
 
             { path: 'mmt/absensi', name: 'absensiNew', component: FormAbsesnView },
-            { path: 'mmt/lhk/rtr', name: 'LHKRTRMMT', component: LhkRtrView },
-            { path: 'mmt/lhk/rtr/new', name: 'LHKRTRMMTNew', component: FormLhkRtrView },
-            { path: 'mmt/lhk/rtr/edit/:nomor', name: 'LHKRTRMMTEdit', component: FormLhkRtrView },
+            { path: 'mmt/lhk/sublim', name: 'LHKRTRMMT', component: LhkRtrView },
+            { path: 'mmt/lhk/sublim/new', name: 'LHKRTRMMTNew', component: FormLhkRtrView },
+            { path: 'mmt/lhk/sublim/edit/:nomor', name: 'LHKRTRMMTEdit', component: FormLhkRtrView },
 
 
             { path: 'mmt/bs-digital', name: 'BS & Sisa Digital Print', component: ComingSoon },

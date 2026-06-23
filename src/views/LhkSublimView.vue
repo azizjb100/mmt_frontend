@@ -248,7 +248,14 @@ const detailHeaders = [
 
 // --- Computed ---
 const isSingleSelected = computed(() => selected.value.length === 1);
-const selectedItemNomor = computed(() => selected.value[0]);
+
+const selectedItemNomor = computed(() => {
+  if (selected.value.length === 0) return null;
+
+  const item = selected.value[0];
+  // Antisipasi jika item berbentuk primitive (string) atau object
+  return typeof item === "object" ? item.Nomor : item;
+});
 
 // --- Methods ---
 const fetchMasterData = async () => {
@@ -293,13 +300,19 @@ watch(
 );
 
 const getRowProps = ({ item }: any) => {
+  const isContained = selected.value.some((sel: any) => {
+    const selNomor = typeof sel === "object" ? sel.Nomor : sel;
+    return selNomor === item.Nomor;
+  });
+
   return {
-    class: selected.value.includes(item.Nomor) ? "bg-blue-lighten-5" : "",
+    class: isContained ? "bg-blue-lighten-5" : "",
   };
 };
 
 const handleRowClick = (event: any, { item }: any) => {
-  selected.value = [item.Nomor];
+  // Vuetify 3 menyisipkan objek data asli di dalam properti item itu sendiri atau item.raw
+  selected.value = [item];
 };
 
 const handleCreate = () => {
@@ -309,7 +322,7 @@ const handleCreate = () => {
 const handleEdit = () => {
   if (!selectedItemNomor.value) return;
   router.push({
-    name: "lhkSublimEdit",
+    name: "LHKSublimMMTEdit",
     params: { nomor: selectedItemNomor.value },
   });
 };

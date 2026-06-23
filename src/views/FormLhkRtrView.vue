@@ -22,7 +22,6 @@
     </template>
 
     <div class="form-grid-container">
-      <!-- Kolom Kiri: Header Info -->
       <div class="left-column">
         <v-card class="mb-3" flat border>
           <v-card-title
@@ -85,7 +84,6 @@
         </v-card>
       </div>
 
-      <!-- Kolom Kanan: Detail Grid -->
       <div class="right-column">
         <v-card flat border class="d-flex flex-column h-100 rounded-0">
           <v-card-title
@@ -93,9 +91,10 @@
           >
             Detail Hasil Kerja RTR
             <v-spacer />
+
             <v-btn
               size="x-small"
-              color="orange-darken-3"
+              color="blue-darken-3"
               prepend-icon="mdi-package-variant"
               @click="openPoiSearch"
               class="mr-2"
@@ -123,7 +122,6 @@
           >
             <template #[`item.no`]="{ index }">{{ index + 1 }}</template>
 
-            <!-- PO Internal (Yellow + Lookup) -->
             <template #[`item.poi_nomor`]="{ item, index }">
               <div class="cell-yellow h-100 d-flex align-center">
                 <v-text-field
@@ -148,8 +146,17 @@
                 class="table-input-inline"
               />
             </template>
+            <template #[`item.nama_komponen`]="{ item }">
+              <v-text-field
+                v-model="item.nama_komponen"
+                placeholder="..."
+                variant="plain"
+                density="compact"
+                hide-details
+                class="table-input-inline"
+              />
+            </template>
 
-            <!-- SPK Nomor (Yellow + Lookup) -->
             <template #[`item.spk_nomor`]="{ item, index }">
               <div class="cell-yellow h-100 d-flex align-center">
                 <v-text-field
@@ -189,7 +196,6 @@
               />
             </template>
 
-            <!-- Kuantitas Input Hasil RTR (Isi Manual + Validasi Alert Over Order) -->
             <template #[`item.jumlah_rtr`]="{ item }">
               <div
                 :class="
@@ -212,7 +218,6 @@
                   @input="calculateMeter(item)"
                 />
 
-                <!-- Tooltip Peringatan saat Hover mirip LHK Tekstil -->
                 <v-tooltip
                   v-if="item.jumlah_rtr > item.qty_order"
                   activator="parent"
@@ -259,7 +264,6 @@
       </div>
     </div>
 
-    <!-- Modals (Help Bantuan) -->
     <PoiLookupModal
       :is-visible="lookup.poi"
       @close="lookup.poi = false"
@@ -292,7 +296,6 @@ import api from "@/services/api";
 import { useToast } from "vue-toastification";
 import PageLayout from "../components/PageLayout.vue";
 
-// Import Modal (Asumsi Anda sudah memiliki komponen ini)
 import PoiLookupModal from "@/modal/PoInternalLookupView.vue";
 import SpkLookupModal from "@/modal/SpkLookupModal.vue";
 import GudangLookupModal from "@/modal/GudangLookupView.vue";
@@ -305,6 +308,8 @@ const toast = useToast();
 const isSaving = ref(false);
 const activeRowIdx = ref(-1);
 const detailData = ref<any[]>([]);
+const inputMode = ref("SET");
+
 const lookup = reactive({
   poi: false,
   spk: false,
@@ -323,11 +328,12 @@ const detailHeaders = [
   { title: "No", key: "no", width: "40px", align: "center" },
   { title: "PO Internal", key: "poi_nomor", width: "140px" },
   { title: "Size", key: "poi_size", width: "80px" },
+  { title: "Komponen", key: "nama_komponen", width: "140px" }, // Tetap mengunci field tabel
   { title: "No. SPK", key: "spk_nomor", width: "140px" },
   { title: "Nama Order", key: "spk_nama", width: "200px" },
   { title: "Panjang", key: "panjang", width: "80px", align: "end" },
   { title: "Lebar", key: "lebar", width: "80px", align: "end" },
-  { title: "Order", key: "qty_order", width: "70px", align: "end" }, // <-- Kolom Baru
+  { title: "Order", key: "qty_order", width: "70px", align: "end" },
   { title: "Jml RTR", key: "jumlah_rtr", width: "90px", align: "end" },
   { title: "Total m²", key: "jumlah_meter", width: "100px", align: "end" },
   { title: "Lokasi/Mesin", key: "lokasi", width: "120px" },
@@ -343,34 +349,27 @@ const isFormValid = computed(
   () => detailData.value.length > 0 && formData.gdgKode,
 );
 
-// --- Logika Delphi: Simpan Data ---
 const handleSave = async () => {
   if (!confirm("Lanjutkan simpan data RTR?")) return;
-
   isSaving.value = true;
   try {
     const payload = {
-      header: formData, // Di sini formData.nomor akan berisi 'AUTO' atau 'MMT-LHK-R...'
+      header: formData,
       details: detailData.value.map((item) => ({
         nomor_spk: item.spk_nomor,
         nama_spk: item.spk_nama,
         panjang: item.panjang,
         lebar: item.lebar,
-        j_order: item.j_order,
+        j_order: item.qty_order,
         jumlah_rtr: item.jumlah_rtr,
         lokasi: item.lokasi,
         jenis_bahan: item.jenis_bahan,
         poi_nomor: item.poi_nomor,
         poi_size: item.poi_size,
+        nama_komponen: item.nama_komponen, // Pastikan field komponen terkirim ke backend
       })),
     };
-
-    // PERBAIKAN: Jangan masukkan nomor di URL
-    // Cukup gunakan endpoint utama karena logika IF/ELSE ada di dalam saveLhk (Backend)
-    const endpoint = "/mmt/lhk-rtr";
-
-    await api.post(endpoint, payload);
-
+    await api.post("/mmt/lhk-rtr", payload);
     toast.success("Simpan data berhasil.");
     router.push({ name: "LHKRTRMMT" });
   } catch (e: any) {
@@ -380,9 +379,7 @@ const handleSave = async () => {
   }
 };
 
-// --- Logika Delphi: Perhitungan Meter ---
 const calculateMeter = (item: any) => {
-  // Antisipasi input kosong
   if (
     item.jumlah_rtr === "" ||
     item.jumlah_rtr === null ||
@@ -390,13 +387,11 @@ const calculateMeter = (item: any) => {
   ) {
     item.jumlah_rtr = 0;
   }
-
   const p = parseFloat(item.panjang) || 0;
   const l = parseFloat(item.lebar) || 0;
   const qty = parseFloat(item.jumlah_rtr) || 0;
   item.jumlah_meter = p * l * qty;
 
-  // Pemicu Alert Toast jika input hasil melebihi order asal
   if (item.qty_order !== undefined && qty > item.qty_order) {
     toast.warning(
       `Peringatan: Hasil RTR ${item.spk_nomor || item.poi_nomor} (${qty}) melebihi kuantitas order (${item.qty_order})!`,
@@ -404,7 +399,6 @@ const calculateMeter = (item: any) => {
   }
 };
 
-// --- Logika Delphi: PO Internal Lookup ---
 const openPoiSearch = () => {
   activeRowIdx.value = -1;
   lookup.poi = true;
@@ -415,36 +409,108 @@ const openPoiSearchRow = (idx: number) => {
   lookup.poi = true;
 };
 
-const handlePoiSelect = async (poi: any) => {
-  // Logic from Delphi: Auto fill SPK info when POI selected
-  const newRow = {
-    poi_nomor: poi.poi_nomor,
-    poi_size: poi.poid_size,
-    spk_nomor: poi.poi_spk_nomor,
-    spk_nama: poi.spk_nama || "",
-    panjang: parseFloat(poi.spk_panjang) || 0,
-    lebar: parseFloat(poi.spk_lebar) || 0,
-    qty_order: parseFloat(poi.poid_jumlah) || 0,
-    jumlah_rtr: 1,
-    jumlah_meter: 0,
-    lokasi: "",
-    jenis_bahan: poi.poid_bhn_kode === "LL-000400" ? "MMT" : "",
-  };
+// --- LOGIKA UTAMA PERBAIKAN: Menggabungkan Set menjadi "ALL SET" ---
+const handlePoiSelect = async (payload) => {
+  const { mode, data } = payload;
 
-  calculateMeter(newRow);
+  if (!data || data.length === 0) return;
 
-  if (activeRowIdx.value === -1) {
-    detailData.value.push(newRow);
-  } else {
-    detailData.value[activeRowIdx.value] = {
-      ...detailData.value[activeRowIdx.value],
-      ...newRow,
+  if (mode === "SET") {
+    // --- MODE PER SET (ALL SET) ---
+    // Kita hanya mengambil 1 baris contoh dari data komponen (misal indeks ke-0)
+    // agar data tidak pecah menjadi 3 baris di dalam grid detail.
+    const masterPoi = data[0];
+
+    // Validasi Duplikasi: Gunakan 'ALL_SET' sebagai jangkar pencarian duplikat
+    const isExist = detailData.value.some(
+      (row) =>
+        row.poi_nomor === masterPoi.poi_nomor &&
+        row.poi_size === masterPoi.poid_size &&
+        row.jenis_bahan === "ALL_SET",
+    );
+
+    if (isExist) {
+      toast.info(
+        `PO ${masterPoi.poi_nomor} dengan Size ${masterPoi.poid_size} untuk (ALL SET) sudah ada di tabel.`,
+      );
+      return;
+    }
+
+    const newRow = {
+      poi_nomor: masterPoi.poi_nomor,
+      poi_size: masterPoi.poid_size || "",
+      nama_komponen: "ALL SET", // 🌟 Dipaksa menjadi satu kesatuan ALL SET
+      spk_nomor: masterPoi.poi_spk_nomor,
+      spk_nama: masterPoi.spk_nama || "",
+      panjang: parseFloat(masterPoi.spk_panjang) || 0,
+      lebar: parseFloat(masterPoi.spk_lebar) || 0,
+      qty_order: parseFloat(masterPoi.poid_jumlah) || 0, // Jumlah total order set tersebut
+      jumlah_rtr: 1,
+      jumlah_meter: 0,
+      lokasi: "",
+      jenis_bahan: "ALL_SET", // Sebagai penanda tipe baris di database
     };
+
+    calculateMeter(newRow);
+
+    if (activeRowIdx.value === -1) {
+      detailData.value.push(newRow);
+    } else {
+      detailData.value[activeRowIdx.value] = {
+        ...detailData.value[activeRowIdx.value],
+        ...newRow,
+      };
+    }
+  } else {
+    // --- MODE PER KOMPONEN ---
+    // Menerima murni 1 data komponen tunggal hasil pilihan sub-lookup pop-up kedua
+    const poi = data[0];
+
+    // Validasi Duplikasi berdasarkan Kombinasi PO + Size + Kode Bahan unik komponen
+    const isExist = detailData.value.some(
+      (row) =>
+        row.poi_nomor === poi.poi_nomor &&
+        row.poi_size === poi.poid_size &&
+        row.jenis_bahan === poi.poid_bhn_kode,
+    );
+
+    if (isExist) {
+      toast.info(
+        `Komponen ${poi.nama_komponen || ""} Size ${poi.poid_size} sudah ada di tabel.`,
+      );
+      return;
+    }
+
+    const newRow = {
+      poi_nomor: poi.poi_nomor,
+      poi_size: poi.poid_size || "",
+      nama_komponen: poi.nama_komponen || "", // 🌟 Hanya menampilkan 1 komponen spesifik (misal: BADAN DEPAN)
+      spk_nomor: poi.poi_spk_nomor,
+      spk_nama: poi.spk_nama || "",
+      panjang: parseFloat(poi.spk_panjang) || 0,
+      lebar: parseFloat(poi.spk_lebar) || 0,
+      qty_order: parseFloat(poi.sisa_qty ?? poi.poid_jumlah) || 0,
+      jumlah_rtr: 1,
+      jumlah_meter: 0,
+      lokasi: "",
+      jenis_bahan: poi.poid_bhn_kode || "",
+    };
+
+    calculateMeter(newRow);
+
+    if (activeRowIdx.value === -1) {
+      detailData.value.push(newRow);
+    } else {
+      detailData.value[activeRowIdx.value] = {
+        ...detailData.value[activeRowIdx.value],
+        ...newRow,
+      };
+    }
   }
-  lookup.poi = false;
+
+  lookup.poi = false; // Tutup modal setelah data berhasil dipilih
 };
 
-// --- Logika Delphi: SPK Lookup ---
 const openSpkSearchRow = (idx: number) => {
   activeRowIdx.value = idx;
   lookup.spk = true;
@@ -461,9 +527,10 @@ const handleSpkSelect = (spk: any) => {
     spk_nama: spk.Nama,
     panjang: parseFloat(spk.Panjang) || 0,
     lebar: parseFloat(spk.Lebar) || 0,
-    qty_order: parseFloat(spk.Jumlah) || 0, // Ambil "Jumlah" dari Backend SPK
+    qty_order: parseFloat(spk.Jumlah) || 0,
     jumlah_rtr: 1,
     jenis_bahan: spk.Bahan,
+    nama_komponen: "", // Kosongkan jika murni input SPK manual tanpa POI
   };
 
   if (activeRowIdx.value === -1) {
@@ -493,25 +560,21 @@ const loadDataAll = async (nomor: string) => {
     const rawDetails = res.data || [];
 
     if (rawDetails.length > 0) {
-      const firstRow = rawDetails[0];
-      formData.nomor = firstRow.Nomor;
-      detailData.value = [];
-
-      rawDetails.forEach((d: any) => {
-        detailData.value.push({
-          spk_nomor: d.Nomor_SPK,
-          spk_nama: d.Nama_SPK,
-          panjang: parseFloat(d.Panjang) || 0,
-          lebar: parseFloat(d.Lebar) || 0,
-          qty_order: parseFloat(d.J_Order) || 0, // Mapping jumlah order yang tersimpan di DB
-          jumlah_rtr: parseFloat(d.Jumlah) || 0,
-          jumlah_meter: parseFloat(d.Jumlah_meter) || 0,
-          poi_nomor: d.No_PO_Internal,
-          poi_size: d.Size,
-          lokasi: d.Lokasi || "",
-          jenis_bahan: d.Jenis_Bahan || "",
-        });
-      });
+      formData.nomor = rawDetails[0].Nomor;
+      detailData.value = rawDetails.map((d: any) => ({
+        spk_nomor: d.Nomor_SPK,
+        spk_nama: d.Nama_SPK,
+        panjang: parseFloat(d.Panjang) || 0,
+        lebar: parseFloat(d.Lebar) || 0,
+        qty_order: parseFloat(d.J_Order) || 0,
+        jumlah_rtr: parseFloat(d.Jumlah) || 0,
+        jumlah_meter: parseFloat(d.Jumlah_meter) || 0,
+        poi_nomor: d.No_PO_Internal,
+        poi_size: d.Size,
+        nama_komponen: d.Nama_Komponen || "", // Mapping data lama yang tersimpan saat edit data
+        lokasi: d.Lokasi || "",
+        jenis_bahan: d.Jenis_Bahan || "",
+      }));
     }
   } catch (error: any) {
     console.error("Load Error:", error);
@@ -520,7 +583,7 @@ const loadDataAll = async (nomor: string) => {
     isSaving.value = false;
   }
 };
-// --- Other Lookups ---
+
 const handleGudangSelect = (g: any) => {
   formData.gdgKode = g.Kode;
   formData.gdgNama = g.Nama;
@@ -541,11 +604,7 @@ const handleMesinSelect = (m: any) => {
 
 const removeRow = (idx: number) => detailData.value.splice(idx, 1);
 const handleCancel = () => router.back();
-
-const updateMaxKode = async () => {
-  if (route.params.nomor) return;
-  // Logika getmaxkode backend akan dipanggil di sini jika diperlukan re-fetch
-};
+const updateMaxKode = async () => {};
 
 onMounted(async () => {
   const nomorParams = route.params.nomor as string;
@@ -556,66 +615,61 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+.mode-selection :deep(.v-selection-control-group) {
+  flex-direction: row !important;
+}
+.mode-selection :deep(.v-label) {
+  font-size: 12px !important;
+  color: #ffffff !important;
+  font-weight: bold;
+  opacity: 1;
+}
 .form-grid-container {
   display: flex;
   gap: 16px;
-  /* Mengunci tinggi container form agar pas dengan tinggi sisa layar browser */
   height: calc(100vh - 140px);
 }
-
 .left-column {
   width: 300px;
   flex-shrink: 0;
 }
-
 .right-column {
   flex: 1;
   min-width: 0;
   display: flex;
   flex-direction: column;
-  height: 100%; /* Paksa tinggi kolom kanan mengikuti container utama */
+  height: 100%;
 }
-
-/* Mengunci Card pembungkus tabel agar tingginya pas dan tidak jebol kebawah */
 .right-column .v-card {
   display: flex;
   flex-direction: column;
   height: 100% !important;
   border-radius: 0 !important;
-  overflow: hidden; /* Mencegah card ikut memanjang */
+  overflow: hidden;
 }
-
-/* --- LOGIKA UTAMA SCROLLBAR TABLE --- */
-/* v-data-table di Vuetify 3 membungkus flex internal, kita paksa penuhi space sisa */
 .delphi-grid {
   flex: 1;
   display: flex;
   flex-direction: column;
   overflow: hidden;
 }
-
-/* Mengunci wrapper body tabel dan memunculkan scrollbar vertikal jika > 10 baris */
 .delphi-grid :deep(.v-table__wrapper) {
   flex: 1;
-  overflow-y: auto !important; /* Memunculkan scrollbar vertikal */
-  overflow-x: auto !important; /* Memunculkan scrollbar horizontal jika kolom terlalu lebar */
+  overflow-y: auto !important;
+  overflow-x: auto !important;
 }
-
-/* --- Desain Model Header & Cell --- */
 .custom-header-blue {
   background-color: #eeeeee !important;
   color: #000000 !important;
   font-weight: bold !important;
   border-bottom: 1px solid #ccc !important;
 }
-
 .custom-label-blue :deep(.v-label) {
   font-size: 11px;
   font-weight: 700;
   color: #000000 !important;
   opacity: 1;
 }
-
 .delphi-grid :deep(thead th) {
   background-color: #5aa4ff !important;
   color: #ffffff !important;
@@ -624,17 +678,14 @@ onMounted(async () => {
   height: 32px !important;
   border: 0.5px solid #ccc !important;
 }
-
 .delphi-grid :deep(td) {
   border: 0.5px solid #eee !important;
   height: 32px !important;
   color: #000000 !important;
 }
-
 .cell-yellow {
-  background-color: #fff9c4 !important;
+  background-color: #ecf8ff !important;
 }
-
 .table-input-inline :deep(input) {
   padding: 4px 8px !important;
   min-height: 28px !important;
@@ -643,54 +694,8 @@ onMounted(async () => {
   opacity: 1 !important;
   -webkit-text-fill-color: #000000 !important;
 }
-
 .custom-font {
   font-size: 12px !important;
   color: #000000 !important;
-}
-
-/* Gaya Scrollbar Cantik ala Windows Desktop (Biar pas dengan konsep Delphi) */
-.delphi-grid :deep(.v-table__wrapper::-webkit-scrollbar) {
-  width: 10px;
-  height: 10px;
-}
-
-.delphi-grid :deep(.v-table__wrapper::-webkit-scrollbar-track) {
-  background: #f1f1f1;
-}
-
-.delphi-grid :deep(.v-table__wrapper::-webkit-scrollbar-thumb) {
-  background: #c1c1c1;
-  border-radius: 2px;
-}
-
-.delphi-grid :deep(.v-table__wrapper::-webkit-scrollbar-thumb:hover) {
-  background: #a8a8a8;
-}
-
-/* Warna cell kuning dengan teks hitam pekat */
-.cell-yellow {
-  background-color: #fff9c4 !important;
-}
-
-/* Paksa semua input (termasuk yang readonly) berwarna hitam pekat */
-.table-input-inline :deep(input) {
-  padding: 4px 8px !important;
-  min-height: 28px !important;
-  font-size: 12px !important;
-  color: #000000 !important;
-  opacity: 1 !important;
-  /* Properti di bawah ini krusial untuk field 'readonly' di Chrome/Safari */
-  -webkit-text-fill-color: #000000 !important;
-}
-
-.custom-font {
-  font-size: 12px !important;
-  color: #000000 !important;
-}
-
-/* Menghilangkan shadow default agar lebih flat ala Delphi */
-.v-card {
-  border-radius: 0 !important;
 }
 </style>
