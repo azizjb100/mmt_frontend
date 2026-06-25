@@ -119,6 +119,17 @@
                   placeholder="Klik kaca pembesar untuk pilih mesin..."
                 />
               </v-col>
+              <v-col cols="12">
+                <v-text-field
+                  label="Keterangan LHK"
+                  v-model="formData.keterangan"
+                  placeholder="Input keterangan tambahan di sini..."
+                  variant="outlined"
+                  density="compact"
+                  hide-details
+                  class="mb-3 custom-label-blue"
+                />
+              </v-col>
             </v-row>
           </v-card-text>
         </v-card>
@@ -547,7 +558,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, nextTick } from "vue";
+import { ref, reactive, computed, onMounted, nextTick, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { format } from "date-fns";
 import api from "@/services/api";
@@ -853,8 +864,17 @@ const handleBarcodeScan = async () => {
         formData.sku_aktif = coreData.Barcode || code;
         formData.kode_bahan_aktif = coreData.Kode;
 
-        // Ambil nilai Sisa_Panjang & Lebar dengan aman
-        formData.Panjang_bahan = parseFloat(coreData.Sisa_Panjang) || 0;
+        // --- MODIFIKASI: Konversi Yard ke Meter jika Jenis LHK adalah TEKSTIL ('T') ---
+        let panjangMentah = parseFloat(coreData.Sisa_Panjang) || 0;
+
+        if (formData.jenis === "T") {
+          // Jika Tekstil, asumsikan input awal adalah Yard, konversi ke Meter (Yard * 0.9)
+          formData.Panjang_bahan = parseFloat((panjangMentah * 0.9).toFixed(2));
+        } else {
+          // Jika MMT / Lainnya, gunakan nilai meter lari asli dari database
+          formData.Panjang_bahan = panjangMentah;
+        }
+
         formData.Lebar_bahan = parseFloat(
           coreData.Lebar || coreData.mst_lebar || 0,
         );
@@ -862,8 +882,13 @@ const handleBarcodeScan = async () => {
         // 3. Hitung ulang kombinasi layout agar canvas nesting ter-update
         recalculateCombine();
 
+        const unitInfo =
+          formData.jenis === "T"
+            ? `(Konversi ${panjangMentah} Yard menjadi ${formData.Panjang_bahan} M)`
+            : "";
+
         toast.success(
-          `Roll Core Valid. Sisa Bahan Utama: ${formData.Panjang_bahan} M`,
+          `Roll Core Valid. Sisa Bahan Utama: ${formData.Panjang_bahan} M ${unitInfo}`,
         );
       } else {
         toast.error(`Barcode tidak tersedia. Status: ${wrapper.status}`);
@@ -966,48 +991,79 @@ const loaddataall = async (nomor: string) => {
 
     if (res && res.header) {
       const h = res.header;
+
+      // 1. Ambil data Header LHK
       formData.nomor = h.lpr_nomor;
       formData.tanggal = h.lpr_tanggal;
+      formData.jenis = h.lpr_jenis || "M"; // Pastikan jenis terisi dahulu (M / T / S)
       formData.shift = h.lpr_shift || 1;
       formData.operator = h.lpr_operator || "";
       formData.mesin = h.lpr_mesin || "";
-      formData.kode_bahan_aktif = h.lpr_gdg_kode || "";
       formData.barcode_input = h.lpr_barcode || "";
-
-      if (formData.barcode_input) {
-        nextTick(() => {
-          handleBarcodeScan();
-        });
-      }
-
+      formData.keterangan = h.lpr_keterangan || "";
       formData.panjang_bs = h.lpanjang_bs || 0;
       formData.lebar_bs = h.llebar_bs || 0;
 
       detailData.value = [];
-      if (Array.isArray(res.details)) {
+
+      if (Array.isArray(res.details) && res.details.length > 0) {
+        // Ambil record detail pertama untuk memetakan kondisi Bahan Utama saat LHK ini dibuat
+        const firstDetail = res.details[0];
+
+        let pAwalHistori = parseFloat(firstDetail.lprd_panjang_awal || 0);
+        let pSisaHistori = parseFloat(firstDetail.lprd_sisa_bahan || 0);
+        let lSisaHistori = parseFloat(
+          firstDetail.lprd_sisa_lebar || h.lpr_lebar_sisa_manual || 0,
+        );
+
+        // --- KONVERSI BALIK KE METER UNTUK TAMPILAN FRONTEND ---
+        // Jika Tekstil ('T'), data di DB bermutasi dalam YARD. Konversi ke METER (* 0.9) agar UI/Canvas match.
+        if (formData.jenis === "T") {
+          pAwalHistori = parseFloat((pAwalHistori * 0.9).toFixed(2));
+          pSisaHistori = parseFloat((pSisaHistori * 0.9).toFixed(2));
+        }
+
+        formData.Panjang_bahan = pAwalHistori;
+        formData.sisa_panjang_manual = pSisaHistori;
+        formData.sisa_lebar_manual = lSisaHistori > 0 ? lSisaHistori : null;
+        formData.sku_aktif = firstDetail.lprd_barcode || formData.barcode_input;
+        formData.kode_bahan_aktif = firstDetail.lprd_bahan || "";
+
+        // 2. Petakan seluruh baris SPK Detail
         res.details.forEach((d: any) => {
           const detailObj: any = {
-            nomor_spk: d.Nomor_SPK,
-            nama_spk: d.Nama_SPK,
-            panjang_spk: parseFloat(d.Panjang || 0),
-            lebar_spk: parseFloat(d.Lebar || 0),
-            padding: d.Padding || 3,
-            tile: d.Tile || 1,
-            jumlah: parseFloat(d.J_Order || 0),
-            orientasi: d.Orientasi || "lebar",
+            nomor_spk: d.Nomor_SPK || d.lprd_spk_nomor,
+            nama_spk: d.Nama_SPK || d.spk_nama || "",
+            panjang_spk: parseFloat(d.Panjang || d.lprd_panjang || 0),
+            lebar_spk: parseFloat(d.Lebar || d.lprd_lebar || 0),
+            padding: d.Padding || d.lprd_padding || 3,
+            tile: d.Tile || d.lprd_tile || 1,
+            jumlah: parseFloat(d.J_Order || d.lprd_j_order || 0),
+            orientasi: d.Orientasi || d.lprd_orientasi || "lebar",
             sudahcetak: parseFloat(d.Sudah_Cetak_Sebelumnya || 0),
             kurangcetak_asli: parseFloat(d.Kurang_Cetak || 0),
-            totalcetak: parseFloat(d.J_Proof || 0),
+            totalcetak: parseFloat(d.J_Proof || d.lprd_j_proof || 0),
+            lokasi: d.lprd_lokasi || "",
+            jenis_bahan: d.lprd_bahan || "",
+            keterangan: d.lprd_keterangan || "",
           };
+
+          // Load data cetak 1 - 7 jika ada
           for (let i = 1; i <= 7; i++) {
-            detailObj[`cetak${i}`] = d[`cetak${i}`] || 0;
+            detailObj[`cetak${i}`] = parseFloat(d[`cetak${i}`]) || 0;
           }
+
           detailData.value.push(detailObj);
         });
       }
-      recalculateCombine();
+
+      // 3. Picu hitung ulang layout berdasarkan data snapshot yang berhasil di-load
+      nextTick(() => {
+        recalculateCombine();
+      });
     }
   } catch (error) {
+    console.error("Error load data:", error);
     toast.error("Gagal memuat detail data proof lama.");
   } finally {
     isSaving.value = false;
@@ -1048,13 +1104,23 @@ const handleSave = async (statusValue: "DRAFT" | "POSTED" = "DRAFT") => {
   }
 
   isSaving.value = true;
+
   try {
     const currentUser = authStore.user?.kdUser || "SYSTEM";
 
-    // Ambil nilai sisa bahan dan bersihkan dari pecahan float javascript yang kepanjangan
-    const sisaPanjangFinal =
-      formData.sisa_panjang_manual ?? sisaStokOtomatis.value;
+    // --- PERBAIKAN LOGIKA SISA BAHAN (Mencegah Angka 0 Saat Edit) ---
+    let sisaPanjangFinal = sisaStokOtomatis.value;
+
+    if (
+      formData.sisa_panjang_manual !== null &&
+      formData.sisa_panjang_manual !== undefined &&
+      Number(formData.sisa_panjang_manual) > 0
+    ) {
+      sisaPanjangFinal = Number(formData.sisa_panjang_manual);
+    }
+
     const sisaLebarFinal = formData.sisa_lebar_manual ?? formData.Lebar_bahan;
+    // -----------------------------------------------------------------
 
     const payload = {
       header: {
@@ -1063,10 +1129,10 @@ const handleSave = async (statusValue: "DRAFT" | "POSTED" = "DRAFT") => {
         gdgKode: "GPM",
         jenis: formData.jenis,
         shift: formData.shift,
-        operator: formData.operator,
+        operator: formData.operator, // Dikirim sebagai operator
         mesin: formData.mesin,
         barcode_input: formData.barcode_input,
-        keterangan: formData.keterangan || "",
+        keterangan: formData.keterangan, // Dikirim sebagai keterangan riil dari input baru
         user: currentUser,
         panjang_bs: Number(formData.panjang_bs) || 0,
         lebar_bs: Number(formData.lebar_bs) || 0,
@@ -1079,17 +1145,19 @@ const handleSave = async (statusValue: "DRAFT" | "POSTED" = "DRAFT") => {
           lebar: Number(d.lebar_spk) || 0,
           aktual_proof: Number(d.totalcetak) || 0,
           barcode_detail: formData.barcode_input,
-          jenis_bahan: d.nomor_spk, // Menyesuaikan preferensi DB Anda sebelumnya
-          lokasi: d.lokasi || "",
+          jenis_bahan: d.nomor_spk,
+          lokasi: formData.mesin,
           keterangan: d.keterangan || "",
           panjang_roll_awal: Number(formData.Panjang_bahan) || 0,
-          // Batasi 2 angka di belakang koma untuk akurasi meter lari kartu stok
           sisabahan: parseFloat(Number(sisaPanjangFinal).toFixed(2)),
           sisabahanlebar: parseFloat(Number(sisaLebarFinal).toFixed(2)),
         };
+
+        // --- TAMBAHAN BARU: Kirim pecahan data cetak 1 sampai 7 ke backend ---
         for (let i = 1; i <= 7; i++) {
           detailEntry[`cetak${i}`] = Number(d[`cetak${i}`]) || 0;
         }
+
         return detailEntry;
       }),
     };
@@ -1099,14 +1167,9 @@ const handleSave = async (statusValue: "DRAFT" | "POSTED" = "DRAFT") => {
       toast.success(
         "Dokumen LHK Proofing berhasil dibukukan dengan status: " + statusValue,
       );
-
-      // Menggunakan replace atau push, pastikan name 'lhkProofBrowse' sudah didaftarkan di router/index.ts
-      router.push({ name: "LHKProofMMTBrowse" }).catch((err) => {
-        console.error("Gagal navigasi halaman:", err);
-      });
+      router.push({ name: "LHKProofMMTBrowse" });
     }
   } catch (error: any) {
-    // PERBAIKAN LOGIKA ERROR: Agar jika router-nya yang crash, tidak memunculkan toast "Koneksi API gagal"
     if (error.response) {
       toast.error(
         error.response.data?.message ||
@@ -1177,6 +1240,15 @@ const formTitle = computed(() => {
     ? `Edit LHK Proofing: ${formData.nomor}`
     : "Input LHK Proofing Baru";
 });
+
+watch(
+  () => formData.jenis,
+  (newJenis) => {
+    if (formData.barcode_input) {
+      handleBarcodeScan();
+    }
+  },
+);
 
 onMounted(() => {
   const nomorEdit = route.params.nomor;

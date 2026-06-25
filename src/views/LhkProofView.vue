@@ -172,10 +172,24 @@ const filters = reactive({
 
 // --- Table Headers ---
 const masterHeaders = [
-  { title: "Nomor", key: "nomor", width: "150px" },
-  { title: "Tanggal", key: "Tanggal", width: "120px" },
-  { title: "Gudang", key: "Nama_Gudang" },
-  { title: "Jenis", key: "Jenis", width: "100px" },
+  { title: "Nomor LHK", key: "nomor", width: "150px" },
+  { title: "Tanggal", key: "Tanggal", width: "110px" },
+  { title: "Gudang", key: "Nama_Gudang", width: "120px" },
+  { title: "Jenis", key: "Jenis", width: "90px" },
+  { title: "Operator", key: "Operator", width: "110px" },
+
+  // --- TAMBAHAN BARU DI GRID UTAMA ---
+  { title: "Barcode Roll", key: "Barcode_Roll", width: "130px" },
+  { title: "P. Awal", key: "Panjang_Awal", align: "end", width: "90px" },
+  { title: "P. Pakai", key: "Panjang_Terpakai", align: "end", width: "90px" },
+  { title: "P. Sisa", key: "Sisa_Bahan", align: "end", width: "90px" },
+  {
+    title: "Total J_Meter",
+    key: "Total_J_Meter",
+    align: "end",
+    width: "110px",
+  },
+
   { title: "Keterangan", key: "Keterangan" },
 ];
 
@@ -248,7 +262,7 @@ const handleCreate = () => {
 const handleEdit = () => {
   if (!selectedItem.value) return;
   router.push({
-    name: "lhkProofMMTEdit",
+    name: "LHKProofMMTEdit",
     params: { nomor: selectedItem.value },
   });
 };
