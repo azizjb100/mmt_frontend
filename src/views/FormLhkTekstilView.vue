@@ -338,12 +338,22 @@
                           >
                           <!-- Menampilkan dual satuan: Meter dan Yard -->
                           <div
-                            class="text-h6 text-success font-weight-black lh-1"
+                            class="text-h6 font-weight-black lh-1"
+                            :class="
+                              sisaStokOtomatisM < 0
+                                ? 'text-red'
+                                : 'text-success'
+                            "
                           >
                             {{ sisaStokOtomatisM.toFixed(2) }} M
                           </div>
                           <div
-                            class="text-caption text-orange-darken-3 font-weight-bold mb-1"
+                            class="text-caption font-weight-bold mb-1"
+                            :class="
+                              sisaStokOtomatisM < 0
+                                ? 'text-red-darken-3'
+                                : 'text-orange-darken-3'
+                            "
                           >
                             (= {{ sisaStokOtomatisYrd.toFixed(2) }} Yrd)
                           </div>
@@ -597,11 +607,12 @@ const panjangBhanDalamMeter = computed(() => {
 
 // Sisa Stok Otomatis (Meter) = Panjang Bahan (Meter) - Total Terpakai Layout (Meter) - Panjang BS (Meter)
 const sisaStokOtomatisM = computed(() => {
-  const sisa =
+  // Biarkan nilai minus keluar apa adanya
+  return (
     panjangBhanDalamMeter.value -
     totalPanjangTerpakai.value -
-    (formData.panjang_bs || 0);
-  return sisa < 0 ? 0 : sisa;
+    (formData.panjang_bs || 0)
+  );
 });
 
 // Sisa Stok Otomatis Konversi balik ke Yard (1 Meter = 1 / 0.9 Yard)
@@ -613,10 +624,7 @@ const isFormValid = computed(() => {
   return (
     detailData.value.length > 0 &&
     formData.brg_kode !== "" &&
-    panjangBhanDalamMeter.value -
-      totalPanjangTerpakai.value -
-      (formData.panjang_bs || 0) >=
-      0 &&
+    // Batasan dihilangkan agar form tetap valid meskipun pemakaian minus
     detailData.value.every((d) => d.totalcetak > 0)
   );
 });
@@ -1051,8 +1059,8 @@ const handleSave = async (status: string) => {
 
         // Mengirim data ambil bahan dari header ke tiap baris detail
         ltd_ambil_bahan: parseFloat(formData.panjang_bahan || 0),
-
         sisabahan: sisaFinalYard,
+
         cetak_1: parseInt(d.cetak1 || 0),
         cetak_2: parseInt(d.cetak2 || 0),
         cetak_3: parseInt(d.cetak3 || 0),
