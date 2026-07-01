@@ -16,7 +16,6 @@ const loading = ref(true);
 const loadingDetails = ref(new Set<string>());
 const selected = ref([]);
 const expanded = ref([]);
-
 const startDate = ref(format(subDays(new Date(), 30), "yyyy-MM-dd"));
 const endDate = ref(format(new Date(), "yyyy-MM-dd"));
 
