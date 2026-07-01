@@ -229,6 +229,20 @@
               </div>
             </template>
 
+            <template #[`item.jumlah_bs`]="{ item }">
+              <div class="cell-yellow h-100 d-flex align-center">
+                <v-text-field
+                  v-model.number="item.jumlah_bs"
+                  type="number"
+                  variant="plain"
+                  density="compact"
+                  hide-details
+                  class="table-input-inline text-end font-weight-bold text-red-darken-2"
+                  @input="calculateMeter(item)"
+                />
+              </div>
+            </template>
+
             <template #[`item.lokasi`]="{ item, index }">
               <div class="cell-yellow h-100">
                 <v-text-field
@@ -324,17 +338,19 @@ const formData = reactive({
   gdgNama: "GUDANG PRODUKSI MMT",
 });
 
+// 🌟 MENAMBAHKAN HEADERS INPUT BS 🌟
 const detailHeaders = [
   { title: "No", key: "no", width: "40px", align: "center" },
   { title: "PO Internal", key: "poi_nomor", width: "140px" },
   { title: "Size", key: "poi_size", width: "80px" },
-  { title: "Komponen", key: "nama_komponen", width: "140px" }, // Tetap mengunci field tabel
+  { title: "Komponen", key: "nama_komponen", width: "140px" },
   { title: "No. SPK", key: "spk_nomor", width: "140px" },
   { title: "Nama Order", key: "spk_nama", width: "200px" },
   { title: "Panjang", key: "panjang", width: "80px", align: "end" },
   { title: "Lebar", key: "lebar", width: "80px", align: "end" },
   { title: "Order", key: "qty_order", width: "70px", align: "end" },
   { title: "Jml RTR", key: "jumlah_rtr", width: "90px", align: "end" },
+  { title: "Jml BS", key: "jumlah_bs", width: "90px", align: "end" }, // <-- Kolom baru BS
   { title: "Total m²", key: "jumlah_meter", width: "100px", align: "end" },
   { title: "Lokasi/Mesin", key: "lokasi", width: "120px" },
   { title: "", key: "actions", width: "50px" },
@@ -362,11 +378,12 @@ const handleSave = async () => {
         lebar: item.lebar,
         j_order: item.qty_order,
         jumlah_rtr: item.jumlah_rtr,
+        jumlah_bs: item.jumlah_bs, // 🌟 Mengirim data BS ke backend
         lokasi: item.lokasi,
         jenis_bahan: item.jenis_bahan,
         poi_nomor: item.poi_nomor,
         poi_size: item.poi_size,
-        nama_komponen: item.nama_komponen, // Pastikan field komponen terkirim ke backend
+        nama_komponen: item.nama_komponen,
       })),
     };
     await api.post("/mmt/lhk-rtr", payload);
@@ -379,6 +396,7 @@ const handleSave = async () => {
   }
 };
 
+// 🌟 MODIFIKASI KALKULASI METER 🌟
 const calculateMeter = (item: any) => {
   if (
     item.jumlah_rtr === "" ||
@@ -387,14 +405,25 @@ const calculateMeter = (item: any) => {
   ) {
     item.jumlah_rtr = 0;
   }
+  if (
+    item.jumlah_bs === "" ||
+    item.jumlah_bs === null ||
+    item.jumlah_bs === undefined
+  ) {
+    item.jumlah_bs = 0;
+  }
+
   const p = parseFloat(item.panjang) || 0;
   const l = parseFloat(item.lebar) || 0;
-  const qty = parseFloat(item.jumlah_rtr) || 0;
-  item.jumlah_meter = p * l * qty;
+  const qtyRtr = parseFloat(item.jumlah_rtr) || 0;
+  const qtyBs = parseFloat(item.jumlah_bs) || 0;
 
-  if (item.qty_order !== undefined && qty > item.qty_order) {
+  // Asumsi Total m² dihitung dari (RTR + BS) dikali P x L bahan yang terpakai
+  item.jumlah_meter = p * l * (qtyRtr + qtyBs);
+
+  if (item.qty_order !== undefined && qtyRtr > item.qty_order) {
     toast.warning(
-      `Peringatan: Hasil RTR ${item.spk_nomor || item.poi_nomor} (${qty}) melebihi kuantitas order (${item.qty_order})!`,
+      `Peringatan: Hasil RTR ${item.spk_nomor || item.poi_nomor} (${qtyRtr}) melebihi kuantitas order (${item.qty_order})!`,
     );
   }
 };
@@ -409,19 +438,14 @@ const openPoiSearchRow = (idx: number) => {
   lookup.poi = true;
 };
 
-// --- LOGIKA UTAMA PERBAIKAN: Menggabungkan Set menjadi "ALL SET" ---
 const handlePoiSelect = async (payload) => {
   const { mode, data } = payload;
 
   if (!data || data.length === 0) return;
 
   if (mode === "SET") {
-    // --- MODE PER SET (ALL SET) ---
-    // Kita hanya mengambil 1 baris contoh dari data komponen (misal indeks ke-0)
-    // agar data tidak pecah menjadi 3 baris di dalam grid detail.
     const masterPoi = data[0];
 
-    // Validasi Duplikasi: Gunakan 'ALL_SET' sebagai jangkar pencarian duplikat
     const isExist = detailData.value.some(
       (row) =>
         row.poi_nomor === masterPoi.poi_nomor &&
@@ -439,16 +463,17 @@ const handlePoiSelect = async (payload) => {
     const newRow = {
       poi_nomor: masterPoi.poi_nomor,
       poi_size: masterPoi.poid_size || "",
-      nama_komponen: "ALL SET", // 🌟 Dipaksa menjadi satu kesatuan ALL SET
+      nama_komponen: "ALL SET",
       spk_nomor: masterPoi.poi_spk_nomor,
       spk_nama: masterPoi.spk_nama || "",
       panjang: parseFloat(masterPoi.spk_panjang) || 0,
       lebar: parseFloat(masterPoi.spk_lebar) || 0,
-      qty_order: parseFloat(masterPoi.poid_jumlah) || 0, // Jumlah total order set tersebut
+      qty_order: parseFloat(masterPoi.poid_jumlah) || 0,
       jumlah_rtr: 1,
+      jumlah_bs: 0, // 🌟 Default value
       jumlah_meter: 0,
       lokasi: "",
-      jenis_bahan: "ALL_SET", // Sebagai penanda tipe baris di database
+      jenis_bahan: "ALL_SET",
     };
 
     calculateMeter(newRow);
@@ -462,11 +487,8 @@ const handlePoiSelect = async (payload) => {
       };
     }
   } else {
-    // --- MODE PER KOMPONEN ---
-    // Menerima murni 1 data komponen tunggal hasil pilihan sub-lookup pop-up kedua
     const poi = data[0];
 
-    // Validasi Duplikasi berdasarkan Kombinasi PO + Size + Kode Bahan unik komponen
     const isExist = detailData.value.some(
       (row) =>
         row.poi_nomor === poi.poi_nomor &&
@@ -484,13 +506,14 @@ const handlePoiSelect = async (payload) => {
     const newRow = {
       poi_nomor: poi.poi_nomor,
       poi_size: poi.poid_size || "",
-      nama_komponen: poi.nama_komponen || "", // 🌟 Hanya menampilkan 1 komponen spesifik (misal: BADAN DEPAN)
+      nama_komponen: poi.nama_komponen || "",
       spk_nomor: poi.poi_spk_nomor,
       spk_nama: poi.spk_nama || "",
       panjang: parseFloat(poi.spk_panjang) || 0,
       lebar: parseFloat(poi.spk_lebar) || 0,
       qty_order: parseFloat(poi.sisa_qty ?? poi.poid_jumlah) || 0,
       jumlah_rtr: 1,
+      jumlah_bs: 0, // 🌟 Default value
       jumlah_meter: 0,
       lokasi: "",
       jenis_bahan: poi.poid_bhn_kode || "",
@@ -508,7 +531,7 @@ const handlePoiSelect = async (payload) => {
     }
   }
 
-  lookup.poi = false; // Tutup modal setelah data berhasil dipilih
+  lookup.poi = false;
 };
 
 const openSpkSearchRow = (idx: number) => {
@@ -529,8 +552,9 @@ const handleSpkSelect = (spk: any) => {
     lebar: parseFloat(spk.Lebar) || 0,
     qty_order: parseFloat(spk.Jumlah) || 0,
     jumlah_rtr: 1,
+    jumlah_bs: 0, // 🌟 Default value
     jenis_bahan: spk.Bahan,
-    nama_komponen: "", // Kosongkan jika murni input SPK manual tanpa POI
+    nama_komponen: "",
   };
 
   if (activeRowIdx.value === -1) {
@@ -568,10 +592,11 @@ const loadDataAll = async (nomor: string) => {
         lebar: parseFloat(d.Lebar) || 0,
         qty_order: parseFloat(d.J_Order) || 0,
         jumlah_rtr: parseFloat(d.Jumlah) || 0,
+        jumlah_bs: parseFloat(d.Jumlah_bs) || 0, // 🌟 Ambil data BS dari backend saat edit
         jumlah_meter: parseFloat(d.Jumlah_meter) || 0,
         poi_nomor: d.No_PO_Internal,
         poi_size: d.Size,
-        nama_komponen: d.Nama_Komponen || "", // Mapping data lama yang tersimpan saat edit data
+        nama_komponen: d.Nama_Komponen || "",
         lokasi: d.Lokasi || "",
         jenis_bahan: d.Jenis_Bahan || "",
       }));
@@ -615,6 +640,7 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+/* Style bawaan Anda dipertahankan sepenuhnya */
 .mode-selection :deep(.v-selection-control-group) {
   flex-direction: row !important;
 }

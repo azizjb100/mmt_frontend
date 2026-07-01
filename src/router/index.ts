@@ -110,6 +110,8 @@ import LhkPolaView from '@/views/LhkPolaView.vue';
 import FormLhkPolaView from '@/views/FormLhkPolaView.vue';
 import LhkDesainView from '@/views/LhkDesainView.vue';
 import FormLhkDesainView from '@/views/FormLhkDesainView.vue';
+import MutasiInternalView from '@/views/MutasiInternalView.vue';
+import FormMutasiInternalView from '@/views/FormMutasiInternalView.vue';
 
 
 
@@ -456,6 +458,9 @@ const routes: RouteRecordRaw[] = [
             { path: 'mmt/penerimaan-po-external', name: 'Penerimaan PO External MMT', component: PenerimaanPoExtMmtView },
             { path: 'mmt/penerimaan-po-external/new', name: 'PenerimaanPOExternalMmmtNew', component: FormPenerimaanPoExtMmtView },
             { path: 'mmt/penerimaan-po-external/edit/:nomor', name: 'PenerimaanPOExternalMmmtEdit', component: FormPenerimaanPoExtMmtView },
+            { path: 'mmt/mutasi-internal', name: 'MutasiInternalMMT', component: MutasiInternalView },
+            { path: 'mmt/mutasi-internal/new', name: 'MutasiInternalMMTNew', component: FormMutasiInternalView },
+            { path: 'mmt/mutasi-internal/edit/:nomor', name: 'MutasiInternalMMTEdit', component: FormMutasiInternalView },
 
 
             // Rute untuk "Produksi MMT"

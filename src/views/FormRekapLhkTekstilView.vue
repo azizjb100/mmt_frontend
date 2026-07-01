@@ -565,7 +565,7 @@ const handleSave = async (status = "APPROVE") => {
         nomor: isEditMode.value ? formData.nomor : "AUTO",
         tanggal: formData.tanggal,
         shift: Number(formData.shift) || 1,
-        admin: formData.admin || authStore.user?.name || "ADMIN",
+        admin: formData.admin || authStore.user?.kdUser || "ADMIN",
         gdgKode: formData.gdg_kode || "G01",
         lstatus: status,
       },

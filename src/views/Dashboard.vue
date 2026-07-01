@@ -6,20 +6,20 @@
       @click="isMobileMenuOpen = false"
     ></div>
 
-    <nav class="top-navbar shadow-sm">
+    <nav class="top-navbar" :class="{ 'scrolled-navbar': isScrolled }">
       <div class="navbar-left">
         <button
           class="mobile-toggle"
           @click="isMobileMenuOpen = !isMobileMenuOpen"
         >
-          <span
-            class="mdi"
-            :class="isMobileMenuOpen ? 'mdi-close' : 'mdi-menu'"
-          ></span>
+          <component
+            :is="isMobileMenuOpen ? IconX : IconMenu2"
+            class="nav-icon"
+          />
         </button>
 
         <router-link to="/" class="navbar-brand" @click="closeAllMenus">
-          <span class="brand-icon mdi mdi-speedometer"></span>
+          <img :src="logoSrc" alt="Logo" class="brand-logo" v-if="logoSrc" />
           <span class="font-heading">MMT App</span>
         </router-link>
       </div>
@@ -32,8 +32,14 @@
           :class="{ 'is-active': activeMenu === group.name }"
         >
           <a class="dropdown-toggle" @click.prevent="toggleMenu(group.name)">
-            {{ group.name }}
-            <span class="mdi mdi-chevron-down hide-desktop"></span>
+            <span class="menu-title-wrapper">
+              <component
+                :is="getGroupIcon(group.name)"
+                class="menu-icon hide-mobile"
+              />
+              {{ group.name }}
+            </span>
+            <component :is="IconChevronDown" class="arrow-icon" />
           </a>
 
           <ul class="dropdown-menu shadow-md">
@@ -52,21 +58,30 @@
                   @mouseenter="activeSubMenu = item.name"
                   @click.prevent.stop="toggleSubMenu(item.name)"
                 >
-                  {{ item.name }}
-                  <span
-                    class="icon-arrow"
-                    :class="{ rotate: activeSubMenu === item.name }"
-                    >»</span
-                  >
+                  <span class="menu-title-wrapper">
+                    <component
+                      :is="getItemIcon(item.name)"
+                      class="sub-menu-icon"
+                    />
+                    {{ item.name }}
+                  </span>
+                  <span class="icon-arrow">»</span>
                 </a>
 
                 <span v-else class="disabled-link">
-                  {{ item.name }} <span class="mdi mdi-lock-outline"></span>
+                  <span class="menu-title-wrapper">
+                    <component
+                      :is="getItemIcon(item.name)"
+                      class="sub-menu-icon"
+                    />
+                    {{ item.name }}
+                  </span>
+                  <component :is="IconLock" class="lock-icon" />
                 </span>
 
                 <ul
                   v-if="!item.isDisabled && activeSubMenu === item.name"
-                  class="sub-menu-popup shadow-md is-visible"
+                  class="sub-menu-popup shadow-md"
                   @mouseleave="activeSubMenu = null"
                 >
                   <li
@@ -81,13 +96,25 @@
                         class="sub-dropdown-toggle level-4-toggle"
                         @mouseenter="activeSubLevel4 = subItem.name"
                       >
-                        {{ subItem.name }}
+                        <span class="menu-title-wrapper">
+                          <component
+                            :is="getItemIcon(subItem.name)"
+                            class="sub-menu-icon"
+                          />
+                          {{ subItem.name }}
+                        </span>
                         <span class="icon-arrow">»</span>
                       </a>
 
                       <span v-else class="disabled-link">
-                        {{ subItem.name }}
-                        <span class="mdi mdi-lock-outline"></span>
+                        <span class="menu-title-wrapper">
+                          <component
+                            :is="getItemIcon(subItem.name)"
+                            class="sub-menu-icon"
+                          />
+                          {{ subItem.name }}
+                        </span>
+                        <component :is="IconLock" class="lock-icon" />
                       </span>
 
                       <ul
@@ -106,14 +133,26 @@
                         >
                           <router-link
                             v-if="!deepItem.isDisabled"
-                            :to="deepItem.path"
+                            :to="deepItem.path || '#'"
                             @click="closeAllMenus"
                           >
-                            {{ deepItem.name }}
+                            <span class="menu-title-wrapper">
+                              <component
+                                :is="getItemIcon(deepItem.name)"
+                                class="sub-menu-icon"
+                              />
+                              {{ deepItem.name }}
+                            </span>
                           </router-link>
                           <span v-else class="disabled-link">
-                            {{ deepItem.name }}
-                            <span class="mdi mdi-lock-outline"></span>
+                            <span class="menu-title-wrapper">
+                              <component
+                                :is="getItemIcon(deepItem.name)"
+                                class="sub-menu-icon"
+                              />
+                              {{ deepItem.name }}
+                            </span>
+                            <component :is="IconLock" class="lock-icon" />
                           </span>
                         </li>
                       </ul>
@@ -122,14 +161,26 @@
                     <template v-else>
                       <router-link
                         v-if="!subItem.isDisabled"
-                        :to="subItem.path"
+                        :to="subItem.path || '#'"
                         @click="closeAllMenus"
                       >
-                        {{ subItem.name }}
+                        <span class="menu-title-wrapper">
+                          <component
+                            :is="getItemIcon(subItem.name)"
+                            class="sub-menu-icon"
+                          />
+                          {{ subItem.name }}
+                        </span>
                       </router-link>
                       <span v-else class="disabled-link">
-                        {{ subItem.name }}
-                        <span class="mdi mdi-lock-outline"></span>
+                        <span class="menu-title-wrapper">
+                          <component
+                            :is="getItemIcon(subItem.name)"
+                            class="sub-menu-icon"
+                          />
+                          {{ subItem.name }}
+                        </span>
+                        <component :is="IconLock" class="lock-icon" />
                       </span>
                     </template>
                   </li>
@@ -139,13 +190,26 @@
               <li v-else :class="{ 'item-disabled': item.isDisabled }">
                 <router-link
                   v-if="!item.isDisabled"
-                  :to="item.path"
+                  :to="item.path || '#'"
                   @click="closeAllMenus"
                 >
-                  {{ item.name }}
+                  <span class="menu-title-wrapper">
+                    <component
+                      :is="getItemIcon(item.name)"
+                      class="sub-menu-icon"
+                    />
+                    {{ item.name }}
+                  </span>
                 </router-link>
                 <span v-else class="disabled-link">
-                  {{ item.name }} <span class="mdi mdi-lock-outline"></span>
+                  <span class="menu-title-wrapper">
+                    <component
+                      :is="getItemIcon(item.name)"
+                      class="sub-menu-icon"
+                    />
+                    {{ item.name }}
+                  </span>
+                  <component :is="IconLock" class="lock-icon" />
                 </span>
               </li>
             </template>
@@ -154,12 +218,21 @@
       </ul>
 
       <div class="navbar-user">
-        <span class="user-welcome hide-mobile">
-          Selamat datang,
-          <b class="font-semibold">{{ currentUser?.nmUser || "UserAdmin" }}</b>
-        </span>
+        <div
+          class="user-profile-badge hide-mobile"
+          :class="userRoleConfig.color"
+        >
+          <component :is="userRoleConfig.icon" class="role-icon" />
+          <span class="user-welcome">
+            Selamat datang,
+            <b class="font-semibold">{{
+              currentUser?.nmUser || "UserAdmin"
+            }}</b>
+          </span>
+        </div>
+
         <button @click="handleLogout" class="logout-button">
-          <span class="mdi mdi-logout hide-desktop"></span>
+          <component :is="IconLogout" class="logout-icon" />
           <span class="hide-mobile">Logout</span>
         </button>
       </div>
@@ -177,16 +250,50 @@
 import { ref, computed, onMounted, onUnmounted } from "vue";
 import { useRouter } from "vue-router";
 import { useAuthStore } from "@/stores/authStore";
+// Ganti dengan path logo Anda
+
+// Import Paket Tabler Icons
+import {
+  IconMenu2,
+  IconX,
+  IconChevronDown,
+  IconLogout,
+  IconLock,
+  IconShield,
+  IconSpeakerphone,
+  IconBuildingWarehouse,
+  IconTie,
+  IconFolder,
+  IconLayoutList,
+  IconSettings,
+  IconReport,
+  IconShoppingCart,
+  IconTexture,
+  IconDeviceDesktopAnalytics,
+  IconShirt,
+  IconReceipt,
+  IconFileText,
+  IconTool,
+  IconFlask,
+  IconUsers,
+} from "@tabler/icons-vue";
 
 const authStore = useAuthStore();
 const currentUser = authStore.user;
 const router = useRouter();
 
-// State Navigasi
+// State Navigasi UI
 const isMobileMenuOpen = ref(false);
-const activeMenu = ref<string | null>(null); // Level 1: File, Daftar, Laporan, dll
-const activeSubMenu = ref<string | null>(null); // Level 2 & 3
-const activeSubLevel4 = ref<string | null>(null); // Level 4 khusus sub-monitoring MMT
+const activeMenu = ref<string | null>(null);
+const activeSubMenu = ref<string | null>(null);
+const activeSubLevel4 = ref<string | null>(null);
+const scrolled = ref(false);
+
+const isScrolled = computed(() => scrolled.value);
+
+const handleScroll = () => {
+  scrolled.value = window.scrollY > 10;
+};
 
 // Fungsi Logout
 const handleLogout = () => {
@@ -195,7 +302,6 @@ const handleLogout = () => {
 };
 
 // --- LOGIC TOGGLE MENU ---
-
 const toggleMenu = (menuName: string) => {
   if (activeMenu.value !== menuName) {
     activeSubMenu.value = null;
@@ -228,15 +334,63 @@ const handleClickOutside = (e: MouseEvent) => {
 };
 
 onMounted(() => {
+  window.addEventListener("scroll", handleScroll);
   window.addEventListener("click", handleClickOutside);
 });
 
 onUnmounted(() => {
+  window.removeEventListener("scroll", handleScroll);
   window.removeEventListener("click", handleClickOutside);
 });
 
-// --- DATA & PERMISSIONS ---
+// --- ICON RESOLVER MAPPING ---
+const getGroupIcon = (name: string) => {
+  switch (name) {
+    case "File":
+      return IconFolder;
+    case "Daftar":
+      return IconLayoutList;
+    case "Transaksi":
+      return IconShoppingCart;
+    case "Laporan":
+      return IconReport;
+    default:
+      return IconSettings;
+  }
+};
 
+const getItemIcon = (name: string) => {
+  if (name.includes("Bahan")) return IconTexture;
+  if (name.includes("LHK") || name.includes("SPK")) return IconFileText;
+  if (name.includes("Lap.") || name.includes("Laporan"))
+    return IconDeviceDesktopAnalytics;
+  if (name.includes("Garmen") || name.includes("Tekstil")) return IconShirt;
+  if (name.includes("Finance") || name.includes("Invoice")) return IconReceipt;
+  if (name.includes("Spare Part")) return IconTool;
+  if (name.includes("Obat")) return IconFlask;
+  if (
+    name.includes("User") ||
+    name.includes("Operator") ||
+    name.includes("Supplier")
+  )
+    return IconUsers;
+  return IconSettings;
+};
+
+// --- ROLE VISUAL THEME VARIATIONS ---
+const userRoleConfig = computed(() => {
+  const name = currentUser?.nmUser?.toUpperCase() || "";
+  const bagian = currentUser?.bagian?.toUpperCase() || "";
+  if (name.includes("ADMIN") || name === "DEVELOPER")
+    return { icon: IconShield, color: "role-admin" };
+  if (bagian === "MARKETING")
+    return { icon: IconSpeakerphone, color: "role-marketing" };
+  if (bagian.includes("GUDANG"))
+    return { icon: IconBuildingWarehouse, color: "role-warehouse" };
+  return { icon: IconTie, color: "role-default" };
+});
+
+// --- DATA LOGIC & PERMISSIONS (ASLI ANDA) ---
 const rolePermissions = {
   1: [
     "Daftar",
@@ -253,16 +407,14 @@ const rolePermissions = {
     "STBJ",
     "Jadwal Kirim",
     "LHK",
-    // --- Perubahan & Penambahan Sub-Menu LHK di bawah ini ---
-    "LHK Cetak (Mesin)", // Disamakan dengan allMenuGroups
-    "LHK Approval Cetak", // Ditambahkan
-    "LHK Tekstil", // Sudah cocok
-    "LHK Approval Tekstil", // Ditambahkan
-    "LHK Finishing", // Ditambahkan
-    "LHK Proof", // Ditambahkan
-    "LHK Paperprint", // Ditambahkan
-    "LHK Sublim", // Ditambahkan
-    // --------------------------------------------------------
+    "LHK Cetak (Mesin)",
+    "LHK Approval Cetak",
+    "LHK Tekstil",
+    "LHK Approval Tekstil",
+    "LHK Finishing",
+    "LHK Proof",
+    "LHK Paperprint",
+    "LHK Sublim",
     "Laporan",
     "Produksi MMT",
     "Stok & Bahan MMT",
@@ -293,7 +445,6 @@ const rolePermissions = {
     "Stok Opname",
     "Koreksi Stok",
     "LHK",
-    // --- Sesuaikan juga untuk Role 4 jika mereka berhak melihatnya ---
     "LHK Cetak (Mesin)",
     "LHK Approval Cetak",
     "LHK Tekstil",
@@ -302,7 +453,6 @@ const rolePermissions = {
     "LHK Proof",
     "LHK Sublim",
     "LHK RTR",
-    // -----------------------------------------------------------------
     "Laporan",
     "Produksi MMT",
     "Stok & Bahan MMT",
@@ -365,17 +515,24 @@ const allMenuGroups = [
         ],
       },
       {
-        name: "Daftar Permintaan Pembelian",
-        path: "/mmt/pengajuan-permintaan",
+        name: "Bahan Baku & Produksi",
+        isSubGroup: true,
+        items: [
+          {
+            name: "Daftar Permintaan Pembelian",
+            path: "/mmt/pengajuan-permintaan",
+          },
+          { name: "Purchase Request (PR)", path: "/mmt/permintaan-bahan" },
+          { name: "Penerimaan Bahan", path: "/mmt/penerimaan-bahan" },
+          { name: "Retur Produksi", path: "/mmt/retur-produksi" },
+          { name: "Mutasi Bahan", path: "/mmt/mutasi-gudang" },
+          { name: "Koreksi Stok", path: "/mmt/koreksi-stok" },
+          { name: "Stok Opname", path: "/mmt/stok-opname" },
+          { name: "Permintaan Produksi", path: "/mmt/permintaan-produksi" },
+          { name: "Realisasi Produksi", path: "/mmt/realisasi-produksi" },
+        ],
       },
-      { name: "Purchase Request (PR)", path: "/mmt/permintaan-bahan" },
-      { name: "Penerimaan Bahan", path: "/mmt/penerimaan-bahan" },
-      { name: "Retur Produksi", path: "/mmt/retur-produksi" },
-      { name: "Mutasi Bahan", path: "/mmt/mutasi-gudang" },
-      { name: "Koreksi Stok", path: "/mmt/koreksi-stok" },
-      { name: "Stok Opname", path: "/mmt/stok-opname" },
-      { name: "Permintaan Produksi", path: "/mmt/permintaan-produksi" },
-      { name: "Realisasi Produksi", path: "/mmt/realisasi-produksi" },
+
       { name: "Planning Produksi", path: "/mmt/planning-produksi" },
       { name: "Surat Perintah Kerja (SPK)", path: "/mmt/spk" },
       { name: "BS & Sisa Digital Print", path: "/mmt/bs-digital" },
@@ -502,7 +659,6 @@ const allMenuGroups = [
                 name: "Lap. Monitoring Kurang Produksi MMT",
                 path: "/laporan/mmt/lap-mon-lmkp-mmt",
               },
-
               { name: "Lap. Mon Cetak", path: "/laporan/mmt/lap-mon-cetak" },
               {
                 name: "Lap. Mon Finishing",
@@ -517,24 +673,13 @@ const allMenuGroups = [
             ],
           },
           { name: "LS Bahan Utama", path: "/laporan/mmt/ls-bahan-utama" },
-          {
-            name: "LS Bahan Penolong",
-            path: "/laporan/mmt/ls-bahan-penolong",
-          },
-          // {
-          //   name: "Kartu Stok Produksi",
-          //   path: "/laporan/mmt/kartu-stok-produksi",
-          // },
+          { name: "LS Bahan Penolong", path: "/laporan/mmt/ls-bahan-penolong" },
           {
             name: "Lap. Pemakaian Bahan",
             path: "/laporan/mmt/lap-pemakaian-bahan",
           },
           { name: "Laporan SPK MMT", path: "/laporan/mmt/lap-spk-mmt" },
           { name: "Laporan LHK", path: "/laporan/mmt/lap-lhk" },
-          // {
-          //   name: "Lap. BS & Sisa Digital Printing",
-          //   path: "/laporan/mmt/stok-jadi",
-          // },
         ],
       },
       {
@@ -571,7 +716,6 @@ const menuGroups = computed(() => {
 
         if (item.isSubGroup && item.items) {
           item.items = item.items.map((subItem: any) => {
-            // Cek jika Level 3 juga merupakan sub-group (Level 4)
             if (subItem.isSubGroup && subItem.items) {
               subItem.items = subItem.items.map((deepItem: any) => ({
                 ...deepItem,
@@ -606,19 +750,19 @@ const menuGroups = computed(() => {
 </script>
 
 <style scoped>
-/* 1. THEME VARIABLES */
+/* Style tetap persis seperti sebelumnya (Desain navbar modern kode kedua) */
 .dashboard-layout-top {
   --color-primary: #1e78c8;
   --color-primary-dark: #155a9b;
   --color-primary-light: #f0f7ff;
   --color-text-main: #334155;
-  --color-text-muted: #94a3b8;
+  --color-text-muted: #64748b;
   --color-border: #e2e8f0;
   --color-danger: #ef4444;
   --color-danger-bg: #fef2f2;
-  --radius-md: 8px;
-  --transition: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  --navbar-height: 64px;
+  --radius-md: 10px;
+  --transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  --navbar-height: 68px;
 
   display: flex;
   flex-direction: column;
@@ -628,17 +772,22 @@ const menuGroups = computed(() => {
   background-color: #f8fafc;
 }
 
-/* 2. TOP NAVBAR */
 .top-navbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
   background-color: white;
-  padding: 0 24px;
+  padding: 0 28px;
   height: var(--navbar-height);
   border-bottom: 1px solid var(--color-border);
   z-index: 1100;
   flex-shrink: 0;
+  transition: var(--transition);
+}
+
+.top-navbar.scrolled-navbar {
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.08);
+  border-bottom-color: transparent;
 }
 
 .navbar-left {
@@ -647,25 +796,31 @@ const menuGroups = computed(() => {
   gap: 16px;
 }
 
+.brand-logo {
+  height: 32px;
+  width: auto;
+  object-fit: contain;
+}
+
 .navbar-brand {
   color: var(--color-primary-dark);
   font-family: "Poppins", sans-serif;
   font-weight: 700;
-  font-size: 1.25rem;
+  font-size: 1.35rem;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
+  text-decoration: none;
 }
 
-/* 3. NAVIGATION MENU (DESKTOP) */
 .navbar-menu {
   display: flex;
   list-style: none;
   margin: 0;
-  padding: 0 0 0 30px;
+  padding: 0 0 0 40px;
   height: 100%;
   flex-grow: 1;
-  gap: 4px;
+  gap: 6px;
 }
 
 .dropdown {
@@ -676,14 +831,22 @@ const menuGroups = computed(() => {
 .dropdown-toggle {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   height: 100%;
   padding: 0 16px;
   color: var(--color-text-main);
   font-weight: 600;
-  font-size: 0.9rem;
+  font-size: 0.925rem;
   text-decoration: none;
   transition: var(--transition);
   cursor: pointer;
+  gap: 8px;
+}
+
+.menu-title-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .dropdown-toggle:hover,
@@ -692,22 +855,38 @@ const menuGroups = computed(() => {
   color: var(--color-primary);
 }
 
-/* 4. DROPDOWN CONTENT (LEVEL 2) */
+.nav-icon,
+.menu-icon,
+.sub-menu-icon {
+  width: 18px;
+  height: 18px;
+  stroke-width: 2;
+}
+
+.arrow-icon {
+  width: 16px;
+  height: 16px;
+  transition: transform 0.2s ease;
+}
+
+.dropdown.is-active .arrow-icon {
+  transform: rotate(180deg);
+}
+
 .dropdown-menu {
-  display: block;
   visibility: hidden;
   opacity: 0;
   position: absolute;
   top: 100%;
   left: 0;
-  background-color: white !important;
-  min-width: 240px;
+  background-color: white;
+  min-width: 250px;
   padding: 8px;
   border: 1px solid var(--color-border);
   border-radius: 0 0 var(--radius-md) var(--radius-md);
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.12);
-  transform: translateY(10px);
-  transition: all 0.2s ease;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
+  transform: translateY(8px);
+  transition: var(--transition);
   z-index: 1200;
 }
 
@@ -723,12 +902,12 @@ const menuGroups = computed(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 5px 5px;
+  padding: 8px 12px;
   color: var(--color-text-main);
   text-decoration: none;
   font-size: 0.875rem;
   font-weight: 500;
-  border-radius: 6px;
+  border-radius: 8px;
   transition: var(--transition);
   cursor: pointer;
 }
@@ -739,7 +918,6 @@ const menuGroups = computed(() => {
   color: white !important;
 }
 
-/* 5. SUB-MENU (LEVEL 3) */
 .sub-dropdown {
   position: relative;
 }
@@ -747,45 +925,32 @@ const menuGroups = computed(() => {
 .sub-menu-popup {
   position: absolute;
   left: 100%;
-  top: -8px;
+  top: -6px;
   min-width: 260px;
-  margin-left: 6px;
+  margin-left: 8px;
   padding: 6px;
-  background-color: white !important;
+  background-color: white;
   z-index: 1300;
   list-style: none;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
-  box-shadow: 10px 10px 30px rgba(0, 0, 0, 0.18);
-}
-
-.card-item {
-  background-color: white;
-  margin-bottom: 2px;
-}
-
-.card-item:last-child {
-  margin-bottom: 0;
+  box-shadow: 6px 6px 25px rgba(15, 23, 42, 0.12);
 }
 
 .card-item a {
-  display: block !important;
-  padding: 5px 12px !important;
-  background-color: white !important;
+  display: flex !important;
+  align-items: center;
+  padding: 8px 14px !important;
   color: var(--color-text-main) !important;
+  background-color: transparent !important;
   font-weight: 500;
   border-radius: 6px;
-  transition: all 0.2s;
+  transition: var(--transition);
 }
 
 .card-item a:hover {
   background-color: var(--color-primary-light) !important;
   color: var(--color-primary) !important;
-}
-
-/* 6. SUB-MENU BARU (LEVEL 4) */
-.card-item.dynamic-sub {
-  position: relative;
 }
 
 .level-4-toggle {
@@ -799,56 +964,134 @@ const menuGroups = computed(() => {
   position: absolute;
   left: 100%;
   top: -6px;
-  margin-left: 6px;
+  margin-left: 8px;
   z-index: 1400;
 }
 
-/* 7. DISABLED & LOCK */
 .item-disabled {
   pointer-events: none;
-  opacity: 0.5;
+  opacity: 0.6;
 }
 
 .disabled-link {
   display: flex;
   justify-content: space-between;
+  align-items: center;
   padding: 8px 12px;
   color: var(--color-text-muted);
   font-size: 0.875rem;
   background-color: #f8fafc;
   border-radius: 6px;
   margin-bottom: 2px;
+  cursor: not-allowed;
 }
 
-/* 8. MOBILE RESPONSIVE */
-.mobile-toggle {
-  display: none;
-  background: none;
-  border: none;
-  font-size: 24px;
-  color: var(--color-primary);
+.lock-icon {
+  width: 14px;
+  height: 14px;
+  color: var(--color-text-muted);
+}
+
+.navbar-user {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.user-profile-badge {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 14px;
+  border-radius: 30px;
+  font-size: 0.85rem;
+}
+
+.role-icon {
+  width: 16px;
+  height: 16px;
+}
+
+.role-admin {
+  background-color: #fee2e2;
+  color: #dc2626;
+}
+.role-marketing {
+  background-color: #ffedd5;
+  color: #ea580c;
+}
+.role-warehouse {
+  background-color: #ccfbf1;
+  color: #0d9488;
+}
+.role-default {
+  background-color: #e0e7ff;
+  color: #4f46e5;
+}
+
+.logout-button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background-color: var(--color-danger-bg);
+  color: var(--color-danger);
+  border: 1px solid #fee2e2;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.875rem;
   cursor: pointer;
+  transition: var(--transition);
+}
+
+.logout-button:hover {
+  background-color: var(--color-danger);
+  color: white;
+}
+
+.logout-icon {
+  width: 16px;
+  height: 16px;
+}
+
+.menu-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.3);
+  z-index: 1080;
+  backdrop-filter: blur(4px);
+}
+
+.main-content-top {
+  flex-grow: 1;
+  overflow-y: auto;
+  padding: 24px;
 }
 
 @media (max-width: 1024px) {
   .mobile-toggle {
-    display: block;
+    display: flex;
+    align-items: center;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--color-text-main);
   }
   .hide-mobile {
-    display: none;
+    display: none !important;
   }
 
   .navbar-menu {
     position: fixed;
     top: 0;
     left: -100%;
-    width: 280px;
+    width: 290px;
     height: 100vh;
     background: white;
     flex-direction: column;
-    padding: 70px 0 20px;
-    transition: 0.3s ease;
-    box-shadow: 4px 0 15px rgba(0, 0, 0, 0.1);
+    padding: 80px 16px 20px;
+    transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 4px 0 25px rgba(15, 23, 42, 0.15);
     display: block;
     overflow-y: auto;
   }
@@ -856,10 +1099,8 @@ const menuGroups = computed(() => {
   .navbar-menu.is-mobile-open {
     left: 0;
   }
-
   .dropdown {
     height: auto;
-    border-bottom: 1px solid #f1f5f9;
   }
 
   .dropdown-menu {
@@ -869,7 +1110,7 @@ const menuGroups = computed(() => {
     display: none;
     box-shadow: none;
     border: none;
-    padding: 10px 20px;
+    padding: 4px 0 4px 12px;
     background: #f8fafc;
     transform: none;
   }
@@ -882,7 +1123,7 @@ const menuGroups = computed(() => {
     position: static;
     box-shadow: none;
     border: none;
-    margin-left: 15px;
+    margin-left: 12px;
     border-left: 2px solid var(--color-primary);
     border-radius: 0;
     background-color: transparent !important;
@@ -893,47 +1134,10 @@ const menuGroups = computed(() => {
     position: static;
     box-shadow: none;
     border: none;
-    margin-left: 15px;
+    margin-left: 12px;
     border-left: 2px dashed var(--color-primary);
     background-color: transparent !important;
   }
-}
-
-/* 9. USER & MISC */
-.navbar-user {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-
-.logout-button {
-  background-color: var(--color-danger-bg);
-  color: var(--color-danger);
-  border: 1px solid #fee2e2;
-  padding: 8px 16px;
-  border-radius: 6px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: var(--transition);
-}
-
-.logout-button:hover {
-  background-color: var(--color-danger);
-  color: white;
-}
-
-.menu-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(15, 23, 42, 0.5);
-  z-index: 1080;
-  backdrop-filter: blur(2px);
-}
-
-.main-content-top {
-  flex-grow: 1;
-  overflow-y: auto;
-  padding: 24px;
 }
 
 .icon-arrow {
