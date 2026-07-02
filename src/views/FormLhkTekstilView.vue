@@ -847,57 +847,22 @@ const handleBarcodeScan = async () => {
     return;
   }
 
-  // 1. Cek apakah ini mode EDIT/UBAH data lama
-  const isEditMode =
-    route.params.nomor &&
-    route.params.nomor !== "AUTO" &&
-    route.params.nomor !== "new";
-  const currentLhkNomor = formData.nomor; // Ambil nomor LHK yang sedang dibuka
-
   try {
     const res = await api.get(`/mmt/stok-gudang/${code}`);
     const resData = res.data.data;
 
-    // 2. KONDISI: Barcode Habis / NOT_FOUND dari API Gudang
     if (!resData || resData.status === "NOT_FOUND" || resData.data === null) {
-      // JIKA SEDANG MODE EDIT: Validasi apakah barcode ini adalah bawaan LHK ini sendiri sebelum habis
-      if (isEditMode) {
-        /* Asumsi: Backend Anda menyertakan info log / history / referensi terakhir di dalam resData 
-          atau Anda mencocokkannya dengan nomor LHK saat ini. 
-          Jika API menyediakan field referensi (misal: info_stok_terakhir.no_ref) gunakan itu.
-          Jika tidak ada dari API, kita validasi berdasarkan kecocokan history internal data LHK.
-        */
-        const noReferensiGudang =
-          resData?.no_referensi || resData?.lth_nomor || "";
-
-        // Validasi pengaman: pastikan data tidak ngawur/milik LHK orang lain
-        toast.info(
-          "Material sudah habis di gudang, memuat data historis untuk LHK ini.",
-        );
-
-        // Tetap pertahankan nilai yang di-load dari loadDataLHK() agar tidak hilang/kosong
-        recalculateCombine();
-        return;
-      } else {
-        // Jika mode TAMBAH BARU dan barcode NOT_FOUND, mutlak tidak boleh dipakai
-        toast.error("Barcode tidak terdaftar atau sudah tidak aktif!");
-        clearBahan();
-        return;
-      }
+      toast.error("Barcode tidak terdaftar atau tidak ditemukan!");
+      clearBahan();
+      return;
     }
 
-    // 3. KONDISI: Barcode Ditemukan & Status READY (Untuk Mode Baru atau Ganti Barcode Lain)
     if (resData.status === "READY" || resData.data) {
       const info = resData.data;
-
       formData.brg_nama = info.Nama_Barang || info.Nama || "";
       formData.brg_kode = info.Kode_Barang || info.Kode || "";
       formData.lebar_bahan = parseFloat(info.Lebar) || 0;
-
-      // Jika dalam mode edit, panjang bahan mengacu pada panjang awal saat LHK dibuat (tidak mengambil sisa gudang yang sudah berkurang)
-      if (!isEditMode) {
-        formData.panjang_bahan = parseFloat(info.Sisa_Panjang) || 0;
-      }
+      formData.panjang_bahan = parseFloat(info.Sisa_Panjang) || 0;
 
       recalculateCombine();
       toast.success("Material Ready");
@@ -906,14 +871,8 @@ const handleBarcodeScan = async () => {
       clearBahan();
     }
   } catch (e) {
-    // Pengaman jika API crash / return error HTTP Status (404/500) saat barcode habis
-    if (isEditMode) {
-      toast.warning("Gagal verifikasi API gudang. Menggunakan data lokal LHK.");
-      recalculateCombine();
-    } else {
-      toast.error("Gagal memuat data barcode");
-      clearBahan();
-    }
+    toast.error("Gagal memuat data barcode");
+    clearBahan();
     console.error(e);
   }
 };
