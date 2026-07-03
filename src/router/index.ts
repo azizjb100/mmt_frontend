@@ -112,7 +112,8 @@ import LhkDesainView from '@/views/LhkDesainView.vue';
 import FormLhkDesainView from '@/views/FormLhkDesainView.vue';
 import MutasiInternalView from '@/views/MutasiInternalView.vue';
 import FormMutasiInternalView from '@/views/FormMutasiInternalView.vue';
-
+import SuratJalanApproveView from '@/views/SuratJalanApproveView.vue';
+import FormSuratJalanApvView from '@/views/FormSuratJalanApvView.vue';
 
 
 const routes: RouteRecordRaw[] = [
@@ -177,6 +178,10 @@ const routes: RouteRecordRaw[] = [
             { path: 'mmt/jadwal-kirim/new', name: 'JadwalKirimNew', component: FormJadwalKirimView },
             { path: 'mmt/jadwal-kirim/edit/:nomor', name: 'JadwalKirimEdit', component: FormJadwalKirimView, props: { isEditMode: true } },
             { path: 'mmt/jadwal-kirim/print/:nomor', name: 'JadwalKirimPrint', component: JadwalKirimPrintView, props: true },
+
+            { path: 'mmt/surat-jalan/approve', name: 'SuratJalanApprove', component: SuratJalanApproveView },
+            {path: 'mmt/surat-jalan/approve/new', name: 'SuratJalanApproveNew', component: FormSuratJalanApvView, props: { isEditMode: false } },
+            {path: 'mmt/surat-jalan/approve/:nomor', name: 'SuratJalanApproveEdit', component: FormSuratJalanApvView, props: true },
 
             { path: 'mmt/stbj', name: 'BrowseStbj', component: StbjView },
             { path: 'mmt/stbj/new', name: 'StbjNew', component: FormStbjView },

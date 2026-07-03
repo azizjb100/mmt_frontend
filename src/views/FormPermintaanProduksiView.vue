@@ -193,22 +193,28 @@ onMounted(async () => {
 
   if (userCab === "P01" || userCab === "P04" || userCab === "P05") {
     cabangOptions.value = [userCab];
-    if (!isEditMode.value) {
-      formData.value.cabang = userCab;
-      formData.value.gudangAsalKode = userCab;
-    }
   } else {
     cabangOptions.value = filteredCabang;
-    if (!isEditMode.value) {
-      formData.value.cabang = "P04";
-      formData.value.gudangAsalKode = "P04";
-    }
   }
 
   if (isEditMode.value) {
     await fetchData();
   } else {
     formData.value.details = [createEmptyRow()];
+
+    // Set default awal saat pertama kali buka form baru (karena default kategori awal adalah MMT/TEKSTIL)
+    if (formData.value.kategori === "MMT/TEKSTIL") {
+      formData.value.gudangAsalKode = "WH-16"; // Sesuaikan dengan KODE gudang MMT asli Anda
+      formData.value.gudangAsalNama = "GUDANG UTAMA MMT";
+      formData.value.cabang = formData.value.gudangAsalKode;
+    } else {
+      const activeCab =
+        userCab === "P01" || userCab === "P04" || userCab === "P05"
+          ? userCab
+          : "P04";
+      formData.value.cabang = activeCab;
+      formData.value.gudangAsalKode = activeCab;
+    }
   }
 });
 
@@ -219,8 +225,13 @@ watch(
     if (!isEditMode.value) {
       clearSpkSelection();
 
-      // Jika balik ke sublim, kembalikan gudang default user cabang
-      if (newKategori === "SUBLIM") {
+      if (newKategori === "MMT/TEKSTIL") {
+        // SET DEFAULT UNTUK MMT/TEKSTIL
+        formData.value.gudangAsalKode = "WH-16"; // Sesuaikan dengan KODE gudang MMT asli di database Anda (misal: 'GDG-MMT' atau 'P04')
+        formData.value.gudangAsalNama = "GUDANG UTAMA MMT";
+        formData.value.cabang = formData.value.gudangAsalKode;
+      } else if (newKategori === "SUBLIM") {
+        // Jika balik ke sublim, kembalikan gudang default user cabang
         const userCab = authStore.userCabang || "P04";
         formData.value.gudangAsalKode = userCab;
         formData.value.gudangAsalNama =
