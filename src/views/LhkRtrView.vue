@@ -148,7 +148,7 @@ import * as XLSX from "xlsx-js-style";
 
 const router = useRouter();
 const toast = useToast();
-const API_BASE_URL = "/mmt/lhk-rtr";
+const API_BASE_URL = "/mmt/lhk-sublim";
 
 const masterData = ref<any[]>([]);
 const details = ref<Record<string, any[]>>({});

@@ -63,8 +63,8 @@ const createEmptyDetail = (): DetailItem => ({
 const formData = reactive<FormDataState>({
   nomor: "AUTO",
   tanggal: format(new Date(), "yyyy-MM-dd"),
-  gudangKode: "",
-  gudangNama: "",
+  gudangKode: "WH-010",
+  gudangNama: "GUDANG JADI MMT",
   gudangProduksiKode: "GP-001", // Default Finishing
   gudangProduksiNama: "GUDANG FINISHING",
   keteranganHeader: "",

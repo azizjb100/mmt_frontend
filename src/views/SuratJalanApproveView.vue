@@ -20,13 +20,23 @@ const startDate = ref(format(subDays(new Date(), 30), "yyyy-MM-dd"));
 const endDate = ref(format(new Date(), "yyyy-MM-dd"));
 const pendingOnly = ref(false);
 
-// Simulasi variable konfigurasi hak akses dari Delphi (zcus & CAB)
+// --- Ambil Cabang Dinamis dari Session Storage / Local Storage ---
+const getSessionUser = () => {
+  try {
+    const userSession = localStorage.getItem("userData");
+    return userSession ? JSON.parse(userSession) : null;
+  } catch (e) {
+    console.error("Gagal membaca userData", e);
+    return null;
+  }
+};
+
 const userConfig = reactive({
-  cab: "P01", // Contoh default cabang (dapat di-bind ke store/auth global)
-  zcus: 1, // Hak akses menampilkan detail kolom customer
+  cab: getSessionUser()?.cab || "",
+  zcus: 1,
 });
 
-// --- Grid Header Definition (Meniru cxGrdMaster & cxGrdDetail) ---
+// --- Grid Header Definition ---
 const masterHeaders = computed(() => {
   const baseHeaders = [
     {
@@ -44,7 +54,6 @@ const masterHeaders = computed(() => {
     { title: "Gudang", key: "Gudang", minWidth: "180px" },
   ];
 
-  // Logika zcus=1 di Delphi untuk menyisipkan kolom customer
   if (userConfig.zcus === 1) {
     baseHeaders.push(
       { title: "Kode Customer", key: "KodeCustomer", minWidth: "130px" },
@@ -73,7 +82,6 @@ const detailHeaders = [
   { title: "Keterangan", key: "sjd_keterangan", minWidth: "200px" },
 ];
 
-// --- Date Helper ---
 const parseCustomDate = (dateString: string): Date | null => {
   if (!dateString) return null;
   const parts = dateString.split("-");
@@ -84,11 +92,10 @@ const parseCustomDate = (dateString: string): Date | null => {
 // --- Data Fetching ---
 const fetchData = async () => {
   loading.value = true;
-  selected.value = [];
-  expanded.value = [];
+  userConfig.cab = getSessionUser()?.cab || "";
 
   try {
-    const res = await api.get(`${API_SURAT_JALAN}/lookup`, {
+    const res = await api.get(`${API_SURAT_JALAN}/`, {
       params: {
         startDate: startDate.value,
         endDate: endDate.value,
@@ -97,15 +104,13 @@ const fetchData = async () => {
         pendingOnly: pendingOnly.value,
       },
     });
+
     masterData.value = res.data.data || [];
-  } catch (error) {
-    toast.error("Gagal memuat data master Surat Jalan.");
   } finally {
     loading.value = false;
   }
 };
 
-// Handler Expand Update (MasterKeyField Relasi via Nomor)
 const handleExpandUpdate = async (expandedKeys: any[]) => {
   const lastItem = expandedKeys[expandedKeys.length - 1];
   if (!lastItem) return;
@@ -141,59 +146,99 @@ const handleExpandUpdate = async (expandedKeys: any[]) => {
 
 const isLoadingDetails = (nomor: string) => loadingDetails.value.has(nomor);
 
-// --- Custom Draw Cell (Logika Pewarnaan Font Text dari Delphi) ---
 const getStatusColor = (status: string) => {
-  if (!status) return "red"; // clRed jika nilai status approval kosong
-  if (status === "Batal") return "blue"; // clBlue jika status bernilai Batal
-  return "green"; // Hijau jika sudah sukses di-approve
+  if (!status) return "red";
+  if (status === "Batal") return "blue";
+  return "green";
 };
 
-// --- Transaction Actions Handling (Tombol Approval, Pending, & Batal) ---
+// --- PERBAIKAN: Logika Aksi untuk Banyak Data (Bulk Action) ---
 const handleProcessAction = async (
   actionType: "approve" | "pending" | "batal",
 ) => {
-  const item = selected.value[0];
-  if (!item?.Nomor) {
+  if (selected.value.length === 0) {
     toast.warning("Silahkan pilih surat jalannya dulu.");
     return;
   }
 
-  if (actionType === "approve") {
-    if (item.Approved === "Sudah") return toast.warning("Sudah di approve.");
-    if (item.Approved === "Batal")
-      return toast.warning("Masukkan ke Pending dulu baru di Approve.");
-    if (!confirm("Yakin akan di Approve?")) return;
-  } else if (actionType === "pending") {
-    if (!item.Approved)
-      return toast.warning("Status belum di approve. Tidak perlu dibatalkan.");
-    if (!confirm("Yakin akan di Batalkan?")) return;
-  } else if (actionType === "batal") {
-    if (item.Approved === "Sudah")
-      return toast.warning(
-        "Sudah di approve. Silahkan di Pending utk membatalkan Approve baru dibatalkan.",
-      );
-    if (item.Approved === "Batal") return toast.warning("SJ ini sudah batal.");
-    if (!confirm("Yakin SJ ini akan dibatalkan?")) return;
+  const count = selected.value.length;
+  let validItems: any[] = [];
+
+  // Validasi kondisi item berdasarkan aksi yang dipilih
+  for (const item of selected.value) {
+    if (actionType === "approve") {
+      if (item.Approved === "Sudah") continue; // Lewati yang sudah di-approve
+      if (item.Approved === "Batal") {
+        toast.warning(
+          `Nomor ${item.Nomor} status Batal. Masukkan ke Pending dulu.`,
+        );
+        return;
+      }
+    } else if (actionType === "pending") {
+      if (!item.Approved) continue; // Lewati yang memeng sudah pending/kosong
+    } else if (actionType === "batal") {
+      if (item.Approved === "Sudah") {
+        toast.warning(
+          `Nomor ${item.Nomor} sudah di-approve. Pendingkan dulu baru batalkan.`,
+        );
+        return;
+      }
+      if (item.Approved === "Batal") continue; // Lewati yang memang sudah batal
+    }
+    validItems.push(item);
   }
 
-  try {
-    const response = await api.post(
-      `${API_SURAT_JALAN}/${actionType}/${encodeURIComponent(item.Nomor)}`,
-      { kodeGdg: item.KodeGdg },
+  if (validItems.length === 0) {
+    toast.info(
+      "Tidak ada data baru yang perlu diproses berdasarkan validasi status.",
     );
-    toast.success(response.data.message || "Proses Berhasil!");
+    return;
+  }
+
+  const confirmMessage =
+    actionType === "approve"
+      ? `Yakin akan meng-Approve ${validItems.length} data?`
+      : actionType === "pending"
+        ? `Yakin akan membatalkan Approve / Pending ${validItems.length} data?`
+        : `Yakin ${validItems.length} SJ ini akan dibatalkan?`;
+
+  if (!confirm(confirmMessage)) return;
+
+  loading.value = true;
+  try {
+    // Eksekusi request secara paralel menggunakan Promise.all
+    const promises = validItems.map((item) =>
+      api.post(
+        `${API_SURAT_JALAN}/${actionType}/${encodeURIComponent(item.Nomor)}`,
+        { kodeGdg: item.KodeGdg },
+      ),
+    );
+
+    await Promise.all(promises);
+
+    toast.success(`Berhasil memproses ${validItems.length} data Surat Jalan!`);
+    selected.value = []; // Reset pilihan setelah sukses
     fetchData();
   } catch (error: any) {
     toast.error(
-      error.response?.data?.message || `Gagal memproses aksi ${actionType}`,
+      error.response?.data?.message ||
+        `Gagal memproses beberapa aksi ${actionType}`,
     );
+  } finally {
+    loading.value = false;
   }
 };
 
+// --- PERBAIKAN: Ubah Row Click agar Mendukung Multi-Select ---
 const handleRowClick = (_event: any, row: any) => {
-  selected.value = selected.value.some((s: any) => s.Nomor === row.item.Nomor)
-    ? []
-    : [row.item];
+  const index = selected.value.findIndex(
+    (s: any) => s.Nomor === row.item.Nomor,
+  );
+  if (index > -1) {
+    selected.value.splice(index, 1); // Jika sudah ada, hapus dari pilihan (unselect)
+  } else {
+    selected.value.push(row.item); // Jika belum ada, tambahkan ke pilihan (select)
+  }
 };
 
 const getRowProps = ({ item }: any) => ({
@@ -234,33 +279,36 @@ onMounted(fetchData);
       :row-props="getRowProps"
       @update:expanded="handleExpandUpdate(expanded)"
     >
-      <template #extra-actions="{ isSingleSelected }">
+      <template #extra-actions>
         <v-btn
           size="x-small"
           color="success"
-          class="mr-2 text-none"
-          :disabled="!isSingleSelected"
+          class="mr-2 text-none custom-action"
+          :disabled="selected.length === 0"
           @click="handleProcessAction('approve')"
         >
-          <v-icon start>mdi-check-circle</v-icon> Approve
+          <v-icon start>mdi-check-circle</v-icon>
+          Approve ({{ selected.length }})
         </v-btn>
         <v-btn
           size="x-small"
           color="warning"
-          class="mr-2 text-none"
-          :disabled="!isSingleSelected"
+          class="mr-2 text-none custom-action"
+          :disabled="selected.length === 0"
           @click="handleProcessAction('pending')"
         >
-          <v-icon start>mdi-clock-alert-outline</v-icon> Pending / Cancel Apv
+          <v-icon start>mdi-clock-alert-outline</v-icon>
+          Pending / Cancel Apv
         </v-btn>
         <v-btn
           size="x-small"
           color="error"
-          class="text-none"
-          :disabled="!isSingleSelected"
+          class="text-none custom-action"
+          :disabled="selected.length === 0"
           @click="handleProcessAction('batal')"
         >
-          <v-icon start>mdi-close-circle</v-icon> Batal SJ
+          <v-icon start>mdi-close-circle</v-icon>
+          Batal SJ
         </v-btn>
       </template>
 
@@ -306,13 +354,11 @@ onMounted(fetchData);
               {{ Number(d.sjd_jumlah || 0).toFixed(2) }}
             </div>
           </template>
-
           <template #[`item.Panjang`]="{ item: d }">
             <div class="text-right">
               {{ Number(d.Panjang || 0).toFixed(2) }}
             </div>
           </template>
-
           <template #[`item.Lebar`]="{ item: d }">
             <div class="text-right">{{ Number(d.Lebar || 0).toFixed(2) }}</div>
           </template>
@@ -333,15 +379,9 @@ onMounted(fetchData);
   width: 100%;
 }
 
-/* Sembunyikan 3 tombol default CRUD bawaan PageLayout melalui CSS scoping */
-:deep(.v-btn[color="success"]),
-:deep(.v-btn[color="warning"]),
-:deep(.v-btn[color="error"]) {
+:deep(.v-btn:not(.custom-action)[color="success"]),
+:deep(.v-btn:not(.custom-action)[color="warning"]),
+:deep(.v-btn:not(.custom-action)[color="error"]) {
   display: none !important;
-}
-
-/* Tetap munculkan tombol kustom kita di dalam extra-actions */
-:deep(.v-btn.text-none) {
-  display: inline-flex !important;
 }
 </style>

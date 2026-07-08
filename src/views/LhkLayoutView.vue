@@ -1,5 +1,5 @@
 <template>
-  <PageLayout title="LHK Pola MMT" icon="mdi-shape-outline">
+  <PageLayout title="LHK Layout MMT" icon="mdi-shape-outline">
     <template #header-actions>
       <v-btn size="x-small" color="success" @click="handleNewEdit('new')">
         <v-icon start>mdi-plus</v-icon> Baru
@@ -101,8 +101,8 @@
             <span>{{ item.Nomor }}</span>
           </template>
 
-          <template #item.TotalPola="{ item }">
-            <span>{{ num(item.TotalPola) }} pcs</span>
+          <template #item.TotalLayout="{ item }">
+            <span>{{ num(item.TotalLayout) }} pcs</span>
           </template>
 
           <template #expanded-row="{ columns, item }">
@@ -128,7 +128,7 @@
                       hide-default-footer
                       class="detail-table border"
                     >
-                      <template #item.jml_pola="{ value }">
+                      <template #item.jml_layout="{ value }">
                         <strong class="total-bold">{{ value }}</strong>
                       </template>
                     </v-data-table>
@@ -156,7 +156,7 @@ import PageLayout from "../components/PageLayout.vue";
 import api from "@/services/api";
 import * as XLSX from "xlsx-js-style";
 
-interface LhkPolaHeader {
+interface LhkLayoutHeader {
   Nomor: string;
   Tanggal?: string;
   Shift?: string;
@@ -167,7 +167,7 @@ interface LhkPolaHeader {
   Keterangan?: string;
 }
 
-interface LhkPolaDetail {
+interface LhkLayoutDetail {
   nomor_spk?: string;
   nama_spk?: string;
   jenis_pola?: string;
@@ -177,15 +177,15 @@ interface LhkPolaDetail {
   keterangan?: string;
 }
 
-const API_BASE_URL = "/mmt/lhk-pola";
+const API_BASE_URL = "/mmt/lhk-layout";
 const router = useRouter();
 const toast = useToast();
 
-const masterData = ref<LhkPolaHeader[]>([]);
-const details = ref<Record<string, LhkPolaDetail[]>>({});
+const masterData = ref<LhkLayoutHeader[]>([]);
+const details = ref<Record<string, LhkLayoutDetail[]>>({});
 const loading = ref({ headers: true, details: false });
 const loadingDetails = ref<Set<string>>(new Set());
-const selected = ref<LhkPolaHeader[]>([]);
+const selected = ref<LhkLayoutHeader[]>([]);
 
 const filters = reactive({
   startDate: format(subDays(new Date(), 30), "yyyy-MM-dd"),
@@ -206,10 +206,10 @@ const num = (val: any) => {
 
 const handleNewEdit = (mode: "new" | "edit") => {
   if (mode === "new") {
-    router.push({ name: "LHKDesainMMTNew" });
+    router.push({ name: "LHKLayoutMMTNew" });
   } else if (mode === "edit" && selectedRow.value) {
     router.push({
-      name: "LHKDesainMMTEdit",
+      name: "LHKLayoutMMTEdit",
       params: { nomor: selectedRow.value.Nomor },
     });
   }
@@ -217,7 +217,7 @@ const handleNewEdit = (mode: "new" | "edit") => {
 
 const handleEditClick = () => handleNewEdit("edit");
 
-const handleRowClick = (event: any, { item }: { item: LhkPolaHeader }) => {
+const handleRowClick = (event: any, { item }: { item: LhkLayoutHeader }) => {
   selected.value = selected.value.some((s) => s.Nomor === item.Nomor)
     ? []
     : [item];
@@ -259,7 +259,7 @@ const detailHeaders = [
 const fetchMasterData = async () => {
   loading.value.headers = true;
   try {
-    const res = await api.get<LhkPolaHeader[]>(API_BASE_URL, {
+    const res = await api.get<LhkLayoutHeader[]>(API_BASE_URL, {
       params: filters,
     });
     masterData.value = res.data || [];
@@ -267,13 +267,13 @@ const fetchMasterData = async () => {
     await nextTick();
     resizeTable(".desktop-table");
   } catch {
-    toast.error("Gagal mengambil data LHK Pola.");
+    toast.error("Gagal mengambil data LHK Layout.");
   } finally {
     loading.value.headers = false;
   }
 };
 
-const loadDetails = async (newlyExpandedItems: LhkPolaHeader[]) => {
+const loadDetails = async (newlyExpandedItems: LhkLayoutHeader[]) => {
   const itemToLoad = newlyExpandedItems?.find(
     (it) =>
       it && !details.value[it.Nomor] && !loadingDetails.value.has(it.Nomor),
@@ -412,7 +412,7 @@ const exportToExcel = async () => {
     const worksheetData: any[] = [
       [
         {
-          v: "LAPORAN HASIL KERJA (LHK) POLA MMT",
+          v: "LAPORAN HASIL KERJA (LHK) LAYOUT MMT",
           s: { font: { bold: true, sz: 14 } },
         },
       ],
@@ -430,22 +430,22 @@ const exportToExcel = async () => {
         { v: "OPERATOR", s: styleHeaderMain },
         { v: "NOMOR SPK", s: styleHeaderMain },
         { v: "NAMA SPK / ITEM", s: styleHeaderMain },
-        { v: "JENIS POLA", s: styleHeaderMain },
+        { v: "JENIS LAYOUT", s: styleHeaderMain },
         { v: "PANJANG", s: styleHeaderMain },
         { v: "LEBAR", s: styleHeaderMain },
-        { v: "QTY POLA", s: styleHeaderMain },
+        { v: "QTY LAYOUT", s: styleHeaderMain },
       ],
     ];
 
-    let grandTotalPola = 0;
+    let grandTotalLayout = 0;
 
     masterData.value.forEach((h) => {
       const targetDetails = details.value[h.Nomor] || [];
       if (targetDetails.length > 0) {
         targetDetails.forEach((dtl, idx) => {
           const isFirst = idx === 0;
-          const qPola = num(dtl.jml_pola);
-          grandTotalPola += qPola;
+          const qLayout = num(dtl.jml_layout);
+          grandTotalLayout += qLayout;
 
           worksheetData.push([
             { v: isFirst ? h.Nomor : "-", s: styleDataCenter },
@@ -460,7 +460,7 @@ const exportToExcel = async () => {
             { v: dtl.jenis_pola || "-", s: styleDataCenter },
             { v: num(dtl.panjang), t: "n", z: "#,##0.00", s: styleDataRight },
             { v: num(dtl.lebar), t: "n", z: "#,##0.00", s: styleDataRight },
-            { v: qPola, t: "n", z: "#,##0", s: styleDataRight },
+            { v: qLayout, t: "n", z: "#,##0", s: styleDataRight },
           ]);
         });
       }
@@ -473,7 +473,7 @@ const exportToExcel = async () => {
       },
       ...Array(8).fill({ v: "", s: styleFooter }),
       {
-        v: grandTotalPola,
+        v: grandTotalLayout,
         t: "n",
         z: "#,##0",
         s: { ...styleFooter, alignment: { horizontal: "right" } },
@@ -503,10 +503,10 @@ const exportToExcel = async () => {
     ];
 
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "LHK_Pola");
+    XLSX.utils.book_append_sheet(wb, ws, "LHK_Layout");
     XLSX.writeFile(
       wb,
-      `LHK_Pola_${filters.startDate}_to_${filters.endDate}.xlsx`,
+      `LHK_Layout_${filters.startDate}_to_${filters.endDate}.xlsx`,
     );
     toast.success("Excel Berhasil Diexport!");
   } catch {

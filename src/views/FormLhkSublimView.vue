@@ -469,17 +469,26 @@ const handleBarcodeScan = async () => {
 
   try {
     const res = await api.get(`/mmt/stok-gudang/${code}`);
-    const resData = res.data.data;
+
+    // Perhatikan ekstraksi layer data sesuai response API Anda: res.data.data
+    const rootData = res.data.data;
 
     if (
-      resData &&
-      (resData.status === "READY" || resData.Sisa_Panjang || resData.Sisa)
+      rootData &&
+      (rootData.status === "READY" || rootData.data?.Sisa_Panjang)
     ) {
-      const info = resData.data || resData;
-      formData.brg_kode = info.Barcode || info.Kode || info.brg_kode;
-      formData.brg_nama = info.Nama_Barang || info.Nama || info.brg_nama;
-      formData.Panjang_bahan = parseFloat(info.Sisa_Panjang || info.Sisa || 0);
+      const info = rootData.data; // Mengambil object data bagian dalam
+
+      // Ambil Barcode/Kode
+      formData.brg_kode = info.Barcode || info.Kode;
+
+      // PERBAIKAN DI SINI: Sesuaikan dengan properti 'Nama_Bahan' dari API
+      formData.brg_nama =
+        info.Nama_Bahan || info.Nama_Barang || info.Nama || "";
+
+      formData.Panjang_bahan = parseFloat(info.Sisa_Panjang || 0);
       formData.Lebar_bahan = parseFloat(info.Lebar || 0);
+
       toast.success("Material Bahan Siap");
     } else {
       toast.error("Barcode tidak tersedia/sudah terpakai");
@@ -591,16 +600,21 @@ const handleSave = async (shouldExit: boolean) => {
   if (result.isConfirmed) {
     isSaving.value = true;
     try {
+      // PERBAIKAN DI SINI: Pastikan format tanggal aman divalidasi oleh backend/database
+      const cleanDate =
+        formData.lsb_tanggal || format(new Date(), "yyyy-MM-dd");
+
       const payload = {
         header: {
           ...formData,
+          lsb_tanggal: cleanDate, // Gunakan format ISO string
           lstatus: shouldExit ? "POSTED" : "DRAFT",
           user: "OPERATOR",
         },
         details: detailData.value,
       };
 
-      const response = await api.post("/mmt/lhk-sublim", payload);
+      const response = await api.post("/mmt/lhk-paperprint", payload);
 
       if (response.data.success) {
         toast.success("Data berhasil disimpan");

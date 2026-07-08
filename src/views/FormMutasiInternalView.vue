@@ -113,7 +113,7 @@
               size="x-small"
               color="blue-darken-3"
               prepend-icon="mdi-text-box-search"
-              @click="openLhkRtrLookup"
+              @click="openLhkSublimLookup"
             >
               Ambil dari LHK Sublim (RTR)
             </v-btn>
@@ -217,7 +217,7 @@ import { useToast } from "vue-toastification";
 import PageLayout from "../components/PageLayout.vue";
 
 // 💡 Silakan buat modal lookup berbasis tabel data LHK Sublim
-import LhkSublimLookupModal from "@/modal/SpkLookupModal.vue";
+import LhkSublimLookupModal from "@/modal/LhkSublimLookupModal.vue";
 
 const route = useRoute();
 const router = useRouter();
@@ -272,31 +272,39 @@ const isFormValid = computed(
     formData.bagianAsalKode,
 );
 
-const openLhkRtrLookup = () => {
+const openLhkSublimLookup = () => {
   lookup.lhk = true;
 };
 
 // Handler saat data dipilih dari modal lookup LHK Sublim
 const handleLhkSelect = (selectedItems: any[]) => {
   selectedItems.forEach((item) => {
-    // Validasi agar item yang sama tidak double di grid detail
+    // Sesuaikan mapping key dari API karena Nama_Komponen di API Anda adalah Jenis_Bahan
+    const namaKomponenApi = item.Nama_Komponen || item.Jenis_Bahan || "ALL SET";
+
     const isExist = detailData.value.some(
       (row) =>
         row.spk_nomor === item.Nomor_SPK &&
         row.poi_nomor === item.No_PO_Internal &&
-        row.nama_komponen === item.Nama_Komponen,
+        row.nama_komponen === namaKomponenApi,
     );
 
     if (!isExist) {
+      const stokTersedia = parseFloat(
+        item.Sisa_Belum_Mutasi !== undefined
+          ? item.Sisa_Belum_Mutasi
+          : item.Jumlah || 0,
+      );
+
       detailData.value.push({
-        lhk_detail_id: item.Id, // ID referensi LHK asal
-        poi_nomor: item.No_PO_Internal || "",
-        poi_size: item.Size || "",
+        lhk_detail_id: item.Id || `${item.Nomor}_${item.No_Urut}`,
+        poi_nomor: item.No_PO_Internal || "-",
+        poi_size: item.Size || "-",
         spk_nomor: item.Nomor_SPK,
         spk_nama: item.Nama_SPK,
-        nama_komponen: item.Nama_Komponen || "",
-        stok_sublim: parseFloat(item.Sisa_Belum_Mutasi || item.Jumlah || 0), // Sisa yang bisa dimutasi
-        qty_mutasi: parseFloat(item.Sisa_Belum_Mutasi || item.Jumlah || 0), // Default samakan
+        nama_komponen: namaKomponenApi,
+        stok_sublim: stokTersedia, // Sisa yang bisa dimutasi
+        qty_mutasi: stokTersedia, // Default disamakan
       });
     }
   });
@@ -358,7 +366,7 @@ const handleSave = async () => {
 
     await api.post("/mmt/mutasi-internal", payload);
     toast.success("Mutasi internal berhasil disimpan.");
-    router.push({ name: "DaftarMutasiInternal" }); // Sesuaikan nama route daftar mutasi Anda
+    router.push({ name: "MutasiInternalMMT" }); // Sesuaikan nama route daftar mutasi Anda
   } catch (e: any) {
     toast.error(
       "Gagal Simpan Mutasi: " + (e.response?.data?.message || e.message),

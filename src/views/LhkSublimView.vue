@@ -261,7 +261,7 @@ const selectedItemNomor = computed(() => {
 const fetchMasterData = async () => {
   loading.master = true;
   try {
-    const response = await api.get("/mmt/lhk-sublim", { params: filters });
+    const response = await api.get("/mmt/lhk-paperprint", { params: filters });
     masterData.value = response.data || [];
   } catch (error) {
     toast.error("Gagal mengambil data master");
@@ -280,7 +280,7 @@ const loadDetails = async (expandedKeys: any[]) => {
   if (nomorKey && !details.value[nomorKey]) {
     loadingDetails.value.add(nomorKey);
     try {
-      const res = await api.get(`/mmt/lhk-sublim/detail/${nomorKey}`);
+      const res = await api.get(`/mmt/lhk-paperprint/detail/${nomorKey}`);
       details.value[nomorKey] = res.data || [];
     } catch (e) {
       toast.error("Gagal memuat detail");
@@ -350,7 +350,7 @@ const handleDelete = async () => {
 
   if (result.isConfirmed) {
     try {
-      await api.delete(`/sublim/lhk-sublim/${selectedItemNomor.value}`);
+      await api.delete(`/sublim/lhk-paperprint/${selectedItemNomor.value}`);
       toast.success("Berhasil dihapus.");
       fetchMasterData();
       selected.value = [];
@@ -363,7 +363,7 @@ const handleDelete = async () => {
 const handlePrint = () => {
   if (!selectedItemNomor.value) return;
   window.open(
-    `/api/report/lhk-sublim-slip/${selectedItemNomor.value}`,
+    `/api/report/lhk-paperprint-slip/${selectedItemNomor.value}`,
     "_blank",
   );
 };
@@ -384,7 +384,9 @@ const exportToExcel = async () => {
         details.value[header.Nomor].length === 0
       ) {
         try {
-          const res = await api.get(`/mmt/lhk-sublim/detail/${header.Nomor}`);
+          const res = await api.get(
+            `/mmt/lhk-paperprint/detail/${header.Nomor}`,
+          );
           details.value[header.Nomor] = res.data || [];
         } catch (e) {
           console.error(

@@ -381,7 +381,7 @@
           variant="outlined"
           @click="
             showPrintConfirm = false;
-            router.push('/mmt/lhk-desain');
+            router.push('/mmt/lhk-layout');
           "
           >Tutup</v-btn
         >
@@ -391,8 +391,8 @@
           variant="elevated"
           @click="
             showPrintConfirm = false;
-            window.open(`/mmt/lhk-desain/print/${savedNomor}`, '_blank');
-            router.push('/mmt/lhk-desain');
+            window.open(`/mmt/lhk-layout/print/${savedNomor}`, '_blank');
+            router.push('/mmt/lhk-layout');
           "
         >
           <template #prepend><IconPrinter :size="15" /></template> Ya, Cetak
@@ -498,7 +498,7 @@ const {
   menuId: "128",
   initialData,
   fetchApi: async () => {
-    const res = await api.get(`/mmt/lhk-desain/load-all/${route.params.nomor}`);
+    const res = await api.get(`/mmt/lhk-layout/load-all/${route.params.nomor}`);
     const resData = res.data.data || res.data;
     const h = resData.header;
 
@@ -561,7 +561,7 @@ const {
       }
     });
 
-    const res = await api.post("/mmt/lhk-desain/save", multiPayload, {
+    const res = await api.post("/mmt/lhk-layout/save", multiPayload, {
       headers: { "Content-Type": "multipart/form-data" },
     });
     savedNomor.value = data.ld_spk;
@@ -648,7 +648,7 @@ const loadDataAll = async (nomorSpk: string) => {
   isLoading.value = true;
   try {
     const res = await api.get(
-      `/mmt/lhk-desain/load-all/${encodeURIComponent(nomorSpk)}`,
+      `/mmt/lhk-layout/load-all/${encodeURIComponent(nomorSpk)}`,
     );
     const resData = res.data.data || res.data;
     const { header, komponen } = resData;

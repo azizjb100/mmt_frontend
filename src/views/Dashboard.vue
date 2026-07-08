@@ -538,6 +538,7 @@ const allMenuGroups = [
       { name: "BS & Sisa Digital Print", path: "/mmt/bs-digital" },
       { name: "BS & Sisa Tekstil", path: "/mmt/bs-tekstil" },
       { name: "STBJ", path: "/mmt/stbj" },
+      { name: "Surat Jalan Approve", path: "/mmt/surat-jalan/approve" },
       { name: "Jadwal Kirim", path: "/mmt/jadwal-kirim" },
       {
         name: "LHK",
@@ -552,8 +553,7 @@ const allMenuGroups = [
           { name: "LHK Proof", path: "/mmt/lhk/proof" },
           { name: "LHK Paperprint", path: "/mmt/lhk/paperprint" },
           { name: "LHK Sublim", path: "/mmt/lhk/sublim" },
-          { name: "LHK Pola", path: "/mmt/lhk/pola" },
-          { name: "LHK Desain", path: "/mmt/lhk/desain" },
+          { name: "LHK Layout", path: "/mmt/lhk/layout" },
         ],
       },
       { name: "PO Paperprint", path: "/mmt/po-paperprint" },

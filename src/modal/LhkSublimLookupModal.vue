@@ -198,9 +198,9 @@ const emit = defineEmits(["close", "select"]);
 const toast = useToast();
 
 const loading = ref(false);
-const lhkList = ref([]);
-const selectedItems = ref([]); // Menyimpan array string `nomor` yang di-select
-const expanded = ref([]);
+const lhkList = ref<any[]>([]);
+const selectedItems = ref<string[]>([]); // Menyimpan array string `nomor` (LHK) dari checkbox
+const expanded = ref<string[]>([]);
 const lhkDetailsCache = reactive<Record<string, any[]>>({});
 
 // Filter diatur seminggu ke belakang sebagai default pencarian awal
@@ -209,7 +209,6 @@ const filters = reactive({
   endDate: format(new Date(), "yyyy-MM-dd"),
 });
 
-// Penyesuaian key header tabel agar match dengan response Model SQL LHK Sublim
 const headers = [
   { title: "", key: "data-table-expand", width: "40px" },
   { title: "Nomor LHK", key: "nomor", width: "180px" },
@@ -230,16 +229,22 @@ const truncateString = (str: string, num: number) => {
 };
 
 // Mengambil detail berdasarkan field `nomor` (ls_nomor)
-const loadDetail = async (nomor: string) => {
-  if (lhkDetailsCache[nomor]) return;
+const loadDetail = async (nomor: string): Promise<any[]> => {
+  // Jika sudah ada di cache, langsung kembalikan datanya
+  if (lhkDetailsCache[nomor]) return lhkDetailsCache[nomor];
+
   try {
-    const response = await api.get("/mmt/lhk-sublim/details", {
+    const response = await api.get("/mmt/lhk-sublim/lookup/details", {
       params: { nomor },
     });
-    // Menangkap schema array rows dari backend
-    lhkDetailsCache[nomor] = response.data.data || response.data || [];
+    // Menangkap schema array dari backend response (.details atau .data)
+    const dataDetail =
+      response.data.details || response.data.data || response.data || [];
+    lhkDetailsCache[nomor] = dataDetail;
+    return dataDetail;
   } catch (error) {
-    toast.error("Gagal mengambil detail LHK Sublim");
+    toast.error(`Gagal mengambil detail untuk LHK ${nomor}`);
+    return [];
   }
 };
 
@@ -271,16 +276,36 @@ const fetchLhkData = async () => {
   }
 };
 
-const submitSelection = () => {
+// Memproses pengambilan item terpilih dan melemparkannya ke form utama
+const submitSelection = async () => {
   if (selectedItems.value.length === 0) return;
 
-  // Emit string nomor yang dipilih atau bisa dimap kembali ke object penuh jika dibutuhkan
-  emit("select", selectedItems.value);
-  emit("close");
+  loading.value = true;
+  const allSelectedDetails: any[] = [];
+
+  try {
+    // Lakukan perulangan untuk menjamin data detail terisi (baik yang dichache maupun belum)
+    for (const nomorLhk of selectedItems.value) {
+      const details = await loadDetail(nomorLhk);
+      allSelectedDetails.push(...details);
+    }
+
+    if (allSelectedDetails.length === 0) {
+      toast.warning("Tidak ada detail item dari LHK yang Anda pilih.");
+      return;
+    }
+
+    // Mengirimkan array object detail lengkap ke form utama
+    emit("select", allSelectedDetails);
+    emit("close");
+  } catch (err) {
+    toast.error("Gagal memproses data LHK yang dipilih.");
+  } finally {
+    loading.value = false;
+  }
 };
 
 watch(
-  // Auto-fetch data saat modal dibuka
   () => props.isVisible,
   (val) => {
     if (val) fetchLhkData();
