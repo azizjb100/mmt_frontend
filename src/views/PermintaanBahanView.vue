@@ -71,7 +71,6 @@ const getStatusColor = (status: string) => {
   }
 };
 
-// INTEGRASI: Memindahkan data-table-expand ke baris pertama agar panah di kiri
 const masterHeaders = [
   {
     title: "Detail",
@@ -97,9 +96,9 @@ const masterHeaders = [
 ];
 
 const detailHeaders = [
-  { title: "Kode Bahan", key: "Kode", minWidth: "120px" },
+  { title: "Kode Bahan", key: "Kode", minWidth: "120px", fixed: true },
   { title: "Nama Bahan", key: "Nama_Bahan", minWidth: "250px" },
-  { title: "ACC", key: "Is_Acc", minWidth: "100px" },
+  { title: "ACC", key: "Is_Acc", minWidth: "100px", align: "center" },
   { title: "Jumlah", key: "Jumlah", minWidth: "100px", align: "end" },
   {
     title: "Jumlah Terima",
@@ -115,17 +114,12 @@ const detailHeaders = [
 const parseCustomDate = (dateString: string): Date | null => {
   if (!dateString) return null;
 
-  // 1. Coba parse menggunakan parseISO (Sangat aman untuk format "YYYY-MM-DD" atau ISO Timestamp)
   const parsedISO = parseISO(dateString);
   if (isValid(parsedISO)) return parsedISO;
 
-  // 2. Jika gagal dan formatnya berpemisah strip (seperti DD-MMM-YYYY atau DD-MM-YYYY)
   const parts = dateString.split("-");
   if (parts.length === 3) {
     const [day, monthName, year] = parts;
-
-    // Jika bagian pertama adalah Tahun (YYYY-MM-DD), harusnya sudah lolos di parseISO atas
-    // Ini menangani jika formatnya DD-MonthName-YYYY
     const months = [
       "January",
       "February",
@@ -148,13 +142,11 @@ const parseCustomDate = (dateString: string): Date | null => {
       return new Date(Number(year), monthIndex, Number(day));
     }
 
-    // Menangani jika formatnya DD-MM-YYYY angka murni
     if (!isNaN(Number(monthName))) {
       return new Date(Number(year), Number(monthName) - 1, Number(day));
     }
   }
 
-  // 3. Cadangan terakhir menggunakan native Javascript Date picker
   const nativeDate = new Date(dateString);
   return isValid(nativeDate) ? nativeDate : null;
 };
@@ -178,6 +170,7 @@ const fetchData = async () => {
   } catch (err) {
     toast.error("Gagal mengambil data Permintaan Bahan.");
   } finally {
+    // <--- DI SINI (Baris 162)
     loading.value = false;
   }
 };
@@ -200,6 +193,7 @@ const handleExpandUpdate = async (expandedKeys: any[]) => {
   } catch (error) {
     details.value[lastExpandedNomor] = [];
   } finally {
+    // <--- DAN DI SINI (Baris 179)
     loadingDetails.value.delete(lastExpandedNomor);
   }
 };
@@ -225,6 +219,10 @@ const getRowProps = ({ item }: any) => ({
   class: selected.value.some((s) => s.Nomor === item?.Nomor)
     ? "row-selected"
     : "",
+});
+
+const getDetailRowProps = ({ item }: any) => ({
+  class: item?.Is_Acc === "N" ? "row-rejected font-weight-bold text-red" : "",
 });
 
 const handleDelete = async () => {
@@ -657,7 +655,7 @@ watch([startDate, endDate], fetchData);
         size="x-small"
         color="teal"
         :disabled="masterData.length === 0"
-        @click="handleExportHeaderExcel"
+        @click="handleExportHeaderHeaderExcel"
       >
         <v-icon start>mdi-file-excel</v-icon> Export Header
       </v-btn>
@@ -727,6 +725,16 @@ watch([startDate, endDate], fetchData);
         <span class="text-caption">Memuat detail barang PO...</span>
       </div>
 
+      <div
+        v-else-if="
+          !(details[item.Nomor] || item.Detail) ||
+          (details[item.Nomor] || item.Detail).length === 0
+        "
+        class="text-center pa-2 text-caption text-grey"
+      >
+        Tidak ada data detail untuk nomor {{ item.Nomor }}
+      </div>
+
       <v-data-table
         v-else
         :headers="detailHeaders"
@@ -735,35 +743,35 @@ watch([startDate, endDate], fetchData);
         class="bg-white border rounded"
         :items-per-page="-1"
         hide-default-footer
+        :row-props="getDetailRowProps"
       >
-        <template #item="{ item: d }">
-          <tr
-            :class="{
-              'text-red font-weight-bold bg-red-lighten-5': d.Is_Acc === 'N',
-            }"
+        <template #[`item.Is_Acc`]="{ value }">
+          <v-chip
+            :color="value === 'Y' ? 'success' : 'error'"
+            size="x-small"
+            label
+            class="font-weight-bold"
           >
-            <td>{{ d.Kode }}</td>
-            <td>{{ d.Nama_Bahan }}</td>
-            <td>
-              <v-chip
-                :color="d.Is_Acc === 'Y' ? 'success' : 'error'"
-                size="x-small"
-                label
-                class="font-weight-bold"
-              >
-                {{ d.Is_Acc }}
-              </v-chip>
-            </td>
-            <td class="text-right">
-              {{ Number(d.Jumlah || 0).toFixed(2) }}
-            </td>
-            <td class="text-right font-weight-bold text-primary">
-              {{ Number(d.Total_Diterima || 0).toFixed(2) }}
-            </td>
-            <td>{{ d.Satuan }}</td>
-            <td>{{ d.Nomor_SPK }}</td>
-            <td>{{ d.Operator }}</td>
-          </tr>
+            {{ value }}
+          </v-chip>
+        </template>
+
+        <template #[`item.Jumlah`]="{ value }">
+          <div class="text-right">
+            {{ Number(value || 0).toFixed(2) }}
+          </div>
+        </template>
+
+        <template #[`item.Total_Diterima`]="{ value, item: d }">
+          <div
+            :class="[
+              'text-right',
+              'font-weight-bold',
+              d.Is_Acc === 'N' ? 'text-red' : 'text-primary',
+            ]"
+          >
+            {{ Number(value || 0).toFixed(2) }}
+          </div>
         </template>
       </v-data-table>
     </template>
@@ -881,5 +889,13 @@ watch([startDate, endDate], fetchData);
 }
 :deep(.v-data-table__tr.row-selected:hover > td) {
   background-color: #c0e4ff !important;
+}
+
+/* Gaya untuk baris detail yang ditolak / Is_Acc = N */
+.row-rejected {
+  background-color: #ffebee !important;
+}
+:deep(.row-rejected td) {
+  background-color: #ffebee !important;
 }
 </style>
