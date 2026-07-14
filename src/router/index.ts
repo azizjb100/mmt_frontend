@@ -114,7 +114,7 @@ import MutasiInternalView from '@/views/MutasiInternalView.vue';
 import FormMutasiInternalView from '@/views/FormMutasiInternalView.vue';
 import SuratJalanApproveView from '@/views/SuratJalanApproveView.vue';
 import FormSuratJalanApvView from '@/views/FormSuratJalanApvView.vue';
-
+import LapMonBSView from '@/views/LapMonBSView.vue';
 
 const routes: RouteRecordRaw[] = [
     {
@@ -484,6 +484,7 @@ const routes: RouteRecordRaw[] = [
             { path: 'laporan/mmt/lap-mon-proof', name: 'lapMonProof', component: LapMonProofView },
             { path: 'laporan/mmt/lap-mon-sublim', name: 'lapMonSublim', component: LapMonSublimView },
             { path: 'laporan/mmt/lap-mon-plan-vs-lhk', name: 'lapMonPlanVsLHK', component: LapMonPlanVsLHKView },
+            { path: 'laporan/mmt/lap-mon-bs', name: 'lapMonBS', component: LapMonBSView },
 
             { path: 'laporan/mmt/lap-spk-mmt', name: 'lapSpkMmt', component: LapSpkMmtView },            
             { path: 'laporan/mmt/lap-pemakaian-bahan', name: 'LapPemakaianBahan', component: LapPemakaianBahanView },

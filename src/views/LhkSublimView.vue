@@ -1,6 +1,6 @@
 <template>
   <PageLayout
-    title="Hasil Kerja Sublim MMT"
+    title="Hasil Kerja PaperPrint MMT"
     icon="mdi-printer-settings"
     class="custom-font"
   >
@@ -191,6 +191,7 @@ import Swal from "sweetalert2";
 import PageLayout from "../components/PageLayout.vue";
 import api from "@/services/api";
 import * as XLSX from "xlsx-js-style";
+import { title } from "process";
 
 const router = useRouter();
 const toast = useToast();
@@ -224,14 +225,33 @@ const masterHeaders = [
   { title: "Nomor", key: "Nomor", width: "150px" },
   { title: "Tanggal", key: "Tanggal", width: "120px" },
   { title: "Gudang", key: "Nama_Gudang" },
+  { title: "Operator", key: "Operator", width: "150px" },
+  { title: "Mesin", key: "Mesin", width: "150px" },
+  { title: "SPK", key: "NomorSPK" },
+  { title: "Nama SPK", key: "NamaOrder" },
+  {
+    title: "Total Item",
+    key: "Total_Item",
+    align: "end" as const,
+    width: "100px",
+  },
+  {
+    title: "Total Qty",
+    key: "Total_Qty",
+    align: "end" as const,
+    width: "100px",
+  },
   { title: "Shift", key: "Shift", width: "80px" },
+  { title: "Barcode", key: "Barcode_Roll" },
+  { title: "Ambil Bahan (M)", key: "PanjangBahanAwal" },
+
   {
     title: "Cetak (m²)",
     key: "total_meter",
     align: "end" as const,
     width: "100px",
   },
-  { title: "Lengkap", key: "Lengkap", width: "80px", align: "center" as const },
+  //{ title: "Lengkap", key: "Lengkap", width: "80px", align: "center" as const },
 ];
 
 // --- Table Headers (Detail Sublim) ---
@@ -251,10 +271,13 @@ const isSingleSelected = computed(() => selected.value.length === 1);
 
 const selectedItemNomor = computed(() => {
   if (selected.value.length === 0) return null;
-
   const item = selected.value[0];
-  // Antisipasi jika item berbentuk primitive (string) atau object
-  return typeof item === "object" ? item.Nomor : item;
+
+  // PERBAIKAN: Mengantisipasi jika Vuetify hanya menyimpan string Nomor atau seluruh Object item
+  if (typeof item === "object" && item !== null) {
+    return item.Nomor || item.raw?.Nomor || null;
+  }
+  return item; // Jika item langsung berupa string nomor
 });
 
 // --- Methods ---
@@ -300,6 +323,7 @@ watch(
 );
 
 const getRowProps = ({ item }: any) => {
+  // PERBAIKAN: Menyamakan pengecekan kecocokan baris yang aktif terpilih
   const isContained = selected.value.some((sel: any) => {
     const selNomor = typeof sel === "object" ? sel.Nomor : sel;
     return selNomor === item.Nomor;
@@ -311,16 +335,25 @@ const getRowProps = ({ item }: any) => {
 };
 
 const handleRowClick = (event: any, { item }: any) => {
-  // Vuetify 3 menyisipkan objek data asli di dalam properti item itu sendiri atau item.raw
-  selected.value = [item];
+  // PERBAIKAN: Sesuai standarisasi Vuetify 3 select-strategy="single"
+  // Kita simpan string Nomor-nya agar sinkron dengan item-value="Nomor" pada tabel
+  if (item && item.Nomor) {
+    selected.value = [item.Nomor];
+  } else if (item && item.raw && item.raw.Nomor) {
+    selected.value = [item.raw.Nomor];
+  }
 };
 
 const handleCreate = () => {
   router.push({ name: "LHKSublimMMTNew" });
 };
-
 const handleEdit = () => {
-  if (!selectedItemNomor.value) return;
+  if (!selectedItemNomor.value) {
+    toast.warning("Silakan pilih satu data terlebih dahulu");
+    return;
+  }
+
+  // Mengarahkan ke halaman edit dengan membawa parameter nomor yang valid
   router.push({
     name: "LHKSublimMMTEdit",
     params: { nomor: selectedItemNomor.value },

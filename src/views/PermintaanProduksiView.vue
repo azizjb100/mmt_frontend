@@ -115,12 +115,45 @@ const handleExpandUpdate = async (expandedKeys: any[]) => {
 const isLoadingDetails = (nomor: string) => loadingDetails.value.has(nomor);
 
 const actionSaveRedirect = (mode: "new" | "edit") => {
-  if (mode === "new") router.push({ name: "PermintaanProduksiNew" });
-  else if (selected.value[0]?.Nomor)
+  if (mode === "new") {
+    router.push({ name: "PermintaanProduksiNew" });
+  } else {
+    // Ambil object baris yang terpilih
+    const selectedRow = selected.value[0];
+
+    // Validasi pencegahan jika data belum dipilih/tidak memiliki nomor transaksi
+    if (!selectedRow || !selectedRow.Nomor) {
+      toast.warning("Silahkan pilih satu baris data terlebih dahulu.");
+      return;
+    }
+
+    // Redirect ke form edit dengan membawa parameter nomor
     router.push({
       name: "PermintaanProduksiEdit",
-      params: { nomor: selected.value[0].Nomor },
+      params: { nomor: selectedRow.Nomor },
     });
+  }
+};
+
+const handleRowClick = (_event: any, row: any) => {
+  // Ambil objek item yang valid dari Vuetify data table row
+  const itemData = row.item?.raw || row.item || row;
+
+  if (!itemData || !itemData.Nomor) return;
+
+  // Sinkronisasi seleksi baris (toggle select)
+  selected.value = selected.value.some((s: any) => s.Nomor === itemData.Nomor)
+    ? []
+    : [itemData];
+};
+
+const getRowProps = ({ item }: any) => {
+  const itemData = item?.raw || item;
+  return {
+    class: selected.value.some((s: any) => s.Nomor === itemData?.Nomor)
+      ? "row-selected cursor-pointer"
+      : "cursor-pointer",
+  };
 };
 
 const handleDelete = async () => {
@@ -142,18 +175,6 @@ const handlePrint = () => {
       "_blank",
     );
 };
-
-const handleRowClick = (_event: any, row: any) => {
-  selected.value = selected.value.some((s: any) => s.Nomor === row.item.Nomor)
-    ? []
-    : [row.item];
-};
-
-const getRowProps = ({ item }: any) => ({
-  class: selected.value.some((s: any) => s.Nomor === item.Nomor)
-    ? "row-selected"
-    : "",
-});
 
 watch([startDate, endDate], fetchData);
 onMounted(fetchData);

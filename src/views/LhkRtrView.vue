@@ -1,5 +1,5 @@
 <template>
-  <PageLayout title="Browse Hasil Kerja RTR MMT" icon="mdi-table-clock">
+  <PageLayout title="Browse Hasil Kerja Sublim RTR" icon="mdi-table-clock">
     <template #header-actions>
       <v-btn size="x-small" color="success" @click="handleNewEdit('new')">
         <v-icon start>mdi-plus</v-icon> Baru

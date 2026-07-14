@@ -412,7 +412,7 @@ import { useToast } from "vue-toastification";
 import BaseForm from "@/components/BaseForm.vue";
 import { useForm } from "@/composables/useForm";
 import SpkSearchModal from "@/modal/SpkLookupModal.vue";
-import LhkPolaLookupModal from "@/modal/SpkLookupModal.vue";
+import LhkPolaLookupModal from "@/modal/LhkPolaLookupModal.vue";
 import {
   IconVectorTriangle,
   IconSearch,

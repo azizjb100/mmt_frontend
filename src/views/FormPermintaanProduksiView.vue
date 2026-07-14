@@ -107,25 +107,60 @@ const {
     const res = await mintaBahanFormService.getDetail(
       route.params.nomor as string,
     );
-    const h = res.data.data.header;
+
+    // Amankan data response
+    const responseData = res.data?.data || res.data;
+
+    // 💡 JALUR AMAN: Jika backend mengembalikan .header (SUBLIM), gunakan itu.
+    // Jika tidak (MMT), jadikan responseData itu sendiri sebagai header-nya.
+    const h = responseData.header || responseData;
+
+    // Amankan array details (bisa .details, .Details, atau .details internal sublim)
+    const d =
+      responseData.details || responseData.Details || responseData.Detail || [];
+
     return {
-      nomor: h.min_nomor,
-      tanggal: formatDateLocal(h.min_tanggal),
-      kategori: h.min_kategori || "MMT/TEKSTIL",
-      cabang: h.min_cab || "P04",
-      gudangAsalKode: h.gudang_asal_kode || h.min_cab || "P04",
-      gudangAsalNama: h.gudang_asal_nama || "GUDANG UTAMA",
-      divisi: h.min_divisi,
-      spk: h.min_spk_nomor || "",
+      nomor: h.min_nomor || h.Nomor || h.nomor || "",
+      tanggal: formatDateLocal(h.min_tanggal || h.Tanggal || h.tanggal),
+      kategori:
+        h.min_kategori ||
+        h.Kategori ||
+        h.kategori ||
+        (h.Nomor ? "MMT/TEKSTIL" : "SUBLIM"),
+      cabang: h.min_cab || h.GudangKode || h.gudang || "P04",
+      gudangAsalKode: h.gudang_asal_kode || h.GudangKode || h.min_cab || "P04",
+      gudangAsalNama:
+        h.gudang_asal_nama || h.NamaGudang || h.Nama || "GUDANG UTAMA",
+      divisi: h.min_divisi || h.Divisi || "CUTING",
+      spk: h.min_spk_nomor || h.Nomor_SPK || h.spk || "",
       namaSpk: h.min_spk_nomor ? h.namaspk : "NON-SPK (PERMINTAAN LANGSUNG)",
-      jumlahSpk: h.jumlahspk || 0,
-      keterangan: h.min_ket,
-      mkbNomor: h.mkb_nomor,
-      mkbTanggal: formatDateLocal(h.mkb_tanggal),
-      status: h.min_close === 0 ? "OPEN" : "CLOSED",
-      pin_acc: h.pin_acc,
-      pin_dipakai: h.pin_dipakai,
-      details: res.data.data.details,
+      jumlahSpk: h.jumlahspk || h.JumlahSpk || 0,
+      keterangan: h.min_ket || h.Keterangan || h.keterangan || "BARU",
+      mkbNomor: h.mkb_nomor || h.MkbNomor || "",
+      mkbTanggal: formatDateLocal(h.mkb_tanggal || h.MkbTanggal),
+      status: h.min_close === 0 || h.Status === "OPEN" ? "OPEN" : "CLOSED",
+      pin_acc: h.pin_acc || "",
+      pin_dipakai: h.pin_dipakai || "",
+
+      // Mapping item detail agar ramah terhadap properti huruf besar/kecil dari MMT & SUBLIM
+      details: d.map((item: any) => ({
+        kode: item.kode || item.Kode || item.mind_bhn_kode || item.sku || "",
+        nama:
+          item.nama || item.Nama || item.Nama_Bahan || item.nama_bahan || "",
+        satuan: item.satuan || item.Satuan || "ROLL",
+        babaran: Number(item.babaran || item.Babaran || item.mind_babaran) || 0,
+        pcs: Number(item.pcs || item.Pcs || item.mind_pcs) || 0,
+        panjang: Number(item.panjang || item.Panjang) || 0,
+        lebar: Number(item.lebar || item.Lebar) || 0,
+        butuh: Number(item.butuh || item.Butuh) || 0,
+        jumlah:
+          Number(
+            item.jumlah || item.Jumlah || item.qtyMinta || item.mind_jumlah,
+          ) || 0,
+        komponen:
+          item.komponen || item.Komponen || item.mind_komponen || "BODY",
+        ket: item.ket || item.Ket || item.keterangan || item.mind_ket || "",
+      })),
     };
   },
   submitApi: async (data: typeof initialData): Promise<unknown> => {
@@ -491,6 +526,31 @@ const doNotPrint = () => {
             />
           </template>
         </v-text-field>
+
+        <div
+          v-if="formData.kategori === 'SUBLIM' && formData.mkbNomor"
+          class="d-flex gap-2 mb-2"
+        >
+          <v-text-field
+            v-model="formData.mkbNomor"
+            label="No. MKB"
+            density="compact"
+            variant="outlined"
+            readonly
+            hide-details
+            class="flex-grow-1 bg-grey-lighten-4"
+          />
+          <v-text-field
+            v-model="formData.mkbTanggal"
+            label="Tgl MKB"
+            density="compact"
+            variant="outlined"
+            readonly
+            hide-details
+            style="max-width: 140px"
+            class="bg-grey-lighten-4"
+          />
+        </div>
 
         <v-textarea
           v-if="formData.kategori === 'SUBLIM'"

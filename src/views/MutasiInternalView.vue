@@ -50,28 +50,60 @@ const detailHeaders = [
 ];
 
 // Helper parsing tanggal jika data dari database bertipe string custom
-const parseCustomDate = (dateString: string): Date | null => {
+const parseCustomDate = (dateString: any): Date | null => {
   if (!dateString) return null;
-  const parts = dateString.split("-");
-  if (parts.length !== 3) return new Date(dateString); // fallback standard ISO
-  const day = Number(parts[0]);
-  let month = isNaN(Number(parts[1]))
-    ? [
-        "jan",
-        "feb",
-        "mar",
-        "apr",
-        "may",
-        "jun",
-        "jul",
-        "aug",
-        "sep",
-        "oct",
-        "nov",
-        "dec",
-      ].indexOf(parts[1].toLowerCase().substring(0, 3))
-    : Number(parts[1]) - 1;
-  return new Date(Number(parts[2]), month, day);
+
+  // Jika data ternyata sudah berupa objek Date, langsung kembalikan
+  if (dateString instanceof Date) {
+    return isNaN(dateString.getTime()) ? null : dateString;
+  }
+
+  // Konversi ke string jika bertipe data lain (misal number/timestamp)
+  const str = String(dateString).trim();
+  if (!str) return null;
+
+  // 1. Cek jika formatnya adalah kustom bawaan database (misal: "14-Jul-2026" atau "14-07-2026")
+  const parts = str.split("-");
+  if (parts.length === 3) {
+    const day = Number(parts[0]);
+    const year = Number(parts[2]);
+
+    // Validasi struktur angka hari dan tahun dasar
+    if (!isNaN(day) && !isNaN(year) && year > 1000) {
+      let month = isNaN(Number(parts[1]))
+        ? [
+            "jan",
+            "feb",
+            "mar",
+            "apr",
+            "may",
+            "jun",
+            "jul",
+            "aug",
+            "sep",
+            "oct",
+            "nov",
+            "dec",
+          ].indexOf(parts[1].toLowerCase().substring(0, 3))
+        : Number(parts[1]) - 1;
+
+      if (month >= 0 && month <= 11) {
+        const parsedDate = new Date(year, month, day);
+        if (!isNaN(parsedDate.getTime())) {
+          return parsedDate;
+        }
+      }
+    }
+  }
+
+  // 2. Fallback jika string adalah ISO Standard (misal: "2026-07-14") atau format bawaan Javascript
+  const fallbackDate = new Date(str);
+  if (!isNaN(fallbackDate.getTime())) {
+    return fallbackDate;
+  }
+
+  // Jika semua metode gagal, kembalikan null agar tidak crash di date-fns
+  return null;
 };
 
 const fetchData = async () => {
@@ -158,32 +190,38 @@ const getRowProps = ({ item }: any) => ({
 });
 
 const getBagianNama = (kode: string) => {
-  switch (kode) {
+  if (!kode) return "SUBLIM";
+  const k = kode.toUpperCase();
+  switch (k) {
     case "PTG":
-      return "POTONG / CUTTING";
+    case "GP001":
+      return "SUBLIM";
     case "JHT":
+    case "GJ001":
       return "JAHIT / SEWING";
     case "FIN":
+    case "GF001":
       return "FINISHING / QC";
     case "GGD":
-      return "GUDANG JADI";
+    case "GB001":
+      return "POTONG / CUTTING";
     default:
-      return kode || "SUBLIM";
+      return k;
   }
 };
 
+// Mengubah warna menjadi kategori netral (Grayscale/Slate)
 const getBagianColor = (kode: string) => {
-  switch (kode) {
+  if (!kode) return "grey-darken-1";
+  const k = kode.toUpperCase();
+  switch (k) {
     case "PTG":
-      return "orange-darken-2";
-    case "JHT":
-      return "purple-darken-1";
-    case "FIN":
-      return "teal-darken-1";
-    case "GGD":
-      return "green-darken-2";
+    case "GP001":
+      return "grey-darken-3"; // Abu-abu gelap untuk bagian produksi utama
+    case "SUBLIM":
+      return "grey-darken-1"; // Abu-abu sedang
     default:
-      return "blue-grey-darken-1";
+      return "grey-darken-2";
   }
 };
 
@@ -210,77 +248,172 @@ onMounted(fetchData);
     :row-props="getRowProps"
     @update:expanded="handleExpandUpdate(expanded)"
   >
+    <template #item.Nomor_Mutasi="{ value }">
+      <div
+        class="d-flex align-center font-weight-medium text-blue-grey-darken-4"
+      >
+        <v-icon size="16" class="mr-2 text-grey-darken-1"
+          >mdi-file-document-outline</v-icon
+        >
+        <span class="hover-underline">{{ value }}</span>
+      </div>
+    </template>
+
     <template #item.Tanggal="{ value }">
-      {{ value ? format(parseCustomDate(value)!, "dd/MM/yyyy") : "" }}
+      <div class="d-flex align-center text-body-2 text-grey-darken-2">
+        <v-icon size="14" class="mr-2 text-grey-lighten-1">mdi-calendar</v-icon>
+        {{
+          parseCustomDate(value)
+            ? format(parseCustomDate(value)!, "dd/MM/yyyy")
+            : value || "-"
+        }}
+      </div>
     </template>
 
     <template #item.Bagian_Asal="{ value }">
-      <v-chip size="x-small" color="grey-darken-2" variant="flat">
-        {{ value || "SUBLIM" }}
-      </v-chip>
-    </template>
-
-    <template #item.Bagian_Tujuan="{ value }">
       <v-chip
-        size="x-small"
+        size="small"
         :color="getBagianColor(value)"
-        variant="flat"
-        class="text-white"
+        variant="outlined"
+        class="font-weight-medium rounded px-2 text-caption border-opacity-50"
       >
         {{ getBagianNama(value) }}
       </v-chip>
     </template>
 
-    <template #expanded-content="{ item }">
-      <div v-if="isLoadingDetails(item.Nomor_Mutasi)" class="text-center pa-2">
-        <v-progress-circular
-          indeterminate
-          size="20"
-          color="primary"
-          class="mr-2"
-        />
-        <span class="text-caption">Memuat detail item mutasi...</span>
-      </div>
+    <template #item.Bagian_Tujuan="{ value }">
+      <v-chip
+        size="small"
+        :color="getBagianColor(value)"
+        variant="tonal"
+        class="font-weight-medium rounded px-2 text-caption"
+      >
+        {{ getBagianNama(value) }}
+      </v-chip>
+    </template>
 
+    <template #item.Total_Qty="{ value }">
       <div
-        v-else-if="
-          !details[item.Nomor_Mutasi] || details[item.Nomor_Mutasi].length === 0
+        :class="
+          Number(value) > 0
+            ? 'text-grey-darken-4 font-weight-bold'
+            : 'text-grey-lighten-1'
         "
-        class="text-center pa-2 text-caption text-grey"
+        class="text-right pr-2 text-body-2"
       >
-        Tidak ada data detail untuk nomor {{ item.Nomor_Mutasi }}
+        {{ Number(value || 0).toLocaleString("id-ID") }}
       </div>
+    </template>
 
-      <v-data-table
-        v-else
-        :headers="detailHeaders"
-        :items="details[item.Nomor_Mutasi]"
-        density="compact"
-        class="bg-white"
-        :items-per-page="-1"
-        hide-default-footer
-      >
-        <template #[`item.Nama_Komponen`]="{ item: d }">
-          <v-chip size="x-small" variant="tonal" color="blue">
-            {{ d.Nama_Komponen || "ALL SET" }}
-          </v-chip>
-        </template>
+    <template #item.Keterangan="{ value }">
+      <span class="text-caption text-grey-darken-1">
+        {{ value || "—" }}
+      </span>
+    </template>
 
-        <template #[`item.Qty_Mutasi`]="{ item: d }">
-          <div class="text-right font-weight-bold">
-            {{ Number(d.Qty_Mutasi || 0).toFixed(0) }}
-          </div>
-        </template>
-      </v-data-table>
+    <template #expanded-content="{ item }">
+      <div class="expanded-wrapper pa-4 bg-grey-lighten-5">
+        <div
+          v-if="isLoadingDetails(item.Nomor_Mutasi)"
+          class="text-center pa-3"
+        >
+          <v-progress-circular
+            indeterminate
+            size="20"
+            color="grey-darken-3"
+            class="mr-2"
+          />
+          <span class="text-caption text-grey">Memuat detail...</span>
+        </div>
+
+        <div
+          v-else-if="
+            !details[item.Nomor_Mutasi] ||
+            details[item.Nomor_Mutasi].length === 0
+          "
+          class="text-center pa-3 text-caption text-grey minimal-border-dashed"
+        >
+          Tidak ada data detail.
+        </div>
+
+        <v-card
+          v-else
+          variant="outlined"
+          class="bg-white rounded border-grey-lighten-2"
+        >
+          <v-data-table
+            :headers="detailHeaders"
+            :items="details[item.Nomor_Mutasi]"
+            density="compact"
+            :items-per-page="-1"
+            hide-default-footer
+            class="minimal-detail-table"
+          >
+            <template #[`item.Nomor_SPK`]="{ item: d }">
+              <span class="text-grey-darken-3 font-weight-medium">{{
+                d.Nomor_SPK
+              }}</span>
+            </template>
+
+            <template #[`item.Nama_Komponen`]="{ item: d }">
+              <v-chip
+                size="x-small"
+                variant="outlined"
+                color="grey-darken-2"
+                class="font-weight-medium rounded-sm"
+              >
+                {{ d.Nama_Komponen || "ALL SET" }}
+              </v-chip>
+            </template>
+
+            <template #[`item.Qty_Mutasi`]="{ item: d }">
+              <div
+                class="text-right font-weight-bold text-grey-darken-4 text-body-2"
+              >
+                {{ Number(d.Qty_Mutasi || 0).toLocaleString("id-ID") }}
+              </div>
+            </template>
+          </v-data-table>
+        </v-card>
+      </div>
     </template>
   </BaseBrowse>
 </template>
 
 <style scoped>
+/* Warna highlight baris yang dipilih: Abu-abu super lembut */
 .row-selected {
-  background-color: #d8efff !important;
+  background-color: #f1f3f5 !important;
 }
 :deep(.row-selected td) {
-  background-color: #d8efff !important;
+  background-color: #f1f3f5 !important;
+}
+
+/* Hover effect minimalis */
+:deep(.v-data-table__tr:hover) {
+  background-color: #fafbfc !important;
+  cursor: pointer;
+}
+
+/* Dekorasi text link tipis pada Nomor Mutasi saat di-hover */
+.hover-underline:hover {
+  text-decoration: underline;
+  color: #1a73e8; /* Sedikit aksen interaktif saat diarahkan mouse */
+}
+
+/* Pembungkus area detail */
+.expanded-wrapper {
+  border-left: 3px solid #757575; /* Aksen garis abu-abu kokoh di sebelah kiri */
+}
+
+.minimal-border-dashed {
+  border: 1px dashed #e0e0e0;
+}
+
+/* Menghilangkan border internal berlebih di tabel detail */
+.minimal-detail-table :deep(th) {
+  background-color: #f8f9fa !important;
+  font-weight: 600 !important;
+  color: #495057 !important;
 }
 </style>

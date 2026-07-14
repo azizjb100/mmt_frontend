@@ -133,13 +133,12 @@ const headers = [
 const groupedItems = computed(() => {
   const seen = new Set();
   return items.value.filter((item) => {
-    // Buat kunci unik berdasarkan gabungan Nomor PO dan Size
     const duplicateKey = `${item.poi_nomor}_${item.poid_size}`;
     if (seen.has(duplicateKey)) {
-      return false; // Jika kunci sudah ada, buang baris duplikat ini dari tabel pertama
+      return false;
     }
     seen.add(duplicateKey);
-    return true; // Jika belum ada, tampilkan
+    return true;
   });
 });
 
@@ -164,20 +163,42 @@ const handleRowClick = (event, { item }) => {
   );
 
   if (extractMode.value === "SET") {
-    // Mode PER SET: Kirim seluruh komponen sekaligus
-    emit("select", { mode: "SET", data: komponenTerkait });
+    // 🛠️ PERBAIKAN UTAMA: Jika ambil PER SET, bungkus menjadi 1 baris objek saja
+    // dan paksa nama_komponen bernilai "ALL SET"
+    if (komponenTerkait.length > 0) {
+      const baseItem = komponenTerkait[0];
+
+      // Hitung total jumlah PO dari seluruh komponen jika diperlukan,
+      // atau ambil salah satu base kuantiti targetnya.
+      const totalJumlahSet = baseItem.poid_jumlah;
+
+      const rowPerSet = {
+        ...baseItem,
+        poi_size: baseItem.poid_size, // Samakan key agar tidak membingungkan form utama
+        nama_komponen: "ALL SET", // <--- Set ke ALL SET di sini
+        poid_bhn_kode: "ALL SET",
+      };
+
+      emit("select", { mode: "SET", data: [rowPerSet] });
+    }
     dialogModel.value = false;
   } else {
     // Mode PER KOMPONEN: Buka sub-lookup dialog komponen
     selectedSize.value = item.poid_size;
-    filteredComponents.value = komponenTerkait; // List komponen yang muncul di pop-up kedua
+    filteredComponents.value = komponenTerkait;
     componentDialog.value = true;
   }
 };
 
 // --- Saat komponen spesifik di sub-lookup dipilih ---
 const confirmComponentSelect = (componentItem) => {
-  emit("select", { mode: "KOMPONEN", data: [componentItem] });
+  // Pastikan properti size konsisten saat dikirim ke form utama
+  const mappedComponent = {
+    ...componentItem,
+    poi_size: componentItem.poid_size,
+  };
+
+  emit("select", { mode: "KOMPONEN", data: [mappedComponent] });
   componentDialog.value = false;
   dialogModel.value = false;
 };

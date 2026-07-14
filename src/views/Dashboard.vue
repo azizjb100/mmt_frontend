@@ -51,6 +51,10 @@
                   'item-disabled': item.isDisabled,
                   'is-sub-active': activeSubMenu === item.name,
                 }"
+                @mouseleave="
+                  activeSubMenu = null;
+                  activeSubLevel4 = null;
+                "
               >
                 <a
                   v-if="!item.isDisabled"
@@ -82,7 +86,6 @@
                 <ul
                   v-if="!item.isDisabled && activeSubMenu === item.name"
                   class="sub-menu-popup shadow-md"
-                  @mouseleave="activeSubMenu = null"
                 >
                   <li
                     v-for="subItem in item.items"
@@ -123,7 +126,6 @@
                           activeSubLevel4 === subItem.name
                         "
                         class="sub-menu-popup level-4-popup shadow-md"
-                        @mouseleave="activeSubLevel4 = null"
                       >
                         <li
                           v-for="deepItem in subItem.items"
@@ -556,7 +558,7 @@ const allMenuGroups = [
           { name: "LHK Layout", path: "/mmt/lhk/layout" },
         ],
       },
-      { name: "PO Paperprint", path: "/mmt/po-paperprint" },
+      { name: "Mutasi Internal", path: "/mmt/mutasi-internal" },
       { name: "Penerimaan PO External", path: "/mmt/penerimaan-po-external" },
     ],
   },
@@ -922,12 +924,13 @@ const menuGroups = computed(() => {
   position: relative;
 }
 
+/* PERBAIKAN LEVEL 3: Tumpang tindih sedikit ke kiri untuk menutup celah hover */
 .sub-menu-popup {
   position: absolute;
-  left: 100%;
+  left: 99%; /* Diubah dari 100% agar menumpuk sedikit di atas menu induk */
   top: -6px;
   min-width: 260px;
-  margin-left: 8px;
+  margin-left: -2px; /* Dibuat minus agar menempel rapat tanpa celah piksel kosong */
   padding: 6px;
   background-color: white;
   z-index: 1300;
@@ -960,11 +963,12 @@ const menuGroups = computed(() => {
   width: 100%;
 }
 
+/* PERBAIKAN LEVEL 4: Tumpang tindih sedikit ke kiri untuk menutup celah hover */
 .level-4-popup {
   position: absolute;
-  left: 100%;
+  left: 99%; /* Diubah dari 100% agar tidak ada gap */
   top: -6px;
-  margin-left: 8px;
+  margin-left: -2px; /* Dibuat minus agar menempel rapat */
   z-index: 1400;
 }
 
