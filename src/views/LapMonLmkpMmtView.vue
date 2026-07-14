@@ -43,6 +43,14 @@ const totals = computed(() => {
       acc.krg_Cetak += Number(item.krg_Cetak || 0);
       acc.krg_coly += Number(item.krg_coly || 0);
       acc.cetak_luarx += Number(item.cetak_luarx || 0);
+
+      // Tambahan Akumulasi Kolom Mesin
+      acc.mt02 += Number(item.mt02 || 0);
+      acc.mt03 += Number(item.mt03 || 0);
+      acc.mt04 += Number(item.mt04 || 0);
+      acc.mt05 += Number(item.mt05 || 0);
+      acc.mi += Number(item.mi || 0);
+
       acc.krg_kirim_meter += Number(item.krg_kirim_meter || 0);
       acc.krg_Cetak_meter += Number(item.krg_Cetak_meter || 0);
       acc.krg_coly_meter += Number(item.krg_coly_meter || 0);
@@ -57,6 +65,12 @@ const totals = computed(() => {
       krg_Cetak: 0,
       krg_coly: 0,
       cetak_luarx: 0,
+      // Inisialisasi awal nilai 0 untuk mesin
+      mt02: 0,
+      mt03: 0,
+      mt04: 0,
+      mt05: 0,
+      mi: 0,
       krg_kirim_meter: 0,
       krg_Cetak_meter: 0,
       krg_coly_meter: 0,
@@ -107,7 +121,6 @@ const fetchReport = async () => {
 const exportToExcel = () => {
   const fileName = `Laporan_LMKP_${startDate.value}.xlsx`;
 
-  // Helper aman untuk memastikan nilai di-cast ke Number murni
   const num = (value) => {
     const parsed = Number(value);
     return isNaN(parsed) ? 0 : parsed;
@@ -133,14 +146,10 @@ const exportToExcel = () => {
       "Desember",
     ];
 
-    const d = date.getDate();
-    const m = bulanIndo[date.getMonth()];
-    const y = date.getFullYear();
-
-    return `${d} ${m} ${y}`;
+    return `${date.getDate()} ${bulanIndo[date.getMonth()]} ${date.getFullYear()}`;
   };
 
-  // --- 1. Definisi Style ---
+  // --- Style Definisi ---
   const styleHeaderMain = {
     fill: { fgColor: { rgb: "B3E5FC" } },
     font: { bold: true, color: { rgb: "000000" } },
@@ -174,7 +183,6 @@ const exportToExcel = () => {
     font: { bold: true },
   };
 
-  // --- 2. Susun Struktur Data (AOA) ---
   const wsData = [];
 
   // Judul
@@ -192,28 +200,28 @@ const exportToExcel = () => {
 
   // Header Row 1
   const headerRow1 = [
-    { v: "NOMOR SPK", s: styleHeaderMain }, // 0
-    { v: "NAMA ORDER", s: styleHeaderMain }, // 1
-    { v: "TANGGAL", s: styleHeaderMain }, // 2
-    { v: "DEADLINE", s: styleHeaderMain }, // 3
-    { v: "BAHAN", s: styleHeaderMain }, // 4
-    { v: "GRAMASI", s: styleHeaderMain }, // 5
-    { v: "PRODUKSI (PCS)", s: styleHeaderMain }, // 6
+    { v: "NOMOR SPK", s: styleHeaderMain },
+    { v: "NAMA ORDER", s: styleHeaderMain },
+    { v: "TANGGAL", s: styleHeaderMain },
+    { v: "DEADLINE", s: styleHeaderMain },
+    { v: "BAHAN", s: styleHeaderMain },
+    { v: "GRAMASI", s: styleHeaderMain },
+    { v: "PRODUKSI (PCS)", s: styleHeaderMain },
     "",
     "",
     "",
     "",
     "",
-    "", // 7 s/d 12
-    { v: "CTK L.", s: styleHeaderMain }, // 13
-    { v: "MESIN", s: styleHeaderMain }, // 14
+    "",
+    { v: "CTK L.", s: styleHeaderMain },
+    { v: "MESIN", s: styleHeaderMain },
     "",
     "",
     "",
-    "", // 15 s/d 18
-    { v: "PRODUKSI (METER)", s: styleHeaderMain }, // 19
     "",
-    "", // 20, 21
+    { v: "PRODUKSI (METER)", s: styleHeaderMain },
+    "",
+    "",
   ];
 
   headerRow1.forEach((cell, idx) => {
@@ -236,12 +244,12 @@ const exportToExcel = () => {
 
   const headerRow2 = Array(6).fill({ v: "", s: styleHeaderMain });
   subPcs.forEach((h) => headerRow2.push({ v: h, s: styleHeaderSub }));
-  headerRow2.push({ v: "", s: styleHeaderMain });
+  headerRow2.push({ v: "", s: styleHeaderMain }); // Untuk CTK L.
   subMesin.forEach((h) => headerRow2.push({ v: h, s: styleHeaderSub }));
   subMeter.forEach((h) => headerRow2.push({ v: h, s: styleHeaderSub }));
   wsData.push(headerRow2);
 
-  // --- 3. Tambah Baris Data ---
+  // Loop Data Row
   filteredData.value.forEach((item) => {
     wsData.push([
       {
@@ -263,7 +271,7 @@ const exportToExcel = () => {
         s: { ...styleDataCell, alignment: { horizontal: "center" } },
       },
 
-      // Produksi PCS (Integer murni, gunakan t: "n" dan z)
+      // Pcs
       {
         v: num(item.spk_jumlah),
         t: "n",
@@ -306,6 +314,8 @@ const exportToExcel = () => {
         z: "#,##0",
         s: { ...styleDataCell, alignment: { horizontal: "right" } },
       },
+
+      // CTK L.
       {
         v: num(item.cetak_luarx),
         t: "n",
@@ -313,29 +323,39 @@ const exportToExcel = () => {
         s: { ...styleDataCell, alignment: { horizontal: "right" } },
       },
 
-      // Kolom Mesin (Teks/Nama Mesin tetap general)
+      // Mesin (Di-cast ke number agar formatnya rapi dan konsisten)
       {
-        v: item.mt02 || 0,
+        v: num(item.mt02),
+        t: "n",
+        z: "#,##0",
         s: { ...styleDataCell, alignment: { horizontal: "center" } },
       },
       {
-        v: item.mt03 || 0,
+        v: num(item.mt03),
+        t: "n",
+        z: "#,##0",
         s: { ...styleDataCell, alignment: { horizontal: "center" } },
       },
       {
-        v: item.mt04 || 0,
+        v: num(item.mt04),
+        t: "n",
+        z: "#,##0",
         s: { ...styleDataCell, alignment: { horizontal: "center" } },
       },
       {
-        v: item.mt05 || 0,
+        v: num(item.mt05),
+        t: "n",
+        z: "#,##0",
         s: { ...styleDataCell, alignment: { horizontal: "center" } },
       },
       {
-        v: item.mi || 0,
+        v: num(item.mi),
+        t: "n",
+        z: "#,##0",
         s: { ...styleDataCell, alignment: { horizontal: "center" } },
       },
 
-      // Produksi Meter (Desimal murni)
+      // Meter
       {
         v: num(item.krg_kirim_meter),
         t: "n",
@@ -357,15 +377,15 @@ const exportToExcel = () => {
     ]);
   });
 
-  // --- 4. Baris TOTAL ---
+  // --- 4. BARIS TOTAL (SUDAH DIPERBAIKI) ---
   const footerRow = [
     {
       v: "TOTAL (FILTERED)",
       s: { ...styleFooter, alignment: { horizontal: "right" } },
     },
-    ...Array(5).fill({ v: "", s: styleFooter }),
+    ...Array(5).fill({ v: "", s: styleFooter }), // Blank padding untuk kolom 1 s/d 5 yang di-merge
 
-    // Totalan PCS (Integer murni)
+    // Totalan PCS
     {
       v: num(totals.value.spk_jumlah),
       t: "n",
@@ -408,6 +428,8 @@ const exportToExcel = () => {
       z: "#,##0",
       s: { ...styleFooter, alignment: { horizontal: "right" } },
     },
+
+    // Totalan CTK L.
     {
       v: num(totals.value.cetak_luarx),
       t: "n",
@@ -415,9 +437,39 @@ const exportToExcel = () => {
       s: { ...styleFooter, alignment: { horizontal: "right" } },
     },
 
-    ...Array(5).fill({ v: "", s: styleFooter }),
+    // SEKARANG SUDAH DI-SUM: Totalan Kolom Mesin
+    {
+      v: num(totals.value.mt02),
+      t: "n",
+      z: "#,##0",
+      s: { ...styleFooter, alignment: { horizontal: "center" } },
+    },
+    {
+      v: num(totals.value.mt03),
+      t: "n",
+      z: "#,##0",
+      s: { ...styleFooter, alignment: { horizontal: "center" } },
+    },
+    {
+      v: num(totals.value.mt04),
+      t: "n",
+      z: "#,##0",
+      s: { ...styleFooter, alignment: { horizontal: "center" } },
+    },
+    {
+      v: num(totals.value.mt05),
+      t: "n",
+      z: "#,##0",
+      s: { ...styleFooter, alignment: { horizontal: "center" } },
+    },
+    {
+      v: num(totals.value.mi),
+      t: "n",
+      z: "#,##0",
+      s: { ...styleFooter, alignment: { horizontal: "center" } },
+    },
 
-    // Totalan Meter (Desimal murni)
+    // Totalan Meter
     {
       v: num(totals.value.krg_kirim_meter),
       t: "n",
@@ -441,7 +493,7 @@ const exportToExcel = () => {
 
   const ws = XLSX.utils.aoa_to_sheet(wsData);
 
-  // --- 5. Konfigurasi Merge ---
+  // Konfigurasi Merge
   ws["!merges"] = [
     { s: { r: 4, c: 0 }, e: { r: 5, c: 0 } },
     { s: { r: 4, c: 1 }, e: { r: 5, c: 1 } },
@@ -657,7 +709,13 @@ onMounted(fetchReport);
               </td>
               <td class="text-right">{{ formatNumber(totals.krg_coly) }}</td>
               <td class="text-right">{{ formatNumber(totals.cetak_luarx) }}</td>
-              <td colspan="5" class="bg-grey-lighten-4"></td>
+
+              <td class="text-center">{{ formatNumber(totals.mt02) }}</td>
+              <td class="text-center">{{ formatNumber(totals.mt03) }}</td>
+              <td class="text-center">{{ formatNumber(totals.mt04) }}</td>
+              <td class="text-center">{{ formatNumber(totals.mt05) }}</td>
+              <td class="text-center">{{ formatNumber(totals.mi) }}</td>
+
               <td class="text-right">
                 {{ formatNumber(totals.krg_kirim_meter, 2) }}
               </td>
