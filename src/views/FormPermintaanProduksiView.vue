@@ -107,18 +107,10 @@ const {
     const res = await mintaBahanFormService.getDetail(
       route.params.nomor as string,
     );
-
-    // Amankan data response
     const responseData = res.data?.data || res.data;
-
-    // 💡 JALUR AMAN: Jika backend mengembalikan .header (SUBLIM), gunakan itu.
-    // Jika tidak (MMT), jadikan responseData itu sendiri sebagai header-nya.
     const h = responseData.header || responseData;
-
-    // Amankan array details (bisa .details, .Details, atau .details internal sublim)
     const d =
       responseData.details || responseData.Details || responseData.Detail || [];
-
     return {
       nomor: h.min_nomor || h.Nomor || h.nomor || "",
       tanggal: formatDateLocal(h.min_tanggal || h.Tanggal || h.tanggal),
@@ -141,8 +133,6 @@ const {
       status: h.min_close === 0 || h.Status === "OPEN" ? "OPEN" : "CLOSED",
       pin_acc: h.pin_acc || "",
       pin_dipakai: h.pin_dipakai || "",
-
-      // Mapping item detail agar ramah terhadap properti huruf besar/kecil dari MMT & SUBLIM
       details: d.map((item: any) => ({
         kode: item.kode || item.Kode || item.mind_bhn_kode || item.sku || "",
         nama:

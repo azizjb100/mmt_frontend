@@ -963,37 +963,6 @@ const formatCurrency = (value: number) => {
   return value.toLocaleString("id-ID", { minimumFractionDigits: 2 });
 };
 
-// --- Logic Methods ---
-
-const refreshData = () => {
-  // ufrmPO.refreshdata
-  Object.assign(formData, {
-    nomor: "AUTO",
-    tanggal: format(new Date(), "yyyy-MM-dd"),
-    supKode: "",
-    supNama: "",
-    supAlamat: "",
-    supKota: "",
-    jenisPo: 0 as 0, // Default Bahan
-    poGreige: "",
-    mppbNomor: "",
-    mppbTanggal: "",
-    mppbJumlah: 0,
-    keterangan: "",
-    note: "",
-    isPpn: false,
-    ppnRate: user.defaultPpn,
-    status: "OPEN" as "OPEN",
-    pinStatus: "" as "",
-    detail: [createEmptyDetail()],
-    commitments: [createEmptyCommitment()],
-    rolls: [],
-  });
-  isEditMode.value = false;
-  currentDetailIndex.value = null;
-  toast.info("Form dibersihkan (Refresh Data).");
-};
-
 const handleSupKodeExit = async () => {
   if (!formData.supKode) return;
   try {
@@ -1294,7 +1263,7 @@ const handleSave = async (isSaveAndNew: boolean) => {
         jumlah: d.jumlah,
         harga: d.harga,
         diskon: d.diskon || 0,
-        total: d.total, // Digunakan backend untuk kalkulasi totalAmount
+        total: d.total,
         namaext: d.namaext || d.nama,
         spk: d.spk || null,
         mb_nomor: d.mb_nomor || null,
@@ -1304,34 +1273,34 @@ const handleSave = async (isSaveAndNew: boolean) => {
     const datelineValue =
       formData.commitments.length > 0 ? formData.commitments[0].tanggal : null;
 
-    // 4. Susun Payload (Harus sesuai dengan Destructuring di Backend)
-    // Backend: const { tanggal, supKode, keterangan, isPpn, ppnRate, detail, dateline, jenisPo, AlamatPabrik } = data;
+    // 4. Susun Payload
     const payload = {
       tanggal: formData.tanggal,
       supKode: formData.supKode,
-      keterangan: formData.note || "", // Note di frontend dikirim sebagai 'keterangan' ke backend
+      keterangan: formData.note || "",
       isPpn: formData.isPpn,
       ppnRate: formData.ppnRate,
       detail: cleanDetail,
-      dateline: datelineValue, // Diambil dari variabel datelineValue di atas
+      dateline: datelineValue,
       jenisPo: formData.jenisPo,
       AlamatPabrik: formData.AlamatPabrik,
-      // Field tambahan untuk update
-      nomorToEdit: isEditMode.value ? formData.nomor : null,
+      nomorToEdit:
+        isEditMode.value && formData.nomor !== "AUTO" ? formData.nomor : null, // 👈 FIX: Proteksi String AUTO
     };
 
     let response;
 
-    if (isEditMode.value) {
-      // Pastikan API PUT menerima data dalam struktur yang sama
-      response = await api.put(`${API_BASE_URL}/${formData.nomor}`, payload);
+    // 5. Eksekusi EndPoint Sesuai Mode
+    if (isEditMode.value && formData.nomor !== "AUTO") {
+      response = await api.put(
+        `${API_BASE_URL}/${encodeURIComponent(formData.nomor)}`,
+        payload,
+      );
     } else {
       response = await api.post(API_BASE_URL, payload);
     }
 
-    // Backend Anda mengembalikan { Nomor: poNomor } (N besar) atau { nomor: ... }
-    // Sesuaikan dengan response asli backend Anda
-    const newNomor = response.data.Nomor || response.data.nomor;
+    const newNomor = response.data.nomor || response.data.Nomor;
 
     if (!newNomor) {
       throw new Error("Backend tidak mengembalikan nomor PO.");
@@ -1340,25 +1309,58 @@ const handleSave = async (isSaveAndNew: boolean) => {
     toast.success(`Data berhasil disimpan dengan nomor: ${newNomor}`);
 
     if (confirm(`Akan di Cetak?`)) {
-      // Ganti route sesuai nama yang benar di router Anda
       router.push({ name: "PoPrint", params: { nomor: newNomor } });
     }
 
     if (isSaveAndNew) {
       refreshData();
     } else {
+      // PENTING: Paksa mode ke edit setelah insert sukses pertama kali
+      isEditMode.value = true;
       await loaddataall(newNomor);
     }
   } catch (error) {
     const err = error as AxiosError;
-    console.error("Save Error Detail:", err.response?.data); // Sangat penting untuk cek di console browser
+    console.error("Save Error Detail:", err.response?.data);
     toast.error(
-      err.response?.data?.message ||
+      (err.response?.data as any)?.message ||
         "Gagal menyimpan data. Pastikan semua field terisi.",
     );
   } finally {
     isSaving.value = false;
   }
+};
+
+// --- Pastikan properti Pabrik ter-reset di fungsi refreshData ---
+const refreshData = () => {
+  Object.assign(formData, {
+    nomor: "AUTO",
+    tanggal: format(new Date(), "yyyy-MM-dd"),
+    supKode: "",
+    supNama: "",
+    supAlamat: "",
+    supKota: "",
+    jenisPo: 0 as 0,
+    nomorPermintaan: "",
+    pabrikKode: "", // 👈 Tambahkan reset ini
+    pabrikNama: "", // 👈 Tambahkan reset ini
+    AlamatPabrik: "", // 👈 Tambahkan reset ini
+    poGreige: "",
+    mppbNomor: "",
+    mppbTanggal: "",
+    mppbJumlah: 0,
+    keterangan: "",
+    note: "",
+    isPpn: false,
+    ppnRate: user.defaultPpn,
+    status: "OPEN" as "OPEN",
+    pinStatus: "" as "",
+    detail: [createEmptyDetail()],
+    commitments: [createEmptyCommitment()],
+    rolls: [],
+  });
+  isEditMode.value = false;
+  currentDetailIndex.value = null;
 };
 
 // --- Lookup Handlers ---
@@ -1544,11 +1546,19 @@ const loaddataall = async (nomor: string) => {
 
     formData.jenisPo = data.JenisPo;
     formData.poGreige = data.PoGreige || "";
+
+    // FIX NOMOR PERMINTAAN: Ambil dari key baru hasil mapping backend
+    formData.nomorPermintaan = data.NomorPermintaan || "";
+
     formData.mppbNomor = data.MppbNomor || "";
     formData.mppbTanggal = safeDate(data.MppbTanggal);
     formData.mppbJumlah = data.MppbJumlah || 0;
 
-    formData.note = data.Note || "";
+    // FIX PABRIK & ALAMAT KIRIM: Sinkronisasi field alamat tujuan pabrik
+    formData.AlamatPabrik = data.AlamatPabrik || "";
+    formData.pabrikNama = data.AlamatPabrik ? "Lokasi Terdaftar" : "";
+
+    formData.note = data.Note || data.Keterangan || ""; // Sesuaikan mapping note
     formData.keterangan = data.Keterangan || "";
 
     formData.isPpn = data.IsPpn === 1 || data.isPpn === true;
@@ -1562,12 +1572,9 @@ const loaddataall = async (nomor: string) => {
       const p = Number(d.panjang || d.Panjang || 0);
       const l = Number(d.lebar || d.Lebar || 0);
 
-      // Hitung ulang M2 untuk memastikan presisi
       const m2Calculated = p * l;
       const m2Value = Number(d.m2 || d.M2) || m2Calculated;
 
-      // LOGIKA PENENTU SATUAN HARGA (Sangat Penting)
-      // Kita cek database, jika kosong tapi m2 > 0, paksa ke 'm2'
       let sHrg = (d.satuanHarga || d.brg_satuan_harga || d.sat_hrg || "")
         .toLowerCase()
         .trim();
@@ -1578,7 +1585,7 @@ const loaddataall = async (nomor: string) => {
       const item: DetailItem = {
         ...createEmptyDetail(),
         ...d,
-        satuanHarga: sHrg || "roll", // Default ke roll jika benar-benar buntu
+        satuanHarga: sHrg || "roll",
         panjang: p,
         lebar: l,
         m2: m2Value,
@@ -1587,12 +1594,11 @@ const loaddataall = async (nomor: string) => {
         diskon: Number(d.diskon || d.Diskon || 0),
       };
 
-      // Hitung total per baris dengan state yang sudah di-fix
       item.total = calculateTotal(item);
       return item;
     });
 
-    // Tambahkan baris kosong di akhir
+    // Tambahkan baris kosong di akhir untuk input baru
     formData.detail.push(createEmptyDetail());
 
     // --- COMMITMENT & ROLL ---
@@ -1609,7 +1615,7 @@ const loaddataall = async (nomor: string) => {
 
     isEditMode.value = true;
 
-    // RE-CALCULATE ALL (Terutama untuk PPN dan Grand Total)
+    // RE-CALCULATE ALL
     hitung();
   } catch (err) {
     console.error("Load Data Error:", err);

@@ -839,7 +839,7 @@ const menuGroups = computed(() => {
   padding: 0 16px;
   color: var(--color-text-main);
   font-weight: 600;
-  font-size: 0.925rem;
+  font-size: 0.875rem;
   text-decoration: none;
   transition: var(--transition);
   cursor: pointer;
@@ -848,6 +848,7 @@ const menuGroups = computed(() => {
 
 .menu-title-wrapper {
   display: flex;
+  font-size: 12px;
   align-items: center;
   gap: 8px;
 }

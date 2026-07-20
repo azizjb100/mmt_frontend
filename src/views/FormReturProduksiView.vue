@@ -1,15 +1,22 @@
 <script setup lang="ts">
 import { ref, onMounted, computed, reactive, nextTick } from "vue";
 import { useRouter, useRoute } from "vue-router";
-import api from "@/services/api";
-import PageLayout from "../components/PageLayout.vue";
-import GudangLookupModal from "@/modal/GudangLookupView.vue";
-import SPKLookupModal from "@/modal/SpkLookupModal.vue";
-import { format } from "date-fns";
 import { useToast } from "vue-toastification";
-import { useAuthStore } from "../stores/authStore";
+import { useAuthStore } from "@/stores/authStore";
+import { useForm } from "@/composables/useForm";
+import api from "@/services/api";
+import BaseForm from "@/components/BaseForm.vue";
+import GudangLookupModal from "@/modal/GudangLookupView.vue";
+import {
+  IconBox,
+  IconSearch,
+  IconTrash,
+  IconPlus,
+  IconCircleCheck,
+  IconX,
+} from "@tabler/icons-vue";
 
-// --- Interfaces sesuai DB Retur ---
+// --- Interfaces ---
 interface DetailItem {
   barcode: string;
   sku: string;
@@ -24,34 +31,115 @@ interface DetailItem {
   expired: string;
 }
 
-interface FormDataState {
-  nomor: string;
-  tanggal: string;
-  gudangKode: string;
-  gudangNama: string;
-  supplierKode: string; // Mapping ke ret_sup_kode
-  noPermintaan: string; // Mapping ke ret_rec_nomor (Nomor Permintaan Asal)
-  keteranganHeader: string;
-  detail: DetailItem[];
-}
-
-// --- Setup ---
 const router = useRouter();
 const route = useRoute();
 const toast = useToast();
 const authStore = useAuthStore();
 
-// Gunakan Endpoint Retur
-const API_URL = "/mmt/retur-produksi";
-
-// --- State ---
-const isEditMode = ref(!!route.params.nomor);
-const isSaving = ref(false);
+// Modals Visibility State
 const isGudangModalVisible = ref(false);
-const isLokasiProdModalVisible = ref(false); // Dalam retur, ini bisa jadi gudang tujuan
-const isSPKModalVisible = ref(false);
-const currentDetailIndex = ref<number | null>(null);
-const barcodeInputs = ref<any[]>([]);
+const showPrintConfirm = ref(false);
+const savedNomor = ref("");
+
+const formatDateLocal = (value?: string | Date) => {
+  if (!value) return "";
+  const d = new Date(value);
+  if (isNaN(d.getTime())) return "";
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
+// 1. Initial State Form
+const initialData = {
+  nomor: "AUTO",
+  tanggal: formatDateLocal(new Date()),
+  gudangKode: "WH-16",
+  gudangNama: "Gudang Bahan MMT",
+  supplierKode: "",
+  noPermintaan: "",
+  keteranganHeader: "",
+  detail: [] as DetailItem[],
+};
+
+// 2. Setup useForm Composable
+const {
+  formData,
+  isEditMode,
+  isLoading,
+  isSaving,
+  showSaveDialog,
+  showCancelDialog,
+  showCloseDialog,
+  executeSave,
+  executeCancel,
+  executeClose,
+  fetchData,
+} = useForm({
+  menuId: "128", // Sesuaikan ID menu jika berbeda
+  initialData,
+  fetchApi: async () => {
+    const res = await api.get(`/mmt/retur-produksi/${route.params.nomor}`);
+    const responseData = res.data?.data || res.data;
+    const h = responseData.header || responseData;
+    const d = responseData.details || responseData.Details || [];
+
+    return {
+      nomor: h.Nomor || h.nomor || "",
+      tanggal: formatDateLocal(h.Tanggal || h.tanggal),
+      gudangKode: h.GudangTujuan || h.gudang_kode || "WH-16",
+      gudangNama: h.NamaGudang || h.gudang_nama || "Gudang Bahan MMT",
+      supplierKode: h.SupplierKode || h.ret_sup_kode || "",
+      noPermintaan: h.NomorSPK || h.ret_rec_nomor || "",
+      keteranganHeader: h.Keterangan || h.keterangan || "",
+      detail: d.map((item: any) => ({
+        barcode: item.barcode || item.Barcode || "",
+        sku: item.sku || item.Sku || item.Kode || "",
+        Nama_Bahan: item.Nama_Bahan || item.nama_bahan || item.Nama || "",
+        qty: Number(item.qty || item.Qty) || 0,
+        satuan: item.satuan || item.Satuan || "ROLL",
+        panjang: Number(item.panjang || item.Panjang) || 0,
+        lebar: Number(item.lebar || item.Lebar) || 0,
+        keterangan: item.keterangan || item.Keterangan || "",
+        spk: item.spk || "",
+        stok: Number(item.stok || item.Stok) || 0,
+        expired: formatDateLocal(item.expired || item.Expired),
+      })),
+    };
+  },
+  submitApi: async (data: typeof initialData): Promise<unknown> => {
+    const validDetails = data.detail.filter(
+      (d) => d.sku.trim() !== "" && d.qty > 0,
+    );
+    const payload = {
+      Nomor: data.nomor,
+      Tanggal: data.tanggal,
+      GudangTujuan: data.gudangKode,
+      GudangAsal: "GPM", // Terkunci ke GPM sesuai alur bisnis dasar Anda
+      NomorSPK: data.noPermintaan,
+      Keterangan: data.keteranganHeader,
+      Type: 1,
+      Details: validDetails.map((d) => ({
+        sku: d.sku,
+        qty: Number(d.qty),
+        panjang: Number(d.panjang || 0),
+        lebar: Number(d.lebar || 0),
+        keterangan: d.keterangan,
+        barcode: d.barcode || "",
+        expired: d.expired || formatDateLocal(new Date()),
+      })),
+    };
+
+    const res = isEditMode.value
+      ? await api.put(`/mmt/retur-produksi/${data.nomor}`, payload)
+      : await api.post("/mmt/retur-produksi", payload);
+
+    savedNomor.value = res.data?.data?.nomor || data.nomor;
+    showPrintConfirm.value = true;
+    return res;
+  },
+});
 
 const createEmptyDetail = (): DetailItem => ({
   barcode: "",
@@ -64,344 +152,352 @@ const createEmptyDetail = (): DetailItem => ({
   keterangan: "",
   spk: "",
   stok: 0,
-  expired: format(new Date(), "yyyy-MM-dd"),
+  expired: formatDateLocal(new Date()),
 });
-
-const formData = reactive<FormDataState>({
-  nomor: "AUTO",
-  tanggal: format(new Date(), "yyyy-MM-dd"),
-  gudangKode: "WH-16",
-  gudangNama: "Gudang Bahan MMT",
-  supplierKode: "",
-  noPermintaan: "",
-  keteranganHeader: "",
-  detail: [createEmptyDetail()],
-});
-
-// --- Computed ---
-const calculatedTotal = computed(() => {
-  return formData.detail
-    .reduce((sum, d) => sum + (Number(d.qty) || 0), 0)
-    .toFixed(2);
-});
-
-const isFormValid = computed(() => {
-  const isHeaderValid = !!formData.gudangKode;
-  const isDetailValid = formData.detail.some((d) => d.sku && d.qty > 0);
-  return isHeaderValid && isDetailValid;
-});
-
-const detailHeaders = [
-  { title: "No.", key: "index", width: "50px", sortable: false },
-  { title: "Barcode / SKU", key: "sku", width: "180px" },
-  { title: "Nama Bahan", key: "Nama_Bahan", width: "250px" },
-  { title: "Qty Retur", key: "qty", width: "100px", align: "end" as const },
-  { title: "Satuan", key: "satuan", width: "80px" },
-  {
-    title: "Panjang (M)",
-    key: "panjang",
-    width: "100px",
-    align: "end" as const,
-  }, // Baru
-  { title: "Lebar (M)", key: "lebar", width: "100px", align: "end" as const },
-  { title: "Keterangan", key: "keterangan", width: "150px" },
-  { title: "", key: "actions", width: "50px", sortable: false },
-] as const;
-
-// --- Methods ---
-const addDetail = () => formData.detail.push(createEmptyDetail());
-
-const removeDetail = (index: number) => {
-  if (formData.detail.length > 1) formData.detail.splice(index, 1);
-  else formData.detail[0] = createEmptyDetail();
-};
 
 const handleBarcodeScan = async (index: number) => {
-  const targetItem = formData.detail[index];
+  const targetItem = formData.value.detail[index];
   if (!targetItem.barcode) return;
 
   try {
-    // UBAH: Parameter gudang dikunci (hardcoded) ke 'GPM'
     const response = await api.get(
       `/mmt/permintaan-produksi/stok-barcode/${encodeURIComponent(targetItem.barcode)}?gudang=GPM`,
     );
-
     const bahan = response.data.data;
 
     if (!bahan) {
-      // Pesan error lebih spesifik agar user tidak bingung
       toast.error("Barang tidak ditemukan di Gudang GPM.");
       return;
     }
 
-    // Isi data ke baris tabel
-    targetItem.sku = bahan.Kode;
-    targetItem.Nama_Bahan = bahan.Nama_Bahan;
-    targetItem.satuan = bahan.Satuan;
+    targetItem.sku = bahan.Kode || bahan.kode;
+    targetItem.Nama_Bahan = bahan.Nama_Bahan || bahan.nama;
+    targetItem.satuan = bahan.Satuan || bahan.satuan || "ROLL";
     targetItem.stok = bahan.Stok || 0;
-    targetItem.qty = 1; // Default qty retur
+    targetItem.qty = 1;
     targetItem.panjang = bahan.Panjang || 0;
     targetItem.lebar = bahan.Lebar || 0;
-    targetItem.expired = bahan.Expired || format(new Date(), "yyyy-MM-dd");
-    // Otomatis tambah baris baru jika scan di baris terakhir
-    if (index === formData.detail.length - 1) addDetail();
+    targetItem.expired = formatDateLocal(bahan.Expired || new Date());
+
+    if (index === formData.value.detail.length - 1) {
+      formData.value.detail.push(createEmptyDetail());
+    }
 
     await nextTick();
-    barcodeInputs.value[index + 1]?.focus();
+    const nextInput = document.getElementById(`barcode-${index + 1}`);
+    if (nextInput) (nextInput as HTMLInputElement).focus();
   } catch (err) {
     toast.error("Gagal scan barcode atau koneksi terputus.");
   }
 };
 
-const saveForm = async (saveAndNew: boolean) => {
-  const validDetails = formData.detail.filter(
-    (d) => d.sku.trim() !== "" && d.qty > 0,
-  );
-
-  if (validDetails.length === 0) {
-    toast.error("Isi detail retur dengan benar.");
-    return;
-  }
-
-  isSaving.value = true;
-  try {
-    const payload = {
-      Nomor: formData.nomor,
-      Tanggal: formData.tanggal,
-      GudangTujuan: formData.gudangKode,
-      GudangAsal: "GPM", // Paksa GPM sesuai logika trigger
-      NomorSPK: formData.noPermintaan,
-      Keterangan: formData.keteranganHeader,
-      Type: 1,
-      Details: validDetails.map((d) => ({
-        sku: d.sku,
-        qty: Number(d.qty),
-        panjang: Number(d.panjang || 0),
-        lebar: Number(d.lebar || 0),
-        keterangan: d.keterangan,
-        barcode: d.barcode || "",
-        expired: d.expired, // Nilai otomatis "hari ini" terkirim ke backend
-      })),
-    };
-
-    const response = isEditMode.value
-      ? await api.put(`${API_URL}/${formData.nomor}`, payload)
-      : await api.post(API_URL, payload);
-
-    toast.success(response.data.message || "Retur Berhasil Disimpan");
-
-    if (saveAndNew) {
-      Object.assign(formData, {
-        nomor: "AUTO",
-        detail: [createEmptyDetail()],
-        keteranganHeader: "",
-      });
-    } else {
-      router.push({ name: "ReturProduksiBrowse" });
-    }
-  } catch (error: any) {
-    toast.error(error.response?.data?.message || "Gagal simpan.");
-  } finally {
-    isSaving.value = false;
-  }
-};
-
 const handleGudangSelect = (gudang: any) => {
-  formData.gudangKode = gudang.Kode;
-  formData.gudangNama = gudang.Nama;
+  formData.value.gudangKode = gudang.Kode;
+  formData.value.gudangNama = gudang.Nama;
   isGudangModalVisible.value = false;
 };
 
+const validateBeforeSave = () => {
+  if (!formData.value.gudangKode) {
+    return toast.warning("Gudang tujuan retur wajib dipilih.");
+  }
+  const hasValidItems = formData.value.detail.some((d) => d.sku && d.qty > 0);
+  if (!hasValidItems) {
+    return toast.warning(
+      "Isi detail barang retur dengan benar (SKU & Qty > 0).",
+    );
+  }
+  showSaveDialog.value = true;
+};
+
+const finishFlow = () => {
+  showPrintConfirm.value = false;
+  router.push("/mmt/retur-produksi"); // Mengarahkan kembali ke halaman browse utama
+};
+
 onMounted(async () => {
-  // Jika edit, ambil data lama di sini
+  if (isEditMode.value) {
+    await fetchData();
+  } else {
+    formData.value.detail = [createEmptyDetail()];
+  }
 });
 </script>
 
 <template>
-  <PageLayout title="Form Retur Produksi ke Gudang" icon="mdi-keyboard-return">
-    <template #header-actions>
-      <v-btn
-        size="small"
-        color="primary"
-        @click="saveForm(false)"
-        :loading="isSaving"
-        :disabled="!isFormValid"
-      >
-        <v-icon start>mdi-check-circle</v-icon> Simpan Retur
-      </v-btn>
-      <v-btn
-        size="small"
-        color="success"
-        @click="saveForm(true)"
-        :disabled="!isFormValid"
-      >
-        <v-icon start>mdi-plus</v-icon> Simpan & Baru
-      </v-btn>
-      <v-btn size="small" @click="router.back()"
-        ><v-icon start>mdi-close</v-icon> Batal</v-btn
-      >
+  <BaseForm
+    :title="(isEditMode ? 'Ubah' : 'Baru') + ' Retur Produksi ke Gudang'"
+    menu-id="128"
+    :icon="IconBox"
+    :is-loading="isLoading"
+    :is-saving="isSaving"
+    v-model:showSaveDialog="showSaveDialog"
+    v-model:showCancelDialog="showCancelDialog"
+    v-model:showCloseDialog="showCloseDialog"
+    @validate-save="validateBeforeSave"
+    @confirm-save="executeSave"
+    @confirm-cancel="executeCancel"
+    @confirm-close="executeClose"
+  >
+    <template #left-column>
+      <div class="desktop-form-section header-section">
+        <div class="text-caption font-weight-bold mb-2 text-primary">
+          HEADER RETUR
+        </div>
+
+        <v-text-field
+          v-model="formData.nomor"
+          label="No. Retur"
+          density="compact"
+          variant="outlined"
+          readonly
+          placeholder="Otomatis"
+          hide-details
+          class="mb-1"
+        />
+
+        <v-text-field
+          v-model="formData.tanggal"
+          type="date"
+          label="Tanggal Retur"
+          density="compact"
+          variant="outlined"
+          hide-details
+          class="mb-1"
+        />
+
+        <v-text-field
+          model-value="GPM - GUDANG PRODUKSI"
+          label="Gudang Asal"
+          density="compact"
+          variant="outlined"
+          hide-details
+          readonly
+          class="mb-1 bg-grey-lighten-4 text-grey-darken-1"
+        />
+
+        <v-text-field
+          v-model="formData.gudangNama"
+          label="Gudang Tujuan"
+          density="compact"
+          variant="outlined"
+          hide-details
+          class="mb-1 text-primary"
+          readonly
+          @click="isGudangModalVisible = true"
+        >
+          <template #append-inner>
+            <IconSearch
+              :size="16"
+              style="cursor: pointer"
+              @click="isGudangModalVisible = true"
+            />
+          </template>
+        </v-text-field>
+
+        <v-text-field
+          v-model="formData.noPermintaan"
+          label="No. Referensi Permintaan"
+          placeholder="Input No. MP jika ada"
+          density="compact"
+          variant="outlined"
+          hide-details
+          class="mb-1"
+        />
+
+        <v-textarea
+          v-model="formData.keteranganHeader"
+          label="Alasan Retur / Keterangan"
+          density="compact"
+          variant="outlined"
+          rows="2"
+          hide-details
+          class="mb-1"
+        />
+      </div>
     </template>
 
-    <div class="form-grid-container">
-      <div class="left-column">
-        <v-card flat border class="pa-4">
-          <v-row dense>
-            <v-col cols="12">
-              <v-text-field
-                label="No. Retur"
-                v-model="formData.nomor"
-                readonly
-                density="compact"
-                variant="filled"
-              />
-            </v-col>
-            <v-col cols="12">
-              <v-text-field
-                label="Tanggal Retur"
-                v-model="formData.tanggal"
-                type="date"
-                density="compact"
-                variant="outlined"
-              />
-            </v-col>
-            <v-col cols="12">
-              <v-text-field
-                label="Gudang Tujuan"
-                v-model="formData.gudangKode"
-                @click="isGudangModalVisible = true"
-                append-inner-icon="mdi-magnify"
-                readonly
-                density="compact"
-                variant="outlined"
-              />
-            </v-col>
-            <v-col cols="12">
-              <v-text-field
-                label="No. Referensi Permintaan"
-                v-model="formData.noPermintaan"
-                placeholder="Input No. MP jika ada"
-                density="compact"
-                variant="outlined"
-              />
-            </v-col>
-            <v-col cols="12">
-              <v-textarea
-                label="Alasan Retur"
-                v-model="formData.keteranganHeader"
-                rows="3"
-                density="compact"
-                variant="outlined"
-              />
-            </v-col>
-            <v-col cols="12">
-              <v-divider class="mb-2" />
-              <div class="d-flex justify-space-between align-center">
-                <span class="text-caption">Total Item:</span>
-                <span class="text-h6">{{ calculatedTotal }}</span>
-              </div>
-            </v-col>
-          </v-row>
-        </v-card>
-      </div>
+    <template #right-column>
+      <v-card border flat class="d-flex flex-column fill-height">
+        <div class="table-container flex-grow-1">
+          <table class="manksi-table">
+            <thead>
+              <tr>
+                <th width="40">No</th>
+                <th width="160">Barcode / SKU</th>
+                <th>Nama Bahan Baku</th>
+                <th width="70">Satuan</th>
+                <th width="80">Panjang (M)</th>
+                <th width="80">Lebar (M)</th>
+                <th width="90">Qty Retur</th>
+                <th>Keterangan Detail</th>
+                <th width="40"></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="(item, index) in formData.detail" :key="index">
+                <td class="text-center">{{ index + 1 }}</td>
+                <td class="pa-0">
+                  <div class="d-flex align-center fill-height px-1">
+                    <input
+                      :id="`barcode-${index}`"
+                      v-model="item.barcode"
+                      class="cell-input fw-bold text-primary flex-grow-1"
+                      placeholder="Scan & Enter..."
+                      @keyup.enter="handleBarcodeScan(index)"
+                    />
+                    <v-btn
+                      size="x-small"
+                      variant="text"
+                      density="comfortable"
+                      color="primary"
+                    >
+                      <IconSearch :size="14" :stroke-width="1.7" />
+                    </v-btn>
+                  </div>
+                </td>
+                <td>
+                  <input
+                    v-model="item.Nama_Bahan"
+                    class="cell-input text-grey-darken-1"
+                    readonly
+                  />
+                </td>
+                <td class="text-center text-caption">{{ item.satuan }}</td>
+                <td>
+                  <input
+                    type="number"
+                    v-model.number="item.panjang"
+                    class="cell-input tr"
+                  />
+                </td>
+                <td>
+                  <input
+                    type="number"
+                    v-model.number="item.lebar"
+                    class="cell-input tr"
+                  />
+                </td>
+                <td class="bg-yellow-lighten-5">
+                  <input
+                    type="number"
+                    v-model.number="item.qty"
+                    class="cell-input tr fw-bold"
+                  />
+                </td>
+                <td>
+                  <input
+                    v-model="item.keterangan"
+                    class="cell-input"
+                    placeholder="Tambahkan catatan..."
+                  />
+                </td>
+                <td class="text-center">
+                  <v-btn
+                    size="x-small"
+                    variant="text"
+                    color="error"
+                    @click="formData.detail.splice(index, 1)"
+                  >
+                    <IconTrash :size="14" :stroke-width="1.7" />
+                  </v-btn>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
 
-      <div class="right-column">
-        <v-card flat border>
-          <v-data-table
-            :headers="detailHeaders"
-            :items="formData.detail"
-            density="compact"
-            hide-default-footer
+        <v-divider />
+
+        <div class="pa-2 d-flex bg-grey-lighten-4 align-center">
+          <v-btn
+            size="x-small"
+            color="primary"
+            variant="flat"
+            @click="formData.detail.push(createEmptyDetail())"
           >
-            <template #[`item.index`]="{ index }">{{ index + 1 }}</template>
-
-            <template #[`item.sku`]="{ item, index }">
-              <v-text-field
-                :ref="(el) => (barcodeInputs[index] = el)"
-                v-model="item.barcode"
-                placeholder="Scan..."
-                density="compact"
-                variant="underlined"
-                hide-details
-                @keyup.enter="handleBarcodeScan(index)"
-              />
+            <template #prepend>
+              <IconPlus :size="14" :stroke-width="2" />
             </template>
+            Tambah Baris
+          </v-btn>
+          <v-spacer />
+          <div class="text-caption font-weight-bold">
+            Total Qty Diminta: {{ calculatedTotal }}
+          </div>
+        </div>
+      </v-card>
+    </template>
+  </BaseForm>
 
-            <template #[`item.qty`]="{ item }">
-              <v-text-field
-                v-model.number="item.qty"
-                type="number"
-                density="compact"
-                variant="underlined"
-                hide-details
-                class="text-right-input"
-              />
-            </template>
+  <GudangLookupModal
+    :isVisible="isGudangModalVisible"
+    @close="isGudangModalVisible = false"
+    @select="handleGudangSelect"
+  />
 
-            <template #[`item.panjang`]="{ item }">
-              <v-text-field
-                v-model.number="item.panjang"
-                type="number"
-                density="compact"
-                variant="underlined"
-                hide-details
-                suffix="m"
-                class="text-right-input"
-              />
-            </template>
-
-            <template #[`item.lebar`]="{ item }">
-              <v-text-field
-                v-model.number="item.lebar"
-                type="number"
-                density="compact"
-                variant="underlined"
-                hide-details
-                suffix="m"
-                class="text-right-input"
-              />
-            </template>
-
-            <template #[`item.actions`]="{ index }">
-              <v-btn
-                icon="mdi-delete"
-                size="x-small"
-                color="error"
-                variant="text"
-                @click="removeDetail(index)"
-              />
-            </template>
-
-            <template #bottom>
-              <v-btn
-                block
-                color="primary"
-                variant="text"
-                prepend-icon="mdi-plus"
-                @click="addDetail"
-                >Tambah Baris</v-btn
-              >
-            </template>
-          </v-data-table>
-        </v-card>
-      </div>
-    </div>
-
-    <GudangLookupModal
-      :isVisible="isGudangModalVisible"
-      @close="isGudangModalVisible = false"
-      @select="handleGudangSelect"
-    />
-  </PageLayout>
+  <v-dialog v-model="showPrintConfirm" max-width="400px" persistent>
+    <v-card class="rounded-lg">
+      <v-card-title
+        class="bg-primary text-white text-subtitle-1 font-weight-bold pa-3"
+      >
+        Simpan Berhasil
+      </v-card-title>
+      <v-card-text class="pa-4 text-center mt-2">
+        <IconCircleCheck :size="48" color="green" class="mb-3" />
+        <div class="text-body-1 font-weight-medium">
+          Retur Produksi berhasil disimpan!
+        </div>
+      </v-card-text>
+      <v-card-actions class="bg-grey-lighten-4 pa-3">
+        <v-spacer></v-spacer>
+        <v-btn color="primary" variant="elevated" @click="finishFlow">
+          Selesai
+        </v-btn>
+      </v-card-actions>
+    </v-card>
+  </v-dialog>
 </template>
 
 <style scoped>
-.form-grid-container {
-  display: grid;
-  grid-template-columns: 300px 1fr;
-  gap: 16px;
-  padding: 12px;
+.manksi-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
 }
-.text-right-input :deep(input) {
-  text-align: right !important;
+.manksi-table th {
+  background: #1565c0;
+  color: white;
+  padding: 6px;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+.manksi-table td {
+  border: 1px solid #e0e0e0;
+  padding: 0;
+  height: 28px;
+}
+.cell-input {
+  width: 100%;
+  height: 100%;
+  border: none;
+  padding: 0 6px;
+  outline: none;
+  background: transparent;
+}
+.cell-input:focus {
+  background: #e3f2fd;
+}
+.table-container {
+  overflow: auto;
+  height: 100%;
+}
+.tr {
+  text-align: right;
+}
+.fw-bold {
+  font-weight: bold;
 }
 </style>

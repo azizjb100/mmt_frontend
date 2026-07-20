@@ -561,6 +561,67 @@
       @select="handleSpkSelect"
     />
   </PageLayout>
+  <v-dialog v-model="afalModal.show" max-width="500px" persistent>
+    <v-card color="indigo-lighten-5">
+      <!-- Header diubah ke biru soft (info/primary-lighten) -->
+      <v-card-title
+        class="bg-blue-darken-1 text-white d-flex align-center pa-3"
+      >
+        <v-icon start size="large">mdi-information-variant-box</v-icon>
+        <span class="font-weight-bold">Barcode Sisa Samping!</span>
+      </v-card-title>
+
+      <v-card-text class="pa-4 text-grey-darken-4">
+        <p class="mb-3 font-weight-medium">
+          Sistem mendeteksi adanya sisa bahan samping (Afal) yang masih layak
+          pakai. Data stok baru telah dibuat:
+        </p>
+
+        <v-table class="bg-white border rounded mb-4" density="compact">
+          <tbody>
+            <tr>
+              <td
+                class="font-weight-bold bg-blue-lighten-5 text-blue-darken-3"
+                width="40%"
+              >
+                Barcode Baru
+              </td>
+              <td class="text-blue-darken-2 font-weight-black text-subtitle-1">
+                {{ afalModal.data.barcode }}
+              </td>
+            </tr>
+            <tr>
+              <td class="font-weight-bold bg-blue-lighten-5 text-blue-darken-3">
+                Ukuran (P x L)
+              </td>
+              <td>
+                {{ afalModal.data.panjang?.toFixed(2) }} M x
+                {{ afalModal.data.lebar?.toFixed(2) }} M
+              </td>
+            </tr>
+          </tbody>
+        </v-table>
+
+        <!-- Alert Box diubah dari warna Amber/Kuning ke warna Biru Muda Soft -->
+        <div
+          class="d-flex align-start ga-2 bg-blue-lighten-4 pa-3 rounded border border-blue-lighten-2 text-blue-darken-4"
+        >
+          <v-icon class="mt-0_5" color="blue-darken-2">mdi-printer-pos</v-icon>
+          <span class="text-body-2 font-weight-bold">
+            Silakan Hubungi Admin untuk melakukan cetak fisik label barcode ini
+            dan tempelkan pada bahan!
+          </span>
+        </div>
+      </v-card-text>
+
+      <v-card-actions class="bg-grey-lighten-4 pa-2 justify-end">
+        <!-- Tombol aksi disesuaikan menggunakan variasi warna biru/indigo modern -->
+        <v-btn color="blue-darken-2" variant="elevated" @click="closeAfalModal">
+          Paham & Lanjutkan
+        </v-btn>
+      </v-card-actions>
+    </v-card>
+  </v-dialog>
 </template>
 
 <script setup lang="ts">
@@ -843,22 +904,18 @@ const recalculateCombine = () => {
   if (!detailData.length || Number(formData.Lebar_bahan) <= 0) return;
 
   const maxRollHeight = Number(formData.Lebar_bahan);
-  const MIN_LEBAR_AFAL = 0.5;
 
   let currentXOffset = 0;
   let nextXOffset = 0;
   let currentUsedHeight = 0;
 
   detailData.forEach((d) => {
-    // --- Logika Perhitungan Angka ---
     let totalCetakInput = 0;
     for (let i = 1; i <= 7; i++) {
       totalCetakInput += parseFloat(d[`cetak${i}`]) || 0;
     }
 
-    // Pemicu Alert Toast jika melebihi kurangcetak_asli (sisa order sebelum input sekarang)
     if (totalCetakInput > d.kurangcetak_asli) {
-      // Menggunakan toast.warning agar operator langsung sadar tanpa merusak fokus mengetik
       toast.warning(
         `SPK ${d.nomor_spk} (Input: ${totalCetakInput} melebihi sisa order : ${d.kurangcetak_asli})`,
       );
@@ -888,12 +945,10 @@ const recalculateCombine = () => {
     const dimMemanjang =
       d.orientasi === "lebar" ? panjang + padM : lebar + padM;
 
-    // Hitung Luas
     const luasSatuan = (panjang + padM) * (lebar + padM);
     d.luas_satuan = Number(luasSatuan.toFixed(3));
     d.total_luas = Number((luasSatuan * totalCetakInput).toFixed(2));
 
-    // Logika Estimasi Layout (untuk angka di footer)
     const totalHeightSPK = tile * dimMenyamping;
     const totalWidthSPK = Math.ceil(totalCetakInput / tile) * dimMemanjang;
 
@@ -907,10 +962,162 @@ const recalculateCombine = () => {
 
   totalPanjangTerpakai.value = nextXOffset;
 
-  // 🔥 PAKSA SISTEM MENATA BARISAN SECARA OTOMATIS
-  nextTick(() => {
-    autoFillLayout(true); // true agar tidak muncul notifikasi terus-menerus
+  // 🔥 PERBAIKAN DI SINI: Panggil langsung agar nilai Afal ter-update secara synchronous saat save
+  autoFillLayout(true);
+};
+
+const afalModal = reactive({
+  show: false,
+  data: {
+    barcode: "",
+    panjang: 0,
+    lebar: 0,
+  },
+});
+
+// Fungsi untuk menutup modal afal dan redirect ke halaman list LHK
+const closeAfalModal = () => {
+  afalModal.show = false;
+  router.push("/mmt/lhk/cetak");
+};
+
+// --- Modifikasi Fungsi handleSave pada bagian blok try ---
+const handleSave = async (statusValue: "DRAFT" | "POSTED" = "DRAFT") => {
+  // 1. Validasi Panjang Bahan Utama
+  const panjangBahan = Number(formData.Panjang_bahan || 0);
+  if (panjangBahan <= 0) {
+    toast.error(
+      "Gagal Simpan: Panjang bahan yang diambil tidak boleh 0. Silakan scan barcode roll kembali.",
+    );
+    return;
+  }
+
+  // 🔥 VALIDASI UTAMA: Paksa P & L BS tidak boleh kosong (null / string kosong)
+  if (
+    formData.panjang_bs === null ||
+    formData.panjang_bs === "" ||
+    formData.lebar_bs === null ||
+    formData.lebar_bs === ""
+  ) {
+    toast.error(
+      "Gagal Simpan: Panjang dan Lebar BS / Rusak tidak boleh kosong! Jika tidak ada BS, silakan isi dengan angka 0.",
+    );
+    return;
+  }
+
+  // 2. Validasi Over Production
+  let isOverProduction = false;
+  let overMessages = "";
+
+  detailData.forEach((d) => {
+    if (d.totalcetak > d.kurangcetak_asli) {
+      isOverProduction = true;
+      overMessages += `\n- SPK ${d.nomor_spk}: Input ${d.totalcetak} > Sisa ${d.kurangcetak_asli}`;
+    }
   });
+
+  if (isOverProduction && statusValue === "POSTED") {
+    const projut = confirm(
+      `PERHATIAN: Ada kelebihan jumlah cetak:${overMessages}\n\nTetap lanjutkan simpan?`,
+    );
+    if (!projut) return;
+  }
+
+  // Validasi data wajib lainnya (Operator, Mesin, dll)
+  if (!isFormValid.value) {
+    toast.error("Mohon lengkapi data wajib (Operator, Mesin, Barcode, SPK)");
+    return;
+  }
+
+  // Validasi potong stok jika status POSTED
+  if (
+    statusValue === "POSTED" &&
+    !confirm("Simpan Hasil akan MEMOTONG STOK. Lanjutkan?")
+  ) {
+    return;
+  }
+
+  // 3. Proses Pengiriman Data
+  isSaving.value = true;
+  try {
+    // 🔥 KUNCI PERBAIKAN: Jalankan kalkulasi secara sinkron tepat sebelum payload dibentuk
+    // Ini memastikan variabel .value dari Layout ter-update instan tanpa tertahan nextTick
+    recalculateCombine();
+    updateSisaFromLayout();
+
+    const currentUser = authStore.user?.kdUser || "SYSTEM";
+    const payload = {
+      header: {
+        ltanggal: formData.tanggal,
+        lgdg_prod: "GPM",
+        lmesin: formData.mesin,
+        lshift: formData.shift,
+        loperator: formData.operator,
+        lbahan: formData.kode_bahan_aktif,
+        lbarcode_roll: formData.barcode_input,
+        lstatus: statusValue,
+        luser_create: currentUser,
+        luser_modified: currentUser,
+        lpanjang_bs: formData.panjang_bs,
+        llebar_bs: formData.lebar_bs,
+
+        // 🎯 Nilai di bawah ini dijamin membawa angka real layout (misal: 12.24 dan 2.14)
+        lpanjang_afal: panjangSisaLayoutGanjil.value || 0,
+        llebar_afal: lebarSisaLayoutGanjil.value || 0,
+      },
+      details: detailData.map((d) => {
+        return {
+          nomor_spk: d.nomor_spk,
+          tile: d.tile,
+          jumlah: d.jumlah,
+          luasm2: d.total_luas,
+          padding: d.padding,
+          ambilBahanPanjang: formData.Panjang_bahan,
+          ambilBahanLebar: formData.Lebar_bahan,
+          sisabahan: formData.sisa_panjang_manual ?? sisaStokOtomatis.value,
+          sisabahanlebar: formData.sisa_lebar_manual ?? 0,
+          cetak1: d.cetak1,
+          cetak2: d.cetak2,
+          cetak3: d.cetak3,
+          cetak4: d.cetak4,
+          cetak5: d.cetak5,
+          cetak6: d.cetak6,
+          cetak7: d.cetak7,
+        };
+      }),
+      existingNomor: isEditMode.value ? formData.nomor : null,
+    };
+
+    const response = await api.post("/mmt/lhk-cetak", payload);
+    const resBody = response.data.data || response.data;
+
+    if (response.data.success || resBody.success) {
+      toast.success(resBody.message || "LHK berhasil disimpan.");
+
+      if (statusValue === "POSTED" && resBody.afalData) {
+        afalModal.data = {
+          barcode: resBody.afalData.barcode,
+          panjang: Number(resBody.afalData.panjang || 0),
+          lebar: Number(resBody.afalData.lebar || 0),
+        };
+        afalModal.show = true;
+        // Alur router ditahan di sini agar modal terbaca oleh operator
+      } else {
+        if (statusValue === "POSTED") {
+          router.push("/mmt/lhk/cetak");
+        } else if (!isEditMode.value) {
+          formData.nomor = resBody.nomor;
+          isEditMode.value = true;
+          router.replace(`/mmt/lhk-cetak/edit/${resBody.nomor}`);
+        }
+      }
+    }
+  } catch (error: any) {
+    console.error("Save error details:", error);
+    toast.error(error.response?.data?.message || "Gagal simpan.");
+  } finally {
+    isSaving.value = false;
+  }
 };
 
 const loaddataall = async (nomor: string) => {
@@ -1096,25 +1303,15 @@ const getColStyle = (item: any) => {
 
 const getBoxStyle = (item: any) => ({
   width: "100%",
-
   height: `${item.lebar_spk * SCALE}px`,
-
   backgroundColor: "#e3f2fd",
-
   border: "1px solid #2196f3",
-
   display: "flex",
-
   alignItems: "center",
-
   justifyContent: "center",
-
   fontSize: "9px",
-
   color: "#1976d2",
-
   fontWeight: "bold",
-
   flexShrink: 0,
 });
 
@@ -1327,126 +1524,6 @@ const generateNextAfalBarcode = (originalBarcode: string) => {
   return baseBarcode + nextSuffix;
 };
 
-const handleSave = async (statusValue: "DRAFT" | "POSTED" = "DRAFT") => {
-  recalculateCombine();
-
-  // 1. Validasi Panjang Bahan Utama
-  const panjangBahan = Number(formData.Panjang_bahan || 0);
-  if (panjangBahan <= 0) {
-    toast.error(
-      "Gagal Simpan: Panjang bahan yang diambil tidak boleh 0. Silakan scan barcode roll kembali.",
-    );
-    return;
-  }
-
-  // 🔥 VALIDASI UTAMA: Paksa P & L BS tidak boleh kosong (null / string kosong)
-  if (
-    formData.panjang_bs === null ||
-    formData.panjang_bs === "" ||
-    formData.lebar_bs === null ||
-    formData.lebar_bs === ""
-  ) {
-    toast.error(
-      "Gagal Simpan: Panjang dan Lebar BS / Rusak tidak boleh kosong! Jika tidak ada BS, silakan isi dengan angka 0.",
-    );
-    return; // Stop proses di sini, tidak akan masuk ke API
-  }
-
-  // 2. Validasi Over Production
-  let isOverProduction = false;
-  let overMessages = "";
-
-  detailData.forEach((d) => {
-    if (d.totalcetak > d.kurangcetak_asli) {
-      isOverProduction = true;
-      overMessages += `\n- SPK ${d.nomor_spk}: Input ${d.totalcetak} > Sisa ${d.kurangcetak_asli}`;
-    }
-  });
-
-  if (isOverProduction && statusValue === "POSTED") {
-    const projut = confirm(
-      `PERHATIAN: Ada kelebihan jumlah cetak:${overMessages}\n\nTetap lanjutkan simpan?`,
-    );
-    if (!projut) return;
-  }
-
-  // Validasi data wajib lainnya (Operator, Mesin, dll)
-  if (!isFormValid.value) {
-    toast.error("Mohon lengkapi data wajib (Operator, Mesin, Barcode, SPK)");
-    return;
-  }
-
-  if (
-    statusValue === "POSTED" &&
-    !confirm("Simpan Hasil akan MEMOTONG STOK. Lanjutkan?")
-  ) {
-    return;
-  }
-
-  // 3. Proses Pengiriman Data
-  isSaving.value = true;
-  try {
-    const currentUser = authStore.user?.kdUser || "SYSTEM";
-    const payload = {
-      header: {
-        ltanggal: formData.tanggal,
-        lgdg_prod: "GPM",
-        lmesin: formData.mesin,
-        lshift: formData.shift,
-        loperator: formData.operator,
-        lbahan: formData.kode_bahan_aktif,
-        lbarcode_roll: formData.barcode_input,
-        lstatus: statusValue,
-        luser_create: currentUser,
-        luser_modified: currentUser,
-
-        // Kirim nilai apa adanya ke backend (tidak di-fallback ke || 0 agar backend tahu jika ada bypass)
-        lpanjang_bs: formData.panjang_bs,
-        llebar_bs: formData.lebar_bs,
-
-        lpanjang_afal: panjangSisaLayoutGanjil.value,
-        llebar_afal: lebarSisaLayoutGanjil.value,
-      },
-      details: detailData.map((d) => {
-        const detailEntry: any = {
-          nomor_spk: d.nomor_spk,
-          tile: d.tile,
-          jumlah: d.jumlah,
-          luasm2: d.total_luas,
-          padding: d.padding,
-          ambilBahanPanjang: formData.Panjang_bahan,
-          ambilBahanLebar: formData.Lebar_bahan,
-          sisabahan: formData.sisa_panjang_manual ?? sisaStokOtomatis.value,
-          sisabahanlebar: formData.sisa_lebar_manual ?? 0,
-        };
-        for (let i = 1; i <= 7; i++) {
-          detailEntry[`cetak${i}`] = d[`cetak${i}`] || 0;
-        }
-        return detailEntry;
-      }),
-      existingNomor: isEditMode.value ? formData.nomor : null,
-    };
-
-    const response = await api.post("/mmt/lhk-cetak", payload);
-
-    if (response.data.success) {
-      toast.success(response.data.message);
-
-      if (statusValue === "POSTED") {
-        router.push("/mmt/lhk/cetak");
-      } else if (!isEditMode.value) {
-        formData.nomor = response.data.nomor;
-        isEditMode.value = true;
-        router.replace(`/mmt/lhk-cetak/edit/${response.data.nomor}`);
-      }
-    }
-  } catch (error: any) {
-    toast.error(error.response?.data?.message || "Gagal simpan.");
-  } finally {
-    isSaving.value = false;
-  }
-};
-
 const handleSpkSelect = (spk: any) => {
   if (detailData.some((d) => d.nomor_spk === spk.Spk)) {
     toast.warning(`SPK ${spk.Spk} sudah ada dalam daftar!`);
@@ -1504,19 +1581,12 @@ onMounted(() => {
 <style scoped>
 .roll-material {
   /* Tinggi mengikuti Lebar Bahan (3.2m) */
-
   height: v-bind('formData.Lebar_bahan * SCALE + "px"');
-
   position: relative; /* Wajib agar position:absolute item bekerja */
-
   background-color: white;
-
   width: max-content;
-
   /* Berikan min-width agar background putih terlihat sepanjang total panjang bahan */
-
   min-width: v-bind('totalPanjangTerpakai * SCALE + "px"');
-
   border: 1px solid #333;
 }
 
@@ -1536,29 +1606,19 @@ onMounted(() => {
 
 .label-rotated {
   writing-mode: vertical-rl; /* Memutar teks 90 derajat */
-
   text-orientation: mixed;
-
   transform: rotate(180deg); /* Menyesuaikan arah baca agar konsisten */
 }
 
 .box-label {
   font-size: 10px;
-
   font-weight: bold;
-
   white-space: nowrap;
-
   overflow: hidden;
-
   text-overflow: ellipsis;
-
   padding: 2px;
-
   display: flex;
-
   align-items: center;
-
   justify-content: center;
 }
 
@@ -1566,23 +1626,18 @@ onMounted(() => {
 
 .form-grid-container {
   display: flex;
-
   gap: 16px;
-
   align-items: flex-start; /* Penting agar kolom kiri tidak ikut memanjang */
 }
 
 .left-column {
   width: 300px; /* Sesuaikan lebar kolom kiri */
-
   position: sticky;
-
   top: 0;
 }
 
 .right-column {
   flex: 1;
-
   min-width: 0; /* Mencegah flexbox pecah jika tabel terlalu lebar */
 }
 
@@ -1590,9 +1645,7 @@ onMounted(() => {
 
 .detail-entry-table {
   /* Memberikan batas tinggi agar scroll muncul jika SPK banyak */
-
   max-height: 400px;
-
   overflow-y: auto;
 }
 
@@ -1600,11 +1653,8 @@ onMounted(() => {
 
 :deep(.v-data-table__th) {
   position: sticky;
-
   top: 0;
-
   background-color: #a1d9ff !important; /* bg-blue-grey-lighten-5 */
-
   z-index: 2;
 }
 
@@ -1618,11 +1668,8 @@ onMounted(() => {
 
 .footer-container {
   position: sticky;
-
   bottom: 0;
-
   z-index: 2;
-
   border-top: 2px solid #ddd !important;
 }
 

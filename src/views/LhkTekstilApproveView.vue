@@ -1,50 +1,33 @@
 <template>
-  <PageLayout
+  <BaseBrowse
     title="Hasil Kerja Tekstil MMT"
     icon="mdi-factory"
-    class="custom-font"
+    :headers="masterHeaders"
+    :items="masterData"
+    :loading="loading.master"
+    v-model:startDate="filters.startDate"
+    v-model:endDate="filters.endDate"
+    v-model:selected="selected"
+    v-model:expanded="expanded"
+    has-print
+    @refresh="fetchMasterData"
+    @action:new="handleCreate"
+    @action:edit="handleEdit"
+    @action:delete="handleDelete"
+    @action:print="handlePrint"
+    @row-click="handleRowClick"
+    :row-props="getRowProps"
+    @update:expanded="handleExpandUpdate"
   >
     <template #header-actions>
-      <v-btn size="x-small" color="primary" @click="handleCreate">
-        <v-icon start size="14">mdi-plus</v-icon> Baru
-      </v-btn>
-
-      <v-btn
-        size="x-small"
-        color="warning"
-        :disabled="!isSingleSelected"
-        @click="handleEdit"
-      >
-        <v-icon start size="14">mdi-pencil</v-icon> Ubah
-      </v-btn>
-
       <v-btn
         size="x-small"
         color="secondary"
         :disabled="!isSingleSelected"
         @click="handleBahan"
+        class="mr-2"
       >
         <v-icon start size="14">mdi-package-variant</v-icon> Bahan
-      </v-btn>
-
-      <v-divider vertical class="mx-2" />
-
-      <v-btn
-        size="x-small"
-        color="error"
-        :disabled="!isSingleSelected"
-        @click="handleDelete"
-      >
-        <v-icon start size="14">mdi-delete</v-icon> Hapus
-      </v-btn>
-
-      <v-btn
-        size="x-small"
-        color="info"
-        :disabled="!isSingleSelected"
-        @click="handlePrint"
-      >
-        <v-icon start size="14">mdi-printer</v-icon> Slip
       </v-btn>
 
       <v-btn
@@ -53,164 +36,123 @@
         :disabled="masterData.length === 0"
         @click="exportToExcel"
         :loading="loading.master"
+        class="mr-2"
       >
         <v-icon start size="14">mdi-file-excel</v-icon> Export Excel
       </v-btn>
     </template>
 
-    <div class="browse-content">
-      <v-card flat class="mb-4 border">
-        <v-card-text class="pa-3">
-          <div class="d-flex align-center flex-wrap ga-4">
-            <v-label class="font-weight-bold" style="font-size: 11px"
-              >Periode Laporan:</v-label
-            >
+    <template #filter-append>
+      <div class="d-flex align-center ga-2 italic ml-4">
+        <v-icon color="error" size="14">mdi-alert-circle</v-icon>
+        <span class="text-error" style="font-size: 11px"
+          >Teks Merah = Belum Lengkap</span
+        >
+      </div>
+    </template>
 
-            <v-text-field
-              v-model="filters.startDate"
-              type="date"
-              density="compact"
-              hide-details
-              variant="outlined"
-              style="max-width: 160px"
-              class="custom-field"
-            />
-            <v-label style="font-size: 11px">s/d</v-label>
-            <v-text-field
-              v-model="filters.endDate"
-              type="date"
-              density="compact"
-              hide-details
-              variant="outlined"
-              style="max-width: 160px"
-              class="custom-field"
-            />
-            <v-btn
-              variant="elevated"
-              size="small"
-              color="primary"
-              @click="fetchMasterData"
-              style="font-size: 11px"
-              :loading="loading.master"
-            >
-              <v-icon start size="14">mdi-magnify</v-icon> Refresh
-            </v-btn>
+    <template #item.Tanggal="{ value }">
+      <span>{{ safeFormatDate(value) }}</span>
+    </template>
 
-            <v-spacer />
+    <template #item.Nomor="{ value, item }">
+      <span :class="item.Lengkap !== 'Y' ? 'text-error font-weight-bold' : ''">
+        {{ value }}
+      </span>
+    </template>
 
-            <div class="d-flex align-center ga-2 italic">
-              <v-icon color="error" size="14">mdi-alert-circle</v-icon>
-              <span class="text-error" style="font-size: 11px"
-                >Teks Merah = Belum Lengkap</span
-              >
-            </div>
-          </div>
-        </v-card-text>
-      </v-card>
+    <template #expanded-content="{ item }">
+      <div v-if="loadingDetails.has(item.Nomor)" class="text-center pa-4">
+        <v-progress-circular
+          indeterminate
+          size="20"
+          color="primary"
+          class="mr-2"
+        />
+        <span class="text-caption">Memuat detail pekerjaan...</span>
+      </div>
 
-      <v-data-table
-        v-model:selected="selected"
-        v-model:expanded="expanded"
-        :headers="masterHeaders"
-        :items="masterData"
-        :loading="loading.master"
-        item-value="Nomor"
-        density="compact"
-        class="border elevation-1 main-grid custom-table"
-        show-select
-        select-strategy="single"
-        show-expand
-        fixed-header
-        @click:row="handleRowClick"
+      <div
+        v-else-if="!details[item.Nomor] || details[item.Nomor].length === 0"
+        class="text-center pa-4 text-caption text-grey"
       >
-        <template #item.Nomor="{ item }">
-          <span
-            :class="item.Lengkap !== 'Y' ? 'text-error font-weight-bold' : ''"
-          >
-            {{ item.Nomor }}
-          </span>
-        </template>
+        Tidak ada data detail pekerjaan untuk nomor {{ item.Nomor }}
+      </div>
 
-        <template #item.Lengkap="{ item }">
-          <v-icon size="18" :color="item.Lengkap === 'Y' ? 'success' : 'error'">
-            {{ item.Lengkap === "Y" ? "mdi-check-circle" : "mdi-close-circle" }}
-          </v-icon>
-        </template>
+      <v-card
+        v-else
+        variant="outlined"
+        title="Detail Pekerjaan"
+        class="ma-2 custom-font"
+      >
+        <v-data-table
+          :headers="detailHeaders"
+          :items="details[item.Nomor]"
+          density="compact"
+          hide-default-footer
+          class="custom-table"
+          :items-per-page="-1"
+        >
+          <template #item.Ukuran="{ item: dtl }">
+            {{ dtl.Panjang }} x {{ dtl.Lebar }}
+          </template>
 
-        <template #expanded-row="{ columns, item }">
-          <tr>
-            <td :colspan="columns.length" class="bg-grey-lighten-4 pa-4">
-              <v-card
-                variant="outlined"
-                title="Detail Pekerjaan"
-                class="custom-font"
-              >
-                <v-data-table
-                  :headers="detailHeaders"
-                  :items="details[item.Nomor] || []"
-                  :loading="loadingDetails.has(item.Nomor)"
-                  density="compact"
-                  hide-default-footer
-                  class="custom-table"
-                >
-                  <template #item.Ukuran="{ item }">
-                    {{ item.Panjang }} x {{ item.Lebar }}
-                  </template>
-                  <template #item.Warna="{ item }">
-                    <div class="d-flex ga-1">
-                      <v-chip
-                        size="x-small"
-                        color="cyan"
-                        variant="flat"
-                        text="C"
-                        style="font-size: 9px"
-                      />
-                      <v-chip
-                        size="x-small"
-                        color="magenta"
-                        variant="flat"
-                        text="M"
-                        style="font-size: 9px"
-                      />
-                      <v-chip
-                        size="x-small"
-                        color="yellow"
-                        variant="flat"
-                        text="Y"
-                        style="font-size: 9px"
-                      />
-                      <v-chip
-                        size="x-small"
-                        color="black"
-                        variant="flat"
-                        text="K"
-                        style="font-size: 9px"
-                      />
-                    </div>
-                  </template>
-                </v-data-table>
-              </v-card>
-            </td>
-          </tr>
-        </template>
-      </v-data-table>
-    </div>
-  </PageLayout>
+          <template #item.Warna>
+            <div class="d-flex ga-1">
+              <v-chip
+                size="x-small"
+                color="cyan"
+                variant="flat"
+                text="C"
+                style="font-size: 9px"
+              />
+              <v-chip
+                size="x-small"
+                color="magenta"
+                variant="flat"
+                text="M"
+                style="font-size: 9px"
+              />
+              <v-chip
+                size="x-small"
+                color="yellow"
+                variant="flat"
+                text="Y"
+                style="font-size: 9px"
+              />
+              <v-chip
+                size="x-small"
+                color="black"
+                variant="flat"
+                text="K"
+                style="font-size: 9px"
+              />
+            </div>
+          </template>
+
+          <template #item.Jml_Cetak="{ value }">
+            <div class="text-right">
+              {{ Number(value || 0).toLocaleString() }}
+            </div>
+          </template>
+        </v-data-table>
+      </v-card>
+    </template>
+  </BaseBrowse>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, watch } from "vue";
 import { useRouter } from "vue-router";
 import { useToast } from "vue-toastification";
-import PageLayout from "../components/PageLayout.vue";
 import api from "@/services/api";
-import { format, subDays } from "date-fns";
+import { format, subDays, parseISO } from "date-fns";
 import * as XLSX from "xlsx-js-style";
+import BaseBrowse from "@/components/BaseBrowse.vue";
 
 const router = useRouter();
 const toast = useToast();
 
-// --- State ---
 const selected = ref<any[]>([]);
 const expanded = ref<any[]>([]);
 const masterData = ref<any[]>([]);
@@ -223,8 +165,13 @@ const filters = reactive({
   endDate: format(new Date(), "yyyy-MM-dd"),
 });
 
-// --- Table Headers ---
 const masterHeaders = [
+  {
+    title: "Detail",
+    key: "data-table-expand",
+    width: "60px",
+    align: "center" as const,
+  },
   { title: "Nomor", key: "Nomor", width: "150px" },
   { title: "Tanggal", key: "Tanggal", width: "120px" },
   { title: "Gudang", key: "Nama_Gudang" },
@@ -242,13 +189,27 @@ const detailHeaders = [
   { title: "Warna (CMYK)", key: "Warna", sortable: false },
 ];
 
-// --- Computed ---
 const isSingleSelected = computed(() => selected.value.length === 1);
 const selectedItem = computed(() => selected.value[0]);
 
-// --- Methods ---
+// --- Fungsi Format Tanggal Custom ---
+const safeFormatDate = (d: string) => {
+  if (!d) return "-";
+  try {
+    return format(parseISO(d), "dd/MM/yyyy");
+  } catch {
+    if (d.includes("-")) {
+      const parts = d.split("T")[0].split("-");
+      if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
+    }
+    return d;
+  }
+};
+
 const fetchMasterData = async () => {
   loading.master = true;
+  selected.value = [];
+  expanded.value = [];
   try {
     const response = await api.get("/mmt/lhk-tekstil-mmt/approval-list", {
       params: filters,
@@ -261,35 +222,48 @@ const fetchMasterData = async () => {
   }
 };
 
-watch(expanded, async (newVal) => {
-  const lastExpanded: any = newVal[newVal.length - 1];
+const handleExpandUpdate = async (expandedKeys: any[]) => {
+  const lastItem = expandedKeys[expandedKeys.length - 1];
+  if (!lastItem) return;
 
-  if (lastExpanded && !details.value[lastExpanded]) {
-    loadingDetails.value.add(lastExpanded);
-    try {
-      const res = await api.get(`mmt/lhk-tekstil-mmt/approval/${lastExpanded}`);
-      if (res.data.success && res.data.data) {
-        details.value[lastExpanded] = res.data.data.details || [];
-      } else {
-        // Fallback jika API mengembalikan langsung array data
-        details.value[lastExpanded] = res.data.details || res.data || [];
-      }
-    } catch (e) {
-      console.error("Detail error:", e);
-      toast.error("Gagal memuat detail");
-    } finally {
-      loadingDetails.value.delete(lastExpanded);
+  const lastExpandedNomor =
+    typeof lastItem === "object" ? lastItem.Nomor : lastItem;
+  if (!lastExpandedNomor || details.value[lastExpandedNomor]) return;
+
+  loadingDetails.value.add(lastExpandedNomor);
+  try {
+    const res = await api.get(
+      `mmt/lhk-tekstil-mmt/approval/${lastExpandedNomor}`,
+    );
+    if (res.data.success && res.data.data) {
+      details.value[lastExpandedNomor] = res.data.data.details || [];
+    } else {
+      details.value[lastExpandedNomor] = res.data.details || res.data || [];
     }
+  } catch (e) {
+    console.error("Detail error:", e);
+    toast.error("Gagal memuat detail");
+  } finally {
+    loadingDetails.value.delete(lastExpandedNomor);
   }
-});
+};
 
-const handleRowClick = (event: any, { item }: any) => {
-  const isAlreadySelected = selected.value.some((s: any) => s === item.Nomor);
-  if (isAlreadySelected) {
-    selected.value = [];
-  } else {
-    selected.value = [item.Nomor];
-  }
+const handleRowClick = (_event: any, row: any) => {
+  const itemData = row.item?.raw || row.item || row;
+  if (!itemData || !itemData.Nomor) return;
+
+  selected.value = selected.value.some((s: any) => s.Nomor === itemData.Nomor)
+    ? []
+    : [itemData];
+};
+
+const getRowProps = ({ item }: any) => {
+  const itemData = item?.raw || item;
+  return {
+    class: selected.value.some((s: any) => s.Nomor === itemData?.Nomor)
+      ? "row-selected cursor-pointer"
+      : "cursor-pointer",
+  };
 };
 
 const handleCreate = () => {
@@ -297,26 +271,30 @@ const handleCreate = () => {
 };
 
 const handleEdit = () => {
-  if (!selectedItem.value) return;
+  if (!selectedItem.value?.Nomor) {
+    toast.warning("Silahkan pilih baris data terlebih dahulu.");
+    return;
+  }
   router.push({
     name: "RekapTekstilMMTEdit",
-    params: { nomor: selectedItem.value },
+    params: { nomor: selectedItem.value.Nomor },
   });
 };
 
 const handleBahan = () => {
-  if (!selectedItem.value) return;
+  if (!selectedItem.value?.Nomor) return;
   router.push({
     name: "LhkTekstilBahan",
-    params: { id: selectedItem.value },
+    params: { id: selectedItem.value.Nomor },
   });
 };
 
 const handleDelete = async () => {
-  if (!selectedItem.value) return;
-  if (confirm(`Yakin ingin menghapus LHK nomor ${selectedItem.value}?`)) {
+  if (!selectedItem.value?.Nomor) return;
+  const nomor = selectedItem.value.Nomor;
+  if (confirm(`Yakin ingin menghapus LHK nomor ${nomor}?`)) {
     try {
-      await api.delete(`/lhk-tekstil-mmt/${selectedItem.value}`);
+      await api.delete(`/lhk-tekstil-mmt/${nomor}`);
       toast.success("Berhasil dihapus.");
       fetchMasterData();
     } catch (e) {
@@ -326,16 +304,15 @@ const handleDelete = async () => {
 };
 
 const handlePrint = () => {
-  if (!selectedItem.value) return;
-  toast.info(`Mencetak slip untuk ${selectedItem.value}...`);
-  window.open(`/api/report/lhk-slip/${selectedItem.value}`, "_blank");
+  if (!selectedItem.value?.Nomor) return;
+  const nomor = selectedItem.value.Nomor;
+  toast.info(`Mencetak slip untuk ${nomor}...`);
+  window.open(`/api/report/lhk-slip/${nomor}`, "_blank");
 };
 
-// --- EXPORT LOGIC FIXED (LHK APPROVAL TEKSTIL MMT WITH GRAND TOTAL & BORDERS) ---
 const exportToExcel = async () => {
   loading.master = true;
   try {
-    // 1. Ambil otomatis detail untuk baris approval yang belum di-expand
     for (const header of masterData.value) {
       if (
         !details.value[header.Nomor] ||
@@ -351,22 +328,19 @@ const exportToExcel = async () => {
             details.value[header.Nomor] = res.data.details || res.data || [];
           }
         } catch (e) {
-          console.error(`Gagal pre-fetch detail approval ${header.Nomor}:`, e);
           details.value[header.Nomor] = [];
         }
       }
     }
 
     const fileName = `LHK_Approval_Tekstil_${filters.startDate}_to_${filters.endDate}.xlsx`;
-
     const num = (value) => {
       const parsed = Number(value);
       return isNaN(parsed) ? 0 : parsed;
     };
 
-    // --- DEFINISI FORMAT STYLE DENGAN BACKGROUND BIRU MUDA & BORDER UTUH ---
     const styleHeaderMain = {
-      fill: { fgColor: { rgb: "B3E5FC" } }, // Background Biru Muda Cerah
+      fill: { fgColor: { rgb: "B3E5FC" } },
       font: { bold: true, color: { rgb: "000000" }, sz: 10 },
       alignment: { horizontal: "center", vertical: "center", wrapText: true },
       border: {
@@ -380,7 +354,7 @@ const exportToExcel = async () => {
     const styleDataCell = {
       font: { sz: 10 },
       border: {
-        top: { style: "thin", color: { rgb: "000000" } }, // Garis Tabel Tipis Hitam Utuh
+        top: { style: "thin", color: { rgb: "000000" } },
         bottom: { style: "thin", color: { rgb: "000000" } },
         left: { style: "thin", color: { rgb: "000000" } },
         right: { style: "thin", color: { rgb: "000000" } },
@@ -392,32 +366,14 @@ const exportToExcel = async () => {
       ...styleDataCell,
       alignment: { horizontal: "center", vertical: "center" },
     };
-
     const styleDataCellRight = {
       ...styleDataCell,
       alignment: { horizontal: "right", vertical: "center" },
     };
-
     const styleFooter = {
       ...styleDataCell,
-      fill: { fgColor: { rgb: "F0F4F8" } }, // Background Abu Terang Grand Total
+      fill: { fgColor: { rgb: "F0F4F8" } },
       font: { bold: true, sz: 10 },
-    };
-
-    // Perbaikan: Hapus static typing ': string' agar aman di compiler Vite JS biasa
-    const formatTglManual = (dateStr) => {
-      if (!dateStr) return "-";
-      try {
-        if (dateStr.includes("-")) {
-          const parts = dateStr.split("T")[0].split("-");
-          if (parts.length === 3) {
-            return `${parts[2]}/${parts[1]}/${parts[0]}`;
-          }
-        }
-        return dateStr;
-      } catch {
-        return dateStr;
-      }
     };
 
     const worksheetData = [];
@@ -429,13 +385,12 @@ const exportToExcel = async () => {
     ]);
     worksheetData.push([
       {
-        v: `Periode : ${formatTglManual(filters.startDate)} s/d ${formatTglManual(filters.endDate)}`,
+        v: `Periode : ${safeFormatDate(filters.startDate)} s/d ${safeFormatDate(filters.endDate)}`,
         s: { font: { sz: 10 } },
       },
     ]);
     worksheetData.push([]);
 
-    // Tepat Mandatori 11 Kolom Header Utama Bergaris
     const headers = [
       { v: "NOMOR APPROVAL", s: styleHeaderMain },
       { v: "TANGGAL", s: styleHeaderMain },
@@ -451,16 +406,13 @@ const exportToExcel = async () => {
     ];
     worksheetData.push(headers);
 
-    // Variabel Akumulasi Angka Grand Total
     let grandTotalMeterMaster = 0;
     let grandTotalQtyDetail = 0;
 
-    // Perbaikan: Hapus static typing (: any)
     masterData.value.forEach((header) => {
       const targetDetails = details.value[header.Nomor] || [];
-      const tglHeader = formatTglManual(header.Tanggal || "");
+      const tglHeader = safeFormatDate(header.Tanggal || "");
 
-      // Perbaikan: Hapus static typing (: any, : number)
       if (targetDetails.length > 0) {
         targetDetails.forEach((dtl, index) => {
           const isFirstRow = index === 0;
@@ -472,7 +424,6 @@ const exportToExcel = async () => {
           grandTotalQtyDetail += detailCetakQty;
 
           worksheetData.push([
-            // Lajur Master Dokumen (Mengganti string kosong "" menjadi "-" pembatas ber-border)
             { v: isFirstRow ? header.Nomor : "-", s: styleDataCellCenter },
             { v: isFirstRow ? tglHeader : "-", s: styleDataCellCenter },
             {
@@ -483,8 +434,6 @@ const exportToExcel = async () => {
               v: isFirstRow ? header.Shift || "-" : "-",
               s: styleDataCellCenter,
             },
-
-            // Perbaikan Letak Atribut 't' dan 'z' ke Root Objek Sel Numerik Master
             isFirstRow
               ? {
                   v: num(header.Total_Meter),
@@ -493,22 +442,16 @@ const exportToExcel = async () => {
                   s: styleDataCellRight,
                 }
               : { v: "-", s: styleDataCellCenter },
-
-            // Lajur Item Detail Pekerjaan SPK Individu
             { v: dtl.Mesin || "-", s: styleDataCellCenter },
             { v: dtl.Nomor_SPK || "-", s: styleDataCellCenter },
             { v: dtl.Nama_SPK || "-", s: styleDataCell },
             { v: ukuranText, s: styleDataCellCenter },
-
-            // Perbaikan Letak Atribut 't' dan 'z' ke Root Objek Sel Numerik Detail Qty
             { v: detailCetakQty, t: "n", z: "#,##0", s: styleDataCellRight },
             { v: dtl.Nama || "-", s: styleDataCell },
           ]);
         });
       } else {
-        // Fallback jikalau baris master tidak memiliki data pecahan detail transaksi
         grandTotalMeterMaster += num(header.Total_Meter);
-
         worksheetData.push([
           { v: header.Nomor, s: styleDataCellCenter },
           { v: tglHeader, s: styleDataCellCenter },
@@ -530,7 +473,6 @@ const exportToExcel = async () => {
       }
     });
 
-    // --- STRUKTUR GRAND TOTAL BAWAH DENGAN FULL KOTAK KISI GARIS ---
     const footerRow = [
       {
         v: "GRAND TOTAL",
@@ -560,8 +502,6 @@ const exportToExcel = async () => {
     worksheetData.push(footerRow);
 
     const ws = XLSX.utils.aoa_to_sheet(worksheetData);
-
-    // Konfigurasi Merge (Judul atas serta Label Teks GRAND TOTAL bawah kolom A s/d D)
     ws["!merges"] = [
       { s: { r: 0, c: 0 }, e: { r: 0, c: 10 } },
       {
@@ -589,12 +529,13 @@ const exportToExcel = async () => {
     XLSX.writeFile(wb, fileName);
     toast.success("Excel Approval berhasil diunduh");
   } catch (error) {
-    console.error("Export Error:", error);
     toast.error("Gagal mengekspor data approval ke Excel.");
   } finally {
     loading.master = false;
   }
 };
+
+watch([() => filters.startDate, () => filters.endDate], fetchMasterData);
 
 onMounted(() => {
   fetchMasterData();
@@ -605,41 +546,30 @@ onMounted(() => {
 .custom-font {
   font-size: 11px !important;
 }
-
-/* Mengatur ukuran font input field */
 :deep(.v-field-syntax),
 :deep(.v-field__input),
 :deep(input) {
   font-size: 11px !important;
   min-height: 32px !important;
 }
-
-/* Mengatur ukuran font tabel (Header dan Body) */
 .custom-table :deep(th),
 .custom-table :deep(td) {
   font-size: 11px !important;
 }
-
-/* Tombol (Button) */
 :deep(.v-btn) {
   font-size: 11px !important;
   text-transform: none;
 }
-
-.main-grid {
-  height: calc(100vh - 250px);
-}
-
 .text-error {
   color: #ff5252 !important;
 }
-
-:deep(.v-data-table-header th) {
-  background-color: #f5f5f5 !important;
-  font-weight: bold !important;
-}
-
 .italic {
   font-style: italic;
+}
+.row-selected {
+  background-color: #d8efff !important;
+}
+:deep(.row-selected td) {
+  background-color: #d8efff !important;
 }
 </style>
