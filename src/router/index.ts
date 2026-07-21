@@ -118,6 +118,9 @@ import LapMonBSView from '@/views/LapMonBSView.vue';
 import MutasiBahanSpanduk from '@/views/spanduk/MutasiBahanView.vue';
 import PermintaanBahanSpandukView from '@/views/spanduk/PermintaanBahanSpandukView.vue';
 import FormPermintaanBahanSpandukView from '@/views/spanduk/FormPermintaanBahanSpandukView.vue';
+import MasterBahanSpandukView from '@/views/spanduk/MasterBahanSpandukView.vue';
+import MasterBahanSpandukView from '@/views/spanduk/MasterBahanSpandukView.vue';
+import PenerimaanBahanPenolongView from '@/views/spanduk/PenerimaanBahanPenolongView.vue';
 
 const routes: RouteRecordRaw[] = [
     {
@@ -411,6 +414,8 @@ const routes: RouteRecordRaw[] = [
             { path: 'spanduk/mutasi-bahan', name: 'MutasiBahanSpanduk', component: MutasiBahanSpanduk }, 
             { path: 'spanduk/permintaan-bahan', name: 'Permintaan Bahan Spanduk', component: PermintaanBahanSpandukView },
             { path: 'spanduk/permintaan-bahan/new', name: 'PermintaanBahanSpandukNew', component: FormPermintaanBahanSpandukView },
+            { path: 'spanduk/master-bahan', name: 'MasterBahanSpanduk', component: MasterBahanSpandukView },
+            { path: 'spanduk/penerimaan-bahan-penolong', name: 'PenerimaanBahanPenolongSpanduk', component: PenerimaanBahanPenolongView },
             { path: 'spanduk/retur-beli', name: 'Retur Beli', component: ComingSoon },
             { path: 'spanduk/mutasi-gudang', name: 'Mutasi Gudang Spanduk', component: ComingSoon },
             { path: 'spanduk/permintaan-produksi', name: 'Permintaan Produksi Spanduk', component: ComingSoon },

@@ -171,7 +171,7 @@ const totalKoli = computed(() =>
             <td class="text-center">{{ item.Jam_Ready }}</td>
             <td class="text-center">{{ item.Nomor_SJ }}</td>
             <td class="text-center font-bold">{{ item.Realisasi_Kirim }}</td>
-            <td>{{ item.expedisi }}</td>
+            <td>{{ item.Expedisi }}</td>
           </tr>
         </tbody>
       </table>
