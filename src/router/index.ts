@@ -101,6 +101,7 @@ import LhkRtrView from '@/views/LhkRtrView.vue';
 import FormLhkRtrView from '@/views/FormLhkRtrView.vue';
 import LhkTekstilApproveView from '@/views/LhkTekstilApproveView.vue';
 import JadwalKirimPrintView from '@/views/JadwalKirimPrintView.vue';
+import LapMonJadwalKirimView from '@/views/LapMonJadwalKirimView.vue';
 import LapMonSublimView from '@/views/LapMonSublimView.vue';
 import FormPoExtMmtView from '@/views/FormPoExtMmtView.vue';
 import POExternalMmtView from '@/views/POExternalMmtView.vue';
@@ -121,6 +122,7 @@ import FormPermintaanBahanSpandukView from '@/views/spanduk/FormPermintaanBahanS
 import MasterBahanSpandukView from '@/views/spanduk/MasterBahanSpandukView.vue';
 import MasterBahanSpandukView from '@/views/spanduk/MasterBahanSpandukView.vue';
 import PenerimaanBahanPenolongView from '@/views/spanduk/PenerimaanBahanPenolongView.vue';
+import LapKartuStokMmtView from '@/views/LapKartuStokMmtView.vue';
 
 const routes: RouteRecordRaw[] = [
     {
@@ -487,6 +489,7 @@ const routes: RouteRecordRaw[] = [
             { path: 'produksi-mmt/mon/rtr', name: 'Monitoring RTR MMT', component: ComingSoon },
             { path: 'produksi-mmt/mon/tekstil', name: 'Monitoring Tekstil MMT', component: ComingSoon },
             { path: 'laporan/mmt/ls-bahan-utama', name: 'LS Bahan Utama', component: LapLsBahanUtamaView },
+            { path: 'laporan/mmt/lap-kartustok-mmt', name: 'LapKartuStokMmt', component: LapKartuStokMmtView },
             { path: 'laporan/mmt/ls-bahan-penolong', name: 'LS Bahan Penolong', component: LapLsBahanPenolongView },
             { path: 'laporan/mmt/lap-mon-lmkp-mmt', name: 'lapMonLmkpMmt', component: LapMonLmkpMmtView },
             { path: 'laporan/mmt/lap-mon-cetak', name: 'lapMonCetak', component: LapMonCetakView },
@@ -496,7 +499,7 @@ const routes: RouteRecordRaw[] = [
             { path: 'laporan/mmt/lap-mon-sublim', name: 'lapMonSublim', component: LapMonSublimView },
             { path: 'laporan/mmt/lap-mon-plan-vs-lhk', name: 'lapMonPlanVsLHK', component: LapMonPlanVsLHKView },
             { path: 'laporan/mmt/lap-mon-bs', name: 'lapMonBS', component: LapMonBSView },
-
+            { path: 'laporan/mmt/lap-mon-jadwalkirim', name: 'lapMonJadwalKirim', component: LapMonJadwalKirimView },
             { path: 'laporan/mmt/lap-spk-mmt', name: 'lapSpkMmt', component: LapSpkMmtView },            
             { path: 'laporan/mmt/lap-pemakaian-bahan', name: 'LapPemakaianBahan', component: LapPemakaianBahanView },
             { path: 'laporan/mmt/lap-plan-produksi', name: 'lapPlanProduksi', component: LapPlanProdView },

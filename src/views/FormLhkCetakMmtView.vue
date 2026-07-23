@@ -25,7 +25,7 @@ const isSpkLookupVisible = ref(false);
 const activeRowIndex = ref<number | null>(null);
 
 const formData = reactive({
-  nomor: "AUTO", // Ini akan menjadi Nomor LHK Cetak setelah simpan
+  nomor: "AUTO",
   tanggal: format(new Date(), "yyyy-MM-dd"),
   gdg_kode: "GPM",
   shift: 1,
@@ -34,22 +34,35 @@ const formData = reactive({
 });
 
 const inkDetails = ref<any[]>([{ msn_kode: "", c: 0, m: 0, y: 0, k: 0 }]);
-
 const detailData = ref<any[]>([]);
 
-// --- Headers (CMYK Dihapus dari Detail) ---
+// --- Headers (Ditambahkan Toleransi 1 & 2) ---
 const detailHeaders = [
   { title: "No", key: "no", width: "50px", sortable: false },
-  { title: "No. LHK Cetak", key: "lhk_rekap", width: "150px" }, // Kolom baru untuk lcd_lnomor
-  { title: "No. LHK Mesin", key: "lhkmesin", width: "150px" }, // Referensi dari ld_lnomor
+  { title: "No. LHK Cetak", key: "lhk_rekap", width: "150px" },
+  { title: "No. LHK Mesin", key: "lhkmesin", width: "150px" },
   { title: "Shift", key: "shift", width: "70px" },
   { title: "Mesin", key: "mesin", width: "100px" },
   { title: "No. SPK", key: "spk_nomor", width: "130px" },
   { title: "Nama Produk", key: "spk_nama", minWidth: "200px" },
   { title: "Qty", key: "jumlah_cetak", width: "90px", align: "end" },
+  { title: "Tol 1 (m)", key: "toleransi", width: "90px", align: "end" },
+  { title: "Tol 2 (m)", key: "toleransi2", width: "90px", align: "end" },
   { title: "Meter (m²)", key: "total_m2", width: "100px", align: "end" },
   { title: "", key: "actions", width: "50px", sortable: false },
 ];
+
+// --- Helper Konversi Padding ke Toleransi ---
+const calculateToleransi = (paddingCm: number) => {
+  const pad = Number(paddingCm) || 0;
+  // (3 cm * 2) / 100 = 0.06 meter
+  const tolMeter = Number(((pad * 2) / 100).toFixed(4)); 
+  
+  return {
+    toleransi: tolMeter, // Hasil: 0.06
+    toleransi2: tolMeter, // Hasil: 0.06
+  };
+};
 
 // --- Handlers ---
 const addInkRow = () =>
@@ -95,6 +108,8 @@ const handleSpkSelect = (spk: any) => {
     panjang_spk: p,
     lebar_spk: l,
     jumlah_cetak: 1,
+    toleransi: 0,
+    toleransi2: 0,
     total_m2: Number((p * l).toFixed(2)),
     isManual: true,
   };
@@ -126,10 +141,12 @@ const handleLhkSelect = async (selectedNomors: string[]) => {
       formData.gdg_kode = res.header.Gudang || formData.gdg_kode;
     }
 
-    // --- PERBAIKAN LOGIKA DI SINI ---
     if (res && Array.isArray(res.details)) {
       res.details.forEach((d: any) => {
-        // Cari index data yang sudah ada berdasarkan kombinasi LHK Mesin + Nomor SPK
+        // Hitung Toleransi berdasarkan Padding (cm)
+        const paddingValue = d.padding ?? d.Padding ?? 0;
+        const { toleransi, toleransi2 } = calculateToleransi(paddingValue);
+
         const existingIndex = detailData.value.findIndex(
           (ex) =>
             `${ex.lhkmesin}-${ex.spk_nomor}`.toUpperCase() ===
@@ -137,17 +154,15 @@ const handleLhkSelect = async (selectedNomors: string[]) => {
         );
 
         if (existingIndex !== -1) {
-          // 1. JIKA SUDAH ADA: Update qty, total_m2, dan field relasi lainnya
-          detailData.value[existingIndex].jumlah_cetak =
-            Number(d.totalcetak) || 0;
+          detailData.value[existingIndex].jumlah_cetak = Number(d.totalcetak) || 0;
+          detailData.value[existingIndex].toleransi = toleransi;
+          detailData.value[existingIndex].toleransi2 = toleransi2;
           detailData.value[existingIndex].total_m2 = Number(d.ld_luas_m2) || 0;
           detailData.value[existingIndex].shift = d.shift || formData.shift;
           detailData.value[existingIndex].mesin = d.mesin || "-";
           detailData.value[existingIndex].operator = d.operator || "";
-          // Tetap pertahankan isManual false karena ditarik dari LHK
           detailData.value[existingIndex].isManual = false;
         } else {
-          // 2. JIKA BELUM ADA: Push sebagai baris baru seperti biasa
           detailData.value.push({
             lhkmesin: d.referensi_lhk,
             shift: d.shift || formData.shift,
@@ -156,6 +171,8 @@ const handleLhkSelect = async (selectedNomors: string[]) => {
             spk_nama: d.nama_spk,
             operator: d.operator || "",
             jumlah_cetak: Number(d.totalcetak) || 0,
+            toleransi: toleransi,
+            toleransi2: toleransi2,
             total_m2: Number(d.ld_luas_m2) || 0,
             isManual: false,
           });
@@ -185,13 +202,11 @@ const calculateRowM2 = (index: number) => {
 const removeRow = (idx: number) => detailData.value.splice(idx, 1);
 
 const handleSave = async (status: string) => {
-  // 1. Validasi: Minimal harus ada pengerjaan SPK
   if (detailData.value.length === 0) {
     toast.error("Daftar rincian pengerjaan masih kosong!");
     return;
   }
 
-  // 2. Validasi Tinta: Pastikan mesin di inputan tinta sudah dipilih jika ada nilai tintanya
   const invalidInk = inkDetails.value.find(
     (ink) =>
       (ink.c > 0 || ink.m > 0 || ink.y > 0 || ink.k > 0) && !ink.msn_kode,
@@ -207,28 +222,28 @@ const handleSave = async (status: string) => {
   isSaving.value = true;
 
   try {
-    // 3. Susun Payload sesuai struktur tabel baru
     const payload = {
       header: {
         lch_tanggal: formData.tanggal,
         lch_gdg_prod: formData.gdg_kode,
         lch_shift: formData.shift,
         lch_operator: formData.operator,
-        // lch_mesin tetap dikirim jika Anda ingin simpan 'Mesin Utama' di header
         lch_mesin: formData.mesin,
         luser_modified: authStore.user?.kdUser || "SYSTEM",
         lstatus: status,
       },
-      // Data pengerjaan SPK (tabel tlhk_cetakmmt_dtl)
       details: detailData.value.map((d) => ({
         ...d,
-        // Pastikan field matching dengan backend (misal: msn_kode)
         operator: d.operator || formData.operator,
         mesin: d.mesin,
-        lcd_lnomor: d.lhkmesin, // Set lhkmesin ke lcd_lnomor sebelum dikirim
+        lcd_lnomor: d.lhkmesin,
         lcd_lshift: d.shift || formData.shift,
+        // Dikirim dalam format standar & alias backend
+        toleransi: Number(d.toleransi) || 0,
+        toleransi2: Number(d.toleransi2) || 0,
+        lcd_toleransi: Number(d.toleransi) || 0,
+        lcd_toleransi2: Number(d.toleransi2) || 0,
       })),
-      // Data Tinta (tabel tlhk_cetakmmt_ink) - Filter yang mesinnya diisi saja
       inkData: inkDetails.value
         .filter((ink) => ink.msn_kode !== "")
         .map((ink) => ({
@@ -268,27 +283,25 @@ const loaddataall = async (nomor: string) => {
     if (res) {
       isEditMode.value = true;
 
-      // --- 1. Map Data Header ---
-      formData.nomor = res.Nomor; // Sesuai API: res.Nomor
-      formData.tanggal = res.Tanggal; // Sesuai API: res.Tanggal
-      formData.gdg_kode = res.Gdg_Kode; // Sesuai API: res.Gdg_Kode
-      formData.shift = Number(res.Shift); // Sesuai API: res.Shift
+      formData.nomor = res.Nomor;
+      formData.tanggal = res.Tanggal;
+      formData.gdg_kode = res.Gdg_Kode;
+      formData.shift = Number(res.Shift);
       formData.operator = res.Operator || res.details?.[0]?.Operator || "";
-      // Catatan: Di API tingkat header tidak ada field "Mesin",
-      // Jika ingin default, bisa ambil dari Mesin di detail pertama jika ada
       formData.mesin = res.details?.[0]?.Mesin || "";
 
-      // --- 2. Map Data Detail Pekerjaan ---
       if (res.details && Array.isArray(res.details)) {
         detailData.value = res.details.map((d: any) => ({
-          lhk_rekap: d.Nomor, // Nomor LHK Cetak dari API
+          lhk_rekap: d.Nomor,
           lhkmesin: d.Nomor_lhk_mesin || "MANUAL",
           shift: Number(d.Shift) || formData.shift,
-          mesin: d.Mesin || "-", // Menggunakan d.Mesin (M Kapital) sesuai API
+          mesin: d.Mesin || "-",
           operator: d.Operator || res.Operator || "",
           spk_nomor: d.Nomor_SPK,
           spk_nama: d.Nama_SPK,
           jumlah_cetak: Number(d.Jml_Cetak) || 0,
+          toleransi: Number(d.toleransi) || 0,
+          toleransi2: Number(d.toleransi2) || 0,
           total_m2: Number(d.m2_cetak) || 0,
           panjang_spk: Number(d.Panjang) || 0,
           lebar_spk: Number(d.Lebar) || 0,
@@ -296,17 +309,15 @@ const loaddataall = async (nomor: string) => {
         }));
       }
 
-      // --- 3. Map Data Tinta (Disesuaikan dengan properti 'inks' dari API) ---
       if (res.inks && Array.isArray(res.inks) && res.inks.length > 0) {
         inkDetails.value = res.inks.map((ink: any) => ({
-          msn_kode: ink.Msn_Kode, // Sesuai API: Msn_Kode (M Kapital)
-          c: Number(ink.Ink_C) || 0, // Sesuai API: Ink_C
-          m: Number(ink.Ink_M) || 0, // Sesuai API: Ink_M
-          y: Number(ink.Ink_Y) || 0, // Sesuai API: Ink_Y
-          k: Number(ink.Ink_K) || 0, // Sesuai API: Ink_K
+          msn_kode: ink.Msn_Kode,
+          c: Number(ink.Ink_C) || 0,
+          m: Number(ink.Ink_M) || 0,
+          y: Number(ink.Ink_Y) || 0,
+          k: Number(ink.Ink_K) || 0,
         }));
       } else {
-        // Fallback jika data tinta dari API kosong
         inkDetails.value = [{ msn_kode: "", c: 0, m: 0, y: 0, k: 0 }];
       }
     }
@@ -463,7 +474,6 @@ onMounted(() => {
                   color="cyan"
                 />
               </v-col>
-
               <v-col cols="2" md="2">
                 <v-text-field
                   v-model.number="ink.m"
@@ -476,7 +486,6 @@ onMounted(() => {
                   color="magenta"
                 />
               </v-col>
-
               <v-col cols="2" md="2">
                 <v-text-field
                   v-model.number="ink.y"
@@ -489,7 +498,6 @@ onMounted(() => {
                   color="amber-darken-2"
                 />
               </v-col>
-
               <v-col cols="2" md="2">
                 <v-text-field
                   v-model.number="ink.k"
@@ -502,15 +510,16 @@ onMounted(() => {
                   color="black"
                 />
               </v-col>
-              <v-col cols="1"
-                ><v-btn
+              <v-col cols="1">
+                <v-btn
                   icon="mdi-delete"
                   size="x-small"
                   color="error"
                   variant="text"
                   @click="removeInkRow(idx)"
                   v-if="inkDetails.length > 1"
-              /></v-col>
+                />
+              </v-col>
             </v-row>
           </div>
         </v-card>
@@ -544,12 +553,6 @@ onMounted(() => {
             >
           </v-toolbar>
 
-          <template #[`item.lhk_rekap`]="{ item }">
-            <span class="text-caption font-weight-bold text-grey-darken-2">
-              {{ isEditMode ? item.lhk_rekap : "NEW" }}
-            </span>
-          </template>
-
           <v-data-table
             :headers="detailHeaders"
             :items="detailData"
@@ -560,6 +563,12 @@ onMounted(() => {
             hide-default-footer
           >
             <template #[`item.no`]="{ index }">{{ index + 1 }}</template>
+
+            <template #[`item.lhk_rekap`]="{ item }">
+              <span class="text-caption font-weight-bold text-grey-darken-2">
+                {{ isEditMode ? item.lhk_rekap : "NEW" }}
+              </span>
+            </template>
 
             <template #[`item.lhkmesin`]="{ item }">
               <div :class="item.isManual ? 'text-grey italic' : 'lhk-chip'">
@@ -598,6 +607,19 @@ onMounted(() => {
               />
             </template>
 
+            <!-- Render Kolom Toleransi 1 & Toleransi 2 -->
+            <template #[`item.toleransi`]="{ item }">
+              <span class="font-weight-medium text-grey-darken-3">
+                {{ item.toleransi }}
+              </span>
+            </template>
+
+            <template #[`item.toleransi2`]="{ item }">
+              <span class="font-weight-medium text-grey-darken-3">
+                {{ item.toleransi2 }}
+              </span>
+            </template>
+
             <template #[`item.total_m2`]="{ item }">
               <span class="font-weight-medium text-blue-darken-1"
                 >{{ item.total_m2.toFixed(2) }} m²</span
@@ -627,6 +649,7 @@ onMounted(() => {
                       .toLocaleString()
                   }}
                 </td>
+                <td colspan="2"></td>
                 <td class="text-end text-blue-darken-3">
                   {{
                     detailData
@@ -664,7 +687,7 @@ onMounted(() => {
 
 <style scoped>
 :deep(thead th) {
-  background-color: #1976d2 !important; /* Warna biru lebih solid sesuai standar UI modern */
+  background-color: #1976d2 !important;
   color: white !important;
   font-size: 11px !important;
   text-transform: uppercase !important;

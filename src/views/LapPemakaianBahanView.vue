@@ -1,845 +1,281 @@
 <template>
-  <PageLayout title="Laporan Pemakaian Bahan" icon="mdi-printer">
-    <template #header-actions> </template>
+  <BaseReportLayout
+    v-model:start-date="startDate"
+    v-model:end-date="endDate"
+    :items="filteredData"
+    :loading="loading.report"
+    item-key="noSpk"
+    title="Laporan Pemakaian Bahan & Konsumsi Tinta"
+    :excel-file-name="`Laporan_Pemakaian_Bahan_${startDate}_sd_${endDate}.xlsx`"
+    :custom-export-excel="exportToExcel"
+    @refresh="fetchReport"
+  >
+    <template #extra-filters>
+      <v-text-field
+        v-model="searchQuery"
+        label="Cari SPK / Nama Order..."
+        prepend-inner-icon="mdi-magnify"
+        density="compact"
+        hide-details
+        variant="outlined"
+        clearable
+        style="max-width: 260px"
+      />
+    </template>
 
-    <div class="production-wrapper">
-      <v-card class="mb-1 pa-3 filter-card" flat>
-        <div class="filter-section d-flex align-center flex-wrap ga-3">
-          <span class="text-caption font-weight-bold">Periode:</span>
-          <v-text-field
-            v-model="startDate"
-            type="date"
-            density="compact"
-            hide-details
-            variant="outlined"
-            style="max-width: 140px"
-          />
-          <v-label class="mx-1">s/d</v-label>
-          <v-text-field
-            v-model="endDate"
-            type="date"
-            density="compact"
-            hide-details
-            variant="outlined"
-            style="max-width: 140px"
-          />
-          <v-btn
-            size="x-small"
-            color="info"
-            variant="text"
-            @click="fetchReport"
-            :loading="loading.report"
-          >
-            <v-icon start>mdi-refresh</v-icon> Refresh
-          </v-btn>
-          <v-btn
-            size="x-small"
-            color="success"
-            @click="exportToExcel"
-            :disabled="allData.length === 0"
-          >
-            <v-icon start>mdi-file-excel</v-icon> Export Excel
-          </v-btn>
-          <v-spacer />
-          <v-text-field
-            v-model="searchQuery"
-            label="Cari SPK atau Nama Order..."
-            prepend-inner-icon="mdi-magnify"
-            density="compact"
-            hide-details
-            variant="outlined"
-            style="max-width: 300px"
-          />
-        </div>
-      </v-card>
+    <template #thead>
+      <thead>
+        <!-- Row 1: Group Header (A s/d AY) -->
+        <tr class="header-main">
+          <th rowspan="2" class="text-center sticky-col-1">TGL</th>
+          <th rowspan="2" class="text-center sticky-col-2">SHIFT</th>
 
-      <div class="text-caption text-primary mb-1 px-1 d-flex align-center ga-1">
-        <v-icon size="small" color="primary">mdi-information</v-icon>
-        <span
-          >Gaya Grid DevExpress: Geser sub-header ke kanan/kiri. Seluruh nilai
-          lajur vertikal akan ikut pindah secara sinkron.</span
-        >
-      </div>
+          <!-- Toleransi Bahan (C-G) -->
+          <th colspan="5" class="text-center bg-orange-header">TOLERANSI BAHAN</th>
 
-      <div class="grid-table-container">
-        <div class="grid-table-viewport">
-          <div class="grid-table-header-group">
-            <div
-              v-for="(group, gIdx) in dynamicGroups"
-              :key="'group-' + gIdx"
-              class="grid-group-th text-center"
-              :class="group.class"
-              :style="{
-                width: group.width + 'px',
-                minWidth: group.width + 'px',
-                height: group.rowspan === 2 ? '56px' : '28px',
-                lineHeight: group.rowspan === 2 ? '56px' : '28px',
-              }"
-            >
-              {{ group.label }}
-            </div>
-          </div>
+          <!-- Info SPK (H-I) -->
+          <th rowspan="2" class="text-left" style="min-width: 200px;">NAMA ORDER SPK</th>
+          <th rowspan="2" class="text-center" style="min-width: 120px;">NO. SPK</th>
 
-          <div class="grid-table-main-view">
-            <draggable
-              v-model="columns"
-              item-key="field"
-              class="draggable-columns-binder"
-              handle=".grid-sub-th"
-              ghost-class="column-drag-ghost"
-            >
-              <template #item="{ element: col, index: colIdx }">
-                <div
-                  class="grid-column-vertical-stack"
-                  :style="{
-                    width: col.width + 'px',
-                    minWidth: col.width + 'px',
-                  }"
-                >
-                  <div
-                    class="grid-sub-th text-center"
-                    :class="[
-                      col.subClass,
-                      { 'hidden-sub-title': col.group === 'NONE' },
-                    ]"
-                  >
-                    <v-icon size="x-small" class="mr-1 text-blue-grey-lighten-3"
-                      >mdi-drag-vertical</v-icon
-                    >
-                    <span>{{ col.label }}</span>
-                  </div>
+          <!-- Ukuran & Jenis Bahan (J-N) -->
+          <th colspan="2" class="text-center bg-grey-header">UKURAN</th>
+          <th colspan="3" class="text-center bg-grey-header">JENIS BAHAN</th>
 
-                  <div class="grid-column-body-cells">
-                    <div
-                      v-for="(item, rowIdx) in paginatedData"
-                      :key="'row-' + rowIdx"
-                      class="grid-data-td"
-                      :class="[
-                        col.class,
-                        col.cellBg,
-                        rowIdx % 2 === 1 ? 'zebra-stripe-row' : '',
-                      ]"
-                    >
-                      <template v-if="col.type === 'number'">
-                        <span :class="col.textClass">
-                          {{
-                            formatNumber(
-                              getValueByField(item, col.field),
-                              col.dec,
-                            )
-                          }}{{ col.isPercent ? "%" : "" }}
-                        </span>
-                      </template>
-                      <template v-else-if="col.type === 'date'">
-                        {{ formatOnlyDate(getValueByField(item, col.field)) }}
-                      </template>
-                      <template v-else>
-                        <span :class="col.textClass">{{
-                          getValueByField(item, col.field)
-                        }}</span>
-                      </template>
-                    </div>
+          <!-- Jumlah Order SPK (O-P) -->
+          <th colspan="2" class="text-center bg-green-header">JUMLAH ORDER SPK</th>
 
-                    <div
-                      v-if="filteredData.length === 0"
-                      class="grid-data-td text-center text-grey-lighten-1"
-                    >
-                      -
-                    </div>
-                  </div>
+          <!-- Hasil Cetak (Q-S) -->
+          <th colspan="3" class="text-center bg-yellow-header">HASIL CETAK</th>
 
-                  <div
-                    class="grid-footer-td font-weight-bold text-right"
-                    :class="col.class"
-                  >
-                    <span v-if="colIdx === 0">TOTAL SUM:</span>
-                    <span v-else-if="col.sum">
-                      {{ formatNumber(sumField(col.field), col.dec)
-                      }}{{ col.isPercent ? "%" : "" }}
-                    </span>
-                  </div>
-                </div>
-              </template>
-            </draggable>
-          </div>
-        </div>
-      </div>
+          <!-- Ambil Bahan (T-V) -->
+          <th colspan="3" class="text-center bg-yellow-header">AMBIL BAHAN</th>
 
-      <div
-        class="d-flex justify-space-between align-center mt-3"
-        v-if="filteredData.length > 0"
-      >
-        <span class="text-caption text-grey-darken-1"
-          >Total {{ filteredData.length }} Record</span
-        >
-        <div class="d-flex align-center ga-2">
-          <v-btn
-            size="x-small"
-            icon="mdi-chevron-left"
-            @click="currentPage--"
-            :disabled="currentPage === 1"
-          />
-          <span class="text-caption"
-            >Halaman {{ currentPage }} / {{ totalPages }}</span
-          >
-          <v-btn
-            size="x-small"
-            icon="mdi-chevron-right"
-            @click="currentPage++"
-            :disabled="currentPage === totalPages"
-          />
-        </div>
-      </div>
-    </div>
-  </PageLayout>
+          <!-- Kembalian Bahan Bisa Pakai (W-Y) -->
+          <th colspan="3" class="text-center bg-green-header">KEMBALIAN BAHAN BISA PAKAI</th>
+
+          <!-- Kembalian Bahan Tidak Bisa Pakai (Z-AB) -->
+          <th colspan="3" class="text-center bg-red-header">KEMBALIAN BAHAN TIDAK BISA PAKAI</th>
+
+          <!-- Aktual Luas Pakai (AC) -->
+          <th rowspan="2" class="text-center bg-blue-header">AKTUAL LUAS PAKAI (M²)</th>
+
+          <!-- Total Waste (AD-AI) -->
+          <th colspan="6" class="text-center bg-waste-header">TOTAL WASTE</th>
+
+          <!-- Tinta MT 02 - MT 05 (AJ-AY) -->
+          <th colspan="4" class="text-center bg-ink-header">PENGGUNAAN TINTA MT 02</th>
+          <th colspan="4" class="text-center bg-ink-alt-header">PENGGUNAAN TINTA MT 03</th>
+          <th colspan="4" class="text-center bg-ink-header">PENGGUNAAN TINTA MT 04</th>
+          <th colspan="4" class="text-center bg-ink-alt-header">PENGGUNAAN TINTA MT 05</th>
+        </tr>
+
+        <!-- Row 2: Sub Header (Detail Kolom A s/d AY) -->
+        <tr class="header-sub">
+          <!-- Toleransi (C-G) -->
+          <th class="text-right bg-orange-sub">S 1,2 (M)</th>
+          <th class="text-right bg-orange-sub">S 3,4 (M)</th>
+          <th class="text-right bg-orange-sub">% TOLERANSI</th>
+          <th class="text-right bg-orange-sub">TOLERANSI (M²)</th>
+          <th class="text-right bg-orange-sub">TOLERANSI (%)</th>
+
+          <!-- Ukuran & Jenis Bahan (J-N) -->
+          <th class="text-right bg-grey-sub">P (M)</th>
+          <th class="text-right bg-grey-sub">L (M)</th>
+          <th class="text-center bg-grey-sub">GSM</th>
+          <th class="text-right bg-grey-sub">LEBAR (M)</th>
+          <th class="text-right bg-grey-sub">PANJANG ROLL (M)</th>
+
+          <!-- Order SPK (O-P) -->
+          <th class="text-right bg-green-sub">JUMLAH (PCS)</th>
+          <th class="text-right bg-green-sub">LUAS (M²)</th>
+
+          <!-- Hasil Cetak (Q-S) -->
+          <th class="text-right bg-yellow-sub">P. ROLL (M)</th>
+          <th class="text-right bg-yellow-sub">JUMLAH (PCS)</th>
+          <th class="text-right bg-yellow-sub">LUAS (M²)</th>
+
+          <!-- Ambil Bahan (T-V) -->
+          <th class="text-right bg-yellow-sub">PANJANG (M)</th>
+          <th class="text-right bg-yellow-sub">LEBAR (M)</th>
+          <th class="text-right bg-yellow-sub">LUAS (M²)</th>
+
+          <!-- Kembalian Bisa Pakai (W-Y) -->
+          <th class="text-right bg-green-sub">PANJANG (M)</th>
+          <th class="text-right bg-green-sub">LEBAR (M)</th>
+          <th class="text-right bg-green-sub">LUAS (M²)</th>
+
+          <!-- Kembalian Tidak Bisa Pakai (Z-AB) -->
+          <th class="text-right bg-red-sub">PANJANG (M)</th>
+          <th class="text-right bg-red-sub">LEBAR (M)</th>
+          <th class="text-right bg-red-sub">LUAS (M²)</th>
+
+          <!-- Total Waste (AD-AI) -->
+          <th class="text-right bg-waste-sub">WASTE (M²)</th>
+          <th class="text-right bg-waste-sub">WASTE (%)</th>
+          <th class="text-right bg-waste-sub">LOST (M²)</th>
+          <th class="text-right bg-waste-sub">LOST (%)</th>
+          <th class="text-right bg-waste-sub">TOTAL (M²)</th>
+          <th class="text-right bg-waste-sub">TOTAL (%)</th>
+
+          <!-- Tinta MT02 -->
+          <th class="text-right bg-ink-sub ink-c">C</th><th class="text-right bg-ink-sub ink-m">M</th><th class="text-right bg-ink-sub ink-y">Y</th><th class="text-right bg-ink-sub ink-k">K</th>
+          <!-- Tinta MT03 -->
+          <th class="text-right bg-ink-sub-alt ink-c">C</th><th class="text-right bg-ink-sub-alt ink-m">M</th><th class="text-right bg-ink-sub-alt ink-y">Y</th><th class="text-right bg-ink-sub-alt ink-k">K</th>
+          <!-- Tinta MT04 -->
+          <th class="text-right bg-ink-sub ink-c">C</th><th class="text-right bg-ink-sub ink-m">M</th><th class="text-right bg-ink-sub ink-y">Y</th><th class="text-right bg-ink-sub ink-k">K</th>
+          <!-- Tinta MT05 -->
+          <th class="text-right bg-ink-sub-alt ink-c">C</th><th class="text-right bg-ink-sub-alt ink-m">M</th><th class="text-right bg-ink-sub-alt ink-y">Y</th><th class="text-right bg-ink-sub-alt ink-k">K</th>
+        </tr>
+      </thead>
+    </template>
+
+    <template #row="{ item, formatNumber }">
+      <tr class="table-row-item">
+        <!-- A-B: TGL, SHIFT -->
+        <td class="text-center sticky-col-1">{{ formatOnlyDate(item.tgl) }}</td>
+        <td class="text-center sticky-col-2">{{ item.shift || '-' }}</td>
+
+        <!-- C-G: TOLERANSI -->
+        <td class="text-right">{{ formatNumber(item.s12, 2) }}</td>
+        <td class="text-right">{{ formatNumber(item.s34, 2) }}</td>
+        <td class="text-right bg-orange-light">{{ formatNumber(item.persenToleransi, 1) }}%</td>
+        <td class="text-right bg-orange-light">{{ formatNumber(item.toleransiM2, 1) }}</td>
+        <td class="text-right bg-orange-light">{{ formatNumber(item.toleransiPersen, 1) }}%</td>
+
+        <!-- H-I: INFO SPK -->
+        <td class="text-left text-truncate" style="max-width: 200px;" :title="item.namaOrder">{{ item.namaOrder || '-' }}</td>
+        <td class="text-center font-weight-bold">{{ item.noSpk || '-' }}</td>
+
+        <!-- J-N: UKURAN & JENIS BAHAN -->
+        <td class="text-right">{{ formatNumber(item.p, 2) }}</td>
+        <td class="text-right">{{ formatNumber(item.l, 2) }}</td>
+        <td class="text-center">{{ item.gsm || '-' }}</td>
+        <td class="text-right">{{ formatNumber(item.lebarBahan, 1) }}</td>
+        <td class="text-right">{{ formatNumber(item.pRoll, 1) }}</td>
+
+        <!-- O-P: ORDER SPK -->
+        <td class="text-right bg-green-light">{{ formatNumber(item.orderPcs, 0) }}</td>
+        <td class="text-right font-weight-bold bg-green-light">{{ formatNumber(item.orderLuas, 1) }}</td>
+
+        <!-- Q-S: HASIL CETAK -->
+        <td class="text-right bg-yellow-light">{{ formatNumber(item.hasilPRoll, 1) }}</td>
+        <td class="text-right bg-yellow-light">{{ formatNumber(item.hasilQty, 0) }}</td>
+        <td class="text-right font-weight-bold bg-yellow-light">{{ formatNumber(item.hasilLuas, 1) }}</td>
+
+        <!-- T-V: AMBIL BAHAN -->
+        <td class="text-right">{{ formatNumber(item.ambilP, 1) }}</td>
+        <td class="text-right">{{ formatNumber(item.ambilL, 1) }}</td>
+        <td class="text-right font-weight-bold bg-yellow-light">{{ formatNumber(item.ambilLuas, 1) }}</td>
+
+        <!-- W-Y: KEMBALIAN BISA PAKAI -->
+        <td class="text-right">{{ formatNumber(item.sisaBisaPakaiP, 1) }}</td>
+        <td class="text-right">{{ formatNumber(item.sisaBisaPakaiL, 1) }}</td>
+        <td class="text-right font-weight-bold text-success">{{ formatNumber(item.sisaBisaPakaiLuas, 1) }}</td>
+
+        <!-- Z-AB: KEMBALIAN TIDAK BISA PAKAI -->
+        <td class="text-right">{{ formatNumber(item.sisaRongsokP, 1) }}</td>
+        <td class="text-right">{{ formatNumber(item.sisaRongsokL, 1) }}</td>
+        <td class="text-right font-weight-bold text-danger">{{ formatNumber(item.sisaRongsokLuas, 1) }}</td>
+
+        <!-- AC: AKTUAL LUAS PAKAI -->
+        <td class="text-right font-weight-bold bg-blue-light">{{ formatNumber(item.aktualLuasPakai, 1) }}</td>
+
+        <!-- AD-AI: TOTAL WASTE -->
+        <td class="text-right">{{ formatNumber(item.wasteM2, 1) }}</td>
+        <td class="text-right">{{ formatNumber(item.wastePersen, 1) }}%</td>
+        <td class="text-right">{{ formatNumber(item.lostM2, 1) }}</td>
+        <td class="text-right">{{ formatNumber(item.lostPersen, 1) }}%</td>
+        <td class="text-right font-weight-bold">{{ formatNumber(item.totalWasteM2, 1) }}</td>
+        <td class="text-right font-weight-bold">{{ formatNumber(item.totalWastePersen, 1) }}%</td>
+
+        <!-- AJ-AY: TINTA MT 02 - MT 05 -->
+        <td class="text-right ink-c">{{ formatNumber(item.inkC_MT02, 1) }}</td>
+        <td class="text-right ink-m">{{ formatNumber(item.inkM_MT02, 1) }}</td>
+        <td class="text-right ink-y">{{ formatNumber(item.inkY_MT02, 1) }}</td>
+        <td class="text-right ink-k">{{ formatNumber(item.inkK_MT02, 1) }}</td>
+
+        <td class="text-right ink-c">{{ formatNumber(item.inkC_MT03, 1) }}</td>
+        <td class="text-right ink-m">{{ formatNumber(item.inkM_MT03, 1) }}</td>
+        <td class="text-right ink-y">{{ formatNumber(item.inkY_MT03, 1) }}</td>
+        <td class="text-right ink-k">{{ formatNumber(item.inkK_MT03, 1) }}</td>
+
+        <td class="text-right ink-c">{{ formatNumber(item.inkC_MT04, 1) }}</td>
+        <td class="text-right ink-m">{{ formatNumber(item.inkM_MT04, 1) }}</td>
+        <td class="text-right ink-y">{{ formatNumber(item.inkY_MT04, 1) }}</td>
+        <td class="text-right ink-k">{{ formatNumber(item.inkK_MT04, 1) }}</td>
+
+        <td class="text-right ink-c">{{ formatNumber(item.inkC_MT05, 1) }}</td>
+        <td class="text-right ink-m">{{ formatNumber(item.inkM_MT05, 1) }}</td>
+        <td class="text-right ink-y">{{ formatNumber(item.inkY_MT05, 1) }}</td>
+        <td class="text-right ink-k">{{ formatNumber(item.inkK_MT05, 1) }}</td>
+      </tr>
+    </template>
+  </BaseReportLayout>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from "vue";
-import PageLayout from "../components/PageLayout.vue";
+import { ref, reactive, computed, onMounted } from "vue";
+import BaseReportLayout from "@/components/BaseReportLayout.vue";
 import api from "@/services/api";
-import XLSX from "xlsx-js-style";
-import { parseISO, isValid, format } from "date-fns";
-import { saveAs } from "file-saver";
-import draggable from "vuedraggable";
+import * as XLSX from "xlsx-js-style";
 
-// --- STATE MANAGEMENT ---
-const startDate = ref(new Date().toISOString().substr(0, 10));
-const endDate = ref(new Date().toISOString().substr(0, 10));
+const formatDate = (date) => {
+  const d = new Date(date);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
+
+const getStartOfMonth = (date) => {
+  const d = new Date(date);
+  return new Date(d.getFullYear(), d.getMonth(), 1);
+};
+
+const endDate = ref(formatDate(new Date()));
+const startDate = ref(formatDate(getStartOfMonth(new Date())));
 const searchQuery = ref("");
-const loading = ref({ report: false });
+const loading = reactive({ report: false });
 const productionData = ref([]);
-const allData = computed(() => productionData.value);
-const currentPage = ref(1);
-const itemsPerPage = ref(25);
 
-// --- ARSITEKTUR STRUKTUR KOLOM PEMAKAIAN BAHAN (SINKRON SAMA GAMBAR DAN EXCEL) ---
-// --- SINKRONISASI SCHEMA ARRAY STRUKTUR KOLOM PEMAKAIAN BAHAN (FIX KEY API NEW) ---
-const columns = ref([
-  {
-    label: "TGL",
-    field: "tgl",
-    class: "text-center",
-    type: "string",
-    group: "NONE",
-    width: 100,
-  },
-  {
-    label: "SHIFT",
-    field: "shift",
-    class: "text-center",
-    type: "string",
-    group: "NONE",
-    width: 70,
-  },
-
-  // Group TOLERANSI BAHAN
-  {
-    label: "S 1,2",
-    field: "s12",
-    class: "text-right",
-    type: "number",
-    dec: 2,
-    group: "TOLERANSI BAHAN",
-    width: 80,
-    subClass: "bg-orange-sub",
-  },
-  {
-    label: "S 3,4",
-    field: "s34",
-    class: "text-right",
-    type: "number",
-    dec: 2,
-    group: "TOLERANSI BAHAN",
-    width: 80,
-    subClass: "bg-orange-sub",
-  },
-  {
-    label: "%",
-    field: "persenToleransi",
-    class: "text-right",
-    type: "number",
-    dec: 2,
-    group: "TOLERANSI BAHAN",
-    width: 75,
-    isPercent: true,
-    cellBg: "bg-orange-light",
-    subClass: "bg-orange-sub",
-  },
-
-  {
-    label: "NAMA ORDER SPK",
-    field: "namaOrder",
-    class: "text-left",
-    type: "string",
-    group: "NONE",
-    width: 250,
-  },
-  {
-    label: "NO. SPK",
-    field: "noSpk",
-    class: "text-center font-weight-bold",
-    type: "string",
-    group: "NONE",
-    width: 120,
-  },
-
-  // Group UKURAN / JENIS BAHAN
-  {
-    label: "P",
-    field: "p",
-    class: "text-right",
-    type: "number",
-    dec: 2,
-    group: "UKURAN / JENIS BAHAN",
-    width: 70,
-    subClass: "bg-grey-sub",
-  },
-  {
-    label: "L",
-    field: "l",
-    class: "text-right",
-    type: "number",
-    dec: 2,
-    group: "UKURAN / JENIS BAHAN",
-    width: 70,
-    subClass: "bg-grey-sub",
-  },
-  {
-    label: "GSM",
-    field: "gsm",
-    class: "text-center",
-    type: "string",
-    group: "UKURAN / JENIS BAHAN",
-    width: 80,
-    subClass: "bg-grey-sub",
-  },
-  {
-    label: "MSN",
-    field: "kodeMesin",
-    class: "text-center font-weight-bold blue--text",
-    type: "string",
-    group: "UKURAN / JENIS BAHAN",
-    width: 85,
-    subClass: "bg-grey-sub",
-  },
-  {
-    label: "BARCODE",
-    field: "barcodeRoll",
-    class: "text-left",
-    type: "string",
-    group: "UKURAN / JENIS BAHAN",
-    width: 140,
-    subClass: "bg-grey-sub",
-  },
-
-  // Group ORDER SPK (DI-PERBAIKI MENYESUAIKAN KEY JSON API BARU)
-  {
-    label: "PCS",
-    field: "orderPcs",
-    class: "text-right",
-    type: "number",
-    dec: 0,
-    sum: true,
-    group: "ORDER SPK",
-    width: 80,
-    cellBg: "bg-green-light",
-    subClass: "bg-green-sub",
-  },
-  {
-    label: "M2",
-    field: "orderLuas",
-    class: "text-right font-weight-bold",
-    type: "number",
-    dec: 2,
-    sum: true,
-    group: "ORDER SPK",
-    width: 95,
-    cellBg: "bg-green-light",
-    subClass: "bg-green-sub",
-  },
-
-  // Group HASIL CETAK
-  {
-    label: "PCS",
-    field: "hasilQty",
-    class: "text-right",
-    type: "number",
-    dec: 0,
-    sum: true,
-    group: "HASIL CETAK",
-    width: 80,
-    cellBg: "bg-yellow-light",
-    subClass: "bg-yellow-sub",
-  },
-  {
-    label: "M2",
-    field: "hasilLuas",
-    class: "text-right font-weight-bold",
-    type: "number",
-    dec: 2,
-    sum: true,
-    group: "HASIL CETAK",
-    width: 95,
-    cellBg: "bg-yellow-light",
-    subClass: "bg-yellow-sub",
-  },
-
-  // Group AMBIL BAHAN / SISA
-  {
-    label: "AMB.P",
-    field: "ambilP",
-    class: "text-right",
-    type: "number",
-    dec: 2,
-    sum: true,
-    group: "AMBIL BAHAN / SISA",
-    width: 85,
-    subClass: "bg-dark-green-sub",
-  },
-  {
-    label: "AMB.L",
-    field: "ambilL",
-    class: "text-right",
-    type: "number",
-    dec: 2,
-    sum: true,
-    group: "AMBIL BAHAN / SISA",
-    width: 85,
-    subClass: "bg-dark-green-sub",
-  },
-  {
-    label: "SISA.P",
-    field: "sisaBahanP",
-    class: "text-right text-success font-weight-bold",
-    type: "number",
-    dec: 2,
-    sum: true,
-    group: "AMBIL BAHAN / SISA",
-    width: 85,
-    subClass: "bg-dark-green-sub",
-  },
-  {
-    label: "SISA.L",
-    field: "sisaBahanL",
-    class: "text-right text-success",
-    type: "number",
-    dec: 2,
-    sum: true,
-    group: "AMBIL BAHAN / SISA",
-    width: 85,
-    subClass: "bg-dark-green-sub",
-  },
-
-  // Group TOTAL WASTE / LOST
-  {
-    label: "WASTE",
-    field: "wasteM2",
-    class: "text-right",
-    type: "number",
-    dec: 2,
-    sum: true,
-    group: "TOTAL WASTE / LOST",
-    width: 85,
-    subClass: "bg-waste-sub",
-  },
-  {
-    label: "%",
-    field: "wastePersen",
-    class: "text-right",
-    type: "number",
-    dec: 2,
-    isPercent: true,
-    group: "TOTAL WASTE / LOST",
-    width: 75,
-    subClass: "bg-waste-sub",
-  },
-  {
-    label: "LOST",
-    field: "lostM2",
-    class: "text-right",
-    type: "number",
-    dec: 2,
-    sum: true,
-    group: "TOTAL WASTE / LOST",
-    width: 85,
-    subClass: "bg-waste-sub",
-  },
-  {
-    label: "%",
-    field: "lostPersen",
-    class: "text-right",
-    type: "number",
-    dec: 2,
-    isPercent: true,
-    group: "TOTAL WASTE / LOST",
-    width: 75,
-    subClass: "bg-waste-sub",
-  },
-  {
-    label: "TOTAL",
-    field: "totalWasteM2",
-    class: "text-right font-weight-bold",
-    type: "number",
-    dec: 2,
-    sum: true,
-    group: "TOTAL WASTE / LOST",
-    width: 95,
-    subClass: "bg-waste-sub",
-  },
-  {
-    label: "%",
-    field: "totalWastePersen",
-    class: "text-right font-weight-bold",
-    type: "number",
-    dec: 2,
-    isPercent: true,
-    group: "TOTAL WASTE / LOST",
-    width: 75,
-    subClass: "bg-waste-sub",
-  },
-
-  // TINTA MT02
-  {
-    label: "C",
-    field: "inkC_MT02",
-    class: "text-right",
-    type: "number",
-    dec: 2,
-    sum: true,
-    group: "TINTA MT 02",
-    width: 65,
-    textClass: "ink-c",
-    subClass: "bg-ink-sub",
-  },
-  {
-    label: "M",
-    field: "inkM_MT02",
-    class: "text-right",
-    type: "number",
-    dec: 2,
-    sum: true,
-    group: "TINTA MT 02",
-    width: 65,
-    textClass: "ink-m",
-    subClass: "bg-ink-sub",
-  },
-  {
-    label: "Y",
-    field: "inkY_MT02",
-    class: "text-right",
-    type: "number",
-    dec: 2,
-    sum: true,
-    group: "TINTA MT 02",
-    width: 65,
-    textClass: "ink-y",
-    subClass: "bg-ink-sub",
-  },
-  {
-    label: "K",
-    field: "inkK_MT02",
-    class: "text-right",
-    type: "number",
-    dec: 2,
-    sum: true,
-    group: "TINTA MT 02",
-    width: 65,
-    textClass: "ink-k",
-    subClass: "bg-ink-sub",
-  },
-
-  // TINTA MT03
-  {
-    label: "C",
-    field: "inkC_MT03",
-    class: "text-right",
-    type: "number",
-    dec: 2,
-    sum: true,
-    group: "TINTA MT 03",
-    width: 65,
-    textClass: "ink-c",
-    subClass: "bg-ink-sub-alt",
-  },
-  {
-    label: "M",
-    field: "inkM_MT03",
-    class: "text-right",
-    type: "number",
-    dec: 2,
-    sum: true,
-    group: "TINTA MT 03",
-    width: 65,
-    textClass: "ink-m",
-    subClass: "bg-ink-sub-alt",
-  },
-  {
-    label: "Y",
-    field: "inkY_MT03",
-    class: "text-right",
-    type: "number",
-    dec: 2,
-    sum: true,
-    group: "TINTA MT 03",
-    width: 65,
-    textClass: "ink-y",
-    subClass: "bg-ink-sub-alt",
-  },
-  {
-    label: "K",
-    field: "inkK_MT03",
-    class: "text-right",
-    type: "number",
-    dec: 2,
-    sum: true,
-    group: "TINTA MT 03",
-    width: 65,
-    textClass: "ink-k",
-    subClass: "bg-ink-sub-alt",
-  },
-
-  // TINTA MT04
-  {
-    label: "C",
-    field: "inkC_MT04",
-    class: "text-right",
-    type: "number",
-    dec: 2,
-    sum: true,
-    group: "TINTA MT 04",
-    width: 65,
-    textClass: "ink-c",
-    subClass: "bg-ink-sub",
-  },
-  {
-    label: "M",
-    field: "inkM_MT04",
-    class: "text-right",
-    type: "number",
-    dec: 2,
-    sum: true,
-    group: "TINTA MT 04",
-    width: 65,
-    textClass: "ink-m",
-    subClass: "bg-ink-sub",
-  },
-  {
-    label: "Y",
-    field: "inkY_MT04",
-    class: "text-right",
-    type: "number",
-    dec: 2,
-    sum: true,
-    group: "TINTA MT 04",
-    width: 65,
-    textClass: "ink-y",
-    subClass: "bg-ink-sub",
-  },
-  {
-    label: "K",
-    field: "inkK_MT04",
-    class: "text-right",
-    type: "number",
-    dec: 2,
-    sum: true,
-    group: "TINTA MT 04",
-    width: 65,
-    textClass: "ink-k",
-    subClass: "bg-ink-sub",
-  },
-
-  // TINTA MT05
-  {
-    label: "C",
-    field: "inkC_MT05",
-    class: "text-right",
-    type: "number",
-    dec: 2,
-    sum: true,
-    group: "TINTA MT 05",
-    width: 65,
-    textClass: "ink-c",
-    subClass: "bg-ink-sub-alt",
-  },
-  {
-    label: "M",
-    field: "inkM_MT05",
-    class: "text-right",
-    type: "number",
-    dec: 2,
-    sum: true,
-    group: "TINTA MT 05",
-    width: 65,
-    textClass: "ink-m",
-    subClass: "bg-ink-sub-alt",
-  },
-  {
-    label: "Y",
-    field: "inkY_MT05",
-    class: "text-right",
-    type: "number",
-    dec: 2,
-    sum: true,
-    group: "TINTA MT 05",
-    width: 65,
-    textClass: "ink-y",
-    subClass: "bg-ink-sub-alt",
-  },
-  {
-    label: "K",
-    field: "inkK_MT05",
-    class: "text-right",
-    type: "number",
-    dec: 2,
-    sum: true,
-    group: "TINTA MT 05",
-    width: 65,
-    textClass: "ink-k",
-    subClass: "bg-ink-sub-alt",
-  },
-]);
-
-// --- HITUNG KEMBALI LEBAR DAN COLSPAN GROUP HEADER SECARA REAL-TIME ---
-const dynamicGroups = computed(() => {
-  const groups = [];
-  let currentGroup = null;
-
-  columns.value.forEach((col) => {
-    if (col.group === "NONE") {
-      groups.push({
-        label: col.label,
-        width: col.width,
-        colspan: 1,
-        rowspan: 2,
-        class: "header-cell-dark",
-      });
-      currentGroup = null;
-    } else {
-      let cssClass = "header-cell-light";
-      if (col.group === "TOLERANSI BAHAN") cssClass = "bg-orange-header-sublim";
-      else if (col.group === "UKURAN / JENIS BAHAN")
-        cssClass = "bg-grey-header-sublim";
-      else if (col.group === "ORDER SPK") cssClass = "bg-green-header-sublim";
-      else if (col.group === "HASIL CETAK")
-        cssClass = "bg-yellow-header-sublim";
-      else if (col.group === "AMBIL BAHAN / SISA")
-        cssClass = "bg-dark-green-header-sublim";
-      else if (col.group === "TOTAL WASTE / LOST")
-        cssClass = "bg-waste-header-sublim";
-      else if (col.group.includes("MT 02") || col.group.includes("MT 04"))
-        cssClass = "bg-ink-header-sublim";
-      else if (col.group.includes("MT 03") || col.group.includes("MT 05"))
-        cssClass = "bg-ink-header-alt-sublim";
-
-      if (currentGroup && currentGroup.label === col.group) {
-        currentGroup.width += col.width;
-        currentGroup.colspan += 1;
-      } else {
-        currentGroup = {
-          label: col.group,
-          width: col.width,
-          colspan: 1,
-          rowspan: 1,
-          class: cssClass,
-        };
-        groups.push(currentGroup);
-      }
-    }
-  });
-  return groups;
-});
-
-// --- DATA LOGIC ---
 const fetchReport = async () => {
-  loading.value.report = true;
+  loading.report = true;
   try {
-    const response = await api.get("/mmt/lap-pemakaian-bahan", {
+    const res = await api.get("/mmt/lap-pemakaian-bahan", {
       params: { startDate: startDate.value, endDate: endDate.value },
     });
-    productionData.value = Array.isArray(response.data) ? response.data : [];
+    productionData.value = Array.isArray(res.data) ? res.data : (res.data.data || []);
   } catch (error) {
-    console.error("Gagal ambil data:", error);
+    console.error("Gagal ambil data pemakaian bahan:", error);
+    productionData.value = [];
   } finally {
-    loading.value.report = false;
+    loading.report = false;
   }
 };
 
 const filteredData = computed(() => {
-  const query = searchQuery.value.toLowerCase().trim();
-  if (!query) return productionData.value;
+  const q = searchQuery.value.toLowerCase().trim();
+  if (!q) return productionData.value;
   return productionData.value.filter(
     (row) =>
-      (row.namaOrder && row.namaOrder.toLowerCase().includes(query)) ||
-      (row.noSpk && row.noSpk.toLowerCase().includes(query)),
+      (row.namaOrder && row.namaOrder.toLowerCase().includes(q)) ||
+      (row.noSpk && row.noSpk.toLowerCase().includes(q))
   );
 });
-
-const formatNumber = (val, dec = 1) => {
-  if (val === null || val === undefined || val === "") return "0";
-  const num = parseFloat(val);
-  if (isNaN(num)) return val;
-  return num.toLocaleString("id-ID", {
-    minimumFractionDigits: dec,
-    maximumFractionDigits: dec,
-  });
-};
 
 const formatOnlyDate = (dateStr) => {
   if (!dateStr || dateStr === "-") return "-";
   return dateStr.substring(0, 10);
 };
 
-const getValueByField = (item, field) => {
-  return item[field];
-};
+// --- EXPORT TO EXCEL LENGKAP A-AY ---
+const exportToExcel = (dataToExport) => {
+  if (!dataToExport || dataToExport.length === 0) {
+    alert("Tidak ada data untuk diekspor");
+    return;
+  }
 
-const sumField = (fieldName) => {
-  return filteredData.value.reduce((sum, item) => {
-    const val = parseFloat(item[fieldName]);
-    return sum + (isNaN(val) ? 0 : val);
-  }, 0);
-};
+  const fileName = `Laporan_Pemakaian_Bahan_${startDate.value}_sd_${endDate.value}.xlsx`;
+  const num = (v) => (isNaN(Number(v)) ? 0 : Number(v));
 
-const totalPages = computed(
-  () => Math.ceil(filteredData.value.length / itemsPerPage.value) || 1,
-);
-const paginatedData = computed(() => {
-  const start = (currentPage.value - 1) * itemsPerPage.value;
-  return filteredData.value.slice(start, start + itemsPerPage.value);
-});
-
-// --- ENGINE EXPORT TO EXCEL FIXED 2 DESIMAL, BORDER HITAM & TEXT HITAM ---
-const exportToExcel = () => {
-  if (productionData.value.length === 0) return;
-
-  const fileName = `Laporan_Pemakaian_Bahan_${startDate.value}.xlsx`;
-
-  const formatTanggalIndo = (dateStr) => {
-    if (!dateStr) return "";
-    const bulanIndo = [
-      "Januari",
-      "Februari",
-      "Maret",
-      "April",
-      "Mei",
-      "Juni",
-      "Juli",
-      "Agustus",
-      "September",
-      "Oktober",
-      "November",
-      "Desember",
-    ];
-    try {
-      const [year, month, day] = dateStr.split("-");
-      return `${parseInt(day, 10)} ${bulanIndo[parseInt(month, 10) - 1]} ${year}`;
-    } catch (e) {
-      return dateStr;
-    }
-  };
-
-  const borderTegasHitam = {
+  const thinBorder = {
     top: { style: "thin", color: { rgb: "000000" } },
     bottom: { style: "thin", color: { rgb: "000000" } },
     left: { style: "thin", color: { rgb: "000000" } },
@@ -847,425 +283,197 @@ const exportToExcel = () => {
   };
 
   const styleHeaderMain = {
-    fill: { fgColor: { rgb: "E3F2FD" } },
-    font: { bold: true, color: { rgb: "000000" }, name: "Calibri", sz: 10 },
+    fill: { fgColor: { rgb: "1E3A8A" } },
+    font: { bold: true, color: { rgb: "FFFFFF" }, sz: 10 },
     alignment: { horizontal: "center", vertical: "center", wrapText: true },
-    border: borderTegasHitam,
+    border: thinBorder,
   };
 
   const styleDataCell = {
-    font: { name: "Calibri", sz: 10, color: { rgb: "000000" } },
+    font: { sz: 9, color: { rgb: "0F172A" } },
     alignment: { vertical: "center" },
-    border: borderTegasHitam,
+    border: thinBorder,
   };
 
-  const styleFooter = {
-    ...styleDataCell,
-    fill: { fgColor: { rgb: "F5F5F5" } },
-    font: { bold: true, name: "Calibri", sz: 10, color: { rgb: "000000" } },
-    border: {
-      top: { style: "thin", color: { rgb: "000000" } },
-      bottom: { style: "double", color: { rgb: "000000" } },
-      left: { style: "thin", color: { rgb: "000000" } },
-      right: { style: "thin", color: { rgb: "000000" } },
-    },
-  };
+  const wsData = [
+    [{ v: "LAPORAN PEMAKAIAN BAHAN & KONSUMSI TINTA", s: { font: { bold: true, sz: 14 } } }],
+    [{ v: `Periode : ${startDate.value} s/d ${endDate.value}` }],
+    [],
+  ];
 
-  const wsData = [];
+  // Row 4: Group Headers (A-AY)
   wsData.push([
-    {
-      v: "LAPORAN PEMAKAIAN BAHAN & KONSUMSI TINTA",
-      s: {
-        font: { bold: true, sz: 16, name: "Calibri", color: { rgb: "000000" } },
-      },
-    },
+    { v: "TGL", s: styleHeaderMain },
+    { v: "SHIFT", s: styleHeaderMain },
+    { v: "TOLERANSI BAHAN", s: styleHeaderMain }, "", "", "", "",
+    { v: "NAMA ORDER SPK", s: styleHeaderMain },
+    { v: "NO. SPK", s: styleHeaderMain },
+    { v: "UKURAN", s: styleHeaderMain }, "",
+    { v: "JENIS BAHAN", s: styleHeaderMain }, "", "",
+    { v: "JUMLAH ORDER SPK", s: styleHeaderMain }, "",
+    { v: "HASIL CETAK", s: styleHeaderMain }, "", "",
+    { v: "AMBIL BAHAN", s: styleHeaderMain }, "", "",
+    { v: "KEMBALIAN BAHAN BISA PAKAI", s: styleHeaderMain }, "", "",
+    { v: "KEMBALIAN BAHAN TIDAK BISA PAKAI", s: styleHeaderMain }, "", "",
+    { v: "AKTUAL LUAS PAKAI", s: styleHeaderMain },
+    { v: "TOTAL WASTE", s: styleHeaderMain }, "", "", "", "", "",
+    { v: "PENGGUNAAN TINTA MT 02", s: styleHeaderMain }, "", "", "",
+    { v: "PENGGUNAAN TINTA MT 03", s: styleHeaderMain }, "", "", "",
+    { v: "PENGGUNAAN TINTA MT 04", s: styleHeaderMain }, "", "", "",
+    { v: "PENGGUNAAN TINTA MT 05", s: styleHeaderMain }, "", "", "",
   ]);
+
+  // Row 5: Sub Headers
   wsData.push([
-    {
-      v: `Periode: ${formatTanggalIndo(startDate.value)} s/d ${formatTanggalIndo(endDate.value)}`,
-      s: {
-        font: { bold: true, sz: 12, name: "Calibri", color: { rgb: "000000" } },
-      },
-    },
+    { v: "", s: styleHeaderMain }, { v: "", s: styleHeaderMain },
+    { v: "S 1,2", s: styleHeaderMain }, { v: "S 3,4", s: styleHeaderMain }, { v: "% TOLERANSI", s: styleHeaderMain }, { v: "TOLERANSI (M2)", s: styleHeaderMain }, { v: "TOLERANSI (%)", s: styleHeaderMain },
+    { v: "", s: styleHeaderMain }, { v: "", s: styleHeaderMain },
+    { v: "P", s: styleHeaderMain }, { v: "L", s: styleHeaderMain }, { v: "GSM", s: styleHeaderMain }, { v: "LEBAR", s: styleHeaderMain }, { v: "PANJANG ROLL", s: styleHeaderMain },
+    { v: "JUMLAH", s: styleHeaderMain }, { v: "LUAS", s: styleHeaderMain },
+    { v: "PANJANG ROLL", s: styleHeaderMain }, { v: "JUMLAH", s: styleHeaderMain }, { v: "LUAS", s: styleHeaderMain },
+    { v: "PANJANG", s: styleHeaderMain }, { v: "LEBAR", s: styleHeaderMain }, { v: "LUAS", s: styleHeaderMain },
+    { v: "PANJANG", s: styleHeaderMain }, { v: "LEBAR", s: styleHeaderMain }, { v: "LUAS", s: styleHeaderMain },
+    { v: "PANJANG", s: styleHeaderMain }, { v: "LEBAR", s: styleHeaderMain }, { v: "LUAS", s: styleHeaderMain },
+    { v: "M2", s: styleHeaderMain },
+    { v: "WASTE (M2)", s: styleHeaderMain }, { v: "WASTE (%)", s: styleHeaderMain }, { v: "LOST (M2)", s: styleHeaderMain }, { v: "LOST (%)", s: styleHeaderMain }, { v: "TOTAL (M2)", s: styleHeaderMain }, { v: "TOTAL (%)", s: styleHeaderMain },
+    { v: "C", s: styleHeaderMain }, { v: "M", s: styleHeaderMain }, { v: "Y", s: styleHeaderMain }, { v: "K", s: styleHeaderMain },
+    { v: "C", s: styleHeaderMain }, { v: "M", s: styleHeaderMain }, { v: "Y", s: styleHeaderMain }, { v: "K", s: styleHeaderMain },
+    { v: "C", s: styleHeaderMain }, { v: "M", s: styleHeaderMain }, { v: "Y", s: styleHeaderMain }, { v: "K", s: styleHeaderMain },
+    { v: "C", s: styleHeaderMain }, { v: "M", s: styleHeaderMain }, { v: "Y", s: styleHeaderMain }, { v: "K", s: styleHeaderMain },
   ]);
-  wsData.push([
-    {
-      v: "Kategori: BAHAN",
-      s: {
-        font: {
-          bold: false,
-          sz: 11,
-          name: "Calibri",
-          color: { rgb: "000000" },
-        },
-      },
-    },
-  ]);
-  wsData.push([]);
 
-  const excelHeaderRow1 = [];
-  const excelHeaderRow2 = [];
-  const excelMerges = [];
-
-  dynamicGroups.value.forEach((group) => {
-    let headerColor = "E3F2FD";
-    if (group.label === "TOLERANSI BAHAN") headerColor = "FCE4D6";
-    else if (group.label === "UKURAN / JENIS BAHAN") headerColor = "E2EFDA";
-    else if (group.label === "ORDER SPK") headerColor = "A9D08E";
-    else if (group.label === "HASIL CETAK") headerColor = "FFF2CC";
-    else if (group.label === "AMBIL BAHAN / SISA") headerColor = "C6E0B4";
-    else if (group.label === "TOTAL WASTE / LOST") headerColor = "DBDBDB";
-
-    excelHeaderRow1.push({
-      v: group.label,
-      s: { ...styleHeaderMain, fill: { fgColor: { rgb: headerColor } } },
-    });
-    for (let i = 1; i < group.colspan; i++) {
-      excelHeaderRow1.push({
-        v: "",
-        s: { ...styleHeaderMain, fill: { fgColor: { rgb: headerColor } } },
-      });
-    }
+  // Append Data
+  dataToExport.forEach((row) => {
+    wsData.push([
+      { v: formatOnlyDate(row.tgl), s: { ...styleDataCell, alignment: { horizontal: "center" } } },
+      { v: row.shift || "", s: { ...styleDataCell, alignment: { horizontal: "center" } } },
+      { v: num(row.s12), t: "n", z: "#,##0.00", s: { ...styleDataCell, alignment: { horizontal: "right" } } },
+      { v: num(row.s34), t: "n", z: "#,##0.00", s: { ...styleDataCell, alignment: { horizontal: "right" } } },
+      { v: num(row.persenToleransi) / 100, t: "n", z: "0.0%", s: { ...styleDataCell, alignment: { horizontal: "right" } } },
+      { v: num(row.toleransiM2), t: "n", z: "#,##0.0", s: { ...styleDataCell, alignment: { horizontal: "right" } } },
+      { v: num(row.toleransiPersen) / 100, t: "n", z: "0.0%", s: { ...styleDataCell, alignment: { horizontal: "right" } } },
+      { v: row.namaOrder || "", s: styleDataCell },
+      { v: row.noSpk || "", s: { ...styleDataCell, alignment: { horizontal: "center" } } },
+      { v: num(row.p), t: "n", z: "#,##0.00", s: { ...styleDataCell, alignment: { horizontal: "right" } } },
+      { v: num(row.l), t: "n", z: "#,##0.00", s: { ...styleDataCell, alignment: { horizontal: "right" } } },
+      { v: row.gsm || "", s: { ...styleDataCell, alignment: { horizontal: "center" } } },
+      { v: num(row.lebarBahan), t: "n", z: "#,##0.0", s: { ...styleDataCell, alignment: { horizontal: "right" } } },
+      { v: num(row.pRoll), t: "n", z: "#,##0.0", s: { ...styleDataCell, alignment: { horizontal: "right" } } },
+      { v: num(row.orderPcs), t: "n", z: "#,##0", s: { ...styleDataCell, alignment: { horizontal: "right" } } },
+      { v: num(row.orderLuas), t: "n", z: "#,##0.0", s: { ...styleDataCell, alignment: { horizontal: "right" } } },
+      { v: num(row.hasilPRoll), t: "n", z: "#,##0.0", s: { ...styleDataCell, alignment: { horizontal: "right" } } },
+      { v: num(row.hasilQty), t: "n", z: "#,##0", s: { ...styleDataCell, alignment: { horizontal: "right" } } },
+      { v: num(row.hasilLuas), t: "n", z: "#,##0.0", s: { ...styleDataCell, alignment: { horizontal: "right" } } },
+      { v: num(row.ambilP), t: "n", z: "#,##0.0", s: { ...styleDataCell, alignment: { horizontal: "right" } } },
+      { v: num(row.ambilL), t: "n", z: "#,##0.0", s: { ...styleDataCell, alignment: { horizontal: "right" } } },
+      { v: num(row.ambilLuas), t: "n", z: "#,##0.0", s: { ...styleDataCell, alignment: { horizontal: "right" } } },
+      { v: num(row.sisaBisaPakaiP), t: "n", z: "#,##0.0", s: { ...styleDataCell, alignment: { horizontal: "right" } } },
+      { v: num(row.sisaBisaPakaiL), t: "n", z: "#,##0.0", s: { ...styleDataCell, alignment: { horizontal: "right" } } },
+      { v: num(row.sisaBisaPakaiLuas), t: "n", z: "#,##0.0", s: { ...styleDataCell, alignment: { horizontal: "right" } } },
+      { v: num(row.sisaRongsokP), t: "n", z: "#,##0.0", s: { ...styleDataCell, alignment: { horizontal: "right" } } },
+      { v: num(row.sisaRongsokL), t: "n", z: "#,##0.0", s: { ...styleDataCell, alignment: { horizontal: "right" } } },
+      { v: num(row.sisaRongsokLuas), t: "n", z: "#,##0.0", s: { ...styleDataCell, alignment: { horizontal: "right" } } },
+      { v: num(row.aktualLuasPakai), t: "n", z: "#,##0.0", s: { ...styleDataCell, alignment: { horizontal: "right" } } },
+      { v: num(row.wasteM2), t: "n", z: "#,##0.0", s: { ...styleDataCell, alignment: { horizontal: "right" } } },
+      { v: num(row.wastePersen) / 100, t: "n", z: "0.0%", s: { ...styleDataCell, alignment: { horizontal: "right" } } },
+      { v: num(row.lostM2), t: "n", z: "#,##0.0", s: { ...styleDataCell, alignment: { horizontal: "right" } } },
+      { v: num(row.lostPersen) / 100, t: "n", z: "0.0%", s: { ...styleDataCell, alignment: { horizontal: "right" } } },
+      { v: num(row.totalWasteM2), t: "n", z: "#,##0.0", s: { ...styleDataCell, alignment: { horizontal: "right" } } },
+      { v: num(row.totalWastePersen) / 100, t: "n", z: "0.0%", s: { ...styleDataCell, alignment: { horizontal: "right" } } },
+      { v: num(row.inkC_MT02), t: "n", z: "#,##0.0", s: { ...styleDataCell, alignment: { horizontal: "right" } } },
+      { v: num(row.inkM_MT02), t: "n", z: "#,##0.0", s: { ...styleDataCell, alignment: { horizontal: "right" } } },
+      { v: num(row.inkY_MT02), t: "n", z: "#,##0.0", s: { ...styleDataCell, alignment: { horizontal: "right" } } },
+      { v: num(row.inkK_MT02), t: "n", z: "#,##0.0", s: { ...styleDataCell, alignment: { horizontal: "right" } } },
+      { v: num(row.inkC_MT03), t: "n", z: "#,##0.0", s: { ...styleDataCell, alignment: { horizontal: "right" } } },
+      { v: num(row.inkM_MT03), t: "n", z: "#,##0.0", s: { ...styleDataCell, alignment: { horizontal: "right" } } },
+      { v: num(row.inkY_MT03), t: "n", z: "#,##0.0", s: { ...styleDataCell, alignment: { horizontal: "right" } } },
+      { v: num(row.inkK_MT03), t: "n", z: "#,##0.0", s: { ...styleDataCell, alignment: { horizontal: "right" } } },
+      { v: num(row.inkC_MT04), t: "n", z: "#,##0.0", s: { ...styleDataCell, alignment: { horizontal: "right" } } },
+      { v: num(row.inkM_MT04), t: "n", z: "#,##0.0", s: { ...styleDataCell, alignment: { horizontal: "right" } } },
+      { v: num(row.inkY_MT04), t: "n", z: "#,##0.0", s: { ...styleDataCell, alignment: { horizontal: "right" } } },
+      { v: num(row.inkK_MT04), t: "n", z: "#,##0.0", s: { ...styleDataCell, alignment: { horizontal: "right" } } },
+      { v: num(row.inkC_MT05), t: "n", z: "#,##0.0", s: { ...styleDataCell, alignment: { horizontal: "right" } } },
+      { v: num(row.inkM_MT05), t: "n", z: "#,##0.0", s: { ...styleDataCell, alignment: { horizontal: "right" } } },
+      { v: num(row.inkY_MT05), t: "n", z: "#,##0.0", s: { ...styleDataCell, alignment: { horizontal: "right" } } },
+      { v: num(row.inkK_MT05), t: "n", z: "#,##0.0", s: { ...styleDataCell, alignment: { horizontal: "right" } } },
+    ]);
   });
-
-  columns.value.forEach((col) => {
-    let subColor = "F0F8FF";
-    if (col.group === "TOLERANSI BAHAN") subColor = "F8CBAD";
-    else if (col.group === "UKURAN / JENIS BAHAN") subColor = "C6E0B4";
-    else if (col.group === "ORDER SPK") subColor = "7AB35A";
-    else if (col.group === "HASIL CETAK") subColor = "FFE699";
-
-    excelHeaderRow2.push({
-      v: col.label,
-      s: { ...styleHeaderMain, fill: { fgColor: { rgb: subColor } } },
-    });
-  });
-
-  wsData.push(excelHeaderRow1);
-  wsData.push(excelHeaderRow2);
-
-  let currentExcelCol = 0;
-  dynamicGroups.value.forEach((group) => {
-    if (group.rowspan === 2) {
-      excelMerges.push({
-        s: { r: 4, c: currentExcelCol },
-        e: { r: 5, c: currentExcelCol },
-      });
-      currentExcelCol += 1;
-    } else {
-      excelMerges.push({
-        s: { r: 4, c: currentExcelCol },
-        e: { r: 4, c: currentExcelCol + group.colspan - 1 },
-      });
-      currentExcelCol += group.colspan;
-    }
-  });
-
-  excelMerges.push({
-    s: { r: filteredData.value.length + 6, c: 0 },
-    e: { r: filteredData.value.length + 6, c: 1 },
-  });
-
-  // --- 2. LOOP DATA VALUE (Perbaikan Letak Atribut 't' dan 'z') ---
-  filteredData.value.forEach((item) => {
-    const row = [];
-    columns.value.forEach((col) => {
-      const value = getValueByField(item, col.field);
-      if (col.type === "number") {
-        const finalNum =
-          col.dec === 2
-            ? Number(parseFloat(value || 0).toFixed(2))
-            : Number(value || 0);
-        let numberFormat = col.dec === 2 ? "#,##0.00" : "#,##0";
-        if (col.isPercent) numberFormat = "0.0'%'";
-
-        row.push({
-          v: finalNum,
-          t: "n", // ROOT LEVEL (Excel mendeteksi Angka murni)
-          z: numberFormat, // ROOT LEVEL (Format Masking tampilan)
-          s: {
-            ...styleDataCell,
-            alignment: { horizontal: "right" },
-          },
-        });
-      } else {
-        row.push({
-          v: value || "",
-          s:
-            col.field === "namaOrder"
-              ? { ...styleDataCell, alignment: { horizontal: "left" } }
-              : { ...styleDataCell, alignment: { horizontal: "center" } },
-        });
-      }
-    });
-    wsData.push(row);
-  });
-
-  // --- 3. LOOP SUMMARY FOOTER TOTAL (Perbaikan Letak Atribut 't' dan 'z') ---
-  const excelFooter = [];
-  columns.value.forEach((col, idx) => {
-    if (idx === 0) {
-      excelFooter.push({
-        v: "TOTAL SUM:",
-        s: { ...styleFooter, alignment: { horizontal: "right" } },
-      });
-    } else if (col.sum) {
-      const sumVal = sumField(col.field);
-      const finalSum =
-        col.dec === 2 ? Number(parseFloat(sumVal).toFixed(2)) : Number(sumVal);
-
-      excelFooter.push({
-        v: finalSum,
-        t: "n", // ROOT LEVEL
-        z: col.dec === 2 ? "#,##0.00" : "#,##0", // ROOT LEVEL
-        s: {
-          ...styleFooter,
-          alignment: { horizontal: "right" },
-        },
-      });
-    } else {
-      excelFooter.push({ v: "", s: styleFooter });
-    }
-  });
-  wsData.push(excelFooter);
 
   const ws = XLSX.utils.aoa_to_sheet(wsData);
-  ws["!merges"] = excelMerges;
-  ws["!cols"] = columns.value.map((c) => ({ wch: c.width / 7.2 }));
-
   const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, "Pemakaian_Bahan");
-  const wbout = XLSX.write(wb, { bookType: "xlsx", type: "binary" });
-  const s2ab = (s) => {
-    const buf = new ArrayBuffer(s.length);
-    const view = new Uint8Array(buf);
-    for (let i = 0; i < s.length; i++) view[i] = s.charCodeAt(i) & 0xff;
-    return buf;
-  };
-  saveAs(
-    new Blob([s2ab(wbout)], { type: "application/octet-stream" }),
-    fileName,
-  );
+  XLSX.utils.book_append_sheet(wb, ws, "Pemakaian Bahan");
+  XLSX.writeFile(wb, fileName);
 };
 
 onMounted(fetchReport);
 </script>
 
 <style scoped>
-.grid-table-container {
-  border: 1px solid #4ba3e3;
-  border-radius: 4px;
-  overflow: auto;
-  max-height: calc(100vh - 260px);
-  background: white;
+:deep(table) {
+  border-collapse: separate !important;
+  border-spacing: 0 !important;
+  font-size: 11px !important;
 }
 
-.grid-table-viewport {
-  display: block;
-  width: max-content;
-  position: relative;
+:deep(th), :deep(td) {
+  font-size: 11px !important;
+  white-space: nowrap !important;
+  padding: 5px 8px !important;
 }
 
-/* Row 1: CSS Group Header Layout */
-.grid-table-header-group {
-  display: flex;
-  flex-direction: row;
-  height: 28px;
-  background: #e3f2fd;
-}
-
-.grid-group-th {
-  font-size: 10px;
-  font-weight: bold;
-  border-right: 0.5px solid #bbdefb;
-  border-bottom: 0.5px solid #bbdefb;
-  box-sizing: border-box;
-  text-overflow: ellipsis;
-  overflow: hidden;
-  white-space: nowrap;
-  padding: 0 4px;
-}
-
-.header-cell-light {
-  background: #e3f2fd;
-  color: #0d47a1;
-  height: 28px;
-  line-height: 28px;
-}
-.header-cell-dark {
-  background: #bbdefb;
-  color: #0d47a1;
-  position: relative;
-  z-index: 50;
-}
-
-/* Custom Variasi Background Sesuai Kebutuhan LHK Bahan */
-.bg-orange-header-sublim {
-  background-color: #fce4d6 !important;
-  color: #c65911 !important;
-}
-.bg-grey-header-sublim {
-  background-color: #e2efda !important;
-  color: #375623 !important;
-}
-.bg-green-header-sublim {
-  background-color: #a9d08e !important;
-  color: #375623 !important;
-}
-.bg-yellow-header-sublim {
-  background-color: #fff2cc !important;
-  color: #7f6000 !important;
-}
-.bg-dark-green-header-sublim {
-  background-color: #c6e0b4 !important;
-  color: #375623 !important;
-}
-.bg-waste-header-sublim {
-  background-color: #dbdbdb !important;
-  color: #333333 !important;
-}
-.bg-ink-header-sublim {
-  background-color: #ffff00 !important;
-  color: #000000 !important;
-}
-.bg-ink-header-alt-sublim {
-  background-color: #fef9c3 !important;
-  color: #000000 !important;
-}
-
-/* Row 2: CSS Sub-Header Draggable Stack */
-.grid-table-main-view {
-  display: block;
-}
-.draggable-columns-binder {
-  display: flex;
-  flex-direction: row;
-}
-.grid-column-vertical-stack {
-  display: flex;
-  flex-direction: column;
-}
-
-.grid-sub-th {
-  font-size: 10px;
-  font-weight: bold;
-  background: #f0f8ff;
-  color: #333333;
-  height: 28px;
-  line-height: 28px;
-  border-right: 0.5px solid #bbdefb;
-  border-bottom: 0.5px solid #bbdefb;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-sizing: border-box;
-  cursor: grab;
-  padding: 0 4px;
-  white-space: nowrap;
-}
-
-.grid-sub-th:active {
-  cursor: grabbing;
-}
-.hidden-sub-title {
-  visibility: hidden;
-  height: 28px;
-  pointer-events: none;
-}
-
-/* Variasi Warna Sub-Header Baris Kedua */
-.bg-orange-sub {
-  background-color: #f8cbad !important;
-}
-.bg-grey-sub {
-  background-color: #c6e0b4 !important;
-}
-.bg-green-sub {
-  background-color: #7ab35a !important;
-}
-.bg-yellow-sub {
-  background-color: #ffe699 !important;
-}
-.bg-dark-green-sub {
-  background-color: #385723 !important;
+.header-main th {
+  background: #1e3a8a !important;
   color: white !important;
-}
-.bg-waste-sub {
-  background-color: #bfbfbf !important;
-}
-.bg-ink-sub {
-  background-color: #e2e200 !important;
-}
-.bg-ink-sub-alt {
-  background-color: #fde047 !important;
+  border-right: 1px solid #3b82f6 !important;
 }
 
-/* Body Cells Isian Teks */
-.grid-data-td {
-  font-size: 11px;
-  font-weight: normal;
-  height: 28px;
-  line-height: 28px;
-  padding: 0 8px;
-  border-right: 0.5px solid #f5f5f5;
-  border-bottom: 0.5px solid #f5f5f5;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  box-sizing: border-box;
-  background: white;
+.header-sub th {
+  background: #2563eb !important;
+  color: white !important;
+  border-right: 1px solid #60a5fa !important;
 }
 
-.zebra-stripe-row {
-  background-color: #f9fbfd !important;
-}
-.bg-orange-light {
-  background-color: #fff2e6 !important;
-}
-.bg-green-light {
-  background-color: #f1f8e9 !important;
-}
-.bg-yellow-light {
-  background-color: #fffde7 !important;
+/* Sticky Col */
+:deep(.sticky-col-1) {
+  position: sticky !important;
+  left: 0px !important;
+  z-index: 6;
+  background-color: #ffffff !important;
 }
 
-/* Color Tinta Vertikal */
-.ink-c {
-  color: #00aeef !important;
-  font-weight: bold;
-}
-.ink-m {
-  color: #ec008c !important;
-  font-weight: bold;
-}
-.ink-y {
-  color: #ca8a04 !important;
-  font-weight: bold;
-}
-.ink-k {
-  color: #000000 !important;
-  font-weight: bold;
+:deep(.sticky-col-2) {
+  position: sticky !important;
+  left: 80px !important;
+  z-index: 6;
+  background-color: #ffffff !important;
+  box-shadow: 2px 0px 4px rgba(0, 0, 0, 0.1);
 }
 
-/* Summary Footer */
-.grid-footer-td {
-  background: #f5f5f5;
-  color: #212121;
-  font-size: 11px;
-  height: 30px;
-  line-height: 30px;
-  padding: 0 8px;
-  border-right: 0.5px solid #9e9e9e;
-  border-top: 2px solid #9e9e9e;
-  border-bottom: 2px solid #9e9e9e;
-  box-sizing: border-box;
-}
+/* Header Group Colors */
+.bg-orange-header { background-color: #f97316 !important; }
+.bg-grey-header { background-color: #4b5563 !important; }
+.bg-green-header { background-color: #16a34a !important; }
+.bg-yellow-header { background-color: #d97706 !important; }
+.bg-red-header { background-color: #dc2626 !important; }
+.bg-blue-header { background-color: #2563eb !important; }
+.bg-waste-header { background-color: #374151 !important; }
+.bg-ink-header { background-color: #854d0e !important; }
+.bg-ink-alt-header { background-color: #713f12 !important; }
 
-.column-drag-ghost {
-  opacity: 0.3;
-  background: #b3e5fc !important;
-}
-.text-red {
-  color: #d32f2f !important;
-}
+.bg-orange-sub { background-color: #ffedd5 !important; color: #000 !important; }
+.bg-grey-sub { background-color: #e5e7eb !important; color: #000 !important; }
+.bg-green-sub { background-color: #dcfce7 !important; color: #000 !important; }
+.bg-yellow-sub { background-color: #fef9c3 !important; color: #000 !important; }
+.bg-red-sub { background-color: #fee2e2 !important; color: #000 !important; }
+
+/* Cell Highlights */
+.bg-orange-light { background-color: #fff7ed !important; }
+.bg-green-light { background-color: #f0fdf4 !important; }
+.bg-yellow-light { background-color: #fefce8 !important; }
+.bg-blue-light { background-color: #eff6ff !important; }
+
+.ink-c { color: #0284c7 !important; font-weight: bold; }
+.ink-m { color: #db2777 !important; font-weight: bold; }
+.ink-y { color: #ca8a04 !important; font-weight: bold; }
+.ink-k { color: #0f172a !important; font-weight: bold; }
 </style>

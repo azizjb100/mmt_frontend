@@ -1,26 +1,280 @@
+<template>
+  <BaseReportLayout
+    v-model:start-date="startDate"
+    v-model:end-date="endDate"
+    :items="allData"
+    :loading="loading.report"
+    :show-gudang-filter="false"
+    item-key="NOMOR"
+    default-sort-col="NOMOR"
+    :field-map="{
+      KODE: 'NOMOR',
+      NAMA: 'spk_nama',
+      JENIS: 'jo_nama',
+      STATUS: 'status'
+    }"
+    title="Laporan SPK MMT"
+    :excel-file-name="`Laporan_SPK_MMT_${startDate}_sd_${endDate}.xlsx`"
+    :custom-export-excel="exportToExcel"
+    @refresh="fetchReport"
+  >
+    <!-- Extra Filter Action Bar -->
+    <template #extra-filters>
+      <v-btn
+        size="small"
+        color="primary"
+        variant="tonal"
+        @click="setTodayRange"
+        class="text-none rounded-lg"
+      >
+        Hari Ini
+      </v-btn>
+    </template>
+
+    <!-- Slot Header Tabel Custom -->
+    <template #thead="{ toggleSort, getSortIcon, columnFilters, jenisOptions, statusOptions }">
+      <thead>
+        <tr class="header-main">
+          <th rowspan="3" style="width: 40px;"></th>
+
+          <!-- Header NAMA ORDER -->
+          <th rowspan="3" class="text-left sticky-col-1" style="min-width: 220px;">
+            <div class="d-flex align-center justify-space-between">
+              <span @click="toggleSort('spk_nama')" class="cursor-pointer font-weight-bold">
+                NAMA ORDER {{ getSortIcon('spk_nama') }}
+              </span>
+              <v-menu :close-on-content-click="false">
+                <template #activator="{ props }">
+                  <v-btn v-bind="props" icon variant="text" size="x-small" class="btn-filter-icon">
+                    <v-icon size="14" :color="columnFilters.NAMA ? 'amber-accent-2' : 'white'">mdi-filter-variant</v-icon>
+                  </v-btn>
+                </template>
+                <v-card min-width="220" class="pa-2 rounded-lg">
+                  <v-text-field v-model="columnFilters.NAMA" label="Filter Nama Order..." density="compact" hide-details variant="outlined" clearable />
+                </v-card>
+              </v-menu>
+            </div>
+          </th>
+
+          <!-- Header NOMOR SPK -->
+          <th rowspan="3" class="text-left sticky-col-2 border" style="min-width: 150px;">
+            <div class="d-flex align-center justify-space-between">
+              <span @click="toggleSort('NOMOR')" class="cursor-pointer font-weight-bold">
+                NOMOR SPK {{ getSortIcon('NOMOR') }}
+              </span>
+              <v-menu :close-on-content-click="false">
+                <template #activator="{ props }">
+                  <v-btn v-bind="props" icon variant="text" size="x-small" class="btn-filter-icon">
+                    <v-icon size="14" :color="columnFilters.KODE ? 'amber-accent-2' : 'white'">mdi-filter-variant</v-icon>
+                  </v-btn>
+                </template>
+                <v-card min-width="200" class="pa-2 rounded-lg">
+                  <v-text-field v-model="columnFilters.KODE" label="Filter Nomor SPK..." density="compact" hide-details variant="outlined" clearable />
+                </v-card>
+              </v-menu>
+            </div>
+          </th>
+
+          <th rowspan="3" class="text-center border cursor-pointer" @click="toggleSort('spk_tanggal')">TGL SPK {{ getSortIcon('spk_tanggal') }}</th>
+          <th rowspan="3" class="text-center border cursor-pointer" @click="toggleSort('deadline')">DEADLINE {{ getSortIcon('deadline') }}</th>
+
+          <!-- Header JENIS -->
+          <th rowspan="3" class="text-left border">
+            <div class="d-flex align-center justify-space-between ga-1">
+              <span @click="toggleSort('jo_nama')" class="cursor-pointer font-weight-bold">
+                JENIS {{ getSortIcon('jo_nama') }}
+              </span>
+              <v-menu :close-on-content-click="false">
+                <template #activator="{ props }">
+                  <v-btn v-bind="props" icon variant="text" size="x-small" class="btn-filter-icon">
+                    <v-icon size="14" :color="columnFilters.JENIS !== 'SEMUA' ? 'amber-accent-2' : 'white'">mdi-filter-variant</v-icon>
+                  </v-btn>
+                </template>
+                <v-card min-width="180" class="pa-2 rounded-lg">
+                  <v-select v-model="columnFilters.JENIS" :items="jenisOptions" label="Jenis" density="compact" hide-details variant="outlined" />
+                </v-card>
+              </v-menu>
+            </div>
+          </th>
+
+          <!-- Header STATUS -->
+          <th rowspan="3" class="text-center border">
+            <div class="d-flex align-center justify-center ga-1">
+              <span @click="toggleSort('status')" class="cursor-pointer font-weight-bold">
+                STATUS {{ getSortIcon('status') }}
+              </span>
+              <v-menu :close-on-content-click="false">
+                <template #activator="{ props }">
+                  <v-btn v-bind="props" icon variant="text" size="x-small" class="btn-filter-icon">
+                    <v-icon size="14" :color="columnFilters.STATUS !== 'SEMUA' ? 'amber-accent-2' : 'white'">mdi-filter-variant</v-icon>
+                  </v-btn>
+                </template>
+                <v-card min-width="160" class="pa-2 rounded-lg">
+                  <v-select v-model="columnFilters.STATUS" :items="statusOptions" label="Status" density="compact" hide-details variant="outlined" />
+                </v-card>
+              </v-menu>
+            </div>
+          </th>
+
+          <th rowspan="3" class="text-center border">GRAMASI</th>
+          <th rowspan="3" class="text-right border">PANJANG</th>
+          <th rowspan="3" class="text-right border">LEBAR</th>
+          <th rowspan="3" class="text-left border">KAIN</th>
+          <th rowspan="3" class="text-left border">FINISHING</th>
+          <th rowspan="3" class="text-center border cursor-pointer" @click="toggleSort('spk_jumlah')">ORDER {{ getSortIcon('spk_jumlah') }}</th>
+
+          <!-- Group Header 1 -->
+          <th colspan="6" class="text-center header-group">JUMLAH CETAK</th>
+          <th rowspan="3" class="text-center border">JML SEAMING</th>
+          <th rowspan="3" class="text-center border">JML MATA AYAM</th>
+          <th rowspan="3" class="text-center border">JML COLY</th>
+          <th rowspan="3" class="text-center border">JML JADI</th>
+          <th rowspan="3" class="text-center border">JML KIRIM</th>
+          <th colspan="6" class="text-center header-group">MESIN CETAK (METER)</th>
+          <th colspan="1" class="text-center header-group">SEAMING</th>
+          <th colspan="1" class="text-center header-group">KIRIM</th>
+        </tr>
+
+        <!-- Row Header 2 -->
+        <tr class="header-sub">
+          <th colspan="5" class="text-center border-sub-l">PCS</th>
+          <th rowspan="2" class="text-right border-sub-r">TOTAL</th>
+          <th colspan="5" class="text-center border-sub-l">METER</th>
+          <th rowspan="2" class="text-right border-sub-r">TOTAL</th>
+          <th rowspan="2" class="text-right border-sub-r">METER</th>
+          <th rowspan="2" class="text-right border-sub-r">METER</th>
+        </tr>
+
+        <!-- Row Header 3 -->
+        <tr class="header-sub">
+          <th class="text-right border-sub-l">MT01</th>
+          <th class="text-right">MT02</th>
+          <th class="text-right">MT03</th>
+          <th class="text-right">MT04</th>
+          <th class="text-right">MT05</th>
+
+          <th class="text-right border-sub-l">MT01</th>
+          <th class="text-right">MT02</th>
+          <th class="text-right">MT03</th>
+          <th class="text-right">MT04</th>
+          <th class="text-right">MT05</th>
+        </tr>
+      </thead>
+    </template>
+
+    <!-- Slot Row Baris Data -->
+    <!-- Slot Row Baris Data -->
+    <template #row="{ item, formatNumber }">
+      <tr class="table-row-item">
+        <td class="text-center" style="width: 40px;">
+          <v-icon size="small" color="grey-lighten-1">mdi-file-document-outline</v-icon>
+        </td>
+
+        <!-- Berikan max-width dan text-truncate pada kolom berpotensi teks panjang -->
+        <td class="text-left cell-nama sticky-col-1 text-truncate" style="max-width: 200px;" :title="item.spk_nama">
+          {{ item.spk_nama }}
+        </td>
+        <td class="text-left cell-code sticky-col-2 font-weight" style="min-width: 130px;">
+          {{ item.NOMOR }}
+        </td>
+        <td class="text-center">{{ formatDateShort(item.spk_tanggal) }}</td>
+        <td class="text-center">{{ formatDateShort(item.deadline) }}</td>
+        <td class="text-left text-grey-darken-2 text-truncate" style="max-width: 140px;" :title="item.jo_nama">
+          {{ item.jo_nama || '-' }}
+        </td>
+
+        <!-- Status Chip -->
+        <td class="text-center">
+          <span
+            v-if="item.status"
+            class="badge-status"
+            :class="item.status === 'Closed' ? 'badge-closed' : 'badge-open'"
+          >
+            {{ item.status }}
+          </span>
+          <span v-else class="text-grey">-</span>
+        </td>
+
+        <td class="text-center text-caption">{{ item.spk_gramasi || '-' }}</td>
+        <td class="text-right text-grey-darken-1">{{ formatNumber(item.PANJANG, 2) }}</td>
+        <td class="text-right text-grey-darken-1">{{ formatNumber(item.LEBAR, 2) }}</td>
+        <td class="text-left text-caption text-truncate" style="max-width: 120px;" :title="item.KAIN">
+          {{ item.KAIN || '-' }}
+        </td>
+        <td class="text-left text-caption text-truncate" style="max-width: 220px;" :title="item.FINISHING">
+          {{ item.FINISHING || '-' }}
+        </td>
+
+        <!-- Order -->
+        <td class="text-center font-weight-bold text-primary">{{ formatNumber(item.spk_jumlah, 0) }}</td>
+
+        <!-- Sisa Kolom Angka/Mesin... -->
+        <td class="text-right text-grey-darken-1 border-l">{{ formatNumber(item.mt01, 0) }}</td>
+        <td class="text-right text-grey-darken-1">{{ formatNumber(item.mt02, 0) }}</td>
+        <td class="text-right text-grey-darken-1">{{ formatNumber(item.mt03, 0) }}</td>
+        <td class="text-right text-grey-darken-1">{{ formatNumber(item.mt04, 0) }}</td>
+        <td class="text-right text-grey-darken-1">{{ formatNumber(item.mt05, 0) }}</td>
+        <td class="text-right font-weight-bold text-success border-r">{{ formatNumber(item.JML_CETAK, 0) }}</td>
+
+        <td class="text-center">{{ formatNumber(item.JML_seaming, 0) }}</td>
+        <td class="text-center">{{ formatNumber(item.JML_mataayam, 0) }}</td>
+        <td class="text-center">{{ formatNumber(item.JML_coly, 0) }}</td>
+        <td class="text-center">{{ formatNumber(item.JML_JADI, 0) }}</td>
+        <td class="text-center">{{ formatNumber(item.JML_KIRIM, 0) }}</td>
+
+        <td class="text-right text-grey-darken-1 border-l">{{ formatNumber(item.mt01_m, 2) }}</td>
+        <td class="text-right text-grey-darken-1">{{ formatNumber(item.mt02_m, 2) }}</td>
+        <td class="text-right text-grey-darken-1">{{ formatNumber(item.mt03_m, 2) }}</td>
+        <td class="text-right text-grey-darken-1">{{ formatNumber(item.mt04_m, 2) }}</td>
+        <td class="text-right text-grey-darken-1">{{ formatNumber(item.mt05_m, 2) }}</td>
+        <td class="text-right font-weight-bold text-success border-r">{{ formatNumber(item.M_CETAK, 2) }}</td>
+
+        <td class="text-right text-grey-darken-1 border-r">{{ formatNumber(item.m_seaming, 2) }}</td>
+        <td class="text-right text-grey-darken-1 border-r">{{ formatNumber(item.JML_meter_KIRIM, 2) }}</td>
+      </tr>
+    </template>
+
+    <!-- Slot Total Footer -->
+    <template #tfoot="{ totals, formatNumber }">
+      <tr class="table-footer-row">
+        <td colspan="12" class="text-right font-weight-black text-uppercase sticky-footer-title">
+          TOTAL KESELURUHAN:
+        </td>
+
+        <td class="text-center font-weight-black text-primary">{{ formatNumber(totals.spk_jumlah, 0) }}</td>
+
+        <td class="text-right font-weight-black">{{ formatNumber(totals.mt01, 0) }}</td>
+        <td class="text-right font-weight-black">{{ formatNumber(totals.mt02, 0) }}</td>
+        <td class="text-right font-weight-black">{{ formatNumber(totals.mt03, 0) }}</td>
+        <td class="text-right font-weight-black">{{ formatNumber(totals.mt04, 0) }}</td>
+        <td class="text-right font-weight-black">{{ formatNumber(totals.mt05, 0) }}</td>
+        <td class="text-right font-weight-black text-success bg-amber-lighten-5">{{ formatNumber(totals.JML_CETAK, 0) }}</td>
+
+        <td class="text-center font-weight-black">{{ formatNumber(totals.JML_seaming, 0) }}</td>
+        <td class="text-center font-weight-black">{{ formatNumber(totals.JML_mataayam, 0) }}</td>
+        <td class="text-center font-weight-black">{{ formatNumber(totals.JML_coly, 0) }}</td>
+        <td class="text-center font-weight-black">{{ formatNumber(totals.JML_JADI, 0) }}</td>
+        <td class="text-center font-weight-black">{{ formatNumber(totals.JML_KIRIM, 0) }}</td>
+
+        <td class="text-right font-weight-black">{{ formatNumber(totals.mt01_m, 2) }}</td>
+        <td class="text-right font-weight-black">{{ formatNumber(totals.mt02_m, 2) }}</td>
+        <td class="text-right font-weight-black">{{ formatNumber(totals.mt03_m, 2) }}</td>
+        <td class="text-right font-weight-black">{{ formatNumber(totals.mt04_m, 2) }}</td>
+        <td class="text-right font-weight-black">{{ formatNumber(totals.mt05_m, 2) }}</td>
+        <td class="text-right font-weight-black text-success bg-amber-lighten-5">{{ formatNumber(totals.M_CETAK, 2) }}</td>
+
+        <td class="text-right font-weight-black">{{ formatNumber(totals.m_seaming, 2) }}</td>
+        <td class="text-right font-weight-black">{{ formatNumber(totals.JML_meter_KIRIM, 2) }}</td>
+      </tr>
+    </template>
+  </BaseReportLayout>
+</template>
+
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from "vue";
-import type {
-  ColDef,
-  ColGroupDef,
-  GridApi,
-  GridReadyEvent,
-} from "ag-grid-community";
-import { AgGridVue } from "ag-grid-vue3";
-import { ModuleRegistry, AllCommunityModule } from "ag-grid-community";
+import { ref, reactive, onMounted } from "vue";
+import BaseReportLayout from "@/components/BaseReportLayout.vue";
 import api from "@/services/api";
 import * as XLSX from "xlsx-js-style";
-import PageLayout from "../components/PageLayout.vue";
-import { format, parseISO, isValid } from "date-fns";
-
-ModuleRegistry.registerModules([AllCommunityModule]);
-
-import "ag-grid-community/styles/ag-grid.css";
-import "ag-grid-community/styles/ag-theme-alpine.css";
-
-const loading = ref({ report: false });
-const allData = ref<any[]>([]);
-const gridApi = ref<GridApi | null>(null);
 
 const toISODate = (d: Date) => d.toISOString().slice(0, 10);
 const today = new Date();
@@ -29,427 +283,103 @@ defaultStart.setDate(defaultStart.getDate() - 30);
 
 const startDate = ref(toISODate(defaultStart));
 const endDate = ref(toISODate(today));
-const searchQuery = ref("");
-const itemsPerPage = ref(10);
-const itemsPerPageOptions = [
-  { title: "10", value: 10 },
-  { title: "25", value: 25 },
-  { title: "50", value: 50 },
-  { title: "100", value: 100 },
-  { title: "ALL", value: -1 },
-];
 
-const formatNumber = (val: any, dec = 0) => {
-  const num = Number(val ?? 0);
-  if (Number.isNaN(num)) return "-";
-  return num.toLocaleString("id-ID", {
-    minimumFractionDigits: dec,
-    maximumFractionDigits: dec,
-  });
+const allData = ref<any[]>([]);
+const loading = reactive({ report: false });
+
+const formatDateIndo = (dateStr: string) => {
+  if (!dateStr) return "";
+  const [year, month, day] = dateStr.split("-");
+  const namaBulan = [
+    "Januari", "Februari", "Maret", "April", "Mei", "Juni",
+    "Juli", "Agustus", "September", "Oktober", "November", "Desember"
+  ];
+  const monthIdx = parseInt(month, 10) - 1;
+  return `${day} ${namaBulan[monthIdx]} ${year}`;
 };
 
-const formatDateDisplay = (dateStr: string) => {
+const formatDateShort = (dateStr: string) => {
   if (!dateStr) return "-";
-  const date = parseISO(dateStr);
-  return isValid(date) ? format(date, "dd/MM/yyyy") : dateStr;
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return dateStr;
+  const day = String(d.getDate()).padStart(2, "0");
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const year = d.getFullYear();
+  return `${day}/${month}/${year}`;
 };
 
-const statusCellRenderer = (params: any) => {
-  const value = params.value ?? "";
-  const cls = value === "Closed" ? "chip-closed" : "chip-open";
-  return `<span class="status-chip ${cls}">${value}</span>`;
+const setTodayRange = async () => {
+  const todayStr = toISODate(new Date());
+  startDate.value = todayStr;
+  endDate.value = todayStr;
+  await fetchReport();
 };
-
-const tooltipFromValue = (p: any) => {
-  const v = p?.valueFormatted ?? p?.value;
-  if (v === null || v === undefined || v === "") return null;
-  return String(v);
-};
-
-const nCol = (
-  headerName: string,
-  field: string,
-  width = 80,
-  dec = 0,
-): ColDef => ({
-  headerName,
-  field,
-  width,
-  type: "numericColumn",
-  cellClass: "text-right",
-  valueFormatter: (p) => formatNumber(p.value, dec),
-});
-
-const columnDefs = ref<(ColDef | ColGroupDef)[]>([
-  {
-    headerName: "",
-    field: "__select",
-    width: 44,
-    minWidth: 44,
-    maxWidth: 44,
-    pinned: "left",
-    sortable: false,
-    resizable: false,
-    filter: false,
-    checkboxSelection: true,
-    headerCheckboxSelection: false,
-    suppressMovable: true,
-  },
-  { headerName: "NAMA ORDER", field: "spk_nama", pinned: "left", width: 310 },
-  { headerName: "NOMOR SPK", field: "NOMOR", width: 130 },
-  {
-    headerName: "TGL SPK",
-    field: "spk_tanggal",
-    width: 100,
-    valueFormatter: (p) => formatDateDisplay(p.value),
-  },
-  {
-    headerName: "DEADLINE",
-    field: "deadline",
-    width: 100,
-    valueFormatter: (p) => formatDateDisplay(p.value),
-  },
-  { headerName: "JENIS", field: "jo_nama", width: 130 },
-  {
-    headerName: "STATUS",
-    field: "status",
-    width: 100,
-    cellRenderer: statusCellRenderer,
-  },
-  { headerName: "GRAMASI", field: "spk_gramasi", width: 100 },
-  {
-    ...nCol("PANJANG", "PANJANG", 85, 0),
-    cellClass: ["text-center", "panjang-cell"],
-  },
-  {
-    ...nCol("LEBAR", "LEBAR", 75, 0),
-    cellClass: ["text-center", "lebar-cell"],
-  },
-  { headerName: "KAIN", field: "KAIN", width: 120 },
-  { headerName: "FINISHING", field: "FINISHING", width: 350 },
-
-  {
-    headerName: "ORDER",
-    field: "spk_jumlah",
-    cellClass: "text-center",
-    width: 80,
-    valueFormatter: (p) => formatNumber(p.value, 0),
-  },
-
-  {
-    headerName: "JUMLAH CETAK",
-    headerClass: "jml-cetak-group",
-    marryChildren: true,
-    children: [
-      {
-        headerName: "PCS",
-        headerClass: "mesin-cetak-group",
-        marryChildren: true,
-        children: [
-          {
-            ...nCol("MT01", "mt01", 75, 0),
-            headerClass: "mesin-cetak-col",
-            cellClass: ["text-right", "mesin-cetak-cell", "mesin-cetak-first"],
-          },
-          {
-            ...nCol("MT02", "mt02", 75, 0),
-            headerClass: "mesin-cetak-col",
-            cellClass: ["text-right", "mesin-cetak-cell"],
-          },
-          {
-            ...nCol("MT03", "mt03", 75, 0),
-            headerClass: "mesin-cetak-col",
-            cellClass: ["text-right", "mesin-cetak-cell"],
-          },
-          {
-            ...nCol("MT04", "mt04", 75, 0),
-            headerClass: "mesin-cetak-col",
-            cellClass: ["text-right", "mesin-cetak-cell"],
-          },
-          {
-            ...nCol("MT05", "mt05", 75, 0),
-            headerClass: "mesin-cetak-col",
-            cellClass: ["text-right", "mesin-cetak-cell"],
-          },
-        ],
-      },
-      {
-        ...nCol("TOTAL", "JML_CETAK", 85, 0),
-        headerClass: "mesin-cetak-total-col",
-        cellClass: ["text-center", "mesin-cetak-total", "mesin-cetak-last"],
-      },
-    ],
-  },
-  {
-    ...nCol("JUMLAH\nSEAMING", "JML_seaming", 95, 0),
-    wrapHeaderText: true,
-    headerClass: "jml-seaming-header",
-    cellClass: ["text-center", "jml-seaming-cell"],
-  },
-  {
-    ...nCol("JUMLAH\nMATA AYAM", "JML_mataayam", 110, 0),
-    wrapHeaderText: true,
-    headerClass: "jml-mataayam-header",
-    cellClass: ["text-center", "jml-mataayam-cell"],
-  },
-  {
-    ...nCol("JUMLAH\nCOLY", "JML_coly", 90, 0),
-    wrapHeaderText: true,
-    headerClass: "jml-coly-header",
-    cellClass: ["text-center", "jml-coly-cell"],
-  },
-  {
-    ...nCol("JUMLAH\nJADI", "JML_JADI", 90, 0),
-    wrapHeaderText: true,
-    headerClass: "jml-jadi-header",
-    cellClass: ["text-center", "jml-jadi-cell"],
-  },
-  {
-    ...nCol("JUMLAH\nKIRIM", "JML_KIRIM", 95, 0),
-    wrapHeaderText: true,
-    headerClass: "jml-kirim-header",
-    cellClass: ["text-center", "jml-kirim-cell"],
-  },
-
-  {
-    headerName: "MESIN CETAK",
-    headerClass: "mesin-meter-group",
-    marryChildren: true,
-    children: [
-      {
-        ...nCol("MT01", "mt01_m", 80, 2),
-        headerClass: "mesin-meter-col",
-        cellClass: ["text-right", "mesin-meter-cell", "mesin-meter-first"],
-      },
-      {
-        ...nCol("MT02", "mt02_m", 80, 2),
-        headerClass: "mesin-meter-col",
-        cellClass: ["text-right", "mesin-meter-cell"],
-      },
-      {
-        ...nCol("MT03", "mt03_m", 80, 2),
-        headerClass: "mesin-meter-col",
-        cellClass: ["text-right", "mesin-meter-cell"],
-      },
-      {
-        ...nCol("MT04", "mt04_m", 80, 2),
-        headerClass: "mesin-meter-col",
-        cellClass: ["text-right", "mesin-meter-cell"],
-      },
-      {
-        ...nCol("MT05", "mt05_m", 80, 2),
-        headerClass: "mesin-meter-col",
-        cellClass: ["text-right", "mesin-meter-cell"],
-      },
-      {
-        ...nCol("TOTAL", "M_CETAK", 90, 2),
-        headerClass: "mesin-meter-total-col",
-        cellClass: ["text-right", "mesin-meter-total", "mesin-meter-last"],
-      },
-    ],
-  },
-  {
-    headerName: "SEAMING",
-    headerClass: "seaming-group-header",
-    children: [
-      {
-        ...nCol("METER", "m_seaming", 95, 2),
-        headerClass: "meter-sub-header",
-      },
-    ],
-  },
-  {
-    headerName: "KIRIM",
-    headerClass: "kirim-group-header",
-    children: [
-      {
-        ...nCol("METER", "JML_meter_KIRIM", 110, 2),
-        headerClass: "meter-sub-header",
-      },
-    ],
-  },
-]);
-
-const defaultColDef: ColDef = {
-  sortable: true,
-  resizable: true,
-  filter: false,
-  headerClass: "mmt-header-cell",
-  cellClass: "mmt-cell",
-  tooltipValueGetter: tooltipFromValue,
-};
-
-const totals = computed(() => {
-  const t: any = {
-    spk_jumlah: 0,
-    mt01: 0,
-    mt02: 0,
-    mt03: 0,
-    mt04: 0,
-    mt05: 0,
-    JML_CETAK: 0,
-    JML_seaming: 0,
-    JML_mataayam: 0,
-    JML_coly: 0,
-    JML_JADI: 0,
-    JML_KIRIM: 0,
-    mt01_m: 0,
-    mt02_m: 0,
-    mt03_m: 0,
-    mt04_m: 0,
-    mt05_m: 0,
-    M_CETAK: 0,
-    m_seaming: 0,
-    JML_meter_KIRIM: 0,
-  };
-
-  allData.value.forEach((r: any) => {
-    Object.keys(t).forEach((k) => {
-      t[k] += Number(r?.[k] || 0);
-    });
-  });
-
-  return t;
-});
-
-const pinnedBottomRowData = computed(() => [
-  {
-    spk_nama: "TOTAL",
-    STATUS: "-",
-    PANJANG: "-",
-    LEBAR: "-",
-    ...totals.value,
-  },
-]);
-
-const onGridReady = (e: GridReadyEvent) => {
-  gridApi.value = e.api;
-  e.api.setGridOption("quickFilterText", searchQuery.value);
-  applyPaginationSize();
-};
-
-const onPaginationChanged = () => {
-  if (!gridApi.value) return;
-  const size = gridApi.value.paginationGetPageSize();
-  if (size && size !== itemsPerPage.value) {
-    itemsPerPage.value = size;
-  }
-};
-
-const getEffectivePageSize = () => {
-  if (itemsPerPage.value === -1) {
-    return Math.max(allData.value.length, 1);
-  }
-  return itemsPerPage.value;
-};
-
-const applyPaginationSize = () => {
-  const pageSize = getEffectivePageSize();
-  gridApi.value?.setGridOption("paginationPageSize", pageSize);
-  gridApi.value?.paginationGoToFirstPage();
-};
-
-watch(searchQuery, (val) => {
-  gridApi.value?.setGridOption("quickFilterText", val);
-});
-
-watch(itemsPerPage, () => {
-  applyPaginationSize();
-});
-
-watch(allData, () => {
-  if (itemsPerPage.value === -1) {
-    applyPaginationSize();
-  }
-});
 
 const fetchReport = async () => {
-  loading.value.report = true;
+  loading.report = true;
   try {
-    const requestStart =
-      startDate.value <= endDate.value ? startDate.value : endDate.value;
-    const requestEnd =
-      startDate.value <= endDate.value ? endDate.value : startDate.value;
+    const requestStart = startDate.value <= endDate.value ? startDate.value : endDate.value;
+    const requestEnd = startDate.value <= endDate.value ? endDate.value : startDate.value;
 
     const res = await api.get("/mmt/laporan-spk-mmt", {
       params: { startDate: requestStart, endDate: requestEnd },
     });
     allData.value = Array.isArray(res?.data?.data) ? res.data.data : [];
-
-    console.log("[LapSpkMmt] request", {
-      startDate: requestStart,
-      endDate: requestEnd,
-    });
-    console.log("[LapSpkMmt] rows", allData.value.length);
+  } catch (error) {
+    console.error("Gagal memuat laporan SPK MMT:", error);
+    allData.value = [];
   } finally {
-    loading.value.report = false;
+    loading.report = false;
   }
 };
 
-const exportToExcel = () => {
-  if (allData.value.length === 0) {
+const exportToExcel = (dataToExport: any[]) => {
+  if (!dataToExport || dataToExport.length === 0) {
     alert("Tidak ada data untuk diekspor");
     return;
   }
 
-  const fileName = `Laporan_SPK_MMT_${startDate.value}.xlsx`;
+  const fileName = `Laporan_SPK_MMT_${startDate.value}_to_${endDate.value}.xlsx`;
+  const num = (v: any) => (isNaN(Number(v)) ? 0 : Number(v));
 
-  // Helper aman untuk memastikan nilai di-cast ke Number murni
-  const num = (value) => {
-    const parsed = Number(value);
-    return isNaN(parsed) ? 0 : parsed;
+  const thinBorder = {
+    top: { style: "thin", color: { rgb: "000000" } },
+    bottom: { style: "thin", color: { rgb: "000000" } },
+    left: { style: "thin", color: { rgb: "000000" } },
+    right: { style: "thin", color: { rgb: "000000" } },
   };
 
-  // --- DEFINISI STYLE ---
   const styleHeaderMain = {
-    fill: { fgColor: { rgb: "B3E5FC" } }, // Biru Muda
-    font: { bold: true, color: { rgb: "000000" }, sz: 10 },
+    fill: { fgColor: { rgb: "1E3A8A" } },
+    font: { bold: true, color: { rgb: "FFFFFF" }, sz: 10 },
     alignment: { horizontal: "center", vertical: "center", wrapText: true },
-    border: {
-      top: { style: "thin", color: { rgb: "000000" } },
-      bottom: { style: "thin", color: { rgb: "000000" } },
-      left: { style: "thin", color: { rgb: "000000" } },
-      right: { style: "thin", color: { rgb: "000000" } },
-    },
-  };
-
-  const styleHeaderSub = {
-    ...styleHeaderMain,
-    fill: { fgColor: { rgb: "E1F5FE" } }, // Biru Lebih Muda
+    border: thinBorder,
   };
 
   const styleDataCell = {
-    font: { sz: 10 },
+    font: { sz: 9, color: { rgb: "0F172A" } },
+    alignment: { vertical: "center" },
+    border: thinBorder,
+  };
+
+  const styleFooterCell = {
+    fill: { fgColor: { rgb: "FEF3C7" } },
+    font: { bold: true, sz: 10, color: { rgb: "000000" } },
     border: {
-      top: { style: "thin", color: { rgb: "000000" } },
-      bottom: { style: "thin", color: { rgb: "000000" } },
+      top: { style: "double", color: { rgb: "000000" } },
+      bottom: { style: "thick", color: { rgb: "000000" } },
       left: { style: "thin", color: { rgb: "000000" } },
       right: { style: "thin", color: { rgb: "000000" } },
     },
-    alignment: { vertical: "center" },
   };
 
-  const styleFooter = {
-    ...styleDataCell,
-    fill: { fgColor: { rgb: "F0F4F8" } },
-    font: { bold: true, sz: 10 },
-  };
+  const wsData: any[] = [
+    [{ v: "LAPORAN MONITORING SPK MMT", s: { font: { bold: true, sz: 14 } } }],
+    [{ v: `Periode : ${formatDateIndo(startDate.value)} s/d ${formatDateIndo(endDate.value)}` }],
+    [],
+  ];
 
-  // --- 1. SUSUN STRUKTUR DATA (AOA) ---
-  const wsData = [];
-
-  // Judul & Periode
-  wsData.push([
-    { v: "LAPORAN MONITORING SPK MMT", s: { font: { bold: true, sz: 14 } } },
-  ]);
-  wsData.push([
-    {
-      v: `Periode: ${formatDateDisplay(startDate.value)} s/d ${formatDateDisplay(endDate.value)}`,
-    },
-  ]);
-  wsData.push([]); // Baris Kosong
-
-  // --- 2. HEADER ROW 1 ---
+  // Header Row 1
   const headerRow1 = [
     { v: "NAMA ORDER", s: styleHeaderMain },
     { v: "NOMOR SPK", s: styleHeaderMain },
@@ -463,433 +393,185 @@ const exportToExcel = () => {
     { v: "KAIN", s: styleHeaderMain },
     { v: "FINISHING", s: styleHeaderMain },
     { v: "ORDER", s: styleHeaderMain },
-    { v: "JUMLAH CETAK", s: styleHeaderMain },
-    "",
-    "",
-    "",
-    "",
-    "", // Sisa kolom Jml Cetak
+    { v: "JUMLAH CETAK", s: styleHeaderMain }, "", "", "", "", "",
     { v: "JML SEAMING", s: styleHeaderMain },
     { v: "JML MATA AYAM", s: styleHeaderMain },
     { v: "JML COLY", s: styleHeaderMain },
     { v: "JML JADI", s: styleHeaderMain },
     { v: "JML KIRIM", s: styleHeaderMain },
-    { v: "MESIN CETAK (METER)", s: styleHeaderMain },
-    "",
-    "",
-    "",
-    "",
-    "", // Sisa kolom Mesin Meter
+    { v: "MESIN CETAK (METER)", s: styleHeaderMain }, "", "", "", "", "",
     { v: "SEAMING (M)", s: styleHeaderMain },
     { v: "KIRIM (M)", s: styleHeaderMain },
   ];
-
-  headerRow1.forEach((cell, idx) => {
+  headerRow1.forEach((cell: any, idx: number) => {
     if (cell === "") headerRow1[idx] = { v: "", s: styleHeaderMain };
   });
   wsData.push(headerRow1);
 
-  // --- 3. HEADER ROW 2 ---
+  // Header Row 2
   const headerRow2 = [
     ...Array(12).fill({ v: "", s: styleHeaderMain }),
-    { v: "PCS", s: styleHeaderSub },
-    "",
-    "",
-    "",
-    "",
-    { v: "TOTAL", s: styleHeaderSub },
+    { v: "PCS", s: styleHeaderMain }, "", "", "", "",
+    { v: "TOTAL", s: styleHeaderMain },
     ...Array(5).fill({ v: "", s: styleHeaderMain }),
-    { v: "TOTAL", s: styleHeaderSub },
-    "",
-    "",
-    "",
-    "",
-    "",
+    { v: "METER", s: styleHeaderMain }, "", "", "", "",
+    { v: "TOTAL", s: styleHeaderMain },
     { v: "", s: styleHeaderMain },
     { v: "", s: styleHeaderMain },
   ];
-
-  headerRow2.forEach((cell, idx) => {
-    if (cell === "") headerRow2[idx] = { v: "", s: styleHeaderSub };
+  headerRow2.forEach((cell: any, idx: number) => {
+    if (cell === "") headerRow2[idx] = { v: "", s: styleHeaderMain };
   });
   wsData.push(headerRow2);
 
-  // --- 4. HEADER ROW 3 ---
+  // Header Row 3
   const headerRow3 = [
     ...Array(12).fill({ v: "", s: styleHeaderMain }),
-    { v: "MT01", s: styleHeaderSub },
-    { v: "MT02", s: styleHeaderSub },
-    { v: "MT03", s: styleHeaderSub },
-    { v: "MT04", s: styleHeaderSub },
-    { v: "MT05", s: styleHeaderSub },
-    { v: "TOTAL", s: styleHeaderSub },
-    { v: "JML SEAMING", s: styleHeaderSub },
-    { v: "JML MATA AYAM", s: styleHeaderSub },
-    { v: "JML COLY", s: styleHeaderSub },
-    { v: "JML JADI", s: styleHeaderSub },
-    { v: "JML KIRIM", s: styleHeaderSub },
-    { v: "MT01", s: styleHeaderSub },
-    { v: "MT02", s: styleHeaderSub },
-    { v: "MT03", s: styleHeaderSub },
-    { v: "MT04", s: styleHeaderSub },
-    { v: "MT05", s: styleHeaderSub },
-    { v: "TOTAL", s: styleHeaderSub },
-    { v: "METER", s: styleHeaderSub },
-    { v: "METER", s: styleHeaderSub },
+    { v: "MT01", s: styleHeaderMain },
+    { v: "MT02", s: styleHeaderMain },
+    { v: "MT03", s: styleHeaderMain },
+    { v: "MT04", s: styleHeaderMain },
+    { v: "MT05", s: styleHeaderMain },
+    { v: "TOTAL", s: styleHeaderMain },
+    ...Array(5).fill({ v: "", s: styleHeaderMain }),
+    { v: "MT01", s: styleHeaderMain },
+    { v: "MT02", s: styleHeaderMain },
+    { v: "MT03", s: styleHeaderMain },
+    { v: "MT04", s: styleHeaderMain },
+    { v: "MT05", s: styleHeaderMain },
+    { v: "TOTAL", s: styleHeaderMain },
+    { v: "METER", s: styleHeaderMain },
+    { v: "METER", s: styleHeaderMain },
   ];
-
-  headerRow3.forEach((cell, idx) => {
-    if (cell === "") headerRow3[idx] = { v: "", s: styleHeaderSub };
+  headerRow3.forEach((cell: any, idx: number) => {
+    if (cell === "") headerRow3[idx] = { v: "", s: styleHeaderMain };
   });
   wsData.push(headerRow3);
 
-  // --- 5. DATA BODY ---
-  gridApi.value?.forEachNodeAfterFilterAndSort((node) => {
-    const item = node.data;
+  // Data Body
+  dataToExport.forEach((item: any) => {
     wsData.push([
-      { v: item.spk_nama, s: styleDataCell },
-      {
-        v: item.NOMOR,
-        s: { ...styleDataCell, alignment: { horizontal: "center" } },
-      },
-      {
-        v: formatDateDisplay(item.spk_tanggal),
-        s: { ...styleDataCell, alignment: { horizontal: "center" } },
-      },
-      {
-        v: formatDateDisplay(item.deadline),
-        s: { ...styleDataCell, alignment: { horizontal: "center" } },
-      },
-      { v: item.jo_nama, s: styleDataCell },
-      {
-        v: item.status,
-        s: { ...styleDataCell, alignment: { horizontal: "center" } },
-      },
-      { v: item.spk_gramasi, s: styleDataCell },
+      { v: item.spk_nama || "-", s: styleDataCell },
+      { v: item.NOMOR || "-", s: { ...styleDataCell, alignment: { horizontal: "center" } } },
+      { v: formatDateShort(item.spk_tanggal), s: { ...styleDataCell, alignment: { horizontal: "center" } } },
+      { v: formatDateShort(item.deadline), s: { ...styleDataCell, alignment: { horizontal: "center" } } },
+      { v: item.jo_nama || "-", s: styleDataCell },
+      { v: item.status || "-", s: { ...styleDataCell, alignment: { horizontal: "center" } } },
+      { v: item.spk_gramasi || "-", s: styleDataCell },
 
-      // Ukuran P & L (Desimal)
-      {
-        v: num(item.PANJANG),
-        t: "n",
-        z: "#,##0.00",
-        s: { ...styleDataCell, alignment: { horizontal: "center" } },
-      },
-      {
-        v: num(item.LEBAR),
-        t: "n",
-        z: "#,##0.00",
-        s: { ...styleDataCell, alignment: { horizontal: "center" } },
-      },
+      { v: num(item.PANJANG), t: "n", z: "#,##0.00", s: { ...styleDataCell, alignment: { horizontal: "right" } } },
+      { v: num(item.LEBAR), t: "n", z: "#,##0.00", s: { ...styleDataCell, alignment: { horizontal: "right" } } },
+      { v: item.KAIN || "-", s: styleDataCell },
+      { v: item.FINISHING || "-", s: styleDataCell },
 
-      { v: item.KAIN, s: styleDataCell },
-      { v: item.FINISHING, s: styleDataCell },
+      { v: num(item.spk_jumlah), t: "n", z: "#,##0", s: { ...styleDataCell, alignment: { horizontal: "center" } } },
 
-      // Order Qty (Integer)
-      {
-        v: num(item.spk_jumlah),
-        t: "n",
-        z: "#,##0",
-        s: { ...styleDataCell, alignment: { horizontal: "center" } },
-      },
+      { v: num(item.mt01), t: "n", z: "#,##0", s: { ...styleDataCell, alignment: { horizontal: "right" } } },
+      { v: num(item.mt02), t: "n", z: "#,##0", s: { ...styleDataCell, alignment: { horizontal: "right" } } },
+      { v: num(item.mt03), t: "n", z: "#,##0", s: { ...styleDataCell, alignment: { horizontal: "right" } } },
+      { v: num(item.mt04), t: "n", z: "#,##0", s: { ...styleDataCell, alignment: { horizontal: "right" } } },
+      { v: num(item.mt05), t: "n", z: "#,##0", s: { ...styleDataCell, alignment: { horizontal: "right" } } },
+      { v: num(item.JML_CETAK), t: "n", z: "#,##0", s: { ...styleDataCell, alignment: { horizontal: "right" }, font: { bold: true } } },
 
-      // PCS Mesin Cetak & Total Cetak (Integer)
-      {
-        v: num(item.mt01),
-        t: "n",
-        z: "#,##0",
-        s: { ...styleDataCell, alignment: { horizontal: "right" } },
-      },
-      {
-        v: num(item.mt02),
-        t: "n",
-        z: "#,##0",
-        s: { ...styleDataCell, alignment: { horizontal: "right" } },
-      },
-      {
-        v: num(item.mt03),
-        t: "n",
-        z: "#,##0",
-        s: { ...styleDataCell, alignment: { horizontal: "right" } },
-      },
-      {
-        v: num(item.mt04),
-        t: "n",
-        z: "#,##0",
-        s: { ...styleDataCell, alignment: { horizontal: "right" } },
-      },
-      {
-        v: num(item.mt05),
-        t: "n",
-        z: "#,##0",
-        s: { ...styleDataCell, alignment: { horizontal: "right" } },
-      },
-      {
-        v: num(item.JML_CETAK),
-        t: "n",
-        z: "#,##0",
-        s: {
-          ...styleDataCell,
-          alignment: { horizontal: "right" },
-          font: { bold: true },
-        },
-      },
+      { v: num(item.JML_seaming), t: "n", z: "#,##0", s: { ...styleDataCell, alignment: { horizontal: "center" } } },
+      { v: num(item.JML_mataayam), t: "n", z: "#,##0", s: { ...styleDataCell, alignment: { horizontal: "center" } } },
+      { v: num(item.JML_coly), t: "n", z: "#,##0", s: { ...styleDataCell, alignment: { horizontal: "center" } } },
+      { v: num(item.JML_JADI), t: "n", z: "#,##0", s: { ...styleDataCell, alignment: { horizontal: "center" } } },
+      { v: num(item.JML_KIRIM), t: "n", z: "#,##0", s: { ...styleDataCell, alignment: { horizontal: "center" } } },
 
-      // Finishings PCS (Integer)
-      {
-        v: num(item.JML_seaming),
-        t: "n",
-        z: "#,##0",
-        s: { ...styleDataCell, alignment: { horizontal: "right" } },
-      },
-      {
-        v: num(item.JML_mataayam),
-        t: "n",
-        z: "#,##0",
-        s: { ...styleDataCell, alignment: { horizontal: "right" } },
-      },
-      {
-        v: num(item.JML_coly),
-        t: "n",
-        z: "#,##0",
-        s: { ...styleDataCell, alignment: { horizontal: "right" } },
-      },
-      {
-        v: num(item.JML_JADI),
-        t: "n",
-        z: "#,##0",
-        s: { ...styleDataCell, alignment: { horizontal: "right" } },
-      },
-      {
-        v: num(item.JML_KIRIM),
-        t: "n",
-        z: "#,##0",
-        s: { ...styleDataCell, alignment: { horizontal: "right" } },
-      },
+      { v: num(item.mt01_m), t: "n", z: "#,##0.00", s: { ...styleDataCell, alignment: { horizontal: "right" } } },
+      { v: num(item.mt02_m), t: "n", z: "#,##0.00", s: { ...styleDataCell, alignment: { horizontal: "right" } } },
+      { v: num(item.mt03_m), t: "n", z: "#,##0.00", s: { ...styleDataCell, alignment: { horizontal: "right" } } },
+      { v: num(item.mt04_m), t: "n", z: "#,##0.00", s: { ...styleDataCell, alignment: { horizontal: "right" } } },
+      { v: num(item.mt05_m), t: "n", z: "#,##0.00", s: { ...styleDataCell, alignment: { horizontal: "right" } } },
+      { v: num(item.M_CETAK), t: "n", z: "#,##0.00", s: { ...styleDataCell, alignment: { horizontal: "right" }, font: { bold: true } } },
 
-      // Mesin Meter & Finishing Meter (Desimal)
-      {
-        v: num(item.mt01_m),
-        t: "n",
-        z: "#,##0.00",
-        s: { ...styleDataCell, alignment: { horizontal: "right" } },
-      },
-      {
-        v: num(item.mt02_m),
-        t: "n",
-        z: "#,##0.00",
-        s: { ...styleDataCell, alignment: { horizontal: "right" } },
-      },
-      {
-        v: num(item.mt03_m),
-        t: "n",
-        z: "#,##0.00",
-        s: { ...styleDataCell, alignment: { horizontal: "right" } },
-      },
-      {
-        v: num(item.mt04_m),
-        t: "n",
-        z: "#,##0.00",
-        s: { ...styleDataCell, alignment: { horizontal: "right" } },
-      },
-      {
-        v: num(item.mt05_m),
-        t: "n",
-        z: "#,##0.00",
-        s: { ...styleDataCell, alignment: { horizontal: "right" } },
-      },
-      {
-        v: num(item.M_CETAK),
-        t: "n",
-        z: "#,##0.00",
-        s: {
-          ...styleDataCell,
-          alignment: { horizontal: "right" },
-          font: { bold: true },
-        },
-      },
-      {
-        v: num(item.m_seaming),
-        t: "n",
-        z: "#,##0.00",
-        s: { ...styleDataCell, alignment: { horizontal: "right" } },
-      },
-      {
-        v: num(item.JML_meter_KIRIM),
-        t: "n",
-        z: "#,##0.00",
-        s: { ...styleDataCell, alignment: { horizontal: "right" } },
-      },
+      { v: num(item.m_seaming), t: "n", z: "#,##0.00", s: { ...styleDataCell, alignment: { horizontal: "right" } } },
+      { v: num(item.JML_meter_KIRIM), t: "n", z: "#,##0.00", s: { ...styleDataCell, alignment: { horizontal: "right" } } },
     ]);
   });
 
-  // --- 6. BARIS TOTAL ---
+  // Footer Totals
+  const totals = dataToExport.reduce((acc: any, row: any) => {
+    acc.spk_jumlah += num(row.spk_jumlah);
+    acc.mt01 += num(row.mt01); acc.mt02 += num(row.mt02); acc.mt03 += num(row.mt03); acc.mt04 += num(row.mt04); acc.mt05 += num(row.mt05);
+    acc.JML_CETAK += num(row.JML_CETAK);
+    acc.JML_seaming += num(row.JML_seaming); acc.JML_mataayam += num(row.JML_mataayam); acc.JML_coly += num(row.JML_coly);
+    acc.JML_JADI += num(row.JML_JADI); acc.JML_KIRIM += num(row.JML_KIRIM);
+    acc.mt01_m += num(row.mt01_m); acc.mt02_m += num(row.mt02_m); acc.mt03_m += num(row.mt03_m); acc.mt04_m += num(row.mt04_m); acc.mt05_m += num(row.mt05_m);
+    acc.M_CETAK += num(row.M_CETAK); acc.m_seaming += num(row.m_seaming); acc.JML_meter_KIRIM += num(row.JML_meter_KIRIM);
+    return acc;
+  }, {
+    spk_jumlah: 0, mt01: 0, mt02: 0, mt03: 0, mt04: 0, mt05: 0, JML_CETAK: 0,
+    JML_seaming: 0, JML_mataayam: 0, JML_coly: 0, JML_JADI: 0, JML_KIRIM: 0,
+    mt01_m: 0, mt02_m: 0, mt03_m: 0, mt04_m: 0, mt05_m: 0, M_CETAK: 0, m_seaming: 0, JML_meter_KIRIM: 0
+  });
+
   const footerRow = [
-    { v: "TOTAL", s: { ...styleFooter, alignment: { horizontal: "center" } } },
-    ...Array(10).fill({ v: "", s: styleFooter }),
+    { v: "TOTAL KESELURUHAN", s: { ...styleFooterCell, alignment: { horizontal: "center" } } },
+    ...Array(11).fill({ v: "", s: styleFooterCell }),
+    { v: totals.spk_jumlah, t: "n", z: "#,##0", s: { ...styleFooterCell, alignment: { horizontal: "center" } } },
 
-    // Totalan unit PCS (Integer)
-    {
-      v: num(totals.value.spk_jumlah),
-      t: "n",
-      z: "#,##0",
-      s: { ...styleFooter, alignment: { horizontal: "center" } },
-    },
-    {
-      v: num(totals.value.mt01),
-      t: "n",
-      z: "#,##0",
-      s: { ...styleFooter, alignment: { horizontal: "right" } },
-    },
-    {
-      v: num(totals.value.mt02),
-      t: "n",
-      z: "#,##0",
-      s: { ...styleFooter, alignment: { horizontal: "right" } },
-    },
-    {
-      v: num(totals.value.mt03),
-      t: "n",
-      z: "#,##0",
-      s: { ...styleFooter, alignment: { horizontal: "right" } },
-    },
-    {
-      v: num(totals.value.mt04),
-      t: "n",
-      z: "#,##0",
-      s: { ...styleFooter, alignment: { horizontal: "right" } },
-    },
-    {
-      v: num(totals.value.mt05),
-      t: "n",
-      z: "#,##0",
-      s: { ...styleFooter, alignment: { horizontal: "right" } },
-    },
-    {
-      v: num(totals.value.JML_CETAK),
-      t: "n",
-      z: "#,##0",
-      s: { ...styleFooter, alignment: { horizontal: "right" } },
-    },
-    {
-      v: num(totals.value.JML_seaming),
-      t: "n",
-      z: "#,##0",
-      s: { ...styleFooter, alignment: { horizontal: "right" } },
-    },
-    {
-      v: num(totals.value.JML_mataayam),
-      t: "n",
-      z: "#,##0",
-      s: { ...styleFooter, alignment: { horizontal: "right" } },
-    },
-    {
-      v: num(totals.value.JML_coly),
-      t: "n",
-      z: "#,##0",
-      s: { ...styleFooter, alignment: { horizontal: "right" } },
-    },
-    {
-      v: num(totals.value.JML_JADI),
-      t: "n",
-      z: "#,##0",
-      s: { ...styleFooter, alignment: { horizontal: "right" } },
-    },
-    {
-      v: num(totals.value.JML_KIRIM),
-      t: "n",
-      z: "#,##0",
-      s: { ...styleFooter, alignment: { horizontal: "right" } },
-    },
+    { v: totals.mt01, t: "n", z: "#,##0", s: { ...styleFooterCell, alignment: { horizontal: "right" } } },
+    { v: totals.mt02, t: "n", z: "#,##0", s: { ...styleFooterCell, alignment: { horizontal: "right" } } },
+    { v: totals.mt03, t: "n", z: "#,##0", s: { ...styleFooterCell, alignment: { horizontal: "right" } } },
+    { v: totals.mt04, t: "n", z: "#,##0", s: { ...styleFooterCell, alignment: { horizontal: "right" } } },
+    { v: totals.mt05, t: "n", z: "#,##0", s: { ...styleFooterCell, alignment: { horizontal: "right" } } },
+    { v: totals.JML_CETAK, t: "n", z: "#,##0", s: { ...styleFooterCell, alignment: { horizontal: "right" } } },
 
-    // Totalan unit METER (Desimal)
-    {
-      v: num(totals.value.mt01_m),
-      t: "n",
-      z: "#,##0.00",
-      s: { ...styleFooter, alignment: { horizontal: "right" } },
-    },
-    {
-      v: num(totals.value.mt02_m),
-      t: "n",
-      z: "#,##0.00",
-      s: { ...styleFooter, alignment: { horizontal: "right" } },
-    },
-    {
-      v: num(totals.value.mt03_m),
-      t: "n",
-      z: "#,##0.00",
-      s: { ...styleFooter, alignment: { horizontal: "right" } },
-    },
-    {
-      v: num(totals.value.mt04_m),
-      t: "n",
-      z: "#,##0.00",
-      s: { ...styleFooter, alignment: { horizontal: "right" } },
-    },
-    {
-      v: num(totals.value.mt05_m),
-      t: "n",
-      z: "#,##0.00",
-      s: { ...styleFooter, alignment: { horizontal: "right" } },
-    },
-    {
-      v: num(totals.value.M_CETAK),
-      t: "n",
-      z: "#,##0.00",
-      s: { ...styleFooter, alignment: { horizontal: "right" } },
-    },
-    {
-      v: num(totals.value.m_seaming),
-      t: "n",
-      z: "#,##0.00",
-      s: { ...styleFooter, alignment: { horizontal: "right" } },
-    },
-    {
-      v: num(totals.value.JML_meter_KIRIM),
-      t: "n",
-      z: "#,##0.00",
-      s: { ...styleFooter, alignment: { horizontal: "right" } },
-    },
+    { v: totals.JML_seaming, t: "n", z: "#,##0", s: { ...styleFooterCell, alignment: { horizontal: "center" } } },
+    { v: totals.JML_mataayam, t: "n", z: "#,##0", s: { ...styleFooterCell, alignment: { horizontal: "center" } } },
+    { v: totals.JML_coly, t: "n", z: "#,##0", s: { ...styleFooterCell, alignment: { horizontal: "center" } } },
+    { v: totals.JML_JADI, t: "n", z: "#,##0", s: { ...styleFooterCell, alignment: { horizontal: "center" } } },
+    { v: totals.JML_KIRIM, t: "n", z: "#,##0", s: { ...styleFooterCell, alignment: { horizontal: "center" } } },
+
+    { v: totals.mt01_m, t: "n", z: "#,##0.00", s: { ...styleFooterCell, alignment: { horizontal: "right" } } },
+    { v: totals.mt02_m, t: "n", z: "#,##0.00", s: { ...styleFooterCell, alignment: { horizontal: "right" } } },
+    { v: totals.mt03_m, t: "n", z: "#,##0.00", s: { ...styleFooterCell, alignment: { horizontal: "right" } } },
+    { v: totals.mt04_m, t: "n", z: "#,##0.00", s: { ...styleFooterCell, alignment: { horizontal: "right" } } },
+    { v: totals.mt05_m, t: "n", z: "#,##0.00", s: { ...styleFooterCell, alignment: { horizontal: "right" } } },
+    { v: totals.M_CETAK, t: "n", z: "#,##0.00", s: { ...styleFooterCell, alignment: { horizontal: "right" } } },
+
+    { v: totals.m_seaming, t: "n", z: "#,##0.00", s: { ...styleFooterCell, alignment: { horizontal: "right" } } },
+    { v: totals.JML_meter_KIRIM, t: "n", z: "#,##0.00", s: { ...styleFooterCell, alignment: { horizontal: "right" } } },
   ];
   wsData.push(footerRow);
 
   const ws = XLSX.utils.aoa_to_sheet(wsData);
+  const totalRowIndex = wsData.length - 1;
 
-  // --- 7. MERGE CONFIG ---
-  const offset = 3;
   ws["!merges"] = [
-    { s: { r: 0, c: 0 }, e: { r: 0, c: 4 } },
-    // Identitas Vertical Merge (3 baris)
-    ...Array(12)
-      .fill(0)
-      .map((_, i) => ({ s: { r: offset, c: i }, e: { r: offset + 2, c: i } })),
-    // Group Jumlah Cetak
-    { s: { r: offset, c: 12 }, e: { r: offset, c: 17 } },
-    { s: { r: offset + 1, c: 12 }, e: { r: offset + 1, c: 16 } },
-    // Vertical merge for Total Cetak & Seaming dkk
-    ...Array(6)
-      .fill(0)
-      .map((_, i) => ({
-        s: { r: offset, c: 17 + i },
-        e: { r: offset + 2, c: 17 + i },
-      })),
-    // Group Mesin Meter
-    { s: { r: offset, c: 23 }, e: { r: offset, c: 28 } },
-    { s: { r: offset + 1, c: 23 }, e: { r: offset + 1, c: 27 } },
-    // Vertical merge Meter s/d Kirim
-    { s: { r: offset, c: 29 }, e: { r: offset + 2, c: 29 } },
-    { s: { r: offset, c: 30 }, e: { r: offset + 2, c: 30 } },
-    // Footer Merge
-    { s: { r: wsData.length - 1, c: 0 }, e: { r: wsData.length - 1, c: 10 } },
-  ];
+    { s: { r: 3, c: 0 }, e: { r: 5, c: 0 } },
+    { s: { r: 3, c: 1 }, e: { r: 5, c: 1 } },
+    { s: { r: 3, c: 2 }, e: { r: 5, c: 2 } },
+    { s: { r: 3, c: 3 }, e: { r: 5, c: 3 } },
+    { s: { r: 3, c: 4 }, e: { r: 5, c: 4 } },
+    { s: { r: 3, c: 5 }, e: { r: 5, c: 5 } },
+    { s: { r: 3, c: 6 }, e: { r: 5, c: 6 } },
+    { s: { r: 3, c: 7 }, e: { r: 5, c: 7 } },
+    { s: { r: 3, c: 8 }, e: { r: 5, c: 8 } },
+    { s: { r: 3, c: 9 }, e: { r: 5, c: 9 } },
+    { s: { r: 3, c: 10 }, e: { r: 5, c: 10 } },
+    { s: { r: 3, c: 11 }, e: { r: 5, c: 11 } },
 
-  ws["!cols"] = [
-    { wch: 35 },
-    { wch: 15 },
-    { wch: 12 },
-    { wch: 12 },
-    { wch: 15 },
-    ...Array(26).fill({ wch: 11 }),
+    { s: { r: 3, c: 12 }, e: { r: 3, c: 17 } },
+    { s: { r: 4, c: 12 }, e: { r: 4, c: 16 } },
+    { s: { r: 4, c: 17 }, e: { r: 5, c: 17 } },
+
+    { s: { r: 3, c: 18 }, e: { r: 5, c: 18 } },
+    { s: { r: 3, c: 19 }, e: { r: 5, c: 19 } },
+    { s: { r: 3, c: 20 }, e: { r: 5, c: 20 } },
+    { s: { r: 3, c: 21 }, e: { r: 5, c: 21 } },
+    { s: { r: 3, c: 22 }, e: { r: 5, c: 22 } },
+
+    { s: { r: 3, c: 23 }, e: { r: 3, c: 28 } },
+    { s: { r: 4, c: 23 }, e: { r: 4, c: 27 } },
+    { s: { r: 4, c: 28 }, e: { r: 5, c: 28 } },
+
+    { s: { r: 3, c: 29 }, e: { r: 5, c: 29 } },
+    { s: { r: 3, c: 30 }, e: { r: 5, c: 30 } },
+
+    { s: { r: totalRowIndex, c: 0 }, e: { r: totalRowIndex, c: 11 } },
   ];
 
   const wb = XLSX.utils.book_new();
@@ -897,403 +579,61 @@ const exportToExcel = () => {
   XLSX.writeFile(wb, fileName);
 };
 
-const onBtnExport = () => {
-  if (gridApi.value) {
-    // Menggunakan CSV export bawaan AG Grid Community
-    gridApi.value.exportDataAsCsv({
-      fileName: `Laporan_SPK_MMT_${startDate.value}_to_${endDate.value}.csv`,
-      columnSeparator: ",",
-      processCellCallback: (params) => {
-        // Opsional: Membersihkan karakter khusus atau format ulang jika perlu
-        return params.value;
-      },
-    });
-  }
-};
-
-const setTodayRange = async () => {
-  const todayStr = toISODate(new Date());
-  startDate.value = todayStr;
-  endDate.value = todayStr;
-  await fetchReport();
-};
-
 onMounted(fetchReport);
 </script>
 
-<template>
-  <PageLayout title="Laporan SPK MMT" icon="mdi-file-chart">
-    <div class="spk-mmt-wrapper">
-      <v-card class="mb-3 pa-3 filter-card rounded-strong transition-smooth">
-        <div class="d-flex align-center flex-wrap ga-3">
-          <v-label class="text-caption font-weight-bold">Periode:</v-label>
-          <v-text-field
-            v-model="startDate"
-            type="date"
-            density="compact"
-            hide-details
-            variant="outlined"
-            style="max-width: 160px"
-          />
-          <v-label>s.d</v-label>
-          <v-text-field
-            v-model="endDate"
-            type="date"
-            density="compact"
-            hide-details
-            variant="outlined"
-            style="max-width: 160px"
-          />
-
-          <v-btn
-            color="success"
-            icon="mdi-refresh"
-            size="small"
-            @click="fetchReport"
-            :loading="loading.report"
-          />
-          <v-btn
-            color="primary"
-            variant="outlined"
-            size="small"
-            @click="setTodayRange"
-            :disabled="loading.report"
-          >
-            Hari Ini
-          </v-btn>
-
-          <v-btn
-            color="grey-darken-3"
-            variant="flat"
-            size="small"
-            prepend-icon="mdi-export-variant"
-            @click="exportToExcel"
-            :disabled="loading.report || allData.length === 0"
-          >
-            Export Excel
-          </v-btn>
-
-          <v-spacer />
-
-          <v-text-field
-            v-model="searchQuery"
-            prepend-inner-icon="mdi-magnify"
-            placeholder="Cari SPK..."
-            density="compact"
-            hide-details
-            variant="outlined"
-            style="max-width: 250px"
-          />
-        </div>
-      </v-card>
-
-      <v-card class="table-container rounded-strong" elevation="0">
-        <AgGridVue
-          class="ag-theme-alpine mmt-ag-grid font-body"
-          :columnDefs="columnDefs"
-          :defaultColDef="defaultColDef"
-          :rowData="allData"
-          :pinnedBottomRowData="pinnedBottomRowData"
-          :enableBrowserTooltips="true"
-          :tooltipShowDelay="150"
-          :tooltipHideDelay="2500"
-          :rowHeight="34"
-          :headerHeight="20"
-          :groupHeaderHeight="20"
-          :suppressCellFocus="true"
-          :suppressRowHoverHighlight="true"
-          :animateRows="false"
-          :pagination="true"
-          :paginationPageSize="
-            itemsPerPage === -1 ? Math.max(allData.length, 1) : itemsPerPage
-          "
-          :paginationPageSizeSelector="[10, 25, 50, 100]"
-          rowSelection="single"
-          @grid-ready="onGridReady"
-          @pagination-changed="onPaginationChanged"
-        />
-      </v-card>
-    </div>
-  </PageLayout>
-</template>
-
 <style scoped>
-.spk-mmt-wrapper {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  min-height: 100%;
-  padding: 0;
-  background: transparent;
-  font-family: var(--font-family-primary);
+
+:deep(table) {
+  font-size: 11px !important;
 }
 
-.filter-card {
-  border: var(--content-border, 1px solid #dcdcdc);
-  border-radius: var(--border-radius-lg) !important;
-  box-shadow: var(--shadow-sm) !important;
-}
-
-.filter-card:hover {
-  transform: none !important;
-  box-shadow: var(--shadow-sm) !important;
-}
-
-.table-container {
-  height: calc(100vh - 220px);
-  overflow: hidden;
-  border: var(--content-border, 1px solid #dcdcdc);
-  border-radius: var(--border-radius-lg) !important;
-  box-shadow: var(--shadow-sm) !important;
-  background: var(--content-bg, #ffffff);
-}
-
-.mmt-ag-grid {
-  width: 100%;
-  height: 100%;
-  --ag-background-color: #e5e5e5;
-  --ag-foreground-color: #0f172a;
-  --ag-header-background-color: #74a83c6fcddc;
-  --ag-header-foreground-color: #ffffff;
-  --ag-header-column-separator-color: #93bddf;
-  --ag-odd-row-background-color: #e5e5e5;
-  --ag-row-hover-color: #e5e5e5;
-  --ag-selected-row-background-color: #d7dde3;
-  --ag-borders: solid 1px #c3c8ce;
-  --ag-border-color: #c3c8ce;
-  --ag-row-border-color: #c9cfd6;
-  --ag-font-size: 12px;
-  --ag-font-family: "Segoe UI", Tahoma, Arial, sans-serif;
-  --ag-header-height: 22px;
-  --ag-group-header-height: 20px;
-  --ag-row-height: 34px;
-}
-
-.mmt-ag-grid :deep(.ag-root-wrapper),
-.mmt-ag-grid :deep(.ag-root-wrapper-body),
-.mmt-ag-grid :deep(.ag-header),
-.mmt-ag-grid :deep(.ag-body-viewport),
-.mmt-ag-grid :deep(.ag-cell),
-.mmt-ag-grid :deep(.ag-cell-value),
-.mmt-ag-grid :deep(.ag-pinned-row),
-.mmt-ag-grid :deep(.ag-header-cell),
-.mmt-ag-grid :deep(.ag-header-group-cell) {
-  font-size: 12px !important;
-}
-
-.mmt-ag-grid :deep(.ag-header) {
-  background: #83c6fc;
-}
-
-.mmt-ag-grid :deep(.ag-header-cell-label) {
-  justify-content: flex-start;
-  font-weight: 600;
-  text-transform: none;
-  font-size: 12px;
-  line-height: 1;
-  color: #ffffff;
-}
-
-.mmt-ag-grid :deep(.ag-header-group-cell-label) {
-  color: #ffffff !important;
-  font-weight: 700;
-  font-size: 12px !important;
-}
-
-.mmt-ag-grid :deep(.ag-header-group-text) {
-  color: #ffffff !important;
-  font-size: 12px !important;
-  white-space: pre-line;
-  line-height: 1.1;
-}
-
-.mmt-ag-grid :deep(.ag-header-group-cell.jml-cetak-group),
-.mmt-ag-grid :deep(.ag-header-group-cell.mesin-cetak-group),
-.mmt-ag-grid :deep(.ag-header-group-cell.mesin-meter-group) {
-  border-left: 2px solid #8fb2d1 !important;
-  border-right: 2px solid #8fb2d1 !important;
-}
-
-.mmt-ag-grid
-  :deep(.ag-header-group-cell.jml-cetak-group .ag-header-group-cell-label),
-.mmt-ag-grid
-  :deep(.ag-header-group-cell.mesin-cetak-group .ag-header-group-cell-label),
-.mmt-ag-grid
-  :deep(.ag-header-group-cell.mesin-meter-group .ag-header-group-cell-label),
-.mmt-ag-grid :deep(.ag-header-cell.mesin-cetak-col .ag-header-cell-label),
-.mmt-ag-grid :deep(.ag-header-cell.mesin-cetak-total-col .ag-header-cell-label),
-.mmt-ag-grid :deep(.ag-header-cell.mesin-meter-col .ag-header-cell-label),
-.mmt-ag-grid
-  :deep(.ag-header-cell.mesin-meter-total-col .ag-header-cell-label) {
-  justify-content: center !important;
-}
-
-.mmt-ag-grid
-  :deep(.ag-header-group-cell.jml-cetak-group .ag-header-group-text) {
+:deep(th),
+:deep(td) {
+  font-size: 11px !important;
   white-space: nowrap !important;
-  word-break: keep-all;
-  text-align: center !important;
+}
+/* Gradasi Warna Navy Modern yang Lebih Elegan & Halus */
+.header-main th {
+  background: linear-gradient(180deg, #142f7b 0%, #3b82f6 100%) !important;
+  border-right: 1px solid #3b82f6 !important;
 }
 
-.mmt-ag-grid :deep(.ag-header-cell.mesin-cetak-total-col) {
-  border-left: 2px solid #8fb2d1 !important;
+.header-sub th {
+  background: #2563eb !important;
+  font-size: 10px !important;
+  border-right: 1px solid #60a5fa !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.15) !important;
 }
 
-.mmt-ag-grid :deep(.ag-header-cell.mesin-meter-total-col) {
-  border-left: 2px solid #8fb2d1 !important;
+.header-group {
+  border-left: 1px solid #60a5fa !important;
+  border-right: 1px solid #60a5fa !important;
+  background: #1d4ed8 !important;
 }
 
-.mmt-ag-grid :deep(.ag-header-cell.jml-seaming-header .ag-header-cell-label),
-.mmt-ag-grid :deep(.ag-header-cell.jml-mataayam-header .ag-header-cell-label) {
-  justify-content: center !important;
-}
-.mmt-ag-grid :deep(.ag-header-cell.jml-coly-header .ag-header-cell-label),
-.mmt-ag-grid :deep(.ag-header-cell.jml-coly-header .ag-header-cell-label) {
-  justify-content: center !important;
-}
-.mmt-ag-grid :deep(.ag-header-cell.jml-jadi-header .ag-header-cell-label),
-.mmt-ag-grid :deep(.ag-header-cell.jml-jadi-header .ag-header-cell-label) {
-  justify-content: center !important;
-}
-.mmt-ag-grid :deep(.ag-header-cell.jml-kirim-header .ag-header-cell-label),
-.mmt-ag-grid :deep(.ag-header-cell.jml-kirim-header .ag-header-cell-label) {
-  justify-content: center !important;
-}
-
-.mmt-ag-grid :deep(.ag-header-cell.jml-seaming-header .ag-header-cell-text),
-.mmt-ag-grid :deep(.ag-header-cell.jml-mataayam-header .ag-header-cell-text) {
-  white-space: pre-line !important;
-  text-align: center;
-  line-height: 1.1;
-}
-.mmt-ag-grid :deep(.ag-header-cell.jml-coly-header .ag-header-cell-text),
-.mmt-ag-grid :deep(.ag-header-cell.jml-coly-header .ag-header-cell-text) {
-  white-space: pre-line !important;
-  text-align: center;
-  line-height: 1.1;
-}
-.mmt-ag-grid :deep(.ag-header-cell.jml-jadi-header .ag-header-cell-text),
-.mmt-ag-grid :deep(.ag-header-cell.jml-jadi-header .ag-header-cell-text) {
-  white-space: pre-line !important;
-  text-align: center;
-  line-height: 1.1;
-}
-.mmt-ag-grid :deep(.ag-header-cell.jml-kirim-header .ag-header-cell-text),
-.mmt-ag-grid :deep(.ag-header-cell.jml-kirim-header .ag-header-cell-text) {
-  white-space: pre-line !important;
-  text-align: center;
-  line-height: 1.1;
-}
-
-.mmt-ag-grid
-  :deep(.ag-header-group-cell.seaming-group-header .ag-header-group-cell-label),
-.mmt-ag-grid
-  :deep(.ag-header-group-cell.kirim-group-header .ag-header-group-cell-label) {
-  justify-content: center !important;
-}
-
-.mmt-ag-grid :deep(.ag-header-cell.meter-sub-header .ag-header-cell-label) {
-  justify-content: center !important;
-}
-.mmt-ag-grid :deep(.ag-header-cell.jml-coly-header .ag-header-cell-text),
-.mmt-ag-grid :deep(.ag-header-cell.jml-coly-header .ag-header-cell-text) {
-  white-space: pre-line !important;
-  text-align: center;
-  line-height: 1.1;
-}
-
-.mmt-ag-grid :deep(.ag-header-cell) {
-  border-right: 1px solid #95bcdd;
-}
-
-.mmt-ag-grid :deep(.ag-header-cell:last-child) {
-  border-right: none;
-}
-
-.mmt-ag-grid :deep(.ag-row .ag-cell) {
-  border-right: 1px solid #c9cfd6;
-  border-bottom: 1px solid #c9cfd6;
-  padding-top: 4px;
-  padding-bottom: 4px;
-}
-
-.mmt-ag-grid :deep(.ag-row .ag-cell:last-child) {
-  border-right: none;
-}
-
-.mmt-ag-grid :deep(.ag-cell-value) {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.mmt-ag-grid :deep(.ag-cell.mesin-cetak-cell) {
-  border-right: 1px solid #9bb8d1 !important;
-}
-
-.mmt-ag-grid :deep(.ag-cell.mesin-cetak-total) {
-  border-right: 2px solid #8fb2d1 !important;
-  font-weight: 600;
-}
-
-.mmt-ag-grid :deep(.ag-cell.mesin-cetak-first) {
-  border-left: 2px solid #8fb2d1 !important;
-}
-
-.mmt-ag-grid :deep(.ag-cell.mesin-cetak-last) {
-  border-right: 2px solid #8fb2d1 !important;
-}
-
-.mmt-ag-grid :deep(.ag-cell.mesin-meter-cell) {
-  border-right: 1px solid #9bb8d1 !important;
-}
-
-.mmt-ag-grid :deep(.ag-cell.mesin-meter-total) {
-  border-right: 2px solid #8fb2d1 !important;
-  font-weight: 600;
-}
-
-.mmt-ag-grid :deep(.ag-cell.mesin-meter-first) {
-  border-left: 2px solid #8fb2d1 !important;
-}
-
-.mmt-ag-grid :deep(.ag-cell.mesin-meter-last) {
-  border-right: 2px solid #8fb2d1 !important;
-}
-
-.mmt-ag-grid :deep(.ag-cell.text-right) {
-  text-align: right;
-}
-
-.mmt-ag-grid :deep(.ag-cell.panjang-cell),
-.mmt-ag-grid :deep(.ag-cell.lebar-cell) {
-  font-size: 12px !important;
-}
-
-.mmt-ag-grid :deep(.mmt-cell) {
-  font-size: 12px;
-}
-
-.mmt-ag-grid :deep(.status-chip) {
-  display: inline-block;
+/* Badge Status Compact */
+.badge-status {
   padding: 2px 8px;
-  border-radius: 999px;
-  font-size: 12px;
+  border-radius: 6px;
+  font-size: 10px;
   font-weight: 700;
-  color: #fff;
+  display: inline-block;
 }
 
-.mmt-ag-grid :deep(.chip-closed) {
-  background: #2e7d32;
+.badge-closed {
+  background-color: #dcfce7;
+  color: #15803d;
 }
 
-.mmt-ag-grid :deep(.chip-open) {
-  background: #ef6c00;
+.badge-open {
+  background-color: #ffedd5;
+  color: #c2410c;
 }
 
-.mmt-ag-grid :deep(.ag-row-pinned .ag-cell) {
-  background-color: #d2d9e0 !important;
-  font-weight: 700;
-  border-top: 2px solid #8293a6 !important;
-}
+/* Cell Borders */
+.border-l { border-left: 1px solid #cbd5e1 !important; }
+.border-r { border-right: 1px solid #cbd5e1 !important; }
+.border-sub-l { border-left: 1px solid #60a5fa !important; }
+.border-sub-r { border-right: 1px solid #60a5fa !important; }
 </style>

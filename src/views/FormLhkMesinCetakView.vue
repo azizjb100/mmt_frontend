@@ -1066,6 +1066,9 @@ const handleSave = async (statusValue: "DRAFT" | "POSTED" = "DRAFT") => {
         llebar_afal: lebarSisaLayoutGanjil.value || 0,
       },
       details: detailData.map((d) => {
+        const sisaLebarFinal = (formData.sisa_lebar_manual && Number(formData.sisa_lebar_manual) > 0)
+          ? Number(formData.sisa_lebar_manual)
+          : Number(formData.Lebar_bahan || 0);
         return {
           nomor_spk: d.nomor_spk,
           tile: d.tile,
@@ -1075,7 +1078,7 @@ const handleSave = async (statusValue: "DRAFT" | "POSTED" = "DRAFT") => {
           ambilBahanPanjang: formData.Panjang_bahan,
           ambilBahanLebar: formData.Lebar_bahan,
           sisabahan: formData.sisa_panjang_manual ?? sisaStokOtomatis.value,
-          sisabahanlebar: formData.sisa_lebar_manual ?? 0,
+          sisabahanlebar: sisaLebarFinal,
           cetak1: d.cetak1,
           cetak2: d.cetak2,
           cetak3: d.cetak3,

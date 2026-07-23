@@ -1,37 +1,306 @@
+<template>
+  <BaseReportLayout
+    v-model:start-date="startDate"
+    v-model:end-date="endDate"
+    :items="filteredData"
+    :loading="loading.report"
+    item-key="NOMOR"
+    title="Laporan Monitoring LMKP"
+    :excel-file-name="`Laporan_LMKP_${jenisLabel}_${startDate}_sd_${endDate}.xlsx`"
+    :custom-export-excel="exportToExcel"
+    @refresh="fetchReport"
+  >
+    <!-- Slot Filter Tambahan: Dropdown Kategori (MT / MX / SUBLIM) & Pencarian SPK -->
+    <template #extra-filters>
+      <v-select
+        v-model="jenisIndex"
+        :items="[
+          { title: 'MT', value: '0' },
+          { title: 'MX', value: '1' },
+          { title: 'SUBLIM', value: '2' },
+        ]"
+        label="Kategori"
+        density="compact"
+        hide-details
+        variant="outlined"
+        style="max-width: 110px"
+        @update:model-value="fetchReport"
+      />
+
+      <v-text-field
+        v-model="searchQuery"
+        label="Cari SPK / Order..."
+        prepend-inner-icon="mdi-magnify"
+        density="compact"
+        hide-details
+        variant="outlined"
+        clearable
+        style="max-width: 260px"
+      />
+    </template>
+
+    <!-- Slot Header Tabel Berkelompok Custom -->
+    <template #thead>
+      <thead>
+        <!-- Row 1: Header Utama & Grouping Header -->
+        <tr class="header-main">
+          <th rowspan="2" class="text-center sticky-col-1">NOMOR SPK</th>
+          <th rowspan="2" class="text-left sticky-col-2">NAMA ORDER</th>
+          <th rowspan="2" class="text-center">TANGGAL</th>
+          <th rowspan="2" class="text-center">DEADLINE</th>
+          <th rowspan="2" class="text-left">BAHAN</th>
+          <th rowspan="2" class="text-center">GRAMASI</th>
+
+          <th colspan="7" class="text-center header-group bg-blue-header">PRODUKSI (PCS)</th>
+          <th rowspan="2" class="text-right border-l border-r">CTK L.</th>
+          
+          <!-- DINAMIS COLSPAN MESIN BASED ON KATEGORI -->
+          <th :colspan="mesinColumns.length" class="text-center header-group bg-cyan-header">
+            MESIN ({{ jenisLabel }})
+          </th>
+          
+          <th colspan="3" class="text-center header-group bg-teal-header">PRODUKSI (METER)</th>
+        </tr>
+
+        <!-- Row 2: Sub Header Detail -->
+        <tr class="header-sub">
+          <!-- Produksi PCS -->
+          <th class="text-right bg-blue-sub">Order</th>
+          <th class="text-right bg-blue-sub">Kirim</th>
+          <th class="text-right bg-blue-sub">K-Kirim</th>
+          <th class="text-right bg-blue-sub">Seam</th>
+          <th class="text-right bg-blue-sub">M.Ayam</th>
+          <th class="text-right bg-blue-sub">Cetak</th>
+          <th class="text-right bg-blue-sub">Coly</th>
+
+          <!-- DINAMIS SUB HEADER MESIN (MT / MX / SUBLIM) -->
+          <th 
+            v-for="m in mesinColumns" 
+            :key="m.key" 
+            class="text-center bg-cyan-sub"
+          >
+            {{ m.label }}
+          </th>
+
+          <!-- Produksi Meter -->
+          <th class="text-right bg-teal-sub">K-KRM</th>
+          <th class="text-right bg-teal-sub">K-CTK</th>
+          <th class="text-right bg-teal-sub">K-CLY</th>
+        </tr>
+      </thead>
+    </template>
+
+    <!-- Slot Row Baris Data Utama -->
+    <template #row="{ item, formatNumber }">
+      <tr class="table-row-item">
+        <!-- Sticky Left Columns -->
+        <td class="text-center sticky-col-1 font-weight-bold">{{ item.NOMOR || '-' }}</td>
+        <td class="text-left sticky-col-2 text-truncate" style="max-width: 250px;" :title="item.spk_nama">{{ item.spk_nama || '-' }}</td>
+
+        <!-- Info Umum SPK -->
+        <td class="text-center">{{ formatDateDisplay(item.spk_tanggal) }}</td>
+        <td class="text-center font-weight-bold text-error">{{ formatDateDisplay(item.deadline) }}</td>
+        <td class="text-left text-truncate" style="max-width: 180px;" :title="item.KAIN">{{ item.KAIN || '-' }}</td>
+        <td class="text-center">{{ item.spk_gramasi || '-' }}</td>
+
+        <!-- Produksi PCS -->
+        <td class="text-right">{{ formatNumber(item.spk_jumlah, 0) }}</td>
+        <td class="text-right text-success font-weight-bold">{{ formatNumber(item.spk_jumlah_kirim, 0) }}</td>
+        <td class="text-right">{{ formatNumber(item.krg_kirim, 0) }}</td>
+        <td class="text-right">{{ formatNumber(item.krg_Seaming, 0) }}</td>
+        <td class="text-right">{{ formatNumber(item.krg_mataayam, 0) }}</td>
+        <td class="text-right text-error font-weight-bold">{{ formatNumber(item.krg_Cetak, 0) }}</td>
+        <td class="text-right">{{ formatNumber(item.krg_coly, 0) }}</td>
+
+        <!-- Cetak Luar -->
+        <td class="text-right border-l border-r">{{ formatNumber(item.cetak_luarx, 0) }}</td>
+
+        <!-- DINAMIS DATA MESIN (MT / MX / SUBLIM) -->
+        <td 
+          v-for="m in mesinColumns" 
+          :key="m.key" 
+          class="text-center"
+          :class="{ 'font-weight-bold text-primary': item[m.key] > 0 }"
+        >
+          {{ formatNumber(item[m.key] || 0, 0) }}
+        </td>
+
+        <!-- Produksi Meter -->
+        <td class="text-right">{{ formatNumber(item.krg_kirim_meter, 2) }}</td>
+        <td class="text-right text-error font-weight-bold bg-red-lighten-5">{{ formatNumber(item.krg_Cetak_meter, 2) }}</td>
+        <td class="text-right">{{ formatNumber(item.krg_coly_meter, 2) }}</td>
+      </tr>
+    </template>
+
+    <!-- Slot Total Footer -->
+    <template #tfoot="{ formatNumber }">
+      <tr class="table-footer-row">
+        <td colspan="6" class="text-right font-weight-black text-uppercase sticky-footer-title">
+          TOTAL (FILTERED):
+        </td>
+
+        <!-- Produksi PCS -->
+        <td class="text-right font-weight-black">{{ formatNumber(totals.spk_jumlah, 0) }}</td>
+        <td class="text-right font-weight-black text-success">{{ formatNumber(totals.spk_jumlah_kirim, 0) }}</td>
+        <td class="text-right font-weight-black">{{ formatNumber(totals.krg_kirim, 0) }}</td>
+        <td class="text-right font-weight-black">{{ formatNumber(totals.krg_Seaming, 0) }}</td>
+        <td class="text-right font-weight-black">{{ formatNumber(totals.krg_mataayam, 0) }}</td>
+        <td class="text-right font-weight-black text-error">{{ formatNumber(totals.krg_Cetak, 0) }}</td>
+        <td class="text-right font-weight-black">{{ formatNumber(totals.krg_coly, 0) }}</td>
+
+        <!-- Cetak Luar -->
+        <td class="text-right font-weight-black border-l border-r">{{ formatNumber(totals.cetak_luarx, 0) }}</td>
+
+        <!-- DINAMIS TOTAL MESIN (MT / MX / SUBLIM) -->
+        <td 
+          v-for="m in mesinColumns" 
+          :key="m.key" 
+          class="text-center font-weight-black"
+        >
+          {{ formatNumber(totals[m.key] || 0, 0) }}
+        </td>
+
+        <!-- Produksi Meter -->
+        <td class="text-right font-weight-black">{{ formatNumber(totals.krg_kirim_meter, 2) }}</td>
+        <td class="text-right font-weight-black text-error bg-red-lighten-5">{{ formatNumber(totals.krg_Cetak_meter, 2) }}</td>
+        <td class="text-right font-weight-black">{{ formatNumber(totals.krg_coly_meter, 2) }}</td>
+      </tr>
+    </template>
+  </BaseReportLayout>
+
+  <!-- Summary Card Tambahan (Estimasi Output & Waiting List) -->
+  <div class="d-flex justify-end mt-3 px-2">
+    <v-card flat class="border rounded-lg overflow-hidden" style="min-width: 520px;">
+      <v-table density="compact" class="summary-table">
+        <tbody>
+          <tr>
+            <td class="sum-label">Kekurangan Meter:</td>
+            <td class="sum-value text-error text-subtitle-2 font-weight-bold">
+              {{ formatNumber(totals.krg_Cetak_meter, 2) }}
+            </td>
+            <td class="sum-label">Output / Hari:</td>
+            <td class="sum-value">
+              {{ formatNumber(summary.outputPerHari, 2) }}
+            </td>
+            <td class="sum-value bg-blue-lighten-5 font-weight-bold">2.700,00</td>
+          </tr>
+          <tr>
+            <td class="sum-label">Waiting List:</td>
+            <td class="sum-value font-weight-bold text-primary">
+              {{ formatNumber(waitingListKerja, 2) }} Hari
+            </td>
+            <td colspan="2" class="sum-label text-center">
+              Estimasi Tetap:
+            </td>
+            <td class="sum-value text-center font-weight-bold text-teal-darken-2">
+              {{ formatNumber(waitingListTetap, 2) }} Hari
+            </td>
+          </tr>
+        </tbody>
+      </v-table>
+    </v-card>
+  </div>
+</template>
+
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from "vue";
+import BaseReportLayout from "@/components/BaseReportLayout.vue";
 import api from "@/services/api";
-import PageLayout from "../components/PageLayout.vue";
 import { format, parseISO, isValid } from "date-fns";
-import XLSX from "xlsx-js-style";
+import * as XLSX from "xlsx-js-style";
 
-const loading = ref({ report: false });
-const allData = ref([]);
-const jenisIndex = ref("0");
-const startDate = ref(new Date().toISOString().substr(0, 10));
-const endDate = ref(new Date().toISOString().substr(0, 10));
+const formatDate = (date: Date) => {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+};
+
+const getStartOfMonth = (date: Date) => {
+  return new Date(date.getFullYear(), date.getMonth(), 1);
+};
+
+// --- STATE MANAGEMENT ---
+const endDate = ref(formatDate(new Date()));
+const startDate = ref(formatDate(getStartOfMonth(new Date())));
+const jenisIndex = ref("0"); // "0" = MT, "1" = MX, "2" = SUBLIM
 const searchQuery = ref("");
+const loading = reactive({ report: false });
+const allData = ref<any[]>([]);
 const summary = ref({ outputPerHari: "0", estimasiSelesaiHari: "0" });
 
-const colWidths = reactive({
-  NOMOR: 120,
-  spk_nama: 220,
+// --- LABEL KATEGORI ---
+const jenisLabel = computed(() => {
+  if (jenisIndex.value === "1") return "MX";
+  if (jenisIndex.value === "2") return "SUBLIM";
+  return "MT";
 });
 
-// --- LOGIKA SEARCH ---
+// --- SKEMA MESIN DINAMIS BASED ON KATEGORI ---
+const mesinColumns = computed(() => {
+  if (jenisIndex.value === "1") {
+    // Kategori MX
+    return [
+      { label: "MX01", key: "mx01" },
+      { label: "MX02", key: "mx02" },
+      { label: "MX03", key: "mx03" },
+      { label: "MX04", key: "mx04" },
+      { label: "MX05", key: "mx05" },
+    ];
+  }
+  if (jenisIndex.value === "2") {
+    // Kategori SUBLIM
+    return [
+      { label: "SB01", key: "sb01" },
+      { label: "SB02", key: "sb02" },
+      { label: "SB03", key: "sb03" },
+      { label: "SB04", key: "sb04" },
+      { label: "SB05", key: "sb05" },
+    ];
+  }
+  // Kategori MT (Default)
+  return [
+    { label: "MT01", key: "mt01" },
+    { label: "MT02", key: "mt02" },
+    { label: "MT03", key: "mt03" },
+    { label: "MT04", key: "mt04" },
+    { label: "MT05", key: "mt05" },
+    { label: "MI", key: "mi" },
+  ];
+});
+
+// --- FETCH REPORT ---
+const fetchReport = async () => {
+  loading.report = true;
+  try {
+    const res = await api.get("mmt/monitoring/laporan-lmkp/lmkp", {
+      params: {
+        jenisIndex: jenisIndex.value,
+        startDate: startDate.value,
+        endDate: endDate.value,
+      },
+    });
+    allData.value = res.data.data || [];
+    summary.value = res.data.summary || summary.value;
+  } catch (error) {
+    console.error("Gagal memuat laporan LMKP:", error);
+    allData.value = [];
+  } finally {
+    loading.report = false;
+  }
+};
+
+// --- SEARCH FILTER ---
 const filteredData = computed(() => {
   if (!searchQuery.value) return allData.value;
-  const query = searchQuery.value.toLowerCase();
+  const q = searchQuery.value.toLowerCase().trim();
   return allData.value.filter((item: any) => {
     return (
-      item.NOMOR?.toLowerCase().includes(query) ||
-      item.spk_nama?.toLowerCase().includes(query) ||
-      item.KAIN?.toLowerCase().includes(query)
+      item.NOMOR?.toLowerCase().includes(q) ||
+      item.spk_nama?.toLowerCase().includes(q) ||
+      item.KAIN?.toLowerCase().includes(q)
     );
   });
 });
 
-// --- LOGIKA TOTALS ---
+// --- CALCULATE TOTALS ---
 const totals = computed(() => {
   return filteredData.value.reduce(
     (acc, item: any) => {
@@ -44,12 +313,27 @@ const totals = computed(() => {
       acc.krg_coly += Number(item.krg_coly || 0);
       acc.cetak_luarx += Number(item.cetak_luarx || 0);
 
-      // Tambahan Akumulasi Kolom Mesin
+      // Akumulasi Mesin MT
+      acc.mt01 += Number(item.mt01 || 0);
       acc.mt02 += Number(item.mt02 || 0);
       acc.mt03 += Number(item.mt03 || 0);
       acc.mt04 += Number(item.mt04 || 0);
       acc.mt05 += Number(item.mt05 || 0);
       acc.mi += Number(item.mi || 0);
+
+      // Akumulasi Mesin MX
+      acc.mx01 += Number(item.mx01 || 0);
+      acc.mx02 += Number(item.mx02 || 0);
+      acc.mx03 += Number(item.mx03 || 0);
+      acc.mx04 += Number(item.mx04 || 0);
+      acc.mx05 += Number(item.mx05 || 0);
+
+      // Akumulasi Mesin SUBLIM
+      acc.sb01 += Number(item.sb01 || 0);
+      acc.sb02 += Number(item.sb02 || 0);
+      acc.sb03 += Number(item.sb03 || 0);
+      acc.sb04 += Number(item.sb04 || 0);
+      acc.sb05 += Number(item.sb05 || 0);
 
       acc.krg_kirim_meter += Number(item.krg_kirim_meter || 0);
       acc.krg_Cetak_meter += Number(item.krg_Cetak_meter || 0);
@@ -65,31 +349,31 @@ const totals = computed(() => {
       krg_Cetak: 0,
       krg_coly: 0,
       cetak_luarx: 0,
-      // Inisialisasi awal nilai 0 untuk mesin
-      mt02: 0,
-      mt03: 0,
-      mt04: 0,
-      mt05: 0,
-      mi: 0,
+      mt01: 0, mt02: 0, mt03: 0, mt04: 0, mt05: 0, mi: 0,
+      mx01: 0, mx02: 0, mx03: 0, mx04: 0, mx05: 0,
+      sb01: 0, sb02: 0, sb03: 0, sb04: 0, sb05: 0,
       krg_kirim_meter: 0,
       krg_Cetak_meter: 0,
       krg_coly_meter: 0,
-    },
+    }
   );
 });
 
+// --- WAITING LIST CALCULATIONS ---
 const waitingListKerja = computed(() => {
   const output = Number(summary.value.outputPerHari || 0);
   return output <= 0 ? 0 : totals.value.krg_Cetak_meter / output;
 });
 
 const outputHariTetap = 2700;
-const waitingListTetap = computed(
-  () => totals.value.krg_Cetak_meter / outputHariTetap,
-);
+const waitingListTetap = computed(() => totals.value.krg_Cetak_meter / outputHariTetap);
 
+// --- HELPER FORMAT ---
 const formatNumber = (val: any, dec = 0) => {
-  return Number(val || 0).toLocaleString("id-ID", {
+  if (val === null || val === undefined || val === "") return "0";
+  const num = parseFloat(val);
+  if (isNaN(num)) return val;
+  return num.toLocaleString("id-ID", {
     minimumFractionDigits: dec,
     maximumFractionDigits: dec,
   });
@@ -101,102 +385,60 @@ const formatDateDisplay = (dateStr: string) => {
   return isValid(date) ? format(date, "dd/MM/yyyy") : dateStr;
 };
 
-const fetchReport = async () => {
-  loading.value.report = true;
-  try {
-    const res = await api.get("mmt/monitoring/laporan-lmkp/lmkp", {
-      params: {
-        jenisIndex: jenisIndex.value,
-        startDate: startDate.value,
-        endDate: endDate.value,
-      },
-    });
-    allData.value = res.data.data || [];
-    summary.value = res.data.summary || summary.value;
-  } finally {
-    loading.value.report = false;
+// --- EXPORT TO EXCEL ---
+const exportToExcel = (dataToExport: any[]) => {
+  if (!dataToExport || dataToExport.length === 0) {
+    alert("Tidak ada data untuk diekspor");
+    return;
   }
-};
 
-const exportToExcel = () => {
-  const fileName = `Laporan_LMKP_${startDate.value}.xlsx`;
+  const fileName = `Laporan_LMKP_${jenisLabel.value}_${startDate.value}_sd_${endDate.value}.xlsx`;
+  const num = (value: any) => (isNaN(Number(value)) ? 0 : Number(value));
 
-  const num = (value) => {
-    const parsed = Number(value);
-    return isNaN(parsed) ? 0 : parsed;
+  const borderThin = {
+    top: { style: "thin", color: { rgb: "000000" } },
+    bottom: { style: "thin", color: { rgb: "000000" } },
+    left: { style: "thin", color: { rgb: "000000" } },
+    right: { style: "thin", color: { rgb: "000000" } },
   };
 
-  const formatDateIndo = (dateStr) => {
-    if (!dateStr) return "-";
-    const date = parseISO(dateStr);
-    if (!isValid(date)) return dateStr;
-
-    const bulanIndo = [
-      "Januari",
-      "Februari",
-      "Maret",
-      "April",
-      "Mei",
-      "Juni",
-      "Juli",
-      "Agustus",
-      "September",
-      "Oktober",
-      "November",
-      "Desember",
-    ];
-
-    return `${date.getDate()} ${bulanIndo[date.getMonth()]} ${date.getFullYear()}`;
-  };
-
-  // --- Style Definisi ---
   const styleHeaderMain = {
-    fill: { fgColor: { rgb: "B3E5FC" } },
-    font: { bold: true, color: { rgb: "000000" } },
+    fill: { fgColor: { rgb: "1E3A8A" } },
+    font: { bold: true, color: { rgb: "FFFFFF" }, sz: 10 },
     alignment: { horizontal: "center", vertical: "center", wrapText: true },
-    border: {
-      top: { style: "thin", color: { rgb: "000000" } },
-      bottom: { style: "thin", color: { rgb: "000000" } },
-      left: { style: "thin", color: { rgb: "000000" } },
-      right: { style: "thin", color: { rgb: "000000" } },
-    },
+    border: borderThin,
   };
 
   const styleHeaderSub = {
-    ...styleHeaderMain,
-    fill: { fgColor: { rgb: "E1F5FE" } },
+    fill: { fgColor: { rgb: "2563EB" } },
+    font: { bold: true, color: { rgb: "FFFFFF" }, sz: 10 },
+    alignment: { horizontal: "center", vertical: "center", wrapText: true },
+    border: borderThin,
   };
 
   const styleDataCell = {
+    font: { sz: 9, color: { rgb: "0F172A" } },
+    alignment: { vertical: "center" },
+    border: borderThin,
+  };
+
+  const styleFooterCell = {
+    fill: { fgColor: { rgb: "FEF3C7" } },
+    font: { bold: true, sz: 10, color: { rgb: "000000" } },
     border: {
-      top: { style: "thin", color: { rgb: "000000" } },
-      bottom: { style: "thin", color: { rgb: "000000" } },
+      top: { style: "double", color: { rgb: "000000" } },
+      bottom: { style: "thick", color: { rgb: "000000" } },
       left: { style: "thin", color: { rgb: "000000" } },
       right: { style: "thin", color: { rgb: "000000" } },
     },
-    alignment: { vertical: "center" },
   };
 
-  const styleFooter = {
-    ...styleDataCell,
-    fill: { fgColor: { rgb: "F0F4F8" } },
-    font: { bold: true },
-  };
-
-  const wsData = [];
-
-  // Judul
-  wsData.push([
-    { v: "LAPORAN MONITORING LMKP", s: { font: { bold: true, sz: 14 } } },
-  ]);
-  wsData.push([
-    {
-      v: `Periode: ${formatDateIndo(startDate.value)} s/d ${formatDateIndo(endDate.value)}`,
-      s: { font: { bold: true } },
-    },
-  ]);
-  wsData.push([{ v: `Kategori: ${jenisIndex.value === "0" ? "MT" : "MX"}` }]);
-  wsData.push([]);
+  const wsData: any[] = [
+    [{ v: "LAPORAN MONITORING LMKP", s: { font: { bold: true, sz: 14 } } }],
+    [{ v: `Periode : ${startDate.value} s/d ${endDate.value}` }],
+    [{ v: `Kategori: ${jenisLabel.value}` }],
+    [],
+  ];
 
   // Header Row 1
   const headerRow1 = [
@@ -206,294 +448,116 @@ const exportToExcel = () => {
     { v: "DEADLINE", s: styleHeaderMain },
     { v: "BAHAN", s: styleHeaderMain },
     { v: "GRAMASI", s: styleHeaderMain },
-    { v: "PRODUKSI (PCS)", s: styleHeaderMain },
-    "",
-    "",
-    "",
-    "",
-    "",
-    "",
+    { v: "PRODUKSI (PCS)", s: styleHeaderMain }, "", "", "", "", "", "",
     { v: "CTK L.", s: styleHeaderMain },
     { v: "MESIN", s: styleHeaderMain },
-    "",
-    "",
-    "",
-    "",
-    { v: "PRODUKSI (METER)", s: styleHeaderMain },
-    "",
-    "",
   ];
 
-  headerRow1.forEach((cell, idx) => {
-    if (cell === "") headerRow1[idx] = { v: "", s: styleHeaderMain };
-  });
+  // Padding blank untuk header Mesin
+  for (let i = 1; i < mesinColumns.value.length; i++) {
+    headerRow1.push({ v: "", s: styleHeaderMain });
+  }
+
+  headerRow1.push(
+    { v: "PRODUKSI (METER)", s: styleHeaderMain }, "", ""
+  );
+
   wsData.push(headerRow1);
 
   // Header Row 2
-  const subPcs = [
-    "Order",
-    "Kirim",
-    "K-Kirim",
-    "Seam",
-    "M.Ayam",
-    "Cetak",
-    "Coly",
-  ];
-  const subMesin = ["MT02", "MT03", "MT04", "MT05", "MI"];
+  const subPcs = ["Order", "Kirim", "K-Kirim", "Seam", "M.Ayam", "Cetak", "Coly"];
   const subMeter = ["K-KRM", "K-CTK", "K-CLY"];
 
   const headerRow2 = Array(6).fill({ v: "", s: styleHeaderMain });
   subPcs.forEach((h) => headerRow2.push({ v: h, s: styleHeaderSub }));
-  headerRow2.push({ v: "", s: styleHeaderMain }); // Untuk CTK L.
-  subMesin.forEach((h) => headerRow2.push({ v: h, s: styleHeaderSub }));
+  headerRow2.push({ v: "", s: styleHeaderMain }); // CTK L.
+  
+  mesinColumns.value.forEach((m) => {
+    headerRow2.push({ v: m.label, s: styleHeaderSub });
+  });
+
   subMeter.forEach((h) => headerRow2.push({ v: h, s: styleHeaderSub }));
   wsData.push(headerRow2);
 
-  // Loop Data Row
-  filteredData.value.forEach((item) => {
-    wsData.push([
-      {
-        v: item.NOMOR,
-        s: { ...styleDataCell, alignment: { horizontal: "center" } },
-      },
-      { v: item.spk_nama, s: styleDataCell },
-      {
-        v: formatDateDisplay(item.spk_tanggal),
-        s: { ...styleDataCell, alignment: { horizontal: "center" } },
-      },
-      {
-        v: formatDateDisplay(item.deadline),
-        s: { ...styleDataCell, alignment: { horizontal: "center" } },
-      },
-      { v: item.KAIN, s: styleDataCell },
-      {
-        v: item.spk_gramasi,
-        s: { ...styleDataCell, alignment: { horizontal: "center" } },
-      },
+  // Loop Data
+  dataToExport.forEach((item: any) => {
+    const row = [
+      { v: item.NOMOR || "", s: { ...styleDataCell, alignment: { horizontal: "center" } } },
+      { v: item.spk_nama || "", s: styleDataCell },
+      { v: formatDateDisplay(item.spk_tanggal), s: { ...styleDataCell, alignment: { horizontal: "center" } } },
+      { v: formatDateDisplay(item.deadline), s: { ...styleDataCell, alignment: { horizontal: "center" } } },
+      { v: item.KAIN || "", s: styleDataCell },
+      { v: item.spk_gramasi || "", s: { ...styleDataCell, alignment: { horizontal: "center" } } },
 
-      // Pcs
-      {
-        v: num(item.spk_jumlah),
-        t: "n",
-        z: "#,##0",
-        s: { ...styleDataCell, alignment: { horizontal: "right" } },
-      },
-      {
-        v: num(item.spk_jumlah_kirim),
-        t: "n",
-        z: "#,##0",
-        s: { ...styleDataCell, alignment: { horizontal: "right" } },
-      },
-      {
-        v: num(item.krg_kirim),
-        t: "n",
-        z: "#,##0",
-        s: { ...styleDataCell, alignment: { horizontal: "right" } },
-      },
-      {
-        v: num(item.krg_Seaming),
-        t: "n",
-        z: "#,##0",
-        s: { ...styleDataCell, alignment: { horizontal: "right" } },
-      },
-      {
-        v: num(item.krg_mataayam),
-        t: "n",
-        z: "#,##0",
-        s: { ...styleDataCell, alignment: { horizontal: "right" } },
-      },
-      {
-        v: num(item.krg_Cetak),
-        t: "n",
-        z: "#,##0",
-        s: { ...styleDataCell, alignment: { horizontal: "right" } },
-      },
-      {
-        v: num(item.krg_coly),
-        t: "n",
-        z: "#,##0",
-        s: { ...styleDataCell, alignment: { horizontal: "right" } },
-      },
+      { v: num(item.spk_jumlah), t: "n", z: "#,##0", s: { ...styleDataCell, alignment: { horizontal: "right" } } },
+      { v: num(item.spk_jumlah_kirim), t: "n", z: "#,##0", s: { ...styleDataCell, alignment: { horizontal: "right" } } },
+      { v: num(item.krg_kirim), t: "n", z: "#,##0", s: { ...styleDataCell, alignment: { horizontal: "right" } } },
+      { v: num(item.krg_Seaming), t: "n", z: "#,##0", s: { ...styleDataCell, alignment: { horizontal: "right" } } },
+      { v: num(item.krg_mataayam), t: "n", z: "#,##0", s: { ...styleDataCell, alignment: { horizontal: "right" } } },
+      { v: num(item.krg_Cetak), t: "n", z: "#,##0", s: { ...styleDataCell, alignment: { horizontal: "right" } } },
+      { v: num(item.krg_coly), t: "n", z: "#,##0", s: { ...styleDataCell, alignment: { horizontal: "right" } } },
 
-      // CTK L.
-      {
-        v: num(item.cetak_luarx),
-        t: "n",
-        z: "#,##0",
-        s: { ...styleDataCell, alignment: { horizontal: "right" } },
-      },
+      { v: num(item.cetak_luarx), t: "n", z: "#,##0", s: { ...styleDataCell, alignment: { horizontal: "right" } } },
+    ];
 
-      // Mesin (Di-cast ke number agar formatnya rapi dan konsisten)
-      {
-        v: num(item.mt02),
+    // Data Mesin Dinamis
+    mesinColumns.value.forEach((m) => {
+      row.push({
+        v: num(item[m.key]),
         t: "n",
         z: "#,##0",
         s: { ...styleDataCell, alignment: { horizontal: "center" } },
-      },
-      {
-        v: num(item.mt03),
-        t: "n",
-        z: "#,##0",
-        s: { ...styleDataCell, alignment: { horizontal: "center" } },
-      },
-      {
-        v: num(item.mt04),
-        t: "n",
-        z: "#,##0",
-        s: { ...styleDataCell, alignment: { horizontal: "center" } },
-      },
-      {
-        v: num(item.mt05),
-        t: "n",
-        z: "#,##0",
-        s: { ...styleDataCell, alignment: { horizontal: "center" } },
-      },
-      {
-        v: num(item.mi),
-        t: "n",
-        z: "#,##0",
-        s: { ...styleDataCell, alignment: { horizontal: "center" } },
-      },
+      });
+    });
 
-      // Meter
-      {
-        v: num(item.krg_kirim_meter),
-        t: "n",
-        z: "#,##0.00",
-        s: { ...styleDataCell, alignment: { horizontal: "right" } },
-      },
-      {
-        v: num(item.krg_Cetak_meter),
-        t: "n",
-        z: "#,##0.00",
-        s: { ...styleDataCell, alignment: { horizontal: "right" } },
-      },
-      {
-        v: num(item.krg_coly_meter),
-        t: "n",
-        z: "#,##0.00",
-        s: { ...styleDataCell, alignment: { horizontal: "right" } },
-      },
-    ]);
+    row.push(
+      { v: num(item.krg_kirim_meter), t: "n", z: "#,##0.00", s: { ...styleDataCell, alignment: { horizontal: "right" } } },
+      { v: num(item.krg_Cetak_meter), t: "n", z: "#,##0.00", s: { ...styleDataCell, alignment: { horizontal: "right" } } },
+      { v: num(item.krg_coly_meter), t: "n", z: "#,##0.00", s: { ...styleDataCell, alignment: { horizontal: "right" } } }
+    );
+
+    wsData.push(row);
   });
 
-  // --- 4. BARIS TOTAL (SUDAH DIPERBAIKI) ---
+  // Footer Total
   const footerRow = [
-    {
-      v: "TOTAL (FILTERED)",
-      s: { ...styleFooter, alignment: { horizontal: "right" } },
-    },
-    ...Array(5).fill({ v: "", s: styleFooter }), // Blank padding untuk kolom 1 s/d 5 yang di-merge
+    { v: "TOTAL (FILTERED)", s: { ...styleFooterCell, alignment: { horizontal: "center" } } },
+    ...Array(5).fill({ v: "", s: styleFooterCell }),
 
-    // Totalan PCS
-    {
-      v: num(totals.value.spk_jumlah),
-      t: "n",
-      z: "#,##0",
-      s: { ...styleFooter, alignment: { horizontal: "right" } },
-    },
-    {
-      v: num(totals.value.spk_jumlah_kirim),
-      t: "n",
-      z: "#,##0",
-      s: { ...styleFooter, alignment: { horizontal: "right" } },
-    },
-    {
-      v: num(totals.value.krg_kirim),
-      t: "n",
-      z: "#,##0",
-      s: { ...styleFooter, alignment: { horizontal: "right" } },
-    },
-    {
-      v: num(totals.value.krg_Seaming),
-      t: "n",
-      z: "#,##0",
-      s: { ...styleFooter, alignment: { horizontal: "right" } },
-    },
-    {
-      v: num(totals.value.krg_mataayam),
-      t: "n",
-      z: "#,##0",
-      s: { ...styleFooter, alignment: { horizontal: "right" } },
-    },
-    {
-      v: num(totals.value.krg_Cetak),
-      t: "n",
-      z: "#,##0",
-      s: { ...styleFooter, alignment: { horizontal: "right" } },
-    },
-    {
-      v: num(totals.value.krg_coly),
-      t: "n",
-      z: "#,##0",
-      s: { ...styleFooter, alignment: { horizontal: "right" } },
-    },
+    { v: num(totals.value.spk_jumlah), t: "n", z: "#,##0", s: { ...styleFooterCell, alignment: { horizontal: "right" } } },
+    { v: num(totals.value.spk_jumlah_kirim), t: "n", z: "#,##0", s: { ...styleFooterCell, alignment: { horizontal: "right" } } },
+    { v: num(totals.value.krg_kirim), t: "n", z: "#,##0", s: { ...styleFooterCell, alignment: { horizontal: "right" } } },
+    { v: num(totals.value.krg_Seaming), t: "n", z: "#,##0", s: { ...styleFooterCell, alignment: { horizontal: "right" } } },
+    { v: num(totals.value.krg_mataayam), t: "n", z: "#,##0", s: { ...styleFooterCell, alignment: { horizontal: "right" } } },
+    { v: num(totals.value.krg_Cetak), t: "n", z: "#,##0", s: { ...styleFooterCell, alignment: { horizontal: "right" } } },
+    { v: num(totals.value.krg_coly), t: "n", z: "#,##0", s: { ...styleFooterCell, alignment: { horizontal: "right" } } },
 
-    // Totalan CTK L.
-    {
-      v: num(totals.value.cetak_luarx),
-      t: "n",
-      z: "#,##0",
-      s: { ...styleFooter, alignment: { horizontal: "right" } },
-    },
-
-    // SEKARANG SUDAH DI-SUM: Totalan Kolom Mesin
-    {
-      v: num(totals.value.mt02),
-      t: "n",
-      z: "#,##0",
-      s: { ...styleFooter, alignment: { horizontal: "center" } },
-    },
-    {
-      v: num(totals.value.mt03),
-      t: "n",
-      z: "#,##0",
-      s: { ...styleFooter, alignment: { horizontal: "center" } },
-    },
-    {
-      v: num(totals.value.mt04),
-      t: "n",
-      z: "#,##0",
-      s: { ...styleFooter, alignment: { horizontal: "center" } },
-    },
-    {
-      v: num(totals.value.mt05),
-      t: "n",
-      z: "#,##0",
-      s: { ...styleFooter, alignment: { horizontal: "center" } },
-    },
-    {
-      v: num(totals.value.mi),
-      t: "n",
-      z: "#,##0",
-      s: { ...styleFooter, alignment: { horizontal: "center" } },
-    },
-
-    // Totalan Meter
-    {
-      v: num(totals.value.krg_kirim_meter),
-      t: "n",
-      z: "#,##0.00",
-      s: { ...styleFooter, alignment: { horizontal: "right" } },
-    },
-    {
-      v: num(totals.value.krg_Cetak_meter),
-      t: "n",
-      z: "#,##0.00",
-      s: { ...styleFooter, alignment: { horizontal: "right" } },
-    },
-    {
-      v: num(totals.value.krg_coly_meter),
-      t: "n",
-      z: "#,##0.00",
-      s: { ...styleFooter, alignment: { horizontal: "right" } },
-    },
+    { v: num(totals.value.cetak_luarx), t: "n", z: "#,##0", s: { ...styleFooterCell, alignment: { horizontal: "right" } } },
   ];
+
+  // Total Mesin Dinamis
+  mesinColumns.value.forEach((m) => {
+    footerRow.push({
+      v: num(totals.value[m.key]),
+      t: "n",
+      z: "#,##0",
+      s: { ...styleFooterCell, alignment: { horizontal: "center" } },
+    });
+  });
+
+  footerRow.push(
+    { v: num(totals.value.krg_kirim_meter), t: "n", z: "#,##0.00", s: { ...styleFooterCell, alignment: { horizontal: "right" } } },
+    { v: num(totals.value.krg_Cetak_meter), t: "n", z: "#,##0.00", s: { ...styleFooterCell, alignment: { horizontal: "right" } } },
+    { v: num(totals.value.krg_coly_meter), t: "n", z: "#,##0.00", s: { ...styleFooterCell, alignment: { horizontal: "right" } } }
+  );
+
   wsData.push(footerRow);
 
   const ws = XLSX.utils.aoa_to_sheet(wsData);
 
-  // Konfigurasi Merge
+  const mesinStartCol = 14;
+  const mesinEndCol = mesinStartCol + mesinColumns.value.length - 1;
+
   ws["!merges"] = [
     { s: { r: 4, c: 0 }, e: { r: 5, c: 0 } },
     { s: { r: 4, c: 1 }, e: { r: 5, c: 1 } },
@@ -504,356 +568,109 @@ const exportToExcel = () => {
     { s: { r: 4, c: 13 }, e: { r: 5, c: 13 } },
 
     { s: { r: 4, c: 6 }, e: { r: 4, c: 12 } },
-    { s: { r: 4, c: 14 }, e: { r: 4, c: 18 } },
-    { s: { r: 4, c: 19 }, e: { r: 4, c: 21 } },
+    { s: { r: 4, c: mesinStartCol }, e: { r: 4, c: mesinEndCol } },
+    { s: { r: 4, c: mesinEndCol + 1 }, e: { r: 4, c: mesinEndCol + 3 } },
 
     { s: { r: wsData.length - 1, c: 0 }, e: { r: wsData.length - 1, c: 5 } },
-  ];
-
-  // Lebar Kolom
-  ws["!cols"] = [
-    { wch: 15 },
-    { wch: 30 },
-    { wch: 12 },
-    { wch: 12 },
-    { wch: 20 },
-    { wch: 10 },
-    ...Array(16).fill({ wch: 12 }),
   ];
 
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "LMKP");
   XLSX.writeFile(wb, fileName);
 };
+
 onMounted(fetchReport);
 </script>
 
-<template>
-  <PageLayout title="Monitoring LMKP" icon="mdi-monitor-dashboard">
-    <div class="browse-content">
-      <v-card flat class="border-bottom mb-2">
-        <v-card-text class="py-2 px-3">
-          <div class="filter-section d-flex align-center flex-wrap ga-3">
-            <v-select
-              v-model="jenisIndex"
-              :items="[
-                { title: 'MT', value: '0' },
-                { title: 'MX', value: '1' },
-              ]"
-              density="compact"
-              hide-details
-              variant="outlined"
-              style="max-width: 80px"
-            />
-            <v-text-field
-              v-model="startDate"
-              type="date"
-              density="compact"
-              hide-details
-              variant="outlined"
-              style="max-width: 140px"
-            />
-            <v-label class="mx-1">s/d</v-label>
-            <v-text-field
-              v-model="endDate"
-              type="date"
-              density="compact"
-              hide-details
-              variant="outlined"
-              style="max-width: 140px"
-            />
-            <v-btn
-              variant="tonal"
-              size="small"
-              @click="fetchReport"
-              :loading="loading.report"
-              color="primary"
-              >Muat</v-btn
-            >
-            <v-btn
-              variant="flat"
-              color="success"
-              size="small"
-              @click="exportToExcel"
-              :disabled="allData.length === 0"
-              >Excel</v-btn
-            >
-            <v-spacer />
-            <v-text-field
-              v-model="searchQuery"
-              label="Cari SPK atau Nama..."
-              prepend-inner-icon="mdi-magnify"
-              density="compact"
-              hide-details
-              variant="outlined"
-              style="max-width: 280px"
-              clearable
-            />
-          </div>
-        </v-card-text>
-      </v-card>
-
-      <div class="table-container">
-        <v-data-table
-          :headers="[]"
-          :items="filteredData"
-          density="compact"
-          class="desktop-table"
-          fixed-header
-          hide-default-footer
-          :items-per-page="-1"
-        >
-          <template #thead>
-            <thead>
-              <tr class="header-row-1">
-                <th
-                  rowspan="2"
-                  class="bg-blue-main sticky-col"
-                  :style="{ width: colWidths.NOMOR + 'px' }"
-                >
-                  NOMOR SPK
-                </th>
-                <th
-                  rowspan="2"
-                  class="bg-blue-main"
-                  :style="{ width: colWidths.spk_nama + 'px' }"
-                >
-                  NAMA ORDER
-                </th>
-                <th rowspan="2" class="bg-blue-main">TANGGAL</th>
-                <th rowspan="2" class="bg-blue-main">DEADLINE</th>
-                <th rowspan="2" class="bg-blue-main">BAHAN</th>
-                <th rowspan="2" class="bg-blue-main">GRAMASI</th>
-                <th colspan="7" class="bg-blue-sub">PRODUKSI (PCS)</th>
-                <th rowspan="2" class="bg-blue-main">CTK L.</th>
-                <th colspan="5" class="bg-blue-sub">MESIN</th>
-                <th colspan="3" class="bg-blue-sub">PRODUKSI (METER)</th>
-              </tr>
-              <tr class="header-row-2">
-                <th class="bg-blue-detail">Order</th>
-                <th class="bg-blue-detail">Kirim</th>
-                <th class="bg-blue-detail">Kurang Kirim</th>
-                <th class="bg-blue-detail">Seaming</th>
-                <th class="bg-blue-detail">Mata Ayam</th>
-                <th class="bg-blue-detail">Cetak</th>
-                <th class="bg-blue-detail">Coly</th>
-                <th class="bg-blue-detail">MT02</th>
-                <th class="bg-blue-detail">MT03</th>
-                <th class="bg-blue-detail">MT04</th>
-                <th class="bg-blue-detail">MT05</th>
-                <th class="bg-blue-detail">MI</th>
-                <th class="bg-blue-detail">K-KRM</th>
-                <th class="bg-blue-detail">K-CTK</th>
-                <th class="bg-blue-detail">K-CLY</th>
-              </tr>
-            </thead>
-          </template>
-
-          <template v-slot:item="{ item }">
-            <tr class="data-row">
-              <td class="text-center font-weight-bold">{{ item.NOMOR }}</td>
-              <td class="text-left">{{ item.spk_nama }}</td>
-              <td class="text-center">
-                {{ formatDateDisplay(item.spk_tanggal) }}
-              </td>
-              <td class="text-center deadline">
-                {{ formatDateDisplay(item.deadline) }}
-              </td>
-              <td class="text-left">{{ item.KAIN }}</td>
-              <td class="text-center">{{ item.spk_gramasi }}</td>
-              <td class="text-right">{{ formatNumber(item.spk_jumlah) }}</td>
-              <td class="text-right text-success">
-                {{ formatNumber(item.spk_jumlah_kirim) }}
-              </td>
-              <td class="text-right">{{ formatNumber(item.krg_kirim) }}</td>
-              <td class="text-right">{{ formatNumber(item.krg_Seaming) }}</td>
-              <td class="text-right">{{ formatNumber(item.krg_mataayam) }}</td>
-              <td class="text-right text-error">
-                {{ formatNumber(item.krg_Cetak) }}
-              </td>
-              <td class="text-right">{{ formatNumber(item.krg_coly) }}</td>
-              <td class="text-right">{{ formatNumber(item.cetak_luarx) }}</td>
-              <td class="text-center">{{ item.mt02 || 0 }}</td>
-              <td class="text-center">{{ item.mt03 || 0 }}</td>
-              <td class="text-center">{{ item.mt04 || 0 }}</td>
-              <td class="text-center">{{ item.mt05 || 0 }}</td>
-              <td class="text-center">{{ item.mi || 0 }}</td>
-              <td class="text-right">
-                {{ formatNumber(item.krg_kirim_meter, 2) }}
-              </td>
-              <td class="text-right text-error font-weight-bold">
-                {{ formatNumber(item.krg_Cetak_meter, 2) }}
-              </td>
-              <td class="text-right">
-                {{ formatNumber(item.krg_coly_meter, 2) }}
-              </td>
-            </tr>
-          </template>
-
-          <template #tfoot>
-            <tr class="table-footer">
-              <td colspan="6" class="text-right font-weight-bold">
-                TOTAL (Filtered)
-              </td>
-              <td class="text-right">{{ formatNumber(totals.spk_jumlah) }}</td>
-              <td class="text-right text-success">
-                {{ formatNumber(totals.spk_jumlah_kirim) }}
-              </td>
-              <td class="text-right">{{ formatNumber(totals.krg_kirim) }}</td>
-              <td class="text-right">{{ formatNumber(totals.krg_Seaming) }}</td>
-              <td class="text-right">
-                {{ formatNumber(totals.krg_mataayam) }}
-              </td>
-              <td class="text-right text-error">
-                {{ formatNumber(totals.krg_Cetak) }}
-              </td>
-              <td class="text-right">{{ formatNumber(totals.krg_coly) }}</td>
-              <td class="text-right">{{ formatNumber(totals.cetak_luarx) }}</td>
-
-              <td class="text-center">{{ formatNumber(totals.mt02) }}</td>
-              <td class="text-center">{{ formatNumber(totals.mt03) }}</td>
-              <td class="text-center">{{ formatNumber(totals.mt04) }}</td>
-              <td class="text-center">{{ formatNumber(totals.mt05) }}</td>
-              <td class="text-center">{{ formatNumber(totals.mi) }}</td>
-
-              <td class="text-right">
-                {{ formatNumber(totals.krg_kirim_meter, 2) }}
-              </td>
-              <td class="text-right text-error">
-                {{ formatNumber(totals.krg_Cetak_meter, 2) }}
-              </td>
-              <td class="text-right">
-                {{ formatNumber(totals.krg_coly_meter, 2) }}
-              </td>
-            </tr>
-          </template>
-        </v-data-table>
-
-        <div class="summary-wrapper">
-          <table class="summary-table">
-            <tbody>
-              <tr>
-                <td class="sum-label">Kekurangan Meter:</td>
-                <td class="sum-value text-error">
-                  {{ formatNumber(totals.krg_Cetak_meter, 2) }}
-                </td>
-                <td class="sum-label">Output / Hari:</td>
-                <td class="sum-value">
-                  {{ formatNumber(summary.outputPerHari, 2) }}
-                </td>
-                <td class="sum-value bg-blue-lighten-5">2.700,00</td>
-              </tr>
-              <tr>
-                <td class="sum-label">Waiting List:</td>
-                <td class="sum-value">
-                  {{ formatNumber(waitingListKerja, 2) }} Hari
-                </td>
-                <td colspan="2" class="sum-label text-center">
-                  Estimasi Tetap:
-                </td>
-                <td class="sum-value text-center">
-                  {{ formatNumber(waitingListTetap, 2) }} Hari
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-  </PageLayout>
-</template>
-
 <style scoped>
-.table-container {
-  border: 1px solid #7bdaff;
-  border-radius: 8px;
-  max-height: calc(100vh - 240px);
-  overflow: auto;
-  background: white;
+/* 1. STANDARISASI SELURUH TABEL & FONT SIZE KE 12PX */
+:deep(table) {
+  border-collapse: separate !important;
+  border-spacing: 0 !important;
+  font-size: 12px !important;
 }
 
-/* Header Styling */
-.desktop-table :deep(thead th) {
-  font-size: 10px !important;
-  font-weight: 800 !important;
-  text-align: center !important;
-  color: #000 !important;
-  text-transform: uppercase;
-  padding: 8px !important;
-  border: 1px solid #7bdaff !important;
+:deep(th),
+:deep(td) {
+  font-size: 12px !important;
+  white-space: nowrap !important;
+  padding: 6px 8px !important;
 }
 
-.desktop-table :deep(.bg-blue-main) {
-  background-color: #b3e5fc !important;
+/* 2. HEADER STYLING */
+.header-main th {
+  background: linear-gradient(180deg, #1e3a8a 0%, #1e40af 100%) !important;
+  color: white !important;
+  border-right: 1px solid #3b82f6 !important;
+  font-size: 12px !important;
 }
-.desktop-table :deep(.bg-blue-sub) {
-  background-color: #e1f5fe !important;
+
+.header-sub th {
+  background: #2563eb !important;
+  color: white !important;
+  font-size: 12px !important;
+  border-right: 1px solid #60a5fa !important;
 }
-.desktop-table :deep(.bg-blue-detail) {
+
+.header-group {
+  border-left: 1px solid #60a5fa !important;
+  border-right: 1px solid #60a5fa !important;
+}
+
+/* 3. STICKY COLUMNS WITH NO GAP */
+:deep(.sticky-col-1) {
+  position: sticky !important;
+  left: 0px !important;
+  z-index: 6;
   background-color: #ffffff !important;
+  width: 120px !important;
+  min-width: 120px !important;
+  max-width: 120px !important;
 }
 
-/* Body Styling */
-.desktop-table :deep(tbody td) {
-  font-size: 10px !important;
-  font-weight: 400 !important;
-  border-right: 1px solid #eee !important;
-  border-bottom: 1px solid #eee !important;
-  white-space: nowrap;
-  padding: 4px 8px !important;
+:deep(.sticky-col-2) {
+  position: sticky !important;
+  left: 120px !important;
+  z-index: 6;
+  background-color: #ffffff !important;
+  box-shadow: 3px 0px 5px -2px rgba(0, 0, 0, 0.15);
+  width: 220px !important;
+  min-width: 220px !important;
 }
 
-/* Footer Styling */
-.table-footer td {
-  position: sticky;
-  bottom: 0;
-  z-index: 20;
-  background-color: #f8f9fa !important;
-  font-weight: 800 !important;
-  border-top: 2px solid #7bdaff !important;
-  font-size: 10px !important;
+.header-main th.sticky-col-1,
+.header-main th.sticky-col-2 {
+  background: #1e3a8a !important;
 }
 
-/* Summary Table di Kanan */
-.summary-wrapper {
-  margin-top: 15px;
-  display: flex;
-  justify-content: flex-end;
-  padding: 0 10px 15px 0;
-}
+/* 4. BACKGROUND COLOR GROUP HEADER & SUB HEADER */
+.bg-blue-header { background-color: #1d4ed8 !important; color: white !important; }
+.bg-cyan-header { background-color: #0891b2 !important; color: white !important; }
+.bg-teal-header { background-color: #0d9488 !important; color: white !important; }
 
-.summary-table {
-  border-collapse: collapse;
-  background: white;
-  border: 1px solid #7bdaff;
-  min-width: 500px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-}
+.bg-blue-sub { background-color: #93c5fd !important; color: #000 !important; }
+.bg-cyan-sub { background-color: #a5f3fc !important; color: #000 !important; }
+.bg-teal-sub { background-color: #99f6e4 !important; color: #000 !important; }
 
+/* 5. UTILITY BORDERS */
+.border-l { border-left: 1px solid #cbd5e1 !important; }
+.border-r { border-right: 1px solid #cbd5e1 !important; }
+
+/* 6. STYLING TABEL SUMMARY OUTPUT & WAITING LIST */
 .summary-table td {
-  border: 1px solid #ddd;
-  padding: 8px 15px;
-  font-size: 11px;
+  padding: 6px 12px !important;
+  font-size: 12px !important;
+  border-bottom: 1px solid #e2e8f0;
 }
 
 .sum-label {
-  background: #f0f8ff;
-  font-weight: bold;
-}
-.sum-value {
-  font-weight: bold;
-  text-align: right;
+  background: #f8fafc;
+  font-weight: 600;
+  color: #334155;
 }
 
-/* Utils */
-.text-error {
-  color: #000000 !important;
-}
-.text-success {
-  color: #2e7d32 !important;
-}
-.deadline {
-  color: #000000;
-  font-weight: bold !important;
+.sum-value {
+  text-align: right;
+  color: #0f172a;
 }
 </style>

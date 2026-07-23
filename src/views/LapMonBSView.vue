@@ -1,18 +1,193 @@
+<template>
+  <BaseReportLayout
+    v-model:start-date="startDate"
+    v-model:end-date="endDate"
+    :items="filteredData"
+    :loading="loading.report"
+    item-key="Barcode"
+    title="Laporan BS & Afal Produksi"
+    :excel-file-name="`Laporan_Barang_Sisa_BS_${startDate}_sd_${endDate}.xlsx`"
+    :custom-export-excel="exportToExcel"
+    @refresh="fetchReport"
+  >
+    <!-- Slot Filter Tambahan: Filter Jenis/Divisi, Gudang, & Pencarian -->
+    <template #extra-filters>
+      <v-select
+        v-model="typeFilter"
+        :items="[
+          { title: 'Semua LHK', value: 'ALL' },
+          { title: 'MMT (Digital)', value: 'MMT' },
+          { title: 'Tekstil', value: 'TEKSTIL' },
+        ]"
+        label="Divisi / Jenis"
+        density="compact"
+        hide-details
+        variant="outlined"
+        style="max-width: 150px"
+        @update:model-value="fetchReport"
+      />
+
+      <v-select
+        v-model="gdgKode"
+        :items="listGudang"
+        label="Gudang"
+        density="compact"
+        hide-details
+        variant="outlined"
+        style="max-width: 170px"
+        @update:model-value="fetchReport"
+      />
+
+      <v-text-field
+        v-model="searchQuery"
+        label="Cari No. LHK / Barcode / Barang..."
+        prepend-inner-icon="mdi-magnify"
+        density="compact"
+        hide-details
+        variant="outlined"
+        clearable
+        style="max-width: 280px"
+      />
+    </template>
+
+    <!-- Slot Header Tabel Custom -->
+    <template #thead>
+      <thead>
+        <tr class="header-main">
+          <th class="text-center">JENIS LHK</th>
+          <th class="text-center sticky-col-1" style="width: 150px">NOMOR LHK</th>
+          <th class="text-center">TANGGAL</th>
+          <th class="text-center">GUDANG</th>
+          <th class="text-left">OPERATOR</th>
+          <th class="text-left">MESIN</th>
+          <th class="text-center">KODE BRG</th>
+          <th class="text-left sticky-col-2" style="width: 220px">NAMA BARANG / MATERIAL</th>
+          <th class="text-center">BARCODE ROLL</th>
+          <th class="text-right bg-blue-header">P. BS (M)</th>
+          <th class="text-right bg-blue-header">L. BS (M)</th>
+          <th class="text-right bg-red-header">LUAS (M²)</th>
+          <th class="text-center">STATUS</th>
+        </tr>
+      </thead>
+    </template>
+
+    <!-- Slot Row Baris Data Utama -->
+    <template #row="{ item, formatNumber }">
+      <tr class="table-row-item">
+        <!-- Jenis LHK Badge -->
+        <td class="text-center">
+          <v-chip
+            size="x-small"
+            :color="item.Jenis_LHK === 'MMT' ? 'blue' : 'purple'"
+            variant="tonal"
+            class="font-weight-bold"
+          >
+            {{ item.Jenis_LHK || '-' }}
+          </v-chip>
+        </td>
+
+        <!-- Sticky Left Columns -->
+        <td class="text-center sticky-col-1 font-weight-bold">{{ item.Nomor_LHK || '-' }}</td>
+        
+        <!-- Info LHK & Barang -->
+        <td class="text-center">{{ formatDateDisplay(item.Tanggal) }}</td>
+        <td class="text-center">{{ item.Gdg_Kode || '-' }}</td>
+        <td class="text-left">{{ item.Operator || '-' }}</td>
+        <td class="text-left">{{ item.Mesin || '-' }}</td>
+        <td class="text-center">{{ item.Brg_Kode || '-' }}</td>
+        <td class="text-left sticky-col-2 text-truncate" style="max-width: 220px" :title="item.Brg_Nama">
+          {{ item.Brg_Nama || '-' }}
+        </td>
+        <td class="text-center grey-barcode font-weight-medium">
+          {{ item.Barcode || '-' }}
+        </td>
+
+        <!-- Angka Ukuran BS -->
+        <td class="text-right font-weight-bold">{{ formatNumber(item.Panjang_BS, 2) }}</td>
+        <td class="text-right">{{ formatNumber(item.Lebar_BS, 2) }}</td>
+        <td class="text-right text-error font-weight-bold bg-red-lighten-5">
+          {{ formatNumber(item.Luas_BS_M2, 2) }}
+        </td>
+
+        <!-- Status Badge -->
+        <td class="text-center">
+          <v-chip
+            size="x-small"
+            :color="item.Status === 'POSTED' ? 'success' : 'warning'"
+            variant="flat"
+          >
+            {{ item.Status || '-' }}
+          </v-chip>
+        </td>
+      </tr>
+    </template>
+
+    <!-- Slot Total Footer -->
+    <template #tfoot="{ formatNumber }">
+      <tr class="table-footer-row">
+        <td colspan="9" class="text-right font-weight-black text-uppercase sticky-footer-title">
+          TOTAL TERFILTER:
+        </td>
+        <td class="text-right font-weight-black text-primary">
+          {{ formatNumber(totals.panjang_bs, 2) }} M
+        </td>
+        <td class="bg-grey-lighten-4"></td>
+        <td class="text-right font-weight-black text-error bg-red-lighten-4">
+          {{ formatNumber(totals.luas_bs_m2, 2) }} M²
+        </td>
+        <td class="bg-grey-lighten-4"></td>
+      </tr>
+    </template>
+  </BaseReportLayout>
+
+  <!-- Summary Card Ringkasan Kasus & Total Afal -->
+  <div class="d-flex justify-end mt-3 px-2">
+    <v-card flat class="border rounded-lg overflow-hidden" style="min-width: 600px">
+      <v-table density="compact" class="summary-table">
+        <tbody>
+          <tr>
+            <td class="sum-label">Total Kasus BS:</td>
+            <td class="sum-value font-weight-bold">
+              {{ formatNumber(summary.total_records, 0) }} Transaksi
+            </td>
+            <td class="sum-label">Akumulasi Panjang BS:</td>
+            <td class="sum-value text-primary font-weight-bold">
+              {{ formatNumber(summary.total_panjang, 2) }} Meter
+            </td>
+            <td class="sum-label bg-red-lighten-5 text-error">Total Luas Afal (M²):</td>
+            <td class="sum-value bg-red-lighten-5 text-error font-weight-bold">
+              {{ formatNumber(summary.total_luas_m2, 2) }} M²
+            </td>
+          </tr>
+        </tbody>
+      </v-table>
+    </v-card>
+  </div>
+</template>
+
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from "vue";
+import BaseReportLayout from "@/components/BaseReportLayout.vue";
 import api from "@/services/api";
-import PageLayout from "../components/PageLayout.vue";
 import { format, parseISO, isValid } from "date-fns";
-import XLSX from "xlsx-js-style";
+import * as XLSX from "xlsx-js-style";
+
+const formatDate = (date: Date) => {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+};
+
+const getStartOfMonth = (date: Date) => {
+  return new Date(date.getFullYear(), date.getMonth(), 1);
+};
 
 // --- STATE MANAGEMENT ---
-const loading = ref({ report: false });
-const allData = ref([]);
-const typeFilter = ref("ALL"); // ALL, MMT, TEKSTIL
+const endDate = ref(formatDate(new Date()));
+const startDate = ref(formatDate(getStartOfMonth(new Date())));
+const typeFilter = ref("ALL");
 const gdgKode = ref("");
 const searchQuery = ref("");
-const startDate = ref(new Date().toISOString().substr(0, 10));
-const endDate = ref(new Date().toISOString().substr(0, 10));
+const loading = reactive({ report: false });
+const allData = ref<any[]>([]);
 
 const summary = ref({
   total_records: 0,
@@ -20,28 +195,53 @@ const summary = ref({
   total_luas_m2: 0,
 });
 
-const colWidths = reactive({
-  NOMOR_LHK: 160,
-  BRG_NAMA: 250,
-});
-
-// --- LIST PILIHAN GUDANG (Sesuaikan dengan Master Gudang Anda) ---
+// --- LIST PILIHAN GUDANG ---
 const listGudang = [
   { title: "Semua Gudang", value: "" },
   { title: "Gudang Printing", value: "GDG_PROD_MMT" },
   { title: "Gudang Tekstil", value: "GDG_PROD_TEKSTIL" },
 ];
 
+// --- AJAX FETCH DATA FROM EXPRESS BACKEND ---
+const fetchReport = async () => {
+  loading.report = true;
+  try {
+    const res = await api.get("mmt/laporan-bs", {
+      params: {
+        startDate: startDate.value,
+        endDate: endDate.value,
+        type: typeFilter.value,
+        gdgKode: gdgKode.value,
+      },
+    });
+
+    if (res.data.success || res.data.status) {
+      allData.value = res.data.data || [];
+      summary.value = res.data.summary || {
+        total_records: 0,
+        total_panjang: 0,
+        total_luas_m2: 0,
+      };
+    }
+  } catch (error) {
+    console.error("Gagal memuat laporan BS:", error);
+    allData.value = [];
+  } finally {
+    loading.report = false;
+  }
+};
+
 // --- LOGIKA CLIENT-SIDE SEARCH FILTER ---
 const filteredData = computed(() => {
   if (!searchQuery.value) return allData.value;
-  const query = searchQuery.value.toLowerCase();
+  const q = searchQuery.value.toLowerCase().trim();
   return allData.value.filter((item: any) => {
     return (
-      item.Nomor_LHK?.toLowerCase().includes(query) ||
-      item.Barcode?.toLowerCase().includes(query) ||
-      item.Brg_Nama?.toLowerCase().includes(query) ||
-      item.Mesin?.toLowerCase().includes(query)
+      item.Nomor_LHK?.toLowerCase().includes(q) ||
+      item.Barcode?.toLowerCase().includes(q) ||
+      item.Brg_Nama?.toLowerCase().includes(q) ||
+      item.Mesin?.toLowerCase().includes(q) ||
+      item.Operator?.toLowerCase().includes(q)
     );
   });
 });
@@ -54,13 +254,16 @@ const totals = computed(() => {
       acc.luas_bs_m2 += Number(item.Luas_BS_M2 || 0);
       return acc;
     },
-    { panjang_bs: 0, luas_bs_m2: 0 },
+    { panjang_bs: 0, luas_bs_m2: 0 }
   );
 });
 
-// --- FORMATTER UTILS ---
+// --- HELPER FORMAT ---
 const formatNumber = (val: any, dec = 2) => {
-  return Number(val || 0).toLocaleString("id-ID", {
+  if (val === null || val === undefined || val === "") return "0,00";
+  const num = parseFloat(val);
+  if (isNaN(num)) return val;
+  return num.toLocaleString("id-ID", {
     minimumFractionDigits: dec,
     maximumFractionDigits: dec,
   });
@@ -72,237 +275,107 @@ const formatDateDisplay = (dateStr: string) => {
   return isValid(date) ? format(date, "dd/MM/yyyy") : dateStr;
 };
 
-// --- AJAX FETCH DATA FROM EXPRESS BACKEND ---
-const fetchReport = async () => {
-  loading.value.report = true;
-  try {
-    const res = await api.get("mmt/laporan-bs", {
-      params: {
-        startDate: startDate.value,
-        endDate: endDate.value,
-        type: typeFilter.value,
-        gdgKode: gdgKode.value,
-        search: searchQuery.value,
-      },
-    });
-
-    if (res.data.success) {
-      allData.value = res.data.data || [];
-      summary.value = res.data.summary || {
-        total_records: 0,
-        total_panjang: 0,
-        total_luas_m2: 0,
-      };
-    }
-  } catch (error: any) {
-    console.error("Gagal memuat laporan BS:", error);
-  } finally {
-    loading.value.report = false;
-  }
-};
-
 // --- EXPORT TO EXCEL WITH STYLING ---
-const exportToExcel = () => {
+const exportToExcel = (dataToExport: any[]) => {
+  if (!dataToExport || dataToExport.length === 0) {
+    alert("Tidak ada data untuk diekspor");
+    return;
+  }
+
   const fileName = `Laporan_Barang_Sisa_BS_${startDate.value}_sd_${endDate.value}.xlsx`;
+  const num = (value: any) => (isNaN(Number(value)) ? 0 : Number(value));
 
-  const num = (value: any) => {
-    const parsed = Number(value);
-    return isNaN(parsed) ? 0 : parsed;
+  const borderThin = {
+    top: { style: "thin", color: { rgb: "000000" } },
+    bottom: { style: "thin", color: { rgb: "000000" } },
+    left: { style: "thin", color: { rgb: "000000" } },
+    right: { style: "thin", color: { rgb: "000000" } },
   };
 
-  const formatDateIndo = (dateStr: string) => {
-    if (!dateStr) return "-";
-    const date = parseISO(dateStr);
-    if (!isValid(date)) return dateStr;
-    const bulanIndo = [
-      "Januari",
-      "Februari",
-      "Maret",
-      "April",
-      "Mei",
-      "Juni",
-      "Juli",
-      "Agustus",
-      "September",
-      "Oktober",
-      "November",
-      "Desember",
-    ];
-    return `${date.getDate()} ${bulanIndo[date.getMonth()]} ${date.getFullYear()}`;
-  };
-
-  // --- 1. Definisi Style Cell Sheet ---
   const styleHeaderMain = {
-    fill: { fgColor: { rgb: "1E78C8" } },
-    font: { bold: true, color: { rgb: "FFFFFF" } },
+    fill: { fgColor: { rgb: "1E3A8A" } },
+    font: { bold: true, color: { rgb: "FFFFFF" }, sz: 10 },
     alignment: { horizontal: "center", vertical: "center", wrapText: true },
-    border: {
-      top: { style: "thin", color: { rgb: "000000" } },
-      bottom: { style: "thin", color: { rgb: "000000" } },
-      left: { style: "thin", color: { rgb: "000000" } },
-      right: { style: "thin", color: { rgb: "000000" } },
-    },
+    border: borderThin,
   };
 
   const styleDataCell = {
+    font: { sz: 9, color: { rgb: "0F172A" } },
+    alignment: { vertical: "center" },
     border: {
       top: { style: "thin", color: { rgb: "E2E8F0" } },
       bottom: { style: "thin", color: { rgb: "E2E8F0" } },
       left: { style: "thin", color: { rgb: "E2E8F0" } },
       right: { style: "thin", color: { rgb: "E2E8F0" } },
     },
-    alignment: { vertical: "center" },
   };
 
-  const styleFooter = {
+  const styleFooterCell = {
+    fill: { fgColor: { rgb: "FEF3C7" } },
+    font: { bold: true, sz: 10, color: { rgb: "000000" } },
     border: {
-      top: { style: "medium", color: { rgb: "1E78C8" } },
-      bottom: { style: "medium", color: { rgb: "1E78C8" } },
+      top: { style: "double", color: { rgb: "000000" } },
+      bottom: { style: "thick", color: { rgb: "000000" } },
+      left: { style: "thin", color: { rgb: "000000" } },
+      right: { style: "thin", color: { rgb: "000000" } },
     },
-    fill: { fgColor: { rgb: "F1F5F9" } },
-    font: { bold: true },
   };
 
-  // --- 2. Penyusunan Array of Objects/Arrays ---
-  const wsData: any[] = [];
-  wsData.push([
-    {
-      v: "LAPORAN REKAPITULASI BARANG SISA (BS / AFAL)",
-      s: { font: { bold: true, sz: 14 } },
-    },
-  ]);
-  wsData.push([
-    {
-      v: `Periode: ${formatDateIndo(startDate.value)} s/d ${formatDateIndo(endDate.value)}`,
-      s: { font: { bold: true } },
-    },
-  ]);
-  wsData.push([
-    {
-      v: `Divisi: ${typeFilter.value === "ALL" ? "Semua Divisi" : typeFilter.value}`,
-    },
-  ]);
-  wsData.push([]);
-
-  // Header Table
-  const headers = [
-    { v: "JENIS LHK", s: styleHeaderMain },
-    { v: "NOMOR LHK", s: styleHeaderMain },
-    { v: "TANGGAL", s: styleHeaderMain },
-    { v: "GUDANG", s: styleHeaderMain },
-    { v: "OPERATOR", s: styleHeaderMain },
-    { v: "MESIN PRODUKSI", s: styleHeaderMain },
-    { v: "KODE BARANG", s: styleHeaderMain },
-    { v: "NAMA BARANG / MATERIAL", s: styleHeaderMain },
-    { v: "BARCODE ROLL", s: styleHeaderMain },
-    { v: "P. BS (METER)", s: styleHeaderMain },
-    { v: "L. BS (METER)", s: styleHeaderMain },
-    { v: "LUAS BS (M2)", s: styleHeaderMain },
-    { v: "STATUS", s: styleHeaderMain },
+  const wsData: any[] = [
+    [{ v: "LAPORAN REKAPITULASI BARANG SISA (BS / AFAL)", s: { font: { bold: true, sz: 14 } } }],
+    [{ v: `Periode : ${startDate.value} s/d ${endDate.value}` }],
+    [{ v: `Divisi  : ${typeFilter.value === "ALL" ? "Semua Divisi" : typeFilter.value}` }],
+    [],
   ];
-  wsData.push(headers);
 
-  // Data Loop Rows
-  filteredData.value.forEach((item: any) => {
+  // Header Columns
+  const headers = [
+    "JENIS LHK", "NOMOR LHK", "TANGGAL", "GUDANG", "OPERATOR",
+    "MESIN PRODUKSI", "KODE BARANG", "NAMA BARANG / MATERIAL", "BARCODE ROLL",
+    "P. BS (METER)", "L. BS (METER)", "LUAS BS (M2)", "STATUS"
+  ];
+  wsData.push(headers.map((h) => ({ v: h, s: styleHeaderMain })));
+
+  // Data Rows
+  dataToExport.forEach((item: any) => {
     wsData.push([
-      {
-        v: item.Jenis_LHK,
-        s: { ...styleDataCell, alignment: { horizontal: "center" } },
-      },
-      {
-        v: item.Nomor_LHK,
-        s: { ...styleDataCell, alignment: { horizontal: "center" } },
-      },
-      {
-        v: formatDateDisplay(item.Tanggal),
-        s: { ...styleDataCell, alignment: { horizontal: "center" } },
-      },
-      {
-        v: item.Gdg_Kode,
-        s: { ...styleDataCell, alignment: { horizontal: "center" } },
-      },
-      { v: item.Operator, s: styleDataCell },
-      { v: item.Mesin, s: styleDataCell },
-      {
-        v: item.Brg_Kode,
-        s: { ...styleDataCell, alignment: { horizontal: "center" } },
-      },
-      { v: item.Brg_Nama, s: styleDataCell },
-      {
-        v: item.Barcode,
-        s: { ...styleDataCell, alignment: { horizontal: "center" } },
-      },
-      {
-        v: num(item.Panjang_BS),
-        t: "n",
-        z: "#,##0.00",
-        s: { ...styleDataCell, alignment: { horizontal: "right" } },
-      },
-      {
-        v: num(item.Lebar_BS),
-        t: "n",
-        z: "#,##0.00",
-        s: { ...styleDataCell, alignment: { horizontal: "right" } },
-      },
-      {
-        v: num(item.Luas_BS_M2),
-        t: "n",
-        z: "#,##0.00",
-        s: { ...styleDataCell, alignment: { horizontal: "right" } },
-      },
-      {
-        v: item.Status,
-        s: { ...styleDataCell, alignment: { horizontal: "center" } },
-      },
+      { v: item.Jenis_LHK || "", s: { ...styleDataCell, alignment: { horizontal: "center" } } },
+      { v: item.Nomor_LHK || "", s: { ...styleDataCell, alignment: { horizontal: "center" } } },
+      { v: formatDateDisplay(item.Tanggal), s: { ...styleDataCell, alignment: { horizontal: "center" } } },
+      { v: item.Gdg_Kode || "", s: { ...styleDataCell, alignment: { horizontal: "center" } } },
+      { v: item.Operator || "", s: styleDataCell },
+      { v: item.Mesin || "", s: styleDataCell },
+      { v: item.Brg_Kode || "", s: { ...styleDataCell, alignment: { horizontal: "center" } } },
+      { v: item.Brg_Nama || "", s: styleDataCell },
+      { v: item.Barcode || "", s: { ...styleDataCell, alignment: { horizontal: "center" } } },
+      { v: num(item.Panjang_BS), t: "n", z: "#,##0.00", s: { ...styleDataCell, alignment: { horizontal: "right" } } },
+      { v: num(item.Lebar_BS), t: "n", z: "#,##0.00", s: { ...styleDataCell, alignment: { horizontal: "right" } } },
+      { v: num(item.Luas_BS_M2), t: "n", z: "#,##0.00", s: { ...styleDataCell, alignment: { horizontal: "right" } } },
+      { v: item.Status || "", s: { ...styleDataCell, alignment: { horizontal: "center" } } },
     ]);
   });
 
-  // Footer Row Total
+  // Footer Total Row
   const footerRow = [
-    {
-      v: "TOTAL (FILTERED)",
-      s: { ...styleFooter, alignment: { horizontal: "right" } },
-    },
-    ...Array(8).fill({ v: "", s: styleFooter }),
-    {
-      v: num(totals.value.panjang_bs),
-      t: "n",
-      z: "#,##0.00",
-      s: { ...styleFooter, alignment: { horizontal: "right" } },
-    },
-    { v: "", s: styleFooter },
-    {
-      v: num(totals.value.luas_bs_m2),
-      t: "n",
-      z: "#,##0.00",
-      s: { ...styleFooter, alignment: { horizontal: "right" } },
-    },
-    { v: "", s: styleFooter },
+    { v: "TOTAL TERFILTER", s: { ...styleFooterCell, alignment: { horizontal: "center" } } },
+    ...Array(8).fill({ v: "", s: styleFooterCell }),
+    { v: num(totals.value.panjang_bs), t: "n", z: "#,##0.00", s: { ...styleFooterCell, alignment: { horizontal: "right" } } },
+    { v: "", s: styleFooterCell },
+    { v: num(totals.value.luas_bs_m2), t: "n", z: "#,##0.00", s: { ...styleFooterCell, alignment: { horizontal: "right" } } },
+    { v: "", s: styleFooterCell },
   ];
   wsData.push(footerRow);
 
   const ws = XLSX.utils.aoa_to_sheet(wsData);
 
-  // Merging label total
   ws["!merges"] = [
     { s: { r: wsData.length - 1, c: 0 }, e: { r: wsData.length - 1, c: 8 } },
   ];
 
-  // Set Widths
   ws["!cols"] = [
-    { wch: 10 },
-    { wch: 22 },
-    { wch: 12 },
-    { wch: 15 },
-    { wch: 15 },
-    { wch: 18 },
-    { wch: 15 },
-    { wch: 35 },
-    { wch: 20 },
-    { wch: 14 },
-    { wch: 14 },
-    { wch: 14 },
-    { wch: 12 },
+    { wch: 12 }, { wch: 22 }, { wch: 12 }, { wch: 15 }, { wch: 18 },
+    { wch: 18 }, { wch: 15 }, { wch: 35 }, { wch: 20 }, { wch: 15 },
+    { wch: 15 }, { wch: 15 }, { wch: 12 },
   ];
 
   const wb = XLSX.utils.book_new();
@@ -313,309 +386,78 @@ const exportToExcel = () => {
 onMounted(fetchReport);
 </script>
 
-<template>
-  <PageLayout title="Laporan BS & Afal Produksi" icon="mdi-delete-empty">
-    <div class="browse-content">
-      <v-card flat class="border-bottom mb-2">
-        <v-card-text class="py-2 px-3">
-          <div class="filter-section d-flex align-center flex-wrap ga-3">
-            <v-select
-              v-model="typeFilter"
-              :items="[
-                { title: 'Semua LHK', value: 'ALL' },
-                { title: 'MMT (Digital)', value: 'MMT' },
-                { title: 'Tekstil', value: 'TEKSTIL' },
-              ]"
-              density="compact"
-              hide-details
-              variant="outlined"
-              style="max-width: 140px"
-              @update:model-value="fetchReport"
-            />
-
-            <v-select
-              v-model="gdgKode"
-              :items="listGudang"
-              density="compact"
-              hide-details
-              variant="outlined"
-              style="max-width: 160px"
-              @update:model-value="fetchReport"
-            />
-
-            <v-text-field
-              v-model="startDate"
-              type="date"
-              density="compact"
-              hide-details
-              variant="outlined"
-              style="max-width: 140px"
-            />
-            <v-label class="mx-1">s/d</v-label>
-            <v-text-field
-              v-model="endDate"
-              type="date"
-              density="compact"
-              hide-details
-              variant="outlined"
-              style="max-width: 140px"
-            />
-
-            <v-btn
-              variant="flat"
-              size="small"
-              @click="fetchReport"
-              :loading="loading.report"
-              color="primary"
-              >Muat Laporan</v-btn
-            >
-
-            <v-btn
-              variant="flat"
-              color="success"
-              size="small"
-              @click="exportToExcel"
-              :disabled="filteredData.length === 0"
-              >Export Excel</v-btn
-            >
-
-            <v-spacer />
-
-            <v-text-field
-              v-model="searchQuery"
-              label="Cari No. LHK / Barcode / Barang..."
-              prepend-inner-icon="mdi-magnify"
-              density="compact"
-              hide-details
-              variant="outlined"
-              style="max-width: 280px"
-              clearable
-            />
-          </div>
-        </v-card-text>
-      </v-card>
-
-      <div class="table-container">
-        <v-data-table
-          :headers="[]"
-          :items="filteredData"
-          density="compact"
-          class="desktop-table"
-          fixed-header
-          hide-default-footer
-          :items-per-page="-1"
-          :loading="loading.report"
-        >
-          <template #thead>
-            <thead>
-              <tr class="header-row-1">
-                <th class="bg-blue-main">JENIS LHK</th>
-                <th
-                  class="bg-blue-main"
-                  :style="{ width: colWidths.NOMOR_LHK + 'px' }"
-                >
-                  NOMOR LHK
-                </th>
-                <th class="bg-blue-main">TANGGAL</th>
-                <th class="bg-blue-main">GUDANG</th>
-                <th class="bg-blue-main">OPERATOR</th>
-                <th class="bg-blue-main">MESIN</th>
-                <th class="bg-blue-main">KODE BRG</th>
-                <th
-                  class="bg-blue-main"
-                  :style="{ width: colWidths.BRG_NAMA + 'px' }"
-                >
-                  NAMA BARANG
-                </th>
-                <th class="bg-blue-main">BARCODE ROLL</th>
-                <th class="bg-blue-sub">P. BS (M)</th>
-                <th class="bg-blue-sub">L. BS (M)</th>
-                <th class="bg-blue-sub">LUAS (M2)</th>
-                <th class="bg-blue-main">STATUS</th>
-              </tr>
-            </thead>
-          </template>
-
-          <template v-slot:item="{ item }">
-            <tr class="data-row">
-              <td class="text-center">
-                <v-chip
-                  size="x-small"
-                  :color="item.Jenis_LHK === 'MMT' ? 'blue' : 'purple'"
-                  variant="tonal"
-                  class="font-weight-bold"
-                >
-                  {{ item.Jenis_LHK }}
-                </v-chip>
-              </td>
-              <td class="text-center font-weight-bold">{{ item.Nomor_LHK }}</td>
-              <td class="text-center">{{ formatDateDisplay(item.Tanggal) }}</td>
-              <td class="text-center">{{ item.Gdg_Kode }}</td>
-              <td class="text-left">{{ item.Operator }}</td>
-              <td class="text-left">{{ item.Mesin }}</td>
-              <td class="text-center">{{ item.Brg_Kode }}</td>
-              <td class="text-left label-truncated">{{ item.Brg_Nama }}</td>
-              <td class="text-center grey-barcode">
-                {{ item.Barcode || "-" }}
-              </td>
-              <td class="text-right font-weight-bold">
-                {{ formatNumber(item.Panjang_BS) }}
-              </td>
-              <td class="text-right">{{ formatNumber(item.Lebar_BS) }}</td>
-              <td
-                class="text-right text-error font-weight-bold bg-red-lighten-5"
-              >
-                {{ formatNumber(item.Luas_BS_M2) }}
-              </td>
-              <td class="text-center">
-                <v-chip
-                  size="x-small"
-                  :color="item.Status === 'POSTED' ? 'success' : 'warning'"
-                  variant="flat"
-                >
-                  {{ item.Status }}
-                </v-chip>
-              </td>
-            </tr>
-          </template>
-
-          <template #tfoot>
-            <tr class="table-footer">
-              <td colspan="9" class="text-right font-weight-bold">
-                TOTAL TERFILTER :
-              </td>
-              <td class="text-right text-primary">
-                {{ formatNumber(totals.panjang_bs) }} M
-              </td>
-              <td class="bg-grey-lighten-4"></td>
-              <td class="text-right text-error bg-red-lighten-4">
-                {{ formatNumber(totals.luas_bs_m2) }} M²
-              </td>
-              <td class="bg-grey-lighten-4"></td>
-            </tr>
-          </template>
-        </v-data-table>
-
-        <div class="summary-wrapper">
-          <table class="summary-table">
-            <tbody>
-              <tr>
-                <td class="sum-label">Total Kasus BS:</td>
-                <td class="sum-value">{{ summary.total_records }} Transaksi</td>
-                <td class="sum-label">Akumulasi Panjang BS:</td>
-                <td class="sum-value text-primary">
-                  {{ formatNumber(summary.total_panjang) }} Meter
-                </td>
-                <td class="sum-label bg-red-lighten-5">
-                  Total Luas Afal (M²):
-                </td>
-                <td class="sum-value bg-red-lighten-5 text-error">
-                  {{ formatNumber(summary.total_luas_m2) }} M²
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-  </PageLayout>
-</template>
-
 <style scoped>
-.table-container {
-  border: 1px solid #7bdaff;
-  border-radius: 8px;
-  max-height: calc(100vh - 200px);
-  overflow: auto;
-  background: white;
+/* 1. STANDARISASI TABEL & FONT SIZE KE 12PX */
+:deep(table) {
+  border-collapse: separate !important;
+  border-spacing: 0 !important;
+  font-size: 12px !important;
 }
 
-/* Header Styling */
-.desktop-table :deep(thead th) {
-  font-size: 10px !important;
-  font-weight: 800 !important;
-  text-align: center !important;
-  color: #1e293b !important;
-  text-transform: uppercase;
-  padding: 8px !important;
-  border: 1px solid #7bdaff !important;
+:deep(th),
+:deep(td) {
+  font-size: 12px !important;
+  white-space: nowrap !important;
+  padding: 6px 8px !important;
 }
 
-.desktop-table :deep(.bg-blue-main) {
-  background-color: #b3e5fc !important;
-}
-.desktop-table :deep(.bg-blue-sub) {
-  background-color: #bae6fd !important;
-}
-
-/* Body Styling */
-.desktop-table :deep(tbody td) {
-  font-size: 11px !important;
-  font-weight: 400 !important;
-  border-right: 1px solid #e2e8f0 !important;
-  border-bottom: 1px solid #e2e8f0 !important;
-  white-space: nowrap;
-  padding: 4px 8px !important;
+/* 2. HEADER STYLING */
+.header-main th {
+  background: linear-gradient(180deg, #1e3a8a 0%, #1e40af 100%) !important;
+  color: white !important;
+  border-right: 1px solid #3b82f6 !important;
 }
 
-.label-truncated {
-  max-width: 250px;
-  overflow: hidden;
-  text-overflow: ellipsis;
+.bg-blue-header {
+  background-color: #1d4ed8 !important;
+}
+.bg-red-header {
+  background-color: #b91c1c !important;
 }
 
+/* 3. STICKY COLUMNS WITH NO GAP */
+:deep(.sticky-col-1) {
+  position: sticky !important;
+  left: 0px !important;
+  z-index: 6;
+  background-color: #ffffff !important;
+  width: 150px !important;
+}
+
+:deep(.sticky-col-2) {
+  position: sticky !important;
+  left: 150px !important;
+  z-index: 6;
+  background-color: #ffffff !important;
+  box-shadow: 3px 0px 5px -2px rgba(0, 0, 0, 0.15);
+  width: 220px !important;
+}
+
+.header-main th.sticky-col-1,
+.header-main th.sticky-col-2 {
+  background: #1e3a8a !important;
+}
+
+/* 4. UTILITY STYLING */
 .grey-barcode {
   color: #64748b;
   font-family: monospace;
 }
 
-/* Footer Styling */
-.table-footer td {
-  position: sticky;
-  bottom: 0;
-  z-index: 20;
-  background-color: #f8fafc !important;
-  font-weight: 800 !important;
-  border-top: 2px solid #7bdaff !important;
-  font-size: 11px !important;
-}
-
-/* Summary Widget */
-.summary-wrapper {
-  margin-top: 15px;
-  display: flex;
-  justify-content: flex-end;
-  padding: 0 10px 15px 0;
-}
-
-.summary-table {
-  border-collapse: collapse;
-  background: white;
-  border: 1px solid #7bdaff;
-  min-width: 650px;
-  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.05);
-}
-
 .summary-table td {
-  border: 1px solid #e2e8f0;
-  padding: 8px 15px;
-  font-size: 11px;
+  padding: 6px 12px !important;
+  font-size: 12px !important;
+  border-bottom: 1px solid #e2e8f0;
 }
 
 .sum-label {
-  background: #f0f9ff;
-  font-weight: bold;
-  color: #0369a1;
-}
-.sum-value {
-  font-weight: bold;
-  text-align: right;
+  background: #f8fafc;
+  font-weight: 600;
+  color: #334155;
 }
 
-.text-error {
-  color: #b91c1c !important;
-}
-.text-primary {
-  color: #1e78c8 !important;
+.sum-value {
+  text-align: right;
+  color: #0f172a;
 }
 </style>
