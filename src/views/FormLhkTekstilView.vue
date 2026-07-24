@@ -59,20 +59,31 @@ const {
   executeClose,
   fetchData,
 } = useForm({
-  menuId: "128", // Sesuaikan dengan id menu LHK Tekstil Anda
+  menuId: "128",
   initialData,
   fetchApi: async () => {
     const nomorLhk = route.params.nomor as string;
     const res = await api.get(`/mmt/lhk-tekstil-mmt/${nomorLhk}`);
     const h = res.data.data.header;
+    const details = res.data.data.details || [];
 
-    // Pemetaan balik dari format DB lama ke objek form reaktif
+    // Ambil nilai ltd_ambil_bahan dari detail pertama (karena nilainya konsisten per-roll LHK)
+    const ambilBahanFromDtl = details.length > 0 
+      ? parseFloat(details[0].ltd_ambil_bahan || details[0].Ambil_Bahan || 0) 
+      : 0;
+
+    // Ambil nilai sisa bahan tersimpan (Yard)
+    const sisaBahanFromDtl = details.length > 0 && details[0].sisabahan !== undefined
+      ? parseFloat(details[0].sisabahan)
+      : null;
+
     return {
       nomor: h.Nomor || h.lth_nomor,
       tanggal: format(new Date(h.Tanggal || h.lth_tanggal), "yyyy-MM-dd"),
       shift: h.Shift || h.lth_shift || 1,
       gdgKode: h.Gudang || h.lth_gdg_prod || "GPM",
       brg_kode: h.Kode_Bahan || h.lth_brg_kode,
+      brg_nama: h.Nama_Bahan || h.brg_nama || "",
       barcode_input: h.Barcode_Roll || h.lth_barcode,
       panjang_bs:
         h.Panjang_BS !== undefined && h.Panjang_BS !== null
@@ -89,13 +100,20 @@ const {
       mesin_kode: h.Mesin || h.Kode_Mesin || h.lth_mesin_kode || "",
       mesin_nama:
         h.Mesin || h.Nama_Mesin || h.mesin_nama || h.lth_mesin_nama || "",
-      sisa_panjang_manual:
-        h.sisa_panjang_manual !== undefined
+      
+      // Ambil sisa panjang manual/tersimpan jika ada
+      sisa_panjang_manual: sisaBahanFromDtl !== null ? sisaBahanFromDtl : (
+        h.sisa_panjang_manual !== undefined && h.sisa_panjang_manual !== null
           ? parseFloat(h.sisa_panjang_manual)
-          : null,
-      panjang_bahan: 0, // Nanti diisi otomatis saat trigger handleBarcodeScan berjalan
+          : null
+      ),
+
+      // BINDING AMBIL BAHAN DARI DETAIL (ltd_ambil_bahan)
+      panjang_bahan: ambilBahanFromDtl || parseFloat(h.Panjang_Awal || h.lth_panjang_awal || 0),
+      lebar_bahan: parseFloat(h.Lebar_Bahan || h.lth_lebar_bahan || 0),
+
       lstatus: h.lth_status || "DRAFT",
-      details: res.data.data.details.map((d: any) => {
+      details: details.map((d: any) => {
         const qtyOrder = parseInt(
           d.Jumlah_SPK || d.Jumlah || d.spk_qty || d.ltd_qty_order || 0,
         );
@@ -417,7 +435,7 @@ const handleBarcodeScan = async () => {
 
   if (!code) return;
 
-  // 1. Pengecekan Regex Anti-Spasi
+  // Pengecekan Regex Anti-Spasi
   const regex = /^[a-zA-Z0-9-]+$/;
   if (!regex.test(code)) {
     toast.error("Format Barcode tidak valid! (Ada spasi atau karakter ilegal)");
@@ -427,9 +445,7 @@ const handleBarcodeScan = async () => {
 
   try {
     const res = await api.get(`/mmt/stok-gudang/${code}`);
-
-    // PEMBONGKARAN DOUBLE NESTING SESUAI RESPON API ANDA:
-    const responsePayload = res.data; // Mengambil object utama { success, message, data }
+    const responsePayload = res.data;
 
     if (!responsePayload || !responsePayload.success || !responsePayload.data) {
       toast.error("Barcode tidak terdaftar atau tidak ditemukan!");
@@ -437,9 +453,9 @@ const handleBarcodeScan = async () => {
       return;
     }
 
-    const wrapperData = responsePayload.data; // Mengambil objek { data, status }
-    const info = wrapperData.data; // Mengambil objek inti roll { Barcode, Kode, dll }
-    const statusGudang = wrapperData.status; // Mengambil status "NEED_MUTATION" atau "READY"
+    const wrapperData = responsePayload.data;
+    const info = wrapperData.data;
+    const statusGudang = wrapperData.status;
 
     if (!info) {
       toast.error("Detail data material kosong atau stok habis!");
@@ -447,40 +463,60 @@ const handleBarcodeScan = async () => {
       return;
     }
 
+    // CEK: Apakah roll ini sedang digunakan di LHK lain?
+    const lhkPengguna = info.lth_nomor || info.nomor_lhk || info.Lhk_Dipakai;
+    if (lhkPengguna && lhkPengguna !== formData.value.nomor) {
+      toast.error(
+        `⛔ PERINGATAN: Bahan/Roll ini sudah dipakai oleh LHK lain (${lhkPengguna})!`,
+        {
+          timeout: 8000,
+          closeOnClick: true,
+          pauseOnHover: true,
+        }
+      );
+    }
+
     // KONDISI A: Bahan Siap Cetak di Gudang Produksi (GPM)
     if (statusGudang === "READY") {
       formData.value.brg_nama = info.Nama_Bahan || "";
       formData.value.brg_kode = info.Kode || "";
       formData.value.lebar_bahan = parseFloat(info.Lebar) || 0;
-      formData.value.panjang_bahan = parseFloat(info.Sisa_Panjang) || 0;
+      
+      // Jika mode EDIT, tetapkan panjang_bahan dari database (ltd_ambil_bahan) 
+      // yang sudah terisi di fetchApi jika barcode tidak diubah
+      if (!isEditMode.value || !formData.value.panjang_bahan) {
+        formData.value.panjang_bahan = parseFloat(info.Sisa_Panjang) || 0;
+      }
+
       formData.value.gdgKode = info.Kode_Gudang || "GPM";
 
       recalculateCombine();
       toast.success("Material Ready di Gudang Produksi (GPM)");
     }
 
-    // KONDISI B: Bahan Masih di Gudang Utama (WH-16) -> Memunculkan Error / Warning
+    // KONDISI B: Bahan Masih di Gudang Utama (WH-16)
     else if (statusGudang === "NEED_MUTATION") {
-      // Opsi 1: Jika Anda tetap ingin menampilkan data bahannya ke layar tetapi memberi peringatan keras
       formData.value.brg_nama = info.Nama_Bahan || "";
       formData.value.brg_kode = info.Kode || "";
       formData.value.lebar_bahan = parseFloat(info.Lebar) || 0;
-      formData.value.panjang_bahan = parseFloat(info.Sisa_Panjang) || 0;
+      
+      if (!isEditMode.value || !formData.value.panjang_bahan) {
+        formData.value.panjang_bahan = parseFloat(info.Sisa_Panjang) || 0;
+      }
+
       formData.value.gdgKode = info.Kode_Gudang || "WH-16";
 
       recalculateCombine();
 
-      // Memunculkan Toast Warning/Error yang tidak otomatis tertutup dengan cepat (8 detik)
       toast.error(
-        `⛔ BARANG MASIH DI GUDANG UTAMA (${info.Kode_Gudang})! Silakan lakukan proses MUTASI MASUK ke GPM terlebih dahulu agar bisa diproduksi.`,
+        `⛔ BARANG MASIH DI GUDANG UTAMA (${info.Kode_Gudang})! Silakan lakukan proses MUTASI MASUK ke GPM terlebih dahulu.`,
         {
           timeout: 8000,
           closeOnClick: true,
           pauseOnHover: true,
-        },
+        }
       );
     }
-
     // KONDISI C: Status tidak dikenal / NOT_FOUND
     else {
       toast.error("Barcode tidak tersedia atau sudah terpakai di LHK lain.");
@@ -571,7 +607,11 @@ const validateBeforeSave = (status: string) => {
 onMounted(async () => {
   if (isEditMode.value) {
     await fetchData();
-    if (formData.value.barcode_input) await handleBarcodeScan();
+    if (formData.value.barcode_input) {
+      await handleBarcodeScan();
+    } else {
+      recalculateCombine();
+    }
   }
 });
 </script>

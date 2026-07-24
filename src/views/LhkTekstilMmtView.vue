@@ -146,27 +146,25 @@
             >
           </template>
 
-          <template #item.SisaMeterAkhir="{ item }">
-            <span>{{
-              (Number(item.SisaMeterAkhir || 0) * 0.9).toFixed(1)
-            }}</span>
-          </template>
+         <template #item.SisaMeterAkhir="{ item }">
+  <span>{{ (Number(item.SisaMeterAkhir || 0) * 0.9).toFixed(2) }}</span>
+</template>
 
-          <template #item.status_bahan="{ item }">
-            <span
-              v-if="Number(item.SisaMeterAkhir || 0) * 0.9 < 0"
-              class="text-success font-weight-bold"
-            >
-              SURPLUS
-              {{ Math.abs(Number(item.SisaMeterAkhir || 0) * 0.9).toFixed(1) }}m
-            </span>
+<template #item.status_bahan="{ item }">
+  <span
+    v-if="Number(item.SisaMeterAkhir || 0) * 0.9 < 0"
+    class="text-success font-weight-bold"
+  >
+    SURPLUS {{ Math.abs(Number(item.SisaMeterAkhir || 0) * 0.9).toFixed(2) }}m
+  </span>
 
-            <span
-              v-else-if="Number(item.SisaMeterAkhir || 0) * 0.9 > 0"
-              class="text-orange font-weight-bold"
-            >
-              SISA {{ (Number(item.SisaMeterAkhir || 0) * 0.9).toFixed(1) }}m
-            </span>
+  <span
+    v-else-if="Number(item.SisaMeterAkhir || 0) * 0.9 > 0"
+    class="text-orange font-weight-bold"
+  >
+    SISA {{ (Number(item.SisaMeterAkhir || 0) * 0.9).toFixed(2) }}m
+  </span>
+
 
             <span v-else class="text-grey font-weight-bold"> PAS </span>
           </template>
