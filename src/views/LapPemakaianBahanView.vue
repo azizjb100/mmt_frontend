@@ -321,7 +321,6 @@ const exportToExcel = (dataToExport) => {
     border: thinBorder,
   };
 
-  // Header Periode dengan Nama Bulan Indonesia (Contoh: 1 Juli 2026 s/d 27 Juli 2026)
   const periodeText = `Periode : ${formatIndoMonth(startDate.value)} s/d ${formatIndoMonth(endDate.value)}`;
 
   const wsData = [
@@ -330,29 +329,37 @@ const exportToExcel = (dataToExport) => {
     [],
   ];
 
+  // BARIS 4 (Index row 3): Header Utama
   wsData.push([
-    { v: "TGL", s: styleHeaderMain }, { v: "SHIFT", s: styleHeaderMain },
-    { v: "TOLERANSI BAHAN", s: styleHeaderMain }, "", "", "", "",
-    { v: "NAMA ORDER SPK", s: styleHeaderMain }, { v: "NO. SPK", s: styleHeaderMain },
-    { v: "UKURAN", s: styleHeaderMain }, "", { v: "JENIS BAHAN", s: styleHeaderMain }, "", "",
-    { v: "JUMLAH ORDER SPK", s: styleHeaderMain }, "",
-    { v: "HASIL CETAK", s: styleHeaderMain }, "", "",
-    { v: "AMBIL BAHAN", s: styleHeaderMain }, "", "",
-    { v: "KEMBALIAN BAHAN BISA PAKAI", s: styleHeaderMain }, "", "",
-    { v: "KEMBALIAN BAHAN TIDAK BISA PAKAI", s: styleHeaderMain }, "", "",
+    { v: "TGL", s: styleHeaderMain }, 
+    { v: "SHIFT", s: styleHeaderMain },
+    { v: "TOLERANSI BAHAN", s: styleHeaderMain }, { v: "", s: styleHeaderMain }, { v: "", s: styleHeaderMain }, { v: "", s: styleHeaderMain }, { v: "", s: styleHeaderMain },
+    { v: "NAMA ORDER SPK", s: styleHeaderMain }, 
+    { v: "NO. SPK", s: styleHeaderMain },
+    { v: "UKURAN", s: styleHeaderMain }, { v: "", s: styleHeaderMain }, 
+    { v: "JENIS BAHAN", s: styleHeaderMain }, { v: "", s: styleHeaderMain }, { v: "", s: styleHeaderMain },
+    { v: "JUMLAH ORDER SPK", s: styleHeaderMain }, { v: "", s: styleHeaderMain },
+    { v: "HASIL CETAK", s: styleHeaderMain }, { v: "", s: styleHeaderMain }, { v: "", s: styleHeaderMain },
+    { v: "AMBIL BAHAN", s: styleHeaderMain }, { v: "", s: styleHeaderMain }, { v: "", s: styleHeaderMain },
+    { v: "KEMBALIAN BAHAN BISA PAKAI", s: styleHeaderMain }, { v: "", s: styleHeaderMain }, { v: "", s: styleHeaderMain },
+    { v: "KEMBALIAN BAHAN TIDAK BISA PAKAI", s: styleHeaderMain }, { v: "", s: styleHeaderMain }, { v: "", s: styleHeaderMain },
     { v: "AKTUAL LUAS PAKAI", s: styleHeaderMain },
-    { v: "TOTAL WASTE", s: styleHeaderMain }, "", "", "", "", "",
-    { v: "PENGGUNAAN TINTA MT 02", s: styleHeaderMain }, "", "", "",
-    { v: "PENGGUNAAN TINTA MT 03", s: styleHeaderMain }, "", "", "",
-    { v: "PENGGUNAAN TINTA MT 04", s: styleHeaderMain }, "", "", "",
-    { v: "PENGGUNAAN TINTA MT 05", s: styleHeaderMain }, "", "", "",
+    { v: "TOTAL WASTE", s: styleHeaderMain }, { v: "", s: styleHeaderMain }, { v: "", s: styleHeaderMain }, { v: "", s: styleHeaderMain }, { v: "", s: styleHeaderMain }, { v: "", s: styleHeaderMain },
+    { v: "PENGGUNAAN TINTA MT 02", s: styleHeaderMain }, { v: "", s: styleHeaderMain }, { v: "", s: styleHeaderMain }, { v: "", s: styleHeaderMain },
+    { v: "PENGGUNAAN TINTA MT 03", s: styleHeaderMain }, { v: "", s: styleHeaderMain }, { v: "", s: styleHeaderMain }, { v: "", s: styleHeaderMain },
+    { v: "PENGGUNAAN TINTA MT 04", s: styleHeaderMain }, { v: "", s: styleHeaderMain }, { v: "", s: styleHeaderMain }, { v: "", s: styleHeaderMain },
+    { v: "PENGGUNAAN TINTA MT 05", s: styleHeaderMain }, { v: "", s: styleHeaderMain }, { v: "", s: styleHeaderMain }, { v: "", s: styleHeaderMain },
   ]);
 
+  // BARIS 5 (Index row 4): Sub Header
   wsData.push([
-    { v: "", s: styleHeaderMain }, { v: "", s: styleHeaderMain },
+    { v: "", s: styleHeaderMain }, 
+    { v: "", s: styleHeaderMain },
     { v: "S 1,2", s: styleHeaderMain }, { v: "S 3,4", s: styleHeaderMain }, { v: "% TOLERANSI", s: styleHeaderMain }, { v: "TOLERANSI (M2)", s: styleHeaderMain }, { v: "TOLERANSI (%)", s: styleHeaderMain },
-    { v: "", s: styleHeaderMain }, { v: "", s: styleHeaderMain },
-    { v: "P", s: styleHeaderMain }, { v: "L", s: styleHeaderMain }, { v: "GSM", s: styleHeaderMain }, { v: "LEBAR", s: styleHeaderMain }, { v: "PANJANG ROLL", s: styleHeaderMain },
+    { v: "", s: styleHeaderMain }, 
+    { v: "", s: styleHeaderMain },
+    { v: "P", s: styleHeaderMain }, { v: "L", s: styleHeaderMain }, 
+    { v: "GSM", s: styleHeaderMain }, { v: "LEBAR", s: styleHeaderMain }, { v: "PANJANG ROLL", s: styleHeaderMain },
     { v: "JUMLAH", s: styleHeaderMain }, { v: "LUAS", s: styleHeaderMain },
     { v: "PANJANG ROLL", s: styleHeaderMain }, { v: "JUMLAH", s: styleHeaderMain }, { v: "LUAS", s: styleHeaderMain },
     { v: "PANJANG", s: styleHeaderMain }, { v: "LEBAR", s: styleHeaderMain }, { v: "LUAS", s: styleHeaderMain },
@@ -366,6 +373,7 @@ const exportToExcel = (dataToExport) => {
     { v: "C", s: styleHeaderMain }, { v: "M", s: styleHeaderMain }, { v: "Y", s: styleHeaderMain }, { v: "K", s: styleHeaderMain },
   ]);
 
+  // ISI DATA
   dataToExport.forEach((row) => {
     wsData.push([
       { v: row.showTgl ? formatDMY(row.tgl) : "", s: { ...styleDataCell, alignment: { horizontal: "center" } } },
@@ -424,6 +432,34 @@ const exportToExcel = (dataToExport) => {
   });
 
   const ws = XLSX.utils.aoa_to_sheet(wsData);
+
+  // =========================================================
+  // MODIFIKASI PENTING: KONFIGURASI MERGE HEADER (s=start, e=end, r=row, c=col)
+  // =========================================================
+  ws["!merges"] = [
+    // Rowspan 2 (Bulan 1 ke 2 untuk kolom tunggal)
+    { s: { r: 3, c: 0 }, e: { r: 4, c: 0 } },  // TGL
+    { s: { r: 3, c: 1 }, e: { r: 4, c: 1 } },  // SHIFT
+    { s: { r: 3, c: 7 }, e: { r: 4, c: 7 } },  // NAMA ORDER SPK
+    { s: { r: 3, c: 8 }, e: { r: 4, c: 8 } },  // NO. SPK
+    { s: { r: 3, c: 28 }, e: { r: 4, c: 28 } },// AKTUAL LUAS PAKAI
+
+    // Colspan (Header Grouping)
+    { s: { r: 3, c: 2 }, e: { r: 3, c: 6 } },   // TOLERANSI BAHAN (5 kolom)
+    { s: { r: 3, c: 9 }, e: { r: 3, c: 10 } },  // UKURAN (2 kolom)
+    { s: { r: 3, c: 11 }, e: { r: 3, c: 13 } }, // JENIS BAHAN (3 kolom)
+    { s: { r: 3, c: 14 }, e: { r: 3, c: 15 } }, // JUMLAH ORDER SPK (2 kolom)
+    { s: { r: 3, c: 16 }, e: { r: 3, c: 18 } }, // HASIL CETAK (3 kolom)
+    { s: { r: 3, c: 19 }, e: { r: 3, c: 21 } }, // AMBIL BAHAN (3 kolom)
+    { s: { r: 3, c: 22 }, e: { r: 3, c: 24 } }, // KEMBALIAN BISA PAKAI (3 kolom)
+    { s: { r: 3, c: 25 }, e: { r: 3, c: 27 } }, // KEMBALIAN TIDAK BISA PAKAI (3 kolom)
+    { s: { r: 3, c: 29 }, e: { r: 3, c: 34 } }, // TOTAL WASTE (6 kolom)
+    { s: { r: 3, c: 35 }, e: { r: 3, c: 38 } }, // TINTA MT 02 (4 kolom)
+    { s: { r: 3, c: 39 }, e: { r: 3, c: 42 } }, // TINTA MT 03 (4 kolom)
+    { s: { r: 3, c: 43 }, e: { r: 3, c: 46 } }, // TINTA MT 04 (4 kolom)
+    { s: { r: 3, c: 47 }, e: { r: 3, c: 50 } }, // TINTA MT 05 (4 kolom)
+  ];
+
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Pemakaian Bahan");
   XLSX.writeFile(wb, fileName);
