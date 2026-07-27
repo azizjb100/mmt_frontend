@@ -1,202 +1,213 @@
 <template>
-  <PageLayout title="LHK Finishing MMT" icon="mdi-printer-3d">
-    <template #header-actions>
-      <v-btn size="small" color="success" @click="handleNewEdit('new')">
-        <v-icon start>mdi-plus</v-icon> Baru
-      </v-btn>
-      <v-btn size="small" color="success" @click="handleNewEdit('rekap')">
-        <v-icon start>mdi-plus</v-icon> Rekap
-      </v-btn>
-      <v-btn
-        size="small"
-        color="primary"
-        :disabled="!isSingleSelected"
-        @click="handleAccClick"
-      >
-        <v-icon start>mdi-check-decagram</v-icon> ACC
-      </v-btn>
-      <v-btn
-        size="small"
-        color="warning"
-        :disabled="!isSingleSelected"
-        @click="handleEditClick"
-      >
-        <v-icon start>mdi-pencil</v-icon> Ubah
-      </v-btn>
-      <v-btn
-        size="small"
-        color="error"
-        :disabled="!isSingleSelected"
-        @click="handleDelete"
-      >
-        <v-icon start>mdi-trash-can</v-icon> Hapus
-      </v-btn>
+  <div>
+    <BaseBrowse
+      title="LHK Finishing MMT"
+      icon="mdi-printer-3d"
+      menu-id="MMT_LHK_FINISHING"
+      :headers="masterHeaders"
+      :items="headers"
+      :loading="loading.headers"
+      :search="searchKeyword"
+      item-value="Nomor"
+      v-model:selected="selected"
+      v-model:expanded="expanded"
+      v-model:filters="filters"
+      show-expand
+      @refresh="fetchHeaders"
+      @add="handleNewEdit('new')"
+      @edit="handleEditClick"
+      @delete="handleDelete"
+      @update:expanded="loadDetails"
+    >
+      <!-- Action Buttons Tambahan di Header Toolbar -->
+      <template #extra-actions>
+        <v-btn size="small" color="success" @click="handleNewEdit('rekap')">
+          <v-icon start>mdi-plus</v-icon> Rekap
+        </v-btn>
 
-      <v-divider vertical class="mx-2" />
+        <v-btn
+          size="small"
+          color="primary"
+          :disabled="!isSingleSelected"
+          @click="handleAccClick"
+        >
+          <v-icon start>mdi-check-decagram</v-icon> ACC
+        </v-btn>
 
-      <v-btn
-        size="small"
-        color="info"
-        :disabled="!isSingleSelected"
-        @click="handlePrint"
-      >
-        <v-icon start>mdi-printer</v-icon> Cetak Slip
-      </v-btn>
-      <v-btn
-        size="small"
-        color="success"
-        :disabled="headers.length === 0"
-        @click="handleExportDetail"
-        :loading="loading.headers"
-      >
-        <v-icon start>mdi-file-excel</v-icon> Export Detail
-      </v-btn>
-    </template>
+        <v-divider vertical class="mx-2" />
 
-    <div class="browse-content">
-      <v-card flat class="mb-4">
-        <v-card-text>
-          <div class="filter-section d-flex align-center flex-wrap ga-4">
-            <v-label class="filter-label">Periode Mulai:</v-label>
-            <v-text-field
-              v-model="filters.startDate"
-              type="date"
-              density="compact"
-              hide-details
-              variant="outlined"
-              style="max-width: 150px"
-            />
+        <v-btn
+          size="small"
+          color="info"
+          :disabled="!isSingleSelected"
+          @click="handlePrint"
+        >
+          <v-icon start>mdi-printer</v-icon> Cetak Slip
+        </v-btn>
 
-            <v-label class="mx-2">s/d</v-label>
+        <v-btn
+          size="small"
+          color="success"
+          :disabled="headers.length === 0"
+          @click="handleExportDetail"
+          :loading="loading.headers"
+        >
+          <v-icon start>mdi-file-excel</v-icon> Export Detail
+        </v-btn>
+      </template>
 
-            <v-text-field
-              v-model="filters.endDate"
-              type="date"
-              density="compact"
-              hide-details
-              variant="outlined"
-              style="max-width: 150px"
-            />
+      <!-- Slot Filter Tambahan: Input Search SPK & Tombol Cari -->
+      <template #filter-fields>
+        <div class="d-flex align-center ga-2 ml-2">
+          <v-text-field
+            v-model="searchKeyword"
+            placeholder="Cari No SPK / Nama SPK..."
+            density="compact"
+            hide-details
+            variant="outlined"
+            style="min-width: 200px; max-width: 250px"
+            append-inner-icon="mdi-magnify"
+            clearable
+            @keyup.enter="handleSearchSpk"
+            @click:clear="searchResults = []"
+          />
+          <v-btn
+            color="primary"
+            size="small"
+            @click="handleSearchSpk"
+            :loading="loadingSearch"
+          >
+            Cari SPK
+          </v-btn>
+        </div>
 
-            <v-btn
-              variant="text"
-              size="small"
-              @click="fetchHeaders"
-              :loading="loading.headers"
-            >
-              <v-icon>mdi-refresh</v-icon> Refresh
-            </v-btn>
-            <v-spacer />
+        <v-spacer />
 
-            <div class="d-flex align-center ga-2 text-caption">
-              <v-icon color="red" size="small">mdi-square-rounded</v-icon>
-              <span class="ml-1"><strong>LENGKAP: TIDAK</strong></span>
+        <div class="d-flex align-center ga-2 text-caption">
+          <v-icon color="red" size="small">mdi-square-rounded</v-icon>
+          <span class="ml-1"><strong>LENGKAP: TIDAK</strong></span>
+        </div>
+      </template>
+
+      <!-- Custom Formatter Kolom Tabel Master -->
+      <template #item.Tanggal="{ item }">
+        {{ safeFormatDate(item.Tanggal) }}
+      </template>
+
+      <template #item.Lengkap="{ item }">
+        <v-chip
+          size="x-small"
+          :color="item.Lengkap === 'Y' ? 'success' : 'error'"
+        >
+          {{ item.Lengkap === "Y" ? "YA" : "TIDAK" }}
+        </v-chip>
+      </template>
+
+      <template #item.Nomor="{ item }">
+        <span :class="getRowTextColor(item)">{{ item.Nomor }}</span>
+      </template>
+
+      <!-- Sub-Tabel Detail (Expansion Row) -->
+      <template #expanded-row="{ columns, item }">
+        <tr>
+          <td :colspan="columns.length" class="pa-0">
+            <div class="detail-container pa-4 bg-grey-lighten-4">
+              <div class="detail-table-wrapper">
+                <div
+                  v-if="isLoadingDetails(item.Nomor)"
+                  class="text-center pa-4 text-caption text-grey"
+                >
+                  <v-progress-circular
+                    indeterminate
+                    size="20"
+                    color="primary"
+                    class="mr-2"
+                  />
+                  Memuat detail...
+                </div>
+
+                <v-data-table
+                  v-else-if="
+                    details[item.Nomor] && details[item.Nomor].length
+                  "
+                  :headers="detailHeaders"
+                  :items="details[item.Nomor]"
+                  density="compact"
+                  class="detail-table elevation-1 rounded bg-white"
+                  :items-per-page="-1"
+                  hide-default-footer
+                >
+                  <template #[`item.J_Order`]="{ value }">{{ value }}</template>
+                  <template #[`item.J_Seaming`]="{ value }">{{ value }}</template>
+                  <template #[`item.J_MataAyam`]="{ value }">{{ value }}</template>
+                  <template #[`item.J_Coly`]="{ value }">{{ value }}</template>
+                  <template #[`item.J_Bs`]="{ value }">{{ value }}</template>
+                  <template #[`item.Mata_Ayam`]="{ value }">{{ value }}</template>
+                  <template #[`item.XBanner`]="{ value }">{{ value }}</template>
+                  <template #[`item.Plastik`]="{ value }">{{ value }}</template>
+                </v-data-table>
+
+                <div v-else class="text-center pa-4 text-caption text-grey">
+                  Tidak ada data detail untuk nomor {{ item.Nomor }}.
+                </div>
+              </div>
             </div>
-          </div>
+          </td>
+        </tr>
+      </template>
+    </BaseBrowse>
+
+    <!-- Dialog Hasil Pencarian Progres SPK -->
+    <v-dialog v-model="showSearchModal" max-width="1000px">
+      <v-card>
+        <v-card-title
+          class="d-flex align-center justify-space-between bg-primary text-white pa-4"
+        >
+          <span><v-icon start>mdi-file-find</v-icon> Progres Finishing SPK</span>
+          <v-btn
+            icon="mdi-close"
+            variant="text"
+            density="compact"
+            @click="showSearchModal = false"
+          />
+        </v-card-title>
+
+        <v-card-text class="pa-4">
+          <v-data-table
+            :headers="spkSearchHeaders"
+            :items="searchResults"
+            density="compact"
+            class="elevation-1"
+            :loading="loadingSearch"
+            item-value="Nomor_SPK"
+          >
+            <!-- Formatter Angka -->
+            <template #item.Qty_Order="{ value }">{{ Number(value || 0).toLocaleString('id-ID') }}</template>
+            <template #item.Total_Potong="{ value }">{{ Number(value || 0).toLocaleString('id-ID') }}</template>
+            <template #item.Total_Seaming="{ value }">{{ Number(value || 0).toLocaleString('id-ID') }}</template>
+            <template #item.Total_MataAyam="{ value }">{{ Number(value || 0).toLocaleString('id-ID') }}</template>
+            <template #item.Total_Coly="{ value }">{{ Number(value || 0).toLocaleString('id-ID') }}</template>
+            <template #item.Total_BS="{ value }">{{ Number(value || 0).toLocaleString('id-ID') }}</template>
+
+            <!-- Status Sisa Kurang -->
+            <template #item.Sisa_Kurang="{ item }">
+              <v-chip
+                size="x-small"
+                :color="(item.Sisa_Kurang ?? item.raw?.Sisa_Kurang ?? 0) <= 0 ? 'success' : 'error'"
+                class="font-weight-bold"
+              >
+                {{
+                  (item.Sisa_Kurang ?? item.raw?.Sisa_Kurang ?? 0) <= 0
+                    ? 'LENGKAP (0)'
+                    : Number(item.Sisa_Kurang ?? item.raw?.Sisa_Kurang).toLocaleString('id-ID')
+                }}
+              </v-chip>
+            </template>
+          </v-data-table>
         </v-card-text>
       </v-card>
-
-      <div class="table-container">
-        <v-data-table
-          v-model:selected="selected"
-          :headers="masterHeaders"
-          :items="headers || []"
-          :loading="loading.headers"
-          item-value="Nomor"
-          density="compact"
-          class="desktop-table elevation-1"
-          fixed-header
-          show-select
-          return-object
-          show-expand
-          @click:row="handleRowClick"
-          @update:expanded="loadDetails"
-          :row-props="getRowProps"
-        >
-          <template #item.Tanggal="{ item }">
-            {{ safeFormatDate(item.Tanggal) }}
-          </template>
-
-          <template #item.Lengkap="{ item }">
-            <v-chip
-              size="x-small"
-              :color="item.Lengkap === 'Y' ? 'success' : 'error'"
-            >
-              {{ item.Lengkap === "Y" ? "YA" : "TIDAK" }}
-            </v-chip>
-          </template>
-
-          <template #item.Nomor="{ item }">
-            <span :class="getRowTextColor(item)">{{ item.Nomor }}</span>
-          </template>
-
-          <template #expanded-row="{ columns, item }">
-            <tr>
-              <td :colspan="columns.length" class="pa-0">
-                <div class="detail-container pa-4 bg-grey-lighten-4">
-                  <div class="detail-table-wrapper">
-                    <div
-                      v-if="isLoadingDetails(item.Nomor)"
-                      class="text-center pa-4 text-caption text-grey"
-                    >
-                      <v-progress-circular
-                        indeterminate
-                        size="20"
-                        color="primary"
-                        class="mr-2"
-                      />
-                      Memuat detail...
-                    </div>
-
-                    <v-data-table
-                      v-else-if="
-                        details[item.Nomor] && details[item.Nomor].length
-                      "
-                      :headers="detailHeaders"
-                      :items="details[item.Nomor]"
-                      density="compact"
-                      class="detail-table elevation-1 rounded bg-white"
-                      :items-per-page="-1"
-                      hide-default-footer
-                    >
-                      <template #[`item.J_Order`]="{ value }">{{
-                        value
-                      }}</template>
-                      <template #[`item.J_Seaming`]="{ value }">{{
-                        value
-                      }}</template>
-                      <template #[`item.J_MataAyam`]="{ value }">{{
-                        value
-                      }}</template>
-                      <template #[`item.J_Coly`]="{ value }">{{
-                        value
-                      }}</template>
-                      <template #[`item.J_Bs`]="{ value }">{{
-                        value
-                      }}</template>
-                      <template #[`item.Mata_Ayam`]="{ value }">{{
-                        value
-                      }}</template>
-                      <template #[`item.XBanner`]="{ value }">{{
-                        value
-                      }}</template>
-                      <template #[`item.Plastik`]="{ value }">{{
-                        value
-                      }}</template>
-                    </v-data-table>
-
-                    <div v-else class="text-center pa-4 text-caption text-grey">
-                      Tidak ada data detail untuk nomor {{ item.Nomor }}.
-                    </div>
-                  </div>
-                </div>
-              </td>
-            </tr>
-          </template>
-        </v-data-table>
-      </div>
-    </div>
-  </PageLayout>
+    </v-dialog>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -205,9 +216,8 @@ import { useRouter } from "vue-router";
 import { useToast } from "vue-toastification";
 import { useAuthStore } from "../stores/authStore";
 import api from "@/services/api";
-import type { AxiosError } from "axios";
 import { format, subDays, parseISO, isValid } from "date-fns";
-import PageLayout from "../components/PageLayout.vue";
+import BaseBrowse from "@/components/BaseBrowse.vue";
 import * as XLSX from "xlsx-js-style";
 
 // --- Interfaces ---
@@ -247,13 +257,19 @@ const toast = useToast();
 const authStore = useAuthStore();
 const MENU_ID = "MMT_LHK_FINISHING";
 
-// --- State ---
+// --- State Pencarian SPK ---
+const searchKeyword = ref("");
+const loadingSearch = ref(false);
+const showSearchModal = ref(false);
+const searchResults = ref<any[]>([]);
+
+// --- State BaseBrowse ---
 const headers = ref<LhkFinishingHeader[]>([]);
 const details = ref<Record<string, LhkFinishingDetail[]>>({});
 const loading = ref({ headers: true, details: false });
 const loadingDetails = ref<Set<string>>(new Set());
 const selected = ref<LhkFinishingHeader[]>([]);
-const expanded = ref<LhkFinishingHeader[]>([]);
+const expanded = ref<any[]>([]);
 
 const filters = reactive({
   startDate: format(subDays(new Date(), 30), "yyyy-MM-dd"),
@@ -311,50 +327,46 @@ const detailHeaders = [
   { title: "Qty Plastik", key: "Plastik", align: "end" },
 ] as any[];
 
-// --- API calls ---
-const fetchGudangList = async () => {
+const spkSearchHeaders = [
+  { title: "Nomor SPK", key: "Nomor_SPK", minWidth: "150px" },
+  { title: "Nama SPK", key: "Nama_SPK", minWidth: "200px" },
+  { title: "Qty Order", key: "Qty_Order", align: "end" },
+  { title: "Potong", key: "Total_Potong", align: "end" },
+  { title: "Seaming", key: "Total_Seaming", align: "end" },
+  { title: "Mata Ayam", key: "Total_MataAyam", align: "end" },
+  { title: "Hasil Coly", key: "Total_Coly", align: "end" },
+  { title: "BS", key: "Total_BS", align: "end" },
+  { title: "Sisa Kurang", key: "Sisa_Kurang", align: "end" },
+] as any[];
+
+// --- Function Handler Pencarian SPK ---
+const handleSearchSpk = async () => {
+  if (!searchKeyword.value || !searchKeyword.value.trim()) {
+    toast.warning("Masukkan nomor atau nama SPK yang ingin dicari.");
+    return;
+  }
+
+  loadingSearch.value = true;
   try {
-    console.log("INFO: Simulating fetching Gudang List.");
+    const res = await api.get(`${API_BASE_URL}/search-spk`, {
+      params: { q: searchKeyword.value.trim() },
+    });
+
+    searchResults.value = res.data.data || res.data || [];
+    showSearchModal.value = true;
+
+    if (searchResults.value.length === 0) {
+      toast.info("Data SPK tidak ditemukan.");
+    }
   } catch (error) {
-    console.error("Error fetching gudang list:", error);
+    console.error("Error searching SPK:", error);
+    toast.error("Gagal melakukan pencarian SPK.");
+  } finally {
+    loadingSearch.value = false;
   }
 };
 
-const handleRowClick = (_event: any, { item }: any) => {
-  const isSelected = selected.value.some((s) => s.Nomor === item.Nomor);
-  if (isSelected) {
-    selected.value = [];
-  } else {
-    selected.value = [item];
-  }
-};
-
-const getRowProps = (data: any) => {
-  const isSelected = selected.value.some((s) => s.Nomor === data.item.Nomor);
-  return {
-    style: { cursor: "pointer" },
-    class: isSelected ? "v-table-row-selected bg-blue-lighten-5" : "",
-  };
-};
-
-const handleAccClick = () => {
-  if (selectedRow.value) {
-    router.push({
-      name: "LhkFinishingAcc",
-      params: { nomor: selectedRow.value.Nomor },
-    });
-  }
-};
-
-const handleEditClick = () => {
-  if (selectedRow.value) {
-    router.push({
-      name: "LhkFinishingEdit",
-      params: { nomor: selectedRow.value.Nomor },
-    });
-  }
-};
-
+// --- API calls ---
 const fetchHeaders = async () => {
   loading.value.headers = true;
   try {
@@ -375,36 +387,52 @@ const fetchHeaders = async () => {
   }
 };
 
-const loadDetails = async (newlyExpandedItems: LhkFinishingItem[]) => {
-  expanded.value = newlyExpandedItems;
-  if (newlyExpandedItems.length === 0) return;
+const loadDetails = async (newlyExpandedItems: any[]) => {
+  if (!newlyExpandedItems || newlyExpandedItems.length === 0) return;
 
-  const itemToLoad = newlyExpandedItems.find(
-    (item) => !details.value[item.Nomor],
-  );
-  if (!itemToLoad) return;
+  const lastItem = newlyExpandedItems[newlyExpandedItems.length - 1];
+  const nomor = typeof lastItem === "object" ? lastItem.Nomor : lastItem;
 
-  loadingDetails.value.add(itemToLoad.Nomor);
+  if (!nomor || details.value[nomor]) return;
+
+  loadingDetails.value.add(nomor);
   try {
     const res = await api.get(`${API_BASE_URL}/details`, {
-      params: { nomor: itemToLoad.Nomor },
+      params: { nomor },
     });
     const result = res.data.data;
-    details.value[itemToLoad.Nomor] = result.Detail || result || [];
+    details.value[nomor] = result.Detail || result || [];
   } catch (err) {
     console.error(err);
-    toast.error(`Gagal memuat detail untuk ${itemToLoad.Nomor}`);
-    details.value[itemToLoad.Nomor] = [];
+    toast.error(`Gagal memuat detail untuk ${nomor}`);
+    details.value[nomor] = [];
   } finally {
-    loadingDetails.value.delete(itemToLoad.Nomor);
+    loadingDetails.value.delete(nomor);
   }
 };
 
-// --- Fungsi Perbaikan Utama: Export Detail Finishing ---
+const handleAccClick = () => {
+  if (selectedRow.value) {
+    router.push({
+      name: "LhkFinishingAcc",
+      params: { nomor: selectedRow.value.Nomor },
+    });
+  }
+};
+
+const handleEditClick = () => {
+  if (selectedRow.value) {
+    router.push({
+      name: "LhkFinishingEdit",
+      params: { nomor: selectedRow.value.Nomor },
+    });
+  }
+};
+
+// --- Export Detail Finishing ---
 const handleExportDetail = async () => {
   loading.value.headers = true;
   try {
-    // 1. Fetch data detail otomatis dari server jika belum ter-cache di client
     for (const header of headers.value) {
       if (
         !details.value[header.Nomor] ||
@@ -425,7 +453,6 @@ const handleExportDetail = async () => {
 
     const fileName = `LHK_Finishing_MMT_${filters.startDate}_to_${filters.endDate}.xlsx`;
 
-    // Style Definition
     const styleHeaderMain = {
       fill: { fgColor: { rgb: "B3E5FC" } },
       font: { bold: true, color: { rgb: "000000" }, sz: 10 },
@@ -459,7 +486,6 @@ const handleExportDetail = async () => {
       alignment: { horizontal: "right", vertical: "center" },
     };
 
-    // Format Tanggal Manual Lokal Anti-Crash
     const formatTglManual = (dateStr: string) => {
       if (!dateStr) return "-";
       try {
@@ -490,7 +516,6 @@ const handleExportDetail = async () => {
     ]);
     worksheetData.push([]);
 
-    // Headers Kolom Worksheet
     const headersTable = [
       { v: "NOMOR LHK", s: styleHeaderMain },
       { v: "TANGGAL", s: styleHeaderMain },
@@ -534,8 +559,6 @@ const handleExportDetail = async () => {
               s: styleDataCellCenter,
             },
             { v: index === 0 ? header.Operator || "-" : "", s: styleDataCell },
-
-            // Detail Columns
             { v: dtl.Nomor_SPK || "-", s: styleDataCellCenter },
             { v: dtl.Nama_SPK || "-", s: styleDataCell },
             {
@@ -640,7 +663,7 @@ const handleNewEdit = (mode: "new" | "edit" | "rekap") => {
     router.push({ name: "LhkFinishingNew" });
   } else if (mode === "edit" && selectedRow.value) {
     router.push({
-      name: "LhkCetakEdit",
+      name: "LhkFinishingEdit",
       params: { nomor: selectedRow.value.Nomor },
     });
   } else if (mode === "rekap") {
@@ -672,7 +695,6 @@ const handlePrint = () => {
 
 // --- Lifecycle ---
 onMounted(() => {
-  fetchGudangList();
   fetchHeaders();
 });
 
@@ -680,24 +702,10 @@ watch(filters, fetchHeaders, { deep: true });
 </script>
 
 <style scoped>
-:deep(.v-data-table__tr.v-table-row-selected) {
-  background-color: #e3f2fd !important;
-}
-:deep(.v-data-table__tr:hover) {
-  background-color: #f5f5f5 !important;
-}
 .text-red {
   color: #f44336 !important;
 }
 .font-weight-bold {
-  font-weight: bold !important;
-}
-.desktop-table :deep(th),
-.desktop-table :deep(td) {
-  font-size: 11px !important;
-}
-:deep(.v-data-table-header th) {
-  background-color: #f5f5f5 !important;
   font-weight: bold !important;
 }
 </style>

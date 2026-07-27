@@ -17,7 +17,10 @@
         :items="[
           { title: 'Semua LHK', value: 'ALL' },
           { title: 'MMT (Digital)', value: 'MMT' },
+          { title: 'Finishing', value: 'FINISHING' },
           { title: 'Tekstil', value: 'TEKSTIL' },
+          { title: 'Paper Print', value: 'PAPER PRINT' },
+          { title: 'Sublim', value: 'SUBLIM' },
         ]"
         label="Divisi / Jenis"
         density="compact"

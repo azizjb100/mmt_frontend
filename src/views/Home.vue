@@ -2,12 +2,13 @@
   <div
     class="min-h-screen bg-[#EBF5FF] p-6 font-sans antialiased text-slate-800"
   >
+    <!-- HEADER -->
     <header
       class="mx-auto mb-8 flex max-w-[1400px] flex-col gap-4 rounded-2xl bg-white px-6 py-4 shadow-sm border border-sky-100 md:flex-row md:items-center md:justify-between"
     >
       <div>
         <h1 class="text-2xl font-bold tracking-tight text-sky-900">
-          Inventory Dashboard
+          Inventory & Production Waste Dashboard
         </h1>
         <div class="mt-1 flex items-center gap-3">
           <div
@@ -30,7 +31,7 @@
         <button
           @click="refreshAllData"
           :disabled="isLoading"
-          class="flex items-center gap-2 rounded-xl bg-sky-500 px-5 py-2 text-sm font-semibold text-white shadow-sm hover:bg-sky-600 active:scale-95 disabled:opacity-50"
+          class="flex items-center gap-2 rounded-xl bg-sky-500 px-5 py-2 text-sm font-semibold text-white shadow-sm hover:bg-sky-600 active:scale-95 disabled:opacity-50 transition-all"
         >
           <i :class="['mdi mdi-refresh', { 'animate-spin': isLoading }]"></i>
           Sync Data
@@ -38,44 +39,144 @@
       </div>
     </header>
 
+    <!-- METRIC CARDS -->
     <div
       class="mx-auto mb-8 grid max-w-[1400px] grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4"
     >
+      <!-- Total Stok -->
       <div
-        v-for="(stat, index) in stats"
-        :key="index"
-        class="rounded-3xl bg-white p-6 shadow-sm border border-sky-100 flex flex-col gap-4"
+        class="rounded-3xl bg-white p-6 shadow-sm border border-sky-100 flex flex-col gap-3"
       >
-        <div class="flex items-center gap-3">
+        <div class="flex items-center justify-between">
           <div
             class="h-10 w-10 rounded-full bg-sky-50 flex items-center justify-center"
           >
-            <i :class="['mdi', stat.icon, 'text-lg text-sky-600']"></i>
+            <i class="mdi mdi-archive-outline text-lg text-sky-600"></i>
           </div>
           <span
-            :class="[
-              stat.trendColor,
-              'ml-auto text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-100',
-            ]"
+            class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-500"
           >
-            {{ stat.trend }}
+            Current
           </span>
         </div>
         <div>
-          <p class="text-xs font-medium text-slate-500">{{ stat.label }}</p>
+          <p class="text-xs font-medium text-slate-500">Total Stock Utama</p>
           <div class="flex items-baseline gap-2">
-            <p class="text-2xl font-bold text-slate-800">{{ stat.value }}</p>
-            <span class="text-xs text-slate-400">{{ stat.unit }}</span>
+            <p class="text-2xl font-bold text-slate-800">
+              {{ stats.totalStock }}
+            </p>
+            <span class="text-xs text-slate-400">Roll</span>
           </div>
         </div>
         <div class="h-1 w-full rounded-full bg-sky-100 overflow-hidden">
           <div class="h-full bg-sky-400" style="width: 40%"></div>
         </div>
       </div>
+
+      <!-- Insiden BS / Afal -->
+      <div
+        class="rounded-3xl bg-white p-6 shadow-sm border border-amber-100 flex flex-col gap-3"
+      >
+        <div class="flex items-center justify-between">
+          <div
+            class="h-10 w-10 rounded-full bg-amber-50 flex items-center justify-center"
+          >
+            <i
+              class="mdi mdi-alert-octagon-outline text-lg text-amber-600"
+            ></i>
+          </div>
+          <span
+            class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-50 text-amber-600 border border-amber-100"
+          >
+            Bulan Ini
+          </span>
+        </div>
+        <div>
+          <p class="text-xs font-medium text-slate-500">Insiden BS / Afal</p>
+          <div class="flex items-baseline gap-2">
+            <p class="text-2xl font-bold text-slate-800">
+              {{ stats.totalKasusBs }}
+            </p>
+            <span class="text-xs text-slate-400">Kejadian</span>
+          </div>
+        </div>
+        <div class="h-1 w-full rounded-full bg-amber-100 overflow-hidden">
+          <div class="h-full bg-amber-400" style="width: 60%"></div>
+        </div>
+      </div>
+
+      <!-- Panjang Sisa BS -->
+      <div
+        class="rounded-3xl bg-white p-6 shadow-sm border border-blue-100 flex flex-col gap-3"
+      >
+        <div class="flex items-center justify-between">
+          <div
+            class="h-10 w-10 rounded-full bg-blue-50 flex items-center justify-center"
+          >
+            <i class="mdi mdi-ruler text-lg text-blue-600"></i>
+          </div>
+          <span
+            class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-blue-50 text-blue-600 border border-blue-100"
+          >
+            Akumulasi
+          </span>
+        </div>
+        <div>
+          <p class="text-xs font-medium text-slate-500">Panjang Sisa BS</p>
+          <div class="flex items-baseline gap-2">
+            <p class="text-2xl font-bold text-slate-800">
+              {{ formatNumber(stats.totalPanjangBs, 2) }}
+            </p>
+            <span class="text-xs text-slate-400">Meter</span>
+          </div>
+        </div>
+        <div class="h-1 w-full rounded-full bg-blue-100 overflow-hidden">
+          <div class="h-full bg-blue-400" style="width: 50%"></div>
+        </div>
+      </div>
+
+      <!-- Total Luas Afal M2 -->
+      <div
+        class="rounded-3xl bg-white p-6 shadow-sm border border-red-100 bg-gradient-to-br from-white to-red-50/30 flex flex-col gap-3"
+      >
+        <div class="flex items-center justify-between">
+          <div
+            class="h-10 w-10 rounded-full bg-red-100 flex items-center justify-center"
+          >
+            <i class="mdi mdi-texture-box text-lg text-red-600"></i>
+          </div>
+          <span
+            :class="[
+              bsGrowth >= 0
+                ? 'bg-red-100 text-red-700'
+                : 'bg-green-100 text-green-700',
+              'text-[10px] font-bold px-2 py-0.5 rounded-full',
+            ]"
+          >
+            {{ bsGrowth >= 0 ? '+' : '' }}{{ bsGrowth }}% vs Bln Lalu
+          </span>
+        </div>
+        <div>
+          <p class="text-xs font-medium text-slate-500">
+            Total Luas Afal (Waste)
+          </p>
+          <div class="flex items-baseline gap-2">
+            <p class="text-2xl font-bold text-red-600">
+              {{ formatNumber(stats.totalLuasBsM2, 2) }}
+            </p>
+            <span class="text-xs text-slate-400">M²</span>
+          </div>
+        </div>
+        <div class="h-1 w-full rounded-full bg-red-100 overflow-hidden">
+          <div class="h-full bg-red-500" style="width: 75%"></div>
+        </div>
+      </div>
     </div>
 
+    <!-- GRAFIK UTAMA: MATERIAL FLOW & GRAFIK TREN BS PERBULAN -->
     <div class="mx-auto grid max-w-[1400px] grid-cols-12 gap-6 mb-6">
-      <div class="col-span-12 space-y-6 lg:col-span-8">
+      <!-- Left Flow Chart (Material Flow) -->
+      <div class="col-span-12 space-y-6 lg:col-span-7">
         <div class="rounded-3xl bg-white p-6 shadow-sm border border-sky-100">
           <h3 class="mb-6 text-sm font-semibold text-sky-800">
             Material Flow (Last 6 Months)
@@ -86,21 +187,50 @@
         </div>
       </div>
 
-      <div class="col-span-12 space-y-6 lg:col-span-4">
-        <div class="rounded-3xl bg-white p-6 shadow-sm border border-sky-100">
-          <h3 class="mb-6 text-sm font-semibold text-sky-800">
-            Material Composition
-          </h3>
-          <div class="relative h-[220px]">
-            <canvas id="compositionChart"></canvas>
-            <div class="absolute inset-0 flex items-center justify-center">
-              <span class="text-3xl font-bold text-sky-900">100%</span>
+      <!-- Right Chart: GRAFIK REKAPITULASI BS / AFAL PER BULAN -->
+      <div class="col-span-12 space-y-6 lg:col-span-5">
+        <div
+          class="rounded-3xl bg-white p-6 shadow-sm border border-red-100/60 h-full flex flex-col justify-between"
+        >
+          <div class="flex items-center justify-between mb-2">
+            <div>
+              <h3
+                class="text-sm font-semibold text-slate-800 flex items-center gap-2"
+              >
+                <i class="mdi mdi-chart-bar text-red-500 text-base"></i>
+                Rekap Afal & BS Produksi (M²)
+              </h3>
+              <p class="text-xs text-slate-400 mt-0.5">
+                Total Luas BS terbuang per bulan
+              </p>
             </div>
+            <span
+              class="text-[10px] font-bold text-red-600 bg-red-50 border border-red-100 px-2 py-0.5 rounded-full"
+            >
+              WASTE METRICS
+            </span>
+          </div>
+
+          <div class="relative h-[220px] mt-2">
+            <canvas id="bsMonthlyChart"></canvas>
+          </div>
+
+          <div
+            class="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500"
+          >
+            <span
+              >Rata-rata BS:
+              <strong class="text-slate-800"
+                >{{ formatNumber(avgMonthlyBs, 2) }} M²</strong
+              >/bln</span
+            >
+            <span class="text-slate-400">Target Minimasi: &lt; 50 M²</span>
           </div>
         </div>
       </div>
     </div>
 
+    <!-- SECTION 1: TOP DEADLINE & PERMINTAAN BAHAN PENDING -->
     <div class="mx-auto grid max-w-[1400px] grid-cols-12 gap-6">
       <div class="col-span-12 lg:col-span-6">
         <div
@@ -270,6 +400,7 @@
       </div>
     </div>
 
+    <!-- SECTION 2: TOP PLANNING BELUM LHK -->
     <div class="mx-auto grid max-w-[1400px] grid-cols-12 gap-6 mt-6">
       <div class="col-span-12">
         <div
@@ -363,6 +494,7 @@
       </div>
     </div>
 
+    <!-- MODAL DETAIL DYNAMIK -->
     <div
       v-if="isModalOpen"
       class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm"
@@ -656,7 +788,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from "vue";
+import { ref, computed, onMounted } from "vue";
 import Chart from "chart.js/auto";
 import { format } from "date-fns";
 import api from "@/services/api";
@@ -664,6 +796,7 @@ import api from "@/services/api";
 /* ================= ENDPOINT API ================= */
 const ENDPOINT_SUMMARY = "/mmt/laporan-ls-bahan-utama/total-roll";
 const ENDPOINT_FLOW = "/mmt/laporan-ls-bahan-utama/flow-6-bulan";
+const ENDPOINT_BS_MONTHLY = "/mmt/dashboard/grafik-bulanan";
 const ENDPOINT_DEADLINE = "mmt/dashboard/top-10-deadline";
 const ENDPOINT_DEADLINE_TOTAL = "mmt/dashboard/top-10-deadline-total";
 const ENDPOINT_PENDING_BAHAN = "mmt/dashboard/permintaan-pending";
@@ -677,6 +810,14 @@ const isLoading = ref(false);
 const topDeadlineCetak = ref([]);
 const permintaanBahanPending = ref([]);
 const topPlanningBelumLhk = ref([]);
+const monthlyBsData = ref([]);
+
+const stats = ref({
+  totalStock: 0,
+  totalKasusBs: 0,
+  totalPanjangBs: 0,
+  totalLuasBsM2: 0,
+});
 
 /* ================= STATE DYNAMIC MODAL ================= */
 const isModalOpen = ref(false);
@@ -684,43 +825,30 @@ const isLoadingTotal = ref(false);
 const modalType = ref(""); // 'deadline', 'bahan', atau 'planning_idle'
 const totalModalData = ref([]);
 
-const stats = ref([
-  {
-    label: "Total Stock",
-    value: "0",
-    unit: "Roll",
-    icon: "mdi-archive-outline",
-    trend: "+5.2%",
-    trendColor: "text-green-600",
-  },
-  {
-    label: "SKU Category",
-    value: "0",
-    unit: "Item",
-    icon: "mdi-tag-outline",
-    trend: "Stable",
-    trendColor: "text-slate-500",
-  },
-  {
-    label: "Incoming",
-    value: "0",
-    unit: "Roll",
-    icon: "mdi-arrow-down-bold-circle-outline",
-    trend: "+12%",
-    trendColor: "text-green-600",
-  },
-  {
-    label: "Outgoing",
-    value: "0",
-    unit: "Roll",
-    icon: "mdi-arrow-up-bold-circle-outline",
-    trend: "-3.1%",
-    trendColor: "text-red-500",
-  },
-]);
-
 let flowChartInstance = null;
-let compositionChartInstance = null;
+let bsChartInstance = null;
+
+/* ================= COMPUTED PROPERTIES FOR BS ================= */
+// Hitung % kenaikan/penurunan BS dibanding bulan lalu
+const bsGrowth = computed(() => {
+  if (monthlyBsData.value.length < 2) return 0;
+  const current =
+    monthlyBsData.value[monthlyBsData.value.length - 1]?.total_luas_m2 || 0;
+  const prev =
+    monthlyBsData.value[monthlyBsData.value.length - 2]?.total_luas_m2 || 0;
+  if (prev === 0) return 0;
+  return Number((((current - prev) / prev) * 100).toFixed(1));
+});
+
+// Hitung rata-rata akumulasi BS per bulan
+const avgMonthlyBs = computed(() => {
+  if (monthlyBsData.value.length === 0) return 0;
+  const total = monthlyBsData.value.reduce(
+    (acc, curr) => acc + Number(curr.total_luas_m2 || 0),
+    0
+  );
+  return total / monthlyBsData.value.length;
+});
 
 /* ================= API CALLS FUNCTIONS ================= */
 const fetchSummary = async () => {
@@ -728,10 +856,7 @@ const fetchSummary = async () => {
     const response = await api.get(ENDPOINT_SUMMARY);
     const res = response.data;
     if (res.success && res.data) {
-      stats.value[0].value = res.data.total_roll || 0;
-      stats.value[1].value = res.data.total_jenis_barang || 0;
-      stats.value[2].value = res.data.total_incoming || 0;
-      stats.value[3].value = res.data.total_outgoing || 0;
+      stats.value.totalStock = res.data.total_roll || 0;
     }
   } catch (err) {
     console.error("Gagal mengambil summary:", err);
@@ -753,6 +878,107 @@ const fetchFlowData = async () => {
   }
 };
 
+/* ================= API CALL FUNCTION ================= */
+const fetchBsMonthlyData = async () => {
+  try {
+    const response = await api.get(ENDPOINT_BS_MONTHLY);
+    const res = response.data;
+    if (res.success && res.data) {
+      const { labels, datasets } = res.data;
+      renderBsLineChart(labels, datasets);
+    }
+  } catch (err) {
+    console.error("Gagal mengambil data grafik BS 3 divisi:", err);
+  }
+};
+
+/* ================= RENDER MULTI-LINE CHART ================= */
+const renderBsLineChart = (labels, datasets) => {
+  const ctx = document.getElementById("bsMonthlyChart");
+  if (!ctx) return;
+  if (bsChartInstance) bsChartInstance.destroy();
+
+  bsChartInstance = new Chart(ctx, {
+    type: "line",
+    data: {
+      labels: labels, // ['Nov 2025', 'Des 2025', 'Jan 2026', ...]
+      datasets: [
+        {
+          label: "BS Tekstil",
+          data: datasets["TEKSTIL"] || [],
+          borderColor: "#ec4899", // Warna Pink / Rose
+          backgroundColor: "#ec4899",
+          pointStyle: "triangle", // Marker Segitiga
+          pointRadius: 6,
+          pointHoverRadius: 9,
+          borderWidth: 2,
+          tension: 0.1, // Garis lurus tegas berpola patah seperti gambar referensi
+        },
+        {
+          label: "BS Finishing",
+          data: datasets["FINISHING"] || [],
+          borderColor: "#dc2626", // Warna Merah
+          backgroundColor: "#dc2626",
+          pointStyle: "rectRot", // Marker Diamond / Ketupat
+          pointRadius: 6,
+          pointHoverRadius: 9,
+          borderWidth: 2,
+          tension: 0.1,
+        },
+        {
+          label: "BS MMT",
+          data: datasets["MMT"] || [],
+          borderColor: "#2563eb", // Warna Biru
+          backgroundColor: "#2563eb",
+          pointStyle: "circle", // Marker Lingkaran
+          pointRadius: 6,
+          pointHoverRadius: 9,
+          borderWidth: 2,
+          tension: 0.1,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          display: true,
+          position: "bottom",
+          labels: {
+            usePointStyle: true,
+            boxWidth: 10,
+            font: { size: 11, weight: "bold" },
+            padding: 15,
+          },
+        },
+        tooltip: {
+          mode: "index",
+          intersect: false,
+          callbacks: {
+            label: (ctx) => ` ${ctx.dataset.label}: ${formatNumber(ctx.raw, 2)} M²`,
+          },
+        },
+      },
+      scales: {
+        x: {
+          grid: { display: true, color: "#f1f5f9" },
+          ticks: { font: { size: 11, weight: "bold" }, color: "#475569" },
+        },
+        y: {
+          border: { dash: [4, 4], display: true },
+          grid: { color: "#e2e8f0" },
+          ticks: {
+            font: { size: 10 },
+            color: "#64748b",
+            callback: (value) => `${value} M²`,
+          },
+        },
+      },
+    },
+  });
+};
+
 const fetchDeadlineCetak = async () => {
   try {
     const response = await api.get(ENDPOINT_DEADLINE);
@@ -763,6 +989,8 @@ const fetchDeadlineCetak = async () => {
     topDeadlineCetak.value = [];
   }
 };
+
+
 
 const fetchPermintaanPending = async () => {
   try {
@@ -825,6 +1053,7 @@ const refreshAllData = async () => {
     await Promise.all([
       fetchSummary(),
       fetchFlowData(),
+      fetchBsMonthlyData(),
       fetchDeadlineCetak(),
       fetchPermintaanPending(),
       fetchPlanningBelumLhk(),
@@ -838,6 +1067,17 @@ const refreshAllData = async () => {
 };
 
 /* ================= HELPERS FUNCTIONS ================= */
+const formatNumber = (val, dec = 2) => {
+  if (val === null || val === undefined) return "0,00";
+  const num = parseFloat(val);
+  return isNaN(num)
+    ? "0,00"
+    : num.toLocaleString("id-ID", {
+        minimumFractionDigits: dec,
+        maximumFractionDigits: dec,
+      });
+};
+
 const formatDate = (dateStr) => {
   if (!dateStr) return "-";
   const d = new Date(dateStr);
@@ -892,29 +1132,58 @@ const renderFlowChart = (labels, incomingData, outgoingData) => {
   });
 };
 
-const initCompositionChart = () => {
-  const compCtx = document.getElementById("compositionChart");
-  if (!compCtx) return;
-  if (compositionChartInstance) compositionChartInstance.destroy();
+const renderBsMonthlyChart = (labels, dataLuas) => {
+  const ctx = document.getElementById("bsMonthlyChart");
+  if (!ctx) return;
+  if (bsChartInstance) bsChartInstance.destroy();
 
-  compositionChartInstance = new Chart(compCtx, {
-    type: "doughnut",
+  bsChartInstance = new Chart(ctx, {
+    type: "bar",
     data: {
+      labels: labels,
       datasets: [
         {
-          data: [45, 35, 20],
-          backgroundColor: ["#1e293b", "#22d3ee", "#2563eb"],
-          cutout: "80%",
+          label: "Luas Afal BS (M²)",
+          data: dataLuas,
+          backgroundColor: "rgba(239, 68, 68, 0.85)", // Tailwind Red-500
+          hoverBackgroundColor: "#dc2626",
+          borderRadius: 8,
+          borderSkipped: false,
+          barThickness: 24,
         },
       ],
     },
-    options: { responsive: true, maintainAspectRatio: false },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: (ctx) => ` Luas BS: ${formatNumber(ctx.raw, 2)} M²`,
+          },
+        },
+      },
+      scales: {
+        x: {
+          grid: { display: false },
+          ticks: { font: { size: 11 }, color: "#64748b" },
+        },
+        y: {
+          border: { dash: [4, 4], display: false },
+          ticks: {
+            font: { size: 10 },
+            color: "#94a3b8",
+            callback: (value) => `${value} m²`,
+          },
+        },
+      },
+    },
   });
 };
 
 onMounted(async () => {
   await refreshAllData();
-  initCompositionChart();
 });
 </script>
 

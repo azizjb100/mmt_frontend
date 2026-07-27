@@ -123,6 +123,7 @@ import MasterBahanSpandukView from '@/views/spanduk/MasterBahanSpandukView.vue';
 import MasterBahanSpandukView from '@/views/spanduk/MasterBahanSpandukView.vue';
 import PenerimaanBahanPenolongView from '@/views/spanduk/PenerimaanBahanPenolongView.vue';
 import LapKartuStokMmtView from '@/views/LapKartuStokMmtView.vue';
+import LapPemakaianBahanTekstil from '@/views/LapPemakaianBahanTekstil.vue';
 
 const routes: RouteRecordRaw[] = [
     {
@@ -501,6 +502,7 @@ const routes: RouteRecordRaw[] = [
             { path: 'laporan/mmt/lap-mon-bs', name: 'lapMonBS', component: LapMonBSView },
             { path: 'laporan/mmt/lap-mon-jadwalkirim', name: 'lapMonJadwalKirim', component: LapMonJadwalKirimView },
             { path: 'laporan/mmt/lap-spk-mmt', name: 'lapSpkMmt', component: LapSpkMmtView },            
+            { path: 'laporan/mmt/lap-pemakaian-bahan-tekstil', name: 'LapPemakaianBahanTekstil', component: LapPemakaianBahanTekstil },            
             { path: 'laporan/mmt/lap-pemakaian-bahan', name: 'LapPemakaianBahan', component: LapPemakaianBahanView },
             { path: 'laporan/mmt/lap-plan-produksi', name: 'lapPlanProduksi', component: LapPlanProdView },
             { path: 'laporan/mmt/lap-barang-jadi', name: 'lapBarangJadi', component: LapBarangJadiView },

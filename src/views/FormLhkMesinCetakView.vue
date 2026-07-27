@@ -1,529 +1,448 @@
 <template>
-  <PageLayout :title="formTitle" icon="mdi-printer-3d-nozzle-alert-outline">
-    <template #header-actions>
-      <v-btn
-        size="small"
-        color="orange-darken-2"
-        @click="handleSave('DRAFT')"
-        :loading="isSaving"
-        :disabled="isSaving || !isFormValid"
-      >
-        <v-icon start>mdi-file-clock</v-icon> Simpan Sementara
-      </v-btn>
-
-      <v-btn
-        size="small"
-        color="primary"
-        @click="handleSave('POSTED')"
-        :loading="isSaving"
-        :disabled="isSaving || !isFormValid"
-      >
-        <v-icon start>mdi-content-save-check</v-icon> Simpan Hasil
-      </v-btn>
+  <BaseForm
+    :title="(isEditMode ? 'Ubah' : 'Baru') + ' LHK Mesin Cetak'"
+    menu-id="129"
+    icon="mdi-printer-3d-nozzle-alert-outline"
+    :is-loading="isLoading"
+    :is-saving="isSaving"
+    v-model:showSaveDialog="showSaveDialog"
+    v-model:showCancelDialog="showCancelDialog"
+    v-model:showCloseDialog="showCloseDialog"
+    @validate-save="validateBeforeSave(formData.lstatus)"
+    @confirm-save="executeSave"
+    @confirm-cancel="executeCancel"
+    @confirm-close="executeClose"
+  >
+    <!-- BARIS AKSI HEADER TAMBAHAN (ACC ADMIN & PRINT) -->
+    <template #custom-actions>
       <v-btn
         v-if="isEditMode"
         size="small"
         color="success"
-        @click="handleApprove"
-        :loading="isSaving"
         class="mr-2"
+        :loading="isSaving"
+        @click="handleApprove"
       >
         <v-icon start>mdi-check-decagram</v-icon> ACC Admin
       </v-btn>
-
-      <v-btn size="small" @click="handleCancel" :disabled="isSaving">
-        <v-icon start>mdi-close</v-icon> Batal (F7)
-      </v-btn>
-
-      <v-btn
-        v-if="isEditMode"
-        size="small"
-        color="teal"
-        @click="handlePrint"
-        :disabled="isSaving"
-      >
-        <v-icon start>mdi-printer</v-icon> Cetak (F3)
-      </v-btn>
-
-      <v-btn size="small" color="error" @click="handleClose">
-        <v-icon start>mdi-exit-to-app</v-icon> Keluar (F8)
-      </v-btn>
     </template>
 
-    <div class="form-grid-container">
-      <div class="left-column">
-        <v-card class="mb-3" flat border>
-          <v-card-title class="text-subtitle-2 pa-2 bg-grey-lighten-4"
-            >Informasi LHK</v-card-title
-          >
+    <!-- KOLOM KIRI: Informasi Utama LHK & Material -->
+    <template #left-column>
+      <div class="desktop-form-section header-section">
+        <div class="text-caption font-weight-bold mb-3 text-primary">
+          INFORMASI UTAMA LHK
+        </div>
 
-          <v-card-text class="pa-2">
-            <v-row dense>
-              <v-col cols="12"
-                ><v-text-field
-                  label="Nomor LHK"
-                  v-model="formData.nomor"
-                  readonly
-                  variant="outlined"
-                  density="compact"
-                  hide-details
-              /></v-col>
+        <v-text-field
+          label="Nomor LHK"
+          v-model="formData.nomor"
+          readonly
+          density="compact"
+          variant="outlined"
+          class="mb-2"
+          hide-details
+        />
+        <v-text-field
+          label="Tanggal"
+          v-model="formData.tanggal"
+          type="date"
+          density="compact"
+          variant="outlined"
+          class="mb-2"
+          hide-details
+        />
 
-              <v-col cols="12"
-                ><v-text-field
-                  label="Tanggal"
-                  v-model="formData.tanggal"
-                  type="date"
-                  variant="outlined"
-                  density="compact"
-                  hide-details
-              /></v-col>
-
-              <v-col cols="6"
-                ><v-text-field
-                  label="Shift"
-                  v-model.number="formData.shift"
-                  type="number"
-                  variant="outlined"
-                  density="compact"
-                  hide-details
-              /></v-col>
-
-              <v-col cols="6"
-                ><v-text-field
-                  label="Operator"
-                  v-model="formData.operator"
-                  variant="outlined"
-                  density="compact"
-                  hide-details
-              /></v-col>
-
-              <v-col cols="12">
-                <v-text-field
-                  label="Mesin"
-                  v-model="formData.mesin"
-                  @click:append-inner="openMesinSearch"
-                  append-inner-icon="mdi-magnify"
-                  variant="outlined"
-                  density="compact"
-                  hide-details
-                  readonly
-                  style="cursor: pointer"
-                />
-              </v-col>
-            </v-row>
-          </v-card-text>
-        </v-card>
-
-        <v-card class="mb-3" flat border>
-          <v-card-title class="text-subtitle-2 pa-2 bg-blue-lighten-5"
-            >Scan Material (Roll)</v-card-title
-          >
-
-          <v-card-text class="pt-4 pa-2">
-            <v-row dense>
-              <v-col cols="12">
-                <v-text-field
-                  label="Scan Barcode Roll"
-                  v-model="formData.barcode_input"
-                  placeholder="Scan di sini..."
-                  prepend-inner-icon="mdi-barcode-scan"
-                  variant="outlined"
-                  density="compact"
-                  color="primary"
-                  @keyup.enter="handleBarcodeScan"
-                  autocomplete="off"
-                />
-              </v-col>
-
-              <v-col cols="6"
-                ><v-text-field
-                  label="P. Bahan"
-                  v-model="formData.Panjang_bahan"
-                  readonly
-                  filled
-                  density="compact"
-                  hide-details
-                  class="text-end"
-              /></v-col>
-
-              <v-col cols="6"
-                ><v-text-field
-                  label="L. Bahan"
-                  v-model="formData.Lebar_bahan"
-                  readonly
-                  filled
-                  density="compact"
-                  hide-details
-                  class="text-end"
-              /></v-col>
-            </v-row>
-          </v-card-text>
-        </v-card>
-      </div>
-
-      <div class="right-column">
-        <v-card flat border class="d-flex flex-column mb-4">
-          <v-card-title
-            class="text-subtitle-1 d-flex align-center pa-2 bg-blue-grey-lighten-5"
-          >
-            Daftar Produksi (Combine SPK)
-
-            <v-spacer />
-
-            <v-card-title
-              class="text-subtitle-1 d-flex align-center pa-2 bg-blue-grey-lighten-5"
-            >
-              <v-spacer></v-spacer>
-
-              <div class="d-flex align-center ga-2">
-                <v-btn
-                  size="small"
-                  color="success"
-                  prepend-icon="mdi-plus"
-                  style="height: 30px !important; text-transform: none"
-                  @click="openSpkSearch"
-                >
-                  Tambah SPK
-                </v-btn>
-
-                <v-text-field
-                  v-model="formData.barcode_spk"
-                  placeholder="Scan Barcode SPK"
-                  prepend-inner-icon="mdi-barcode-scan"
-                  variant="outlined"
-                  density="compact"
-                  hide-details
-                  flat
-                  class="custom-scan-input"
-                  style="width: 200px"
-                  @keyup.enter="handleSpkScan"
-                />
-              </div>
-            </v-card-title>
-          </v-card-title>
-
-          <v-card-text class="pa-0">
-            <v-data-table
-              :headers="detailHeaders"
-              :items="detailData"
-              :items-per-page="-1"
-              class="detail-entry-table"
-              hide-default-footer
+        <v-row dense class="mb-2">
+          <v-col cols="6">
+            <v-text-field
+              label="Shift"
+              v-model.number="formData.shift"
+              type="number"
               density="compact"
+              variant="outlined"
+              hide-details
+            />
+          </v-col>
+          <v-col cols="6">
+            <v-text-field
+              label="Operator"
+              v-model="formData.operator"
+              density="compact"
+              variant="outlined"
+              hide-details
+            />
+          </v-col>
+        </v-row>
+
+        <v-text-field
+          label="Pilih Mesin"
+          v-model="formData.mesin"
+          readonly
+          density="compact"
+          variant="outlined"
+          class="mb-4 cursor-pointer"
+          hide-details
+          color="primary"
+          @click="lookup.mesin = true"
+        >
+          <template #append-inner>
+            <IconSearch
+              :size="16"
+              style="cursor: pointer"
+              @click="lookup.mesin = true"
+            />
+          </template>
+        </v-text-field>
+
+<div class="text-caption font-weight-bold mb-2 text-success d-flex align-center">
+  INFORMASI MEDIA / ROLL
+  <v-spacer />
+  <!-- TOMBOL SYNC STOK DARI LHK SEBELUMNYA -->
+  <v-btn
+    v-if="formData.barcode_input"
+    size="x-small"
+    color="teal-darken-1"
+    variant="tonal"
+    :loading="isSyncingStok"
+    @click="handleSyncStokBahan"
+    title="Seleraskan sisa bahan dengan LHK sebelumnya"
+  >
+    <v-icon start size="12">mdi-sync</v-icon> Sync Stok LHK A
+  </v-btn>
+</div>
+
+<v-text-field
+  label="Scan Barcode Roll"
+  v-model="formData.barcode_input"
+  @keyup.enter="handleBarcodeScan"
+  density="compact"
+  variant="outlined"
+  class="mb-2"
+  hide-details
+>
+  <template #prepend-inner>
+    <IconBarcode :size="16" class="text-grey" />
+  </template>
+</v-text-field>
+
+<v-row dense class="mb-2">
+  <v-col cols="6">
+    <v-text-field
+      label="P. Bahan (M)"
+      :model-value="formData.Panjang_bahan"
+      readonly
+      density="compact"
+      variant="filled"
+      hide-details
+      suffix="M"
+      color="teal"
+    />
+  </v-col>
+  <v-col cols="6">
+    <v-text-field
+      label="L. Bahan (M)"
+      :model-value="formData.Lebar_bahan"
+      readonly
+      density="compact"
+      variant="filled"
+      hide-details
+      suffix="M"
+    />
+  </v-col>
+</v-row>
+
+        <v-row dense class="mt-4">
+          <v-col cols="6">
+            <v-btn
+              block
+              size="small"
+              color="orange-darken-3"
+              variant="tonal"
+              @click="validateBeforeSave('DRAFT')"
             >
-              <template #[`item.no`]="{ index }">{{ index + 1 }}</template>
+              Set Draft
+            </v-btn>
+          </v-col>
+          <v-col cols="6">
+            <v-btn
+              block
+              size="small"
+              color="primary"
+              variant="elevated"
+              @click="validateBeforeSave('POSTED')"
+            >
+              Set Posted
+            </v-btn>
+          </v-col>
+        </v-row>
+      </div>
+    </template>
 
-              <template #[`item.padding`]="{ item }"
-                ><v-text-field
-                  v-model.number="item.padding"
-                  type="number"
-                  density="compact"
-                  variant="underlined"
-                  @update:modelValue="recalculateCombine"
-                  hide-details
-                  class="text-end"
-              /></template>
+    <!-- KOLOM KANAN: Combine SPK Table & Visual Layout -->
+    <template #right-column>
+      <div class="d-flex flex-column fill-height">
+        <v-card border flat class="d-flex flex-column table-card mb-4">
+          <div class="pa-2 bg-blue-grey-lighten-5 d-flex align-center">
+            <span class="text-subtitle-2 font-weight-bold text-blue-grey-darken-4">
+              Daftar Produksi (Combine SPK)
+            </span>
+            <v-spacer />
+            <div class="d-flex align-center ga-2">
+              <v-btn
+                size="small"
+                color="success"
+                prepend-icon="mdi-plus"
+                style="height: 30px !important; text-transform: none"
+                @click="lookup.spk = true"
+              >
+                Tambah SPK
+              </v-btn>
+              <v-text-field
+                v-model="formData.barcode_spk"
+                placeholder="Scan Barcode SPK..."
+                density="compact"
+                variant="outlined"
+                hide-details
+                style="max-width: 200px"
+                @keyup.enter="handleSpkScan"
+                :disabled="!formData.kode_bahan_aktif"
+              />
+            </div>
+          </div>
 
-              <template #[`item.jumlah`]="{ item }">
-                <div class="text-end text-grey-darken-1">
-                  {{ item.jumlah || "0" }}
+          <div class="table-container flex-grow-1">
+            <table class="manksi-table">
+              <thead>
+                <tr>
+                  <th width="35">No</th>
+                  <th width="110">Nomor SPK</th>
+                  <th>Nama Produk</th>
+                  <th width="55">P (M)</th>
+                  <th width="55">L (M)</th>
+                  <th width="120">Orientasi</th>
+                  <th width="55">Pad(cm)</th>
+                  <th width="45">Tile</th>
+                  <th width="50">Order</th>
+                  <th width="55">Sdh Ctk</th>
+                  <th width="55">Kurang</th>
+                  <th v-for="n in 7" :key="n" width="40">C{{ n }}</th>
+                  <th width="65">Tot Ctk</th>
+                  <th width="35"></th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="(item, index) in formData.details" :key="index">
+                  <td class="text-center">{{ index + 1 }}</td>
+                  <td class="fw-bold text-blue-darken-4 px-2">{{ item.nomor_spk }}</td>
+                  <td class="px-2 text-truncate" style="max-width: 120px" :title="item.nama_spk">
+                    {{ item.nama_spk }}
+                  </td>
+                  <td class="text-right px-2">{{ Number(item.panjang_spk || 0).toFixed(2) }}</td>
+                  <td class="text-right px-2">{{ Number(item.lebar_spk || 0).toFixed(2) }}</td>
+                  <td>
+                    <select
+                      v-model="item.orientasi"
+                      class="cell-input"
+                      @change="recalculateCombine"
+                    >
+                      <option value="lebar">L. SPK (Normal)</option>
+                      <option value="panjang">P. SPK (Diputar)</option>
+                    </select>
+                  </td>
+                  <td class="bg-blue-lighten-5">
+                    <input
+                      type="text"
+                      :value="item.padding"
+                      class="cell-input tr font-weight-bold"
+                      @input="handlePaddingTableInput($event, item)"
+                    />
+                  </td>
+                  <td class="bg-yellow-lighten-5">
+                    <input
+                      type="number"
+                      v-model.number="item.tile"
+                      class="cell-input tr font-weight-bold"
+                      @input="recalculateCombine"
+                    />
+                  </td>
+                  <td class="text-right px-2 text-grey-darken-1">{{ item.jumlah }}</td>
+                  <td class="text-right px-2 text-blue-darken-1 font-weight-bold">{{ item.sudahcetak }}</td>
+                  <td class="text-right px-2">{{ item.kurangcetak_asli }}</td>
+
+                  <td v-for="n in 7" :key="n">
+                    <input
+                      type="number"
+                      v-model.number="item['cetak' + n]"
+                      class="cell-input tr font-weight-bold"
+                      @input="recalculateCombine"
+                      @wheel="$event.target.blur()"
+                    />
+                  </td>
+
+                  <td class="text-center bg-yellow-lighten-5 font-weight-bold text-primary">
+                    {{ item.totalcetak }}
+                  </td>
+                  <td class="text-center">
+                    <v-btn
+                      size="x-small"
+                      variant="text"
+                      color="error"
+                      @click="
+                        formData.details.splice(index, 1);
+                        recalculateCombine();
+                      "
+                    >
+                      <IconTrash :size="14" />
+                    </v-btn>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- FOOTER SUMMARY & AFAL PANEL -->
+          <div class="pa-3 bg-grey-lighten-4 border-t footer-container">
+            <v-row dense align="center">
+              <v-col cols="12" sm="4" class="border-e pr-4">
+                <v-row no-gutters>
+                  <v-col cols="6" class="border-e pr-2">
+                    <span class="text-caption text-grey-darken-1 font-weight-bold">Sisa Otomatis:</span>
+                    <div
+                      class="text-h6 font-weight-black lh-1"
+                      :class="sisaStokOtomatis < 0 ? 'text-red' : 'text-success'"
+                    >
+                      {{ sisaStokOtomatis.toFixed(2) }} M
+                    </div>
+                    <span class="text-xxs text-grey d-block">
+                      P. Pakai Sistem: {{ totalPanjangTerpakai.toFixed(2) }} M
+                    </span>
+                  </v-col>
+                  <v-col cols="6" class="pl-2">
+                    <span class="text-caption font-weight-bold text-blue-darken-3">Sisa Manual (Fisik):</span>
+                    <v-text-field
+                      v-model.number="formData.sisa_panjang_manual"
+                      placeholder="Isi sisa..."
+                      density="compact"
+                      variant="outlined"
+                      hide-details
+                      type="number"
+                      class="mt-1 bg-white"
+                      suffix="M"
+                    />
+                    <span class="text-xxs font-weight-bold text-primary">
+                      P. Pakai Final: {{ displayPanjangTerpakai.toFixed(2) }} M
+                    </span>
+                  </v-col>
+                </v-row>
+              </v-col>
+
+              <v-col cols="12" sm="3" class="px-4 border-e">
+                <div class="d-flex flex-column">
+                  <span class="text-caption text-grey-darken-1 font-weight-bold">Sisa Samping (Sistem):</span>
+                  <span class="text-h6 text-teal-darken-2 font-weight-black">
+                    {{ (formData.Lebar_bahan - totalLebarGabungan).toFixed(2) }} M
+                  </span>
+                  <v-text-field
+                    v-model.number="formData.sisa_lebar_manual"
+                    label="Sisa Lebar Manual"
+                    density="compact"
+                    variant="underlined"
+                    hide-details
+                    type="number"
+                    class="mt-1"
+                  />
                 </div>
-              </template>
+              </v-col>
 
-              <template #[`item.luas_satuan`]="{ item }">
-                <div class="text-end text-grey-darken-1">
-                  {{ item.luas_satuan || "0.000" }}
-                </div>
-              </template>
+              <v-col cols="12" sm="5" class="pl-4">
+                <v-row dense>
+                  <v-col cols="6" class="text-right border-e pr-4">
+                    <span class="text-caption text-orange-darken-4 font-weight-bold">Afal (Sistem):</span>
+                    <div class="text-subtitle-1 font-weight-bold text-orange-darken-2">
+                      {{ panjangSisaLayoutGanjil.toFixed(2) }} x {{ lebarSisaLayoutGanjil.toFixed(2) }}
+                    </div>
+                    <div class="d-flex gap-1 mt-1">
+                      <v-text-field
+                        v-model.number="formData.panjang_nyempil_manual"
+                        placeholder="P"
+                        density="compact"
+                        variant="underlined"
+                        hide-details
+                      />
+                      <v-text-field
+                        v-model.number="formData.lebar_nyempil_manual"
+                        placeholder="L"
+                        density="compact"
+                        variant="underlined"
+                        hide-details
+                      />
+                    </div>
+                  </v-col>
 
-              <template #[`item.total_luas`]="{ item }">
-                <div class="text-end font-weight-bold text-deep-purple">
-                  {{ item.total_luas || "0.00" }}
-                </div>
-              </template>
-
-              <template #[`item.orientasi`]="{ item }">
-                <v-select
-                  v-model="item.orientasi"
-                  :items="[
-                    { title: 'L. SPK (Normal)', value: 'lebar' },
-
-                    { title: 'P. SPK (Diputar)', value: 'panjang' },
-                  ]"
-                  density="compact"
-                  variant="underlined"
-                  hide-details
-                  @update:modelValue="recalculateCombine"
-                />
-              </template>
-
-              <template #[`item.tile`]="{ item }"
-                ><v-text-field
-                  v-model.number="item.tile"
-                  type="number"
-                  density="compact"
-                  variant="underlined"
-                  @update:modelValue="recalculateCombine"
-                  hide-details
-                  class="text-end"
-              /></template>
-
-              <template v-for="n in 7" :key="n" #[`item.cetak${n}`]="{ item }">
-                <v-text-field
-                  v-model.number="item['cetak' + n]"
-                  type="number"
-                  density="compact"
-                  variant="underlined"
-                  @update:modelValue="recalculateCombine"
-                  hide-details
-                  class="text-end cetak-field"
-                />
-              </template>
-
-              <template #[`item.totalcetak`]="{ item }">
-                <div
-                  :class="
-                    item.totalcetak > item.kurangcetak_asli
-                      ? 'text-red-bold'
-                      : 'text-primary'
-                  "
-                >
-                  {{ item.totalcetak }}
-                  <v-tooltip
-                    v-if="item.totalcetak > item.kurangcetak_asli"
-                    activator="parent"
-                  >
-                    Melebihi sisa order (Sisa: {{ item.kurangcetak_asli }})
-                  </v-tooltip>
-                </div>
-              </template>
-              <template #[`item.sudahcetak`]="{ item }">
-                <div class="text-end text-blue-darken-2 font-weight-bold">
-                  {{ item.sudahcetak || 0 }}
-                </div>
-              </template>
-
-              <template #[`item.kurangcetak`]="{ item }">
-                <div
-                  class="text-end font-weight-bold"
-                  :class="
-                    item.kurangcetak < 0 ? 'text-red' : 'text-grey-darken-3'
-                  "
-                >
-                  {{ item.kurangcetak }}
-                </div>
-              </template>
-
-              <template #[`item.actions`]="{ index }"
-                ><v-btn
-                  icon="mdi-delete"
-                  size="x-small"
-                  color="red"
-                  variant="text"
-                  @click="removeDetail(index)"
-              /></template>
-
-              <template #bottom>
-                <div class="pa-4 bg-grey-lighten-4 border-t footer-container">
-                  <v-row dense align="center">
-                    <v-col cols="12" sm="4" class="border-e-sm px-4">
-                      <v-row no-gutters>
-                        <v-col cols="6" class="border-e pr-2">
-                          <span
-                            class="text-caption text-grey-darken-1 font-weight-bold"
-                            >Sisa Otomatis:</span
-                          >
-
-                          <div class="text-h5 text-success font-weight-black">
-                            {{ sisaStokOtomatis.toFixed(2) }} M
-                          </div>
-
-                          <span class="text-xxs text-grey"
-                            >P. Pakai (Sistem):
-
-                            {{ totalPanjangTerpakai.toFixed(2) }}</span
-                          >
-                        </v-col>
-
-                        <v-col cols="6" class="pl-2">
-                          <span
-                            class="text-caption font-weight-bold text-blue-darken-3"
-                            >Sisa Manual (Fisik):</span
-                          >
-
-                          <v-text-field
-                            v-model.number="formData.sisa_panjang_manual"
-                            placeholder="Isi sisa..."
-                            density="compact"
-                            variant="outlined"
-                            hide-details
-                            type="number"
-                            class="mt-1 bg-white custom-input"
-                            suffix="M"
-                            color="blue-darken-3"
-                          />
-
-                          <span class="text-xxs font-weight-bold text-primary">
-                            P. Pakai Final:
-
-                            {{ displayPanjangTerpakai.toFixed(2) }} M
-                          </span>
-                        </v-col>
-                      </v-row>
-                    </v-col>
-
-                    <v-col cols="12" sm="3" class="px-4 border-e-sm">
-                      <div class="d-flex flex-column">
-                        <span
-                          class="text-caption text-grey-darken-1 font-weight-bold"
-                          >Sisa Samping (Sistem):</span
-                        >
-
-                        <span
-                          class="text-h5 text-teal-darken-2 font-weight-black"
-                        >
-                          {{
-                            (formData.Lebar_bahan - totalLebarGabungan).toFixed(
-                              2,
-                            )
-                          }}
-
-                          M
-                        </span>
-
-                        <v-text-field
-                          v-model.number="formData.sisa_lebar_manual"
-                          label="Sisa Lebar Manual"
-                          density="compact"
-                          variant="underlined"
-                          hide-details
-                          type="number"
-                          class="mt-1"
-                        />
-                      </div>
-                    </v-col>
-
-                    <v-col cols="12" sm="5" class="px-4">
-                      <v-row dense>
-                        <v-col cols="6" class="text-right border-e-sm pr-4">
-                          <span
-                            class="text-caption text-orange-darken-4 font-weight-bold"
-                            >Afal (Sistem):</span
-                          >
-
-                          <div
-                            class="text-subtitle-1 font-weight-bold text-orange-darken-2"
-                          >
-                            {{ panjangSisaLayoutGanjil.toFixed(2) }} x
-
-                            {{ lebarSisaLayoutGanjil.toFixed(2) }}
-                          </div>
-
-                          <div class="d-flex gap-1 mt-1">
-                            <v-text-field
-                              v-model.number="formData.panjang_nyempil_manual"
-                              placeholder="P"
-                              density="compact"
-                              variant="underlined"
-                              hide-details
-                            />
-
-                            <v-text-field
-                              v-model.number="formData.lebar_nyempil_manual"
-                              placeholder="L"
-                              density="compact"
-                              variant="underlined"
-                              hide-details
-                            />
-                          </div>
-                        </v-col>
-
-                        <v-col cols="6" class="pl-4">
-                          <span class="text-caption font-weight-bold text-red"
-                            >BS / Rusak:</span
-                          >
-
-                          <v-text-field
-                            v-model.number="formData.panjang_bs"
-                            placeholder="P. BS"
-                            density="compact"
-                            variant="outlined"
-                            hide-details="auto"
-                            type="number"
-                            class="mb-1 bg-white"
-                            :rules="[
-                              (v) => (v !== null && v !== '') || 'Wajib diisi',
-                            ]"
-                          />
-
-                          <v-text-field
-                            v-model.number="formData.lebar_bs"
-                            placeholder="L. BS"
-                            density="compact"
-                            variant="outlined"
-                            hide-details="auto"
-                            type="number"
-                            class="bg-white"
-                            :rules="[
-                              (v) => (v !== null && v !== '') || 'Wajib diisi',
-                            ]"
-                          />
-                        </v-col>
-                      </v-row>
-                    </v-col>
-                  </v-row>
-                </div>
-              </template>
-            </v-data-table>
-          </v-card-text>
+                  <v-col cols="6" class="pl-4">
+                    <span class="text-caption font-weight-bold text-red">BS / Rusak:</span>
+                    <v-text-field
+                      :model-value="formData.panjang_bs"
+                      placeholder="P. BS"
+                      density="compact"
+                      variant="outlined"
+                      hide-details="auto"
+                      class="mb-1 bg-white"
+                      @input="handleBsInput"
+                    />
+                    <v-text-field
+                      :model-value="formData.lebar_bs"
+                      placeholder="L. BS"
+                      density="compact"
+                      variant="outlined"
+                      hide-details="auto"
+                      class="bg-white"
+                      @input="handleBsLebarInput"
+                    />
+                  </v-col>
+                </v-row>
+              </v-col>
+            </v-row>
+          </div>
         </v-card>
 
-        <v-card flat border class="overflow-hidden">
-          <v-card-title
-            class="text-subtitle-2 bg-grey-lighten-3 pa-2 d-flex align-center"
-          >
-            <v-icon start size="small">mdi-eye-outline</v-icon>
-            Estimasi Layout Produksi
+        <!-- VISUALISASI LAYOUT ESTAMASI -->
+        <v-card flat border class="flex-shrink-0">
+          <v-card-title class="text-subtitle-2 bg-grey-lighten-3 pa-2 d-flex align-center">
+            Visualisasi Layout Produksi Cetak (Meter Base)
             <v-spacer />
-            <!-- Tombol Auto Fill -->
             <v-btn
               size="x-small"
               color="indigo"
-              variant="elevated"
-              prepend-icon="mdi-auto-fix"
               class="mr-2"
-              @click="autoFillLayout"
+              @click="autoFillLayout(false)"
             >
-              Auto Optimize
+              <template #prepend><IconSparkles :size="12" /></template> Auto Optimize
             </v-btn>
-
             <v-btn
               size="x-small"
               color="grey-darken-1"
               variant="outlined"
-              prepend-icon="mdi-refresh"
               @click="resetManualLayout"
             >
-              Reset
+              <template #prepend><IconRefresh :size="12" /></template> Reset
             </v-btn>
           </v-card-title>
-
-          <v-card-text class="pa-4 bg-white">
-            <div class="roll-horizontal-wrapper" style="overflow-x: auto">
+          <v-card-text class="pa-2 scroll-wrapper">
+            <div class="roll-horizontal-wrapper">
               <div class="roll-material" :style="rollStyle">
                 <div
-                  v-for="(item, idx) in layoutRows"
-                  :key="idx"
+                  v-for="(block, bIdx) in layoutRows"
+                  :key="bIdx"
                   class="product-unit"
                   :style="{
-                    width: `${item.w * SCALE}px`,
-                    height: `${item.h * SCALE}px`,
+                    width: `${block.w * SCALE}px`,
+                    height: `${block.h * SCALE}px`,
                     position: 'absolute',
-                    left: `${(manualOffsets[idx]?.x !== undefined ? manualOffsets[idx].x : item.x) * SCALE}px`,
-                    top: `${(manualOffsets[idx]?.y !== undefined ? manualOffsets[idx].y : item.y) * SCALE}px`,
-                    transform: `rotate(${manualOffsets[idx]?.rotation ?? 0}deg)`,
-                    transition: 'transform 0.3s ease', // Agar putaran halus
+                    left: `${(manualOffsets[bIdx]?.x !== undefined ? manualOffsets[bIdx].x : block.x) * SCALE}px`,
+                    top: `${(manualOffsets[bIdx]?.y !== undefined ? manualOffsets[bIdx].y : block.y) * SCALE}px`,
+                    transform: `rotate(${manualOffsets[bIdx]?.rotation ?? 0}deg)`,
                     backgroundColor: '#e3f2fd',
                     border: '1px solid #2196f3',
                     display: 'flex',
@@ -532,14 +451,11 @@
                     cursor: 'move',
                     zIndex: 10,
                   }"
-                  @mousedown="startDrag($event, idx)"
-                  @dblclick="handleDoubleClick(idx)"
+                  @mousedown="startDrag($event, bIdx)"
+                  @dblclick="handleDoubleClick(bIdx)"
                 >
-                  <span
-                    class="box-label"
-                    :class="{ 'label-rotated': item.rotated }"
-                  >
-                    {{ item.label }}
+                  <span class="box-label" :class="{ 'label-rotated': block.rotated }">
+                    {{ block.label }}
                   </span>
                 </div>
               </div>
@@ -547,43 +463,44 @@
           </v-card-text>
         </v-card>
       </div>
-    </div>
+    </template>
+  </BaseForm>
 
-    <MesinLookupView
-      :isVisible="isMesinLookupVisible"
-      @close="isMesinLookupVisible = false"
-      @select="handleMesinSelect"
-    />
+  <!-- MODAL LOOKUP -->
+  <MesinLookupView
+    :is-visible="lookup.mesin"
+    @close="lookup.mesin = false"
+    @select="handleMesinSelect"
+  />
+  <SpkLookupView
+    :is-visible="lookup.spk"
+    @close="lookup.spk = false"
+    @select="injectSpkObject"
+  />
 
-    <SpkLookupView
-      :isVisible="isSpkLookupVisible"
-      @close="isSpkLookupVisible = false"
-      @select="handleSpkSelect"
-    />
-  </PageLayout>
-  <v-dialog v-model="afalModal.show" max-width="500px" persistent>
+<!-- MODAL BARCODE SISA SAMPING (AFAL BARU) -->
+  <v-dialog 
+    v-model="afalModal.show" 
+    max-width="500px" 
+    persistent
+    teleport="body"
+    style="z-index: 99999 !important;"
+  >
     <v-card color="indigo-lighten-5">
-      <!-- Header diubah ke biru soft (info/primary-lighten) -->
-      <v-card-title
-        class="bg-blue-darken-1 text-white d-flex align-center pa-3"
-      >
+      <v-card-title class="bg-blue-darken-1 text-white d-flex align-center pa-3">
         <v-icon start size="large">mdi-information-variant-box</v-icon>
         <span class="font-weight-bold">Barcode Sisa Samping!</span>
       </v-card-title>
 
       <v-card-text class="pa-4 text-grey-darken-4">
         <p class="mb-3 font-weight-medium">
-          Sistem mendeteksi adanya sisa bahan samping (Afal) yang masih layak
-          pakai. Data stok baru telah dibuat:
+          Sistem mendeteksi adanya sisa bahan samping (Afal) yang masih layak pakai. Data stok baru telah dibuat:
         </p>
 
         <v-table class="bg-white border rounded mb-4" density="compact">
           <tbody>
             <tr>
-              <td
-                class="font-weight-bold bg-blue-lighten-5 text-blue-darken-3"
-                width="40%"
-              >
+              <td class="font-weight-bold bg-blue-lighten-5 text-blue-darken-3" width="40%">
                 Barcode Baru
               </td>
               <td class="text-blue-darken-2 font-weight-black text-subtitle-1">
@@ -595,27 +512,21 @@
                 Ukuran (P x L)
               </td>
               <td>
-                {{ afalModal.data.panjang?.toFixed(2) }} M x
-                {{ afalModal.data.lebar?.toFixed(2) }} M
+                {{ afalModal.data.panjang?.toFixed(2) }} M x {{ afalModal.data.lebar?.toFixed(2) }} M
               </td>
             </tr>
           </tbody>
         </v-table>
 
-        <!-- Alert Box diubah dari warna Amber/Kuning ke warna Biru Muda Soft -->
-        <div
-          class="d-flex align-start ga-2 bg-blue-lighten-4 pa-3 rounded border border-blue-lighten-2 text-blue-darken-4"
-        >
+        <div class="d-flex align-start ga-2 bg-blue-lighten-4 pa-3 rounded border border-blue-lighten-2 text-blue-darken-4">
           <v-icon class="mt-0_5" color="blue-darken-2">mdi-printer-pos</v-icon>
           <span class="text-body-2 font-weight-bold">
-            Silakan Hubungi Admin untuk melakukan cetak fisik label barcode ini
-            dan tempelkan pada bahan!
+            Silakan Hubungi Admin untuk melakukan cetak fisik label barcode ini dan tempelkan pada bahan!
           </span>
         </div>
       </v-card-text>
 
       <v-card-actions class="bg-grey-lighten-4 pa-2 justify-end">
-        <!-- Tombol aksi disesuaikan menggunakan variasi warna biru/indigo modern -->
         <v-btn color="blue-darken-2" variant="elevated" @click="closeAfalModal">
           Paham & Lanjutkan
         </v-btn>
@@ -625,275 +536,290 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, nextTick } from "vue";
-import { useRoute, useRouter } from "vue-router";
+import { ref, reactive, computed, onMounted, nextTick, watch } from "vue";
 import { format } from "date-fns";
-import api from "@/services/api";
+import { useRoute, useRouter } from "vue-router";
 import { useToast } from "vue-toastification";
+import { useForm } from "@/composables/useForm";
+import api from "@/services/api";
+import BaseForm from "@/components/BaseForm.vue";
 import MesinLookupView from "@/modal/MesinLookupModal.vue";
 import SpkLookupView from "@/modal/SpkMesinLookupModal.vue";
-import PageLayout from "../components/PageLayout.vue";
 import { useAuthStore } from "@/stores/authStore";
+import {
+  IconSearch,
+  IconTrash,
+  IconBarcode,
+  IconRefresh,
+  IconSparkles,
+} from "@tabler/icons-vue";
 
-// --- Configuration & Constants ---
+const toast = useToast();
 const route = useRoute();
 const router = useRouter();
-const toast = useToast();
-const API_BASE_URL = "/mmt/lhk-cetak";
-const SCALE = 60; // 1m = 60px untuk visualisasi
-
-// --- State Management ---
-const isSaving = ref(false);
-const isEditMode = ref(false);
-const isMesinLookupVisible = ref(false);
-const isSpkLookupVisible = ref(false);
 const authStore = useAuthStore();
-const manualOffsets = reactive<
-  Record<number, { x: number; y: number; rotation: number }>
->({});
 
-const formData = reactive({
+const SCALE = 60; // 1m = 60px
+
+// 1. Initial Data State
+const initialData = {
   nomor: "AUTO",
   tanggal: format(new Date(), "yyyy-MM-dd"),
   shift: 1,
   operator: "",
   mesin: "",
   barcode_input: "",
+  barcode_spk: "",
+  kode_bahan_aktif: "",
+  sku_aktif: "",
   Panjang_bahan: 0,
   Lebar_bahan: 0,
-  sku_aktif: "",
-  kode_bahan_aktif: "",
   sisa_panjang_manual: null as number | null,
   sisa_lebar_manual: null as number | null,
   panjang_nyempil_manual: null as number | null,
   lebar_nyempil_manual: null as number | null,
-  panjang_bs: null as number | null,
-  lebar_bs: null as number | null,
-  manual_panjang_pakai: null as number | null,
-  barcode_spk: "",
+  panjang_bs: "" as any,
+  lebar_bs: "" as any,
+  lstatus: "DRAFT",
+  details: [] as any[],
+};
+
+// 2. Composable useForm Integrasi
+const {
+  formData,
+  isEditMode,
+  isLoading,
+  isSaving,
+  showSaveDialog,
+  showCancelDialog,
+  showCloseDialog,
+  executeSave,
+  executeCancel,
+  executeClose,
+  fetchData,
+} = useForm({
+  menuId: "129",
+  initialData,
+  fetchApi: async () => {
+    const nomorLhk = route.params.nomor as string;
+    const res = await api.get(`/mmt/lhk-cetak/lookup/${nomorLhk}`);
+    const h = res.data.data?.header || res.data.header;
+    const details = res.data.data?.details || res.data.details || [];
+
+    // 1. Ambil Panjang Bahan Awal (Stok saat dipasang ke mesin)
+    const ambilBahanFromDtl = details.length > 0
+      ? parseFloat(details[0].ld_ambilbahan || details[0].AmbilBahanPanjang || 0)
+      : 0;
+
+    return {
+      nomor: h.Nomor || h.lth_nomor,
+      tanggal: h.Tanggal ? format(new Date(h.Tanggal), "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd"),
+      shift: h.Shift || h.lth_shift || 1,
+      operator: h.Operator || h.lth_operator || "",
+      mesin: h.Mesin || h.lth_mesin || "",
+      kode_bahan_aktif: h.Kode_bahan || h.lth_brg_kode || "",
+      barcode_input: h.lbarcode_roll || h.lth_barcode || "",
+      panjang_bs:
+        h.PanjangBS !== undefined && h.PanjangBS !== null
+          ? h.PanjangBS.toString()
+          : h.lth_panjang_bs !== undefined && h.lth_panjang_bs !== null
+            ? h.lth_panjang_bs.toString()
+            : "",
+      lebar_bs:
+        h.LebarBS !== undefined && h.LebarBS !== null
+          ? h.LebarBS.toString()
+          : h.lth_lebar_bs !== undefined && h.lth_lebar_bs !== null
+            ? h.lth_lebar_bs.toString()
+            : "",
+
+      // Stok awal diambil dari ld_ambilbahan
+      Panjang_bahan: ambilBahanFromDtl || parseFloat(h.Panjang_Awal || 0),
+      Lebar_bahan: details.length > 0 ? parseFloat(details[0].AmbilBahanLebar || 0) : 0,
+
+      // KUNCI PERBAIKAN: sisa_panjang_manual DIBIARKAN NULL / KOSONG!
+      // Agar sistem menghitung sisa & pemakaian bahan secara otomatis sesuai Qty cetak
+      sisa_panjang_manual: null, 
+      sisa_lebar_manual: null,
+      lstatus: h.lth_status || "DRAFT",
+
+      details: details.map((d: any) => {
+        const qtyOrder = parseFloat(d.jumlah || d.spk_qty || 0);
+        const sdhCetak = parseFloat(d.sudahcetak || d.spk_sudah_cetak || 0);
+        const currentTotalInput = parseFloat(d.totalcetak || 0);
+
+        const detailObj: any = {
+          nomor_spk: d.spk_nomor || d.ltd_spk_nomor,
+          nama_spk: d.nama_spk || d.spk_nama,
+          panjang_spk: parseFloat(d.spk_panjang || 0),
+          lebar_spk: parseFloat(d.spk_lebar || 0),
+          jumlah: qtyOrder,
+          sudahcetak: sdhCetak,
+          kurangcetak_asli: parseFloat(d.kurangcetak_asli || qtyOrder - sdhCetak + currentTotalInput),
+          padding: d.Padding !== undefined ? d.Padding : 3,
+          tile: d.Tile || 1,
+          orientasi: d.Orientasi || "lebar",
+          totalcetak: currentTotalInput,
+          kurangcetak: 0,
+        };
+
+        for (let i = 1; i <= 7; i++) {
+          detailObj[`cetak${i}`] = parseFloat(d[`J_Cetak${i}`] || d[`cetak${i}`] || 0);
+        }
+
+        return detailObj;
+      }),
+    };
+  },
+submitApi: async (data: typeof initialData): Promise<unknown> => {
+    recalculateCombine();
+    updateSisaFromLayout();
+
+    const currentUser = authStore.user?.kdUser || "SYSTEM";
+
+    // Hitung Sisa Final Meter & Lebar
+    const sisaFinalM =
+      formData.value.sisa_panjang_manual !== null && formData.value.sisa_panjang_manual !== ""
+        ? parseFloat(Number(formData.value.sisa_panjang_manual).toFixed(2))
+        : parseFloat(Number(sisaStokOtomatis.value).toFixed(2));
+
+    const lebarAwal = parseFloat((formData.value.Lebar_bahan as any) || 0);
+
+    const sisaLebarFinal =
+      formData.value.sisa_lebar_manual !== null &&
+      formData.value.sisa_lebar_manual !== "" &&
+      Number(formData.value.sisa_lebar_manual) > 0
+        ? parseFloat(Number(formData.value.sisa_lebar_manual).toFixed(2))
+        : lebarAwal;
+
+    const formattedDetails = formData.value.details.map((d) => ({
+      nomor_spk: d.nomor_spk,
+      tile: d.tile,
+      jumlah: d.jumlah,
+      luasm2: d.total_luas,
+      padding: d.padding,
+      ld_ambilbahan: parseFloat((formData.value.Panjang_bahan as any) || 0),
+      ambilBahanPanjang: parseFloat((formData.value.Panjang_bahan as any) || 0),
+      ambilBahanLebar: lebarAwal,
+      sisabahan: sisaFinalM,
+      sisabahanlebar: sisaLebarFinal,
+      cetak1: parseInt(d.cetak1 || 0),
+      cetak2: parseInt(d.cetak2 || 0),
+      cetak3: parseInt(d.cetak3 || 0),
+      cetak4: parseInt(d.cetak4 || 0),
+      cetak5: parseInt(d.cetak5 || 0),
+      cetak6: parseInt(d.cetak6 || 0),
+      cetak7: parseInt(d.cetak7 || 0),
+    }));
+
+    const payload = {
+      header: {
+        ltanggal: formData.value.tanggal,
+        lgdg_prod: "GPM",
+        lmesin: formData.value.mesin,
+        lshift: formData.value.shift,
+        loperator: formData.value.operator,
+        lbahan: formData.value.kode_bahan_aktif,
+        lbarcode_roll: formData.value.barcode_input,
+        lstatus: formData.value.lstatus,
+        luser_create: currentUser,
+        luser_modified: currentUser,
+        lpanjang_bs: formData.value.panjang_bs !== "" ? parseFloat(formData.value.panjang_bs) : 0,
+        llebar_bs: formData.value.lebar_bs !== "" ? parseFloat(formData.value.lebar_bs) : 0,
+        lpanjang_afal: panjangSisaLayoutGanjil.value || 0,
+        llebar_afal: lebarSisaLayoutGanjil.value || 0,
+        sisa_panjang_manual: formData.value.sisa_panjang_manual,
+        sisa_lebar_manual: formData.value.sisa_lebar_manual,
+      },
+      details: formattedDetails,
+      existingNomor: isEditMode.value ? formData.value.nomor : null,
+    };
+
+    // 1. Eksekusi API Murni tanpa Ternary yang Membingungkan
+    const res = await api.post("/mmt/lhk-cetak", payload);
+    const resBody = res.data;
+
+    // Ambil data afal secara fleksibel dari root maupun sub-object
+    const afalInfo = resBody.afalData || resBody.data?.afalData;
+
+    // 2. 🔥 JIKA STATUS POSTED DAN ADA AFAL: BUKA MODAL DULU
+    if (formData.value.lstatus === "POSTED" && afalInfo) {
+      afalModal.data = {
+        barcode: afalInfo.barcode,
+        panjang: Number(afalInfo.panjang || 0),
+        lebar: Number(afalInfo.lebar || 0),
+      };
+
+      await nextTick();
+      afalModal.show = true;
+
+      // Melemparkan error khusus/promise tahanan agar useForm TIDAK LANGSUNG REDIRECT
+      return new Promise((resolve) => {
+        // Tahan resolve sampai pengguna menutup modal afal
+        const unwatch = watch(
+          () => afalModal.show,
+          (isOpen) => {
+            if (!isOpen) {
+              unwatch();
+              resolve(res);
+            }
+          }
+        );
+      });
+    }
+
+    return res;
+  },
 });
 
-const detailData = reactive<any[]>([]);
-
-// Headers yang mendukung C1 - C7
-const detailHeaders = [
-  { title: "No", key: "no", width: "40px" },
-  { title: "Nomor SPK", key: "nomor_spk" },
-  { title: "Nama Produk", key: "nama_spk" },
-  { title: "P. SPK", key: "panjang_spk", align: "end" as const },
-  { title: "L. SPK", key: "lebar_spk", align: "end" as const },
-  { title: "Orientasi", key: "orientasi", width: "130px" },
-  { title: "Pad(cm)", key: "padding", width: "70px" },
-  { title: "Order", key: "jumlah", align: "end", width: "70px" },
-  { title: "Sdh Cetak", key: "sudahcetak", align: "end", width: "80px" }, // Dari akumulasi DB
-  { title: "Kurang", key: "kurangcetak_asli", align: "end", width: "80px" }, // Sisa sebelum input sekarang
-  { title: "Total Input", key: "totalcetak", align: "end", width: "90px" },
-  { title: "Luas/Pcs (m²)", key: "luas_satuan", align: "end", width: "100px" }, // Kolom Baru
-  { title: "Total Luas (m²)", key: "total_luas", align: "end", width: "120px" }, // Kolom Baru
-  { title: "Tile", key: "tile", width: "60px" },
-
-  ...Array.from({ length: 7 }, (_, i) => ({
-    title: `C${i + 1}`,
-    key: `cetak${i + 1}`,
-    width: "50px",
-  })),
-
-  { title: "", key: "actions", width: "40px" },
-];
-
-// --- Computed Layout Metrics ---
+const lookup = reactive({ mesin: false, spk: false });
+const manualOffsets = reactive<Record<number, { x: number; y: number; rotation: number }>>({});
 const totalPanjangTerpakai = ref(0);
 const totalLebarGabungan = ref(0);
 const lebarSisaLayoutGanjil = ref(0);
 const panjangSisaLayoutGanjil = ref(0);
 
-const sisaStokOtomatis = computed(
-  () => formData.Panjang_bahan - totalPanjangTerpakai.value,
-);
+const sisaStokOtomatis = computed(() => {
+  const rawBs = formData.value.panjang_bs;
+  const bsPanjang = rawBs && !isNaN(parseFloat(rawBs as string)) ? parseFloat(rawBs as string) : 0;
+  return formData.value.Panjang_bahan - totalPanjangTerpakai.value - bsPanjang;
+});
 
 const displayPanjangTerpakai = computed(() => {
-  if (
-    formData.sisa_panjang_manual !== null &&
-    formData.sisa_panjang_manual > 0
-  ) {
-    return formData.Panjang_bahan - formData.sisa_panjang_manual;
+  if (formData.value.sisa_panjang_manual !== null && formData.value.sisa_panjang_manual > 0) {
+    return formData.value.Panjang_bahan - formData.value.sisa_panjang_manual;
   }
   return totalPanjangTerpakai.value;
 });
 
-// Fungsi untuk memulai Drag
+const isFormValid = computed(() => {
+  return (
+    formData.value.details.length > 0 &&
+    formData.value.mesin !== "" &&
+    formData.value.operator !== "" &&
+    formData.value.details.every((d) => d.totalcetak > 0)
+  );
+});
 
-const updateSisaFromLayout = () => {
-  let maxRight = 0;
-  let maxBottom = 0;
-
-  layoutRows.value.forEach((item, idx) => {
-    const posX = manualOffsets[idx]?.x ?? item.x;
-    const posY = manualOffsets[idx]?.y ?? item.y;
-    const edgeRight = posX + item.w;
-    const edgeBottom = posY + item.h;
-
-    if (edgeRight > maxRight) maxRight = edgeRight;
-    if (edgeBottom > maxBottom) maxBottom = edgeBottom;
-  });
-
-  // UPDATE DISPLAY SAJA (Jangan timpa formData manual)
-  totalPanjangTerpakai.value = maxRight;
-  totalLebarGabungan.value = maxBottom;
-
-  // HITUNG AFAL SISTEM (Untuk kotak orange)
-  const sisaLebar = formData.Lebar_bahan - maxBottom;
-  if (sisaLebar > 0.1) {
-    lebarSisaLayoutGanjil.value = sisaLebar;
-    panjangSisaLayoutGanjil.value = maxRight; // Atau panjang kolom terakhir
-  }
+const handleMesinSelect = (mesin: any) => {
+  formData.value.mesin = mesin.Kode || mesin.id || mesin.kode_mesin || "";
+  lookup.mesin = false;
+  toast.success(`Mesin ${formData.value.mesin} dipilih`);
 };
 
-const autoFillLayout = (isSilent = false) => {
-  // 1. Reset posisi
-  Object.keys(manualOffsets).forEach((key) => delete manualOffsets[key]);
+// MODAL AFAL STATE
+const afalModal = reactive({
+  show: false,
+  data: {
+    barcode: "",
+    panjang: 0,
+    lebar: 0,
+  },
+});
 
-  if (detailData.length === 0 || formData.Lebar_bahan <= 0) return;
-
-  const maxBahanLebar = Number(formData.Lebar_bahan);
-  let unitGlobalIdx = 0;
-
-  let currentStartX = 0; // Titik X untuk kolom saat ini
-  let currentY = 0; // Titik Y untuk baris saat ini
-  let maxColumnWidth = 0; // Lebar kolom terlebar dalam barisan vertikal ini
-  let maxOverallX = 0; // Titik X terjauh yang pernah dicapai (untuk SPK berikutnya)
-
-  // 2. Iterasi tiap SPK
-  detailData.forEach((spk) => {
-    const totalCetak = Number(spk.totalcetak) || 0;
-    const tile = Number(spk.tile) || 1;
-    if (totalCetak <= 0) return;
-
-    const padM = (spk.padding * 2) / 100;
-    const w =
-      spk.orientasi === "lebar" ? spk.panjang_spk + padM : spk.lebar_spk + padM;
-    const h =
-      spk.orientasi === "lebar" ? spk.lebar_spk + padM : spk.panjang_spk + padM;
-
-    const totalKolomSPK = Math.ceil(totalCetak / tile);
-    let unitsPlaced = 0;
-
-    for (let col = 0; col < totalKolomSPK; col++) {
-      const tinggiBlokIni = tile * h;
-
-      // CEK: Apakah blok SPK ini (berdasarkan Tile-nya) muat di sisa Lebar Bahan (Y)?
-      if (currentY + tinggiBlokIni > maxBahanLebar + 0.01) {
-        // Jika tidak muat, pindah ke titik X terjauh yang pernah ada, balik ke Y=0
-        currentStartX = maxOverallX;
-        currentY = 0;
-        maxColumnWidth = 0;
-      }
-
-      for (let row = 0; row < tile; row++) {
-        if (unitsPlaced < totalCetak) {
-          const posX = currentStartX + col * w;
-          const posY = currentY + row * h;
-
-          manualOffsets[unitGlobalIdx] = {
-            x: posX,
-            y: posY,
-            rotation: 0,
-          };
-
-          // Update titik X terjauh agar SPK selanjutnya tidak menumpuk
-          if (posX + w > maxOverallX) {
-            maxOverallX = posX + w;
-          }
-
-          unitGlobalIdx++;
-          unitsPlaced++;
-        }
-      }
-
-      // Update lebar kolom jika SPK ini lebih lebar
-      if (w > maxColumnWidth) maxColumnWidth = w;
-
-      // Jika sudah kolom terakhir dari SPK ini, update currentY untuk SPK selanjutnya
-      if (col === totalKolomSPK - 1) {
-        currentY += tinggiBlokIni;
-      }
-    }
-  });
-
-  updateSisaFromLayout();
-  if (!isSilent) toast.success("Layout diperbarui!");
+const closeAfalModal = () => {
+  afalModal.show = false;
+  router.push("/mmt/lhk/cetak");
 };
-
-const startDrag = (event: MouseEvent, idx: number) => {
-  const item = layoutRows.value[idx];
-  const startX = event.clientX;
-  const startY = event.clientY;
-
-  // Ambil posisi terakhir yang ada di manualOffsets, jika belum ada gunakan posisi default dari sistem
-  const initialX = manualOffsets[idx]?.x ?? item.x;
-  const initialY = manualOffsets[idx]?.y ?? item.y;
-  const currentRot = manualOffsets[idx]?.rotation ?? 0;
-
-  const onMouseMove = (e: MouseEvent) => {
-    // Hitung perubahan posisi dalam satuan meter
-    const dx = (e.clientX - startX) / SCALE;
-    const dy = (e.clientY - startY) / SCALE;
-
-    // Simpan koordinat baru ke dalam reactive state
-    manualOffsets[idx] = {
-      x: initialX + dx,
-      y: initialY + dy,
-      rotation: currentRot, // Jaga rotasi agar tidak hilang saat geser
-    };
-
-    updateSisaFromLayout();
-  };
-
-  const onMouseUp = () => {
-    document.removeEventListener("mousemove", onMouseMove);
-    document.removeEventListener("mouseup", onMouseUp);
-
-    // Opsional: Tambahkan toast atau log untuk memastikan data tersimpan
-    console.log(`Item ${idx} terkunci di:`, manualOffsets[idx]);
-  };
-
-  document.addEventListener("mousemove", onMouseMove);
-  document.addEventListener("mouseup", onMouseUp);
-};
-
-const resetManualLayout = () => {
-  Object.keys(manualOffsets).forEach((key) => delete manualOffsets[key]);
-  toast.info("Layout dikembalikan ke posisi otomatis");
-};
-
-const handleDoubleClick = (idx: number) => {
-  // Ambil data offset saat ini atau buat baru jika belum ada
-  if (!manualOffsets[idx]) {
-    manualOffsets[idx] = {
-      x: layoutRows.value[idx].x,
-      y: layoutRows.value[idx].y,
-      rotation: 0,
-    };
-  }
-
-  // Tambah rotasi 90 derajat
-  manualOffsets[idx].rotation = (manualOffsets[idx].rotation || 0) + 90;
-
-  // Opsional: Jalankan kalkulasi sisa jika rotasi mempengaruhi area terpakai
-  updateSisaFromLayout();
-};
-
-const isFormValid = computed(
-  () =>
-    formData.operator &&
-    formData.mesin &&
-    formData.barcode_input &&
-    detailData.length > 0,
-  formData.panjang_bs !== null &&
-    formData.panjang_bs !== "" &&
-    formData.lebar_bs !== null &&
-    formData.lebar_bs !== "",
-);
 
 const recalculateCombine = () => {
   totalPanjangTerpakai.value = 0;
@@ -901,15 +827,14 @@ const recalculateCombine = () => {
   lebarSisaLayoutGanjil.value = 0;
   panjangSisaLayoutGanjil.value = 0;
 
-  if (!detailData.length || Number(formData.Lebar_bahan) <= 0) return;
+  if (!formData.value.details.length || Number(formData.value.Lebar_bahan) <= 0) return;
 
-  const maxRollHeight = Number(formData.Lebar_bahan);
-
+  const maxRollHeight = Number(formData.value.Lebar_bahan);
   let currentXOffset = 0;
   let nextXOffset = 0;
   let currentUsedHeight = 0;
 
-  detailData.forEach((d) => {
+  formData.value.details.forEach((d) => {
     let totalCetakInput = 0;
     for (let i = 1; i <= 7; i++) {
       totalCetakInput += parseFloat(d[`cetak${i}`]) || 0;
@@ -917,12 +842,11 @@ const recalculateCombine = () => {
 
     if (totalCetakInput > d.kurangcetak_asli) {
       toast.warning(
-        `SPK ${d.nomor_spk} (Input: ${totalCetakInput} melebihi sisa order : ${d.kurangcetak_asli})`,
+        `SPK ${d.nomor_spk} (Input: ${totalCetakInput} melebihi sisa order: ${d.kurangcetak_asli})`
       );
     }
 
     d.totalcetak = totalCetakInput;
-
     d.kurangcetak =
       (parseFloat(d.jumlah) || 0) -
       (parseFloat(d.sudahcetak) || 0) -
@@ -940,10 +864,8 @@ const recalculateCombine = () => {
     const padding = parseFloat(d.padding) || 0;
     const padM = (padding * 2) / 100;
 
-    const dimMenyamping =
-      d.orientasi === "lebar" ? lebar + padM : panjang + padM;
-    const dimMemanjang =
-      d.orientasi === "lebar" ? panjang + padM : lebar + padM;
+    const dimMenyamping = d.orientasi === "lebar" ? lebar + padM : panjang + padM;
+    const dimMemanjang = d.orientasi === "lebar" ? panjang + padM : lebar + padM;
 
     const luasSatuan = (panjang + padM) * (lebar + padM);
     d.luas_satuan = Number(luasSatuan.toFixed(3));
@@ -961,306 +883,161 @@ const recalculateCombine = () => {
   });
 
   totalPanjangTerpakai.value = nextXOffset;
-
-  // 🔥 PERBAIKAN DI SINI: Panggil langsung agar nilai Afal ter-update secara synchronous saat save
   autoFillLayout(true);
 };
 
-const afalModal = reactive({
-  show: false,
-  data: {
-    barcode: "",
-    panjang: 0,
-    lebar: 0,
-  },
-});
+const updateSisaFromLayout = () => {
+  let maxRight = 0;
+  let maxBottom = 0;
 
-// Fungsi untuk menutup modal afal dan redirect ke halaman list LHK
-const closeAfalModal = () => {
-  afalModal.show = false;
-  router.push("/mmt/lhk/cetak");
+  layoutRows.value.forEach((item, idx) => {
+    const posX = manualOffsets[idx]?.x ?? item.x;
+    const posY = manualOffsets[idx]?.y ?? item.y;
+    const edgeRight = posX + item.w;
+    const edgeBottom = posY + item.h;
+
+    if (edgeRight > maxRight) maxRight = edgeRight;
+    if (edgeBottom > maxBottom) maxBottom = edgeBottom;
+  });
+
+  totalPanjangTerpakai.value = maxRight;
+  totalLebarGabungan.value = maxBottom;
+
+  const sisaLebar = formData.value.Lebar_bahan - maxBottom;
+  if (sisaLebar > 0.1) {
+    lebarSisaLayoutGanjil.value = sisaLebar;
+    panjangSisaLayoutGanjil.value = maxRight;
+  }
 };
 
-// --- Modifikasi Fungsi handleSave pada bagian blok try ---
-const handleSave = async (statusValue: "DRAFT" | "POSTED" = "DRAFT") => {
-  // 1. Validasi Panjang Bahan Utama
-  const panjangBahan = Number(formData.Panjang_bahan || 0);
-  if (panjangBahan <= 0) {
-    toast.error(
-      "Gagal Simpan: Panjang bahan yang diambil tidak boleh 0. Silakan scan barcode roll kembali.",
-    );
-    return;
-  }
+const autoFillLayout = (isSilent = false) => {
+  Object.keys(manualOffsets).forEach((key) => delete manualOffsets[key]);
 
-  // 🔥 VALIDASI UTAMA: Paksa P & L BS tidak boleh kosong (null / string kosong)
-  if (
-    formData.panjang_bs === null ||
-    formData.panjang_bs === "" ||
-    formData.lebar_bs === null ||
-    formData.lebar_bs === ""
-  ) {
-    toast.error(
-      "Gagal Simpan: Panjang dan Lebar BS / Rusak tidak boleh kosong! Jika tidak ada BS, silakan isi dengan angka 0.",
-    );
-    return;
-  }
+  if (formData.value.details.length === 0 || formData.value.Lebar_bahan <= 0) return;
 
-  // 2. Validasi Over Production
-  let isOverProduction = false;
-  let overMessages = "";
+  const maxBahanLebar = Number(formData.value.Lebar_bahan);
+  let unitGlobalIdx = 0;
+  let currentStartX = 0;
+  let currentY = 0;
+  let maxColumnWidth = 0;
+  let maxOverallX = 0;
 
-  detailData.forEach((d) => {
-    if (d.totalcetak > d.kurangcetak_asli) {
-      isOverProduction = true;
-      overMessages += `\n- SPK ${d.nomor_spk}: Input ${d.totalcetak} > Sisa ${d.kurangcetak_asli}`;
+  formData.value.details.forEach((spk) => {
+    const totalCetak = Number(spk.totalcetak) || 0;
+    const tile = Number(spk.tile) || 1;
+    if (totalCetak <= 0) return;
+
+    const padM = ((parseFloat(spk.padding as any) || 0) * 2) / 100;
+    const w = spk.orientasi === "lebar" ? spk.panjang_spk + padM : spk.lebar_spk + padM;
+    const h = spk.orientasi === "lebar" ? spk.lebar_spk + padM : spk.panjang_spk + padM;
+
+    const totalKolomSPK = Math.ceil(totalCetak / tile);
+    let unitsPlaced = 0;
+
+    for (let col = 0; col < totalKolomSPK; col++) {
+      const tinggiBlokIni = tile * h;
+
+      if (currentY + tinggiBlokIni > maxBahanLebar + 0.01) {
+        currentStartX = maxOverallX;
+        currentY = 0;
+        maxColumnWidth = 0;
+      }
+
+      for (let row = 0; row < tile; row++) {
+        if (unitsPlaced < totalCetak) {
+          const posX = currentStartX + col * w;
+          const posY = currentY + row * h;
+
+          manualOffsets[unitGlobalIdx] = {
+            x: posX,
+            y: posY,
+            rotation: 0,
+          };
+
+          if (posX + w > maxOverallX) maxOverallX = posX + w;
+          unitGlobalIdx++;
+          unitsPlaced++;
+        }
+      }
+
+      if (w > maxColumnWidth) maxColumnWidth = w;
+
+      if (col === totalKolomSPK - 1) {
+        currentY += tinggiBlokIni;
+      }
     }
   });
 
-  if (isOverProduction && statusValue === "POSTED") {
-    const projut = confirm(
-      `PERHATIAN: Ada kelebihan jumlah cetak:${overMessages}\n\nTetap lanjutkan simpan?`,
-    );
-    if (!projut) return;
-  }
+  updateSisaFromLayout();
+  if (!isSilent) toast.success("Layout diperbarui!");
+};
 
-  // Validasi data wajib lainnya (Operator, Mesin, dll)
-  if (!isFormValid.value) {
-    toast.error("Mohon lengkapi data wajib (Operator, Mesin, Barcode, SPK)");
-    return;
-  }
+const startDrag = (event: MouseEvent, idx: number) => {
+  const item = layoutRows.value[idx];
+  const startX = event.clientX;
+  const startY = event.clientY;
 
-  // Validasi potong stok jika status POSTED
-  if (
-    statusValue === "POSTED" &&
-    !confirm("Simpan Hasil akan MEMOTONG STOK. Lanjutkan?")
-  ) {
-    return;
-  }
+  const initialX = manualOffsets[idx]?.x ?? item.x;
+  const initialY = manualOffsets[idx]?.y ?? item.y;
+  const currentRot = manualOffsets[idx]?.rotation ?? 0;
 
-  // 3. Proses Pengiriman Data
-  isSaving.value = true;
-  try {
-    // 🔥 KUNCI PERBAIKAN: Jalankan kalkulasi secara sinkron tepat sebelum payload dibentuk
-    // Ini memastikan variabel .value dari Layout ter-update instan tanpa tertahan nextTick
-    recalculateCombine();
-    updateSisaFromLayout();
+  const onMouseMove = (e: MouseEvent) => {
+    const dx = (e.clientX - startX) / SCALE;
+    const dy = (e.clientY - startY) / SCALE;
 
-    const currentUser = authStore.user?.kdUser || "SYSTEM";
-    const payload = {
-      header: {
-        ltanggal: formData.tanggal,
-        lgdg_prod: "GPM",
-        lmesin: formData.mesin,
-        lshift: formData.shift,
-        loperator: formData.operator,
-        lbahan: formData.kode_bahan_aktif,
-        lbarcode_roll: formData.barcode_input,
-        lstatus: statusValue,
-        luser_create: currentUser,
-        luser_modified: currentUser,
-        lpanjang_bs: formData.panjang_bs,
-        llebar_bs: formData.lebar_bs,
-
-        // 🎯 Nilai di bawah ini dijamin membawa angka real layout (misal: 12.24 dan 2.14)
-        lpanjang_afal: panjangSisaLayoutGanjil.value || 0,
-        llebar_afal: lebarSisaLayoutGanjil.value || 0,
-      },
-      details: detailData.map((d) => {
-        const sisaLebarFinal = (formData.sisa_lebar_manual && Number(formData.sisa_lebar_manual) > 0)
-          ? Number(formData.sisa_lebar_manual)
-          : Number(formData.Lebar_bahan || 0);
-        return {
-          nomor_spk: d.nomor_spk,
-          tile: d.tile,
-          jumlah: d.jumlah,
-          luasm2: d.total_luas,
-          padding: d.padding,
-          ambilBahanPanjang: formData.Panjang_bahan,
-          ambilBahanLebar: formData.Lebar_bahan,
-          sisabahan: formData.sisa_panjang_manual ?? sisaStokOtomatis.value,
-          sisabahanlebar: sisaLebarFinal,
-          cetak1: d.cetak1,
-          cetak2: d.cetak2,
-          cetak3: d.cetak3,
-          cetak4: d.cetak4,
-          cetak5: d.cetak5,
-          cetak6: d.cetak6,
-          cetak7: d.cetak7,
-        };
-      }),
-      existingNomor: isEditMode.value ? formData.nomor : null,
+    manualOffsets[idx] = {
+      x: initialX + dx,
+      y: initialY + dy,
+      rotation: currentRot,
     };
+    updateSisaFromLayout();
+  };
 
-    const response = await api.post("/mmt/lhk-cetak", payload);
-    const resBody = response.data.data || response.data;
+  const onMouseUp = () => {
+    document.removeEventListener("mousemove", onMouseMove);
+    document.removeEventListener("mouseup", onMouseUp);
+  };
 
-    if (response.data.success || resBody.success) {
-      toast.success(resBody.message || "LHK berhasil disimpan.");
+  document.addEventListener("mousemove", onMouseMove);
+  document.addEventListener("mouseup", onMouseUp);
+};
 
-      if (statusValue === "POSTED" && resBody.afalData) {
-        afalModal.data = {
-          barcode: resBody.afalData.barcode,
-          panjang: Number(resBody.afalData.panjang || 0),
-          lebar: Number(resBody.afalData.lebar || 0),
-        };
-        afalModal.show = true;
-        // Alur router ditahan di sini agar modal terbaca oleh operator
-      } else {
-        if (statusValue === "POSTED") {
-          router.push("/mmt/lhk/cetak");
-        } else if (!isEditMode.value) {
-          formData.nomor = resBody.nomor;
-          isEditMode.value = true;
-          router.replace(`/mmt/lhk-cetak/edit/${resBody.nomor}`);
-        }
-      }
-    }
-  } catch (error: any) {
-    console.error("Save error details:", error);
-    toast.error(error.response?.data?.message || "Gagal simpan.");
-  } finally {
-    isSaving.value = false;
+const resetManualLayout = () => {
+  Object.keys(manualOffsets).forEach((key) => delete manualOffsets[key]);
+  recalculateCombine();
+};
+
+const handleDoubleClick = (idx: number) => {
+  if (!manualOffsets[idx]) {
+    manualOffsets[idx] = {
+      x: layoutRows.value[idx].x,
+      y: layoutRows.value[idx].y,
+      rotation: 0,
+    };
   }
+  manualOffsets[idx].rotation = (manualOffsets[idx].rotation || 0) + 90;
+  updateSisaFromLayout();
 };
-
-const loaddataall = async (nomor: string) => {
-  isSaving.value = true;
-  try {
-    const response = await api.get(`${API_BASE_URL}/lookup/${nomor}`);
-    const res = response.data.data || response.data;
-
-    if (res && res.header) {
-      const h = res.header;
-      // Sinkronisasi field header (Pastikan menggunakan properti hasil query Backend)
-      formData.nomor = h.Nomor;
-      formData.tanggal = h.Tanggal; // Query backend sudah memformat DATE_FORMAT
-      formData.shift = h.Shift || 1;
-      formData.operator = h.Operator || "";
-      formData.mesin = h.Mesin || "";
-      formData.kode_bahan_aktif = h.Kode_bahan || "";
-      formData.barcode_input = h.lbarcode_roll || "";
-
-      // 2. Tambahkan baris ini untuk pemicu "Auto-Enter"
-      if (formData.barcode_input) {
-        // Gunakan nextTick agar memastikan state barcode_input sudah stabil
-        nextTick(() => {
-          handleBarcodeScan();
-        });
-      }
-      formData.panjang_bs = h.PanjangBS || 0;
-      formData.lebar_bs = h.LebarBS || 0;
-
-      detailData.splice(0, detailData.length);
-
-      if (Array.isArray(res.details)) {
-        for (const d of res.details) {
-          // --- PERBAIKAN DI SINI ---
-          // Backend getLookupByNomor menggunakan alias 'spk_nomor'
-          const currentSpkId = d.spk_nomor;
-
-          if (!currentSpkId) {
-            console.warn("Melewati baris karena spk_nomor kosong:", d);
-            continue;
-          }
-
-          if (detailData.length === 0) {
-            formData.Panjang_bahan = parseFloat(d.AmbilBahanPanjang || 0);
-            formData.Lebar_bahan = parseFloat(d.AmbilBahanLebar || 0);
-            formData.sisa_panjang_manual = d.Sisa_Panjang || null;
-            formData.sisa_lebar_manual = d.Sisa_Lebar || null;
-          }
-
-          let infoSisaFromDb = { sudah_cetak_db: 0, kurang_cetak_db: 0 };
-          try {
-            // Memanggil API detail SPK dengan ID yang valid (bukan undefined)
-            const resSpk = await api.get(`/mmt/SPK/${currentSpkId}`);
-            const s = resSpk.data.data || resSpk.data;
-            infoSisaFromDb.sudah_cetak_db = parseFloat(s.Sudah_Cetak || 0);
-            infoSisaFromDb.kurang_cetak_db = parseFloat(s.Kurang_Cetak || 0);
-          } catch (e) {
-            console.error(`Gagal ambil info sisa SPK untuk ${currentSpkId}`, e);
-          }
-
-          // totalcetak di preview JSON Anda menggunakan nama 'totalcetak' (huruf kecil)
-          const currentTotalInput = parseFloat(d.totalcetak || 0);
-
-          const detailObj: any = {
-            nomor_spk: currentSpkId,
-            nama_spk: d.nama_spk || "",
-            panjang_spk: parseFloat(d.spk_panjang || 0),
-            lebar_spk: parseFloat(d.spk_lebar || 0),
-            padding: d.Padding || 3,
-            tile: d.Tile || 1,
-            jumlah: parseFloat(d.jumlah || 0),
-            orientasi: d.Orientasi || "lebar",
-            sudahcetak: infoSisaFromDb.sudah_cetak_db - currentTotalInput,
-            kurangcetak_asli:
-              infoSisaFromDb.kurang_cetak_db + currentTotalInput,
-            kurangcetak: 0,
-            totalcetak: currentTotalInput,
-          };
-
-          // Mapping J_Cetak1...7 (Pastikan sesuai dengan alias di Backend)
-          for (let i = 1; i <= 7; i++) {
-            // Gunakan alias 'J_Cetak' sesuai preview data JSON Anda
-            detailObj[`cetak${i}`] = d[`J_Cetak${i}`] || 0;
-          }
-
-          detailData.push(detailObj);
-        }
-      }
-      recalculateCombine();
-    }
-  } catch (error: any) {
-    console.error("Load Error:", error);
-    toast.error("Gagal memuat data.");
-  } finally {
-    isSaving.value = false;
-  }
-};
-
-// Helper untuk menghitung total semua cetakan dari semua SPK
-const getGrandTotalCetak = () => {
-  return detailData.reduce(
-    (sum, spk) => sum + (Number(spk.totalcetak) || 0),
-    0,
-  );
-};
-
-const grandTotalLuasBahan = computed(() => {
-  return detailData
-    .reduce((sum, item) => sum + Number(item.total_luas || 0), 0)
-    .toFixed(2);
-});
 
 const layoutRows = computed(() => {
   const blocks: any[] = [];
-  if (detailData.length === 0 || formData.Lebar_bahan <= 0) return blocks;
+  if (formData.value.details.length === 0 || formData.value.Lebar_bahan <= 0) return blocks;
 
-  detailData.forEach((spk, spkIdx) => {
-    const totalCetak =
-      (spk.cetak1 || 0) +
-      (spk.cetak2 || 0) +
-      (spk.cetak3 || 0) +
-      (spk.cetak4 || 0) +
-      (spk.cetak5 || 0) +
-      (spk.cetak6 || 0) +
-      (spk.cetak7 || 0);
+  formData.value.details.forEach((spk, spkIdx) => {
+    const totalCetak = spk.totalcetak || 0;
     if (totalCetak <= 0 || spk.tile <= 0) return;
 
-    const padM = (spk.padding * 2) / 100;
-    const visualW =
-      spk.orientasi === "lebar" ? spk.panjang_spk + padM : spk.lebar_spk + padM;
-    const visualH =
-      spk.orientasi === "lebar" ? spk.lebar_spk + padM : spk.panjang_spk + padM;
+    const padM = ((parseFloat(spk.padding as any) || 0) * 2) / 100;
+    const visualW = spk.orientasi === "lebar" ? spk.panjang_spk + padM : spk.lebar_spk + padM;
+    const visualH = spk.orientasi === "lebar" ? spk.lebar_spk + padM : spk.panjang_spk + padM;
 
     for (let i = 0; i < totalCetak; i++) {
       blocks.push({
         label: `SPK ${spkIdx + 1}`,
         w: visualW,
         h: visualH,
-        x: 0, // Default, akan ditimpa manualOffsets
-        y: 0, // Default, akan ditimpa manualOffsets
+        x: 0,
+        y: 0,
         rotated: spk.orientasi === "panjang",
       });
     }
@@ -1269,189 +1046,268 @@ const layoutRows = computed(() => {
 });
 
 const rollStyle = computed(() => ({
-  height: `${formData.Lebar_bahan * SCALE}px`,
-
+  height: `${formData.value.Lebar_bahan * SCALE}px`,
   display: "flex",
-
-  flexDirection: "column", // ✅ BARIS TURUN KE BAWAH
-
+  flexDirection: "column" as const,
   backgroundColor: "#ffffff",
-
-  border: "1px solid #999",
-
+  border: "1px solid #333",
   padding: "2px",
-
   width: "max-content",
-
+  minWidth: `${formData.value.Panjang_bahan * SCALE}px`,
   alignItems: "flex-start",
 }));
 
-const getColStyle = (item: any) => {
-  const padM = (item.padding * 2) / 100;
-
-  return {
-    display: "flex",
-
-    flexDirection: "column",
-
-    height: "100%",
-
-    width: `${(item.panjang_spk + padM) * SCALE}px`,
-
-    marginRight: "2px",
-
-    gap: "2px",
-  };
+const handleBsInput = (event: any) => {
+  let val = event.target.value;
+  if (val.includes(",")) val = val.replace(",", ".");
+  formData.value.panjang_bs = val;
+  recalculateCombine();
 };
 
-const getBoxStyle = (item: any) => ({
-  width: "100%",
-  height: `${item.lebar_spk * SCALE}px`,
-  backgroundColor: "#e3f2fd",
-  border: "1px solid #2196f3",
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  fontSize: "9px",
-  color: "#1976d2",
-  fontWeight: "bold",
-  flexShrink: 0,
-});
+const handleBsLebarInput = (event: any) => {
+  let val = event.target.value;
+  if (val.includes(",")) val = val.replace(",", ".");
+  formData.value.lebar_bs = val;
+};
 
-const getTileInRow = (item: any, currentRow: number) => {
-  const totalRows = Math.ceil(item.totalcetak / item.tile);
+const handlePaddingTableInput = (event: any, item: any) => {
+  let val = event.target.value;
+  if (val.includes(",")) val = val.replace(",", ".");
+  item.padding = val;
+  recalculateCombine();
+};
 
-  if (currentRow === totalRows) {
-    const remainder = item.totalcetak % item.tile;
+// SCAN BARCODE DENGAN DETEKSI LHK LAIN
+const handleBarcodeScan = async () => {
+  const code = formData.value.barcode_input;
+  if (!code) return;
 
-    return remainder === 0 ? item.tile : remainder;
+  try {
+    const res = await api.get(`/mmt/stok-gudang/${code}`);
+    const responsePayload = res.data;
+
+    if (!responsePayload || !responsePayload.success || !responsePayload.data) {
+      toast.error("Barcode tidak terdaftar!");
+      return;
+    }
+
+    const info = responsePayload.data.data;
+    const statusGudang = responsePayload.data.status;
+
+    if (!info) {
+      toast.error("Detail data material kosong!");
+      return;
+    }
+
+    // =========================================================================
+    // 🟡 ALERT WARNING HANYA UNTUK MODE EDIT LHK LAMA Y
+    // =========================================================================
+    const lhkTerakhir = info.Lhk_Terakhir;
+    
+    // Jika sedang EDIT (bukan buat baru) dan LHK Terakhir di DB bukan LHK ini (sudah ada LHK B setelahnya)
+    if (isEditMode.value && lhkTerakhir && lhkTerakhir !== formData.value.nomor) {
+      toast.warning(
+        `⚠️ PERINGATAN REVISI: Roll ini sudah diproses ke LHK Setelahnya (${lhkTerakhir}). Perubahan sisa pada LHK ini akan berdampak pada stok LHK tersebut!`,
+        {
+          timeout: 10000,
+          closeOnClick: true,
+          pauseOnHover: true,
+        }
+      );
+    }
+    // =========================================================================
+
+    formData.value.sku_aktif = info.Barcode || code;
+    formData.value.kode_bahan_aktif = info.Kode || "";
+    formData.value.Lebar_bahan = parseFloat(info.Lebar) || 0;
+
+    // Jika mode edit, amankan Panjang_bahan dari ld_ambilbahan DB
+    if (!isEditMode.value || !formData.value.Panjang_bahan) {
+      formData.value.Panjang_bahan = parseFloat(info.Sisa_Panjang) || 0;
+    }
+
+    recalculateCombine();
+  } catch (e) {
+    toast.error("Gagal scan barcode material");
+  }
+};
+
+// Fungsi Tombol Penyesuaian Bahan (Sync Stok Terbaru dari LHK A/Sebelumnya)
+const isSyncingStok = ref(false);
+
+const handleSyncStokBahan = async () => {
+  if (!formData.value.barcode_input) {
+    return toast.error("Silakan scan barcode roll bahan terlebih dahulu!");
   }
 
-  return item.tile;
+  isSyncingStok.value = true;
+  try {
+    // Panggil API getStokByBarcode yang sudah diperbaiki
+    const res = await api.get(`/mmt/stok-gudang/${formData.value.barcode_input}`);
+    const resData = res.data?.data?.data;
+
+    if (resData && resData.Sisa_Panjang !== undefined) {
+      const stokTerbaru = parseFloat(resData.Sisa_Panjang || 0);
+      const stokLama = formData.value.Panjang_bahan;
+
+      if (stokTerbaru === stokLama) {
+        toast.info("Stok bahan sudah sinkron dengan LHK sebelumnya.");
+        return;
+      }
+
+      // Update Bahan Awal LHK B menjadi 19.34
+      formData.value.Panjang_bahan = stokTerbaru;
+
+      // Reset Sisa Manual agar kalkulasi pemakaian otomatis dihitung dari 19.34
+      formData.value.sisa_panjang_manual = null;
+
+      recalculateCombine();
+
+      toast.success(
+        `Berhasil diselaraskan! Bahan awal disesuaikan dari ${stokLama} M menjadi ${stokTerbaru} M (Sisa LHK ${resData.Lhk_Terakhir || 'Sebelumnya'}).`
+      );
+    } else {
+      toast.error("Gagal mendapatkan sisa bahan dari LHK sebelumnya.");
+    }
+  } catch (error) {
+    console.error("Error Sync Stok:", error);
+    toast.error("Gagal menyelaraskan stok bahan.");
+  } finally {
+    isSyncingStok.value = false;
+  }
 };
 
 const handleSpkScan = async () => {
-  const code = formData.barcode_spk?.trim();
-
-  // 1. Validasi Input Kosong
+  const code = formData.value.barcode_spk?.trim();
   if (!code) return;
-
-  // 2. Cek Duplikat (Agar tidak input SPK yang sama dua kali)
-  if (detailData.some((d) => d.nomor_spk === code)) {
-    toast.warning(`SPK ${code} sudah ada dalam daftar!`);
-    formData.barcode_spk = "";
+  if (formData.value.details.some((d) => d.nomor_spk === code)) {
+    toast.warning("SPK sudah ada di list.");
+    formData.value.barcode_spk = "";
     return;
   }
-
   try {
-    isSaving.value = true;
-
-    // 3. Ambil Data SPK dari API berdasarkan nomor yang discan
     const res = await api.get(`/mmt/SPK/${code}`);
     const spk = res.data.data || res.data;
-
     if (spk) {
-      // 4. Mapping data sesuai struktur tabel detailData Anda
-      const newEntry: any = {
-        nomor_spk: spk.Spk || spk.Nomor || code,
-        nama_spk: spk.Nama || spk.Nama_Produk || "",
-        panjang_spk: parseFloat(spk.Panjang || 0),
-        lebar_spk: parseFloat(spk.Lebar || 0),
-        jumlah: parseFloat(spk.Jumlah || 0),
-        sudahcetak: parseFloat(spk.Sudah_Cetak || 0),
-        kurangcetak_asli: parseFloat(spk.Kurang_Cetak || 0),
-        padding: 3,
-        tile: 1,
-        orientasi: "lebar",
-        totalcetak: 0,
-        luas_satuan: 0,
-        total_luas: 0,
-      };
-
-      // Inisialisasi kolom C1 sampai C7
-      for (let i = 1; i <= 7; i++) {
-        newEntry[`cetak${i}`] = 0;
-      }
-
-      // 5. Masukkan ke tabel dan hitung ulang layout
-      detailData.push(newEntry);
-      recalculateCombine();
-
-      toast.success(`Berhasil menambahkan SPK ${code}`);
-
-      // 6. Reset field scan agar siap untuk scan berikutnya
-      formData.barcode_spk = "";
-    } else {
-      toast.error("Nomor SPK tidak ditemukan");
-      formData.barcode_spk = "";
+      injectSpkObject(spk);
+      formData.value.barcode_spk = "";
     }
-  } catch (e: any) {
-    console.error("Scan SPK Error:", e);
-    toast.error(e.response?.data?.message || "Gagal mengambil data SPK");
-    formData.barcode_spk = "";
-  } finally {
-    isSaving.value = false;
+  } catch (e) {
+    toast.error("Gagal memuat barcode SPK");
   }
 };
 
+const injectSpkObject = (spk: any) => {
+  const newEntry: any = {
+    nomor_spk: spk.Spk || spk.nomor_spk || spk.Id,
+    nama_spk: spk.Nama || spk.nama || "No Name",
+    panjang_spk: parseFloat(spk.Panjang || 0),
+    lebar_spk: parseFloat(spk.Lebar || 0),
+    jumlah: parseFloat(spk.Jumlah || 0),
+    sudahcetak: parseFloat(spk.Sudah_Cetak || 0),
+    kurangcetak_asli: parseFloat(spk.Kurang_Cetak || spk.Jumlah || 0),
+    padding: 3,
+    tile: 1,
+    orientasi: "lebar",
+    totalcetak: 0,
+    luas_satuan: 0,
+    total_luas: 0,
+  };
+  for (let i = 1; i <= 7; i++) newEntry[`cetak${i}`] = 0;
+
+  formData.value.details.push(newEntry);
+  recalculateCombine();
+};
+
+const validateBeforeSave = (status: string) => {
+  if (!formData.value.mesin) {
+    return toast.error("Silakan pilih mesin terlebih dahulu!");
+  }
+
+  if (
+    formData.value.panjang_bs === null ||
+    formData.value.panjang_bs === "" ||
+    formData.value.lebar_bs === null ||
+    formData.value.lebar_bs === ""
+  ) {
+    return toast.error("Ukuran BS (Panjang & Lebar) wajib diisi! (Isi 0 jika tidak ada BS).");
+  }
+
+  formData.value.lstatus = status;
+  showSaveDialog.value = true;
+};
+
 const handleApprove = async () => {
-  // 1. Validasi awal
-  if (!formData.nomor || formData.nomor === "AUTO") {
+  if (!formData.value.nomor || formData.value.nomor === "AUTO") {
     toast.error("Data belum tersimpan. Simpan sebagai Draft terlebih dahulu.");
     return;
   }
 
-  // 2. Konfirmasi
-  const confirmAcc = confirm(
-    `Apakah Anda yakin ingin melakukan ACC pada LHK No: ${formData.nomor}?\nData akan otomatis direkap ke Admin.`,
-  );
-
-  if (!confirmAcc) return;
+  if (!confirm(`Apakah Anda yakin ingin melakukan ACC pada LHK No: ${formData.value.nomor}?`)) {
+    return;
+  }
 
   isSaving.value = true;
   try {
     const currentUser = authStore.user?.kdUser || "SYSTEM";
+    const lebarAwal = parseFloat(formData.value.Lebar_bahan as any || 0);
 
-    // Kita panggil handleSave dengan status 'APPROVED' atau status lain sesuai standar backend Anda
-    // Jika backend sudah mendukung auto-rekap saat POSTED, Anda bisa langsung panggil handleSave('POSTED')
+    const sisaFinalM =
+      formData.value.sisa_panjang_manual !== null && formData.value.sisa_panjang_manual !== ""
+        ? parseFloat(Number(formData.value.sisa_panjang_manual).toFixed(2))
+        : parseFloat(Number(sisaStokOtomatis.value).toFixed(2));
+
+    const sisaLebarFinal =
+      formData.value.sisa_lebar_manual !== null &&
+      formData.value.sisa_lebar_manual !== "" &&
+      Number(formData.value.sisa_lebar_manual) > 0
+        ? parseFloat(Number(formData.value.sisa_lebar_manual).toFixed(2))
+        : lebarAwal;
 
     const payload = {
       header: {
-        ltanggal: formData.tanggal,
+        ltanggal: formData.value.tanggal,
         lgdg_prod: "GPM",
-        lmesin: formData.mesin,
-        lshift: formData.shift,
-        loperator: formData.operator,
-        lbahan: formData.kode_bahan_aktif,
-        lbarcode_roll: formData.barcode_input,
-        lstatus: "APPROVED", // Status khusus untuk trigger rekap
+        lmesin: formData.value.mesin,
+        lshift: formData.value.shift,
+        loperator: formData.value.operator,
+        lbahan: formData.value.kode_bahan_aktif,
+        lbarcode_roll: formData.value.barcode_input,
+        lstatus: "APPROVED",
         luser_modified: currentUser,
-        lpanjang_afal: panjangSisaLayoutGanjil.value,
-        llebar_afal: lebarSisaLayoutGanjil.value,
+        lpanjang_bs: formData.value.panjang_bs !== "" ? parseFloat(formData.value.panjang_bs) : 0,
+        llebar_bs: formData.value.lebar_bs !== "" ? parseFloat(formData.value.lebar_bs) : 0,
+        lpanjang_afal: panjangSisaLayoutGanjil.value || 0,
+        llebar_afal: lebarSisaLayoutGanjil.value || 0,
+        sisa_panjang_manual: formData.value.sisa_panjang_manual,
+        sisa_lebar_manual: formData.value.sisa_lebar_manual,
       },
-      details: detailData.map((d) => ({
+      details: formData.value.details.map((d) => ({
         nomor_spk: d.nomor_spk,
         tile: d.tile,
         jumlah: d.jumlah,
         luasm2: d.total_luas,
         padding: d.padding,
-        // ... sisa mapping detail seperti handleSave ...
-        cetak1: d.cetak1,
-        cetak2: d.cetak2,
-        cetak3: d.cetak3,
-        cetak4: d.cetak4,
-        cetak5: d.cetak5,
-        cetak6: d.cetak6,
-        cetak7: d.cetak7,
+        ld_ambilbahan: parseFloat(formData.value.Panjang_bahan as any || 0),
+        ambilBahanPanjang: parseFloat(formData.value.Panjang_bahan as any || 0),
+        ambilBahanLebar: lebarAwal,
+        sisabahan: sisaFinalM,
+        sisabahanlebar: sisaLebarFinal,
+        cetak1: parseInt(d.cetak1 || 0),
+        cetak2: parseInt(d.cetak2 || 0),
+        cetak3: parseInt(d.cetak3 || 0),
+        cetak4: parseInt(d.cetak4 || 0),
+        cetak5: parseInt(d.cetak5 || 0),
+        cetak6: parseInt(d.cetak6 || 0),
+        cetak7: parseInt(d.cetak7 || 0),
       })),
-      existingNomor: formData.nomor,
+      existingNomor: formData.value.nomor,
     };
 
     const response = await api.post("/mmt/lhk-cetak", payload);
-
     if (response.data.success) {
-      toast.success("LHK Berhasil di-ACC. Rekap otomatis telah dibuat.");
-      router.push("/mmt/lhk/cetak"); // Kembali ke list
+      toast.success("LHK Berhasil di-ACC.");
+      router.push("/mmt/lhk/cetak");
     }
   } catch (error: any) {
     toast.error(error.response?.data?.message || "Gagal memproses ACC.");
@@ -1460,234 +1316,92 @@ const handleApprove = async () => {
   }
 };
 
-const handleBarcodeScan = async () => {
-  const code = formData.barcode_input; // Tanpa .trim()
-
-  if (!code) return;
-
-  const regex = /^[a-zA-Z0-9-]+$/;
-  if (!regex.test(code)) {
-    toast.error("Format Barcode tidak valid! (Ada spasi atau karakter ilegal)");
-    // Opsional: reset nilai jika salah
-    // formData.barcode_input = "";
-    return;
-  }
-
-  try {
-    const res = await api.get(`/mmt/stok-gudang/${code}`);
-    const resData = res.data.data;
-
-    if (resData.status === "READY") {
-      formData.sku_aktif = resData.data.Barcode;
-      formData.kode_bahan_aktif = resData.data.Kode;
-      formData.Panjang_bahan = parseFloat(resData.data.Sisa_Panjang);
-      formData.Lebar_bahan = parseFloat(resData.data.Lebar);
-      recalculateCombine();
-      toast.success("Material Siap");
-    } else {
-      toast.error("Barcode tidak tersedia/sudah terpakai");
-    }
-  } catch (e) {
-    toast.error("Gagal scan barcode");
-  }
-};
-
-const generateNextAfalBarcode = (originalBarcode: string) => {
-  if (!originalBarcode) return "";
-
-  // 1. Bersihkan barcode dari suffix yang sudah ada untuk mendapatkan base barcode
-  // Mencari apakah sudah ada pola -A, -B, dst di akhir
-  const regex = /-(?:[A-Z])$/;
-  const hasSuffix = regex.test(originalBarcode);
-
-  let baseBarcode = originalBarcode;
-  let lastChar = "";
-
-  if (hasSuffix) {
-    // Ambil huruf terakhir (A-Z)
-    lastChar = originalBarcode.slice(-1).toUpperCase();
-    // Ambil barcode dasar tanpa -A
-    baseBarcode = originalBarcode.slice(0, -2);
-  }
-
-  // 2. Tentukan huruf berikutnya
-  let nextSuffix = "";
-  if (!lastChar) {
-    nextSuffix = "-A";
-  } else {
-    const nextCharCode = lastChar.charCodeAt(0) + 1;
-    if (nextCharCode > 90) {
-      // Jika sudah lewat Z
-      nextSuffix = "-A1"; // Atau logika penanganan jika lebih dari 26 afal
-    } else {
-      nextSuffix = `-${String.fromCharCode(nextCharCode)}`;
-    }
-  }
-
-  return baseBarcode + nextSuffix;
-};
-
-const handleSpkSelect = (spk: any) => {
-  if (detailData.some((d) => d.nomor_spk === spk.Spk)) {
-    toast.warning(`SPK ${spk.Spk} sudah ada dalam daftar!`);
-    return;
-  }
-
-  const newEntry: any = {
-    nomor_spk: spk.Spk,
-    nama_spk: spk.Nama,
-    panjang_spk: spk.Panjang || 0,
-    lebar_spk: spk.Lebar || 0,
-    jumlah: spk.Jumlah, // Target Order
-    sudahcetak: spk.Sudah_Cetak || 0, // Akumulasi dari DB
-    kurangcetak_asli: spk.Kurang_Cetak || 0,
-    padding: 3,
-    tile: 1,
-    orientasi: "lebar",
-    totalcetak: 0,
-    luas_satuan: 0,
-    total_luas: 0,
-  };
-  // Init C1 - C7
-  for (let i = 1; i <= 7; i++) newEntry[`cetak${i}`] = 0;
-
-  detailData.push(newEntry);
-  recalculateCombine();
-  isSpkLookupVisible.value = false;
-};
-
-const removeDetail = (idx: number) => {
-  detailData.splice(idx, 1);
-  recalculateCombine();
-};
-
-const openMesinSearch = () => (isMesinLookupVisible.value = true);
-const openSpkSearch = () => (isSpkLookupVisible.value = true);
-const handleMesinSelect = (m: any) => {
-  formData.mesin = m.Kode;
-  isMesinLookupVisible.value = false;
-};
-
-const handleCancel = () => {
-  if (confirm("Batalkan perubahan?")) location.reload();
-};
-
-onMounted(() => {
-  const nomorEdit = route.params.nomor;
-  if (nomorEdit && nomorEdit !== "create") {
-    isEditMode.value = true;
-    loaddataall(nomorEdit as string);
+onMounted(async () => {
+  if (isEditMode.value) {
+    await fetchData();
+    if (formData.value.barcode_input) await handleBarcodeScan();
   }
 });
 </script>
 
 <style scoped>
-.roll-material {
-  /* Tinggi mengikuti Lebar Bahan (3.2m) */
-  height: v-bind('formData.Lebar_bahan * SCALE + "px"');
-  position: relative; /* Wajib agar position:absolute item bekerja */
-  background-color: white;
-  width: max-content;
-  /* Berikan min-width agar background putih terlihat sepanjang total panjang bahan */
-  min-width: v-bind('totalPanjangTerpakai * SCALE + "px"');
-  border: 1px solid #333;
+.manksi-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
 }
-
+.manksi-table th {
+  background: #1565c0;
+  color: white;
+  padding: 6px;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+.manksi-table td {
+  border: 1px solid #e0e0e0;
+  padding: 0;
+  height: 28px;
+}
+.cell-input {
+  width: 100%;
+  height: 100%;
+  border: none;
+  padding: 0 4px;
+  outline: none;
+  background: transparent;
+}
+.cell-input:focus {
+  background: #e3f2fd;
+}
+.table-container {
+  overflow: auto;
+  max-height: 240px;
+}
+.tr {
+  text-align: right;
+}
+.fw-bold {
+  font-weight: bold;
+}
+.footer-container {
+  border-top: 2px solid #bbb !important;
+}
+.scroll-wrapper {
+  overflow-x: auto;
+  background-color: #f8f9fa;
+  min-height: 140px;
+  max-height: 200px;
+  border: 1px inset #ddd;
+}
 .product-unit {
-  transition: transform 0.3s ease; /* Transisi untuk rotasi */
   user-select: none;
   touch-action: none;
-  /* Memastikan titik pusat rotasi ada di tengah kotak */
   transform-origin: center center;
 }
-
-/* Pastikan label tetap di tengah meskipun kotak berputar */
 .box-label {
-  pointer-events: none; /* Agar tidak mengganggu drag/click */
-}
-/* Bagian CSS */
-
-.label-rotated {
-  writing-mode: vertical-rl; /* Memutar teks 90 derajat */
-  text-orientation: mixed;
-  transform: rotate(180deg); /* Menyesuaikan arah baca agar konsisten */
-}
-
-.box-label {
-  font-size: 10px;
+  font-size: 9px;
   font-weight: bold;
   white-space: nowrap;
-  overflow: hidden;
   text-overflow: ellipsis;
+  overflow: hidden;
   padding: 2px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
 }
-
-/* Container Utama */
-
-.form-grid-container {
-  display: flex;
-  gap: 16px;
-  align-items: flex-start; /* Penting agar kolom kiri tidak ikut memanjang */
+.label-rotated {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
 }
-
-.left-column {
-  width: 300px; /* Sesuaikan lebar kolom kiri */
-  position: sticky;
-  top: 0;
-}
-
-.right-column {
-  flex: 1;
-  min-width: 0; /* Mencegah flexbox pecah jika tabel terlalu lebar */
-}
-
-/* Bagian Tabel yang bisa di-scroll */
-
-.detail-entry-table {
-  /* Memberikan batas tinggi agar scroll muncul jika SPK banyak */
-  max-height: 400px;
-  overflow-y: auto;
-}
-
-/* Pastikan Header Tabel tetap terlihat saat di-scroll (Sticky Header) */
-
-:deep(.v-data-table__th) {
-  position: sticky;
-  top: 0;
-  background-color: #a1d9ff !important; /* bg-blue-grey-lighten-5 */
-  z-index: 2;
-}
-
-/* Agar tampilan input di dalam tabel lebih rapi */
-
-.cetak-field {
-  width: 50px;
-}
-
-/* Tambahan untuk footer agar tidak ikut ter-scroll jika tabel panjang */
-
-.footer-container {
-  position: sticky;
-  bottom: 0;
-  z-index: 2;
-  border-top: 2px solid #ddd !important;
-}
-
-.product-unit {
-  transition: none; /* Matikan transisi agar pergerakan halus saat drag */
-  user-select: none;
-  touch-action: none;
-}
-
 .roll-material {
-  /* Pastikan area roll cukup luas untuk menampung geseran */
+  height: v-bind('formData.Lebar_bahan * SCALE + "px"');
+  position: relative;
+  background-color: white;
+  width: max-content;
   min-width: v-bind('formData.Panjang_bahan * SCALE + "px"');
+  border: 1px solid #333;
   background-image:
     linear-gradient(90deg, #f0f0f0 1px, transparent 1px),
     linear-gradient(#f0f0f0 1px, transparent 1px);
-  background-size: 10px 10px; /* Opsional: Grid bantu */
+  background-size: 10px 10px;
 }
 </style>

@@ -1,5 +1,6 @@
 <template>
   <PageLayout :title="title" :icon="icon">
+    <!-- Header Action Buttons -->
     <template #header-actions>
       <v-btn size="x-small" color="success" @click="$emit('action:new')">
         <v-icon start>mdi-plus</v-icon> Baru
@@ -21,6 +22,7 @@
         <v-icon start>mdi-trash-can</v-icon> Hapus
       </v-btn>
 
+      <!-- Slot untuk Tombol Ekstra (ACC, Rekap, Export, dll) -->
       <slot
         name="extra-actions"
         :isSingleSelected="isSingleSelected"
@@ -41,13 +43,14 @@
     </template>
 
     <div class="browse-content">
+      <!-- Section Toolbar Filter -->
       <v-card flat class="mb-1">
         <v-card-text class="pa-2">
           <div class="filter-section d-flex align-center flex-wrap ga-4">
             <v-label class="filter-label text-caption">Periode Mulai:</v-label>
             <v-text-field
-              :model-value="startDate"
-              @update:model-value="$emit('update:startDate', $event)"
+              :model-value="startDateVal"
+              @update:model-value="onStartDateChange"
               type="date"
               density="compact"
               hide-details
@@ -58,8 +61,8 @@
             <v-label class="mx-2 text-caption">s/d</v-label>
 
             <v-text-field
-              :model-value="endDate"
-              @update:model-value="$emit('update:endDate', $event)"
+              :model-value="endDateVal"
+              @update:model-value="onEndDateChange"
               type="date"
               density="compact"
               hide-details
@@ -75,11 +78,16 @@
             >
               <v-icon>mdi-refresh</v-icon> Refresh
             </v-btn>
+
+            <!-- FIX 1: PERBAIKAN PENTING - Tambahkan slot #filter-fields di sini! -->
+            <slot name="filter-fields"></slot>
+
             <v-spacer />
           </div>
         </v-card-text>
       </v-card>
 
+      <!-- Tabel Data Utama -->
       <div class="table-container">
         <v-data-table
           :model-value="selected"
@@ -89,46 +97,21 @@
           :headers="headers"
           :items="items"
           :loading="loading"
-          item-value="Nomor"
+          :search="search"
+          :item-value="itemValue"
           density="compact"
           class="desktop-table elevation-1"
           fixed-header
           return-object
+          :show-expand="showExpand"
           @click:row="(e, row) => $emit('row-click', e, row)"
           :row-props="rowProps"
         >
+          <!-- FIX 2: Forward Semua Slots Secara Otomatis Kecuali Slot Bawaan yang di-override -->
           <template
-            #item.data-table-expand="{ internalItem, isExpanded, toggleExpand }"
+            v-for="(_, slotName) in customSlots"
+            #[slotName]="slotProps"
           >
-            <v-btn
-              variant="text"
-              size="small"
-              :icon="
-                isExpanded(internalItem) ? 'mdi-chevron-up' : 'mdi-chevron-down'
-              "
-              @click.stop="toggleExpand(internalItem)"
-            />
-          </template>
-
-          <template #expanded-row="{ columns, item }">
-            <tr class="bg-grey-lighten-5">
-              <td :colspan="columns.length" class="pa-0 border-0">
-                <div class="py-3 px-4" style="max-width: 80%">
-                  <v-card
-                    variant="outlined"
-                    color="grey-lighten-2"
-                    class="bg-white rounded shadow-sm"
-                  >
-                    <div class="pa-4">
-                      <slot name="expanded-content" :item="item" />
-                    </div>
-                  </v-card>
-                </div>
-              </td>
-            </tr>
-          </template>
-
-          <template v-for="(_, slotName) in $slots" #[slotName]="slotProps">
             <slot :name="slotName" v-bind="slotProps ?? {}" />
           </template>
         </v-data-table>
@@ -138,7 +121,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, useSlots } from "vue";
 import PageLayout from "./PageLayout.vue";
 
 const props = defineProps({
@@ -147,17 +130,25 @@ const props = defineProps({
   headers: { type: Array, required: true },
   items: { type: Array, required: true },
   loading: { type: Boolean, default: false },
-  startDate: { type: String, required: true },
-  endDate: { type: String, required: true },
-  selected: { type: Array, required: true },
-  expanded: { type: Array, required: true },
+  
+  // Dukungan Fleksibel untuk Date Filter
+  startDate: { type: String, default: "" },
+  endDate: { type: String, default: "" },
+  filters: { type: Object, default: null },
+
+  selected: { type: Array, default: () => [] },
+  expanded: { type: Array, default: () => [] },
+  search: { type: String, default: "" },
+  itemValue: { type: String, default: "Nomor" },
+  showExpand: { type: Boolean, default: false },
   hasPrint: { type: Boolean, default: false },
   rowProps: { type: Function, default: () => ({}) },
 });
 
-defineEmits([
+const emit = defineEmits([
   "update:startDate",
   "update:endDate",
+  "update:filters",
   "update:selected",
   "update:expanded",
   "refresh",
@@ -167,6 +158,34 @@ defineEmits([
   "action:print",
   "row-click",
 ]);
+
+const slots = useSlots();
+
+// Mengambil hanya slot yang dikirim dari parent agar tidak terjadi konflik template
+const customSlots = computed(() => {
+  const { 'extra-actions': _, 'filter-fields': __, ...rest } = slots;
+  return rest;
+});
+
+// Getter & Event Handler Tanggal (Mendukung p-bind via prop filters maupun startDate/endDate)
+const startDateVal = computed(() => props.filters?.startDate ?? props.startDate);
+const endDateVal = computed(() => props.filters?.endDate ?? props.endDate);
+
+const onStartDateChange = (val: string) => {
+  if (props.filters) {
+    emit("update:filters", { ...props.filters, startDate: val });
+  } else {
+    emit("update:startDate", val);
+  }
+};
+
+const onEndDateChange = (val: string) => {
+  if (props.filters) {
+    emit("update:filters", { ...props.filters, endDate: val });
+  } else {
+    emit("update:endDate", val);
+  }
+};
 
 const isSingleSelected = computed(() => props.selected.length === 1);
 </script>
