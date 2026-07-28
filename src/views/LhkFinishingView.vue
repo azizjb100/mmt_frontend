@@ -18,6 +18,8 @@
       @edit="handleEditClick"
       @delete="handleDelete"
       @update:expanded="loadDetails"
+      @row-click="handleRowClick"
+      :row-props="getRowProps"
     >
       <!-- Action Buttons Tambahan di Header Toolbar -->
       <template #extra-actions>
@@ -279,8 +281,27 @@ const filters = reactive({
 // --- Computed ---
 const isSingleSelected = computed(() => selected.value.length === 1);
 const selectedRow = computed<LhkFinishingItem | null>(() =>
-  isSingleSelected.value ? (selected.value[0] as LhkFinishingItem) : null,
+  isSingleSelected.value ? selected.value[0] : null
 );
+
+// --- Handler Klik Baris (Disamakan persis dengan Permintaan Bahan) ---
+const handleRowClick = (_event: any, row: any) => {
+  const item = row?.item?.raw || row?.item || row;
+  if (!item || !item.Nomor) return;
+
+  selected.value = selected.value.some((s) => s.Nomor === item.Nomor)
+    ? []
+    : [item];
+};
+
+const getRowProps = ({ item }: any) => {
+  const itemData = item?.raw || item;
+  return {
+    class: selected.value.some((s) => s.Nomor === itemData?.Nomor)
+      ? "row-selected"
+      : "",
+  };
+};
 
 // --- Helpers ---
 const safeFormatDate = (dateString: string | undefined): string => {
@@ -391,7 +412,7 @@ const loadDetails = async (newlyExpandedItems: any[]) => {
   if (!newlyExpandedItems || newlyExpandedItems.length === 0) return;
 
   const lastItem = newlyExpandedItems[newlyExpandedItems.length - 1];
-  const nomor = typeof lastItem === "object" ? lastItem.Nomor : lastItem;
+  const nomor = typeof lastItem === "object" ? (lastItem.Nomor || lastItem.raw?.Nomor) : lastItem;
 
   if (!nomor || details.value[nomor]) return;
 
@@ -707,5 +728,16 @@ watch(filters, fetchHeaders, { deep: true });
 }
 .font-weight-bold {
   font-weight: bold !important;
+}
+
+/* Gaya CSS untuk memberi highlight biru pada baris yang dipilih */
+.row-selected {
+  background-color: #d8efff !important;
+}
+:deep(.row-selected td) {
+  background-color: #d8efff !important;
+}
+:deep(.v-data-table__tr.row-selected:hover > td) {
+  background-color: #c0e4ff !important;
 }
 </style>
