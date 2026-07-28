@@ -4,6 +4,7 @@
     v-model:end-date="endDate"
     :items="filteredData"
     :loading="loading.report"
+    :show-gudang-filter="false"
     item-key="NOMOR"
     title="Laporan Monitoring LMKP"
     :excel-file-name="`Laporan_LMKP_${jenisLabel}_${startDate}_sd_${endDate}.xlsx`"
@@ -51,15 +52,22 @@
           <th rowspan="2" class="text-left">BAHAN</th>
           <th rowspan="2" class="text-center">GRAMASI</th>
 
-          <th colspan="7" class="text-center header-group bg-blue-header">PRODUKSI (PCS)</th>
+          <th colspan="7" class="text-center header-group bg-blue-header">
+            PRODUKSI (PCS)
+          </th>
           <th rowspan="2" class="text-right border-l border-r">CTK L.</th>
-          
+
           <!-- DINAMIS COLSPAN MESIN BASED ON KATEGORI -->
-          <th :colspan="mesinColumns.length" class="text-center header-group bg-cyan-header">
+          <th
+            :colspan="mesinColumns.length"
+            class="text-center header-group bg-cyan-header"
+          >
             MESIN ({{ jenisLabel }})
           </th>
-          
-          <th colspan="3" class="text-center header-group bg-teal-header">PRODUKSI (METER)</th>
+
+          <th colspan="3" class="text-center header-group bg-teal-header">
+            PRODUKSI (METER)
+          </th>
         </tr>
 
         <!-- Row 2: Sub Header Detail -->
@@ -74,9 +82,9 @@
           <th class="text-right bg-blue-sub">Coly</th>
 
           <!-- DINAMIS SUB HEADER MESIN (MT / MX / SUBLIM) -->
-          <th 
-            v-for="m in mesinColumns" 
-            :key="m.key" 
+          <th
+            v-for="m in mesinColumns"
+            :key="m.key"
             class="text-center bg-cyan-sub"
           >
             {{ m.label }}
@@ -94,31 +102,53 @@
     <template #row="{ item, formatNumber }">
       <tr class="table-row-item">
         <!-- Sticky Left Columns -->
-        <td class="text-center sticky-col-1 font-weight-bold">{{ item.NOMOR || '-' }}</td>
-        <td class="text-left sticky-col-2 text-truncate" style="max-width: 250px;" :title="item.spk_nama">{{ item.spk_nama || '-' }}</td>
+        <td class="text-center sticky-col-1 font-weight-bold">
+          {{ item.NOMOR || "-" }}
+        </td>
+        <td
+          class="text-left sticky-col-2 text-truncate"
+          style="max-width: 250px"
+          :title="item.spk_nama"
+        >
+          {{ item.spk_nama || "-" }}
+        </td>
 
         <!-- Info Umum SPK -->
         <td class="text-center">{{ formatDateDisplay(item.spk_tanggal) }}</td>
-        <td class="text-center font-weight-bold text-error">{{ formatDateDisplay(item.deadline) }}</td>
-        <td class="text-left text-truncate" style="max-width: 180px;" :title="item.KAIN">{{ item.KAIN || '-' }}</td>
-        <td class="text-center">{{ item.spk_gramasi || '-' }}</td>
+        <td class="text-center font-weight-bold text-error">
+          {{ formatDateDisplay(item.deadline) }}
+        </td>
+        <td
+          class="text-left text-truncate"
+          style="max-width: 180px"
+          :title="item.KAIN"
+        >
+          {{ item.KAIN || "-" }}
+        </td>
+        <td class="text-center">{{ item.spk_gramasi || "-" }}</td>
 
         <!-- Produksi PCS -->
         <td class="text-right">{{ formatNumber(item.spk_jumlah, 0) }}</td>
-        <td class="text-right text-success font-weight-bold">{{ formatNumber(item.spk_jumlah_kirim, 0) }}</td>
+        <td class="text-right text-success font-weight-bold">
+          {{ formatNumber(item.spk_jumlah_kirim, 0) }}
+        </td>
         <td class="text-right">{{ formatNumber(item.krg_kirim, 0) }}</td>
         <td class="text-right">{{ formatNumber(item.krg_Seaming, 0) }}</td>
         <td class="text-right">{{ formatNumber(item.krg_mataayam, 0) }}</td>
-        <td class="text-right text-error font-weight-bold">{{ formatNumber(item.krg_Cetak, 0) }}</td>
+        <td class="text-right text-error font-weight-bold">
+          {{ formatNumber(item.krg_Cetak, 0) }}
+        </td>
         <td class="text-right">{{ formatNumber(item.krg_coly, 0) }}</td>
 
         <!-- Cetak Luar -->
-        <td class="text-right border-l border-r">{{ formatNumber(item.cetak_luarx, 0) }}</td>
+        <td class="text-right border-l border-r">
+          {{ formatNumber(item.cetak_luarx, 0) }}
+        </td>
 
         <!-- DINAMIS DATA MESIN (MT / MX / SUBLIM) -->
-        <td 
-          v-for="m in mesinColumns" 
-          :key="m.key" 
+        <td
+          v-for="m in mesinColumns"
+          :key="m.key"
           class="text-center"
           :class="{ 'font-weight-bold text-primary': item[m.key] > 0 }"
         >
@@ -127,7 +157,9 @@
 
         <!-- Produksi Meter -->
         <td class="text-right">{{ formatNumber(item.krg_kirim_meter, 2) }}</td>
-        <td class="text-right text-error font-weight-bold bg-red-lighten-5">{{ formatNumber(item.krg_Cetak_meter, 2) }}</td>
+        <td class="text-right text-error font-weight-bold bg-red-lighten-5">
+          {{ formatNumber(item.krg_Cetak_meter, 2) }}
+        </td>
         <td class="text-right">{{ formatNumber(item.krg_coly_meter, 2) }}</td>
       </tr>
     </template>
@@ -135,42 +167,71 @@
     <!-- Slot Total Footer -->
     <template #tfoot="{ formatNumber }">
       <tr class="table-footer-row">
-        <td colspan="6" class="text-right font-weight-black text-uppercase sticky-footer-title">
+        <td
+          colspan="6"
+          class="text-right font-weight-black text-uppercase sticky-footer-title"
+        >
           TOTAL (FILTERED):
         </td>
 
         <!-- Produksi PCS -->
-        <td class="text-right font-weight-black">{{ formatNumber(totals.spk_jumlah, 0) }}</td>
-        <td class="text-right font-weight-black text-success">{{ formatNumber(totals.spk_jumlah_kirim, 0) }}</td>
-        <td class="text-right font-weight-black">{{ formatNumber(totals.krg_kirim, 0) }}</td>
-        <td class="text-right font-weight-black">{{ formatNumber(totals.krg_Seaming, 0) }}</td>
-        <td class="text-right font-weight-black">{{ formatNumber(totals.krg_mataayam, 0) }}</td>
-        <td class="text-right font-weight-black text-error">{{ formatNumber(totals.krg_Cetak, 0) }}</td>
-        <td class="text-right font-weight-black">{{ formatNumber(totals.krg_coly, 0) }}</td>
+        <td class="text-right font-weight-black">
+          {{ formatNumber(totals.spk_jumlah, 0) }}
+        </td>
+        <td class="text-right font-weight-black text-success">
+          {{ formatNumber(totals.spk_jumlah_kirim, 0) }}
+        </td>
+        <td class="text-right font-weight-black">
+          {{ formatNumber(totals.krg_kirim, 0) }}
+        </td>
+        <td class="text-right font-weight-black">
+          {{ formatNumber(totals.krg_Seaming, 0) }}
+        </td>
+        <td class="text-right font-weight-black">
+          {{ formatNumber(totals.krg_mataayam, 0) }}
+        </td>
+        <td class="text-right font-weight-black text-error">
+          {{ formatNumber(totals.krg_Cetak, 0) }}
+        </td>
+        <td class="text-right font-weight-black">
+          {{ formatNumber(totals.krg_coly, 0) }}
+        </td>
 
         <!-- Cetak Luar -->
-        <td class="text-right font-weight-black border-l border-r">{{ formatNumber(totals.cetak_luarx, 0) }}</td>
+        <td class="text-right font-weight-black border-l border-r">
+          {{ formatNumber(totals.cetak_luarx, 0) }}
+        </td>
 
         <!-- DINAMIS TOTAL MESIN (MT / MX / SUBLIM) -->
-        <td 
-          v-for="m in mesinColumns" 
-          :key="m.key" 
+        <td
+          v-for="m in mesinColumns"
+          :key="m.key"
           class="text-center font-weight-black"
         >
           {{ formatNumber(totals[m.key] || 0, 0) }}
         </td>
 
         <!-- Produksi Meter -->
-        <td class="text-right font-weight-black">{{ formatNumber(totals.krg_kirim_meter, 2) }}</td>
-        <td class="text-right font-weight-black text-error bg-red-lighten-5">{{ formatNumber(totals.krg_Cetak_meter, 2) }}</td>
-        <td class="text-right font-weight-black">{{ formatNumber(totals.krg_coly_meter, 2) }}</td>
+        <td class="text-right font-weight-black">
+          {{ formatNumber(totals.krg_kirim_meter, 2) }}
+        </td>
+        <td class="text-right font-weight-black text-error bg-red-lighten-5">
+          {{ formatNumber(totals.krg_Cetak_meter, 2) }}
+        </td>
+        <td class="text-right font-weight-black">
+          {{ formatNumber(totals.krg_coly_meter, 2) }}
+        </td>
       </tr>
     </template>
   </BaseReportLayout>
 
   <!-- Summary Card Tambahan (Estimasi Output & Waiting List) -->
   <div class="d-flex justify-end mt-3 px-2">
-    <v-card flat class="border rounded-lg overflow-hidden" style="min-width: 520px;">
+    <v-card
+      flat
+      class="border rounded-lg overflow-hidden"
+      style="min-width: 520px"
+    >
       <v-table density="compact" class="summary-table">
         <tbody>
           <tr>
@@ -182,17 +243,19 @@
             <td class="sum-value">
               {{ formatNumber(summary.outputPerHari, 2) }}
             </td>
-            <td class="sum-value bg-blue-lighten-5 font-weight-bold">2.700,00</td>
+            <td class="sum-value bg-blue-lighten-5 font-weight-bold">
+              2.700,00
+            </td>
           </tr>
           <tr>
             <td class="sum-label">Waiting List:</td>
             <td class="sum-value font-weight-bold text-primary">
               {{ formatNumber(waitingListKerja, 2) }} Hari
             </td>
-            <td colspan="2" class="sum-label text-center">
-              Estimasi Tetap:
-            </td>
-            <td class="sum-value text-center font-weight-bold text-teal-darken-2">
+            <td colspan="2" class="sum-label text-center">Estimasi Tetap:</td>
+            <td
+              class="sum-value text-center font-weight-bold text-teal-darken-2"
+            >
               {{ formatNumber(waitingListTetap, 2) }} Hari
             </td>
           </tr>
@@ -207,6 +270,7 @@ import { ref, reactive, computed, onMounted } from "vue";
 import BaseReportLayout from "@/components/BaseReportLayout.vue";
 import api from "@/services/api";
 import { format, parseISO, isValid } from "date-fns";
+import { id } from "date-fns/locale";
 import * as XLSX from "xlsx-js-style";
 
 const formatDate = (date: Date) => {
@@ -349,13 +413,26 @@ const totals = computed(() => {
       krg_Cetak: 0,
       krg_coly: 0,
       cetak_luarx: 0,
-      mt01: 0, mt02: 0, mt03: 0, mt04: 0, mt05: 0, mi: 0,
-      mx01: 0, mx02: 0, mx03: 0, mx04: 0, mx05: 0,
-      sb01: 0, sb02: 0, sb03: 0, sb04: 0, sb05: 0,
+      mt01: 0,
+      mt02: 0,
+      mt03: 0,
+      mt04: 0,
+      mt05: 0,
+      mi: 0,
+      mx01: 0,
+      mx02: 0,
+      mx03: 0,
+      mx04: 0,
+      mx05: 0,
+      sb01: 0,
+      sb02: 0,
+      sb03: 0,
+      sb04: 0,
+      sb05: 0,
       krg_kirim_meter: 0,
       krg_Cetak_meter: 0,
       krg_coly_meter: 0,
-    }
+    },
   );
 });
 
@@ -366,7 +443,9 @@ const waitingListKerja = computed(() => {
 });
 
 const outputHariTetap = 2700;
-const waitingListTetap = computed(() => totals.value.krg_Cetak_meter / outputHariTetap);
+const waitingListTetap = computed(
+  () => totals.value.krg_Cetak_meter / outputHariTetap,
+);
 
 // --- HELPER FORMAT ---
 const formatNumber = (val: any, dec = 0) => {
@@ -383,6 +462,14 @@ const formatDateDisplay = (dateStr: string) => {
   if (!dateStr) return "-";
   const date = parseISO(dateStr);
   return isValid(date) ? format(date, "dd/MM/yyyy") : dateStr;
+};
+
+const formatDateFull = (dateStr: string) => {
+  if (!dateStr) return "-";
+  const date = parseISO(dateStr);
+  if (!isValid(date)) return dateStr;
+
+  return format(date, "dd MMMM yyyy", { locale: id });
 };
 
 // --- EXPORT TO EXCEL ---
@@ -423,7 +510,7 @@ const exportToExcel = (dataToExport: any[]) => {
   };
 
   const styleFooterCell = {
-    fill: { fgColor: { rgb: "FEF3C7" } },
+    fill: { fgColor: { rgb: "c7ecfe" } },
     font: { bold: true, sz: 10, color: { rgb: "000000" } },
     border: {
       top: { style: "double", color: { rgb: "000000" } },
@@ -433,9 +520,12 @@ const exportToExcel = (dataToExport: any[]) => {
     },
   };
 
+  const formattedStart = formatDateFull(startDate.value);
+  const formattedEnd = formatDateFull(endDate.value);
+
   const wsData: any[] = [
     [{ v: "LAPORAN MONITORING LMKP", s: { font: { bold: true, sz: 14 } } }],
-    [{ v: `Periode : ${startDate.value} s/d ${endDate.value}` }],
+    [{ v: `Periode : ${formattedStart} s/d ${formattedEnd}` }], // <-- Format baru (01 Juli 2026 s/d 28 Juli 2026)
     [{ v: `Kategori: ${jenisLabel.value}` }],
     [],
   ];
@@ -448,7 +538,13 @@ const exportToExcel = (dataToExport: any[]) => {
     { v: "DEADLINE", s: styleHeaderMain },
     { v: "BAHAN", s: styleHeaderMain },
     { v: "GRAMASI", s: styleHeaderMain },
-    { v: "PRODUKSI (PCS)", s: styleHeaderMain }, "", "", "", "", "", "",
+    { v: "PRODUKSI (PCS)", s: styleHeaderMain },
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
     { v: "CTK L.", s: styleHeaderMain },
     { v: "MESIN", s: styleHeaderMain },
   ];
@@ -458,20 +554,26 @@ const exportToExcel = (dataToExport: any[]) => {
     headerRow1.push({ v: "", s: styleHeaderMain });
   }
 
-  headerRow1.push(
-    { v: "PRODUKSI (METER)", s: styleHeaderMain }, "", ""
-  );
+  headerRow1.push({ v: "PRODUKSI (METER)", s: styleHeaderMain }, "", "");
 
   wsData.push(headerRow1);
 
   // Header Row 2
-  const subPcs = ["Order", "Kirim", "K-Kirim", "Seam", "M.Ayam", "Cetak", "Coly"];
+  const subPcs = [
+    "Order",
+    "Kirim",
+    "K-Kirim",
+    "Seam",
+    "M.Ayam",
+    "Cetak",
+    "Coly",
+  ];
   const subMeter = ["K-KRM", "K-CTK", "K-CLY"];
 
   const headerRow2 = Array(6).fill({ v: "", s: styleHeaderMain });
   subPcs.forEach((h) => headerRow2.push({ v: h, s: styleHeaderSub }));
   headerRow2.push({ v: "", s: styleHeaderMain }); // CTK L.
-  
+
   mesinColumns.value.forEach((m) => {
     headerRow2.push({ v: m.label, s: styleHeaderSub });
   });
@@ -482,22 +584,74 @@ const exportToExcel = (dataToExport: any[]) => {
   // Loop Data
   dataToExport.forEach((item: any) => {
     const row = [
-      { v: item.NOMOR || "", s: { ...styleDataCell, alignment: { horizontal: "center" } } },
+      {
+        v: item.NOMOR || "",
+        s: { ...styleDataCell, alignment: { horizontal: "center" } },
+      },
       { v: item.spk_nama || "", s: styleDataCell },
-      { v: formatDateDisplay(item.spk_tanggal), s: { ...styleDataCell, alignment: { horizontal: "center" } } },
-      { v: formatDateDisplay(item.deadline), s: { ...styleDataCell, alignment: { horizontal: "center" } } },
+      {
+        v: formatDateDisplay(item.spk_tanggal),
+        s: { ...styleDataCell, alignment: { horizontal: "center" } },
+      },
+      {
+        v: formatDateDisplay(item.deadline),
+        s: { ...styleDataCell, alignment: { horizontal: "center" } },
+      },
       { v: item.KAIN || "", s: styleDataCell },
-      { v: item.spk_gramasi || "", s: { ...styleDataCell, alignment: { horizontal: "center" } } },
+      {
+        v: item.spk_gramasi || "",
+        s: { ...styleDataCell, alignment: { horizontal: "center" } },
+      },
 
-      { v: num(item.spk_jumlah), t: "n", z: "#,##0", s: { ...styleDataCell, alignment: { horizontal: "right" } } },
-      { v: num(item.spk_jumlah_kirim), t: "n", z: "#,##0", s: { ...styleDataCell, alignment: { horizontal: "right" } } },
-      { v: num(item.krg_kirim), t: "n", z: "#,##0", s: { ...styleDataCell, alignment: { horizontal: "right" } } },
-      { v: num(item.krg_Seaming), t: "n", z: "#,##0", s: { ...styleDataCell, alignment: { horizontal: "right" } } },
-      { v: num(item.krg_mataayam), t: "n", z: "#,##0", s: { ...styleDataCell, alignment: { horizontal: "right" } } },
-      { v: num(item.krg_Cetak), t: "n", z: "#,##0", s: { ...styleDataCell, alignment: { horizontal: "right" } } },
-      { v: num(item.krg_coly), t: "n", z: "#,##0", s: { ...styleDataCell, alignment: { horizontal: "right" } } },
+      {
+        v: num(item.spk_jumlah),
+        t: "n",
+        z: "#,##0",
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+      },
+      {
+        v: num(item.spk_jumlah_kirim),
+        t: "n",
+        z: "#,##0",
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+      },
+      {
+        v: num(item.krg_kirim),
+        t: "n",
+        z: "#,##0",
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+      },
+      {
+        v: num(item.krg_Seaming),
+        t: "n",
+        z: "#,##0",
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+      },
+      {
+        v: num(item.krg_mataayam),
+        t: "n",
+        z: "#,##0",
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+      },
+      {
+        v: num(item.krg_Cetak),
+        t: "n",
+        z: "#,##0",
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+      },
+      {
+        v: num(item.krg_coly),
+        t: "n",
+        z: "#,##0",
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+      },
 
-      { v: num(item.cetak_luarx), t: "n", z: "#,##0", s: { ...styleDataCell, alignment: { horizontal: "right" } } },
+      {
+        v: num(item.cetak_luarx),
+        t: "n",
+        z: "#,##0",
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+      },
     ];
 
     // Data Mesin Dinamis
@@ -511,9 +665,24 @@ const exportToExcel = (dataToExport: any[]) => {
     });
 
     row.push(
-      { v: num(item.krg_kirim_meter), t: "n", z: "#,##0.00", s: { ...styleDataCell, alignment: { horizontal: "right" } } },
-      { v: num(item.krg_Cetak_meter), t: "n", z: "#,##0.00", s: { ...styleDataCell, alignment: { horizontal: "right" } } },
-      { v: num(item.krg_coly_meter), t: "n", z: "#,##0.00", s: { ...styleDataCell, alignment: { horizontal: "right" } } }
+      {
+        v: num(item.krg_kirim_meter),
+        t: "n",
+        z: "#,##0.00",
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+      },
+      {
+        v: num(item.krg_Cetak_meter),
+        t: "n",
+        z: "#,##0.00",
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+      },
+      {
+        v: num(item.krg_coly_meter),
+        t: "n",
+        z: "#,##0.00",
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+      },
     );
 
     wsData.push(row);
@@ -521,18 +690,61 @@ const exportToExcel = (dataToExport: any[]) => {
 
   // Footer Total
   const footerRow = [
-    { v: "TOTAL (FILTERED)", s: { ...styleFooterCell, alignment: { horizontal: "center" } } },
+    {
+      v: "TOTAL (FILTERED)",
+      s: { ...styleFooterCell, alignment: { horizontal: "center" } },
+    },
     ...Array(5).fill({ v: "", s: styleFooterCell }),
 
-    { v: num(totals.value.spk_jumlah), t: "n", z: "#,##0", s: { ...styleFooterCell, alignment: { horizontal: "right" } } },
-    { v: num(totals.value.spk_jumlah_kirim), t: "n", z: "#,##0", s: { ...styleFooterCell, alignment: { horizontal: "right" } } },
-    { v: num(totals.value.krg_kirim), t: "n", z: "#,##0", s: { ...styleFooterCell, alignment: { horizontal: "right" } } },
-    { v: num(totals.value.krg_Seaming), t: "n", z: "#,##0", s: { ...styleFooterCell, alignment: { horizontal: "right" } } },
-    { v: num(totals.value.krg_mataayam), t: "n", z: "#,##0", s: { ...styleFooterCell, alignment: { horizontal: "right" } } },
-    { v: num(totals.value.krg_Cetak), t: "n", z: "#,##0", s: { ...styleFooterCell, alignment: { horizontal: "right" } } },
-    { v: num(totals.value.krg_coly), t: "n", z: "#,##0", s: { ...styleFooterCell, alignment: { horizontal: "right" } } },
+    {
+      v: num(totals.value.spk_jumlah),
+      t: "n",
+      z: "#,##0",
+      s: { ...styleFooterCell, alignment: { horizontal: "right" } },
+    },
+    {
+      v: num(totals.value.spk_jumlah_kirim),
+      t: "n",
+      z: "#,##0",
+      s: { ...styleFooterCell, alignment: { horizontal: "right" } },
+    },
+    {
+      v: num(totals.value.krg_kirim),
+      t: "n",
+      z: "#,##0",
+      s: { ...styleFooterCell, alignment: { horizontal: "right" } },
+    },
+    {
+      v: num(totals.value.krg_Seaming),
+      t: "n",
+      z: "#,##0",
+      s: { ...styleFooterCell, alignment: { horizontal: "right" } },
+    },
+    {
+      v: num(totals.value.krg_mataayam),
+      t: "n",
+      z: "#,##0",
+      s: { ...styleFooterCell, alignment: { horizontal: "right" } },
+    },
+    {
+      v: num(totals.value.krg_Cetak),
+      t: "n",
+      z: "#,##0",
+      s: { ...styleFooterCell, alignment: { horizontal: "right" } },
+    },
+    {
+      v: num(totals.value.krg_coly),
+      t: "n",
+      z: "#,##0",
+      s: { ...styleFooterCell, alignment: { horizontal: "right" } },
+    },
 
-    { v: num(totals.value.cetak_luarx), t: "n", z: "#,##0", s: { ...styleFooterCell, alignment: { horizontal: "right" } } },
+    {
+      v: num(totals.value.cetak_luarx),
+      t: "n",
+      z: "#,##0",
+      s: { ...styleFooterCell, alignment: { horizontal: "right" } },
+    },
   ];
 
   // Total Mesin Dinamis
@@ -546,9 +758,24 @@ const exportToExcel = (dataToExport: any[]) => {
   });
 
   footerRow.push(
-    { v: num(totals.value.krg_kirim_meter), t: "n", z: "#,##0.00", s: { ...styleFooterCell, alignment: { horizontal: "right" } } },
-    { v: num(totals.value.krg_Cetak_meter), t: "n", z: "#,##0.00", s: { ...styleFooterCell, alignment: { horizontal: "right" } } },
-    { v: num(totals.value.krg_coly_meter), t: "n", z: "#,##0.00", s: { ...styleFooterCell, alignment: { horizontal: "right" } } }
+    {
+      v: num(totals.value.krg_kirim_meter),
+      t: "n",
+      z: "#,##0.00",
+      s: { ...styleFooterCell, alignment: { horizontal: "right" } },
+    },
+    {
+      v: num(totals.value.krg_Cetak_meter),
+      t: "n",
+      z: "#,##0.00",
+      s: { ...styleFooterCell, alignment: { horizontal: "right" } },
+    },
+    {
+      v: num(totals.value.krg_coly_meter),
+      t: "n",
+      z: "#,##0.00",
+      s: { ...styleFooterCell, alignment: { horizontal: "right" } },
+    },
   );
 
   wsData.push(footerRow);
@@ -583,7 +810,17 @@ onMounted(fetchReport);
 </script>
 
 <style scoped>
-/* 1. STANDARISASI SELURUH TABEL & FONT SIZE KE 12PX */
+/* 1. CONTAINER WRAPPER UNTUK OVERFLOW SCROLL */
+:deep(.v-table__wrapper),
+:deep(.v-data-table__wrapper) {
+  max-height: calc(
+    100vh - 280px
+  ) !important; /* Sesuaikan tinggi agar muat di layar */
+  overflow-y: auto !important;
+  overflow-x: auto !important;
+}
+
+/* 2. STANDARISASI SELURUH TABEL & FONT SIZE KE 12PX */
 :deep(table) {
   border-collapse: separate !important;
   border-spacing: 0 !important;
@@ -597,18 +834,21 @@ onMounted(fetchReport);
   padding: 6px 8px !important;
 }
 
-/* 2. HEADER STYLING */
+/* 3. STICKY HEADER (TETAP DI ATAS SAAT SCROLL VERTIKAL) */
+:deep(thead) {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 10 !important;
+}
+
 .header-main th {
-  background: linear-gradient(180deg, #1e3a8a 0%, #1e40af 100%) !important;
-  color: white !important;
+  background: linear-gradient(180deg, #142f7b 0%, #3b82f6 100%) !important;
   border-right: 1px solid #3b82f6 !important;
-  font-size: 12px !important;
 }
 
 .header-sub th {
   background: #2563eb !important;
-  color: white !important;
-  font-size: 12px !important;
+  font-size: 11px !important; /* Diubah dari 10px ke 11px */
   border-right: 1px solid #60a5fa !important;
 }
 
@@ -617,12 +857,23 @@ onMounted(fetchReport);
   border-right: 1px solid #60a5fa !important;
 }
 
-/* 3. STICKY COLUMNS WITH NO GAP */
+/* 4. STICKY FOOTER (TETAP DI BAWAH SAAT SCROLL VERTIKAL) */
+:deep(tfoot) {
+  position: sticky !important;
+  bottom: 0 !important;
+  z-index: 10 !important;
+}
+
+.table-footer-row td {
+  background-color: #c7ecfe !important; /* Warna background footer agar isi tabel tidak menembus */
+  border-top: 2px solid #000 !important;
+  border-bottom: 2px solid #000 !important;
+}
+
+/* 5. STICKY LEFT COLUMNS (INTERSEKSI HEADER, BODY, DAN FOOTER) */
 :deep(.sticky-col-1) {
   position: sticky !important;
   left: 0px !important;
-  z-index: 6;
-  background-color: #ffffff !important;
   width: 120px !important;
   min-width: 120px !important;
   max-width: 120px !important;
@@ -631,32 +882,67 @@ onMounted(fetchReport);
 :deep(.sticky-col-2) {
   position: sticky !important;
   left: 120px !important;
-  z-index: 6;
-  background-color: #ffffff !important;
   box-shadow: 3px 0px 5px -2px rgba(0, 0, 0, 0.15);
   width: 220px !important;
   min-width: 220px !important;
 }
 
-.header-main th.sticky-col-1,
-.header-main th.sticky-col-2 {
-  background: #1e3a8a !important;
+/* Prioritas z-index agar sticky kolom & header tidak saling bertumpuk salah urutan */
+:deep(tbody .sticky-col-1),
+:deep(tbody .sticky-col-2) {
+  z-index: 5 !important;
+  background-color: #ffffff !important;
 }
 
-/* 4. BACKGROUND COLOR GROUP HEADER & SUB HEADER */
-.bg-blue-header { background-color: #1d4ed8 !important; color: white !important; }
-.bg-cyan-header { background-color: #0891b2 !important; color: white !important; }
-.bg-teal-header { background-color: #0d9488 !important; color: white !important; }
+:deep(thead .sticky-col-1),
+:deep(thead .sticky-col-2) {
+  z-index: 12 !important;
+  background-color: #1e3a8a !important;
+}
 
-.bg-blue-sub { background-color: #93c5fd !important; color: #000 !important; }
-.bg-cyan-sub { background-color: #a5f3fc !important; color: #000 !important; }
-.bg-teal-sub { background-color: #99f6e4 !important; color: #000 !important; }
+:deep(tfoot .sticky-col-1),
+:deep(tfoot .sticky-col-2),
+:deep(tfoot .sticky-footer-title) {
+  z-index: 12 !important;
+  background-color: #fef3c7 !important;
+}
 
-/* 5. UTILITY BORDERS */
-.border-l { border-left: 1px solid #cbd5e1 !important; }
-.border-r { border-right: 1px solid #cbd5e1 !important; }
+/* 6. BACKGROUND COLOR GROUP HEADER & SUB HEADER */
+.bg-blue-header {
+  background-color: #1d4ed8 !important;
+  color: white !important;
+}
+.bg-cyan-header {
+  background-color: #0891b2 !important;
+  color: white !important;
+}
+.bg-teal-header {
+  background-color: #0d9488 !important;
+  color: white !important;
+}
 
-/* 6. STYLING TABEL SUMMARY OUTPUT & WAITING LIST */
+.bg-blue-sub {
+  background-color: #93c5fd !important;
+  color: #000 !important;
+}
+.bg-cyan-sub {
+  background-color: #a5f3fc !important;
+  color: #000 !important;
+}
+.bg-teal-sub {
+  background-color: #99f6e4 !important;
+  color: #000 !important;
+}
+
+/* 7. UTILITY BORDERS */
+.border-l {
+  border-left: 1px solid #cbd5e1 !important;
+}
+.border-r {
+  border-right: 1px solid #cbd5e1 !important;
+}
+
+/* 8. STYLING TABEL SUMMARY OUTPUT & WAITING LIST */
 .summary-table td {
   padding: 6px 12px !important;
   font-size: 12px !important;

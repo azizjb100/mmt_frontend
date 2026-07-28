@@ -14,9 +14,10 @@
       v-model:filters="filters"
       show-expand
       @refresh="fetchHeaders"
-      @add="handleNewEdit('new')"
-      @edit="handleEditClick"
-      @delete="handleDelete"
+      @action:new="handleNewEdit('new')"
+      @action:edit="handleNewEdit('edit')"
+      @action:delete="handleDelete"
+      @action:print="handlePrint"
       @update:expanded="loadDetails"
       @row-click="handleRowClick"
       :row-props="getRowProps"
@@ -129,9 +130,7 @@
                 </div>
 
                 <v-data-table
-                  v-else-if="
-                    details[item.Nomor] && details[item.Nomor].length
-                  "
+                  v-else-if="details[item.Nomor] && details[item.Nomor].length"
                   :headers="detailHeaders"
                   :items="details[item.Nomor]"
                   density="compact"
@@ -139,14 +138,14 @@
                   :items-per-page="-1"
                   hide-default-footer
                 >
-                  <template #[`item.J_Order`]="{ value }">{{ value }}</template>
-                  <template #[`item.J_Seaming`]="{ value }">{{ value }}</template>
-                  <template #[`item.J_MataAyam`]="{ value }">{{ value }}</template>
-                  <template #[`item.J_Coly`]="{ value }">{{ value }}</template>
-                  <template #[`item.J_Bs`]="{ value }">{{ value }}</template>
-                  <template #[`item.Mata_Ayam`]="{ value }">{{ value }}</template>
-                  <template #[`item.XBanner`]="{ value }">{{ value }}</template>
-                  <template #[`item.Plastik`]="{ value }">{{ value }}</template>
+                  <template #item.J_Order="{ value }">{{ value }}</template>
+                  <template #item.J_Seaming="{ value }">{{ value }}</template>
+                  <template #item.J_MataAyam="{ value }">{{ value }}</template>
+                  <template #item.J_Coly="{ value }">{{ value }}</template>
+                  <template #item.J_Bs="{ value }">{{ value }}</template>
+                  <template #item.Mata_Ayam="{ value }">{{ value }}</template>
+                  <template #item.XBanner="{ value }">{{ value }}</template>
+                  <template #item.Plastik="{ value }">{{ value }}</template>
                 </v-data-table>
 
                 <div v-else class="text-center pa-4 text-caption text-grey">
@@ -165,7 +164,9 @@
         <v-card-title
           class="d-flex align-center justify-space-between bg-primary text-white pa-4"
         >
-          <span><v-icon start>mdi-file-find</v-icon> Progres Finishing SPK</span>
+          <span
+            ><v-icon start>mdi-file-find</v-icon> Progres Finishing SPK</span
+          >
           <v-btn
             icon="mdi-close"
             variant="text"
@@ -181,27 +182,73 @@
             density="compact"
             class="elevation-1"
             :loading="loadingSearch"
-            item-value="Nomor_SPK"
           >
-            <!-- Formatter Angka -->
-            <template #item.Qty_Order="{ value }">{{ Number(value || 0).toLocaleString('id-ID') }}</template>
-            <template #item.Total_Potong="{ value }">{{ Number(value || 0).toLocaleString('id-ID') }}</template>
-            <template #item.Total_Seaming="{ value }">{{ Number(value || 0).toLocaleString('id-ID') }}</template>
-            <template #item.Total_MataAyam="{ value }">{{ Number(value || 0).toLocaleString('id-ID') }}</template>
-            <template #item.Total_Coly="{ value }">{{ Number(value || 0).toLocaleString('id-ID') }}</template>
-            <template #item.Total_BS="{ value }">{{ Number(value || 0).toLocaleString('id-ID') }}</template>
+            <!-- Formatter Angka dengan penanganan aman -->
+            <template #item.Qty_Order="{ item }">
+              {{
+                Number(
+                  item.Qty_Order ?? item.raw?.Qty_Order ?? 0,
+                ).toLocaleString("id-ID")
+              }}
+            </template>
+
+            <template #item.Total_Potong="{ item }">
+              {{
+                Number(
+                  item.Total_Potong ?? item.raw?.Total_Potong ?? 0,
+                ).toLocaleString("id-ID")
+              }}
+            </template>
+
+            <template #item.Total_Seaming="{ item }">
+              {{
+                Number(
+                  item.Total_Seaming ?? item.raw?.Total_Seaming ?? 0,
+                ).toLocaleString("id-ID")
+              }}
+            </template>
+
+            <template #item.Total_MataAyam="{ item }">
+              {{
+                Number(
+                  item.Total_MataAyam ?? item.raw?.Total_MataAyam ?? 0,
+                ).toLocaleString("id-ID")
+              }}
+            </template>
+
+            <template #item.Total_Coly="{ item }">
+              {{
+                Number(
+                  item.Total_Coly ?? item.raw?.Total_Coly ?? 0,
+                ).toLocaleString("id-ID")
+              }}
+            </template>
+
+            <template #item.Total_BS="{ item }">
+              {{
+                Number(item.Total_BS ?? item.raw?.Total_BS ?? 0).toLocaleString(
+                  "id-ID",
+                )
+              }}
+            </template>
 
             <!-- Status Sisa Kurang -->
             <template #item.Sisa_Kurang="{ item }">
               <v-chip
                 size="x-small"
-                :color="(item.Sisa_Kurang ?? item.raw?.Sisa_Kurang ?? 0) <= 0 ? 'success' : 'error'"
+                :color="
+                  (item.Sisa_Kurang ?? item.raw?.Sisa_Kurang ?? 0) <= 0
+                    ? 'success'
+                    : 'error'
+                "
                 class="font-weight-bold"
               >
                 {{
                   (item.Sisa_Kurang ?? item.raw?.Sisa_Kurang ?? 0) <= 0
-                    ? 'LENGKAP (0)'
-                    : Number(item.Sisa_Kurang ?? item.raw?.Sisa_Kurang).toLocaleString('id-ID')
+                    ? "LENGKAP (0)"
+                    : Number(
+                        item.Sisa_Kurang ?? item.raw?.Sisa_Kurang ?? 0,
+                      ).toLocaleString("id-ID")
                 }}
               </v-chip>
             </template>
@@ -249,6 +296,19 @@ interface LhkFinishingDetail {
   [key: string]: any;
 }
 
+interface SpkSearchResult {
+  Nomor_SPK: string;
+  Nama_SPK: string;
+  Qty_Order: number;
+  Total_Potong: number;
+  Total_Seaming: number;
+  Total_MataAyam: number;
+  Total_Coly: number;
+  Total_BS: number;
+  Sisa_Kurang: number;
+  raw?: any;
+}
+
 type LhkFinishingItem = LhkFinishingHeader;
 
 const API_BASE_URL = "/mmt/lhk-finishing";
@@ -263,7 +323,7 @@ const MENU_ID = "MMT_LHK_FINISHING";
 const searchKeyword = ref("");
 const loadingSearch = ref(false);
 const showSearchModal = ref(false);
-const searchResults = ref<any[]>([]);
+const searchResults = ref<SpkSearchResult[]>([]);
 
 // --- State BaseBrowse ---
 const headers = ref<LhkFinishingHeader[]>([]);
@@ -281,11 +341,12 @@ const filters = reactive({
 // --- Computed ---
 const isSingleSelected = computed(() => selected.value.length === 1);
 const selectedRow = computed<LhkFinishingItem | null>(() =>
-  isSingleSelected.value ? selected.value[0] : null
+  isSingleSelected.value ? selected.value[0] : null,
 );
+const selectedNomor = computed(() => selectedRow.value?.Nomor || null);
 
-// --- Handler Klik Baris (Disamakan persis dengan Permintaan Bahan) ---
-const handleRowClick = (_event: any, row: any) => {
+// --- Handler Klik Baris ---
+const handleRowClick = (_event: Event, row: any) => {
   const item = row?.item?.raw || row?.item || row;
   if (!item || !item.Nomor) return;
 
@@ -294,7 +355,7 @@ const handleRowClick = (_event: any, row: any) => {
     : [item];
 };
 
-const getRowProps = ({ item }: any) => {
+const getRowProps = ({ item }: { item: any }) => {
   const itemData = item?.raw || item;
   return {
     class: selected.value.some((s) => s.Nomor === itemData?.Nomor)
@@ -312,7 +373,7 @@ const safeFormatDate = (dateString: string | undefined): string => {
       return format(parsedDate, "dd/MM/yyyy");
     }
     return "";
-  } catch (e) {
+  } catch {
     return "";
   }
 };
@@ -332,7 +393,7 @@ const masterHeaders = [
   { title: "Shift", key: "Shift", minWidth: "80px" },
   { title: "Operator", key: "Operator", minWidth: "150px" },
   { title: "", key: "data-table-expand", minWidth: "40px" },
-] as any[];
+];
 
 const detailHeaders = [
   { title: "Nomor SPK", key: "Nomor_SPK", minWidth: "150px" },
@@ -346,7 +407,7 @@ const detailHeaders = [
   { title: "Qty Mata Ayam", key: "Mata_Ayam", align: "end" },
   { title: "Qty XBanner", key: "XBanner", align: "end" },
   { title: "Qty Plastik", key: "Plastik", align: "end" },
-] as any[];
+];
 
 const spkSearchHeaders = [
   { title: "Nomor SPK", key: "Nomor_SPK", minWidth: "150px" },
@@ -358,7 +419,7 @@ const spkSearchHeaders = [
   { title: "Hasil Coly", key: "Total_Coly", align: "end" },
   { title: "BS", key: "Total_BS", align: "end" },
   { title: "Sisa Kurang", key: "Sisa_Kurang", align: "end" },
-] as any[];
+];
 
 // --- Function Handler Pencarian SPK ---
 const handleSearchSpk = async () => {
@@ -412,7 +473,10 @@ const loadDetails = async (newlyExpandedItems: any[]) => {
   if (!newlyExpandedItems || newlyExpandedItems.length === 0) return;
 
   const lastItem = newlyExpandedItems[newlyExpandedItems.length - 1];
-  const nomor = typeof lastItem === "object" ? (lastItem.Nomor || lastItem.raw?.Nomor) : lastItem;
+  const nomor =
+    typeof lastItem === "object"
+      ? lastItem.Nomor || lastItem.raw?.Nomor
+      : lastItem;
 
   if (!nomor || details.value[nomor]) return;
 
@@ -432,44 +496,35 @@ const loadDetails = async (newlyExpandedItems: any[]) => {
   }
 };
 
-const handleAccClick = () => {
-  if (selectedRow.value) {
-    router.push({
-      name: "LhkFinishingAcc",
-      params: { nomor: selectedRow.value.Nomor },
-    });
-  }
-};
-
-const handleEditClick = () => {
-  if (selectedRow.value) {
-    router.push({
-      name: "LhkFinishingEdit",
-      params: { nomor: selectedRow.value.Nomor },
-    });
-  }
-};
-
 // --- Export Detail Finishing ---
 const handleExportDetail = async () => {
   loading.value.headers = true;
   try {
-    for (const header of headers.value) {
-      if (
+    // Pre-fetch detail data secara paralel
+    const missingHeaders = headers.value.filter(
+      (header) =>
         !details.value[header.Nomor] ||
-        details.value[header.Nomor].length === 0
-      ) {
-        try {
-          const res = await api.get(`${API_BASE_URL}/details`, {
-            params: { nomor: header.Nomor },
-          });
-          const result = res.data.data;
-          details.value[header.Nomor] = result.Detail || result || [];
-        } catch (e) {
-          console.error(`Gagal pre-fetch detail finishing ${header.Nomor}:`, e);
-          details.value[header.Nomor] = [];
-        }
-      }
+        details.value[header.Nomor].length === 0,
+    );
+
+    if (missingHeaders.length > 0) {
+      await Promise.all(
+        missingHeaders.map(async (header) => {
+          try {
+            const res = await api.get(`${API_BASE_URL}/details`, {
+              params: { nomor: header.Nomor },
+            });
+            const result = res.data.data;
+            details.value[header.Nomor] = result.Detail || result || [];
+          } catch (e) {
+            console.error(
+              `Gagal pre-fetch detail finishing ${header.Nomor}:`,
+              e,
+            );
+            details.value[header.Nomor] = [];
+          }
+        }),
+      );
     }
 
     const fileName = `LHK_Finishing_MMT_${filters.startDate}_to_${filters.endDate}.xlsx`;
@@ -522,7 +577,7 @@ const handleExportDetail = async () => {
       }
     };
 
-    const worksheetData = [];
+    const worksheetData: any[] = [];
     worksheetData.push([
       {
         v: "LAPORAN HASIL KERJA FINISHING MMT",
@@ -679,39 +734,54 @@ const handleExportDetail = async () => {
   }
 };
 
+// --- Navigation Handlers ---
 const handleNewEdit = (mode: "new" | "edit" | "rekap") => {
   if (mode === "new") {
     router.push({ name: "LhkFinishingNew" });
-  } else if (mode === "edit" && selectedRow.value) {
-    router.push({
-      name: "LhkFinishingEdit",
-      params: { nomor: selectedRow.value.Nomor },
-    });
   } else if (mode === "rekap") {
     router.push({ name: "LhkFinishingRekap" });
+  } else if (mode === "edit") {
+    if (selectedNomor.value) {
+      router.push({
+        name: "LhkFinishingEdit",
+        params: { nomor: selectedNomor.value },
+      });
+    } else {
+      toast.warning("Pilih data yang ingin diubah terlebih dahulu.");
+    }
+  }
+};
+
+const handleAccClick = () => {
+  if (selectedNomor.value) {
+    router.push({
+      name: "LhkFinishingAcc",
+      params: { nomor: selectedNomor.value },
+    });
+  } else {
+    toast.warning("Pilih data terlebih dahulu.");
   }
 };
 
 const handleDelete = async () => {
-  if (!selectedRow.value) return;
+  if (!selectedNomor.value) return;
   if (
-    confirm(
-      `Yakin ingin menghapus LHK Finishing nomor ${selectedRow.value.Nomor}?`,
-    )
+    confirm(`Yakin ingin menghapus LHK Finishing nomor ${selectedNomor.value}?`)
   ) {
     try {
-      await api.delete(`${API_BASE_URL}/${selectedRow.value.Nomor}`);
-      toast.success(`LHK ${selectedRow.value.Nomor} berhasil dihapus.`);
+      await api.delete(`${API_BASE_URL}/${selectedNomor.value}`);
+      toast.success(`LHK ${selectedNomor.value} berhasil dihapus.`);
       await fetchHeaders();
     } catch (error) {
+      console.error(error);
       toast.error("Gagal menghapus data.");
     }
   }
 };
 
 const handlePrint = () => {
-  if (!selectedRow.value) return;
-  alert(`TODO: Cetak LHK ${selectedRow.value.Nomor}`);
+  if (!selectedNomor.value) return;
+  alert(`TODO: Cetak LHK ${selectedNomor.value}`);
 };
 
 // --- Lifecycle ---
@@ -730,7 +800,7 @@ watch(filters, fetchHeaders, { deep: true });
   font-weight: bold !important;
 }
 
-/* Gaya CSS untuk memberi highlight biru pada baris yang dipilih */
+/* Highlight biru pada baris yang dipilih */
 .row-selected {
   background-color: #d8efff !important;
 }

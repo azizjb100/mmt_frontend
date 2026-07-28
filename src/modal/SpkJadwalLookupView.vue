@@ -1,7 +1,7 @@
 <template>
   <v-dialog
-    :model-value="isVisible"
-    @update:modelValue="emit('close')"
+    :model-value="dialogState"
+    @update:model-value="handleDialogClose"
     max-width="1100px"
     persistent
   >
@@ -13,7 +13,7 @@
         <v-spacer></v-spacer>
         <v-btn
           icon="mdi-close"
-          @click="emit('close')"
+          @click="closeModal"
           variant="text"
           size="small"
         ></v-btn>
@@ -124,7 +124,7 @@
 
       <v-card-actions class="pa-3">
         <v-spacer></v-spacer>
-        <v-btn @click="emit('close')" color="secondary" variant="text"
+        <v-btn @click="closeModal" color="secondary" variant="text"
           >Tutup</v-btn
         >
       </v-card-actions>
@@ -152,9 +152,25 @@ interface SPKItem {
   [key: string]: any;
 }
 
-const props = defineProps<{ isVisible: boolean }>();
+// 1. Dibuat Fleksibel untuk Menerima isVisible, show, maupun modelValue
+const props = withDefaults(
+  defineProps<{
+    isVisible?: boolean;
+    show?: boolean;
+    modelValue?: boolean;
+  }>(),
+  {
+    isVisible: false,
+    show: false,
+    modelValue: false,
+  },
+);
+
 const emit = defineEmits<{
   (e: "close"): void;
+  (e: "update:modelValue", value: boolean): void;
+  (e: "update:isVisible", value: boolean): void;
+  (e: "update:show", value: boolean): void;
   (e: "select", data: SPKItem): void;
 }>();
 
@@ -163,6 +179,11 @@ const loading = ref(false);
 const searchKeyword = ref("");
 const filterSisa = ref(true);
 const SPKList = ref<SPKItem[]>([]);
+
+// Calculated state agar bisa mendeteksi prop manapun yang dikirim oleh parent
+const dialogState = computed(
+  () => props.isVisible || props.show || props.modelValue,
+);
 
 const headers = [
   { title: "Nomor SPK", key: "SPK", width: "130px" },
@@ -210,7 +231,7 @@ const fetchSPKData = async () => {
     const response = await api.get("/mmt/spk/lookup-jadwal", {
       params: { keyword: searchKeyword.value },
     });
-    SPKList.value = response.data.data || [];
+    SPKList.value = response.data.data || response.data || [];
   } catch (error) {
     toast.error("Gagal memuat daftar SPK.");
   } finally {
@@ -218,57 +239,64 @@ const fetchSPKData = async () => {
   }
 };
 
+const closeModal = () => {
+  emit("close");
+  emit("update:modelValue", false);
+  emit("update:isVisible", false);
+  emit("update:show", false);
+};
+
+const handleDialogClose = (val: boolean) => {
+  if (!val) closeModal();
+};
+
 const selectSPK = (item: SPKItem) => {
   emit("select", item);
-  emit("close");
+  closeModal();
 };
 
 const handleDoubleClick = (_event: any, { item }: any) => {
   selectSPK(item);
 };
 
-// Refresh data setiap kali modal dibuka
+// 🔥 WATCH DENGAN IMMEDIATE: TRUE SUPAYA DATA LANGSUNG DI-FETCH SAAT TERBUKA
 watch(
-  () => props.isVisible,
+  dialogState,
   (val) => {
     if (val) {
       searchKeyword.value = "";
       fetchSPKData();
     }
   },
+  { immediate: true },
 );
 </script>
 
 <style scoped>
-/* Membuat header terlihat jelas dan tetap di atas (sticky) */
 .desktop-table :deep(thead th) {
-  background-color: #1976d2 !important; /* Biru Primary agar kontras */
-  color: white !important; /* Teks putih agar terbaca */
+  background-color: #1976d2 !important;
+  color: white !important;
   font-weight: bold !important;
   font-size: 12px !important;
   height: 45px !important;
   border-bottom: 2px solid #1565c0 !important;
 }
 
-/* Mengatur ukuran font isi tabel */
 .desktop-table :deep(td) {
   height: 38px !important;
   font-size: 11.5px;
 }
 
-/* Efek Hover baris agar interaktif */
 .clickable-row :deep(tbody tr):hover {
   cursor: pointer;
   background-color: #e3f2fd !important;
 }
 
-/* Memperbaiki Scrollbar */
 .desktop-table :deep(.v-table__wrapper) {
   scrollbar-width: thin;
   scrollbar-color: #bdc3c7 transparent;
 }
 
-/* Layout Dialog agar lebih rapi */
 .dialog-card {
   border-radius: 8px;
   overflow: hidden;

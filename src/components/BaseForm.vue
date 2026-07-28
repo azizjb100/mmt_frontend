@@ -32,42 +32,47 @@ const emit = defineEmits([
 <template>
   <PageLayout :title="title" :icon="icon" :menu-id="menuId" desktop-mode>
     <template #header-actions>
-      <v-btn
-        size="small"
-        color="primary"
-        @click="emit('validate-save')"
-        :loading="isSaving"
-      >
-        <template #prepend>
-          <span class="d-flex align-center">
-            <IconDeviceFloppy :size="15" :stroke-width="1.7" />
-          </span>
-        </template>
-        Simpan
-      </v-btn>
-      <v-btn
-        size="small"
-        variant="outlined"
-        class="mx-2"
-        @click="showCancelDialog = true"
-      >
-        Batal
-      </v-btn>
-      <v-btn
-        size="small"
-        variant="tonal"
-        color="error"
-        @click="showCloseDialog = true"
-      >
-        <template #prepend>
-          <span class="d-flex align-center">
-            <IconX :size="15" :stroke-width="2" />
-          </span>
-        </template>
-        Tutup
-      </v-btn>
+      <!-- 🔥 CEK JIKA PARENT MENGIRIM SLOT header-actions (MISAL DARI JADWAL KIRIM) -->
+      <slot name="header-actions">
+        <!-- TOMBOL DEFAULT JIKA PARENT TIDAK MENGIRIM SLOT -->
+        <v-btn
+          size="small"
+          color="primary"
+          @click="emit('validate-save')"
+          :loading="isSaving"
+        >
+          <template #prepend>
+            <span class="d-flex align-center">
+              <IconDeviceFloppy :size="15" :stroke-width="1.7" />
+            </span>
+          </template>
+          Simpan
+        </v-btn>
+        <v-btn
+          size="small"
+          variant="outlined"
+          class="mx-2"
+          @click="showCancelDialog = true"
+        >
+          Batal
+        </v-btn>
+        <v-btn
+          size="small"
+          variant="tonal"
+          color="error"
+          @click="showCloseDialog = true"
+        >
+          <template #prepend>
+            <span class="d-flex align-center">
+              <IconX :size="15" :stroke-width="2" />
+            </span>
+          </template>
+          Tutup
+        </v-btn>
+      </slot>
     </template>
 
+    <!-- Overlay Loading -->
     <v-overlay
       :model-value="isLoading"
       class="align-center justify-center"
@@ -81,6 +86,7 @@ const emit = defineEmits([
       ></v-progress-circular>
     </v-overlay>
 
+    <!-- Container Grid Layout -->
     <div
       :class="[
         'form-grid-container bg-grey-lighten-3',
@@ -112,6 +118,7 @@ const emit = defineEmits([
       </template>
     </div>
 
+    <!-- Dialog Confirm Simpan -->
     <v-dialog v-model="showSaveDialog" max-width="400px">
       <v-card class="rounded-lg">
         <v-card-title class="text-h6 pa-4">Konfirmasi Simpan</v-card-title>
@@ -136,6 +143,7 @@ const emit = defineEmits([
       </v-card>
     </v-dialog>
 
+    <!-- Dialog Confirm Reset -->
     <v-dialog v-model="showCancelDialog" max-width="400px">
       <v-card class="rounded-lg">
         <v-card-title class="text-h6 pa-4 d-flex align-center">
@@ -164,6 +172,7 @@ const emit = defineEmits([
       </v-card>
     </v-dialog>
 
+    <!-- Dialog Confirm Tutup -->
     <v-dialog v-model="showCloseDialog" max-width="400px">
       <v-card class="rounded-lg">
         <v-card-title class="text-h6 pa-4 d-flex align-center">

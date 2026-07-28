@@ -2,12 +2,19 @@
 import { ref, onMounted, computed, reactive } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import api from "@/services/api";
-import PageLayout from "../components/PageLayout.vue";
+import BaseForm from "@/components/BaseForm.vue";
 import GudangLookupModal from "@/modal/GudangLookupView.vue";
-import SpkLookupModal from "@/modal/SpkJadwalLookupView.vue"; // Modal yang bisa handle Reguler/Memo
+import SpkLookupModal from "@/modal/SpkJadwalLookupView.vue";
 import { format } from "date-fns";
 import * as XLSX from "xlsx";
 import { useToast } from "vue-toastification";
+import {
+  IconSearch,
+  IconFileSearch,
+  IconDeviceFloppy,
+  IconPlus,
+  IconX,
+} from "@tabler/icons-vue";
 
 // --- Interfaces ---
 interface DetailItem {
@@ -16,7 +23,7 @@ interface DetailItem {
   uraian: string;
   size: string;
   qty: number;
-  maxQty: number; // <-- Tambahkan ini untuk validasi
+  maxQty: number;
   koli: number;
   jamInput: string;
   jamReady: string;
@@ -39,7 +46,7 @@ interface FormDataState {
   detail: DetailItem[];
   keterangan: string;
   spkTotalOrder: number;
-  spkSudahDijadwalkan: number; // Ubah dari spkSudahKirim
+  spkSudahDijadwalkan: number;
   spkSisaBelumJadwal: number;
 }
 
@@ -50,9 +57,23 @@ const toast = useToast();
 
 const API_URL = "/mmt/jadwal-kirim";
 const isEditMode = ref(!!route.params.nomor);
+const isLoading = ref(false);
 const isSaving = ref(false);
-const isGudangModalVisible = ref(false);
-const isSPKModalVisible = ref(false);
+const isSearchingSpk = ref(false);
+
+// State penentu mode simpan (Simpan & Baru vs Simpan Biasa)
+const isSaveAndNew = ref(false);
+
+// State kontrol dialog BaseForm
+const showSaveDialog = ref(false);
+const showCancelDialog = ref(false);
+const showCloseDialog = ref(false);
+
+// State Lookup Modal
+const lookup = reactive({
+  gudang: false,
+  spk: false,
+});
 
 const authStore = {
   KDUSER: localStorage.getItem("kdUser") || "USER01",
@@ -61,7 +82,7 @@ const authStore = {
 const createEmptyDetail = (index: number): DetailItem => ({
   no_urut: index + 1,
   kota: "",
-  uraian: "", // Memastikan uraian barang kosong saat tambah baris baru
+  uraian: "",
   size: "",
   qty: 0,
   maxQty: 999999,
@@ -72,11 +93,11 @@ const createEmptyDetail = (index: number): DetailItem => ({
   keterangan: "",
 });
 
-const formData = reactive<FormDataState>({
+const getInitialFormData = (): FormDataState => ({
   nomor: "AUTO",
   tanggal: format(new Date(), "yyyy-MM-dd"),
-  gudangKode: "WH-010", // SET DEFAULT GUDANG
-  gudangNama: "GUDANG JADI MMT", // Anda bisa isi nama gudang defaultnya di sini
+  gudangKode: "WH-010",
+  gudangNama: "GUDANG JADI MMT",
   spkNomor: "",
   spkNama: "",
   spkTotalOrder: 0,
@@ -87,8 +108,11 @@ const formData = reactive<FormDataState>({
   totalQty: 0,
   totalKoli: 0,
   usr_create: authStore.KDUSER,
-  detail: [createEmptyDetail(0)], // Akan memanggil detail dengan uraian kosong
+  detail: [createEmptyDetail(0)],
+  keterangan: "",
 });
+
+const formData = reactive<FormDataState>(getInitialFormData());
 
 const detailHeaders = [
   { title: "No", key: "no_urut", width: "50px", align: "center" as const },
@@ -120,11 +144,6 @@ const isFormValid = computed(() => {
   );
 });
 
-const isLocked = computed(() => {
-  // Logic lock jika sudah ada realisasi kirim (Optional sesuai kebutuhan business logic)
-  return false;
-});
-
 // --- Methods ---
 const addDetail = () => {
   formData.detail.push(createEmptyDetail(formData.detail.length));
@@ -133,15 +152,15 @@ const addDetail = () => {
 const removeDetail = (index: number) => {
   if (formData.detail.length > 1) {
     formData.detail.splice(index, 1);
-    // Re-index no_urut
     formData.detail.forEach((d, i) => (d.no_urut = i + 1));
   }
 };
 
-const handleGudangSelect = (gudang: { Kode: string; Nama: string }) => {
-  formData.gudangKode = gudang.Kode;
-  formData.gudangNama = gudang.Nama;
-  isGudangModalVisible.value = false;
+const handleGudangSelect = (gudang: any) => {
+  if (!gudang) return;
+  formData.gudangKode = gudang.Kode || gudang.kode || gudang.kd_gudang || "";
+  formData.gudangNama = gudang.Nama || gudang.nama || gudang.nm_gudang || "";
+  lookup.gudang = false;
 };
 
 const validateQty = (item: DetailItem) => {
@@ -154,45 +173,80 @@ const validateQty = (item: DetailItem) => {
 };
 
 const handleSPKSelect = (spk: any) => {
-  console.log("Data SPK terpilih dari modal:", spk);
+  if (!spk) return;
 
-  // 1. Mapping Header SPK (Sesuaikan dengan KEY dari backend)
-  formData.spkNomor = spk.SPK || ""; // Backend pakai "SPK" (huruf besar semua)
-  formData.spkNama = spk.Nama || "";
-  formData.spkUkuran = spk.Ukuran || "";
-  formData.spkKain = spk.Bahan || "";
+  formData.spkNomor = spk.SPK || spk.spk || spk.No_SPK || spk.nomor_spk || "";
+  formData.spkNama = spk.Nama || spk.nama || spk.nama_spk || "";
+  formData.spkUkuran = spk.Ukuran || spk.ukuran || "";
+  formData.spkKain = spk.Bahan || spk.kain || spk.bahan || "";
 
-  // 2. Kalkulasi Saldo Order (Gunakan alias dari Query SQL Backend)
-  formData.spkTotalOrder = Number(spk.Total_Order) || 0;
-  formData.spkSudahDijadwalkan = Number(spk.Sudah_Kirim) || 0;
-  formData.spkSisaBelumJadwal = Number(spk.Belum_Kirim) || 0;
+  formData.spkTotalOrder = Number(
+    spk.Total_Order || spk.total_order || spk.Jumlah || 0,
+  );
+  formData.spkSudahDijadwalkan = Number(
+    spk.Sudah_Kirim || spk.sudah_kirim || spk.Sudah_Cetak || 0,
+  );
+  formData.spkSisaBelumJadwal = Number(
+    spk.Belum_Kirim || spk.belum_kirim || spk.Kurang_Cetak || 0,
+  );
 
-  // 3. Update Detail yang sudah ada di tabel
   const sisa = formData.spkSisaBelumJadwal;
   if (formData.detail.length > 0) {
     formData.detail.forEach((d) => {
       d.size = formData.spkUkuran;
-      d.maxQty = sisa; // Kunci batas maksimal input
+      d.maxQty = sisa;
+      if (!d.uraian) d.uraian = formData.spkNama;
     });
   }
 
-  // 4. Otomatis isi Qty jika baris pertama masih kosong
   if (formData.detail.length === 1 && !formData.detail[0].kota) {
     formData.detail[0].qty = sisa > 0 ? sisa : 0;
   }
 
-  isSPKModalVisible.value = false;
-  toast.info(`SPK terpilih. Sisa saldo: ${sisa}`);
+  lookup.spk = false;
+  toast.info(`SPK ${formData.spkNomor} terpilih. Sisa saldo: ${sisa}`);
+};
+
+// Scan / Ketik manual SPK via Enter
+const handleSpkScanOrInput = async () => {
+  const keyword = formData.spkNomor?.trim();
+  if (!keyword) return;
+
+  isSearchingSpk.value = true;
+  try {
+    const response = await api.get("/mmt/spk/lookup-jadwal", {
+      params: { keyword },
+    });
+
+    const list = response.data.data || response.data || [];
+    if (list.length === 0) {
+      toast.error(`SPK dengan nomor/keyword "${keyword}" tidak ditemukan.`);
+      return;
+    }
+
+    const exactMatch =
+      list.find(
+        (item: any) =>
+          (item.SPK || item.No_SPK || "").toLowerCase() ===
+          keyword.toLowerCase(),
+      ) || list[0];
+
+    handleSPKSelect(exactMatch);
+  } catch (error) {
+    toast.error("Gagal memproses pencarian SPK.");
+  } finally {
+    isSearchingSpk.value = false;
+  }
 };
 
 const loaddataall = async (nomor: string) => {
-  isSaving.value = true;
+  isLoading.value = true;
   try {
     const res = await api.get(`${API_URL}/${nomor}`);
     const d = res.data;
 
     formData.nomor = d.Nomor;
-    formData.tanggal = d.Tanggal; // Sudah format YYYY-MM-DD dari DB
+    formData.tanggal = d.Tanggal;
     formData.gudangKode = d.Gudang;
     formData.gudangNama = d.Nama_Gudang;
     formData.spkNomor = d.No_SPK;
@@ -200,15 +254,14 @@ const loaddataall = async (nomor: string) => {
     formData.spkUkuran = d.Ukuran;
     formData.spkKain = d.Kain;
 
-    // Pastikan property "Detail" (D besar) sesuai dengan return di Service
     if (d.Detail) {
       formData.detail = d.Detail.map((item: any) => ({
         no_urut: item.No_urut,
         kota: item.kota,
         uraian: item.uraian,
         size: item.size,
-        qty: item.Jumlah, // Sesuai alias "Jumlah" di service
-        koli: item.Koli, // Sesuai alias "Koli" di service
+        qty: item.Jumlah,
+        koli: item.Koli,
         jamReady: item.Jam,
         expedisi: item.expedisi,
       }));
@@ -216,7 +269,7 @@ const loaddataall = async (nomor: string) => {
   } catch (error) {
     toast.error("Gagal memuat data transaksi.");
   } finally {
-    isSaving.value = false;
+    isLoading.value = false;
   }
 };
 
@@ -232,28 +285,22 @@ const importExcel = (event: Event) => {
     const sheetName = workbook.SheetNames[0];
     const worksheet = workbook.Sheets[sheetName];
 
-    // Ambil data dalam format JSON
     const jsonData = XLSX.utils.sheet_to_json(worksheet);
-    console.log("Data Excel Terbaca:", jsonData);
 
     if (jsonData.length === 0) {
       toast.warning("File Excel kosong atau format salah.");
       return;
     }
 
-    // --- LOGIKA PERBAIKAN PENOMORAN ---
-    // Cek apakah baris pertama di tabel masih "kosong" (belum diisi kota)
     const isFirstRowEmpty =
       formData.detail.length === 1 && !formData.detail[0].kota;
 
     if (isFirstRowEmpty) {
-      // Jika kosong, kita reset array agar index dimulai dari 0
       formData.detail = [];
     }
 
     const startIdx = formData.detail.length;
 
-    // Fungsi pembantu untuk konversi jam desimal Excel (0.625 -> "15:00")
     const excelSerialToTime = (serial: any) => {
       if (typeof serial !== "number") return serial || "15:00";
       const totalSeconds = Math.round(serial * 24 * 3600);
@@ -262,43 +309,39 @@ const importExcel = (event: Event) => {
       return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
     };
 
-    // Mapping data Excel ke DetailItem
     const importedDetails: DetailItem[] = jsonData.map(
-      (row: any, index: number) => {
-        return {
-          no_urut: startIdx + index + 1,
-          // Gunakan key sesuai log console (ALOKASI, URAIAN, jumlah, koli, jam)
-          kota: row.ALOKASI || "",
-          uraian: row.URAIAN || formData.spkNama,
-          size: row.SIZE || formData.spkUkuran,
-          qty: Number(row.jumlah) || 0,
-          koli: Number(row.koli) || 0,
-          jamInput: format(new Date(), "HH:mm"),
-          // Konversi jam desimal excel ke string "HH:mm"
-          jamReady: row.jam ? excelSerialToTime(row.jam) : "15:00",
-          expedisi: row.EXPEDISI || "",
-          keterangan: row.KETERANGAN || "",
-        };
-      },
+      (row: any, index: number) => ({
+        no_urut: startIdx + index + 1,
+        kota: row.ALOKASI || "",
+        uraian: row.URAIAN || formData.spkNama,
+        size: row.SIZE || formData.spkUkuran,
+        qty: Number(row.jumlah) || 0,
+        koli: Number(row.koli) || 0,
+        jamInput: format(new Date(), "HH:mm"),
+        jamReady: row.jam ? excelSerialToTime(row.jam) : "15:00",
+        expedisi: row.EXPEDISI || "",
+        keterangan: row.KETERANGAN || "",
+      }),
     );
 
-    // Masukkan data ke dalam state
     formData.detail.push(...importedDetails);
-
     toast.success(`${importedDetails.length} baris berhasil diimpor.`);
-
-    // Reset input file agar bisa pilih file yang sama lagi jika perlu
     target.value = "";
   };
   reader.readAsArrayBuffer(file);
 };
 
-const saveForm = async (saveAndNew: boolean) => {
-  if (!isFormValid.value) return;
+// --- Action Handlers BaseForm ---
+const handleValidateSave = (andNew = false) => {
+  isSaveAndNew.value = andNew;
 
-  const currentUser = localStorage.getItem("kdUser") || "USER01";
+  if (!isFormValid.value) {
+    toast.warning(
+      "Lengkapi Gudang, SPK, dan minimal 1 baris detail yang valid.",
+    );
+    return;
+  }
 
-  // --- VALIDASI QTY (Tetap sama) ---
   const overLimitItems = formData.detail.filter(
     (item) => item.qty > item.maxQty,
   );
@@ -312,6 +355,10 @@ const saveForm = async (saveAndNew: boolean) => {
     return;
   }
 
+  showSaveDialog.value = true;
+};
+
+const handleConfirmSave = async () => {
   isSaving.value = true;
   try {
     const payload = {
@@ -323,29 +370,18 @@ const saveForm = async (saveAndNew: boolean) => {
       Koli: calculatedTotalKoli.value,
       Realisasi: 0,
       Koli_Realisasi: 0,
-      usr_create: currentUser,
+      usr_create: formData.usr_create,
       Detail: formData.detail,
     };
 
     await api.post(`${API_URL}/save`, payload);
     toast.success("Jadwal kirim berhasil disimpan!");
+    showSaveDialog.value = false;
 
-    if (saveAndNew) {
-      // Reset form tapi pertahankan user yang login
-      Object.assign(formData, {
-        nomor: "AUTO",
-        tanggal: format(new Date(), "yyyy-MM-dd"),
-        gudangKode: "WH-010", // <-- Tetap set ke default WH-010
-        gudangNama: "GUDANG JADI MMT",
-        spkNomor: "",
-        spkNama: "",
-        spkUkuran: "",
-        spkKain: "",
-        totalQty: 0,
-        totalKoli: 0,
-        usr_create: currentUser, // <-- Tetap pertahankan user ini
-        detail: [createEmptyDetail(0)],
-      });
+    // 🔥 LOGIKA KONTROL NAVIGASI SETELAH SIMPAN
+    if (isSaveAndNew.value) {
+      Object.assign(formData, getInitialFormData());
+      toast.info("Form disiapkan untuk input baru.");
     } else {
       router.back();
     }
@@ -356,8 +392,22 @@ const saveForm = async (saveAndNew: boolean) => {
   }
 };
 
+const handleConfirmCancel = () => {
+  showCancelDialog.value = false;
+  if (isEditMode.value) {
+    loaddataall(route.params.nomor as string);
+  } else {
+    Object.assign(formData, getInitialFormData());
+  }
+  toast.info("Form berhasil direset.");
+};
+
+const handleConfirmClose = () => {
+  showCloseDialog.value = false;
+  router.back();
+};
+
 onMounted(() => {
-  // Update state user_create dengan user yang sedang login
   const loggedInUser = localStorage.getItem("kdUser");
   if (loggedInUser) {
     formData.usr_create = loggedInUser;
@@ -368,42 +418,88 @@ onMounted(() => {
 </script>
 
 <template>
-  <PageLayout
-    :title="isEditMode ? 'Ubah Jadwal Kirim' : 'Input Jadwal Kirim Baru'"
-    icon="mdi-truck-fast"
-  >
-    <template #header-actions>
-      <v-btn
-        size="x-small"
-        color="primary"
-        @click="saveForm(false)"
-        :loading="isSaving"
-        :disabled="!isFormValid || isLocked"
-      >
-        <v-icon start>mdi-check-circle</v-icon> Simpan
-      </v-btn>
-      <v-btn
-        size="x-small"
-        color="success"
-        class="ml-1"
-        @click="saveForm(true)"
-        :disabled="isSaving || !isFormValid || isLocked"
-      >
-        <v-icon start>mdi-content-save-all</v-icon> Simpan & Baru
-      </v-btn>
-      <v-btn size="x-small" class="ml-1" @click="router.back()">
-        <v-icon start>mdi-close</v-icon> Tutup
-      </v-btn>
-    </template>
+  <div>
+    <BaseForm
+      :title="isEditMode ? 'Ubah Jadwal Kirim' : 'Input Jadwal Kirim Baru'"
+      menu-id="JADWAL_KIRIM"
+      icon="mdi-truck-fast"
+      :is-loading="isLoading"
+      :is-saving="isSaving"
+      item-name="Jadwal Kirim"
+      v-model:show-save-dialog="showSaveDialog"
+      v-model:show-cancel-dialog="showCancelDialog"
+      v-model:show-close-dialog="showCloseDialog"
+      @validate-save="handleValidateSave(false)"
+      @confirm-save="handleConfirmSave"
+      @confirm-cancel="handleConfirmCancel"
+      @confirm-close="handleConfirmClose"
+    >
+      <!-- 🔥 MENYEDIAKAN CUSTOM ACTION HEADER: SIMPAN & BROWSE + SIMPAN & BARU -->
+      <template #header-actions>
+        <!-- 1. Tombol Simpan & Ke Browse (router.back) -->
+        <v-btn
+          size="small"
+          color="primary"
+          @click="handleValidateSave(false)"
+          :loading="isSaving"
+        >
+          <template #prepend>
+            <span class="d-flex align-center">
+              <IconDeviceFloppy :size="15" :stroke-width="1.7" />
+            </span>
+          </template>
+          Simpan
+        </v-btn>
 
-    <div class="form-grid-container">
-      <div class="left-column">
-        <v-card flat border>
-          <v-card-title class="text-subtitle-2 py-2 bg-grey-lighten-4"
-            >Header Pengiriman</v-card-title
-          >
+        <!-- 2. Tombol Simpan & Baru (Reset Form di Halaman Ini) -->
+        <v-btn
+          v-if="!isEditMode"
+          size="small"
+          color="teal-darken-1"
+          class="ml-2"
+          :loading="isSaving"
+          @click="handleValidateSave(true)"
+        >
+          <template #prepend>
+            <span class="d-flex align-center">
+              <IconPlus :size="15" :stroke-width="2" />
+            </span>
+          </template>
+          Simpan & Baru
+        </v-btn>
+
+        <!-- 3. Tombol Batal & Tutup -->
+        <v-btn
+          size="small"
+          variant="outlined"
+          class="mx-2"
+          @click="showCancelDialog = true"
+        >
+          Batal
+        </v-btn>
+        <v-btn
+          size="small"
+          variant="tonal"
+          color="error"
+          @click="showCloseDialog = true"
+        >
+          <template #prepend>
+            <span class="d-flex align-center">
+              <IconX :size="15" :stroke-width="2" />
+            </span>
+          </template>
+          Tutup
+        </v-btn>
+      </template>
+
+      <!-- KOLOM KIRI (HEADER & RINGKASAN SPK) -->
+      <template #left-column>
+        <v-card flat class="desktop-form-section header-section pa-0">
+          <v-card-title class="text-subtitle-2 py-2 bg-grey-lighten-4">
+            Header Pengiriman
+          </v-card-title>
           <v-divider />
-          <v-card-text>
+          <v-card-text class="pa-3">
             <v-row dense>
               <v-col cols="12">
                 <v-text-field
@@ -425,6 +521,8 @@ onMounted(() => {
                   hide-details
                 />
               </v-col>
+
+              <!-- LOOKUP GUDANG -->
               <v-col cols="12">
                 <v-text-field
                   label="Gudang"
@@ -432,10 +530,18 @@ onMounted(() => {
                   readonly
                   density="compact"
                   variant="outlined"
-                  append-inner-icon="mdi-magnify"
-                  @click="isGudangModalVisible = true"
+                  class="cursor-pointer"
                   hide-details
-                />
+                  @click="lookup.gudang = true"
+                >
+                  <template #append-inner>
+                    <IconSearch
+                      :size="16"
+                      style="cursor: pointer"
+                      @click.stop="lookup.gudang = true"
+                    />
+                  </template>
+                </v-text-field>
               </v-col>
               <v-col cols="12">
                 <v-text-field
@@ -448,19 +554,31 @@ onMounted(() => {
                   hide-details
                 />
               </v-col>
+
               <v-divider class="my-3" />
+
+              <!-- INPUT / SCAN SPK (BISA DIKETIK / SCAN BARCODE + ENTER) -->
               <v-col cols="12">
                 <v-text-field
-                  label="Pilih SPK (Reguler/Memo)"
+                  label="Ketik / Scan SPK (Tekan Enter)"
                   v-model="formData.spkNomor"
-                  readonly
                   density="compact"
                   variant="outlined"
-                  append-inner-icon="mdi-file-find"
-                  @click="isSPKModalVisible = true"
                   hide-details
                   color="primary"
-                />
+                  placeholder="Ketik SPK lalu Enter..."
+                  :loading="isSearchingSpk"
+                  @keyup.enter="handleSpkScanOrInput"
+                >
+                  <template #append-inner>
+                    <IconFileSearch
+                      :size="16"
+                      style="cursor: pointer"
+                      title="Klik untuk membuka Lookup Modal"
+                      @click.stop="lookup.spk = true"
+                    />
+                  </template>
+                </v-text-field>
               </v-col>
 
               <v-col cols="12">
@@ -475,16 +593,8 @@ onMounted(() => {
                   hide-details
                 />
               </v-col>
-              <template #[`item.size`]="{ item }">
-                <v-text-field
-                  v-model="item.size"
-                  density="compact"
-                  variant="plain"
-                  hide-details
-                  placeholder="Size..."
-                />
-              </template>
-              <v-col cols="6">
+
+              <v-col cols="12">
                 <v-text-field
                   label="Jenis Kain"
                   v-model="formData.spkKain"
@@ -496,9 +606,9 @@ onMounted(() => {
                 />
               </v-col>
 
-              <v-col cols="12" class="mt-4">
-                <v-card color="blue-lighten-5" flat class="pa-2">
-                  <!-- Warna ganti biru agar beda dengan 'kirim' -->
+              <!-- Ringkasan Saldo SPK -->
+              <v-col cols="12" class="mt-2">
+                <v-card color="blue-lighten-5" flat class="pa-2 border">
                   <div class="d-flex justify-space-between">
                     <span class="text-caption font-weight-bold"
                       >TOTAL ORDER</span
@@ -508,27 +618,28 @@ onMounted(() => {
                     }}</span>
                   </div>
                   <div class="d-flex justify-space-between">
-                    <span class="text-caption font-weight-bold text-primary"
-                      >SUDAH DIJADWALKAN</span
-                    >
-                    <span class="font-weight-black text-primary">{{
-                      formData.spkSudahDijadwalkan
-                    }}</span>
+                    <span class="text-caption font-weight-bold text-primary">
+                      SUDAH DIJADWALKAN
+                    </span>
+                    <span class="font-weight-black text-primary">
+                      {{ formData.spkSudahDijadwalkan }}
+                    </span>
                   </div>
                   <v-divider class="my-1" />
                   <div class="d-flex justify-space-between">
-                    <span class="text-caption font-weight-bold text-error"
-                      >SISA BELUM JADWAL</span
-                    >
-                    <span class="font-weight-black text-error">{{
-                      formData.spkSisaBelumJadwal
-                    }}</span>
+                    <span class="text-caption font-weight-bold text-error">
+                      SISA BELUM JADWAL
+                    </span>
+                    <span class="font-weight-black text-error">
+                      {{ formData.spkSisaBelumJadwal }}
+                    </span>
                   </div>
                 </v-card>
               </v-col>
 
-              <v-col cols="12" class="mt-4">
-                <v-card color="orange-lighten-5" flat class="pa-2">
+              <!-- Ringkasan Total Qty & Koli -->
+              <v-col cols="12" class="mt-2">
+                <v-card color="orange-lighten-5" flat class="pa-2 border">
                   <div class="d-flex justify-space-between">
                     <span class="text-caption font-weight-bold">TOTAL QTY</span>
                     <span class="font-weight-black">{{
@@ -548,10 +659,11 @@ onMounted(() => {
             </v-row>
           </v-card-text>
         </v-card>
-      </div>
+      </template>
 
-      <div class="right-column">
-        <v-card border flat>
+      <!-- KOLOM KANAN (TABEL DETAIL) -->
+      <template #right-column>
+        <v-card border flat class="h-100 d-flex flex-column">
           <v-data-table
             :headers="detailHeaders"
             :items="formData.detail"
@@ -559,7 +671,7 @@ onMounted(() => {
             density="compact"
             hide-default-footer
             fixed-header
-            height="calc(100vh - 220px)"
+            class="flex-grow-1"
           >
             <template #[`item.no_urut`]="{ item }">
               <span class="text-grey text-caption">{{ item.no_urut }}</span>
@@ -585,6 +697,16 @@ onMounted(() => {
               />
             </template>
 
+            <template #[`item.size`]="{ item }">
+              <v-text-field
+                v-model="item.size"
+                density="compact"
+                variant="plain"
+                hide-details
+                placeholder="Size..."
+              />
+            </template>
+
             <template #[`item.qty`]="{ item }">
               <v-text-field
                 v-model.number="item.qty"
@@ -598,7 +720,6 @@ onMounted(() => {
                   'text-error font-weight-bold': item.qty > item.maxQty,
                 }"
               />
-              <!-- Opsional: Tampilkan pesan kecil di bawah input -->
               <div
                 v-if="item.qty > item.maxQty"
                 class="text-caption text-error"
@@ -638,6 +759,7 @@ onMounted(() => {
                 placeholder="Nama Travel/Exp..."
               />
             </template>
+
             <template #[`item.keterangan`]="{ item }">
               <v-text-field
                 v-model="item.keterangan"
@@ -659,7 +781,7 @@ onMounted(() => {
             </template>
 
             <template #bottom>
-              <div class="pa-2 border-t d-flex align-center">
+              <div class="pa-2 border-t d-flex align-center bg-white">
                 <v-btn
                   size="x-small"
                   color="primary"
@@ -690,44 +812,44 @@ onMounted(() => {
                 </v-btn>
 
                 <v-spacer />
-                <span class="text-caption text-grey"
-                  >Format Header: Kota, Uraian, Size, Qty, Koli, Jam, Expedisi,
-                  Keterangan</span
-                >
+                <span class="text-caption text-grey">
+                  Format Header: Kota, Uraian, Size, Qty, Koli, Jam, Expedisi,
+                  Catatan
+                </span>
               </div>
             </template>
           </v-data-table>
         </v-card>
-      </div>
-    </div>
+      </template>
+    </BaseForm>
 
+    <!-- MODAL LOOKUP GUDANG & SPK (TERPISAH DI LUAR BASEFORM) -->
     <GudangLookupModal
-      :isVisible="isGudangModalVisible"
-      @close="isGudangModalVisible = false"
+      v-if="lookup.gudang"
+      :is-visible="lookup.gudang"
+      @close="lookup.gudang = false"
       @select="handleGudangSelect"
     />
+
     <SpkLookupModal
-      :isVisible="isSPKModalVisible"
-      @close="isSPKModalVisible = false"
+      v-if="lookup.spk"
+      :is-visible="lookup.spk"
+      @close="lookup.spk = false"
       @select="handleSPKSelect"
     />
-  </PageLayout>
+  </div>
 </template>
 
 <style scoped>
-.form-grid-container {
-  display: grid;
-  grid-template-columns: 350px 1fr;
-  gap: 15px;
-  padding: 10px;
-}
-.right-column :deep(*) {
-  font-size: 11px !important;
-}
 .text-right-input :deep(input) {
   text-align: right !important;
 }
+
 :deep(.v-data-table__td) {
   height: 35px !important;
+}
+
+.cursor-pointer {
+  cursor: pointer !important;
 }
 </style>
