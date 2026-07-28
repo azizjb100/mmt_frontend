@@ -145,8 +145,8 @@
         <td class="text-right" :class="{ 'text-red-bold': item.isLO }">{{ formatVal(item.p, formatNumber, 2) }}</td>
         <td class="text-right" :class="{ 'text-red-bold': item.isLO }">{{ formatVal(item.l, formatNumber, 2) }}</td>
         <td class="text-center" :class="{ 'text-red-bold': item.isLO }">{{ item.gsm || '-' }}</td>
-        <td class="text-right" :class="{ 'text-red-bold': item.isLO }">{{ formatVal(item.lebarBahan, formatNumber, 1) }}</td>
-        <td class="text-right" :class="{ 'text-red-bold': item.isLO }">{{ formatVal(item.pRoll, formatNumber, 1) }}</td>
+        <td class="text-right" :class="{ 'text-red-bold': item.isLO }">{{ formatVal(item.ambilL, formatNumber, 1) }}</td>
+        <td class="text-right" :class="{ 'text-red-bold': item.isLO }">{{ formatVal(item.ambilP, formatNumber, 1) }}</td>
 
         <!-- O-P: ORDER SPK -->
         <td class="text-right bg-green-light" :class="{ 'text-red-bold': item.isLO }">{{ formatVal(item.orderPcs, formatNumber, 0) }}</td>
