@@ -207,38 +207,46 @@
           {{ formatVal(item.ambilP, formatNumber, 1) }}
         </td>
 
-        <!-- O-P: ORDER SPK -->
+        <!-- O-P: JUMLAH ORDER SPK (Ditampilkan '-' jika Anak SPK Gabungan) -->
         <td
           class="text-right bg-green-light"
           :class="{ 'text-red-bold': item.isLO }"
         >
-          {{ formatVal(item.orderPcs, formatNumber, 0) }}
+          {{
+            item.isGabunganChild
+              ? "-"
+              : formatVal(item.orderPcs, formatNumber, 0)
+          }}
         </td>
         <td
           class="text-right font-weight-bold bg-green-light"
           :class="{ 'text-red-bold': item.isLO }"
         >
-          {{ formatVal(item.orderLuas, formatNumber, 1) }}
+          {{
+            item.isGabunganChild
+              ? "-"
+              : formatVal(item.orderLuas, formatNumber, 1)
+          }}
         </td>
 
-        <!-- Q-S: HASIL CETAK -->
+        <!-- Q-S: HASIL CETAK (Tetap Tampil di Anak SPK Gabungan, '-' di Baris Summary LO) -->
         <td
           class="text-right bg-yellow-light"
           :class="{ 'text-red-bold': item.isLO }"
         >
-          {{ formatVal(item.hasilPRoll, formatNumber, 1) }}
+          {{ item.isLO ? "-" : formatVal(item.hasilPRoll, formatNumber, 1) }}
         </td>
         <td
           class="text-right bg-yellow-light"
           :class="{ 'text-red-bold': item.isLO }"
         >
-          {{ formatVal(item.hasilQty, formatNumber, 0) }}
+          {{ item.isLO ? "-" : formatVal(item.hasilQty, formatNumber, 0) }}
         </td>
         <td
           class="text-right font-weight-bold bg-yellow-light"
           :class="{ 'text-red-bold': item.isLO }"
         >
-          {{ formatVal(item.hasilLuas, formatNumber, 1) }}
+          {{ item.isLO ? "-" : formatVal(item.hasilLuas, formatNumber, 1) }}
         </td>
 
         <!-- T-V: AMBIL BAHAN -->
@@ -580,6 +588,17 @@ const filteredData = computed(() => {
   );
 });
 
+// Helper Pengecekan SPK Gabungan Child
+const checkIsGabunganChild = (r) => {
+  return (
+    Boolean(r.isGabunganChild) ||
+    Boolean(r.isSpkGabunganChild) ||
+    Boolean(r.isChild) ||
+    r.tipeSpk === "CHILD" ||
+    r.jenisSpk === "CHILD"
+  );
+};
+
 // Computed Grand Total untuk Tampilan UI Tabel
 const totals = computed(() => {
   const data = filteredData.value;
@@ -627,16 +646,25 @@ const totals = computed(() => {
   if (!data || data.length === 0) return res;
 
   data.forEach((r) => {
+    const isChild = checkIsGabunganChild(r);
+    const isLO = Boolean(r.isLO);
+
     res.s12 += Number(r.s12) || 0;
     res.s34 += Number(r.s34) || 0;
     res.toleransiM2 += Number(r.toleransiM2) || 0;
 
-    res.orderPcs += Number(r.orderPcs) || 0;
-    res.orderLuas += Number(r.orderLuas) || 0;
+    // JUMLAH ORDER SPK: Hanya diakumulasi dari SPK Biasa + Baris Summary LO (Mengabaikan Anak SPK Gabungan)
+    if (!isChild) {
+      res.orderPcs += Number(r.orderPcs) || 0;
+      res.orderLuas += Number(r.orderLuas) || 0;
+    }
 
-    res.hasilPRoll += Number(r.hasilPRoll) || 0;
-    res.hasilQty += Number(r.hasilQty) || 0;
-    res.hasilLuas += Number(r.hasilLuas) || 0;
+    // HASIL CETAK: Hanya diakumulasi dari SPK Biasa + Anak SPK Gabungan (Mengabaikan Baris Summary LO)
+    if (!isLO) {
+      res.hasilPRoll += Number(r.hasilPRoll) || 0;
+      res.hasilQty += Number(r.hasilQty) || 0;
+      res.hasilLuas += Number(r.hasilLuas) || 0;
+    }
 
     res.ambilP += Number(r.ambilP) || 0;
     res.ambilLuas += Number(r.ambilLuas) || 0;
@@ -653,7 +681,7 @@ const totals = computed(() => {
     res.lostM2 += Number(r.lostM2) || 0;
     res.totalWasteM2 += Number(r.totalWasteM2) || 0;
 
-    // Tinta MT 02 - 05
+    // Tinta
     res.inkC_MT02 += Number(r.inkC_MT02) || 0;
     res.inkM_MT02 += Number(r.inkM_MT02) || 0;
     res.inkY_MT02 += Number(r.inkY_MT02) || 0;
@@ -675,7 +703,6 @@ const totals = computed(() => {
     res.inkK_MT05 += Number(r.inkK_MT05) || 0;
   });
 
-  // Hitung persentase rata-rata / rasio keseluruhan
   if (res.orderLuas > 0) {
     res.toleransiPersen = (res.toleransiM2 / res.orderLuas) * 100;
     res.wastePersen = (res.wasteM2 / res.orderLuas) * 100;
@@ -734,7 +761,7 @@ const formatPercent = (val, formatFn) => {
   return formatFn ? `${formatFn(val, 1)}%` : `${Number(val).toFixed(1)}%`;
 };
 
-// --- EXPORT TO EXCEL LENGKAP WITH NUMBER FORMAT & RUMUS SUM ----
+// --- EXPORT TO EXCEL LENGKAP WITH NUMBER FORMAT & RUMUS SUM ---
 const exportToExcel = (dataToExport) => {
   if (!dataToExport || dataToExport.length === 0) {
     alert("Tidak ada data untuk diekspor");
@@ -770,7 +797,7 @@ const exportToExcel = (dataToExport) => {
   };
 
   const styleGrandTotalCell = {
-    fill: { fgColor: { rgb: "CBD5E1" } }, // Background abu-abu tebal
+    fill: { fgColor: { rgb: "CBD5E1" } },
     font: { bold: true, sz: 10, color: { rgb: "0F172A" } },
     alignment: { vertical: "center", horizontal: "center" },
     border: thinBorder,
@@ -944,11 +971,14 @@ const exportToExcel = (dataToExport) => {
     { v: "K", s: styleHeaderMain },
   ]);
 
-  const startRowExcel = 6; // Baris awal data di Excel
-  const endRowExcel = startRowExcel + dataToExport.length - 1; // Baris akhir data di Excel
+  const startRowExcel = 6;
+  const endRowExcel = startRowExcel + dataToExport.length - 1;
 
-  // ISI DATA
+  // MAP DATA KE BARIS EXCEL
   dataToExport.forEach((row) => {
+    const isChild = checkIsGabunganChild(row);
+    const isLO = Boolean(row.isLO);
+
     wsData.push([
       {
         v: row.showTgl ? formatDMY(row.tgl) : "",
@@ -976,14 +1006,20 @@ const exportToExcel = (dataToExport) => {
       },
       cellNum(row.lebarBahan, "#,##0.0"),
       cellNum(row.pRoll, "#,##0.0"),
-      cellNum(row.orderPcs, "#,##0"),
-      cellNum(row.orderLuas, "#,##0.0"),
-      cellNum(row.hasilPRoll, "#,##0.0"),
-      cellNum(row.hasilQty, "#,##0"),
-      cellNum(row.hasilLuas, "#,##0.0"),
+
+      // --- 1. JUMLAH ORDER SPK: Anak Gabungan = 0 ---
+      cellNum(isChild ? 0 : row.orderPcs, "#,##0"),
+      cellNum(isChild ? 0 : row.orderLuas, "#,##0.0"),
+
+      // --- 2. HASIL CETAK: Baris LO = 0 ---
+      cellNum(isLO ? 0 : row.hasilPRoll, "#,##0.0"),
+      cellNum(isLO ? 0 : row.hasilQty, "#,##0"),
+      cellNum(isLO ? 0 : row.hasilLuas, "#,##0.0"),
+
       cellNum(row.ambilP, "#,##0.0"),
       cellNum(row.ambilL, "#,##0.0"),
       cellNum(row.ambilLuas, "#,##0.0"),
+
       cellNum(row.sisaBisaPakaiP, "#,##0.0"),
       cellNum(row.sisaBisaPakaiL, "#,##0.0"),
       cellNum(row.sisaBisaPakaiLuas, "#,##0.0"),
@@ -1020,9 +1056,7 @@ const exportToExcel = (dataToExport) => {
     ]);
   });
 
-  // =========================================================
-  // PENAMBAHAN BARIS GRAND TOTAL PADA EXCEL DENGAN RUMUS SUM
-  // =========================================================
+  // BARIS GRAND TOTAL DENGAN RUMUS SUM DI EXCEL
   const grandTotalRowIndex = wsData.length + 1;
   const colLetter = (colIdx) => XLSX.utils.encode_col(colIdx);
 
