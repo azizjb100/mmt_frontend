@@ -11,7 +11,7 @@
       KODE: 'NOMOR',
       NAMA: 'spk_nama',
       JENIS: 'jo_nama',
-      STATUS: 'status'
+      STATUS: 'status',
     }"
     title="Laporan SPK MMT"
     :excel-file-name="`Laporan_SPK_MMT_${startDate}_sd_${endDate}.xlsx`"
@@ -32,66 +32,158 @@
     </template>
 
     <!-- Slot Header Tabel Custom -->
-    <template #thead="{ toggleSort, getSortIcon, columnFilters, jenisOptions, statusOptions }">
+    <template
+      #thead="{
+        toggleSort,
+        getSortIcon,
+        columnFilters,
+        jenisOptions,
+        statusOptions,
+      }"
+    >
       <thead>
         <tr class="header-main">
-          <th rowspan="3" style="width: 40px;"></th>
+          <th rowspan="3" style="width: 40px"></th>
 
           <!-- Header NAMA ORDER -->
-          <th rowspan="3" class="text-left sticky-col-1" style="min-width: 220px;">
+          <th
+            rowspan="3"
+            class="text-left sticky-col-1"
+            style="min-width: 220px"
+          >
             <div class="d-flex align-center justify-space-between">
-              <span @click="toggleSort('spk_nama')" class="cursor-pointer font-weight-bold">
-                NAMA ORDER {{ getSortIcon('spk_nama') }}
+              <span
+                @click="toggleSort('spk_nama')"
+                class="cursor-pointer font-weight-bold"
+              >
+                NAMA ORDER {{ getSortIcon("spk_nama") }}
               </span>
               <v-menu :close-on-content-click="false">
                 <template #activator="{ props }">
-                  <v-btn v-bind="props" icon variant="text" size="x-small" class="btn-filter-icon">
-                    <v-icon size="14" :color="columnFilters.NAMA ? 'amber-accent-2' : 'white'">mdi-filter-variant</v-icon>
+                  <v-btn
+                    v-bind="props"
+                    icon
+                    variant="text"
+                    size="x-small"
+                    class="btn-filter-icon"
+                  >
+                    <v-icon
+                      size="14"
+                      :color="columnFilters.NAMA ? 'amber-accent-2' : 'white'"
+                      >mdi-filter-variant</v-icon
+                    >
                   </v-btn>
                 </template>
                 <v-card min-width="220" class="pa-2 rounded-lg">
-                  <v-text-field v-model="columnFilters.NAMA" label="Filter Nama Order..." density="compact" hide-details variant="outlined" clearable />
+                  <v-text-field
+                    v-model="columnFilters.NAMA"
+                    label="Filter Nama Order..."
+                    density="compact"
+                    hide-details
+                    variant="outlined"
+                    clearable
+                  />
                 </v-card>
               </v-menu>
             </div>
           </th>
 
           <!-- Header NOMOR SPK -->
-          <th rowspan="3" class="text-left sticky-col-2 border" style="min-width: 150px;">
+          <th
+            rowspan="3"
+            class="text-left sticky-col-2 border"
+            style="min-width: 150px"
+          >
             <div class="d-flex align-center justify-space-between">
-              <span @click="toggleSort('NOMOR')" class="cursor-pointer font-weight-bold">
-                NOMOR SPK {{ getSortIcon('NOMOR') }}
+              <span
+                @click="toggleSort('NOMOR')"
+                class="cursor-pointer font-weight-bold"
+              >
+                NOMOR SPK {{ getSortIcon("NOMOR") }}
               </span>
               <v-menu :close-on-content-click="false">
                 <template #activator="{ props }">
-                  <v-btn v-bind="props" icon variant="text" size="x-small" class="btn-filter-icon">
-                    <v-icon size="14" :color="columnFilters.KODE ? 'amber-accent-2' : 'white'">mdi-filter-variant</v-icon>
+                  <v-btn
+                    v-bind="props"
+                    icon
+                    variant="text"
+                    size="x-small"
+                    class="btn-filter-icon"
+                  >
+                    <v-icon
+                      size="14"
+                      :color="columnFilters.KODE ? 'amber-accent-2' : 'white'"
+                      >mdi-filter-variant</v-icon
+                    >
                   </v-btn>
                 </template>
                 <v-card min-width="200" class="pa-2 rounded-lg">
-                  <v-text-field v-model="columnFilters.KODE" label="Filter Nomor SPK..." density="compact" hide-details variant="outlined" clearable />
+                  <v-text-field
+                    v-model="columnFilters.KODE"
+                    label="Filter Nomor SPK..."
+                    density="compact"
+                    hide-details
+                    variant="outlined"
+                    clearable
+                  />
                 </v-card>
               </v-menu>
             </div>
           </th>
 
-          <th rowspan="3" class="text-center border cursor-pointer" @click="toggleSort('spk_tanggal')">TGL SPK {{ getSortIcon('spk_tanggal') }}</th>
-          <th rowspan="3" class="text-center border cursor-pointer" @click="toggleSort('deadline')">DEADLINE {{ getSortIcon('deadline') }}</th>
+          <th
+            rowspan="3"
+            class="text-center border cursor-pointer"
+            @click="toggleSort('spk_tanggal')"
+          >
+            TGL SPK {{ getSortIcon("spk_tanggal") }}
+          </th>
+          <th
+            rowspan="3"
+            class="text-center border cursor-pointer"
+            @click="toggleSort('deadline')"
+          >
+            DEADLINE {{ getSortIcon("deadline") }}
+          </th>
 
           <!-- Header JENIS -->
           <th rowspan="3" class="text-left border">
             <div class="d-flex align-center justify-space-between ga-1">
-              <span @click="toggleSort('jo_nama')" class="cursor-pointer font-weight-bold">
-                JENIS {{ getSortIcon('jo_nama') }}
+              <span
+                @click="toggleSort('jo_nama')"
+                class="cursor-pointer font-weight-bold"
+              >
+                JENIS {{ getSortIcon("jo_nama") }}
               </span>
               <v-menu :close-on-content-click="false">
                 <template #activator="{ props }">
-                  <v-btn v-bind="props" icon variant="text" size="x-small" class="btn-filter-icon">
-                    <v-icon size="14" :color="columnFilters.JENIS !== 'SEMUA' ? 'amber-accent-2' : 'white'">mdi-filter-variant</v-icon>
+                  <v-btn
+                    v-bind="props"
+                    icon
+                    variant="text"
+                    size="x-small"
+                    class="btn-filter-icon"
+                  >
+                    <v-icon
+                      size="14"
+                      :color="
+                        columnFilters.JENIS !== 'SEMUA'
+                          ? 'amber-accent-2'
+                          : 'white'
+                      "
+                      >mdi-filter-variant</v-icon
+                    >
                   </v-btn>
                 </template>
                 <v-card min-width="180" class="pa-2 rounded-lg">
-                  <v-select v-model="columnFilters.JENIS" :items="jenisOptions" label="Jenis" density="compact" hide-details variant="outlined" />
+                  <v-select
+                    v-model="columnFilters.JENIS"
+                    :items="jenisOptions"
+                    label="Jenis"
+                    density="compact"
+                    hide-details
+                    variant="outlined"
+                  />
                 </v-card>
               </v-menu>
             </div>
@@ -100,17 +192,41 @@
           <!-- Header STATUS -->
           <th rowspan="3" class="text-center border">
             <div class="d-flex align-center justify-center ga-1">
-              <span @click="toggleSort('status')" class="cursor-pointer font-weight-bold">
-                STATUS {{ getSortIcon('status') }}
+              <span
+                @click="toggleSort('status')"
+                class="cursor-pointer font-weight-bold"
+              >
+                STATUS {{ getSortIcon("status") }}
               </span>
               <v-menu :close-on-content-click="false">
                 <template #activator="{ props }">
-                  <v-btn v-bind="props" icon variant="text" size="x-small" class="btn-filter-icon">
-                    <v-icon size="14" :color="columnFilters.STATUS !== 'SEMUA' ? 'amber-accent-2' : 'white'">mdi-filter-variant</v-icon>
+                  <v-btn
+                    v-bind="props"
+                    icon
+                    variant="text"
+                    size="x-small"
+                    class="btn-filter-icon"
+                  >
+                    <v-icon
+                      size="14"
+                      :color="
+                        columnFilters.STATUS !== 'SEMUA'
+                          ? 'amber-accent-2'
+                          : 'white'
+                      "
+                      >mdi-filter-variant</v-icon
+                    >
                   </v-btn>
                 </template>
                 <v-card min-width="160" class="pa-2 rounded-lg">
-                  <v-select v-model="columnFilters.STATUS" :items="statusOptions" label="Status" density="compact" hide-details variant="outlined" />
+                  <v-select
+                    v-model="columnFilters.STATUS"
+                    :items="statusOptions"
+                    label="Status"
+                    density="compact"
+                    hide-details
+                    variant="outlined"
+                  />
                 </v-card>
               </v-menu>
             </div>
@@ -121,7 +237,13 @@
           <th rowspan="3" class="text-right border">LEBAR</th>
           <th rowspan="3" class="text-left border">KAIN</th>
           <th rowspan="3" class="text-left border">FINISHING</th>
-          <th rowspan="3" class="text-center border cursor-pointer" @click="toggleSort('spk_jumlah')">ORDER {{ getSortIcon('spk_jumlah') }}</th>
+          <th
+            rowspan="3"
+            class="text-center border cursor-pointer"
+            @click="toggleSort('spk_jumlah')"
+          >
+            ORDER {{ getSortIcon("spk_jumlah") }}
+          </th>
 
           <!-- Group Header 1 -->
           <th colspan="6" class="text-center header-group">JUMLAH CETAK</th>
@@ -130,7 +252,9 @@
           <th rowspan="3" class="text-center border">JML COLY</th>
           <th rowspan="3" class="text-center border">JML JADI</th>
           <th rowspan="3" class="text-center border">JML KIRIM</th>
-          <th colspan="6" class="text-center header-group">MESIN CETAK (METER)</th>
+          <th colspan="6" class="text-center header-group">
+            MESIN CETAK (METER)
+          </th>
           <th colspan="1" class="text-center header-group">SEAMING</th>
           <th colspan="1" class="text-center header-group">KIRIM</th>
         </tr>
@@ -166,21 +290,34 @@
     <!-- Slot Row Baris Data -->
     <template #row="{ item, formatNumber }">
       <tr class="table-row-item">
-        <td class="text-center" style="width: 40px;">
-          <v-icon size="small" color="grey-lighten-1">mdi-file-document-outline</v-icon>
+        <td class="text-center" style="width: 40px">
+          <v-icon size="small" color="grey-lighten-1"
+            >mdi-file-document-outline</v-icon
+          >
         </td>
 
         <!-- Berikan max-width dan text-truncate pada kolom berpotensi teks panjang -->
-        <td class="text-left cell-nama sticky-col-1 text-truncate" style="max-width: 200px;" :title="item.spk_nama">
+        <td
+          class="text-left cell-nama sticky-col-1 text-truncate"
+          style="max-width: 200px"
+          :title="item.spk_nama"
+        >
           {{ item.spk_nama }}
         </td>
-        <td class="text-left cell-code sticky-col-2 font-weight" style="min-width: 130px;">
+        <td
+          class="text-left cell-code sticky-col-2 font-weight"
+          style="min-width: 130px"
+        >
           {{ item.NOMOR }}
         </td>
         <td class="text-center">{{ formatDateShort(item.spk_tanggal) }}</td>
         <td class="text-center">{{ formatDateShort(item.deadline) }}</td>
-        <td class="text-left text-grey-darken-2 text-truncate" style="max-width: 140px;" :title="item.jo_nama">
-          {{ item.jo_nama || '-' }}
+        <td
+          class="text-left text-grey-darken-2 text-truncate"
+          style="max-width: 140px"
+          :title="item.jo_nama"
+        >
+          {{ item.jo_nama || "-" }}
         </td>
 
         <!-- Status Chip -->
@@ -195,26 +332,52 @@
           <span v-else class="text-grey">-</span>
         </td>
 
-        <td class="text-center text-caption">{{ item.spk_gramasi || '-' }}</td>
-        <td class="text-right text-grey-darken-1">{{ formatNumber(item.PANJANG, 2) }}</td>
-        <td class="text-right text-grey-darken-1">{{ formatNumber(item.LEBAR, 2) }}</td>
-        <td class="text-left text-caption text-truncate" style="max-width: 120px;" :title="item.KAIN">
-          {{ item.KAIN || '-' }}
+        <td class="text-center text-caption">{{ item.spk_gramasi || "-" }}</td>
+        <td class="text-right text-grey-darken-1">
+          {{ formatNumber(item.PANJANG, 2) }}
         </td>
-        <td class="text-left text-caption text-truncate" style="max-width: 220px;" :title="item.FINISHING">
-          {{ item.FINISHING || '-' }}
+        <td class="text-right text-grey-darken-1">
+          {{ formatNumber(item.LEBAR, 2) }}
+        </td>
+        <td
+          class="text-left text-caption text-truncate"
+          style="max-width: 120px"
+          :title="item.KAIN"
+        >
+          {{ item.KAIN || "-" }}
+        </td>
+        <td
+          class="text-left text-caption text-truncate"
+          style="max-width: 220px"
+          :title="item.FINISHING"
+        >
+          {{ item.FINISHING || "-" }}
         </td>
 
         <!-- Order -->
-        <td class="text-center font-weight-bold text-primary">{{ formatNumber(item.spk_jumlah, 0) }}</td>
+        <td class="text-center font-weight-bold text-primary">
+          {{ formatNumber(item.spk_jumlah, 0) }}
+        </td>
 
         <!-- Sisa Kolom Angka/Mesin... -->
-        <td class="text-right text-grey-darken-1 border-l">{{ formatNumber(item.mt01, 0) }}</td>
-        <td class="text-right text-grey-darken-1">{{ formatNumber(item.mt02, 0) }}</td>
-        <td class="text-right text-grey-darken-1">{{ formatNumber(item.mt03, 0) }}</td>
-        <td class="text-right text-grey-darken-1">{{ formatNumber(item.mt04, 0) }}</td>
-        <td class="text-right text-grey-darken-1">{{ formatNumber(item.mt05, 0) }}</td>
-        <td class="text-right font-weight-bold text-success border-r">{{ formatNumber(item.JML_CETAK, 0) }}</td>
+        <td class="text-right text-grey-darken-1 border-l">
+          {{ formatNumber(item.mt01, 0) }}
+        </td>
+        <td class="text-right text-grey-darken-1">
+          {{ formatNumber(item.mt02, 0) }}
+        </td>
+        <td class="text-right text-grey-darken-1">
+          {{ formatNumber(item.mt03, 0) }}
+        </td>
+        <td class="text-right text-grey-darken-1">
+          {{ formatNumber(item.mt04, 0) }}
+        </td>
+        <td class="text-right text-grey-darken-1">
+          {{ formatNumber(item.mt05, 0) }}
+        </td>
+        <td class="text-right font-weight-bold text-success border-r">
+          {{ formatNumber(item.JML_CETAK, 0) }}
+        </td>
 
         <td class="text-center">{{ formatNumber(item.JML_seaming, 0) }}</td>
         <td class="text-center">{{ formatNumber(item.JML_mataayam, 0) }}</td>
@@ -222,49 +385,112 @@
         <td class="text-center">{{ formatNumber(item.JML_JADI, 0) }}</td>
         <td class="text-center">{{ formatNumber(item.JML_KIRIM, 0) }}</td>
 
-        <td class="text-right text-grey-darken-1 border-l">{{ formatNumber(item.mt01_m, 2) }}</td>
-        <td class="text-right text-grey-darken-1">{{ formatNumber(item.mt02_m, 2) }}</td>
-        <td class="text-right text-grey-darken-1">{{ formatNumber(item.mt03_m, 2) }}</td>
-        <td class="text-right text-grey-darken-1">{{ formatNumber(item.mt04_m, 2) }}</td>
-        <td class="text-right text-grey-darken-1">{{ formatNumber(item.mt05_m, 2) }}</td>
-        <td class="text-right font-weight-bold text-success border-r">{{ formatNumber(item.M_CETAK, 2) }}</td>
+        <td class="text-right text-grey-darken-1 border-l">
+          {{ formatNumber(item.mt01_m, 2) }}
+        </td>
+        <td class="text-right text-grey-darken-1">
+          {{ formatNumber(item.mt02_m, 2) }}
+        </td>
+        <td class="text-right text-grey-darken-1">
+          {{ formatNumber(item.mt03_m, 2) }}
+        </td>
+        <td class="text-right text-grey-darken-1">
+          {{ formatNumber(item.mt04_m, 2) }}
+        </td>
+        <td class="text-right text-grey-darken-1">
+          {{ formatNumber(item.mt05_m, 2) }}
+        </td>
+        <td class="text-right font-weight-bold text-success border-r">
+          {{ formatNumber(item.M_CETAK, 2) }}
+        </td>
 
-        <td class="text-right text-grey-darken-1 border-r">{{ formatNumber(item.m_seaming, 2) }}</td>
-        <td class="text-right text-grey-darken-1 border-r">{{ formatNumber(item.JML_meter_KIRIM, 2) }}</td>
+        <td class="text-right text-grey-darken-1 border-r">
+          {{ formatNumber(item.m_seaming, 2) }}
+        </td>
+        <td class="text-right text-grey-darken-1 border-r">
+          {{ formatNumber(item.JML_meter_KIRIM, 2) }}
+        </td>
       </tr>
     </template>
 
     <!-- Slot Total Footer -->
     <template #tfoot="{ totals, formatNumber }">
       <tr class="table-footer-row">
-        <td colspan="12" class="text-right font-weight-black text-uppercase sticky-footer-title">
+        <td
+          colspan="12"
+          class="text-right font-weight-black text-uppercase sticky-footer-title"
+        >
           TOTAL KESELURUHAN:
         </td>
 
-        <td class="text-center font-weight-black text-primary">{{ formatNumber(totals.spk_jumlah, 0) }}</td>
+        <td class="text-center font-weight-black text-primary">
+          {{ formatNumber(totals.spk_jumlah, 0) }}
+        </td>
 
-        <td class="text-right font-weight-black">{{ formatNumber(totals.mt01, 0) }}</td>
-        <td class="text-right font-weight-black">{{ formatNumber(totals.mt02, 0) }}</td>
-        <td class="text-right font-weight-black">{{ formatNumber(totals.mt03, 0) }}</td>
-        <td class="text-right font-weight-black">{{ formatNumber(totals.mt04, 0) }}</td>
-        <td class="text-right font-weight-black">{{ formatNumber(totals.mt05, 0) }}</td>
-        <td class="text-right font-weight-black text-success bg-amber-lighten-5">{{ formatNumber(totals.JML_CETAK, 0) }}</td>
+        <td class="text-right font-weight-black">
+          {{ formatNumber(totals.mt01, 0) }}
+        </td>
+        <td class="text-right font-weight-black">
+          {{ formatNumber(totals.mt02, 0) }}
+        </td>
+        <td class="text-right font-weight-black">
+          {{ formatNumber(totals.mt03, 0) }}
+        </td>
+        <td class="text-right font-weight-black">
+          {{ formatNumber(totals.mt04, 0) }}
+        </td>
+        <td class="text-right font-weight-black">
+          {{ formatNumber(totals.mt05, 0) }}
+        </td>
+        <td
+          class="text-right font-weight-black text-success bg-amber-lighten-5"
+        >
+          {{ formatNumber(totals.JML_CETAK, 0) }}
+        </td>
 
-        <td class="text-center font-weight-black">{{ formatNumber(totals.JML_seaming, 0) }}</td>
-        <td class="text-center font-weight-black">{{ formatNumber(totals.JML_mataayam, 0) }}</td>
-        <td class="text-center font-weight-black">{{ formatNumber(totals.JML_coly, 0) }}</td>
-        <td class="text-center font-weight-black">{{ formatNumber(totals.JML_JADI, 0) }}</td>
-        <td class="text-center font-weight-black">{{ formatNumber(totals.JML_KIRIM, 0) }}</td>
+        <td class="text-center font-weight-black">
+          {{ formatNumber(totals.JML_seaming, 0) }}
+        </td>
+        <td class="text-center font-weight-black">
+          {{ formatNumber(totals.JML_mataayam, 0) }}
+        </td>
+        <td class="text-center font-weight-black">
+          {{ formatNumber(totals.JML_coly, 0) }}
+        </td>
+        <td class="text-center font-weight-black">
+          {{ formatNumber(totals.JML_JADI, 0) }}
+        </td>
+        <td class="text-center font-weight-black">
+          {{ formatNumber(totals.JML_KIRIM, 0) }}
+        </td>
 
-        <td class="text-right font-weight-black">{{ formatNumber(totals.mt01_m, 2) }}</td>
-        <td class="text-right font-weight-black">{{ formatNumber(totals.mt02_m, 2) }}</td>
-        <td class="text-right font-weight-black">{{ formatNumber(totals.mt03_m, 2) }}</td>
-        <td class="text-right font-weight-black">{{ formatNumber(totals.mt04_m, 2) }}</td>
-        <td class="text-right font-weight-black">{{ formatNumber(totals.mt05_m, 2) }}</td>
-        <td class="text-right font-weight-black text-success bg-amber-lighten-5">{{ formatNumber(totals.M_CETAK, 2) }}</td>
+        <td class="text-right font-weight-black">
+          {{ formatNumber(totals.mt01_m, 2) }}
+        </td>
+        <td class="text-right font-weight-black">
+          {{ formatNumber(totals.mt02_m, 2) }}
+        </td>
+        <td class="text-right font-weight-black">
+          {{ formatNumber(totals.mt03_m, 2) }}
+        </td>
+        <td class="text-right font-weight-black">
+          {{ formatNumber(totals.mt04_m, 2) }}
+        </td>
+        <td class="text-right font-weight-black">
+          {{ formatNumber(totals.mt05_m, 2) }}
+        </td>
+        <td
+          class="text-right font-weight-black text-success bg-amber-lighten-5"
+        >
+          {{ formatNumber(totals.M_CETAK, 2) }}
+        </td>
 
-        <td class="text-right font-weight-black">{{ formatNumber(totals.m_seaming, 2) }}</td>
-        <td class="text-right font-weight-black">{{ formatNumber(totals.JML_meter_KIRIM, 2) }}</td>
+        <td class="text-right font-weight-black">
+          {{ formatNumber(totals.m_seaming, 2) }}
+        </td>
+        <td class="text-right font-weight-black">
+          {{ formatNumber(totals.JML_meter_KIRIM, 2) }}
+        </td>
       </tr>
     </template>
   </BaseReportLayout>
@@ -291,8 +517,18 @@ const formatDateIndo = (dateStr: string) => {
   if (!dateStr) return "";
   const [year, month, day] = dateStr.split("-");
   const namaBulan = [
-    "Januari", "Februari", "Maret", "April", "Mei", "Juni",
-    "Juli", "Agustus", "September", "Oktober", "November", "Desember"
+    "Januari",
+    "Februari",
+    "Maret",
+    "April",
+    "Mei",
+    "Juni",
+    "Juli",
+    "Agustus",
+    "September",
+    "Oktober",
+    "November",
+    "Desember",
   ];
   const monthIdx = parseInt(month, 10) - 1;
   return `${day} ${namaBulan[monthIdx]} ${year}`;
@@ -318,8 +554,10 @@ const setTodayRange = async () => {
 const fetchReport = async () => {
   loading.report = true;
   try {
-    const requestStart = startDate.value <= endDate.value ? startDate.value : endDate.value;
-    const requestEnd = startDate.value <= endDate.value ? endDate.value : startDate.value;
+    const requestStart =
+      startDate.value <= endDate.value ? startDate.value : endDate.value;
+    const requestEnd =
+      startDate.value <= endDate.value ? endDate.value : startDate.value;
 
     const res = await api.get("/mmt/laporan-spk-mmt", {
       params: { startDate: requestStart, endDate: requestEnd },
@@ -375,7 +613,11 @@ const exportToExcel = (dataToExport: any[]) => {
 
   const wsData: any[] = [
     [{ v: "LAPORAN MONITORING SPK MMT", s: { font: { bold: true, sz: 14 } } }],
-    [{ v: `Periode : ${formatDateIndo(startDate.value)} s/d ${formatDateIndo(endDate.value)}` }],
+    [
+      {
+        v: `Periode : ${formatDateIndo(startDate.value)} s/d ${formatDateIndo(endDate.value)}`,
+      },
+    ],
     [],
   ];
 
@@ -393,13 +635,23 @@ const exportToExcel = (dataToExport: any[]) => {
     { v: "KAIN", s: styleHeaderMain },
     { v: "FINISHING", s: styleHeaderMain },
     { v: "ORDER", s: styleHeaderMain },
-    { v: "JUMLAH CETAK", s: styleHeaderMain }, "", "", "", "", "",
+    { v: "JUMLAH CETAK", s: styleHeaderMain },
+    "",
+    "",
+    "",
+    "",
+    "",
     { v: "JML SEAMING", s: styleHeaderMain },
     { v: "JML MATA AYAM", s: styleHeaderMain },
     { v: "JML COLY", s: styleHeaderMain },
     { v: "JML JADI", s: styleHeaderMain },
     { v: "JML KIRIM", s: styleHeaderMain },
-    { v: "MESIN CETAK (METER)", s: styleHeaderMain }, "", "", "", "", "",
+    { v: "MESIN CETAK (METER)", s: styleHeaderMain },
+    "",
+    "",
+    "",
+    "",
+    "",
     { v: "SEAMING (M)", s: styleHeaderMain },
     { v: "KIRIM (M)", s: styleHeaderMain },
   ];
@@ -411,10 +663,18 @@ const exportToExcel = (dataToExport: any[]) => {
   // Header Row 2
   const headerRow2 = [
     ...Array(12).fill({ v: "", s: styleHeaderMain }),
-    { v: "PCS", s: styleHeaderMain }, "", "", "", "",
+    { v: "PCS", s: styleHeaderMain },
+    "",
+    "",
+    "",
+    "",
     { v: "TOTAL", s: styleHeaderMain },
     ...Array(5).fill({ v: "", s: styleHeaderMain }),
-    { v: "METER", s: styleHeaderMain }, "", "", "", "",
+    { v: "METER", s: styleHeaderMain },
+    "",
+    "",
+    "",
+    "",
     { v: "TOTAL", s: styleHeaderMain },
     { v: "", s: styleHeaderMain },
     { v: "", s: styleHeaderMain },
@@ -452,88 +712,354 @@ const exportToExcel = (dataToExport: any[]) => {
   dataToExport.forEach((item: any) => {
     wsData.push([
       { v: item.spk_nama || "-", s: styleDataCell },
-      { v: item.NOMOR || "-", s: { ...styleDataCell, alignment: { horizontal: "center" } } },
-      { v: formatDateShort(item.spk_tanggal), s: { ...styleDataCell, alignment: { horizontal: "center" } } },
-      { v: formatDateShort(item.deadline), s: { ...styleDataCell, alignment: { horizontal: "center" } } },
+      {
+        v: item.NOMOR || "-",
+        s: { ...styleDataCell, alignment: { horizontal: "center" } },
+      },
+      {
+        v: formatDateShort(item.spk_tanggal),
+        s: { ...styleDataCell, alignment: { horizontal: "center" } },
+      },
+      {
+        v: formatDateShort(item.deadline),
+        s: { ...styleDataCell, alignment: { horizontal: "center" } },
+      },
       { v: item.jo_nama || "-", s: styleDataCell },
-      { v: item.status || "-", s: { ...styleDataCell, alignment: { horizontal: "center" } } },
+      {
+        v: item.status || "-",
+        s: { ...styleDataCell, alignment: { horizontal: "center" } },
+      },
       { v: item.spk_gramasi || "-", s: styleDataCell },
 
-      { v: num(item.PANJANG), t: "n", z: "#,##0.00", s: { ...styleDataCell, alignment: { horizontal: "right" } } },
-      { v: num(item.LEBAR), t: "n", z: "#,##0.00", s: { ...styleDataCell, alignment: { horizontal: "right" } } },
+      {
+        v: num(item.PANJANG),
+        t: "n",
+        z: "#,##0.00",
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+      },
+      {
+        v: num(item.LEBAR),
+        t: "n",
+        z: "#,##0.00",
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+      },
       { v: item.KAIN || "-", s: styleDataCell },
       { v: item.FINISHING || "-", s: styleDataCell },
 
-      { v: num(item.spk_jumlah), t: "n", z: "#,##0", s: { ...styleDataCell, alignment: { horizontal: "center" } } },
+      {
+        v: num(item.spk_jumlah),
+        t: "n",
+        z: "#,##0",
+        s: { ...styleDataCell, alignment: { horizontal: "center" } },
+      },
 
-      { v: num(item.mt01), t: "n", z: "#,##0", s: { ...styleDataCell, alignment: { horizontal: "right" } } },
-      { v: num(item.mt02), t: "n", z: "#,##0", s: { ...styleDataCell, alignment: { horizontal: "right" } } },
-      { v: num(item.mt03), t: "n", z: "#,##0", s: { ...styleDataCell, alignment: { horizontal: "right" } } },
-      { v: num(item.mt04), t: "n", z: "#,##0", s: { ...styleDataCell, alignment: { horizontal: "right" } } },
-      { v: num(item.mt05), t: "n", z: "#,##0", s: { ...styleDataCell, alignment: { horizontal: "right" } } },
-      { v: num(item.JML_CETAK), t: "n", z: "#,##0", s: { ...styleDataCell, alignment: { horizontal: "right" }, font: { bold: true } } },
+      {
+        v: num(item.mt01),
+        t: "n",
+        z: "#,##0",
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+      },
+      {
+        v: num(item.mt02),
+        t: "n",
+        z: "#,##0",
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+      },
+      {
+        v: num(item.mt03),
+        t: "n",
+        z: "#,##0",
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+      },
+      {
+        v: num(item.mt04),
+        t: "n",
+        z: "#,##0",
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+      },
+      {
+        v: num(item.mt05),
+        t: "n",
+        z: "#,##0",
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+      },
+      {
+        v: num(item.JML_CETAK),
+        t: "n",
+        z: "#,##0",
+        s: {
+          ...styleDataCell,
+          alignment: { horizontal: "right" },
+          font: { bold: true },
+        },
+      },
 
-      { v: num(item.JML_seaming), t: "n", z: "#,##0", s: { ...styleDataCell, alignment: { horizontal: "center" } } },
-      { v: num(item.JML_mataayam), t: "n", z: "#,##0", s: { ...styleDataCell, alignment: { horizontal: "center" } } },
-      { v: num(item.JML_coly), t: "n", z: "#,##0", s: { ...styleDataCell, alignment: { horizontal: "center" } } },
-      { v: num(item.JML_JADI), t: "n", z: "#,##0", s: { ...styleDataCell, alignment: { horizontal: "center" } } },
-      { v: num(item.JML_KIRIM), t: "n", z: "#,##0", s: { ...styleDataCell, alignment: { horizontal: "center" } } },
+      {
+        v: num(item.JML_seaming),
+        t: "n",
+        z: "#,##0",
+        s: { ...styleDataCell, alignment: { horizontal: "center" } },
+      },
+      {
+        v: num(item.JML_mataayam),
+        t: "n",
+        z: "#,##0",
+        s: { ...styleDataCell, alignment: { horizontal: "center" } },
+      },
+      {
+        v: num(item.JML_coly),
+        t: "n",
+        z: "#,##0",
+        s: { ...styleDataCell, alignment: { horizontal: "center" } },
+      },
+      {
+        v: num(item.JML_JADI),
+        t: "n",
+        z: "#,##0",
+        s: { ...styleDataCell, alignment: { horizontal: "center" } },
+      },
+      {
+        v: num(item.JML_KIRIM),
+        t: "n",
+        z: "#,##0",
+        s: { ...styleDataCell, alignment: { horizontal: "center" } },
+      },
 
-      { v: num(item.mt01_m), t: "n", z: "#,##0.00", s: { ...styleDataCell, alignment: { horizontal: "right" } } },
-      { v: num(item.mt02_m), t: "n", z: "#,##0.00", s: { ...styleDataCell, alignment: { horizontal: "right" } } },
-      { v: num(item.mt03_m), t: "n", z: "#,##0.00", s: { ...styleDataCell, alignment: { horizontal: "right" } } },
-      { v: num(item.mt04_m), t: "n", z: "#,##0.00", s: { ...styleDataCell, alignment: { horizontal: "right" } } },
-      { v: num(item.mt05_m), t: "n", z: "#,##0.00", s: { ...styleDataCell, alignment: { horizontal: "right" } } },
-      { v: num(item.M_CETAK), t: "n", z: "#,##0.00", s: { ...styleDataCell, alignment: { horizontal: "right" }, font: { bold: true } } },
+      {
+        v: num(item.mt01_m),
+        t: "n",
+        z: "#,##0.00",
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+      },
+      {
+        v: num(item.mt02_m),
+        t: "n",
+        z: "#,##0.00",
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+      },
+      {
+        v: num(item.mt03_m),
+        t: "n",
+        z: "#,##0.00",
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+      },
+      {
+        v: num(item.mt04_m),
+        t: "n",
+        z: "#,##0.00",
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+      },
+      {
+        v: num(item.mt05_m),
+        t: "n",
+        z: "#,##0.00",
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+      },
+      {
+        v: num(item.M_CETAK),
+        t: "n",
+        z: "#,##0.00",
+        s: {
+          ...styleDataCell,
+          alignment: { horizontal: "right" },
+          font: { bold: true },
+        },
+      },
 
-      { v: num(item.m_seaming), t: "n", z: "#,##0.00", s: { ...styleDataCell, alignment: { horizontal: "right" } } },
-      { v: num(item.JML_meter_KIRIM), t: "n", z: "#,##0.00", s: { ...styleDataCell, alignment: { horizontal: "right" } } },
+      {
+        v: num(item.m_seaming),
+        t: "n",
+        z: "#,##0.00",
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+      },
+      {
+        v: num(item.JML_meter_KIRIM),
+        t: "n",
+        z: "#,##0.00",
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+      },
     ]);
   });
 
   // Footer Totals
-  const totals = dataToExport.reduce((acc: any, row: any) => {
-    acc.spk_jumlah += num(row.spk_jumlah);
-    acc.mt01 += num(row.mt01); acc.mt02 += num(row.mt02); acc.mt03 += num(row.mt03); acc.mt04 += num(row.mt04); acc.mt05 += num(row.mt05);
-    acc.JML_CETAK += num(row.JML_CETAK);
-    acc.JML_seaming += num(row.JML_seaming); acc.JML_mataayam += num(row.JML_mataayam); acc.JML_coly += num(row.JML_coly);
-    acc.JML_JADI += num(row.JML_JADI); acc.JML_KIRIM += num(row.JML_KIRIM);
-    acc.mt01_m += num(row.mt01_m); acc.mt02_m += num(row.mt02_m); acc.mt03_m += num(row.mt03_m); acc.mt04_m += num(row.mt04_m); acc.mt05_m += num(row.mt05_m);
-    acc.M_CETAK += num(row.M_CETAK); acc.m_seaming += num(row.m_seaming); acc.JML_meter_KIRIM += num(row.JML_meter_KIRIM);
-    return acc;
-  }, {
-    spk_jumlah: 0, mt01: 0, mt02: 0, mt03: 0, mt04: 0, mt05: 0, JML_CETAK: 0,
-    JML_seaming: 0, JML_mataayam: 0, JML_coly: 0, JML_JADI: 0, JML_KIRIM: 0,
-    mt01_m: 0, mt02_m: 0, mt03_m: 0, mt04_m: 0, mt05_m: 0, M_CETAK: 0, m_seaming: 0, JML_meter_KIRIM: 0
-  });
+  const totals = dataToExport.reduce(
+    (acc: any, row: any) => {
+      acc.spk_jumlah += num(row.spk_jumlah);
+      acc.mt01 += num(row.mt01);
+      acc.mt02 += num(row.mt02);
+      acc.mt03 += num(row.mt03);
+      acc.mt04 += num(row.mt04);
+      acc.mt05 += num(row.mt05);
+      acc.JML_CETAK += num(row.JML_CETAK);
+      acc.JML_seaming += num(row.JML_seaming);
+      acc.JML_mataayam += num(row.JML_mataayam);
+      acc.JML_coly += num(row.JML_coly);
+      acc.JML_JADI += num(row.JML_JADI);
+      acc.JML_KIRIM += num(row.JML_KIRIM);
+      acc.mt01_m += num(row.mt01_m);
+      acc.mt02_m += num(row.mt02_m);
+      acc.mt03_m += num(row.mt03_m);
+      acc.mt04_m += num(row.mt04_m);
+      acc.mt05_m += num(row.mt05_m);
+      acc.M_CETAK += num(row.M_CETAK);
+      acc.m_seaming += num(row.m_seaming);
+      acc.JML_meter_KIRIM += num(row.JML_meter_KIRIM);
+      return acc;
+    },
+    {
+      spk_jumlah: 0,
+      mt01: 0,
+      mt02: 0,
+      mt03: 0,
+      mt04: 0,
+      mt05: 0,
+      JML_CETAK: 0,
+      JML_seaming: 0,
+      JML_mataayam: 0,
+      JML_coly: 0,
+      JML_JADI: 0,
+      JML_KIRIM: 0,
+      mt01_m: 0,
+      mt02_m: 0,
+      mt03_m: 0,
+      mt04_m: 0,
+      mt05_m: 0,
+      M_CETAK: 0,
+      m_seaming: 0,
+      JML_meter_KIRIM: 0,
+    },
+  );
 
   const footerRow = [
-    { v: "TOTAL KESELURUHAN", s: { ...styleFooterCell, alignment: { horizontal: "center" } } },
+    {
+      v: "TOTAL KESELURUHAN",
+      s: { ...styleFooterCell, alignment: { horizontal: "center" } },
+    },
     ...Array(11).fill({ v: "", s: styleFooterCell }),
-    { v: totals.spk_jumlah, t: "n", z: "#,##0", s: { ...styleFooterCell, alignment: { horizontal: "center" } } },
+    {
+      v: totals.spk_jumlah,
+      t: "n",
+      z: "#,##0",
+      s: { ...styleFooterCell, alignment: { horizontal: "center" } },
+    },
 
-    { v: totals.mt01, t: "n", z: "#,##0", s: { ...styleFooterCell, alignment: { horizontal: "right" } } },
-    { v: totals.mt02, t: "n", z: "#,##0", s: { ...styleFooterCell, alignment: { horizontal: "right" } } },
-    { v: totals.mt03, t: "n", z: "#,##0", s: { ...styleFooterCell, alignment: { horizontal: "right" } } },
-    { v: totals.mt04, t: "n", z: "#,##0", s: { ...styleFooterCell, alignment: { horizontal: "right" } } },
-    { v: totals.mt05, t: "n", z: "#,##0", s: { ...styleFooterCell, alignment: { horizontal: "right" } } },
-    { v: totals.JML_CETAK, t: "n", z: "#,##0", s: { ...styleFooterCell, alignment: { horizontal: "right" } } },
+    {
+      v: totals.mt01,
+      t: "n",
+      z: "#,##0",
+      s: { ...styleFooterCell, alignment: { horizontal: "right" } },
+    },
+    {
+      v: totals.mt02,
+      t: "n",
+      z: "#,##0",
+      s: { ...styleFooterCell, alignment: { horizontal: "right" } },
+    },
+    {
+      v: totals.mt03,
+      t: "n",
+      z: "#,##0",
+      s: { ...styleFooterCell, alignment: { horizontal: "right" } },
+    },
+    {
+      v: totals.mt04,
+      t: "n",
+      z: "#,##0",
+      s: { ...styleFooterCell, alignment: { horizontal: "right" } },
+    },
+    {
+      v: totals.mt05,
+      t: "n",
+      z: "#,##0",
+      s: { ...styleFooterCell, alignment: { horizontal: "right" } },
+    },
+    {
+      v: totals.JML_CETAK,
+      t: "n",
+      z: "#,##0",
+      s: { ...styleFooterCell, alignment: { horizontal: "right" } },
+    },
 
-    { v: totals.JML_seaming, t: "n", z: "#,##0", s: { ...styleFooterCell, alignment: { horizontal: "center" } } },
-    { v: totals.JML_mataayam, t: "n", z: "#,##0", s: { ...styleFooterCell, alignment: { horizontal: "center" } } },
-    { v: totals.JML_coly, t: "n", z: "#,##0", s: { ...styleFooterCell, alignment: { horizontal: "center" } } },
-    { v: totals.JML_JADI, t: "n", z: "#,##0", s: { ...styleFooterCell, alignment: { horizontal: "center" } } },
-    { v: totals.JML_KIRIM, t: "n", z: "#,##0", s: { ...styleFooterCell, alignment: { horizontal: "center" } } },
+    {
+      v: totals.JML_seaming,
+      t: "n",
+      z: "#,##0",
+      s: { ...styleFooterCell, alignment: { horizontal: "center" } },
+    },
+    {
+      v: totals.JML_mataayam,
+      t: "n",
+      z: "#,##0",
+      s: { ...styleFooterCell, alignment: { horizontal: "center" } },
+    },
+    {
+      v: totals.JML_coly,
+      t: "n",
+      z: "#,##0",
+      s: { ...styleFooterCell, alignment: { horizontal: "center" } },
+    },
+    {
+      v: totals.JML_JADI,
+      t: "n",
+      z: "#,##0",
+      s: { ...styleFooterCell, alignment: { horizontal: "center" } },
+    },
+    {
+      v: totals.JML_KIRIM,
+      t: "n",
+      z: "#,##0",
+      s: { ...styleFooterCell, alignment: { horizontal: "center" } },
+    },
 
-    { v: totals.mt01_m, t: "n", z: "#,##0.00", s: { ...styleFooterCell, alignment: { horizontal: "right" } } },
-    { v: totals.mt02_m, t: "n", z: "#,##0.00", s: { ...styleFooterCell, alignment: { horizontal: "right" } } },
-    { v: totals.mt03_m, t: "n", z: "#,##0.00", s: { ...styleFooterCell, alignment: { horizontal: "right" } } },
-    { v: totals.mt04_m, t: "n", z: "#,##0.00", s: { ...styleFooterCell, alignment: { horizontal: "right" } } },
-    { v: totals.mt05_m, t: "n", z: "#,##0.00", s: { ...styleFooterCell, alignment: { horizontal: "right" } } },
-    { v: totals.M_CETAK, t: "n", z: "#,##0.00", s: { ...styleFooterCell, alignment: { horizontal: "right" } } },
+    {
+      v: totals.mt01_m,
+      t: "n",
+      z: "#,##0.00",
+      s: { ...styleFooterCell, alignment: { horizontal: "right" } },
+    },
+    {
+      v: totals.mt02_m,
+      t: "n",
+      z: "#,##0.00",
+      s: { ...styleFooterCell, alignment: { horizontal: "right" } },
+    },
+    {
+      v: totals.mt03_m,
+      t: "n",
+      z: "#,##0.00",
+      s: { ...styleFooterCell, alignment: { horizontal: "right" } },
+    },
+    {
+      v: totals.mt04_m,
+      t: "n",
+      z: "#,##0.00",
+      s: { ...styleFooterCell, alignment: { horizontal: "right" } },
+    },
+    {
+      v: totals.mt05_m,
+      t: "n",
+      z: "#,##0.00",
+      s: { ...styleFooterCell, alignment: { horizontal: "right" } },
+    },
+    {
+      v: totals.M_CETAK,
+      t: "n",
+      z: "#,##0.00",
+      s: { ...styleFooterCell, alignment: { horizontal: "right" } },
+    },
 
-    { v: totals.m_seaming, t: "n", z: "#,##0.00", s: { ...styleFooterCell, alignment: { horizontal: "right" } } },
-    { v: totals.JML_meter_KIRIM, t: "n", z: "#,##0.00", s: { ...styleFooterCell, alignment: { horizontal: "right" } } },
+    {
+      v: totals.m_seaming,
+      t: "n",
+      z: "#,##0.00",
+      s: { ...styleFooterCell, alignment: { horizontal: "right" } },
+    },
+    {
+      v: totals.JML_meter_KIRIM,
+      t: "n",
+      z: "#,##0.00",
+      s: { ...styleFooterCell, alignment: { horizontal: "right" } },
+    },
   ];
   wsData.push(footerRow);
 
@@ -583,7 +1109,6 @@ onMounted(fetchReport);
 </script>
 
 <style scoped>
-
 :deep(table) {
   font-size: 11px !important;
 }
@@ -592,6 +1117,21 @@ onMounted(fetchReport);
 :deep(td) {
   font-size: 11px !important;
   white-space: nowrap !important;
+}
+
+:deep(.v-table__wrapper),
+:deep(.v-data-table__wrapper) {
+  max-height: calc(
+    100vh - 280px
+  ) !important; /* Sesuaikan tinggi agar muat di layar */
+  overflow-y: auto !important;
+  overflow-x: auto !important;
+}
+
+:deep(thead) {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 10 !important;
 }
 /* Gradasi Warna Navy Modern yang Lebih Elegan & Halus */
 .header-main th {
@@ -632,8 +1172,16 @@ onMounted(fetchReport);
 }
 
 /* Cell Borders */
-.border-l { border-left: 1px solid #cbd5e1 !important; }
-.border-r { border-right: 1px solid #cbd5e1 !important; }
-.border-sub-l { border-left: 1px solid #60a5fa !important; }
-.border-sub-r { border-right: 1px solid #60a5fa !important; }
+.border-l {
+  border-left: 1px solid #cbd5e1 !important;
+}
+.border-r {
+  border-right: 1px solid #cbd5e1 !important;
+}
+.border-sub-l {
+  border-left: 1px solid #60a5fa !important;
+}
+.border-sub-r {
+  border-right: 1px solid #60a5fa !important;
+}
 </style>

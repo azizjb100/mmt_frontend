@@ -1,211 +1,147 @@
 <template>
-  <PageLayout title="Laporan Monitoring Proof" icon="mdi-file-eye-outline">
-    <template #header-actions>
-      <v-btn
-        size="x-small"
-        color="info"
-        variant="text"
-        @click="fetchReport"
-        :loading="loading"
-      >
-        <v-icon start>mdi-refresh</v-icon> Tampilkan
-      </v-btn>
-
-      <v-btn
-        size="x-small"
-        color="success"
-        @click="exportToExcel"
-        :disabled="allData.length === 0"
-      >
-        <v-icon start>mdi-file-excel</v-icon> Export Excel
-      </v-btn>
+  <BaseReportLayout
+    v-model:start-date="startDate"
+    v-model:end-date="endDate"
+    :items="filteredData"
+    :loading="loading.report"
+    :show-gudang-filter="false"
+    item-key="mspk_nomor"
+    title="Laporan Monitoring Proof"
+    :excel-file-name="`Laporan_Monitoring_Proof_${startDate}_sd_${endDate}.xlsx`"
+    :custom-export-excel="exportToExcel"
+    @refresh="fetchReport"
+  >
+    <!-- Slot Filter Tambahan -->
+    <template #extra-filters>
+      <v-text-field
+        v-model="searchQuery"
+        label="Cari No. SPK / Salesman / Order..."
+        prepend-inner-icon="mdi-magnify"
+        density="compact"
+        hide-details
+        variant="outlined"
+        clearable
+        style="max-width: 280px"
+      />
     </template>
 
-    <div class="browse-content">
-      <v-card flat class="border-bottom mb-1">
-        <v-card-text class="py-2 px-3">
-          <div class="filter-section d-flex align-center flex-wrap ga-3">
-            <span class="text-caption font-weight-bold">Periode:</span>
-            <v-text-field
-              v-model="startDate"
-              type="date"
-              density="compact"
-              hide-details
-              variant="outlined"
-              style="max-width: 140px"
-            />
-            <v-label class="mx-1">s/d</v-label>
-            <v-text-field
-              v-model="endDate"
-              type="date"
-              density="compact"
-              hide-details
-              variant="outlined"
-              style="max-width: 140px"
-            />
-
-            <v-spacer />
-
-            <v-text-field
-              v-model="searchQuery"
-              label="Cari No. SPK atau Salesman..."
-              prepend-inner-icon="mdi-magnify"
-              density="compact"
-              hide-details
-              variant="outlined"
-              style="max-width: 300px"
-            />
-          </div>
-        </v-card-text>
-      </v-card>
-
-      <div class="text-caption text-primary mb-1 px-1 d-flex align-center ga-1">
-        <v-icon size="small" color="primary">mdi-information</v-icon>
-        <span
-          >Gaya Grid DevExpress: Geser sub-header ke kanan/kiri. Seluruh nilai
-          lajur vertikal akan ikut pindah secara sinkron.</span
-        >
-      </div>
-
-      <div class="grid-table-container">
-        <div class="grid-table-viewport">
-          <div class="grid-table-header-group">
-            <div
-              v-for="(group, gIdx) in dynamicGroups"
-              :key="'group-' + gIdx"
-              class="grid-group-th text-center"
-              :class="group.class"
-              :style="{
-                width: group.width + 'px',
-                minWidth: group.width + 'px',
-                height: group.rowspan === 2 ? '56px' : '28px',
-                lineHeight: group.rowspan === 2 ? '56px' : '28px',
-              }"
-            >
-              {{ group.label }}
-            </div>
-          </div>
-
-          <div class="grid-table-main-view">
-            <draggable
-              v-model="columns"
-              item-key="field"
-              class="draggable-columns-binder"
-              handle=".grid-sub-th"
-              ghost-class="column-drag-ghost"
-            >
-              <template #item="{ element: col, index: colIdx }">
-                <div
-                  class="grid-column-vertical-stack"
-                  :style="{
-                    width: col.width + 'px',
-                    minWidth: col.width + 'px',
-                  }"
-                >
-                  <div
-                    class="grid-sub-th text-center"
-                    :class="{ 'hidden-sub-title': col.group === 'NONE' }"
-                  >
-                    <v-icon size="x-small" class="mr-1 text-blue-grey-lighten-3"
-                      >mdi-drag-vertical</v-icon
-                    >
-                    <span>{{ col.label }}</span>
-                  </div>
-
-                  <div class="grid-column-body-cells">
-                    <div
-                      v-for="(item, rowIdx) in paginatedData"
-                      :key="'row-' + rowIdx"
-                      class="grid-data-td"
-                      :class="[
-                        col.class,
-                        rowIdx % 2 === 1 ? 'zebra-stripe-row' : '',
-                        parseFloat(item.lprd_jproof || 0) === 0
-                          ? 'bg-warning-light-sublim'
-                          : '',
-                      ]"
-                    >
-                      <template v-if="col.type === 'number'">
-                        <span>
-                          {{
-                            formatNumber(
-                              getValueByField(item, col.field),
-                              col.dec,
-                            )
-                          }}
-                        </span>
-                      </template>
-                      <template v-else-if="col.type === 'date'">
-                        {{ formatOnlyDate(getValueByField(item, col.field)) }}
-                      </template>
-                      <template v-else>
-                        {{ getValueByField(item, col.field) }}
-                      </template>
-                    </div>
-
-                    <div
-                      v-if="filteredData.length === 0"
-                      class="grid-data-td text-center text-grey-lighten-1"
-                    >
-                      -
-                    </div>
-                  </div>
-
-                  <div
-                    class="grid-footer-td font-weight-bold"
-                    :class="col.class"
-                  >
-                    <span v-if="colIdx === 0">TOTAL ORDER:</span>
-                    <span v-else-if="col.sum">
-                      {{ formatNumber(sumField(col.field), col.dec) }}
-                    </span>
-                  </div>
-                </div>
-              </template>
-            </draggable>
-          </div>
-        </div>
-      </div>
-
-      <div
-        class="d-flex justify-space-between align-center mt-3"
-        v-if="filteredData.length > 0"
-      >
-        <span class="text-caption text-grey-darken-1"
-          >Total {{ filteredData.length }} Record</span
-        >
-        <div class="d-flex align-center ga-2">
-          <v-btn
-            size="x-small"
-            icon="mdi-chevron-left"
-            @click="currentPage--"
-            :disabled="currentPage === 1"
-          />
-          <span class="text-caption"
-            >Halaman {{ currentPage }} / {{ totalPages }}</span
+    <!-- Slot Header Tabel Berkelompok Custom -->
+    <template #thead>
+      <thead>
+        <!-- Row 1: Header Utama / Banded Groups -->
+        <tr class="header-main">
+          <th
+            v-for="(group, gIdx) in dynamicGroups"
+            :key="'group-' + gIdx"
+            :colspan="group.colspan"
+            :rowspan="group.rowspan"
+            class="text-center"
+            :class="[
+              group.class,
+              gIdx === 0 ? 'sticky-col-1' : '',
+              gIdx === 1 && group.rowspan === 2 ? 'sticky-col-2' : '',
+            ]"
           >
-          <v-btn
-            size="x-small"
-            icon="mdi-chevron-right"
-            @click="currentPage++"
-            :disabled="currentPage === totalPages"
-          />
-        </div>
-      </div>
-    </div>
-  </PageLayout>
+            {{ group.label }}
+          </th>
+        </tr>
+
+        <!-- Row 2: Sub Header Detail -->
+        <tr class="header-sub">
+          <template v-for="col in columns" :key="col.field">
+            <th
+              v-if="col.group !== 'NONE'"
+              class="text-center bg-blue-sub"
+              :class="col.class"
+            >
+              {{ col.label }}
+            </th>
+          </template>
+        </tr>
+      </thead>
+    </template>
+
+    <!-- Slot Row Baris Data Utama -->
+    <template #row="{ item, formatNumber }">
+      <tr
+        class="table-row-item"
+        :class="{ 'bg-warning-soft': parseFloat(item.lprd_jproof || 0) === 0 }"
+      >
+        <template v-for="(col, colIdx) in columns" :key="col.field">
+          <td
+            :class="[
+              col.class,
+              colIdx === 0 ? 'sticky-col-1 font-weight-bold' : '',
+              colIdx === 1 ? 'sticky-col-2' : '',
+              parseFloat(item.lprd_jproof || 0) === 0
+                ? 'bg-warning-soft-cell'
+                : '',
+            ]"
+          >
+            <template v-if="col.type === 'number'">
+              {{ formatNumber(getValueByField(item, col.field), col.dec || 0) }}
+            </template>
+
+            <template v-else-if="col.type === 'date'">
+              {{ formatOnlyDate(getValueByField(item, col.field)) }}
+            </template>
+
+            <template v-else>
+              {{ getValueByField(item, col.field) || "-" }}
+            </template>
+          </td>
+        </template>
+      </tr>
+    </template>
+
+    <!-- Slot Total Footer -->
+    <template #tfoot="{ formatNumber }">
+      <tr class="table-footer-row">
+        <template v-for="(col, colIdx) in columns" :key="col.field">
+          <td
+            :class="[
+              col.class,
+              'font-weight-black',
+              colIdx === 0 ? 'sticky-col-1 sticky-footer-title text-right' : '',
+              colIdx === 1 ? 'sticky-col-2' : '',
+            ]"
+          >
+            <span v-if="colIdx === 0">TOTAL ORDER:</span>
+            <span v-else-if="col.sum">
+              {{ formatNumber(sumField(col.field), col.dec || 0) }}
+            </span>
+          </td>
+        </template>
+      </tr>
+    </template>
+  </BaseReportLayout>
 </template>
 
-<script setup>
-import { ref, onMounted, computed } from "vue";
-import PageLayout from "../components/PageLayout.vue";
+<script setup lang="ts">
+import { ref, reactive, computed, onMounted } from "vue";
+import BaseReportLayout from "@/components/BaseReportLayout.vue";
 import api from "@/services/api";
 import XLSX from "xlsx-js-style";
 import { parseISO, isValid, format } from "date-fns";
+import { id } from "date-fns/locale";
 import { saveAs } from "file-saver";
-import draggable from "vuedraggable";
 
-// --- SINKRONISASI SCHEMA ARRAY STRUKTUR KOLOM MONITORING PROOF ---
+const formatDate = (date: Date) => {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+};
+
+const getStartOfMonth = (date: Date) => {
+  return new Date(date.getFullYear(), date.getMonth(), 1);
+};
+
+// --- STATE MANAGEMENT ---
+const endDate = ref(formatDate(new Date()));
+const startDate = ref(formatDate(getStartOfMonth(new Date())));
+const searchQuery = ref("");
+const loading = reactive({ report: false });
+const allData = ref<any[]>([]);
+
+// --- SCHEMA KOLOM MONITORING PROOF ---
 const columns = ref([
   {
     label: "JENIS",
@@ -288,6 +224,7 @@ const columns = ref([
     class: "text-right",
     type: "number",
     dec: 0,
+    sum: true,
     group: "AKTUAL PROOF",
     width: 95,
   },
@@ -369,10 +306,10 @@ const columns = ref([
   },
 ]);
 
-// --- TRACKING COLSPAN GABUNGAN HEADER SECARA DINAMIS ---
+// --- BANDED HEADER GROUPS COMPUTED ---
 const dynamicGroups = computed(() => {
-  const groups = [];
-  let currentGroup = null;
+  const groups: any[] = [];
+  let currentGroup: any = null;
 
   columns.value.forEach((col) => {
     if (col.group === "NONE") {
@@ -381,7 +318,7 @@ const dynamicGroups = computed(() => {
         width: col.width,
         colspan: 1,
         rowspan: 2,
-        class: "header-cell-dark",
+        class: "header-cell-main",
       });
       currentGroup = null;
     } else {
@@ -394,7 +331,7 @@ const dynamicGroups = computed(() => {
           width: col.width,
           colspan: 1,
           rowspan: 1,
-          class: "header-cell-light",
+          class: "header-group bg-blue-header",
         };
         groups.push(currentGroup);
       }
@@ -403,61 +340,43 @@ const dynamicGroups = computed(() => {
   return groups;
 });
 
-// --- STATE MANAGEMENT ---
-const allData = ref([]);
-const loading = ref(false);
-const searchQuery = ref("");
-const startDate = ref(
-  new Date(new Date().getFullYear(), new Date().getMonth(), 1)
-    .toISOString()
-    .substr(0, 10),
-);
-const endDate = ref(new Date().toISOString().substr(0, 10));
-const currentPage = ref(1);
-const itemsPerPage = ref(25);
-
 // --- UTILS FORMATTER ---
-const formatNumber = (val, dec = 0) => {
-  if (val === null || val === undefined || isNaN(val)) return "0";
-  return parseFloat(parseFloat(val).toFixed(dec)).toLocaleString("id-ID", {
-    minimumFractionDigits: dec,
-    maximumFractionDigits: dec,
-  });
+const getValueByField = (item: any, field: string) => {
+  return item[field];
 };
 
-const formatOnlyDate = (dateStr) => {
+const formatOnlyDate = (dateStr: string) => {
   if (!dateStr || dateStr === "-") return "-";
   const date = parseISO(dateStr);
   return isValid(date) ? format(date, "dd/MM/yyyy") : dateStr.substring(0, 10);
 };
 
-const getValueByField = (item, field) => {
-  return item[field];
+const formatDateFull = (dateStr: string) => {
+  if (!dateStr) return "-";
+  const date = parseISO(dateStr);
+  return isValid(date) ? format(date, "dd MMMM yyyy", { locale: id }) : dateStr;
 };
 
-// --- DATA METHODS ---
+// --- DATA FETCH & FILTER ---
 const fetchReport = async () => {
-  loading.value = true;
+  loading.report = true;
   try {
     const res = await api.get("/mmt/monitoring-proof/monitoring", {
       params: { startDate: startDate.value, endDate: endDate.value },
     });
     allData.value = res.data.data || [];
-    currentPage.value = 1;
   } catch (error) {
-    console.error(
-      "Gagal mengambil data monitoring proof:",
-      error.response?.data?.message,
-    );
+    console.error("Gagal mengambil data monitoring proof:", error);
+    allData.value = [];
   } finally {
-    loading.value = false;
+    loading.report = false;
   }
 };
 
 const filteredData = computed(() => {
+  if (!searchQuery.value) return allData.value;
   const q = searchQuery.value.toLowerCase().trim();
-  if (!q) return allData.value;
-  return allData.value.filter((r) => {
+  return allData.value.filter((r: any) => {
     return (
       (r.mspk_nomor && r.mspk_nomor.toLowerCase().includes(q)) ||
       (r.salesman && r.salesman.toLowerCase().includes(q)) ||
@@ -466,51 +385,25 @@ const filteredData = computed(() => {
   });
 });
 
-const sumField = (fieldName) => {
+const sumField = (fieldName: string) => {
   return filteredData.value.reduce((sum, item) => {
     const val = parseFloat(item[fieldName]);
     return sum + (isNaN(val) ? 0 : val);
   }, 0);
 };
 
-const totalPages = computed(
-  () => Math.ceil(filteredData.value.length / itemsPerPage.value) || 1,
-);
-const paginatedData = computed(() => {
-  const start = (currentPage.value - 1) * itemsPerPage.value;
-  return filteredData.value.slice(start, start + itemsPerPage.value);
-});
+// --- EXPORT TO EXCEL ---
+const exportToExcel = (dataToExport: any[]) => {
+  const exportList =
+    dataToExport && dataToExport.length > 0 ? dataToExport : filteredData.value;
+  if (!exportList || exportList.length === 0) {
+    alert("Tidak ada data untuk diekspor");
+    return;
+  }
 
-// --- EXPORT TO EXCEL ENGINE SINKRON (GAYA SUBLIM - BORDER HITAM TEGAS & FORMAT 2 DESIMAL) ---
-const exportToExcel = () => {
-  const fileName = `Laporan_Monitoring_Proof_${startDate.value}.xlsx`;
+  const fileName = `Laporan_Monitoring_Proof_${startDate.value}_sd_${endDate.value}.xlsx`;
 
-  const formatDateIndo = (dateStr) => {
-    if (!dateStr) return "-";
-    try {
-      const date = parseISO(dateStr);
-      if (!isValid(date)) return dateStr;
-      const bulanIndo = [
-        "Januari",
-        "Februari",
-        "Maret",
-        "April",
-        "Mei",
-        "Juni",
-        "Juli",
-        "Agustus",
-        "September",
-        "Oktober",
-        "November",
-        "Desember",
-      ];
-      return `${date.getDate()} ${bulanIndo[date.getMonth()]} ${date.getFullYear()}`;
-    } catch {
-      return dateStr;
-    }
-  };
-
-  const borderTegasHitam = {
+  const borderThin = {
     top: { style: "thin", color: { rgb: "000000" } },
     bottom: { style: "thin", color: { rgb: "000000" } },
     left: { style: "thin", color: { rgb: "000000" } },
@@ -518,70 +411,48 @@ const exportToExcel = () => {
   };
 
   const styleHeaderMain = {
-    fill: { fgColor: { rgb: "B3E5FC" } }, // Diselaraskan ke Biru Muda Cerah MMT Anda
-    font: { bold: true, color: { rgb: "000000" }, name: "Calibri", sz: 10 },
+    fill: { fgColor: { rgb: "1E3A8A" } },
+    font: { bold: true, color: { rgb: "FFFFFF" }, name: "Calibri", sz: 10 },
     alignment: { horizontal: "center", vertical: "center", wrapText: true },
-    border: borderTegasHitam,
+    border: borderThin,
   };
 
   const styleHeaderSub = {
     ...styleHeaderMain,
-    fill: { fgColor: { rgb: "F0F8FF" } },
+    fill: { fgColor: { rgb: "2563EB" } },
   };
 
   const styleDataCell = {
-    font: { name: "Calibri", sz: 10, color: { rgb: "000000" } },
+    font: { name: "Calibri", sz: 9, color: { rgb: "0F172A" } },
     alignment: { vertical: "center" },
-    border: borderTegasHitam,
+    border: borderThin,
   };
 
   const styleFooter = {
-    ...styleDataCell,
-    fill: { fgColor: { rgb: "F0F4F8" } }, // Disamakan dengan format abu terang totalan Anda
+    fill: { fgColor: { rgb: "FEF3C7" } },
     font: { bold: true, name: "Calibri", sz: 10, color: { rgb: "000000" } },
     border: {
-      top: { style: "thin", color: { rgb: "000000" } },
-      bottom: { style: "double", color: { rgb: "000000" } }, // Garis akuntansi ganda
+      top: { style: "double", color: { rgb: "000000" } },
+      bottom: { style: "thick", color: { rgb: "000000" } },
       left: { style: "thin", color: { rgb: "000000" } },
       right: { style: "thin", color: { rgb: "000000" } },
     },
   };
 
-  const wsData = [];
-  wsData.push([
-    {
-      v: "LAPORAN MONITORING PROOF",
-      s: {
-        font: { bold: true, sz: 14, name: "Calibri", color: { rgb: "000000" } },
+  const wsData: any[] = [
+    [{ v: "LAPORAN MONITORING PROOF", s: { font: { bold: true, sz: 14 } } }],
+    [
+      {
+        v: `Periode : ${formatDateFull(startDate.value)} s/d ${formatDateFull(endDate.value)}`,
       },
-    },
-  ]);
-  wsData.push([
-    {
-      v: `Periode: ${formatDateIndo(startDate.value)} s/d ${formatDateIndo(endDate.value)}`,
-      s: {
-        font: { bold: true, sz: 10, name: "Calibri", color: { rgb: "000000" } },
-      },
-    },
-  ]);
-  wsData.push([
-    {
-      v: "Kategori: PROOF",
-      s: {
-        font: {
-          bold: false,
-          sz: 10,
-          name: "Calibri",
-          color: { rgb: "000000" },
-        },
-      },
-    },
-  ]);
-  wsData.push([]);
+    ],
+    [{ v: "Kategori: PROOF" }],
+    [],
+  ];
 
-  const excelHeaderRow1 = [];
-  const excelHeaderRow2 = [];
-  const excelMerges = [];
+  const excelHeaderRow1: any[] = [];
+  const excelHeaderRow2: any[] = [];
+  const excelMerges: any[] = [];
 
   dynamicGroups.value.forEach((group) => {
     excelHeaderRow1.push({ v: group.label, s: styleHeaderMain });
@@ -614,35 +485,23 @@ const exportToExcel = () => {
     }
   });
 
-  // Gabungkan label title "TOTAL ORDER:" di footer (Merge kolom 1 s/d 5)
-  excelMerges.push({
-    s: { r: filteredData.value.length + 6, c: 0 },
-    e: { r: filteredData.value.length + 6, c: 4 },
-  });
+  // Loop Data Baris
+  exportList.forEach((item) => {
+    const row: any[] = [];
+    const isNotYetProofed = parseFloat(item.lprd_jproof || 0) === 0;
+    const customCellStyle = isNotYetProofed
+      ? { ...styleDataCell, fill: { fgColor: { rgb: "FFF9C4" } } }
+      : styleDataCell;
 
-  // Map Data Value baris
-  filteredData.value.forEach((item) => {
-    const row = [];
     columns.value.forEach((col) => {
       const value = getValueByField(item, col.field);
 
-      // Logika pewarnaan background sel kuning soft jika belum proof (lprd_jproof == 0)
-      const isNotYetProofed = parseFloat(item.lprd_jproof || 0) === 0;
-      const customCellStyle = isNotYetProofed
-        ? { ...styleDataCell, fill: { fgColor: { rgb: "FFF9C4" } } }
-        : styleDataCell;
-
       if (col.type === "number") {
-        const isDecimalCol =
-          col.field === "panjang" ||
-          col.field === "lebar" ||
-          col.field === "m2" ||
-          col.field === "luas";
+        const isDecimalCol = col.dec && col.dec > 0;
         const finalNum = isDecimalCol
-          ? Number(parseFloat(value || 0).toFixed(2))
+          ? Number(parseFloat(value || 0).toFixed(col.dec))
           : Number(value || 0);
 
-        // PERBAIKAN UTAMA: Pindahkan properti 't' dan 'z' sejajar dengan nilai 'v' (Root Level)
         row.push({
           v: finalNum,
           t: "n",
@@ -662,7 +521,7 @@ const exportToExcel = () => {
         });
       } else {
         row.push({
-          v: value || "-", // Ganti string kosong dengan "-" agar gridline aman
+          v: value || "-",
           s: customCellStyle,
         });
       }
@@ -670,30 +529,28 @@ const exportToExcel = () => {
     wsData.push(row);
   });
 
-  // Map Footer Total
-  const excelFooter = [];
+  // Footer Grand Total
+  const excelFooter: any[] = [];
   columns.value.forEach((col, idx) => {
     if (idx === 0) {
       excelFooter.push({
         v: "TOTAL ORDER:",
         s: {
           ...styleFooter,
-          alignment: { horizontal: "right", vertical: "center" },
+          alignment: { horizontal: "center", vertical: "center" },
         },
       });
     } else if (col.sum) {
       const sumVal = sumField(col.field);
-      const isDecimalSum =
-        col.field === "panjang" ||
-        col.field === "lebar" ||
-        col.field === "m2" ||
-        col.field === "luas";
+      const isDecimalCol = col.dec && col.dec > 0;
+      const finalSum = isDecimalCol
+        ? Number(parseFloat(sumVal.toString()).toFixed(col.dec))
+        : Number(sumVal);
 
-      // PERBAIKAN: Taruh 't' dan 'z' di tingkat root sel objek pada footer totalan agar bisa di-SUM otomatis
       excelFooter.push({
-        v: Number(sumVal),
+        v: finalSum,
         t: "n",
-        z: isDecimalSum ? "#,##0.00" : "#,##0",
+        z: isDecimalCol ? "#,##0.00" : "#,##0",
         s: {
           ...styleFooter,
           alignment: { horizontal: "right", vertical: "center" },
@@ -701,7 +558,7 @@ const exportToExcel = () => {
       });
     } else {
       excelFooter.push({
-        v: "-",
+        v: "",
         s: {
           ...styleFooter,
           alignment: { horizontal: "center", vertical: "center" },
@@ -709,6 +566,12 @@ const exportToExcel = () => {
       });
     }
   });
+
+  excelMerges.push({
+    s: { r: wsData.length, c: 0 },
+    e: { r: wsData.length, c: 3 },
+  });
+
   wsData.push(excelFooter);
 
   const ws = XLSX.utils.aoa_to_sheet(wsData);
@@ -719,7 +582,7 @@ const exportToExcel = () => {
   XLSX.utils.book_append_sheet(wb, ws, "Proof_Monitoring");
 
   const wbout = XLSX.write(wb, { bookType: "xlsx", type: "binary" });
-  const s2ab = (s) => {
+  const s2ab = (s: string) => {
     const buf = new ArrayBuffer(s.length);
     const view = new Uint8Array(buf);
     for (let i = 0; i < s.length; i++) view[i] = s.charCodeAt(i) & 0xff;
@@ -736,138 +599,113 @@ onMounted(fetchReport);
 </script>
 
 <style scoped>
-.grid-table-container {
-  border: 1px solid #4ba3e3;
-  border-radius: 4px;
-  overflow: auto;
-  max-height: calc(100vh - 260px);
-  background: white;
+/* 1. CONTAINER WRAPPER SCROLL */
+:deep(.v-table__wrapper),
+:deep(.v-data-table__wrapper) {
+  max-height: calc(100vh - 280px) !important;
+  overflow-y: auto !important;
+  overflow-x: auto !important;
 }
 
-.grid-table-viewport {
-  display: block;
-  width: max-content;
-  position: relative;
+/* 2. STANDARISASI TABEL & FONT SIZE KE 12PX */
+:deep(table) {
+  border-collapse: separate !important;
+  border-spacing: 0 !important;
+  font-size: 12px !important;
 }
 
-/* Row 1: Group Header */
-.grid-table-header-group {
-  display: flex;
-  flex-direction: row;
-  height: 28px;
-  background: #e3f2fd;
+:deep(th),
+:deep(td) {
+  font-size: 12px !important;
+  white-space: nowrap !important;
+  padding: 6px 8px !important;
 }
 
-.grid-group-th {
-  font-size: 10px;
-  font-weight: bold;
-  border-right: 0.5px solid #bbdefb;
-  border-bottom: 0.5px solid #bbdefb;
-  box-sizing: border-box;
-  text-overflow: ellipsis;
-  overflow: hidden;
-  white-space: nowrap;
-  padding: 0 4px;
+/* 3. STICKY HEADER */
+:deep(thead) {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 10 !important;
 }
 
-.header-cell-light {
-  background: #e3f2fd;
-  color: #0d47a1;
-  height: 28px;
-  line-height: 28px;
+.header-main th {
+  background: linear-gradient(180deg, #1e3a8a 0%, #1e40af 100%) !important;
+  color: white !important;
+  border-right: 1px solid #3b82f6 !important;
+  font-size: 12px !important;
 }
 
-.header-cell-dark {
-  background: #bbdefb;
-  color: #0d47a1;
-  position: relative;
-  z-index: 50;
+.header-sub th {
+  background: #2563eb !important;
+  color: white !important;
+  font-size: 12px !important;
+  border-right: 1px solid #60a5fa !important;
 }
 
-/* Row 2: Draggable Sub-Header */
-.grid-table-main-view {
-  display: block;
+.bg-blue-header {
+  background-color: #1d4ed8 !important;
+  color: white !important;
 }
 
-.draggable-columns-binder {
-  display: flex;
-  flex-direction: row;
+.bg-blue-sub {
+  background-color: #93c5fd !important;
+  color: #000 !important;
 }
 
-.grid-column-vertical-stack {
-  display: flex;
-  flex-direction: column;
+/* 4. STICKY FOOTER */
+:deep(tfoot) {
+  position: sticky !important;
+  bottom: 0 !important;
+  z-index: 10 !important;
 }
 
-.grid-sub-th {
-  font-size: 10px;
-  font-weight: bold;
-  background: #f0f8ff;
-  color: #333333;
-  height: 28px;
-  line-height: 28px;
-  border-right: 0.5px solid #bbdefb;
-  border-bottom: 0.5px solid #bbdefb;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-sizing: border-box;
-  cursor: grab;
-  padding: 0 4px;
-  white-space: nowrap;
+.table-footer-row td {
+  background-color: #fef3c7 !important;
+  border-top: 2px solid #000 !important;
+  border-bottom: 2px solid #000 !important;
 }
 
-.grid-sub-th:active {
-  cursor: grabbing;
+/* 5. STICKY LEFT COLUMNS */
+:deep(.sticky-col-1) {
+  position: sticky !important;
+  left: 0px !important;
+  width: 85px !important;
+  min-width: 85px !important;
 }
 
-.hidden-sub-title {
-  visibility: hidden;
-  height: 28px;
-  pointer-events: none;
+:deep(.sticky-col-2) {
+  position: sticky !important;
+  left: 85px !important;
+  box-shadow: 3px 0px 5px -2px rgba(0, 0, 0, 0.15);
+  width: 105px !important;
+  min-width: 105px !important;
 }
 
-/* Body Lajur Data Value - Normal Text No Bold */
-.grid-data-td {
-  font-size: 11px;
-  font-weight: normal;
-  height: 28px;
-  line-height: 28px;
-  padding: 0 8px;
-  border-right: 0.5px solid #f5f5f5;
-  border-bottom: 0.5px solid #f5f5f5;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  box-sizing: border-box;
-  background: white;
+:deep(tbody .sticky-col-1),
+:deep(tbody .sticky-col-2) {
+  z-index: 5 !important;
+  background-color: #ffffff !important;
 }
 
-.zebra-stripe-row {
-  background-color: #f9fbfd !important;
+:deep(thead .sticky-col-1),
+:deep(thead .sticky-col-2) {
+  z-index: 12 !important;
+  background-color: #1e3a8a !important;
 }
 
-/* Background warning soft jika lprd_jproof == 0 */
-.bg-warning-light-sublim {
+:deep(tfoot .sticky-col-1),
+:deep(tfoot .sticky-col-2),
+:deep(tfoot .sticky-footer-title) {
+  z-index: 12 !important;
+  background-color: #fef3c7 !important;
+}
+
+/* 6. WARNING LIGHT STYLING UNTUK PROOF BERELUM PROSES (lprd_jproof == 0) */
+.bg-warning-soft {
   background-color: #fff9c4 !important;
 }
 
-/* Summary Footer */
-.grid-footer-td {
-  background: #f5f5f5;
-  color: #212121;
-  font-size: 11px;
-  height: 30px;
-  line-height: 30px;
-  padding: 0 8px;
-  border-right: 0.5px solid #9e9e9e;
-  border-top: 2px solid #9e9e9e;
-  border-bottom: 2px solid #9e9e9e;
-  box-sizing: border-box;
-}
-
-.column-drag-ghost {
-  opacity: 0.3;
-  background: #b3e5fc !important;
+:deep(tbody .bg-warning-soft-cell) {
+  background-color: #fff9c4 !important;
 }
 </style>

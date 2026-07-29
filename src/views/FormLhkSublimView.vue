@@ -168,6 +168,15 @@
             <v-spacer />
             <div class="d-flex align-center ga-2">
               <v-btn
+                color="blue-darken-3"
+                size="small"
+                prepend-icon="mdi-package-variant"
+                style="height: 30px !important; text-transform: none"
+                @click="openPoiSearch"
+              >
+                Lookup PO Internal
+              </v-btn>
+              <v-btn
                 color="success"
                 size="small"
                 prepend-icon="mdi-plus"
@@ -196,6 +205,8 @@
               <thead>
                 <tr>
                   <th width="35">No</th>
+                  <th width="110">PO Internal</th>
+                  <th width="60">Size PO</th>
                   <th width="120">Nomor SPK</th>
                   <th>Nama Pekerjaan</th>
                   <th width="65">P (M)</th>
@@ -208,9 +219,31 @@
                   <th width="35"></th>
                 </tr>
               </thead>
+
+              <!-- TABEL BODY -->
               <tbody>
                 <tr v-for="(item, index) in formData.details" :key="index">
                   <td class="text-center">{{ index + 1 }}</td>
+
+                  <!-- Kolom PO Internal dengan Indikator Visual (Background Kuning Soft) -->
+                  <td class="fw-bold px-1" style="background-color: #fcf8e3">
+                    <div class="d-flex align-center">
+                      <input
+                        type="text"
+                        v-model="item.poi_nomor"
+                        placeholder="Pilih PO..."
+                        readonly
+                        class="cell-input cursor-pointer fw-bold text-amber-darken-4"
+                        @click="openPoiSearchRow(index)"
+                      />
+                    </div>
+                  </td>
+
+                  <!-- Kolom Size PO -->
+                  <td class="text-center bg-grey-lighten-4">
+                    {{ item.poi_size || "-" }}
+                  </td>
+
                   <td class="fw-bold text-blue-darken-4 px-2">
                     {{ item.spk_nomor }}
                   </td>
@@ -221,6 +254,8 @@
                   >
                     {{ item.spk_nama }}
                   </td>
+
+                  <!-- Field Input Ukuran & Orientasi -->
                   <td>
                     <input
                       type="number"
@@ -445,11 +480,19 @@
     </template>
   </BaseForm>
 
+  <!-- GANTI BAGIAN BOTTOM MODAL TEMPLATE DENGAN INI -->
   <GudangLookupView
     :isVisible="isGudangLookupVisible"
     @close="isGudangLookupVisible = false"
     @select="handleGudangSelect"
   />
+
+  <PoiLookupModal
+    :isVisible="isPoiLookupVisible"
+    @close="isPoiLookupVisible = false"
+    @select="handlePoiSelect"
+  />
+
   <MesinLookupView
     :is-visible="lookup.mesin"
     @close="lookup.mesin = false"
@@ -473,7 +516,7 @@ import { useAuthStore } from "@/stores/authStore"; // 🌟 Pastikan ini sudah di
 
 import BaseForm from "@/components/BaseForm.vue";
 import { useForm } from "@/composables/useForm";
-
+import PoiLookupModal from "@/modal/PoInternalLookupView.vue";
 import GudangLookupView from "@/modal/GudangLookupView.vue";
 import SpkLookupView from "@/modal/SpkLookupModal.vue";
 import MesinLookupView from "@/modal/MesinLookupModal.vue";
@@ -494,6 +537,8 @@ const totalLebarGabungan = ref(0);
 const isMesinLookupVisible = ref(false);
 const isGudangLookupVisible = ref(false);
 const isSpkLookupVisible = ref(false);
+const isPoiLookupVisible = ref(false); // <-- Visibility Modal PO
+const activePoiRowIdx = ref(-1);
 
 const fetchApi = async () => {
   const nomorLhk = route.params.nomor as string;
@@ -539,7 +584,6 @@ const fetchApi = async () => {
         ? parseFloat(firstRow.sisa_panjang_manual)
         : null,
 
-    // 🌟 PERBAIKAN DI SINI: Memetakan nama field BS dari backend dengan benar
     panjang_bs:
       firstRow.lsb_panjang_bs !== undefined && firstRow.lsb_panjang_bs !== null
         ? firstRow.lsb_panjang_bs.toString()
@@ -556,7 +600,20 @@ const fetchApi = async () => {
 
     lstatus: firstRow.STATUS || firstRow.lstatus || "DRAFT",
 
+    // 🌟 PERBAIKAN DI SINI: Petakan Poi_Nomor & Poi_Size dari Backend 🌟
     details: listData.map((item: any) => ({
+      poi_nomor:
+        item.Poi_Nomor ||
+        item.poi_nomor ||
+        item.lsbd_poi_nomor ||
+        item.No_PO_Internal ||
+        "",
+      poi_size:
+        item.Poi_Size ||
+        item.poi_size ||
+        item.lsbd_poid_size ||
+        item.Size ||
+        "",
       spk_nomor: item.Nomor_SPK || item.spk_nomor,
       spk_nama: item.Nama_SPK || item.spk_nama,
       spk_panjang: parseFloat(item.Panjang || item.spk_panjang || 0),
@@ -599,6 +656,8 @@ const submitApi = async () => {
   const formattedDetails = formData.value.details.map((d: any) => {
     return {
       ...d,
+      lsbd_poi_nomor: d.poi_nomor || "",
+      lsbd_poid_size: d.poi_size || "",
       spk_nomor: d.spk_nomor || d.Nomor_SPK || "",
       spk_nama: d.spk_nama || d.Nama_SPK || "",
       spk_jmlorder: parseInt(d.spk_jmlorder || d.J_Order || 0),
@@ -666,6 +725,7 @@ const lookup = ref({
   mesin: false,
   spk: false, // Jika Anda menggunakan modal lookup SPK
   gudang: false, // Jika Anda menggunakan modal lookup Gudang
+  poi: false,
 });
 
 const {
@@ -946,6 +1006,92 @@ const handleBarcodeScan = async () => {
     clearBahan();
     console.error("Error Scan Bahan:", e);
   }
+};
+
+// 2. Fungsi Pembuka Modal PO Internal Header & Row
+const openPoiSearch = () => {
+  activePoiRowIdx.value = -1; // Menandakan tambah dari tombol header
+  isPoiLookupVisible.value = true;
+};
+
+const openPoiSearchRow = (idx: number) => {
+  activePoiRowIdx.value = idx; // Menandakan edit dari baris grid
+  isPoiLookupVisible.value = true;
+};
+
+// 3. Handler saat Data PO Internal Dipilih (Alur Identik dengan handleSpkSelect)
+const handlePoiSelect = (poiData: any) => {
+  if (!poiData) return;
+
+  // Mendukung jika modal mengembalikan array atau single object
+  const rawItem = Array.isArray(poiData)
+    ? poiData[0]
+    : poiData.data
+      ? poiData.data[0]
+      : poiData;
+  if (!rawItem) return;
+
+  // Deteksi field utama dari PO Internal
+  const targetPoiNomor =
+    rawItem.poi_nomor || rawItem.Nomor_POI || rawItem.poiNomor;
+  const targetPoiSize =
+    rawItem.poid_size || rawItem.poi_size || rawItem.Size || "";
+  const targetSpkNomor =
+    rawItem.poi_spk_nomor || rawItem.spk_nomor || rawItem.Nomor_SPK;
+  const qtyOrder = parseInt(
+    rawItem.sisa_qty ?? rawItem.poid_jumlah ?? rawItem.Jumlah ?? 0,
+  );
+
+  // Cek jika SPK sudah ada di grid
+  const currentDetails = formData.value.details || [];
+  if (
+    activePoiRowIdx.value === -1 &&
+    targetSpkNomor &&
+    currentDetails.some((d: any) => d.spk_nomor === targetSpkNomor)
+  ) {
+    toast.warning(`SPK ${targetSpkNomor} sudah ada di daftar.`);
+    isPoiLookupVisible.value = false;
+    return;
+  }
+
+  // Objek Baris Baru
+  const newRow = {
+    poi_nomor: targetPoiNomor,
+    poi_size: targetPoiSize,
+    spk_nomor: targetSpkNomor || "",
+    spk_nama: rawItem.spk_nama || rawItem.Nama_SPK || rawItem.Nama || "No Name",
+    spk_panjang: parseFloat(rawItem.spk_panjang || rawItem.Panjang || 0),
+    spk_lebar: parseFloat(rawItem.spk_lebar || rawItem.Lebar || 0),
+    spk_jmlorder: qtyOrder,
+    jumlah_sublim: qtyOrder || 1,
+    padding: "0.03",
+    orientasi: "lebar",
+    spk_jmlmeter: 0,
+  };
+
+  // Hitung meter awal
+  newRow.spk_jmlmeter =
+    newRow.spk_panjang * newRow.spk_lebar * newRow.jumlah_sublim;
+
+  // A. Jika memilih dari ikon magnify di baris tabel yang ada
+  if (
+    activePoiRowIdx.value !== -1 &&
+    formData.value.details[activePoiRowIdx.value]
+  ) {
+    formData.value.details[activePoiRowIdx.value] = {
+      ...formData.value.details[activePoiRowIdx.value],
+      ...newRow,
+    };
+  }
+  // B. Jika memilih dari tombol "Lookup PO Internal" di Header
+  else {
+    formData.value.details.push(newRow);
+  }
+
+  recalculateCombine();
+  isPoiLookupVisible.value = false; // <-- Tutup modal
+  activePoiRowIdx.value = -1;
+  toast.success(`Berhasil menambahkan PO Internal ${targetPoiNomor}`);
 };
 
 const handleSpkScan = async () => {

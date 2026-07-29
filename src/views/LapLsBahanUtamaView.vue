@@ -16,26 +16,55 @@
     <!-- Slot Header Tabel dengan Dropdown Filter -->
     <!-- Slot Header Tabel Custom -->
     <!-- Slot Header Tabel Custom -->
-    <template #thead="{ toggleSort, getSortIcon, columnFilters, jenisOptions, typeOptions, statusOptions }">
+    <template
+      #thead="{
+        toggleSort,
+        getSortIcon,
+        columnFilters,
+        jenisOptions,
+        typeOptions,
+        statusOptions,
+      }"
+    >
       <thead>
         <tr class="header-main">
           <!-- 1. Column Expand Button -->
-          <th rowspan="2" class="sticky-col-expand" style="width: 30px;"></th>
+          <th rowspan="2" class="sticky-col-expand" style="width: 30px"></th>
 
           <!-- 2. Header KODE (Sticky 1) -->
           <th rowspan="2" class="text-left sticky-col-1">
             <div class="d-flex align-center justify-space-between">
-              <span @click="toggleSort('kode')" class="cursor-pointer font-weight-bold">
-                KODE {{ getSortIcon('kode') }}
+              <span
+                @click="toggleSort('kode')"
+                class="cursor-pointer font-weight-bold"
+              >
+                KODE {{ getSortIcon("kode") }}
               </span>
               <v-menu :close-on-content-click="false">
                 <template #activator="{ props }">
-                  <v-btn v-bind="props" icon variant="text" size="x-small" class="btn-filter-icon">
-                    <v-icon size="14" :color="columnFilters.KODE ? 'amber-accent-2' : 'white'">mdi-filter-variant</v-icon>
+                  <v-btn
+                    v-bind="props"
+                    icon
+                    variant="text"
+                    size="x-small"
+                    class="btn-filter-icon"
+                  >
+                    <v-icon
+                      size="14"
+                      :color="columnFilters.KODE ? 'amber-accent-2' : 'white'"
+                      >mdi-filter-variant</v-icon
+                    >
                   </v-btn>
                 </template>
                 <v-card min-width="200" class="pa-2 rounded-lg">
-                  <v-text-field v-model="columnFilters.KODE" label="Filter Kode..." density="compact" hide-details variant="outlined" clearable />
+                  <v-text-field
+                    v-model="columnFilters.KODE"
+                    label="Filter Kode..."
+                    density="compact"
+                    hide-details
+                    variant="outlined"
+                    clearable
+                  />
                 </v-card>
               </v-menu>
             </div>
@@ -44,17 +73,37 @@
           <!-- 3. Header NAMA BAHAN (Sticky 2) -->
           <th rowspan="2" class="text-left sticky-col-2 border">
             <div class="d-flex align-center justify-space-between">
-              <span @click="toggleSort('Nama')" class="cursor-pointer font-weight-bold">
-                NAMA BAHAN {{ getSortIcon('Nama') }}
+              <span
+                @click="toggleSort('Nama')"
+                class="cursor-pointer font-weight-bold"
+              >
+                NAMA BAHAN {{ getSortIcon("Nama") }}
               </span>
               <v-menu :close-on-content-click="false">
                 <template #activator="{ props }">
-                  <v-btn v-bind="props" icon variant="text" size="x-small" class="btn-filter-icon">
-                    <v-icon size="14" :color="columnFilters.NAMA ? 'amber-accent-2' : 'white'">mdi-filter-variant</v-icon>
+                  <v-btn
+                    v-bind="props"
+                    icon
+                    variant="text"
+                    size="x-small"
+                    class="btn-filter-icon"
+                  >
+                    <v-icon
+                      size="14"
+                      :color="columnFilters.NAMA ? 'amber-accent-2' : 'white'"
+                      >mdi-filter-variant</v-icon
+                    >
                   </v-btn>
                 </template>
                 <v-card min-width="220" class="pa-2 rounded-lg">
-                  <v-text-field v-model="columnFilters.NAMA" label="Filter Nama..." density="compact" hide-details variant="outlined" clearable />
+                  <v-text-field
+                    v-model="columnFilters.NAMA"
+                    label="Filter Nama..."
+                    density="compact"
+                    hide-details
+                    variant="outlined"
+                    clearable
+                  />
                 </v-card>
               </v-menu>
             </div>
@@ -63,17 +112,41 @@
           <!-- 4. Header JENIS -->
           <th rowspan="2" class="text-left border">
             <div class="d-flex align-center justify-space-between ga-1">
-              <span @click="toggleSort('jb_nama')" class="cursor-pointer font-weight-bold">
-                JENIS {{ getSortIcon('jb_nama') }}
+              <span
+                @click="toggleSort('jb_nama')"
+                class="cursor-pointer font-weight-bold"
+              >
+                JENIS {{ getSortIcon("jb_nama") }}
               </span>
               <v-menu :close-on-content-click="false">
                 <template #activator="{ props }">
-                  <v-btn v-bind="props" icon variant="text" size="x-small" class="btn-filter-icon">
-                    <v-icon size="14" :color="columnFilters.JENIS !== 'SEMUA' ? 'amber-accent-2' : 'white'">mdi-filter-variant</v-icon>
+                  <v-btn
+                    v-bind="props"
+                    icon
+                    variant="text"
+                    size="x-small"
+                    class="btn-filter-icon"
+                  >
+                    <v-icon
+                      size="14"
+                      :color="
+                        columnFilters.JENIS !== 'SEMUA'
+                          ? 'amber-accent-2'
+                          : 'white'
+                      "
+                      >mdi-filter-variant</v-icon
+                    >
                   </v-btn>
                 </template>
                 <v-card min-width="180" class="pa-2 rounded-lg">
-                  <v-select v-model="columnFilters.JENIS" :items="jenisOptions" label="Jenis" density="compact" hide-details variant="outlined" />
+                  <v-select
+                    v-model="columnFilters.JENIS"
+                    :items="jenisOptions"
+                    label="Jenis"
+                    density="compact"
+                    hide-details
+                    variant="outlined"
+                  />
                 </v-card>
               </v-menu>
             </div>
@@ -82,17 +155,41 @@
           <!-- 5. Header TYPE -->
           <th rowspan="2" class="text-left border">
             <div class="d-flex align-center justify-space-between ga-1">
-              <span @click="toggleSort('type_barang')" class="cursor-pointer font-weight-bold">
-                TYPE {{ getSortIcon('type_barang') }}
+              <span
+                @click="toggleSort('type_barang')"
+                class="cursor-pointer font-weight-bold"
+              >
+                TYPE {{ getSortIcon("type_barang") }}
               </span>
               <v-menu :close-on-content-click="false">
                 <template #activator="{ props }">
-                  <v-btn v-bind="props" icon variant="text" size="x-small" class="btn-filter-icon">
-                    <v-icon size="14" :color="columnFilters.KATEGORI !== 'SEMUA' ? 'amber-accent-2' : 'white'">mdi-filter-variant</v-icon>
+                  <v-btn
+                    v-bind="props"
+                    icon
+                    variant="text"
+                    size="x-small"
+                    class="btn-filter-icon"
+                  >
+                    <v-icon
+                      size="14"
+                      :color="
+                        columnFilters.KATEGORI !== 'SEMUA'
+                          ? 'amber-accent-2'
+                          : 'white'
+                      "
+                      >mdi-filter-variant</v-icon
+                    >
                   </v-btn>
                 </template>
                 <v-card min-width="180" class="pa-2 rounded-lg">
-                  <v-select v-model="columnFilters.KATEGORI" :items="typeOptions" label="Type" density="compact" hide-details variant="outlined" />
+                  <v-select
+                    v-model="columnFilters.KATEGORI"
+                    :items="typeOptions"
+                    label="Type"
+                    density="compact"
+                    hide-details
+                    variant="outlined"
+                  />
                 </v-card>
               </v-menu>
             </div>
@@ -101,17 +198,41 @@
           <!-- 6. Header STATUS -->
           <th rowspan="2" class="text-center border">
             <div class="d-flex align-center justify-center ga-1">
-              <span @click="toggleSort('status_barang')" class="cursor-pointer font-weight-bold">
-                STATUS {{ getSortIcon('status_barang') }}
+              <span
+                @click="toggleSort('status_barang')"
+                class="cursor-pointer font-weight-bold"
+              >
+                STATUS {{ getSortIcon("status_barang") }}
               </span>
               <v-menu :close-on-content-click="false">
                 <template #activator="{ props }">
-                  <v-btn v-bind="props" icon variant="text" size="x-small" class="btn-filter-icon">
-                    <v-icon size="14" :color="columnFilters.STATUS !== 'SEMUA' ? 'amber-accent-2' : 'white'">mdi-filter-variant</v-icon>
+                  <v-btn
+                    v-bind="props"
+                    icon
+                    variant="text"
+                    size="x-small"
+                    class="btn-filter-icon"
+                  >
+                    <v-icon
+                      size="14"
+                      :color="
+                        columnFilters.STATUS !== 'SEMUA'
+                          ? 'amber-accent-2'
+                          : 'white'
+                      "
+                      >mdi-filter-variant</v-icon
+                    >
                   </v-btn>
                 </template>
                 <v-card min-width="160" class="pa-2 rounded-lg">
-                  <v-select v-model="columnFilters.STATUS" :items="statusOptions" label="Status" density="compact" hide-details variant="outlined" />
+                  <v-select
+                    v-model="columnFilters.STATUS"
+                    :items="statusOptions"
+                    label="Status"
+                    density="compact"
+                    hide-details
+                    variant="outlined"
+                  />
                 </v-card>
               </v-menu>
             </div>
@@ -119,12 +240,22 @@
 
           <!-- Group Headers Spesifikasi & Mutasi... -->
           <th colspan="3" class="text-center header-group">SPESIFIKASI</th>
-          <th :colspan="canSeeNominal ? 3 : 2" class="text-center header-group">STOK AWAL</th>
-          <th :colspan="canSeeNominal ? 3 : 2" class="text-center header-group">TERIMA</th>
-          <th :colspan="canSeeNominal ? 3 : 2" class="text-center header-group">KELUAR</th>
+          <th :colspan="canSeeNominal ? 3 : 2" class="text-center header-group">
+            STOK AWAL
+          </th>
+          <th :colspan="canSeeNominal ? 3 : 2" class="text-center header-group">
+            TERIMA
+          </th>
+          <th :colspan="canSeeNominal ? 3 : 2" class="text-center header-group">
+            KELUAR
+          </th>
           <th colspan="2" class="text-center header-group">RETUR</th>
-          <th :colspan="canSeeNominal ? 3 : 2" class="text-center header-group">STOK AKHIR</th>
-          <th rowspan="2" class="text-center border" style="min-width: 220px;">KETERANGAN</th>
+          <th :colspan="canSeeNominal ? 3 : 2" class="text-center header-group">
+            STOK AKHIR
+          </th>
+          <th rowspan="2" class="text-center border" style="min-width: 220px">
+            KETERANGAN
+          </th>
         </tr>
 
         <!-- Row Header Sub 2 -->
@@ -135,49 +266,73 @@
 
           <th class="text-center border-sub-l">ROLL</th>
           <th class="text-right">M2</th>
-          <th v-if="canSeeNominal" class="text-right border-sub-r">NOMINAL (RP)</th>
+          <th v-if="canSeeNominal" class="text-right border-sub-r">
+            NOMINAL (RP)
+          </th>
 
           <th class="text-center border-sub-l">ROLL</th>
           <th class="text-right">M2</th>
-          <th v-if="canSeeNominal" class="text-right border-sub-r">NOMINAL (RP)</th>
+          <th v-if="canSeeNominal" class="text-right border-sub-r">
+            NOMINAL (RP)
+          </th>
 
           <th class="text-center border-sub-l">ROLL</th>
           <th class="text-right">M2</th>
-          <th v-if="canSeeNominal" class="text-right border-sub-r">NOMINAL (RP)</th>
+          <th v-if="canSeeNominal" class="text-right border-sub-r">
+            NOMINAL (RP)
+          </th>
 
           <th class="text-center border-sub-l">ROLL</th>
           <th class="text-right border-sub-r">M2</th>
 
           <th class="text-center border-sub-l">ROLL</th>
           <th class="text-right">M2</th>
-          <th v-if="canSeeNominal" class="text-right border-sub-r">NOMINAL (RP)</th>
+          <th v-if="canSeeNominal" class="text-right border-sub-r">
+            NOMINAL (RP)
+          </th>
         </tr>
       </thead>
     </template>
 
     <!-- Slot Row Baris Data -->
-        <template #row="{ item, internalItem, isExpanded, toggleExpand, formatNumber }">
+    <template
+      #row="{ item, internalItem, isExpanded, toggleExpand, formatNumber }"
+    >
       <tr
         class="table-row-item"
         :class="{ 'expanded-active': isExpanded(internalItem) }"
         @click="toggleExpand(internalItem)"
       >
         <td class="text-center" @click.stop="toggleExpand(internalItem)">
-          <v-btn icon variant="text" density="compact" size="x-small" color="grey-darken-1">
-            <v-icon>{{ isExpanded(internalItem) ? 'mdi-chevron-down' : 'mdi-chevron-right' }}</v-icon>
+          <v-btn
+            icon
+            variant="text"
+            density="compact"
+            size="x-small"
+            color="grey-darken-1"
+          >
+            <v-icon>{{
+              isExpanded(internalItem)
+                ? "mdi-chevron-down"
+                : "mdi-chevron-right"
+            }}</v-icon>
           </v-btn>
         </td>
 
         <td class="text-left cell-code sticky-col-1">{{ item.kode }}</td>
         <td class="text-left cell-nama sticky-col-2">{{ item.Nama }}</td>
-        <td class="text-left text-grey-darken-2">{{ item.jb_nama || '-' }}</td>
-        <td class="text-left text-grey-darken-2">{{ item.type_barang || '-' }}</td>
-        
+        <td class="text-left text-grey-darken-2">{{ item.jb_nama || "-" }}</td>
+        <td class="text-left text-grey-darken-2">
+          {{ item.type_barang || "-" }}
+        </td>
+
         <td class="text-center">
           <span
             v-if="item.status_barang"
             class="badge-status"
-            :class="item.status_barang === 'Fast Moving' ? 'badge-fast' : 'badge-slow'"
+            :class="
+              item.status_barang === 'Fast Moving' ? 'badge-fast' : 'badge-slow'
+            "
           >
             {{ item.status_barang }}
           </span>
@@ -185,33 +340,90 @@
         </td>
 
         <!-- Spesifikasi -->
-        <td class="text-right text-grey-darken-1 border-l">{{ formatNumber(item.Panjang, 2) }}</td>
-        <td class="text-right text-grey-darken-1">{{ formatNumber(item.Lebar, 2) }}</td>
-        <td class="text-right text-grey-darken-1 border-r">{{ formatNumber(item.m2, 2) }}</td>
+        <td class="text-right text-grey-darken-1 border-l">
+          {{ formatNumber(item.Panjang, 2) }}
+        </td>
+        <td class="text-right text-grey-darken-1">
+          {{ formatNumber(item.Lebar, 2) }}
+        </td>
+        <td class="text-right text-grey-darken-1 border-r">
+          {{ formatNumber(item.m2, 2) }}
+        </td>
 
         <!-- Stok Awal -->
-        <td class="text-center font-weight-bold">{{ formatNumber(item.stok_awal_q, 0) }}</td>
-        <td class="text-right font-weight-bold">{{ formatNumber(item.stok_awal_m, 2) }}</td>
-        <td v-if="canSeeNominal" class="text-right font-weight-bold border-r">{{ formatNumber(item.stok_awal_nominal, 0) }}</td>
+        <td class="text-center font-weight-bold">
+          {{ formatNumber(item.stok_awal_q, 0) }}
+        </td>
+        <td class="text-right font-weight-bold">
+          {{ formatNumber(item.stok_awal_m, 2) }}
+        </td>
+        <td v-if="canSeeNominal" class="text-right font-weight-bold border-r">
+          {{ formatNumber(item.stok_awal_nominal, 0) }}
+        </td>
 
         <!-- Terima -->
-        <td class="text-center" :class="{'text-success font-weight-bold': item.terima_q > 0}">{{ formatNumber(item.terima_q, 0) }}</td>
-        <td class="text-right" :class="{'text-success font-weight-bold': item.terima_m > 0}">{{ formatNumber(item.terima_m, 2) }}</td>
-        <td v-if="canSeeNominal" class="text-right border-r" :class="{'text-success font-weight-bold': item.terima_nominal > 0}">{{ formatNumber(item.terima_nominal, 0) }}</td>
+        <td
+          class="text-center"
+          :class="{ 'text-success font-weight-bold': item.terima_q > 0 }"
+        >
+          {{ formatNumber(item.terima_q, 0) }}
+        </td>
+        <td
+          class="text-right"
+          :class="{ 'text-success font-weight-bold': item.terima_m > 0 }"
+        >
+          {{ formatNumber(item.terima_m, 2) }}
+        </td>
+        <td
+          v-if="canSeeNominal"
+          class="text-right border-r"
+          :class="{ 'text-success font-weight-bold': item.terima_nominal > 0 }"
+        >
+          {{ formatNumber(item.terima_nominal, 0) }}
+        </td>
 
         <!-- Keluar -->
-        <td class="text-center" :class="{'text-error font-weight-bold': item.keluar_q > 0}">{{ formatNumber(item.keluar_q, 0) }}</td>
-        <td class="text-right" :class="{'text-error font-weight-bold': item.keluar_m > 0}">{{ formatNumber(item.keluar_m, 2) }}</td>
-        <td v-if="canSeeNominal" class="text-right border-r" :class="{'text-error font-weight-bold': item.keluar_nominal > 0}">{{ formatNumber(item.keluar_nominal, 0) }}</td>
+        <td
+          class="text-center"
+          :class="{ 'text-error font-weight-bold': item.keluar_q > 0 }"
+        >
+          {{ formatNumber(item.keluar_q, 0) }}
+        </td>
+        <td
+          class="text-right"
+          :class="{ 'text-error font-weight-bold': item.keluar_m > 0 }"
+        >
+          {{ formatNumber(item.keluar_m, 2) }}
+        </td>
+        <td
+          v-if="canSeeNominal"
+          class="text-right border-r"
+          :class="{ 'text-error font-weight-bold': item.keluar_nominal > 0 }"
+        >
+          {{ formatNumber(item.keluar_nominal, 0) }}
+        </td>
 
         <!-- Retur -->
-        <td class="text-center text-grey-darken-1">{{ formatNumber(item.retur_q, 0) }}</td>
-        <td class="text-right text-grey-darken-1 border-r">{{ formatNumber(item.retur_m, 2) }}</td>
+        <td class="text-center text-grey-darken-1">
+          {{ formatNumber(item.retur_q, 0) }}
+        </td>
+        <td class="text-right text-grey-darken-1 border-r">
+          {{ formatNumber(item.retur_m, 2) }}
+        </td>
 
         <!-- Stok Akhir -->
-        <td class="text-center font-weight-black col-stok-akhir">{{ formatNumber(item.stok_akhir_q, 0) }}</td>
-        <td class="text-right font-weight-black col-stok-akhir">{{ formatNumber(item.stok_akhir_m, 2) }}</td>
-        <td v-if="canSeeNominal" class="text-right font-weight-black col-stok-akhir border-r">{{ formatNumber(item.stok_akhir_nominal, 0) }}</td>
+        <td class="text-center font-weight-black col-stok-akhir">
+          {{ formatNumber(item.stok_akhir_q, 0) }}
+        </td>
+        <td class="text-right font-weight-black col-stok-akhir">
+          {{ formatNumber(item.stok_akhir_m, 2) }}
+        </td>
+        <td
+          v-if="canSeeNominal"
+          class="text-right font-weight-black col-stok-akhir border-r"
+        >
+          {{ formatNumber(item.stok_akhir_nominal, 0) }}
+        </td>
 
         <!-- Input Keterangan Baris -->
         <td class="text-left" @click.stop>
@@ -244,11 +456,24 @@
               <v-col cols="12" md="8">
                 <div class="d-flex align-center ga-2 mb-2">
                   <v-icon color="primary" size="small">mdi-history</v-icon>
-                  <span class="font-weight-bold text-subtitle-2 text-slate-800">Histori Mutasi: {{ item.Nama }}</span>
-                  <v-chip size="x-small" color="primary" variant="flat" class="font-weight-bold">{{ item.kode }}</v-chip>
+                  <span class="font-weight-bold text-subtitle-2 text-slate-800"
+                    >Histori Mutasi: {{ item.Nama }}</span
+                  >
+                  <v-chip
+                    size="x-small"
+                    color="primary"
+                    variant="flat"
+                    class="font-weight-bold"
+                    >{{ item.kode }}</v-chip
+                  >
                 </div>
 
-                <v-progress-linear v-if="expandedLoading[item.kode]" indeterminate color="primary" class="mb-2" />
+                <v-progress-linear
+                  v-if="expandedLoading[item.kode]"
+                  indeterminate
+                  color="primary"
+                  class="mb-2"
+                />
 
                 <v-table v-else density="compact" class="detail-nested-table">
                   <thead>
@@ -263,16 +488,46 @@
                     </tr>
                   </thead>
                   <tbody>
-                    <tr v-for="(log, idx) in expandedData[item.kode]" :key="idx">
-                      <td class="font-weight-bold text-primary">{{ log.no_referensi }}</td>
-                      <td class="text-caption">{{ formatDateShort(log.tanggal) }}</td>
-                      <td class="text-caption font-mono">{{ log.barcode || '-' }}</td>
-                      <td class="text-right font-weight-bold text-success">{{ log.qty_in > 0 ? formatNumber(log.qty_in, 0) : '-' }}</td>
-                      <td class="text-right text-success">{{ log.meter_in > 0 ? formatNumber(log.meter_in, 2) : '-' }}</td>
-                      <td class="text-right font-weight-bold text-error">{{ log.qty_out > 0 ? formatNumber(log.qty_out, 0) : '-' }}</td>
-                      <td class="text-right text-error">{{ log.meter_out > 0 ? formatNumber(log.meter_out, 2) : '-' }}</td>
+                    <tr
+                      v-for="(log, idx) in expandedData[item.kode]"
+                      :key="idx"
+                    >
+                      <td class="font-weight-bold text-primary">
+                        {{ log.no_referensi }}
+                      </td>
+                      <td class="text-caption">
+                        {{ formatDateShort(log.tanggal) }}
+                      </td>
+                      <td class="text-caption font-mono">
+                        {{ log.barcode || "-" }}
+                      </td>
+                      <td class="text-right font-weight-bold text-success">
+                        {{ log.qty_in > 0 ? formatNumber(log.qty_in, 0) : "-" }}
+                      </td>
+                      <td class="text-right text-success">
+                        {{
+                          log.meter_in > 0 ? formatNumber(log.meter_in, 2) : "-"
+                        }}
+                      </td>
+                      <td class="text-right font-weight-bold text-error">
+                        {{
+                          log.qty_out > 0 ? formatNumber(log.qty_out, 0) : "-"
+                        }}
+                      </td>
+                      <td class="text-right text-error">
+                        {{
+                          log.meter_out > 0
+                            ? formatNumber(log.meter_out, 2)
+                            : "-"
+                        }}
+                      </td>
                     </tr>
-                    <tr v-if="!expandedData[item.kode] || expandedData[item.kode].length === 0">
+                    <tr
+                      v-if="
+                        !expandedData[item.kode] ||
+                        expandedData[item.kode].length === 0
+                      "
+                    >
                       <td colspan="7" class="text-center text-grey py-4">
                         Tidak ada histori transaksi pada periode terpilih.
                       </td>
@@ -284,7 +539,9 @@
               <!-- Panel Keterangan Khusus / Log Kondisi -->
               <v-col cols="12" md="4" style="border-left: 1px solid #e2e8f0">
                 <div class="d-flex align-center justify-space-between mb-2">
-                  <span class="font-weight-bold text-subtitle-2">Log Keterangan Khusus</span>
+                  <span class="font-weight-bold text-subtitle-2"
+                    >Log Keterangan Khusus</span
+                  >
                   <v-btn
                     size="x-small"
                     color="primary"
@@ -296,9 +553,20 @@
                   </v-btn>
                 </div>
 
-                <v-list density="compact" lines="two" bg-color="transparent" class="pa-0">
-                  <template v-if="item.log_keterangan && item.log_keterangan.length > 0">
-                    <v-list-item v-for="(note, nIdx) in item.log_keterangan" :key="nIdx" class="pa-1 border-bottom">
+                <v-list
+                  density="compact"
+                  lines="two"
+                  bg-color="transparent"
+                  class="pa-0"
+                >
+                  <template
+                    v-if="item.log_keterangan && item.log_keterangan.length > 0"
+                  >
+                    <v-list-item
+                      v-for="(note, nIdx) in item.log_keterangan"
+                      :key="nIdx"
+                      class="pa-1 border-bottom"
+                    >
                       <v-list-item-title class="text-body-2 font-weight-bold">
                         {{ note.keterangan }}
                       </v-list-item-title>
@@ -308,7 +576,8 @@
                     </v-list-item>
                   </template>
                   <div v-else class="text-caption text-grey text-center py-4">
-                    Belum ada log keterangan khusus (misal: barang berjamur, retur supplier, dll).
+                    Belum ada log keterangan khusus (misal: barang berjamur,
+                    retur supplier, dll).
                   </div>
                 </v-list>
               </v-col>
@@ -321,36 +590,80 @@
     <!-- Slot Total Footer -->
     <template #tfoot="{ totals, formatNumber }">
       <tr class="table-footer-row">
-        <td colspan="6" class="text-right font-weight-black text-uppercase sticky-footer-title">
+        <td
+          colspan="6"
+          class="text-right font-weight-black text-uppercase sticky-footer-title"
+        >
           TOTAL KESELURUHAN:
         </td>
-        
+
         <!-- Spesifikasi -->
         <td colspan="3"></td>
 
         <!-- Stok Awal -->
-        <td class="text-center font-weight-black">{{ formatNumber(totals.stok_awal_q, 0) }}</td>
-        <td class="text-right font-weight-black">{{ formatNumber(totals.stok_awal_m, 2) }}</td>
-        <td v-if="canSeeNominal" class="text-right font-weight-black">{{ formatNumber(totals.stok_awal_nominal, 0) }}</td>
+        <td class="text-center font-weight-black">
+          {{ formatNumber(totals.stok_awal_q, 0) }}
+        </td>
+        <td class="text-right font-weight-black">
+          {{ formatNumber(totals.stok_awal_m, 2) }}
+        </td>
+        <td v-if="canSeeNominal" class="text-right font-weight-black">
+          {{ formatNumber(totals.stok_awal_nominal, 0) }}
+        </td>
 
         <!-- Terima -->
-        <td class="text-center font-weight-black text-success">{{ formatNumber(totals.terima_q, 0) }}</td>
-        <td class="text-right font-weight-black text-success">{{ formatNumber(totals.terima_m, 2) }}</td>
-        <td v-if="canSeeNominal" class="text-right font-weight-black text-success">{{ formatNumber(totals.terima_nominal, 0) }}</td>
+        <td class="text-center font-weight-black text-success">
+          {{ formatNumber(totals.terima_q, 0) }}
+        </td>
+        <td class="text-right font-weight-black text-success">
+          {{ formatNumber(totals.terima_m, 2) }}
+        </td>
+        <td
+          v-if="canSeeNominal"
+          class="text-right font-weight-black text-success"
+        >
+          {{ formatNumber(totals.terima_nominal, 0) }}
+        </td>
 
         <!-- Keluar -->
-        <td class="text-center font-weight-black text-error">{{ formatNumber(totals.keluar_q, 0) }}</td>
-        <td class="text-right font-weight-black text-error">{{ formatNumber(totals.keluar_m, 2) }}</td>
-        <td v-if="canSeeNominal" class="text-right font-weight-black text-error">{{ formatNumber(totals.keluar_nominal, 0) }}</td>
+        <td class="text-center font-weight-black text-error">
+          {{ formatNumber(totals.keluar_q, 0) }}
+        </td>
+        <td class="text-right font-weight-black text-error">
+          {{ formatNumber(totals.keluar_m, 2) }}
+        </td>
+        <td
+          v-if="canSeeNominal"
+          class="text-right font-weight-black text-error"
+        >
+          {{ formatNumber(totals.keluar_nominal, 0) }}
+        </td>
 
         <!-- Retur -->
-        <td class="text-center font-weight-black">{{ formatNumber(totals.retur_q, 0) }}</td>
-        <td class="text-right font-weight-black">{{ formatNumber(totals.retur_m, 2) }}</td>
+        <td class="text-center font-weight-black">
+          {{ formatNumber(totals.retur_q, 0) }}
+        </td>
+        <td class="text-right font-weight-black">
+          {{ formatNumber(totals.retur_m, 2) }}
+        </td>
 
         <!-- Stok Akhir -->
-        <td class="text-center font-weight-black text-primary bg-amber-lighten-5">{{ formatNumber(totals.stok_akhir_q, 0) }}</td>
-        <td class="text-right font-weight-black text-primary bg-amber-lighten-5">{{ formatNumber(totals.stok_akhir_m, 2) }}</td>
-        <td v-if="canSeeNominal" class="text-right font-weight-black text-primary bg-amber-lighten-5">{{ formatNumber(totals.stok_akhir_nominal, 0) }}</td>
+        <td
+          class="text-center font-weight-black text-primary bg-amber-lighten-5"
+        >
+          {{ formatNumber(totals.stok_akhir_q, 0) }}
+        </td>
+        <td
+          class="text-right font-weight-black text-primary bg-amber-lighten-5"
+        >
+          {{ formatNumber(totals.stok_akhir_m, 2) }}
+        </td>
+        <td
+          v-if="canSeeNominal"
+          class="text-right font-weight-black text-primary bg-amber-lighten-5"
+        >
+          {{ formatNumber(totals.stok_akhir_nominal, 0) }}
+        </td>
 
         <td></td>
       </tr>
@@ -367,7 +680,9 @@
 
       <v-card-text class="pt-4">
         <div class="mb-2 text-body-2">
-          <strong>Barang:</strong> {{ dialogKeterangan.namaBarang }} ({{ dialogKeterangan.brgKode }})
+          <strong>Barang:</strong> {{ dialogKeterangan.namaBarang }} ({{
+            dialogKeterangan.brgKode
+          }})
         </div>
 
         <v-textarea
@@ -428,8 +743,18 @@ const formatDateIndo = (dateStr) => {
   if (!dateStr) return "";
   const [year, month, day] = dateStr.split("-");
   const namaBulan = [
-    "Januari", "Februari", "Maret", "April", "Mei", "Juni",
-    "Juli", "Agustus", "September", "Oktober", "November", "Desember"
+    "Januari",
+    "Februari",
+    "Maret",
+    "April",
+    "Mei",
+    "Juni",
+    "Juli",
+    "Agustus",
+    "September",
+    "Oktober",
+    "November",
+    "Desember",
   ];
   const monthIdx = parseInt(month, 10) - 1;
   return `${day} ${namaBulan[monthIdx]} ${year}`;
@@ -440,11 +765,11 @@ const formatDateShort = (dateStr) => {
   if (!dateStr) return "-";
   const d = new Date(dateStr);
   if (isNaN(d.getTime())) return dateStr;
-  
+
   const day = String(d.getDate()).padStart(2, "0");
   const month = String(d.getMonth() + 1).padStart(2, "0");
   const year = d.getFullYear();
-  
+
   return `${day}/${month}/${year}`;
 };
 
@@ -511,13 +836,16 @@ const simpanKeteranganKhusus = async () => {
 
   dialogKeterangan.submitting = true;
   try {
-    const response = await api.post("/mmt/laporan-ls-bahan-utama/tambah-keterangan", {
-      periode: startDate.value.substring(0, 7),
-      gdgKode: selectedGudang.value,
-      brgKode: dialogKeterangan.brgKode,
-      keterangan: dialogKeterangan.teks,
-      userUpdate: authStore.user?.username || "SYSTEM",
-    });
+    const response = await api.post(
+      "/mmt/laporan-ls-bahan-utama/tambah-keterangan",
+      {
+        periode: startDate.value.substring(0, 7),
+        gdgKode: selectedGudang.value,
+        brgKode: dialogKeterangan.brgKode,
+        keterangan: dialogKeterangan.teks,
+        userUpdate: authStore.user?.username || "SYSTEM",
+      },
+    );
 
     if (response.data.success) {
       if (!dialogKeterangan.itemRef.log_keterangan) {
@@ -577,7 +905,7 @@ const fetchReport = async () => {
         gdgKode: selectedGudang.value,
       },
     });
-    allData.value = Array.isArray(res.data) ? res.data : (res.data.data || []);
+    allData.value = Array.isArray(res.data) ? res.data : res.data.data || [];
   } catch (error) {
     console.error("Gagal fetch laporan:", error);
     allData.value = [];
@@ -651,7 +979,11 @@ const exportToExcel = (dataToExport) => {
 
   const wsData = [
     [{ v: "LAPORAN STOK BAHAN UTAMA", s: { font: { bold: true, sz: 14 } } }],
-    [{ v: `Periode : ${formatDateIndo(startDate.value)} s/d ${formatDateIndo(endDate.value)}` }],
+    [
+      {
+        v: `Periode : ${formatDateIndo(startDate.value)} s/d ${formatDateIndo(endDate.value)}`,
+      },
+    ],
     [{ v: `Gudang  : ${selectedGudangNama.value} (${selectedGudang.value})` }],
     [],
   ];
@@ -663,12 +995,23 @@ const exportToExcel = (dataToExport) => {
     { v: "JENIS", s: styleHeaderMain },
     { v: "TYPE", s: styleHeaderMain },
     { v: "STATUS", s: styleHeaderMain },
-    { v: "SPESIFIKASI", s: styleHeaderMain }, "", "",
-    { v: "STOCK AWAL", s: styleHeaderMain }, "", ...(canSeeNominal.value ? [""] : []),
-    { v: "TERIMA", s: styleHeaderMain }, "", ...(canSeeNominal.value ? [""] : []),
-    { v: "KELUAR", s: styleHeaderMain }, "", ...(canSeeNominal.value ? [""] : []),
-    { v: "RETUR", s: styleHeaderMain }, "",
-    { v: "STOCK AKHIR", s: styleHeaderMain }, "", ...(canSeeNominal.value ? [""] : []),
+    { v: "SPESIFIKASI", s: styleHeaderMain },
+    "",
+    "",
+    { v: "STOCK AWAL", s: styleHeaderMain },
+    "",
+    ...(canSeeNominal.value ? [""] : []),
+    { v: "TERIMA", s: styleHeaderMain },
+    "",
+    ...(canSeeNominal.value ? [""] : []),
+    { v: "KELUAR", s: styleHeaderMain },
+    "",
+    ...(canSeeNominal.value ? [""] : []),
+    { v: "RETUR", s: styleHeaderMain },
+    "",
+    { v: "STOCK AKHIR", s: styleHeaderMain },
+    "",
+    ...(canSeeNominal.value ? [""] : []),
     { v: "KETERANGAN", s: styleHeaderMain },
   ];
 
@@ -714,45 +1057,130 @@ const exportToExcel = (dataToExport) => {
       { v: row.type_barang || "-", s: styleDataCell },
       { v: row.status_barang || "-", s: styleDataCell },
 
-      { v: num(row.Panjang), t: "n", z: "#,##0.00", s: { ...styleDataCell, alignment: { horizontal: "right" } } },
-      { v: num(row.Lebar), t: "n", z: "#,##0.00", s: { ...styleDataCell, alignment: { horizontal: "right" } } },
-      { v: num(row.m2), t: "n", z: "#,##0.00", s: { ...styleDataCell, alignment: { horizontal: "right" } } },
+      {
+        v: num(row.Panjang),
+        t: "n",
+        z: "#,##0.00",
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+      },
+      {
+        v: num(row.Lebar),
+        t: "n",
+        z: "#,##0.00",
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+      },
+      {
+        v: num(row.m2),
+        t: "n",
+        z: "#,##0.00",
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+      },
 
-      { v: num(row.stok_awal_q), t: "n", z: "#,##0", s: { ...styleDataCell, alignment: { horizontal: "center" } } },
-      { v: num(row.stok_awal_m), t: "n", z: "#,##0.00", s: { ...styleDataCell, alignment: { horizontal: "right" } } },
+      {
+        v: num(row.stok_awal_q),
+        t: "n",
+        z: "#,##0",
+        s: { ...styleDataCell, alignment: { horizontal: "center" } },
+      },
+      {
+        v: num(row.stok_awal_m),
+        t: "n",
+        z: "#,##0.00",
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+      },
     ];
 
     if (canSeeNominal.value) {
-      dataRow.push({ v: num(row.stok_awal_nominal), t: "n", z: "#,##0", s: { ...styleDataCell, alignment: { horizontal: "right" } } });
+      dataRow.push({
+        v: num(row.stok_awal_nominal),
+        t: "n",
+        z: "#,##0",
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+      });
     }
 
     dataRow.push(
-      { v: num(row.terima_q), t: "n", z: "#,##0", s: { ...styleDataCell, alignment: { horizontal: "center" } } },
-      { v: num(row.terima_m), t: "n", z: "#,##0.00", s: { ...styleDataCell, alignment: { horizontal: "right" } } }
+      {
+        v: num(row.terima_q),
+        t: "n",
+        z: "#,##0",
+        s: { ...styleDataCell, alignment: { horizontal: "center" } },
+      },
+      {
+        v: num(row.terima_m),
+        t: "n",
+        z: "#,##0.00",
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+      },
     );
     if (canSeeNominal.value) {
-      dataRow.push({ v: num(row.terima_nominal), t: "n", z: "#,##0", s: { ...styleDataCell, alignment: { horizontal: "right" } } });
+      dataRow.push({
+        v: num(row.terima_nominal),
+        t: "n",
+        z: "#,##0",
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+      });
     }
 
     dataRow.push(
-      { v: num(row.keluar_q), t: "n", z: "#,##0", s: { ...styleDataCell, alignment: { horizontal: "center" } } },
-      { v: num(row.keluar_m), t: "n", z: "#,##0.00", s: { ...styleDataCell, alignment: { horizontal: "right" } } }
+      {
+        v: num(row.keluar_q),
+        t: "n",
+        z: "#,##0",
+        s: { ...styleDataCell, alignment: { horizontal: "center" } },
+      },
+      {
+        v: num(row.keluar_m),
+        t: "n",
+        z: "#,##0.00",
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+      },
     );
     if (canSeeNominal.value) {
-      dataRow.push({ v: num(row.keluar_nominal), t: "n", z: "#,##0", s: { ...styleDataCell, alignment: { horizontal: "right" } } });
+      dataRow.push({
+        v: num(row.keluar_nominal),
+        t: "n",
+        z: "#,##0",
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+      });
     }
 
     dataRow.push(
-      { v: num(row.retur_q), t: "n", z: "#,##0", s: { ...styleDataCell, alignment: { horizontal: "center" } } },
-      { v: num(row.retur_m), t: "n", z: "#,##0.00", s: { ...styleDataCell, alignment: { horizontal: "right" } } }
+      {
+        v: num(row.retur_q),
+        t: "n",
+        z: "#,##0",
+        s: { ...styleDataCell, alignment: { horizontal: "center" } },
+      },
+      {
+        v: num(row.retur_m),
+        t: "n",
+        z: "#,##0.00",
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+      },
     );
 
     dataRow.push(
-      { v: num(row.stok_akhir_q), t: "n", z: "#,##0", s: { ...styleDataCell, alignment: { horizontal: "center" } } },
-      { v: num(row.stok_akhir_m), t: "n", z: "#,##0.00", s: { ...styleDataCell, alignment: { horizontal: "right" } } }
+      {
+        v: num(row.stok_akhir_q),
+        t: "n",
+        z: "#,##0",
+        s: { ...styleDataCell, alignment: { horizontal: "center" } },
+      },
+      {
+        v: num(row.stok_akhir_m),
+        t: "n",
+        z: "#,##0.00",
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+      },
     );
     if (canSeeNominal.value) {
-      dataRow.push({ v: num(row.stok_akhir_nominal), t: "n", z: "#,##0", s: { ...styleDataCell, alignment: { horizontal: "right" } } });
+      dataRow.push({
+        v: num(row.stok_akhir_nominal),
+        t: "n",
+        z: "#,##0",
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+      });
     }
 
     dataRow.push({ v: row.keterangan || "", s: styleDataCell });
@@ -760,32 +1188,47 @@ const exportToExcel = (dataToExport) => {
   });
 
   // --- 4. BARIS TOTAL FOOTER ---
-  const totals = dataToExport.reduce((acc, row) => {
-    acc.stok_awal_q += num(row.stok_awal_q);
-    acc.stok_awal_m += num(row.stok_awal_m);
-    acc.stok_awal_nominal += num(row.stok_awal_nominal);
-    acc.terima_q += num(row.terima_q);
-    acc.terima_m += num(row.terima_m);
-    acc.terima_nominal += num(row.terima_nominal);
-    acc.keluar_q += num(row.keluar_q);
-    acc.keluar_m += num(row.keluar_m);
-    acc.keluar_nominal += num(row.keluar_nominal);
-    acc.retur_q += num(row.retur_q);
-    acc.retur_m += num(row.retur_m);
-    acc.stok_akhir_q += num(row.stok_akhir_q);
-    acc.stok_akhir_m += num(row.stok_akhir_m);
-    acc.stok_akhir_nominal += num(row.stok_akhir_nominal);
-    return acc;
-  }, {
-    stok_awal_q: 0, stok_awal_m: 0, stok_awal_nominal: 0,
-    terima_q: 0, terima_m: 0, terima_nominal: 0,
-    keluar_q: 0, keluar_m: 0, keluar_nominal: 0,
-    retur_q: 0, retur_m: 0,
-    stok_akhir_q: 0, stok_akhir_m: 0, stok_akhir_nominal: 0
-  });
+  const totals = dataToExport.reduce(
+    (acc, row) => {
+      acc.stok_awal_q += num(row.stok_awal_q);
+      acc.stok_awal_m += num(row.stok_awal_m);
+      acc.stok_awal_nominal += num(row.stok_awal_nominal);
+      acc.terima_q += num(row.terima_q);
+      acc.terima_m += num(row.terima_m);
+      acc.terima_nominal += num(row.terima_nominal);
+      acc.keluar_q += num(row.keluar_q);
+      acc.keluar_m += num(row.keluar_m);
+      acc.keluar_nominal += num(row.keluar_nominal);
+      acc.retur_q += num(row.retur_q);
+      acc.retur_m += num(row.retur_m);
+      acc.stok_akhir_q += num(row.stok_akhir_q);
+      acc.stok_akhir_m += num(row.stok_akhir_m);
+      acc.stok_akhir_nominal += num(row.stok_akhir_nominal);
+      return acc;
+    },
+    {
+      stok_awal_q: 0,
+      stok_awal_m: 0,
+      stok_awal_nominal: 0,
+      terima_q: 0,
+      terima_m: 0,
+      terima_nominal: 0,
+      keluar_q: 0,
+      keluar_m: 0,
+      keluar_nominal: 0,
+      retur_q: 0,
+      retur_m: 0,
+      stok_akhir_q: 0,
+      stok_akhir_m: 0,
+      stok_akhir_nominal: 0,
+    },
+  );
 
   const footerRow = [
-    { v: "TOTAL", s: { ...styleFooterCell, alignment: { horizontal: "center" } } },
+    {
+      v: "TOTAL",
+      s: { ...styleFooterCell, alignment: { horizontal: "center" } },
+    },
     { v: "", s: styleFooterCell },
     { v: "", s: styleFooterCell },
     { v: "", s: styleFooterCell },
@@ -793,41 +1236,111 @@ const exportToExcel = (dataToExport) => {
     { v: "", s: styleFooterCell },
     { v: "", s: styleFooterCell },
     { v: "", s: styleFooterCell },
-    { v: totals.stok_awal_q, t: "n", z: "#,##0", s: { ...styleFooterCell, alignment: { horizontal: "center" } } },
-    { v: totals.stok_awal_m, t: "n", z: "#,##0.00", s: { ...styleFooterCell, alignment: { horizontal: "right" } } },
+    {
+      v: totals.stok_awal_q,
+      t: "n",
+      z: "#,##0",
+      s: { ...styleFooterCell, alignment: { horizontal: "center" } },
+    },
+    {
+      v: totals.stok_awal_m,
+      t: "n",
+      z: "#,##0.00",
+      s: { ...styleFooterCell, alignment: { horizontal: "right" } },
+    },
   ];
 
   if (canSeeNominal.value) {
-    footerRow.push({ v: totals.stok_awal_nominal, t: "n", z: "#,##0", s: { ...styleFooterCell, alignment: { horizontal: "right" } } });
+    footerRow.push({
+      v: totals.stok_awal_nominal,
+      t: "n",
+      z: "#,##0",
+      s: { ...styleFooterCell, alignment: { horizontal: "right" } },
+    });
   }
 
   footerRow.push(
-    { v: totals.terima_q, t: "n", z: "#,##0", s: { ...styleFooterCell, alignment: { horizontal: "center" } } },
-    { v: totals.terima_m, t: "n", z: "#,##0.00", s: { ...styleFooterCell, alignment: { horizontal: "right" } } }
+    {
+      v: totals.terima_q,
+      t: "n",
+      z: "#,##0",
+      s: { ...styleFooterCell, alignment: { horizontal: "center" } },
+    },
+    {
+      v: totals.terima_m,
+      t: "n",
+      z: "#,##0.00",
+      s: { ...styleFooterCell, alignment: { horizontal: "right" } },
+    },
   );
   if (canSeeNominal.value) {
-    footerRow.push({ v: totals.terima_nominal, t: "n", z: "#,##0", s: { ...styleFooterCell, alignment: { horizontal: "right" } } });
+    footerRow.push({
+      v: totals.terima_nominal,
+      t: "n",
+      z: "#,##0",
+      s: { ...styleFooterCell, alignment: { horizontal: "right" } },
+    });
   }
 
   footerRow.push(
-    { v: totals.keluar_q, t: "n", z: "#,##0", s: { ...styleFooterCell, alignment: { horizontal: "center" } } },
-    { v: totals.keluar_m, t: "n", z: "#,##0.00", s: { ...styleFooterCell, alignment: { horizontal: "right" } } }
+    {
+      v: totals.keluar_q,
+      t: "n",
+      z: "#,##0",
+      s: { ...styleFooterCell, alignment: { horizontal: "center" } },
+    },
+    {
+      v: totals.keluar_m,
+      t: "n",
+      z: "#,##0.00",
+      s: { ...styleFooterCell, alignment: { horizontal: "right" } },
+    },
   );
   if (canSeeNominal.value) {
-    footerRow.push({ v: totals.keluar_nominal, t: "n", z: "#,##0", s: { ...styleFooterCell, alignment: { horizontal: "right" } } });
+    footerRow.push({
+      v: totals.keluar_nominal,
+      t: "n",
+      z: "#,##0",
+      s: { ...styleFooterCell, alignment: { horizontal: "right" } },
+    });
   }
 
   footerRow.push(
-    { v: totals.retur_q, t: "n", z: "#,##0", s: { ...styleFooterCell, alignment: { horizontal: "center" } } },
-    { v: totals.retur_m, t: "n", z: "#,##0.00", s: { ...styleFooterCell, alignment: { horizontal: "right" } } }
+    {
+      v: totals.retur_q,
+      t: "n",
+      z: "#,##0",
+      s: { ...styleFooterCell, alignment: { horizontal: "center" } },
+    },
+    {
+      v: totals.retur_m,
+      t: "n",
+      z: "#,##0.00",
+      s: { ...styleFooterCell, alignment: { horizontal: "right" } },
+    },
   );
 
   footerRow.push(
-    { v: totals.stok_akhir_q, t: "n", z: "#,##0", s: { ...styleFooterCell, alignment: { horizontal: "center" } } },
-    { v: totals.stok_akhir_m, t: "n", z: "#,##0.00", s: { ...styleFooterCell, alignment: { horizontal: "right" } } }
+    {
+      v: totals.stok_akhir_q,
+      t: "n",
+      z: "#,##0",
+      s: { ...styleFooterCell, alignment: { horizontal: "center" } },
+    },
+    {
+      v: totals.stok_akhir_m,
+      t: "n",
+      z: "#,##0.00",
+      s: { ...styleFooterCell, alignment: { horizontal: "right" } },
+    },
   );
   if (canSeeNominal.value) {
-    footerRow.push({ v: totals.stok_akhir_nominal, t: "n", z: "#,##0", s: { ...styleFooterCell, alignment: { horizontal: "right" } } });
+    footerRow.push({
+      v: totals.stok_akhir_nominal,
+      t: "n",
+      z: "#,##0",
+      s: { ...styleFooterCell, alignment: { horizontal: "right" } },
+    });
   }
 
   footerRow.push({ v: "", s: styleFooterCell });
@@ -845,11 +1358,26 @@ const exportToExcel = (dataToExport) => {
     { s: { r: 4, c: 4 }, e: { r: 5, c: 4 } },
     { s: { r: 4, c: 5 }, e: { r: 4, c: 7 } },
     { s: { r: 4, c: 8 }, e: { r: 4, c: canSeeNominal.value ? 10 : 9 } },
-    { s: { r: 4, c: canSeeNominal.value ? 11 : 10 }, e: { r: 4, c: canSeeNominal.value ? 13 : 11 } },
-    { s: { r: 4, c: canSeeNominal.value ? 14 : 12 }, e: { r: 4, c: canSeeNominal.value ? 16 : 13 } },
-    { s: { r: 4, c: canSeeNominal.value ? 17 : 14 }, e: { r: 4, c: canSeeNominal.value ? 18 : 15 } },
-    { s: { r: 4, c: canSeeNominal.value ? 19 : 16 }, e: { r: 4, c: canSeeNominal.value ? 21 : 17 } },
-    { s: { r: 4, c: canSeeNominal.value ? 22 : 18 }, e: { r: 5, c: canSeeNominal.value ? 22 : 18 } },
+    {
+      s: { r: 4, c: canSeeNominal.value ? 11 : 10 },
+      e: { r: 4, c: canSeeNominal.value ? 13 : 11 },
+    },
+    {
+      s: { r: 4, c: canSeeNominal.value ? 14 : 12 },
+      e: { r: 4, c: canSeeNominal.value ? 16 : 13 },
+    },
+    {
+      s: { r: 4, c: canSeeNominal.value ? 17 : 14 },
+      e: { r: 4, c: canSeeNominal.value ? 18 : 15 },
+    },
+    {
+      s: { r: 4, c: canSeeNominal.value ? 19 : 16 },
+      e: { r: 4, c: canSeeNominal.value ? 21 : 17 },
+    },
+    {
+      s: { r: 4, c: canSeeNominal.value ? 22 : 18 },
+      e: { r: 5, c: canSeeNominal.value ? 22 : 18 },
+    },
     { s: { r: totalRowIndex, c: 0 }, e: { r: totalRowIndex, c: 7 } },
   ];
 
@@ -871,6 +1399,20 @@ onMounted(fetchReport);
 :deep(td) {
   font-size: 11px !important;
   white-space: nowrap !important;
+}
+:deep(.v-table__wrapper),
+:deep(.v-data-table__wrapper) {
+  max-height: calc(
+    100vh - 280px
+  ) !important; /* Sesuaikan tinggi agar muat di layar */
+  overflow-y: auto !important;
+  overflow-x: auto !important;
+}
+
+:deep(thead) {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 10 !important;
 }
 
 /* 2. Styling Header Utama & Sub Header */
@@ -926,15 +1468,32 @@ onMounted(fetchReport);
   white-space: nowrap !important; /* Mencegah badge seperti 'Slow Moving' pecah 2 baris */
 }
 
-.badge-fast { background-color: #dcfce7; color: #15803d; }
-.badge-slow { background-color: #fef3c7; color: #b45309; }
-.col-stok-akhir { background-color: #f8fafc; color: #0369a1 !important; }
+.badge-fast {
+  background-color: #dcfce7;
+  color: #15803d;
+}
+.badge-slow {
+  background-color: #fef3c7;
+  color: #b45309;
+}
+.col-stok-akhir {
+  background-color: #f8fafc;
+  color: #0369a1 !important;
+}
 
 /* 5. Utility Borders */
-.border-l { border-left: 1px solid #cbd5e1 !important; }
-.border-r { border-right: 1px solid #cbd5e1 !important; }
-.border-sub-l { border-left: 1px solid #60a5fa !important; }
-.border-sub-r { border-right: 1px solid #60a5fa !important; }
+.border-l {
+  border-left: 1px solid #cbd5e1 !important;
+}
+.border-r {
+  border-right: 1px solid #cbd5e1 !important;
+}
+.border-sub-l {
+  border-left: 1px solid #60a5fa !important;
+}
+.border-sub-r {
+  border-right: 1px solid #60a5fa !important;
+}
 
 /* 6. Penyesuaian Input Keterangan di Baris Tabel */
 :deep(.v-text-field.text-caption input) {

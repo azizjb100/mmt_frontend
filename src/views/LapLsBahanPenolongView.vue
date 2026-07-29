@@ -14,80 +14,184 @@
     @refresh="fetchReport"
   >
     <!-- Slot Header Tabel Custom (Navy Gradasi Modern) -->
-    <template #thead="{ toggleSort, getSortIcon, columnFilters, jenisOptions, statusOptions }">
+    <template
+      #thead="{
+        toggleSort,
+        getSortIcon,
+        columnFilters,
+        jenisOptions,
+        statusOptions,
+      }"
+    >
       <thead>
         <tr class="header-main">
           <!-- 1. Header KODE (Sticky Left 0) -->
-          <th rowspan="2" class="text-left sticky-col-1" style="min-width: 130px;">
+          <th
+            rowspan="2"
+            class="text-left sticky-col-1"
+            style="min-width: 130px"
+          >
             <div class="d-flex align-center justify-space-between">
-              <span @click="toggleSort('kode')" class="cursor-pointer font-weight-bold text-white">
-                KODE {{ getSortIcon('kode') }}
+              <span
+                @click="toggleSort('kode')"
+                class="cursor-pointer font-weight-bold text-white"
+              >
+                KODE {{ getSortIcon("kode") }}
               </span>
               <v-menu :close-on-content-click="false">
                 <template #activator="{ props }">
-                  <v-btn v-bind="props" icon variant="text" size="x-small" class="btn-filter-icon">
-                    <v-icon size="14" :color="columnFilters.KODE ? 'amber-accent-2' : 'white'">mdi-filter-variant</v-icon>
+                  <v-btn
+                    v-bind="props"
+                    icon
+                    variant="text"
+                    size="x-small"
+                    class="btn-filter-icon"
+                  >
+                    <v-icon
+                      size="14"
+                      :color="columnFilters.KODE ? 'amber-accent-2' : 'white'"
+                      >mdi-filter-variant</v-icon
+                    >
                   </v-btn>
                 </template>
                 <v-card min-width="200" class="pa-2 rounded-lg">
-                  <v-text-field v-model="columnFilters.KODE" label="Filter Kode..." density="compact" hide-details variant="outlined" clearable />
+                  <v-text-field
+                    v-model="columnFilters.KODE"
+                    label="Filter Kode..."
+                    density="compact"
+                    hide-details
+                    variant="outlined"
+                    clearable
+                  />
                 </v-card>
               </v-menu>
             </div>
           </th>
 
           <!-- 2. Header NAMA BAHAN (Sticky Left 130px) -->
-          <th rowspan="2" class="text-left sticky-col-2 border" style="min-width: 250px;">
+          <th
+            rowspan="2"
+            class="text-left sticky-col-2 border"
+            style="min-width: 250px"
+          >
             <div class="d-flex align-center justify-space-between">
-              <span @click="toggleSort('Nama')" class="cursor-pointer font-weight-bold text-white">
-                NAMA BAHAN {{ getSortIcon('Nama') }}
+              <span
+                @click="toggleSort('Nama')"
+                class="cursor-pointer font-weight-bold text-white"
+              >
+                NAMA BAHAN {{ getSortIcon("Nama") }}
               </span>
               <v-menu :close-on-content-click="false">
                 <template #activator="{ props }">
-                  <v-btn v-bind="props" icon variant="text" size="x-small" class="btn-filter-icon">
-                    <v-icon size="14" :color="columnFilters.NAMA ? 'amber-accent-2' : 'white'">mdi-filter-variant</v-icon>
+                  <v-btn
+                    v-bind="props"
+                    icon
+                    variant="text"
+                    size="x-small"
+                    class="btn-filter-icon"
+                  >
+                    <v-icon
+                      size="14"
+                      :color="columnFilters.NAMA ? 'amber-accent-2' : 'white'"
+                      >mdi-filter-variant</v-icon
+                    >
                   </v-btn>
                 </template>
                 <v-card min-width="220" class="pa-2 rounded-lg">
-                  <v-text-field v-model="columnFilters.NAMA" label="Filter Nama..." density="compact" hide-details variant="outlined" clearable />
+                  <v-text-field
+                    v-model="columnFilters.NAMA"
+                    label="Filter Nama..."
+                    density="compact"
+                    hide-details
+                    variant="outlined"
+                    clearable
+                  />
                 </v-card>
               </v-menu>
             </div>
           </th>
 
           <!-- 3. Header JENIS -->
-          <th rowspan="2" class="text-left border" style="min-width: 140px;">
+          <th rowspan="2" class="text-left border" style="min-width: 140px">
             <div class="d-flex align-center justify-space-between ga-1">
-              <span @click="toggleSort('jb_nama')" class="cursor-pointer font-weight-bold text-white">
-                JENIS {{ getSortIcon('jb_nama') }}
+              <span
+                @click="toggleSort('jb_nama')"
+                class="cursor-pointer font-weight-bold text-white"
+              >
+                JENIS {{ getSortIcon("jb_nama") }}
               </span>
               <v-menu :close-on-content-click="false">
                 <template #activator="{ props }">
-                  <v-btn v-bind="props" icon variant="text" size="x-small" class="btn-filter-icon">
-                    <v-icon size="14" :color="columnFilters.JENIS !== 'SEMUA' ? 'amber-accent-2' : 'white'">mdi-filter-variant</v-icon>
+                  <v-btn
+                    v-bind="props"
+                    icon
+                    variant="text"
+                    size="x-small"
+                    class="btn-filter-icon"
+                  >
+                    <v-icon
+                      size="14"
+                      :color="
+                        columnFilters.JENIS !== 'SEMUA'
+                          ? 'amber-accent-2'
+                          : 'white'
+                      "
+                      >mdi-filter-variant</v-icon
+                    >
                   </v-btn>
                 </template>
                 <v-card min-width="180" class="pa-2 rounded-lg">
-                  <v-select v-model="columnFilters.JENIS" :items="jenisOptions" label="Jenis" density="compact" hide-details variant="outlined" />
+                  <v-select
+                    v-model="columnFilters.JENIS"
+                    :items="jenisOptions"
+                    label="Jenis"
+                    density="compact"
+                    hide-details
+                    variant="outlined"
+                  />
                 </v-card>
               </v-menu>
             </div>
           </th>
 
           <!-- 4. Header STATUS -->
-          <th rowspan="2" class="text-center border" style="min-width: 120px;">
+          <th rowspan="2" class="text-center border" style="min-width: 120px">
             <div class="d-flex align-center justify-center ga-1">
-              <span @click="toggleSort('status')" class="cursor-pointer font-weight-bold text-white">
-                STATUS {{ getSortIcon('status') }}
+              <span
+                @click="toggleSort('status')"
+                class="cursor-pointer font-weight-bold text-white"
+              >
+                STATUS {{ getSortIcon("status") }}
               </span>
               <v-menu :close-on-content-click="false">
                 <template #activator="{ props }">
-                  <v-btn v-bind="props" icon variant="text" size="x-small" class="btn-filter-icon">
-                    <v-icon size="14" :color="columnFilters.STATUS !== 'SEMUA' ? 'amber-accent-2' : 'white'">mdi-filter-variant</v-icon>
+                  <v-btn
+                    v-bind="props"
+                    icon
+                    variant="text"
+                    size="x-small"
+                    class="btn-filter-icon"
+                  >
+                    <v-icon
+                      size="14"
+                      :color="
+                        columnFilters.STATUS !== 'SEMUA'
+                          ? 'amber-accent-2'
+                          : 'white'
+                      "
+                      >mdi-filter-variant</v-icon
+                    >
                   </v-btn>
                 </template>
                 <v-card min-width="160" class="pa-2 rounded-lg">
-                  <v-select v-model="columnFilters.STATUS" :items="statusOptions" label="Status" density="compact" hide-details variant="outlined" />
+                  <v-select
+                    v-model="columnFilters.STATUS"
+                    :items="statusOptions"
+                    label="Status"
+                    density="compact"
+                    hide-details
+                    variant="outlined"
+                  />
                 </v-card>
               </v-menu>
             </div>
@@ -98,7 +202,9 @@
           <th colspan="2" class="text-center header-group">STOK AWAL</th>
           <th colspan="2" class="text-center header-group">TERIMA</th>
           <th colspan="2" class="text-center header-group">KELUAR</th>
-          <th colspan="2" class="text-center header-group">RETUR / SISA PRODUKSI</th>
+          <th colspan="2" class="text-center header-group">
+            RETUR / SISA PRODUKSI
+          </th>
           <th colspan="2" class="text-center header-group">STOK AKHIR</th>
         </tr>
 
@@ -129,11 +235,17 @@
     <!-- Slot Row Baris Data -->
     <template #row="{ item, formatNumber }">
       <tr class="table-row-item">
-        <td class="text-left cell-code sticky-col-1 font-weight-bold">{{ item.kode }}</td>
-        <td class="text-left cell-nama sticky-col-2 text-truncate" style="max-width: 280px;" :title="item.Nama">
+        <td class="text-left cell-code sticky-col-1 font-weight-bold">
+          {{ item.kode }}
+        </td>
+        <td
+          class="text-left cell-nama sticky-col-2 text-truncate"
+          style="max-width: 280px"
+          :title="item.Nama"
+        >
           {{ item.Nama }}
         </td>
-        <td class="text-left text-grey-darken-2">{{ item.jb_nama || '-' }}</td>
+        <td class="text-left text-grey-darken-2">{{ item.jb_nama || "-" }}</td>
 
         <!-- Status Chip -->
         <td class="text-center">
@@ -148,36 +260,77 @@
         </td>
 
         <!-- Spesifikasi -->
-        <td class="text-right text-grey-darken-1 border-l">{{ formatNumber(item.Lebar, 2) }}</td>
-        <td class="text-right text-grey-darken-1">{{ formatNumber(item.Panjang, 2) }}</td>
-        <td class="text-right text-grey-darken-1 border-r">{{ formatNumber(item.m2, 2) }}</td>
+        <td class="text-right text-grey-darken-1 border-l">
+          {{ formatNumber(item.Lebar, 2) }}
+        </td>
+        <td class="text-right text-grey-darken-1">
+          {{ formatNumber(item.Panjang, 2) }}
+        </td>
+        <td class="text-right text-grey-darken-1 border-r">
+          {{ formatNumber(item.m2, 2) }}
+        </td>
 
         <!-- Stok Awal -->
-        <td class="text-center font-weight-bold">{{ formatNumber(item.stok_awal_q, 0) }}</td>
-        <td class="text-right font-weight-bold border-r">{{ formatNumber(item.stok_awal_m, 2) }}</td>
+        <td class="text-center font-weight-bold">
+          {{ formatNumber(item.stok_awal_q, 0) }}
+        </td>
+        <td class="text-right font-weight-bold border-r">
+          {{ formatNumber(item.stok_awal_m, 2) }}
+        </td>
 
         <!-- Terima -->
-        <td class="text-center" :class="{'text-success font-weight-bold': item.terima_q > 0}">{{ formatNumber(item.terima_q, 0) }}</td>
-        <td class="text-right border-r" :class="{'text-success font-weight-bold': item.terima_m > 0}">{{ formatNumber(item.terima_m, 2) }}</td>
+        <td
+          class="text-center"
+          :class="{ 'text-success font-weight-bold': item.terima_q > 0 }"
+        >
+          {{ formatNumber(item.terima_q, 0) }}
+        </td>
+        <td
+          class="text-right border-r"
+          :class="{ 'text-success font-weight-bold': item.terima_m > 0 }"
+        >
+          {{ formatNumber(item.terima_m, 2) }}
+        </td>
 
         <!-- Keluar -->
-        <td class="text-center" :class="{'text-error font-weight-bold': item.keluar_q > 0}">{{ formatNumber(item.keluar_q, 0) }}</td>
-        <td class="text-right border-r" :class="{'text-error font-weight-bold': item.keluar_m > 0}">{{ formatNumber(item.keluar_m, 2) }}</td>
+        <td
+          class="text-center"
+          :class="{ 'text-error font-weight-bold': item.keluar_q > 0 }"
+        >
+          {{ formatNumber(item.keluar_q, 0) }}
+        </td>
+        <td
+          class="text-right border-r"
+          :class="{ 'text-error font-weight-bold': item.keluar_m > 0 }"
+        >
+          {{ formatNumber(item.keluar_m, 2) }}
+        </td>
 
         <!-- Retur -->
-        <td class="text-center text-grey-darken-1">{{ formatNumber(item.retur_q, 0) }}</td>
-        <td class="text-right text-grey-darken-1 border-r">{{ formatNumber(item.retur_m, 2) }}</td>
+        <td class="text-center text-grey-darken-1">
+          {{ formatNumber(item.retur_q, 0) }}
+        </td>
+        <td class="text-right text-grey-darken-1 border-r">
+          {{ formatNumber(item.retur_m, 2) }}
+        </td>
 
         <!-- Stok Akhir -->
-        <td class="text-center font-weight-black col-stok-akhir">{{ formatNumber(item.stok_akhir_q, 0) }}</td>
-        <td class="text-right font-weight-black col-stok-akhir border-r">{{ formatNumber(item.stok_akhir_m, 2) }}</td>
+        <td class="text-center font-weight-black col-stok-akhir">
+          {{ formatNumber(item.stok_akhir_q, 0) }}
+        </td>
+        <td class="text-right font-weight-black col-stok-akhir border-r">
+          {{ formatNumber(item.stok_akhir_m, 2) }}
+        </td>
       </tr>
     </template>
 
     <!-- Slot Total Footer -->
     <template #tfoot="{ totals, formatNumber }">
       <tr class="table-footer-row">
-        <td colspan="4" class="text-right font-weight-black text-uppercase sticky-footer-title">
+        <td
+          colspan="4"
+          class="text-right font-weight-black text-uppercase sticky-footer-title"
+        >
           TOTAL KESELURUHAN:
         </td>
 
@@ -185,24 +338,48 @@
         <td colspan="3"></td>
 
         <!-- Stok Awal -->
-        <td class="text-center font-weight-black">{{ formatNumber(totals.stok_awal_q, 0) }}</td>
-        <td class="text-right font-weight-black">{{ formatNumber(totals.stok_awal_m, 2) }}</td>
+        <td class="text-center font-weight-black">
+          {{ formatNumber(totals.stok_awal_q, 0) }}
+        </td>
+        <td class="text-right font-weight-black">
+          {{ formatNumber(totals.stok_awal_m, 2) }}
+        </td>
 
         <!-- Terima -->
-        <td class="text-center font-weight-black text-success">{{ formatNumber(totals.terima_q, 0) }}</td>
-        <td class="text-right font-weight-black text-success">{{ formatNumber(totals.terima_m, 2) }}</td>
+        <td class="text-center font-weight-black text-success">
+          {{ formatNumber(totals.terima_q, 0) }}
+        </td>
+        <td class="text-right font-weight-black text-success">
+          {{ formatNumber(totals.terima_m, 2) }}
+        </td>
 
         <!-- Keluar -->
-        <td class="text-center font-weight-black text-error">{{ formatNumber(totals.keluar_q, 0) }}</td>
-        <td class="text-right font-weight-black text-error">{{ formatNumber(totals.keluar_m, 2) }}</td>
+        <td class="text-center font-weight-black text-error">
+          {{ formatNumber(totals.keluar_q, 0) }}
+        </td>
+        <td class="text-right font-weight-black text-error">
+          {{ formatNumber(totals.keluar_m, 2) }}
+        </td>
 
         <!-- Retur -->
-        <td class="text-center font-weight-black">{{ formatNumber(totals.retur_q, 0) }}</td>
-        <td class="text-right font-weight-black">{{ formatNumber(totals.retur_m, 2) }}</td>
+        <td class="text-center font-weight-black">
+          {{ formatNumber(totals.retur_q, 0) }}
+        </td>
+        <td class="text-right font-weight-black">
+          {{ formatNumber(totals.retur_m, 2) }}
+        </td>
 
         <!-- Stok Akhir -->
-        <td class="text-center font-weight-black text-primary bg-amber-lighten-5">{{ formatNumber(totals.stok_akhir_q, 0) }}</td>
-        <td class="text-right font-weight-black text-primary bg-amber-lighten-5">{{ formatNumber(totals.stok_akhir_m, 2) }}</td>
+        <td
+          class="text-center font-weight-black text-primary bg-amber-lighten-5"
+        >
+          {{ formatNumber(totals.stok_akhir_q, 0) }}
+        </td>
+        <td
+          class="text-right font-weight-black text-primary bg-amber-lighten-5"
+        >
+          {{ formatNumber(totals.stok_akhir_m, 2) }}
+        </td>
       </tr>
     </template>
   </BaseReportLayout>
@@ -223,8 +400,18 @@ const formatDateIndo = (dateStr) => {
   if (!dateStr) return "";
   const [year, month, day] = dateStr.split("-");
   const namaBulan = [
-    "Januari", "Februari", "Maret", "April", "Mei", "Juni",
-    "Juli", "Agustus", "September", "Oktober", "November", "Desember"
+    "Januari",
+    "Februari",
+    "Maret",
+    "April",
+    "Mei",
+    "Juni",
+    "Juli",
+    "Agustus",
+    "September",
+    "Oktober",
+    "November",
+    "Desember",
   ];
   const monthIdx = parseInt(month, 10) - 1;
   return `${day} ${namaBulan[monthIdx]} ${year}`;
@@ -254,7 +441,7 @@ const fetchReport = async () => {
         gdgKode: selectedGudang.value,
       },
     });
-    allData.value = Array.isArray(res.data) ? res.data : (res.data.data || []);
+    allData.value = Array.isArray(res.data) ? res.data : res.data.data || [];
   } catch (error) {
     console.error("Gagal fetch laporan bahan penolong:", error);
     allData.value = [];
@@ -306,7 +493,11 @@ const exportToExcel = (dataToExport) => {
 
   const wsData = [
     [{ v: "LAPORAN STOK BAHAN PENOLONG", s: { font: { bold: true, sz: 14 } } }],
-    [{ v: `Periode : ${formatDateIndo(startDate.value)} s/d ${formatDateIndo(endDate.value)}` }],
+    [
+      {
+        v: `Periode : ${formatDateIndo(startDate.value)} s/d ${formatDateIndo(endDate.value)}`,
+      },
+    ],
     [{ v: `Gudang  : ${selectedGudangNama.value} (${selectedGudang.value})` }],
     [],
   ];
@@ -317,12 +508,19 @@ const exportToExcel = (dataToExport) => {
     { v: "NAMA BAHAN", s: styleHeaderMain },
     { v: "JENIS", s: styleHeaderMain },
     { v: "STATUS", s: styleHeaderMain },
-    { v: "SPESIFIKASI", s: styleHeaderMain }, "", "",
-    { v: "STOCK AWAL", s: styleHeaderMain }, "",
-    { v: "TERIMA", s: styleHeaderMain }, "",
-    { v: "KELUAR", s: styleHeaderMain }, "",
-    { v: "RETUR / SISA", s: styleHeaderMain }, "",
-    { v: "STOCK AKHIR", s: styleHeaderMain }, "",
+    { v: "SPESIFIKASI", s: styleHeaderMain },
+    "",
+    "",
+    { v: "STOCK AWAL", s: styleHeaderMain },
+    "",
+    { v: "TERIMA", s: styleHeaderMain },
+    "",
+    { v: "KELUAR", s: styleHeaderMain },
+    "",
+    { v: "RETUR / SISA", s: styleHeaderMain },
+    "",
+    { v: "STOCK AKHIR", s: styleHeaderMain },
+    "",
   ];
 
   headerRow1.forEach((cell, idx) => {
@@ -360,50 +558,126 @@ const exportToExcel = (dataToExport) => {
       { v: row.jb_nama || "-", s: styleDataCell },
       { v: row.status || "-", s: styleDataCell },
 
-      { v: num(row.Lebar), t: "n", z: "#,##0.00", s: { ...styleDataCell, alignment: { horizontal: "right" } } },
-      { v: num(row.Panjang), t: "n", z: "#,##0.00", s: { ...styleDataCell, alignment: { horizontal: "right" } } },
-      { v: num(row.m2), t: "n", z: "#,##0.00", s: { ...styleDataCell, alignment: { horizontal: "right" } } },
+      {
+        v: num(row.Lebar),
+        t: "n",
+        z: "#,##0.00",
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+      },
+      {
+        v: num(row.Panjang),
+        t: "n",
+        z: "#,##0.00",
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+      },
+      {
+        v: num(row.m2),
+        t: "n",
+        z: "#,##0.00",
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+      },
 
-      { v: num(row.stok_awal_q), t: "n", z: "#,##0", s: { ...styleDataCell, alignment: { horizontal: "center" } } },
-      { v: num(row.stok_awal_m), t: "n", z: "#,##0.00", s: { ...styleDataCell, alignment: { horizontal: "right" } } },
+      {
+        v: num(row.stok_awal_q),
+        t: "n",
+        z: "#,##0",
+        s: { ...styleDataCell, alignment: { horizontal: "center" } },
+      },
+      {
+        v: num(row.stok_awal_m),
+        t: "n",
+        z: "#,##0.00",
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+      },
 
-      { v: num(row.terima_q), t: "n", z: "#,##0", s: { ...styleDataCell, alignment: { horizontal: "center" } } },
-      { v: num(row.terima_m), t: "n", z: "#,##0.00", s: { ...styleDataCell, alignment: { horizontal: "right" } } },
+      {
+        v: num(row.terima_q),
+        t: "n",
+        z: "#,##0",
+        s: { ...styleDataCell, alignment: { horizontal: "center" } },
+      },
+      {
+        v: num(row.terima_m),
+        t: "n",
+        z: "#,##0.00",
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+      },
 
-      { v: num(row.keluar_q), t: "n", z: "#,##0", s: { ...styleDataCell, alignment: { horizontal: "center" } } },
-      { v: num(row.keluar_m), t: "n", z: "#,##0.00", s: { ...styleDataCell, alignment: { horizontal: "right" } } },
+      {
+        v: num(row.keluar_q),
+        t: "n",
+        z: "#,##0",
+        s: { ...styleDataCell, alignment: { horizontal: "center" } },
+      },
+      {
+        v: num(row.keluar_m),
+        t: "n",
+        z: "#,##0.00",
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+      },
 
-      { v: num(row.retur_q), t: "n", z: "#,##0", s: { ...styleDataCell, alignment: { horizontal: "center" } } },
-      { v: num(row.retur_m), t: "n", z: "#,##0.00", s: { ...styleDataCell, alignment: { horizontal: "right" } } },
+      {
+        v: num(row.retur_q),
+        t: "n",
+        z: "#,##0",
+        s: { ...styleDataCell, alignment: { horizontal: "center" } },
+      },
+      {
+        v: num(row.retur_m),
+        t: "n",
+        z: "#,##0.00",
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+      },
 
-      { v: num(row.stok_akhir_q), t: "n", z: "#,##0", s: { ...styleDataCell, alignment: { horizontal: "center" } } },
-      { v: num(row.stok_akhir_m), t: "n", z: "#,##0.00", s: { ...styleDataCell, alignment: { horizontal: "right" } } },
+      {
+        v: num(row.stok_akhir_q),
+        t: "n",
+        z: "#,##0",
+        s: { ...styleDataCell, alignment: { horizontal: "center" } },
+      },
+      {
+        v: num(row.stok_akhir_m),
+        t: "n",
+        z: "#,##0.00",
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+      },
     ]);
   });
 
   // Footer Totals
-  const totals = dataToExport.reduce((acc, row) => {
-    acc.stok_awal_q += num(row.stok_awal_q);
-    acc.stok_awal_m += num(row.stok_awal_m);
-    acc.terima_q += num(row.terima_q);
-    acc.terima_m += num(row.terima_m);
-    acc.keluar_q += num(row.keluar_q);
-    acc.keluar_m += num(row.keluar_m);
-    acc.retur_q += num(row.retur_q);
-    acc.retur_m += num(row.retur_m);
-    acc.stok_akhir_q += num(row.stok_akhir_q);
-    acc.stok_akhir_m += num(row.stok_akhir_m);
-    return acc;
-  }, {
-    stok_awal_q: 0, stok_awal_m: 0,
-    terima_q: 0, terima_m: 0,
-    keluar_q: 0, keluar_m: 0,
-    retur_q: 0, retur_m: 0,
-    stok_akhir_q: 0, stok_akhir_m: 0
-  });
+  const totals = dataToExport.reduce(
+    (acc, row) => {
+      acc.stok_awal_q += num(row.stok_awal_q);
+      acc.stok_awal_m += num(row.stok_awal_m);
+      acc.terima_q += num(row.terima_q);
+      acc.terima_m += num(row.terima_m);
+      acc.keluar_q += num(row.keluar_q);
+      acc.keluar_m += num(row.keluar_m);
+      acc.retur_q += num(row.retur_q);
+      acc.retur_m += num(row.retur_m);
+      acc.stok_akhir_q += num(row.stok_akhir_q);
+      acc.stok_akhir_m += num(row.stok_akhir_m);
+      return acc;
+    },
+    {
+      stok_awal_q: 0,
+      stok_awal_m: 0,
+      terima_q: 0,
+      terima_m: 0,
+      keluar_q: 0,
+      keluar_m: 0,
+      retur_q: 0,
+      retur_m: 0,
+      stok_akhir_q: 0,
+      stok_akhir_m: 0,
+    },
+  );
 
   const footerRow = [
-    { v: "TOTAL KESELURUHAN", s: { ...styleFooterCell, alignment: { horizontal: "center" } } },
+    {
+      v: "TOTAL KESELURUHAN",
+      s: { ...styleFooterCell, alignment: { horizontal: "center" } },
+    },
     { v: "", s: styleFooterCell },
     { v: "", s: styleFooterCell },
     { v: "", s: styleFooterCell },
@@ -411,20 +685,70 @@ const exportToExcel = (dataToExport) => {
     { v: "", s: styleFooterCell },
     { v: "", s: styleFooterCell },
 
-    { v: totals.stok_awal_q, t: "n", z: "#,##0", s: { ...styleFooterCell, alignment: { horizontal: "center" } } },
-    { v: totals.stok_awal_m, t: "n", z: "#,##0.00", s: { ...styleFooterCell, alignment: { horizontal: "right" } } },
+    {
+      v: totals.stok_awal_q,
+      t: "n",
+      z: "#,##0",
+      s: { ...styleFooterCell, alignment: { horizontal: "center" } },
+    },
+    {
+      v: totals.stok_awal_m,
+      t: "n",
+      z: "#,##0.00",
+      s: { ...styleFooterCell, alignment: { horizontal: "right" } },
+    },
 
-    { v: totals.terima_q, t: "n", z: "#,##0", s: { ...styleFooterCell, alignment: { horizontal: "center" } } },
-    { v: totals.terima_m, t: "n", z: "#,##0.00", s: { ...styleFooterCell, alignment: { horizontal: "right" } } },
+    {
+      v: totals.terima_q,
+      t: "n",
+      z: "#,##0",
+      s: { ...styleFooterCell, alignment: { horizontal: "center" } },
+    },
+    {
+      v: totals.terima_m,
+      t: "n",
+      z: "#,##0.00",
+      s: { ...styleFooterCell, alignment: { horizontal: "right" } },
+    },
 
-    { v: totals.keluar_q, t: "n", z: "#,##0", s: { ...styleFooterCell, alignment: { horizontal: "center" } } },
-    { v: totals.keluar_m, t: "n", z: "#,##0.00", s: { ...styleFooterCell, alignment: { horizontal: "right" } } },
+    {
+      v: totals.keluar_q,
+      t: "n",
+      z: "#,##0",
+      s: { ...styleFooterCell, alignment: { horizontal: "center" } },
+    },
+    {
+      v: totals.keluar_m,
+      t: "n",
+      z: "#,##0.00",
+      s: { ...styleFooterCell, alignment: { horizontal: "right" } },
+    },
 
-    { v: totals.retur_q, t: "n", z: "#,##0", s: { ...styleFooterCell, alignment: { horizontal: "center" } } },
-    { v: totals.retur_m, t: "n", z: "#,##0.00", s: { ...styleFooterCell, alignment: { horizontal: "right" } } },
+    {
+      v: totals.retur_q,
+      t: "n",
+      z: "#,##0",
+      s: { ...styleFooterCell, alignment: { horizontal: "center" } },
+    },
+    {
+      v: totals.retur_m,
+      t: "n",
+      z: "#,##0.00",
+      s: { ...styleFooterCell, alignment: { horizontal: "right" } },
+    },
 
-    { v: totals.stok_akhir_q, t: "n", z: "#,##0", s: { ...styleFooterCell, alignment: { horizontal: "center" } } },
-    { v: totals.stok_akhir_m, t: "n", z: "#,##0.00", s: { ...styleFooterCell, alignment: { horizontal: "right" } } },
+    {
+      v: totals.stok_akhir_q,
+      t: "n",
+      z: "#,##0",
+      s: { ...styleFooterCell, alignment: { horizontal: "center" } },
+    },
+    {
+      v: totals.stok_akhir_m,
+      t: "n",
+      z: "#,##0.00",
+      s: { ...styleFooterCell, alignment: { horizontal: "right" } },
+    },
   ];
   wsData.push(footerRow);
 
@@ -467,6 +791,21 @@ onMounted(fetchReport);
   font-size: 11px !important;
   white-space: nowrap !important;
 }
+
+:deep(.v-table__wrapper),
+:deep(.v-data-table__wrapper) {
+  max-height: calc(
+    100vh - 280px
+  ) !important; /* Sesuaikan tinggi agar muat di layar */
+  overflow-y: auto !important;
+  overflow-x: auto !important;
+}
+
+:deep(thead) {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 10 !important;
+}
 /* Gradasi Navy Utama untuk Header */
 .header-main th {
   background: linear-gradient(180deg, #142f7b 0%, #3b82f6 100%) !important;
@@ -505,8 +844,6 @@ onMounted(fetchReport);
   box-shadow: 4px 0px 6px -2px rgba(0, 0, 0, 0.15);
 }
 
-
-
 /* Memastikan background Body Data pada Sticky Column tetap Putih Bersih */
 tbody td.sticky-col-1,
 tbody td.sticky-col-2 {
@@ -528,12 +865,29 @@ tbody td.sticky-col-2 {
   display: inline-block;
 }
 
-.badge-fast { background-color: #dcfce7; color: #15803d; }
-.badge-slow { background-color: #fef3c7; color: #b45309; }
-.col-stok-akhir { background-color: #f8fafc; color: #0369a1 !important; }
+.badge-fast {
+  background-color: #dcfce7;
+  color: #15803d;
+}
+.badge-slow {
+  background-color: #fef3c7;
+  color: #b45309;
+}
+.col-stok-akhir {
+  background-color: #f8fafc;
+  color: #0369a1 !important;
+}
 
-.border-l { border-left: 1px solid #cbd5e1 !important; }
-.border-r { border-right: 1px solid #cbd5e1 !important; }
-.border-sub-l { border-left: 1px solid #60a5fa !important; }
-.border-sub-r { border-right: 1px solid #60a5fa !important; }
+.border-l {
+  border-left: 1px solid #cbd5e1 !important;
+}
+.border-r {
+  border-right: 1px solid #cbd5e1 !important;
+}
+.border-sub-l {
+  border-left: 1px solid #60a5fa !important;
+}
+.border-sub-r {
+  border-right: 1px solid #60a5fa !important;
+}
 </style>
