@@ -734,7 +734,7 @@ const formatPercent = (val, formatFn) => {
   return formatFn ? `${formatFn(val, 1)}%` : `${Number(val).toFixed(1)}%`;
 };
 
-// --- EXPORT TO EXCEL LENGKAP WITH NUMBER FORMAT & RUMUS SUM ---
+// --- EXPORT TO EXCEL LENGKAP WITH NUMBER FORMAT & RUMUS SUM ----
 const exportToExcel = (dataToExport) => {
   if (!dataToExport || dataToExport.length === 0) {
     alert("Tidak ada data untuk diekspor");
@@ -770,20 +770,20 @@ const exportToExcel = (dataToExport) => {
   };
 
   const styleGrandTotalCell = {
-    fill: { fgColor: { rgb: "E2E8F0" } },
+    fill: { fgColor: { rgb: "CBD5E1" } }, // Background abu-abu tebal
     font: { bold: true, sz: 10, color: { rgb: "0F172A" } },
     alignment: { vertical: "center", horizontal: "center" },
     border: thinBorder,
   };
 
   const styleGrandTotalCellRight = {
-    fill: { fgColor: { rgb: "E2E8F0" } },
+    fill: { fgColor: { rgb: "CBD5E1" } },
     font: { bold: true, sz: 9, color: { rgb: "0F172A" } },
     alignment: { vertical: "center", horizontal: "right" },
     border: thinBorder,
   };
 
-  // Helper agar Excel mengenali Angka sebagai Tipe Number Murni (dapat di-SUM di Excel)
+  // Helper agar Excel mengenali Angka sebagai Tipe Number Murni
   const cellNum = (val, fmt = "#,##0.0") => {
     const v = Number(val);
     if (
@@ -812,12 +812,12 @@ const exportToExcel = (dataToExport) => {
     return { v: v / 100, t: "n", z: "0.0%", s: styleDataCellRight };
   };
 
-  const cellFormula = (formula, fmt = "#,##0.0", isBold = false) => {
+  const cellFormula = (formula, fmt = "#,##0.0") => {
     return {
       f: formula,
       t: "n",
       z: fmt,
-      s: isBold ? styleGrandTotalCellRight : styleDataCellRight,
+      s: styleGrandTotalCellRight,
     };
   };
 
@@ -944,10 +944,10 @@ const exportToExcel = (dataToExport) => {
     { v: "K", s: styleHeaderMain },
   ]);
 
-  const startRowExcel = 6;
-  const endRowExcel = startRowExcel + dataToExport.length - 1;
+  const startRowExcel = 6; // Baris awal data di Excel
+  const endRowExcel = startRowExcel + dataToExport.length - 1; // Baris akhir data di Excel
 
-  // ISI DATA (Set sebagai Number & Apply Format Number Excel)
+  // ISI DATA
   dataToExport.forEach((row) => {
     wsData.push([
       {
@@ -1020,7 +1020,9 @@ const exportToExcel = (dataToExport) => {
     ]);
   });
 
-  // BARIS KESELURUHAN / GRAND TOTAL DI EXCEL (DENGAN RUMUS EXCEL SUM / RATIO)
+  // =========================================================
+  // PENAMBAHAN BARIS GRAND TOTAL PADA EXCEL DENGAN RUMUS SUM
+  // =========================================================
   const grandTotalRowIndex = wsData.length + 1;
   const colLetter = (colIdx) => XLSX.utils.encode_col(colIdx);
 
@@ -1033,49 +1035,49 @@ const exportToExcel = (dataToExport) => {
   wsData.push([
     { v: "GRAND TOTAL", s: styleGrandTotalCell },
     { v: "", s: styleGrandTotalCell },
-    cellFormula(getSumFormula(2), "#,##0.00", true), // C
-    cellFormula(getSumFormula(3), "#,##0.00", true), // D
+    cellFormula(getSumFormula(2), "#,##0.00"), // C: S1,2
+    cellFormula(getSumFormula(3), "#,##0.00"), // D: S3,4
     { v: "-", s: styleGrandTotalCellRight },
-    cellFormula(getSumFormula(5), "#,##0.0", true), // F: Toleransi M2
-    cellFormula(getRatioFormula(5, 15), "0.0%", true), // G: Toleransi %
-    { v: "-", s: styleGrandTotalCell },
-    { v: "-", s: styleGrandTotalCell },
-    { v: "-", s: styleGrandTotalCellRight },
-    { v: "-", s: styleGrandTotalCellRight },
-    { v: "-", s: styleGrandTotalCell },
-    { v: "-", s: styleGrandTotalCellRight },
-    { v: "-", s: styleGrandTotalCellRight },
-    cellFormula(getSumFormula(14), "#,##0", true), // O: Order Pcs
-    cellFormula(getSumFormula(15), "#,##0.0", true), // P: Order Luas
-    cellFormula(getSumFormula(16), "#,##0.0", true), // Q: Hasil P.Roll
-    cellFormula(getSumFormula(17), "#,##0", true), // R: Hasil Qty
-    cellFormula(getSumFormula(18), "#,##0.0", true), // S: Hasil Luas
-    cellFormula(getSumFormula(19), "#,##0.0", true), // T: Ambil P
-    { v: "-", s: styleGrandTotalCellRight },
-    cellFormula(getSumFormula(21), "#,##0.0", true), // V: Ambil Luas
-    cellFormula(getSumFormula(22), "#,##0.0", true), // W: Sisa Bisa Pakai P
-    { v: "-", s: styleGrandTotalCellRight },
-    cellFormula(getSumFormula(24), "#,##0.0", true), // Y: Sisa Bisa Pakai Luas
-    cellFormula(getSumFormula(25), "#,##0.0", true), // Z: Sisa Rongsok P
-    { v: "-", s: styleGrandTotalCellRight },
-    cellFormula(getSumFormula(27), "#,##0.0", true), // AB: Sisa Rongsok Luas
-    cellFormula(getSumFormula(28), "#,##0.0", true), // AC: Aktual Luas Pakai
-    cellFormula(getSumFormula(29), "#,##0.0", true), // AD: Waste M2
-    cellFormula(getRatioFormula(29, 15), "0.0%", true), // AE: Waste %
-    cellFormula(getSumFormula(31), "#,##0.0", true), // AF: Lost M2
-    cellFormula(getRatioFormula(31, 15), "0.0%", true), // AG: Lost %
-    cellFormula(getSumFormula(33), "#,##0.0", true), // AH: Total Waste M2
-    cellFormula(getRatioFormula(33, 15), "0.0%", true), // AI: Total Waste %
+    cellFormula(getSumFormula(5), "#,##0.0"), // F: Toleransi M2
+    cellFormula(getRatioFormula(5, 15), "0.0%"), // G: Toleransi % (vs Order Luas)
+    { v: "-", s: styleGrandTotalCell }, // Nama Order
+    { v: "-", s: styleGrandTotalCell }, // No SPK
+    { v: "-", s: styleGrandTotalCellRight }, // P
+    { v: "-", s: styleGrandTotalCellRight }, // L
+    { v: "-", s: styleGrandTotalCell }, // GSM
+    { v: "-", s: styleGrandTotalCellRight }, // Lebar
+    { v: "-", s: styleGrandTotalCellRight }, // P. Roll
+    cellFormula(getSumFormula(14), "#,##0"), // O: Order Pcs
+    cellFormula(getSumFormula(15), "#,##0.0"), // P: Order Luas
+    cellFormula(getSumFormula(16), "#,##0.0"), // Q: Hasil P.Roll
+    cellFormula(getSumFormula(17), "#,##0"), // R: Hasil Qty
+    cellFormula(getSumFormula(18), "#,##0.0"), // S: Hasil Luas
+    cellFormula(getSumFormula(19), "#,##0.0"), // T: Ambil P
+    { v: "-", s: styleGrandTotalCellRight }, // Ambil L
+    cellFormula(getSumFormula(21), "#,##0.0"), // V: Ambil Luas
+    cellFormula(getSumFormula(22), "#,##0.0"), // W: Sisa Bisa Pakai P
+    { v: "-", s: styleGrandTotalCellRight }, // Sisa Bisa Pakai L
+    cellFormula(getSumFormula(24), "#,##0.0"), // Y: Sisa Bisa Pakai Luas
+    cellFormula(getSumFormula(25), "#,##0.0"), // Z: Sisa Rongsok P
+    { v: "-", s: styleGrandTotalCellRight }, // Sisa Rongsok L
+    cellFormula(getSumFormula(27), "#,##0.0"), // AB: Sisa Rongsok Luas
+    cellFormula(getSumFormula(28), "#,##0.0"), // AC: Aktual Luas Pakai
+    cellFormula(getSumFormula(29), "#,##0.0"), // AD: Waste M2
+    cellFormula(getRatioFormula(29, 15), "0.0%"), // AE: Waste %
+    cellFormula(getSumFormula(31), "#,##0.0"), // AF: Lost M2
+    cellFormula(getRatioFormula(31, 15), "0.0%"), // AG: Lost %
+    cellFormula(getSumFormula(33), "#,##0.0"), // AH: Total Waste M2
+    cellFormula(getRatioFormula(33, 15), "0.0%"), // AI: Total Waste %
 
-    // Tinta SUM MT 02 - 05
+    // Tinta SUM MT 02 - 05 (16 Kolom)
     ...Array.from({ length: 16 }, (_, i) =>
-      cellFormula(getSumFormula(35 + i), "#,##0.0", true),
+      cellFormula(getSumFormula(35 + i), "#,##0.0"),
     ),
   ]);
 
   const ws = XLSX.utils.aoa_to_sheet(wsData);
 
-  // KONFIGURASI MERGE HEADER & GRAND TOTAL
+  // KONFIGURASI MERGE HEADER & MERGE KELOMPOK GRAND TOTAL
   ws["!merges"] = [
     { s: { r: 3, c: 0 }, e: { r: 4, c: 0 } },
     { s: { r: 3, c: 1 }, e: { r: 4, c: 1 } },
@@ -1097,12 +1099,12 @@ const exportToExcel = (dataToExport) => {
     { s: { r: 3, c: 43 }, e: { r: 3, c: 46 } },
     { s: { r: 3, c: 47 }, e: { r: 3, c: 50 } },
 
-    // Merge Label Grand Total (A & B)
+    // Merge Cell Label Grand Total (Kolom A & B)
     {
       s: { r: grandTotalRowIndex - 1, c: 0 },
       e: { r: grandTotalRowIndex - 1, c: 1 },
     },
-    // Merge Info SPK Grand Total (H & I)
+    // Merge Cell Info SPK Grand Total (Kolom H & I)
     {
       s: { r: grandTotalRowIndex - 1, c: 7 },
       e: { r: grandTotalRowIndex - 1, c: 8 },
