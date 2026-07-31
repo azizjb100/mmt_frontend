@@ -18,6 +18,17 @@
         <v-icon start size="14">mdi-pencil</v-icon> Ubah
       </v-btn>
 
+      <!-- TAMBAHAN TOMBOL ACC -->
+      <v-btn
+        size="x-small"
+        color="teal-darken-1"
+        :disabled="!isSingleSelected"
+        :loading="loading.acc"
+        @click="handleAcc"
+      >
+        <v-icon start size="14">mdi-check-decagram</v-icon> ACC
+      </v-btn>
+
       <v-divider vertical class="mx-2" />
 
       <v-btn
@@ -162,7 +173,13 @@ const selected = ref<any[]>([]);
 const expanded = ref<any[]>([]);
 const masterData = ref<any[]>([]);
 const details = ref<Record<string, any[]>>({});
-const loading = reactive({ master: false });
+
+// DIUBAH: Penambahan state loading untuk ACC
+const loading = reactive({
+  master: false,
+  acc: false,
+});
+
 const loadingDetails = ref<Set<string>>(new Set());
 
 const filters = reactive({
@@ -177,8 +194,6 @@ const masterHeaders = [
   { title: "Gudang", key: "Nama_Gudang", width: "120px" },
   { title: "Jenis", key: "Jenis", width: "90px" },
   { title: "Operator", key: "Operator", width: "110px" },
-
-  // --- TAMBAHAN BARU DI GRID UTAMA ---
   { title: "Barcode Roll", key: "Barcode_Roll", width: "130px" },
   { title: "P. Awal", key: "Panjang_Awal", align: "end", width: "90px" },
   { title: "P. Pakai", key: "Panjang_Terpakai", align: "end", width: "90px" },
@@ -189,7 +204,6 @@ const masterHeaders = [
     align: "end",
     width: "110px",
   },
-
   { title: "Keterangan", key: "Keterangan" },
 ];
 
@@ -267,6 +281,36 @@ const handleEdit = () => {
   });
 };
 
+// --- TAMBAHAN HANDLER BARU UNTUK PROSES ACC ---
+const handleAcc = async () => {
+  if (!selectedItem.value) return;
+
+  const result = await Swal.fire({
+    title: "Konfirmasi ACC LHK",
+    text: `Apakah Anda yakin ingin menyetujui (ACC) LHK Proof Nomor: ${selectedItem.value}?`,
+    icon: "question",
+    showCancelButton: true,
+    confirmButtonColor: "#00897B",
+    confirmButtonText: "Ya, ACC!",
+    cancelButtonText: "Batal",
+  });
+
+  if (result.isConfirmed) {
+    loading.acc = true;
+    try {
+      // Sesuaikan URL endpoint ini dengan backend Anda (misal: POST /mmt/lhk-proof/acc/:nomor)
+      await api.post(`/mmt/lhk-proof/acc/${selectedItem.value}`);
+      toast.success(`LHK ${selectedItem.value} berhasil di-ACC.`);
+      fetchMasterData();
+      selected.value = [];
+    } catch (e: any) {
+      toast.error(e?.response?.data?.message || "Gagal memproses ACC LHK.");
+    } finally {
+      loading.acc = false;
+    }
+  }
+};
+
 const handleDelete = async () => {
   if (!selectedItem.value) return;
 
@@ -302,7 +346,6 @@ const handlePrint = () => {
 const exportToExcel = async () => {
   loading.master = true;
   try {
-    // 1. Ambil detail data jika belum ter-cache
     for (const header of masterData.value) {
       if (
         !details.value[header.nomor] ||
@@ -323,14 +366,13 @@ const exportToExcel = async () => {
 
     const fileName = `LHK_Proof_MMT_${filters.startDate}_to_${filters.endDate}.xlsx`;
 
-    const num = (value) => {
+    const num = (value: any) => {
       const parsed = Number(value);
       return isNaN(parsed) ? 0 : parsed;
     };
 
-    // --- DEFINISI FORMAT STYLE DENGAN BACKGROUND BIRU MUDA & BORDER UTUH ---
     const styleHeaderMain = {
-      fill: { fgColor: { rgb: "B3E5FC" } }, // Biru Muda Cerah Sesuai Gambar Contoh
+      fill: { fgColor: { rgb: "B3E5FC" } },
       font: { bold: true, color: { rgb: "000000" }, sz: 10 },
       alignment: { horizontal: "center", vertical: "center", wrapText: true },
       border: {
@@ -344,7 +386,7 @@ const exportToExcel = async () => {
     const styleDataCell = {
       font: { sz: 10 },
       border: {
-        top: { style: "thin", color: { rgb: "000000" } }, // Garis Kisi Tabel Tipis Hitam Utuh
+        top: { style: "thin", color: { rgb: "000000" } },
         bottom: { style: "thin", color: { rgb: "000000" } },
         left: { style: "thin", color: { rgb: "000000" } },
         right: { style: "thin", color: { rgb: "000000" } },
@@ -364,12 +406,11 @@ const exportToExcel = async () => {
 
     const styleFooter = {
       ...styleDataCell,
-      fill: { fgColor: { rgb: "F0F4F8" } }, // Background Abu Terang Grand Total
+      fill: { fgColor: { rgb: "F0F4F8" } },
       font: { bold: true, sz: 10 },
     };
 
-    // Perbaikan: Hapus static typing ': string' agar aman di compiler Vite JS biasa
-    const formatTglManual = (dateStr) => {
+    const formatTglManual = (dateStr: string) => {
       if (!dateStr) return "-";
       try {
         if (dateStr.includes("-")) {
@@ -384,7 +425,7 @@ const exportToExcel = async () => {
       }
     };
 
-    const worksheetData = [];
+    const worksheetData: any[] = [];
     worksheetData.push([
       {
         v: "LAPORAN HASIL KERJA PROOF MMT",
@@ -399,7 +440,6 @@ const exportToExcel = async () => {
     ]);
     worksheetData.push([]);
 
-    // Tepat Mandatori 12 Kolom Header LHK Proofing
     const headersTable = [
       { v: "NOMOR LHK", s: styleHeaderMain },
       { v: "TANGGAL", s: styleHeaderMain },
@@ -416,7 +456,6 @@ const exportToExcel = async () => {
     ];
     worksheetData.push(headersTable);
 
-    // Variabel Akumulasi Angka Grand Total Bawah
     let grandTotalOrder = 0;
     let grandTotalProof = 0;
 
@@ -437,7 +476,6 @@ const exportToExcel = async () => {
           grandTotalProof += valProof;
 
           worksheetData.push([
-            // Lajur Master Dokumen LHK (Mengganti string kosong "" menjadi "-" pembatas ber-border)
             { v: isFirstRow ? header.nomor : "-", s: styleDataCellCenter },
             { v: isFirstRow ? tglHeader : "-", s: styleDataCellCenter },
             {
@@ -452,14 +490,10 @@ const exportToExcel = async () => {
               v: isFirstRow ? header.Keterangan || "-" : "-",
               s: styleDataCell,
             },
-
-            // Lajur Pecahan Item Transaksi Detail Proof
             { v: dtl.No_Urut || index + 1, s: styleDataCellCenter },
             { v: dtl.Nomor_SPK || "-", s: styleDataCellCenter },
             { v: dtl.Nama_SPK || "-", s: styleDataCell },
             { v: ukuranText, s: styleDataCellCenter },
-
-            // Perbaikan Letak Atribut 't' dan 'z' ke Root Objek Sel Numerik Detail
             { v: valOrder, t: "n", z: "#,##0", s: styleDataCellRight },
             { v: valProof, t: "n", z: "#,##0", s: styleDataCellRight },
             { v: dtl.Keterangan || "-", s: styleDataCell },
@@ -483,13 +517,12 @@ const exportToExcel = async () => {
       }
     });
 
-    // --- STRUKTUR GRAND TOTAL BAWAH DENGAN FULL KOTAK KISI GARIS ---
     const footerRow = [
       {
         v: "GRAND TOTAL",
         s: { ...styleFooter, alignment: { horizontal: "right" } },
       },
-      ...Array(8).fill({ v: "", s: styleFooter }), // Spacer kolom kosong indeks 1 s/d 8 ber-border kotak
+      ...Array(8).fill({ v: "", s: styleFooter }),
       {
         v: grandTotalOrder,
         t: "n",
@@ -508,7 +541,6 @@ const exportToExcel = async () => {
 
     const ws = XLSX.utils.aoa_to_sheet(worksheetData);
 
-    // Konfigurasi Merge (Judul atas & label GRAND TOTAL bawah dari kolom A s/d I)
     ws["!merges"] = [
       { s: { r: 0, c: 0 }, e: { r: 0, c: 11 } },
       {
