@@ -27,7 +27,6 @@
 
       <!-- NAVBAR MENU (Desktop Horizontal / Mobile Vertical Drawer) -->
       <ul class="navbar-menu" :class="{ 'is-mobile-open': isMobileMenuOpen }">
-        
         <!-- HEADER PROFILE UNTUK MOBILE (Hanya muncul di Android/Tab sesuai gambar) -->
         <li class="mobile-profile-header">
           <div class="mobile-avatar-circle" :class="userRoleConfig.color">
@@ -42,17 +41,14 @@
         <!-- LOOPING GROUP MENU UTAMA -->
         <li
           v-for="group in menuGroups"
-          v-show="group.items.some(i => !i.isDisabled)"
+          v-show="group.items.some((i) => !i.isDisabled)"
           :key="group.name"
           class="dropdown"
           :class="{ 'is-active': activeMenu === group.name }"
         >
           <a class="dropdown-toggle" @click.prevent="toggleMenu(group.name)">
             <span class="menu-title-wrapper">
-              <component
-                :is="getGroupIcon(group.name)"
-                class="menu-icon"
-              />
+              <component :is="getGroupIcon(group.name)" class="menu-icon" />
               {{ group.name }}
             </span>
             <component :is="IconChevronDown" class="arrow-icon" />
@@ -86,7 +82,11 @@
                     />
                     {{ item.name }}
                   </span>
-                  <span class="icon-arrow" :class="{ 'rotate': activeSubMenu === item.name }">»</span>
+                  <span
+                    class="icon-arrow"
+                    :class="{ rotate: activeSubMenu === item.name }"
+                    >»</span
+                  >
                 </a>
 
                 <span v-else class="disabled-link">
@@ -116,7 +116,12 @@
                         v-if="!subItem.isDisabled"
                         class="sub-dropdown-toggle level-4-toggle"
                         @mouseenter="activeSubLevel4 = subItem.name"
-                        @click.prevent.stop="activeSubLevel4 = activeSubLevel4 === subItem.name ? null : subItem.name"
+                        @click.prevent.stop="
+                          activeSubLevel4 =
+                            activeSubLevel4 === subItem.name
+                              ? null
+                              : subItem.name
+                        "
                       >
                         <span class="menu-title-wrapper">
                           <component
@@ -125,7 +130,11 @@
                           />
                           {{ subItem.name }}
                         </span>
-                        <span class="icon-arrow" :class="{ 'rotate': activeSubLevel4 === subItem.name }">»</span>
+                        <span
+                          class="icon-arrow"
+                          :class="{ rotate: activeSubLevel4 === subItem.name }"
+                          >»</span
+                        >
                       </a>
 
                       <span v-else class="disabled-link">
@@ -141,7 +150,10 @@
 
                       <!-- DROPDOWN LEVEL 4 -->
                       <ul
-                        v-if="!subItem.isDisabled && activeSubLevel4 === subItem.name"
+                        v-if="
+                          !subItem.isDisabled &&
+                          activeSubLevel4 === subItem.name
+                        "
                         class="sub-menu-popup level-4-popup shadow-md"
                       >
                         <li
@@ -237,7 +249,11 @@
 
         <!-- BOTTOM ACTION UNTUK MOBILE MENU (Ganti Password & Logout nempel di bawah drawer) -->
         <li class="mobile-actions-footer">
-          <router-link to="/file/ganti-password" class="mobile-foot-btn text-muted" @click="closeAllMenus">
+          <router-link
+            to="/file/ganti-password"
+            class="mobile-foot-btn text-muted"
+            @click="closeAllMenus"
+          >
             <component :is="IconLock" class="foot-icon" />
             <span>Ganti Password</span>
           </router-link>
@@ -250,14 +266,13 @@
 
       <!-- USER INFO DESKTOP (Aman & Tersembunyi di Mobile) -->
       <div class="navbar-user hide-mobile">
-        <div
-          class="user-profile-badge"
-          :class="userRoleConfig.color"
-        >
+        <div class="user-profile-badge" :class="userRoleConfig.color">
           <component :is="userRoleConfig.icon" class="role-icon" />
           <span class="user-welcome">
             Selamat datang,
-            <b class="font-semibold">{{ currentUser?.nmUser || "UserAdmin" }}</b>
+            <b class="font-semibold">{{
+              currentUser?.nmUser || "UserAdmin"
+            }}</b>
           </span>
         </div>
 
@@ -319,7 +334,9 @@ const activeSubLevel4 = ref<string | null>(null);
 const scrolled = ref(false);
 
 const isScrolled = computed(() => scrolled.value);
-const handleScroll = () => { scrolled.value = window.scrollY > 10; };
+const handleScroll = () => {
+  scrolled.value = window.scrollY > 10;
+};
 
 const handleLogout = () => {
   authStore.logout();
@@ -368,53 +385,201 @@ onUnmounted(() => {
 
 const getGroupIcon = (name: string) => {
   switch (name) {
-    case "File": return IconFolder;
-    case "Daftar": return IconLayoutList;
-    case "Spanduk": return IconSandbox;
-    case "Transaksi": return IconShoppingCart;
-    case "Laporan": return IconReport;
-    default: return IconSettings;
+    case "File":
+      return IconFolder;
+    case "Daftar":
+      return IconLayoutList;
+    case "Spanduk":
+      return IconSandbox;
+    case "Transaksi":
+      return IconShoppingCart;
+    case "Laporan":
+      return IconReport;
+    default:
+      return IconSettings;
   }
 };
 
 const getItemIcon = (name: string) => {
   if (name.includes("Bahan")) return IconTexture;
   if (name.includes("LHK") || name.includes("SPK")) return IconFileText;
-  if (name.includes("Lap.") || name.includes("Laporan")) return IconDeviceDesktopAnalytics;
+  if (name.includes("Lap.") || name.includes("Laporan"))
+    return IconDeviceDesktopAnalytics;
   if (name.includes("Garmen") || name.includes("Tekstil")) return IconShirt;
   if (name.includes("Finance") || name.includes("Invoice")) return IconReceipt;
   if (name.includes("Spare Part")) return IconTool;
   if (name.includes("Obat")) return IconFlask;
-  if (name.includes("User") || name.includes("Operator") || name.includes("Supplier")) return IconUsers;
+  if (
+    name.includes("User") ||
+    name.includes("Operator") ||
+    name.includes("Supplier")
+  )
+    return IconUsers;
   return IconSettings;
 };
 
 const userRoleConfig = computed(() => {
   const name = currentUser?.nmUser?.toUpperCase() || "";
   const bagian = currentUser?.bagian?.toUpperCase() || "";
-  if (name.includes("ADMIN") || name === "DEVELOPER") return { icon: IconShield, color: "role-admin" };
-  if (bagian === "MARKETING") return { icon: IconSpeakerphone, color: "role-marketing" };
-  if (bagian.includes("GUDANG")) return { icon: IconBuildingWarehouse, color: "role-warehouse" };
+  if (name.includes("ADMIN") || name === "DEVELOPER")
+    return { icon: IconShield, color: "role-admin" };
+  if (bagian === "MARKETING")
+    return { icon: IconSpeakerphone, color: "role-marketing" };
+  if (bagian.includes("GUDANG"))
+    return { icon: IconBuildingWarehouse, color: "role-warehouse" };
   return { icon: IconTie, color: "role-default" };
 });
 
 // data permissions & allMenuGroups tetap sama sesuai bawaan Anda...
 const rolePermissions = {
-  1: ["Daftar", "Daftar Permintaan Pembelian", "Purchase Request (PR)", "Penerimaan Bahan", "Permintaan Produksi", "Realisasi Produksi", "Surat Perintah Kerja (SPK)", "Planning Produksi", "Mutasi Bahan", "Stok Opname", "Retur Produksi", "STBJ", "Jadwal Kirim", "LHK", "LHK Cetak (Mesin)", "LHK Approval Cetak", "LHK Tekstil", "LHK Approval Tekstil", "LHK Finishing", "LHK Proof", "LHK Paperprint", "LHK Sublim", "Laporan", "Produksi MMT", "Stok & Bahan MMT", "Monitoring & Dokumen", "Lap. Monitoring Divisi", "LS Bahan Utama", "LS Bahan Penolong", "Kartu Stok Produksi", "Laporan SPK MMT", "Laporan LHK", "Lap. Monitoring Kurang Produksi MMT", "Lap. Pemakaian Bahan", "Lap. Mon BS", "Lap. Mon Cetak", "Lap. Mon Finishing", "Lap. Mon Tekstil", "Lap. Mon Proof", "Lap. Mon Sublim", "Lap. BS & Sisa Digital Printing"],
+  1: [
+    "Daftar",
+    "Daftar Permintaan Pembelian",
+    "Purchase Request (PR)",
+    "Penerimaan Bahan",
+    "Permintaan Produksi",
+    "Realisasi Produksi",
+    "Surat Perintah Kerja (SPK)",
+    "Planning Produksi",
+    "Mutasi Bahan",
+    "Stok Opname",
+
+    "Retur Beli",
+    "Retur Produksi",
+    "STBJ",
+    "Jadwal Kirim",
+    "LHK",
+    "LHK Cetak (Mesin)",
+    "LHK Approval Cetak",
+    "LHK Tekstil",
+    "LHK Approval Tekstil",
+    "LHK Finishing",
+    "LHK Proof",
+    "LHK Paperprint",
+    "LHK Sublim",
+    "Laporan",
+    "Produksi MMT",
+    "Stok & Bahan MMT",
+    "Monitoring & Dokumen",
+    "Lap. Monitoring Divisi",
+    "LS Bahan Utama",
+    "LS Bahan Penolong",
+    "Kartu Stok Produksi",
+    "Laporan SPK MMT",
+    "Laporan LHK",
+    "Lap. Monitoring Kurang Produksi MMT",
+    "Lap. Pemakaian Bahan",
+    "Lap. Mon BS",
+    "Lap. Mon Cetak",
+    "Lap. Mon Finishing",
+    "Lap. Mon Tekstil",
+    "Lap. Mon Proof",
+    "Lap. Mon Sublim",
+    "Lap. BS & Sisa Digital Printing",
+  ],
   2: ["File", "Ganti Password", "Customer", "Sales", "Laporan", "Penjualan"],
-  4: ["Daftar", "Daftar Permintaan Pembelian", "Purchase Request (PR)", "Penerimaan Bahan", "Permintaan Produksi", "Realisasi Produksi", "Stok Opname", "Koreksi Stok", "LHK", "LHK Cetak (Mesin)", "LHK Approval Cetak", "LHK Tekstil", "LHK Approval Tekstil", "LHK Finishing", "LHK Proof", "LHK Sublim", "LHK RTR", "Laporan", "Produksi MMT", "Stok & Bahan MMT", "Monitoring & Dokumen", "Lap. Monitoring Divisi", "LS Bahan Utama", "LS Bahan Penolong", "Kartu Stok Produksi", "Laporan SPK MMT", "Laporan LHK", "Lap. Monitoring Kurang Produksi MMT", "Lap. Pemakaian Bahan", "Lap. Mon Cetak", "Lap. Mon Finishing", "Lap. Mon Tekstil", "Lap. Mon Proof", "Lap. Mon Sublim", "Lap. BS & Sisa Digital Printing"]
+  4: [
+    "Daftar",
+    "Daftar Permintaan Pembelian",
+    "Purchase Request (PR)",
+    "Penerimaan Bahan",
+    "Permintaan Produksi",
+    "Realisasi Produksi",
+    "Stok Opname",
+    "Koreksi Stok",
+    "LHK",
+    "LHK Cetak (Mesin)",
+    "LHK Approval Cetak",
+    "LHK Tekstil",
+    "LHK Approval Tekstil",
+    "LHK Finishing",
+    "LHK Proof",
+    "LHK Sublim",
+    "LHK RTR",
+    "Laporan",
+    "Produksi MMT",
+    "Stok & Bahan MMT",
+    "Monitoring & Dokumen",
+    "Lap. Monitoring Divisi",
+    "LS Bahan Utama",
+    "LS Bahan Penolong",
+    "Kartu Stok Produksi",
+    "Laporan SPK MMT",
+    "Laporan LHK",
+    "Lap. Monitoring Kurang Produksi MMT",
+    "Lap. Pemakaian Bahan",
+    "Lap. Mon Cetak",
+    "Lap. Mon Finishing",
+    "Lap. Mon Tekstil",
+    "Lap. Mon Proof",
+    "Lap. Mon Sublim",
+    "Lap. BS & Sisa Digital Printing",
+  ],
 };
 
 const allMenuGroups = [
-  { name: "File", items: [{ name: "User", path: "/file/user" }, { name: "Identitas Perusahaan", path: "/file/perusahaan" }, { name: "Ganti Password", path: "/file/ganti-password" }] },
+  {
+    name: "File",
+    items: [
+      { name: "User", path: "/file/user" },
+      { name: "Identitas Perusahaan", path: "/file/perusahaan" },
+      { name: "Ganti Password", path: "/file/ganti-password" },
+    ],
+  },
   { name: "Daftar", items: [{ name: "Supplier", path: "/daftar/supplier" }] },
-  { name: "Spanduk", items: [{ name: "Penerimaan Bahan Penolong", path: "/spanduk/penerimaan-bahan-penolong" }] },
+  {
+    name: "Spanduk",
+    items: [
+      {
+        name: "Penerimaan Bahan Penolong",
+        path: "/spanduk/penerimaan-bahan-penolong",
+      },
+    ],
+  },
   {
     name: "Transaksi",
     items: [
-      { name: "Daftar", isSubGroup: true, items: [{ name: "Master Bahan", path: "/mmt/daftar/bahan" }, { name: "Mesin Produksi", path: "/mmt/daftar/mesin-produksi" }, { name: "Operator", path: "/mmt/daftar/operator" }, { name: "Bahan Sisa", path: "/mmt/daftar/bahan-sisa" }] },
-      { name: "Finance", isSubGroup: true, items: [{ name: "PO Bahan MMT", path: "/mmt/po-bahan-mmt" }, { name: "PO External MMT", path: "/mmt/po-external-mmt" }, { name: "Invoice", path: "/mmt/invoice" }, { name: "Retur Beli", path: "/mmt/retur-beli" }, { name: "Voucher Pelunasan", path: "/mmt/voucher-pembelian" }, { name: "Laporan Outstanding", path: "/laporan/mmt/lap-hutang" }] },
-      { name: "Bahan Baku & Produksi", isSubGroup: true, items: [{ name: "Daftar Permintaan Pembelian", path: "/mmt/pengajuan-permintaan" }, { name: "Purchase Request (PR)", path: "/mmt/permintaan-bahan" }, { name: "Penerimaan Bahan", path: "/mmt/penerimaan-bahan" }, { name: "Retur Produksi", path: "/mmt/retur-produksi" }, { name: "Retur Beli", path: "/mmt/retur-beli" }, { name: "Mutasi Bahan", path: "/mmt/mutasi-gudang" }, { name: "Koreksi Stok", path: "/mmt/koreksi-stok" }, { name: "Stok Opname", path: "/mmt/stok-opname" }, { name: "Permintaan Produksi", path: "/mmt/permintaan-produksi" }, { name: "Realisasi Produksi", path: "/mmt/realisasi-produksi" }] },
+      {
+        name: "Daftar",
+        isSubGroup: true,
+        items: [
+          { name: "Master Bahan", path: "/mmt/daftar/bahan" },
+          { name: "Mesin Produksi", path: "/mmt/daftar/mesin-produksi" },
+          { name: "Operator", path: "/mmt/daftar/operator" },
+          { name: "Bahan Sisa", path: "/mmt/daftar/bahan-sisa" },
+        ],
+      },
+      {
+        name: "Finance",
+        isSubGroup: true,
+        items: [
+          { name: "PO Bahan MMT", path: "/mmt/po-bahan-mmt" },
+          { name: "PO External MMT", path: "/mmt/po-external-mmt" },
+          { name: "Invoice", path: "/mmt/invoice" },
+          { name: "Retur Beli", path: "/mmt/retur-beli" },
+          { name: "Voucher Pelunasan", path: "/mmt/voucher-pembelian" },
+          { name: "Laporan Outstanding", path: "/laporan/mmt/lap-hutang" },
+        ],
+      },
+      {
+        name: "Bahan Baku & Produksi",
+        isSubGroup: true,
+        items: [
+          {
+            name: "Daftar Permintaan Pembelian",
+            path: "/mmt/pengajuan-permintaan",
+          },
+          { name: "Purchase Request (PR)", path: "/mmt/permintaan-bahan" },
+          { name: "Penerimaan Bahan", path: "/mmt/penerimaan-bahan" },
+          { name: "Retur Produksi", path: "/mmt/retur-produksi" },
+          { name: "Retur Beli", path: "/mmt/retur-beli" },
+          { name: "Mutasi Bahan", path: "/mmt/mutasi-gudang" },
+          { name: "Koreksi Stok", path: "/mmt/koreksi-stok" },
+          { name: "Stok Opname", path: "/mmt/stok-opname" },
+          { name: "Permintaan Produksi", path: "/mmt/permintaan-produksi" },
+          { name: "Realisasi Produksi", path: "/mmt/realisasi-produksi" },
+        ],
+      },
       { name: "Planning Produksi", path: "/mmt/planning-produksi" },
       { name: "Surat Perintah Kerja (SPK)", path: "/mmt/spk" },
       { name: "BS & Sisa Digital Print", path: "/mmt/bs-digital" },
@@ -422,30 +587,158 @@ const allMenuGroups = [
       { name: "STBJ", path: "/mmt/stbj" },
       { name: "Surat Jalan Approve", path: "/mmt/surat-jalan/approve" },
       { name: "Jadwal Kirim", path: "/mmt/jadwal-kirim" },
-      { name: "LHK", isSubGroup: true, items: [{ name: "LHK Cetak (Mesin)", path: "/mmt/lhk/cetak" }, { name: "LHK Approval Cetak", path: "/mmt/lhk/cetak-mmt" }, { name: "LHK Tekstil", path: "/mmt/lhk/tekstil" }, { name: "LHK Approval Tekstil", path: "/mmt/lhk/tekstil/approve" }, { name: "LHK Finishing", path: "/mmt/lhk/finishing" }, { name: "LHK Proof", path: "/mmt/lhk/proof" }, { name: "LHK Paperprint", path: "/mmt/lhk/paperprint" }, { name: "LHK Sublim", path: "/mmt/lhk/sublim" }, { name: "LHK Layout", path: "/mmt/lhk/layout" }] },
+      {
+        name: "LHK",
+        isSubGroup: true,
+        items: [
+          { name: "LHK Cetak (Mesin)", path: "/mmt/lhk/cetak" },
+          { name: "LHK Approval Cetak", path: "/mmt/lhk/cetak-mmt" },
+          { name: "LHK Tekstil", path: "/mmt/lhk/tekstil" },
+          { name: "LHK Approval Tekstil", path: "/mmt/lhk/tekstil/approve" },
+          { name: "LHK Finishing", path: "/mmt/lhk/finishing" },
+          { name: "LHK Proof", path: "/mmt/lhk/proof" },
+          { name: "LHK Paperprint", path: "/mmt/lhk/paperprint" },
+          { name: "LHK Sublim", path: "/mmt/lhk/sublim" },
+          { name: "LHK Layout", path: "/mmt/lhk/layout" },
+        ],
+      },
       { name: "Mutasi Internal", path: "/mmt/mutasi-internal" },
-      { name: "Penerimaan PO External", path: "/mmt/penerimaan-po-external" }
-    ]
+      { name: "Penerimaan PO External", path: "/mmt/penerimaan-po-external" },
+    ],
   },
   {
     name: "Laporan",
     items: [
-      { name: "Garmen", isSubGroup: true, items: [{ name: "Mutasi Bahan", path: "/laporan/garmen/mutasi-bahan" }, { name: "Kartu Stok Bahan Baku", path: "/laporan/garmen/kartu-stok-bahan" }, { name: "Stok Barang", path: "/laporan/garmen/stok-barang" }, { name: "SPK vs STBJ vs SJ", path: "/laporan/garmen/spk-stbj-sj" }, { name: "Proses Produksi", path: "/laporan/garmen/proses-produksi" }, { name: "Lap Outstanding SPK", path: "/laporan/garmen/outstanding-spk" }] },
-      { name: "Penjualan", isSubGroup: true, items: [{ name: "Penawaran vs SPK", path: "/laporan/penjualan/penawaran-vs-spk" }, { name: "Realisasi Pengiriman SPK", path: "/laporan/penjualan/realisasi-kirim-spk" }, { name: "SPK vs SJ vs Invoice", path: "/laporan/penjualan/spk-sj-invoice" }, { name: "Rekap Penawaran", path: "/laporan/penjualan/rekap-penawaran" }] },
-      { name: "Hutang", isSubGroup: true, items: [{ name: "PPN Masukan", path: "/laporan/hutang/ppn-masukan" }, { name: "PO vs BPB", path: "/laporan/hutang/po-vs-bpb" }, { name: "Daftar Hutang", path: "/laporan/hutang/daftar-hutang" }, { name: "PO Bahan vs Realisasi", path: "/laporan/hutang/po-bahan-vs-realisasi" }] },
-      { name: "Piutang", isSubGroup: true, items: [{ name: "Rekap Mutasi Piutang", path: "/laporan/piutang/rekap-mutasi" }, { name: "Daftar Piutang", path: "/laporan/piutang/daftar-piutang" }, { name: "Saldo Piutang", path: "/laporan/piutang/saldo-piutang" }] },
-      { name: "Spanduk", isSubGroup: true, items: [{ name: "Laporan Persediaan", path: "/laporan/spanduk/persediaan" }, { name: "Laporan Kartu Stok", path: "/laporan/spanduk/kartu-stok" }, { name: "Laporan In Out Gudang", path: "/laporan/spanduk/in-out-gudang" }, { name: "Stok Barang Jadi", path: "/laporan/spanduk/stok-jadi" }] },
+      {
+        name: "Garmen",
+        isSubGroup: true,
+        items: [
+          { name: "Mutasi Bahan", path: "/laporan/garmen/mutasi-bahan" },
+          {
+            name: "Kartu Stok Bahan Baku",
+            path: "/laporan/garmen/kartu-stok-bahan",
+          },
+          { name: "Stok Barang", path: "/laporan/garmen/stok-barang" },
+          { name: "SPK vs STBJ vs SJ", path: "/laporan/garmen/spk-stbj-sj" },
+          { name: "Proses Produksi", path: "/laporan/garmen/proses-produksi" },
+          {
+            name: "Lap Outstanding SPK",
+            path: "/laporan/garmen/outstanding-spk",
+          },
+        ],
+      },
+      {
+        name: "Penjualan",
+        isSubGroup: true,
+        items: [
+          {
+            name: "Penawaran vs SPK",
+            path: "/laporan/penjualan/penawaran-vs-spk",
+          },
+          {
+            name: "Realisasi Pengiriman SPK",
+            path: "/laporan/penjualan/realisasi-kirim-spk",
+          },
+          {
+            name: "SPK vs SJ vs Invoice",
+            path: "/laporan/penjualan/spk-sj-invoice",
+          },
+          {
+            name: "Rekap Penawaran",
+            path: "/laporan/penjualan/rekap-penawaran",
+          },
+        ],
+      },
+      {
+        name: "Hutang",
+        isSubGroup: true,
+        items: [
+          { name: "PPN Masukan", path: "/laporan/hutang/ppn-masukan" },
+          { name: "PO vs BPB", path: "/laporan/hutang/po-vs-bpb" },
+          { name: "Daftar Hutang", path: "/laporan/hutang/daftar-hutang" },
+          {
+            name: "PO Bahan vs Realisasi",
+            path: "/laporan/hutang/po-bahan-vs-realisasi",
+          },
+        ],
+      },
+      {
+        name: "Piutang",
+        isSubGroup: true,
+        items: [
+          {
+            name: "Rekap Mutasi Piutang",
+            path: "/laporan/piutang/rekap-mutasi",
+          },
+          { name: "Daftar Piutang", path: "/laporan/piutang/daftar-piutang" },
+          { name: "Saldo Piutang", path: "/laporan/piutang/saldo-piutang" },
+        ],
+      },
+      {
+        name: "Spanduk",
+        isSubGroup: true,
+        items: [
+          { name: "Laporan Persediaan", path: "/laporan/spanduk/persediaan" },
+          { name: "Laporan Kartu Stok", path: "/laporan/spanduk/kartu-stok" },
+          {
+            name: "Laporan In Out Gudang",
+            path: "/laporan/spanduk/in-out-gudang",
+          },
+          { name: "Stok Barang Jadi", path: "/laporan/spanduk/stok-jadi" },
+        ],
+      },
       {
         name: "Produksi MMT",
         isSubGroup: true,
         items: [
-          { name: "Monitoring & Dokumen", isSubGroup: true, items: [{ name: "Lap. Monitoring Kurang Produksi MMT", path: "/laporan/mmt/lap-mon-lmkp-mmt" }, { name: "Lap. Mon BS", path: "/laporan/mmt/lap-mon-bs" }, { name: "Lap. Mon Cetak", path: "/laporan/mmt/lap-mon-cetak" }, { name: "Lap. Mon Finishing", path: "/laporan/mmt/lap-mon-finishing" }, { name: "Lap. Mon Tekstil", path: "/laporan/mmt/lap-mon-tekstil" }, { name: "Lap. Mon Proof", path: "/laporan/mmt/lap-mon-proof" }, { name: "Lap. Mon Sublim", path: "/laporan/mmt/lap-mon-sublim" }] },
-          { name: "LS Bahan Utama", path: "/laporan/mmt/ls-bahan-utama" }, { name: "LS Bahan Penolong", path: "/laporan/mmt/ls-bahan-penolong" }, { name: "Lap. Pemakaian Bahan", path: "/laporan/mmt/lap-pemakaian-bahan" }, { name: "Laporan SPK MMT", path: "/laporan/mmt/lap-spk-mmt" }, { name: "Laporan LHK", path: "/laporan/mmt/lap-lhk" }
-        ]
+          {
+            name: "Monitoring & Dokumen",
+            isSubGroup: true,
+            items: [
+              {
+                name: "Lap. Monitoring Kurang Produksi MMT",
+                path: "/laporan/mmt/lap-mon-lmkp-mmt",
+              },
+              { name: "Lap. Mon BS", path: "/laporan/mmt/lap-mon-bs" },
+              { name: "Lap. Mon Cetak", path: "/laporan/mmt/lap-mon-cetak" },
+              {
+                name: "Lap. Mon Finishing",
+                path: "/laporan/mmt/lap-mon-finishing",
+              },
+              {
+                name: "Lap. Mon Tekstil",
+                path: "/laporan/mmt/lap-mon-tekstil",
+              },
+              { name: "Lap. Mon Proof", path: "/laporan/mmt/lap-mon-proof" },
+              { name: "Lap. Mon Sublim", path: "/laporan/mmt/lap-mon-sublim" },
+            ],
+          },
+          { name: "LS Bahan Utama", path: "/laporan/mmt/ls-bahan-utama" },
+          { name: "LS Bahan Penolong", path: "/laporan/mmt/ls-bahan-penolong" },
+          {
+            name: "Lap. Pemakaian Bahan",
+            path: "/laporan/mmt/lap-pemakaian-bahan",
+          },
+          { name: "Laporan SPK MMT", path: "/laporan/mmt/lap-spk-mmt" },
+          { name: "Laporan LHK", path: "/laporan/mmt/lap-lhk" },
+        ],
       },
-      { name: "Marketing", isSubGroup: true, items: [{ name: "Target vs Realisasi", path: "/laporan/marketing/target-vs-realisasi" }, { name: "Proyeksi vs Realisasi", path: "/laporan/marketing/proyeksi-vs-realisasi" }] }
-    ]
-  }
+      {
+        name: "Marketing",
+        isSubGroup: true,
+        items: [
+          {
+            name: "Target vs Realisasi",
+            path: "/laporan/marketing/target-vs-realisasi",
+          },
+          {
+            name: "Proyeksi vs Realisasi",
+            path: "/laporan/marketing/proyeksi-vs-realisasi",
+          },
+        ],
+      },
+    ],
+  },
 ];
 
 const menuGroups = computed(() => {
@@ -465,10 +758,19 @@ const menuGroups = computed(() => {
                 ...deepItem,
                 isDisabled: !allowedTitles.includes(deepItem.name),
               }));
-              const anyDeepAllowed = subItem.items.some((deep: any) => !deep.isDisabled);
-              return { ...subItem, isDisabled: !anyDeepAllowed && !allowedTitles.includes(subItem.name) };
+              const anyDeepAllowed = subItem.items.some(
+                (deep: any) => !deep.isDisabled,
+              );
+              return {
+                ...subItem,
+                isDisabled:
+                  !anyDeepAllowed && !allowedTitles.includes(subItem.name),
+              };
             }
-            return { ...subItem, isDisabled: !allowedTitles.includes(subItem.name) };
+            return {
+              ...subItem,
+              isDisabled: !allowedTitles.includes(subItem.name),
+            };
           });
           const anySubAllowed = item.items.some((sub: any) => !sub.isDisabled);
           if (anySubAllowed) canAccess = true;
@@ -504,7 +806,8 @@ const menuGroups = computed(() => {
 }
 
 /* Sembunyikan elemen mobile secara default di desktop */
-.mobile-profile-header, .mobile-actions-footer {
+.mobile-profile-header,
+.mobile-actions-footer {
   display: none;
 }
 
@@ -592,7 +895,9 @@ const menuGroups = computed(() => {
   color: var(--color-primary);
 }
 
-.nav-icon, .menu-icon, .sub-menu-icon {
+.nav-icon,
+.menu-icon,
+.sub-menu-icon {
   width: 20px;
   height: 20px;
   stroke-width: 1.8;
@@ -757,10 +1062,22 @@ const menuGroups = computed(() => {
   height: 16px;
 }
 
-.role-admin { background-color: #fee2e2; color: #dc2626; }
-.role-marketing { background-color: #ffedd5; color: #ea580c; }
-.role-warehouse { background-color: #ccfbf1; color: #0d9488; }
-.role-default { background-color: #e0e7ff; color: #4f46e5; }
+.role-admin {
+  background-color: #fee2e2;
+  color: #dc2626;
+}
+.role-marketing {
+  background-color: #ffedd5;
+  color: #ea580c;
+}
+.role-warehouse {
+  background-color: #ccfbf1;
+  color: #0d9488;
+}
+.role-default {
+  background-color: #e0e7ff;
+  color: #4f46e5;
+}
 
 .logout-button {
   display: flex;
@@ -925,14 +1242,16 @@ const menuGroups = computed(() => {
     display: block;
   }
 
-  .dropdown-menu li a, .sub-dropdown-toggle {
+  .dropdown-menu li a,
+  .sub-dropdown-toggle {
     padding: 12px 16px;
     font-size: 0.9rem;
     background-color: transparent !important;
     color: var(--color-text-main) !important;
   }
-  
-  .dropdown-menu li a:hover, .is-sub-active > .sub-dropdown-toggle {
+
+  .dropdown-menu li a:hover,
+  .is-sub-active > .sub-dropdown-toggle {
     color: var(--color-primary) !important;
   }
 

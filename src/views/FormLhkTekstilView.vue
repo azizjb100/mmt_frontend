@@ -15,6 +15,7 @@ import {
   IconBarcode,
   IconRefresh,
   IconSparkles,
+  IconX,
 } from "@tabler/icons-vue";
 
 const toast = useToast();
@@ -22,9 +23,8 @@ const route = useRoute();
 const router = useRouter();
 
 const SCALE = 60; // Skala rendering layout canvas visual
-const formTitle = ref("LHK Produksi Tekstil (Combine SPK)");
 
-// 1. Initial Data state penampung sesuai standarisasi form Anda
+// 1. Initial Data state
 const initialData = {
   nomor: "AUTO",
   tanggal: format(new Date(), "yyyy-MM-dd"),
@@ -37,7 +37,7 @@ const initialData = {
   lebar_bahan: 0,
   panjang_bahan: 0, // Dalam satuan Yard dari DB
   sisa_panjang_manual: null as number | null,
-  panjang_bs: "" as any, // Ubah ke string kosong untuk mempermudah input manual desimal bertitik/berkoma
+  panjang_bs: "" as any,
   lebar_bs: "" as any,
   mesin_kode: "",
   mesin_nama: "",
@@ -67,15 +67,15 @@ const {
     const h = res.data.data.header;
     const details = res.data.data.details || [];
 
-    // Ambil nilai ltd_ambil_bahan dari detail pertama (karena nilainya konsisten per-roll LHK)
-    const ambilBahanFromDtl = details.length > 0 
-      ? parseFloat(details[0].ltd_ambil_bahan || details[0].Ambil_Bahan || 0) 
-      : 0;
+    const ambilBahanFromDtl =
+      details.length > 0
+        ? parseFloat(details[0].ltd_ambil_bahan || details[0].Ambil_Bahan || 0)
+        : 0;
 
-    // Ambil nilai sisa bahan tersimpan (Yard)
-    const sisaBahanFromDtl = details.length > 0 && details[0].sisabahan !== undefined
-      ? parseFloat(details[0].sisabahan)
-      : null;
+    const sisaBahanFromDtl =
+      details.length > 0 && details[0].sisabahan !== undefined
+        ? parseFloat(details[0].sisabahan)
+        : null;
 
     return {
       nomor: h.Nomor || h.lth_nomor,
@@ -100,16 +100,18 @@ const {
       mesin_kode: h.Mesin || h.Kode_Mesin || h.lth_mesin_kode || "",
       mesin_nama:
         h.Mesin || h.Nama_Mesin || h.mesin_nama || h.lth_mesin_nama || "",
-      
-      // Ambil sisa panjang manual/tersimpan jika ada
-      sisa_panjang_manual: sisaBahanFromDtl !== null ? sisaBahanFromDtl : (
-        h.sisa_panjang_manual !== undefined && h.sisa_panjang_manual !== null
-          ? parseFloat(h.sisa_panjang_manual)
-          : null
-      ),
 
-      // BINDING AMBIL BAHAN DARI DETAIL (ltd_ambil_bahan)
-      panjang_bahan: ambilBahanFromDtl || parseFloat(h.Panjang_Awal || h.lth_panjang_awal || 0),
+      sisa_panjang_manual:
+        sisaBahanFromDtl !== null
+          ? sisaBahanFromDtl
+          : h.sisa_panjang_manual !== undefined &&
+              h.sisa_panjang_manual !== null
+            ? parseFloat(h.sisa_panjang_manual)
+            : null,
+
+      panjang_bahan:
+        ambilBahanFromDtl ||
+        parseFloat(h.Panjang_Awal || h.lth_panjang_awal || 0),
       lebar_bahan: parseFloat(h.Lebar_Bahan || h.lth_lebar_bahan || 0),
 
       lstatus: h.lth_status || "DRAFT",
@@ -232,7 +234,6 @@ const handleMesinSelect = (mesin: any) => {
   toast.success(`Mesin ${formData.value.mesin_nama} dipilih`);
 };
 
-// SOLUSI MATEMATIS AKURAT: Pengamanan casting ketat desimal menggunakan parseFloat agar sinkron presisi
 const recalculateCombine = () => {
   let subtotalSistemSemuaBaris = 0;
 
@@ -257,7 +258,7 @@ const recalculateCombine = () => {
     d.kurangcetak = Math.max(0, (d.jumlah || 0) - d.total_pernah_cetak);
 
     const pSpk = parseFloat(d.panjang_spk as any) || 0;
-    const padM = parseFloat(d.padding as any) || 0; // Proteksi casting string-to-float
+    const padM = parseFloat(d.padding as any) || 0;
 
     subtotalSistemSemuaBaris += (pSpk + padM) * d.totalcetak;
   });
@@ -402,7 +403,6 @@ const rollStyle = computed(() => ({
   backgroundSize: `${SCALE}px 100%`,
 }));
 
-// Mengamankan pengetikan koma / titik desimal manual real-time pada data BS
 const handleBsInput = (event: any) => {
   let val = event.target.value;
   if (val.includes(",")) {
@@ -420,7 +420,6 @@ const handleBsLebarInput = (event: any) => {
   formData.value.lebar_bs = val;
 };
 
-// Mengamankan pengetikan desimal per baris padding di dalam tabel manksi-table
 const handlePaddingTableInput = (event: any, item: any) => {
   let val = event.target.value;
   if (val.includes(",")) {
@@ -430,18 +429,20 @@ const handlePaddingTableInput = (event: any, item: any) => {
   recalculateCombine();
 };
 
+// SCAN BARCODE DENGAN MENCEGAH SPASI/KARAKTER ANEH & VALIDASI GUDANG UTAMA
 const handleBarcodeScan = async () => {
-  const code = formData.value.barcode_input;
+  const rawCode = formData.value.barcode_input;
+  if (!rawCode) return;
 
-  if (!code) return;
-
-  // Pengecekan Regex Anti-Spasi
-  const regex = /^[a-zA-Z0-9-]+$/;
-  if (!regex.test(code)) {
+  // 1. Validasi karakter aneh (termasuk spasi tersembunyi/ekstra di awal/akhir/tengah)
+  const invalidCharRegex = /[/\s[\]\\{}()<>="'`]/;
+  if (invalidCharRegex.test(rawCode)) {
     toast.error("Format Barcode tidak valid! (Ada spasi atau karakter ilegal)");
     clearBahan();
     return;
   }
+
+  const code = rawCode.trim();
 
   try {
     const res = await api.get(`/mmt/stok-gudang/${code}`);
@@ -455,7 +456,8 @@ const handleBarcodeScan = async () => {
 
     const wrapperData = responsePayload.data;
     const info = wrapperData.data;
-    const statusGudang = wrapperData.status;
+    const statusGudang =
+      wrapperData.status || info?.Status_Gudang || info?.Gudang || "";
 
     if (!info) {
       toast.error("Detail data material kosong atau stok habis!");
@@ -463,7 +465,7 @@ const handleBarcodeScan = async () => {
       return;
     }
 
-    // CEK: Apakah roll ini sedang digunakan di LHK lain?
+    // 2. CEK: Apakah roll ini sedang digunakan di LHK lain?
     const lhkPengguna = info.lth_nomor || info.nomor_lhk || info.Lhk_Dipakai;
     if (lhkPengguna && lhkPengguna !== formData.value.nomor) {
       toast.error(
@@ -472,56 +474,49 @@ const handleBarcodeScan = async () => {
           timeout: 8000,
           closeOnClick: true,
           pauseOnHover: true,
-        }
+        },
       );
     }
 
-    // KONDISI A: Bahan Siap Cetak di Gudang Produksi (GPM)
-    if (statusGudang === "READY") {
+    // 3. CEK: Jika barang masih di Gudang Utama
+    const isGudangUtama =
+      statusGudang.toString().toUpperCase().includes("UTAMA") ||
+      statusGudang.toString().toUpperCase() === "WH-16" ||
+      statusGudang === "NEED_MUTATION";
+
+    if (isGudangUtama) {
       formData.value.brg_nama = info.Nama_Bahan || "";
       formData.value.brg_kode = info.Kode || "";
       formData.value.lebar_bahan = parseFloat(info.Lebar) || 0;
-      
-      // Jika mode EDIT, tetapkan panjang_bahan dari database (ltd_ambil_bahan) 
-      // yang sudah terisi di fetchApi jika barcode tidak diubah
+
       if (!isEditMode.value || !formData.value.panjang_bahan) {
         formData.value.panjang_bahan = parseFloat(info.Sisa_Panjang) || 0;
       }
-
-      formData.value.gdgKode = info.Kode_Gudang || "GPM";
-
-      recalculateCombine();
-      toast.success("Material Ready di Gudang Produksi (GPM)");
-    }
-
-    // KONDISI B: Bahan Masih di Gudang Utama (WH-16)
-    else if (statusGudang === "NEED_MUTATION") {
-      formData.value.brg_nama = info.Nama_Bahan || "";
-      formData.value.brg_kode = info.Kode || "";
-      formData.value.lebar_bahan = parseFloat(info.Lebar) || 0;
-      
-      if (!isEditMode.value || !formData.value.panjang_bahan) {
-        formData.value.panjang_bahan = parseFloat(info.Sisa_Panjang) || 0;
-      }
-
       formData.value.gdgKode = info.Kode_Gudang || "WH-16";
 
       recalculateCombine();
 
-      toast.error(
-        `⛔ BARANG MASIH DI GUDANG UTAMA (${info.Kode_Gudang})! Silakan lakukan proses MUTASI MASUK ke GPM terlebih dahulu.`,
-        {
-          timeout: 8000,
-          closeOnClick: true,
-          pauseOnHover: true,
-        }
-      );
+      toast.error("Masih di gudang Utama, Silahkan Mutasi Dulu!", {
+        timeout: 8000,
+        closeOnClick: true,
+        pauseOnHover: true,
+      });
+      return;
     }
-    // KONDISI C: Status tidak dikenal / NOT_FOUND
-    else {
-      toast.error("Barcode tidak tersedia atau sudah terpakai di LHK lain.");
-      clearBahan();
+
+    // KONDISI SIAP: Gudang Produksi (GPM)
+    formData.value.brg_nama = info.Nama_Bahan || "";
+    formData.value.brg_kode = info.Kode || "";
+    formData.value.lebar_bahan = parseFloat(info.Lebar) || 0;
+
+    if (!isEditMode.value || !formData.value.panjang_bahan) {
+      formData.value.panjang_bahan = parseFloat(info.Sisa_Panjang) || 0;
     }
+
+    formData.value.gdgKode = info.Kode_Gudang || "GPM";
+
+    recalculateCombine();
+    toast.success(`Barcode Roll ${code} berhasil dimuat Oke!`);
   } catch (e) {
     toast.error("Gagal memuat atau membaca data barcode");
     clearBahan();
@@ -535,37 +530,69 @@ const clearBahan = () => {
   formData.value.lebar_bahan = 0;
   formData.value.panjang_bahan = 0;
 };
-
 const handleSpkScan = async () => {
   const code = formData.value.barcode_spk?.trim();
   if (!code) return;
+
+  // Cek jika SPK sudah ada di tabel
   if (formData.value.details.some((d) => d.nomor_spk === code)) {
     toast.warning("SPK sudah ada di list.");
     formData.value.barcode_spk = "";
     return;
   }
+
   try {
     const res = await api.get(`/mmt/SPK/${code}`);
-    const spk = res.data.data || res.data;
+    // Antisipasi jika API mengembalikan array atau object
+    let spk = res.data?.data || res.data;
+    if (Array.isArray(spk)) {
+      spk = spk[0];
+    }
+
     if (spk) {
-      injectSpkObject(spk);
+      injectSpkObject(spk, code); // Kirimkan juga 'code' sebagai fallback nomor SPK
       formData.value.barcode_spk = "";
+    } else {
+      toast.error("Data SPK tidak ditemukan!");
     }
   } catch (e) {
     toast.error("Gagal memuat barcode SPK");
+    console.error("Error Scan SPK:", e);
   }
 };
 
-const injectSpkObject = (spk: any) => {
+const injectSpkObject = (spk: any, scannedCode?: string) => {
+  // Parsing nomor SPK dengan menangkap berbagai kemungkinan key dari API Backend
+  const nomorSpk =
+    spk.Nomor_SPK ||
+    spk.nomor_spk ||
+    spk.ltd_spk_nomor ||
+    spk.Spk ||
+    spk.Nomor ||
+    spk.spk_nomor ||
+    spk.Id ||
+    scannedCode ||
+    "";
+
+  const qtyOrder = parseInt(
+    spk.Jumlah_SPK || spk.Jumlah || spk.jumlah || spk.spk_qty || 0,
+  );
+  const sudahCetak = parseInt(
+    spk.Sudah_Cetak || spk.sudah_cetak || spk.spk_sudah_cetak || 0,
+  );
+  const kurangCetak = parseInt(
+    spk.Kurang_Cetak || spk.kurang_cetak || qtyOrder - sudahCetak,
+  );
+
   formData.value.details.push({
-    nomor_spk: spk.Spk || spk.nomor_spk || spk.Id,
-    nama_spk: spk.Nama || spk.nama || "No Name",
-    panjang_spk: parseFloat(spk.Panjang || 0),
-    lebar_spk: parseFloat(spk.Lebar || 0),
-    jumlah: parseInt(spk.Jumlah || 0),
-    sudahcetak: parseInt(spk.Sudah_Cetak || 0),
-    kurangcetak_asli: parseInt(spk.Kurang_Cetak || spk.Jumlah || 0),
-    padding: "0.03", // Default string untuk kenyamanan edit desimal
+    nomor_spk: nomorSpk,
+    nama_spk: spk.Nama_SPK || spk.Nama || spk.nama || spk.spk_nama || "No Name",
+    panjang_spk: parseFloat(spk.Panjang || spk.panjang || spk.spk_panjang || 0),
+    lebar_spk: parseFloat(spk.Lebar || spk.lebar || spk.spk_lebar || 0),
+    jumlah: qtyOrder,
+    sudahcetak: sudahCetak,
+    kurangcetak_asli: kurangCetak,
+    padding: "0.03",
     orientasi: "lebar",
     cetak1: 0,
     cetak2: 0,
@@ -575,8 +602,9 @@ const injectSpkObject = (spk: any) => {
     cetak6: 0,
     cetak7: 0,
     totalcetak: 0,
-    kurangcetak: parseInt(spk.Kurang_Cetak || 0),
+    kurangcetak: kurangCetak,
   });
+
   recalculateCombine();
 };
 
@@ -626,11 +654,64 @@ onMounted(async () => {
     v-model:showSaveDialog="showSaveDialog"
     v-model:showCancelDialog="showCancelDialog"
     v-model:showCloseDialog="showCloseDialog"
-    @validate-save="validateBeforeSave(formData.lstatus)"
     @confirm-save="executeSave"
     @confirm-cancel="executeCancel"
     @confirm-close="executeClose"
   >
+    <!-- HEADER ACTIONS SLOT (MENGGANTIKAN TOMBOL DEFAULT HEADER) -->
+    <template #header-actions>
+      <!-- Tombol Simpan Draft -->
+      <v-btn
+        size="small"
+        color="orange-darken-3"
+        variant="tonal"
+        class="mr-2"
+        :loading="isSaving"
+        @click="validateBeforeSave('DRAFT')"
+      >
+        <v-icon start size="16">mdi-content-save-edit-outline</v-icon>
+        Simpan Draft
+      </v-btn>
+
+      <!-- Tombol Simpan Posted -->
+      <v-btn
+        size="small"
+        color="primary"
+        variant="elevated"
+        class="mr-2"
+        :loading="isSaving"
+        @click="validateBeforeSave('POSTED')"
+      >
+        <v-icon start size="16">mdi-send-check-outline</v-icon>
+        Simpan Posted
+      </v-btn>
+
+      <!-- Tombol Batal -->
+      <v-btn
+        size="small"
+        variant="outlined"
+        class="mr-2"
+        @click="showCancelDialog = true"
+      >
+        Batal
+      </v-btn>
+
+      <!-- Tombol Tutup -->
+      <v-btn
+        size="small"
+        variant="tonal"
+        color="error"
+        @click="showCloseDialog = true"
+      >
+        <template #prepend>
+          <span class="d-flex align-center">
+            <IconX :size="15" :stroke-width="2" />
+          </span>
+        </template>
+        Tutup
+      </v-btn>
+    </template>
+
     <template #left-column>
       <div class="desktop-form-section header-section">
         <div class="text-caption font-weight-bold mb-3 text-primary">
@@ -756,31 +837,6 @@ onMounted(async () => {
           hide-details
           suffix="M"
         />
-
-        <v-row dense class="mt-4">
-          <v-col cols="6">
-            <v-btn
-              block
-              size="small"
-              color="orange-darken-3"
-              variant="tonal"
-              @click="validateBeforeSave('DRAFT')"
-            >
-              Set Draft
-            </v-btn>
-          </v-col>
-          <v-col cols="6">
-            <v-btn
-              block
-              size="small"
-              color="primary"
-              variant="elevated"
-              @click="validateBeforeSave('POSTED')"
-            >
-              Set Posted
-            </v-btn>
-          </v-col>
-        </v-row>
       </div>
     </template>
 
@@ -886,7 +942,7 @@ onMounted(async () => {
                       v-model.number="item['cetak' + n]"
                       class="cell-input tr font-weight-bold"
                       @input="recalculateCombine"
-                      @wheel="$event.target.blur()"
+                      @wheel="($event.target as HTMLInputElement)?.blur()"
                     />
                   </td>
 

@@ -207,7 +207,7 @@
           {{ formatVal(item.ambilP, formatNumber, 1) }}
         </td>
 
-        <!-- O-P: JUMLAH ORDER SPK (Ditampilkan '-' jika Anak SPK Gabungan) -->
+        <!-- O-P: JUMLAH ORDER SPK (Tampil '-' jika Anak SPK Gabungan) -->
         <td
           class="text-right bg-green-light"
           :class="{ 'text-red-bold': item.isLO }"
@@ -229,7 +229,7 @@
           }}
         </td>
 
-        <!-- Q-S: HASIL CETAK (Tetap Tampil di Anak SPK Gabungan, '-' di Baris Summary LO) -->
+        <!-- Q-S: HASIL CETAK (Tampil di Anak, '-' di Baris Summary LO) -->
         <td
           class="text-right bg-yellow-light"
           :class="{ 'text-red-bold': item.isLO }"
@@ -653,13 +653,13 @@ const totals = computed(() => {
     res.s34 += Number(r.s34) || 0;
     res.toleransiM2 += Number(r.toleransiM2) || 0;
 
-    // JUMLAH ORDER SPK: Hanya diakumulasi dari SPK Biasa + Baris Summary LO (Mengabaikan Anak SPK Gabungan)
+    // JUMLAH ORDER SPK: Hanya diakumulasi dari SPK Biasa + Baris Summary LO (Abaikan Anak SPK Gabungan)
     if (!isChild) {
       res.orderPcs += Number(r.orderPcs) || 0;
       res.orderLuas += Number(r.orderLuas) || 0;
     }
 
-    // HASIL CETAK: Hanya diakumulasi dari SPK Biasa + Anak SPK Gabungan (Mengabaikan Baris Summary LO)
+    // HASIL CETAK: Hanya diakumulasi dari SPK Biasa + Anak SPK Gabungan (Abaikan Baris Summary LO)
     if (!isLO) {
       res.hasilPRoll += Number(r.hasilPRoll) || 0;
       res.hasilQty += Number(r.hasilQty) || 0;
@@ -971,7 +971,7 @@ const exportToExcel = (dataToExport) => {
     { v: "K", s: styleHeaderMain },
   ]);
 
-  const startRowExcel = 6;
+  const startRowExcel = 6; // Baris awal isi data di Excel (A6)
   const endRowExcel = startRowExcel + dataToExport.length - 1;
 
   // MAP DATA KE BARIS EXCEL
@@ -1066,6 +1066,7 @@ const exportToExcel = (dataToExport) => {
   const getRatioFormula = (numColIdx, denColIdx) =>
     `IF(${colLetter(denColIdx)}${grandTotalRowIndex}>0, ${colLetter(numColIdx)}${grandTotalRowIndex}/${colLetter(denColIdx)}${grandTotalRowIndex}, 0)`;
 
+  // DORONG BARIS GRAND TOTAL KE DALAM ARRAY EXCEL DATA
   wsData.push([
     { v: "GRAND TOTAL", s: styleGrandTotalCell },
     { v: "", s: styleGrandTotalCell },
