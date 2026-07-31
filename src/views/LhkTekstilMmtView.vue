@@ -131,9 +131,9 @@
             </span>
           </template>
 
-          <template #item.cetak_meter="{ item }">
+          <template #item.jumlah_cetak="{ item }">
             <span :class="getRowTextColor(item)">
-              {{ formatMeter(Number(item.cetak_meter || 0)) }} m
+              {{ Math.round(Number(item.jumlah_cetak || 0)) }} pcs
             </span>
           </template>
 
@@ -146,25 +146,27 @@
             >
           </template>
 
-         <template #item.SisaMeterAkhir="{ item }">
-  <span>{{ (Number(item.SisaMeterAkhir || 0) * 0.9).toFixed(2) }}</span>
-</template>
+          <template #item.SisaMeterAkhir="{ item }">
+            <span>{{
+              (Number(item.SisaMeterAkhir || 0) * 0.9).toFixed(2)
+            }}</span>
+          </template>
 
-<template #item.status_bahan="{ item }">
-  <span
-    v-if="Number(item.SisaMeterAkhir || 0) * 0.9 < 0"
-    class="text-success font-weight-bold"
-  >
-    SURPLUS {{ Math.abs(Number(item.SisaMeterAkhir || 0) * 0.9).toFixed(2) }}m
-  </span>
+          <template #item.status_bahan="{ item }">
+            <span
+              v-if="Number(item.SisaMeterAkhir || 0) * 0.9 < 0"
+              class="text-success font-weight-bold"
+            >
+              SURPLUS
+              {{ Math.abs(Number(item.SisaMeterAkhir || 0) * 0.9).toFixed(2) }}m
+            </span>
 
-  <span
-    v-else-if="Number(item.SisaMeterAkhir || 0) * 0.9 > 0"
-    class="text-orange font-weight-bold"
-  >
-    SISA {{ (Number(item.SisaMeterAkhir || 0) * 0.9).toFixed(2) }}m
-  </span>
-
+            <span
+              v-else-if="Number(item.SisaMeterAkhir || 0) * 0.9 > 0"
+              class="text-orange font-weight-bold"
+            >
+              SISA {{ (Number(item.SisaMeterAkhir || 0) * 0.9).toFixed(2) }}m
+            </span>
 
             <span v-else class="text-grey font-weight-bold"> PAS </span>
           </template>
@@ -326,7 +328,7 @@ const masterHeaders = [
   { title: "Panjang", key: "spk_panjang", align: "end" },
   { title: "Lebar", key: "spk_lebar", align: "end" },
   { title: "Jml Order", key: "JumlahOrder", align: "end" },
-  { title: "Jml Cetak", key: "cetak_meter", align: "end" },
+  { title: "Jml Cetak", key: "jumlah_cetak", align: "end" },
   { title: "Bahan Awal", key: "PanjangBahanAwal", align: "end" },
   { title: "Sisa", key: "SisaMeterAkhir", align: "end" },
   { title: "Status Bahan", key: "status_bahan", align: "center" },
@@ -620,7 +622,7 @@ const exportToExcel = async () => {
             ? num(header.JumlahOrder)
             : 0;
           grandTotalCetakMeterMaster += isFirstRow
-            ? num(header.cetak_meter)
+            ? num(header.jumlah_meter)
             : 0;
           grandTotalQtyDetail += detailCetakQty;
 
@@ -669,7 +671,7 @@ const exportToExcel = async () => {
               : { v: "-", s: styleDataCellCenter },
             isFirstRow
               ? {
-                  v: num(header.cetak_meter),
+                  v: num(header.jumlah_cetak),
                   t: "n",
                   z: "#,##0.00",
                   s: styleDataCellRight,
@@ -711,7 +713,7 @@ const exportToExcel = async () => {
       } else {
         // Fallback jika tidak ada data sub-detail sama sekali
         grandTotalJumlahOrderMaster += num(header.JumlahOrder);
-        grandTotalCetakMeterMaster += num(header.cetak_meter);
+        grandTotalCetakMeterMaster += num(header.jumlah_cetak);
 
         worksheetData.push([
           { v: header.Nomor, s: styleDataCellCenter },
@@ -739,7 +741,7 @@ const exportToExcel = async () => {
             s: styleDataCellRight,
           },
           {
-            v: num(header.cetak_meter),
+            v: num(header.jumlah_cetak),
             t: "n",
             z: "#,##0.00",
             s: styleDataCellRight,

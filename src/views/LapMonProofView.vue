@@ -176,10 +176,10 @@ const columns = ref([
     width: 280,
   },
 
-  // Group UKURAN
+  // Group UKURAN (PERBAIKAN: field disesuaikan dengan response API)
   {
     label: "PANJANG",
-    field: "panjang",
+    field: "mspk_panjang", // <-- Diubah dari "panjang" ke "mspk_panjang"
     class: "text-right",
     type: "number",
     dec: 2,
@@ -188,7 +188,7 @@ const columns = ref([
   },
   {
     label: "LEBAR",
-    field: "lebar",
+    field: "mspk_lebar", // <-- Diubah dari "lebar" ke "mspk_lebar"
     class: "text-right",
     type: "number",
     dec: 2,
@@ -239,7 +239,7 @@ const columns = ref([
     width: 90,
   },
 
-  // Kolom Detil Dokumen Proofing Sisa
+  // Kolom Detil Dokumen Proofing
   {
     label: "TANGGAL PROOF",
     field: "lpr_tanggal",
@@ -255,6 +255,15 @@ const columns = ref([
     type: "string",
     group: "NONE",
     width: 150,
+  },
+  // PENAMBAHAN KOLOM MESIN PROOF
+  {
+    label: "MESIN PROOF",
+    field: "mesin_proof", // <-- Ditambahkan dari response API
+    class: "text-center",
+    type: "string",
+    group: "NONE",
+    width: 120,
   },
   {
     label: "JENIS BAHAN",

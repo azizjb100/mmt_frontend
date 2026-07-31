@@ -92,7 +92,7 @@
           </th>
         </tr>
 
-        <!-- Row 2: Sub Header (Detail Kolom A s/d AY) -->
+        <!-- Row 2: Sub Header -->
         <tr class="header-sub">
           <th class="text-right bg-orange-sub">S 1,2 (M)</th>
           <th class="text-right bg-orange-sub">S 3,4 (M)</th>
@@ -170,13 +170,13 @@
           {{ formatVal(item.s34, formatNumber, 2) }}
         </td>
         <td class="text-right" :class="{ 'text-red-bold': item.isLO }">
-          {{ formatPercent(item.persenToleransi, formatNumber) }}
+          {{ formatPercent(item.persenToleransi, formatNumber, 2) }}
         </td>
         <td class="text-right" :class="{ 'text-red-bold': item.isLO }">
-          {{ formatVal(item.toleransiM2, formatNumber, 1) }}
+          {{ formatVal(item.toleransiM2, formatNumber, 2) }}
         </td>
         <td class="text-right" :class="{ 'text-red-bold': item.isLO }">
-          {{ formatPercent(item.toleransiPersen, formatNumber) }}
+          {{ formatPercent(item.toleransiPersen, formatNumber, 2) }}
         </td>
 
         <!-- H-I: INFO SPK -->
@@ -201,13 +201,13 @@
           {{ item.gsm || "-" }}
         </td>
         <td class="text-right" :class="{ 'text-red-bold': item.isLO }">
-          {{ formatVal(item.ambilL, formatNumber, 1) }}
+          {{ formatVal(item.ambilL, formatNumber, 2) }}
         </td>
         <td class="text-right" :class="{ 'text-red-bold': item.isLO }">
-          {{ formatVal(item.ambilP, formatNumber, 1) }}
+          {{ formatVal(item.ambilP, formatNumber, 2) }}
         </td>
 
-        <!-- O-P: JUMLAH ORDER SPK (Tampil '-' jika Anak SPK Gabungan) -->
+        <!-- O-P: JUMLAH ORDER SPK -->
         <td
           class="text-right bg-green-light"
           :class="{ 'text-red-bold': item.isLO }"
@@ -225,16 +225,16 @@
           {{
             item.isGabunganChild
               ? "-"
-              : formatVal(item.orderLuas, formatNumber, 1)
+              : formatVal(item.orderLuas, formatNumber, 2)
           }}
         </td>
 
-        <!-- Q-S: HASIL CETAK (Tampil di Anak, '-' di Baris Summary LO) -->
+        <!-- Q-S: HASIL CETAK -->
         <td
           class="text-right bg-yellow-light"
           :class="{ 'text-red-bold': item.isLO }"
         >
-          {{ item.isLO ? "-" : formatVal(item.hasilPRoll, formatNumber, 1) }}
+          {{ item.isLO ? "-" : formatVal(item.hasilPRoll, formatNumber, 2) }}
         </td>
         <td
           class="text-right bg-yellow-light"
@@ -246,49 +246,49 @@
           class="text-right font-weight-bold bg-yellow-light"
           :class="{ 'text-red-bold': item.isLO }"
         >
-          {{ item.isLO ? "-" : formatVal(item.hasilLuas, formatNumber, 1) }}
+          {{ item.isLO ? "-" : formatVal(item.hasilLuas, formatNumber, 2) }}
         </td>
 
         <!-- T-V: AMBIL BAHAN -->
         <td class="text-right" :class="{ 'text-red-bold': item.isLO }">
-          {{ formatVal(item.ambilP, formatNumber, 1) }}
+          {{ formatVal(item.ambilP, formatNumber, 2) }}
         </td>
         <td class="text-right" :class="{ 'text-red-bold': item.isLO }">
-          {{ formatVal(item.ambilL, formatNumber, 1) }}
+          {{ formatVal(item.ambilL, formatNumber, 2) }}
         </td>
         <td
           class="text-right font-weight-bold bg-yellow-light"
           :class="{ 'text-red-bold': item.isLO }"
         >
-          {{ formatVal(item.ambilLuas, formatNumber, 1) }}
+          {{ formatVal(item.ambilLuas, formatNumber, 2) }}
         </td>
 
         <!-- W-Y: KEMBALIAN BISA PAKAI -->
         <td class="text-right" :class="{ 'text-red-bold': item.isLO }">
-          {{ formatVal(item.sisaBisaPakaiP, formatNumber, 1) }}
+          {{ formatVal(item.sisaBisaPakaiP, formatNumber, 2) }}
         </td>
         <td class="text-right" :class="{ 'text-red-bold': item.isLO }">
-          {{ formatVal(item.sisaBisaPakaiL, formatNumber, 1) }}
+          {{ formatVal(item.sisaBisaPakaiL, formatNumber, 2) }}
         </td>
         <td
           class="text-right font-weight-bold text-success"
           :class="{ 'text-red-bold': item.isLO }"
         >
-          {{ formatVal(item.sisaBisaPakaiLuas, formatNumber, 1) }}
+          {{ formatVal(item.sisaBisaPakaiLuas, formatNumber, 2) }}
         </td>
 
         <!-- Z-AB: KEMBALIAN TIDAK BISA PAKAI -->
         <td class="text-right" :class="{ 'text-red-bold': item.isLO }">
-          {{ formatVal(item.sisaRongsokP, formatNumber, 1) }}
+          {{ formatVal(item.sisaRongsokP, formatNumber, 2) }}
         </td>
         <td class="text-right" :class="{ 'text-red-bold': item.isLO }">
-          {{ formatVal(item.sisaRongsokL, formatNumber, 1) }}
+          {{ formatVal(item.sisaRongsokL, formatNumber, 2) }}
         </td>
         <td
           class="text-right font-weight-bold text-danger"
           :class="{ 'text-red-bold': item.isLO }"
         >
-          {{ formatVal(item.sisaRongsokLuas, formatNumber, 1) }}
+          {{ formatVal(item.sisaRongsokLuas, formatNumber, 2) }}
         </td>
 
         <!-- AC: AKTUAL LUAS PAKAI -->
@@ -296,91 +296,91 @@
           class="text-right font-weight-bold bg-blue-light"
           :class="{ 'text-red-bold': item.isLO }"
         >
-          {{ formatVal(item.aktualLuasPakai, formatNumber, 1) }}
+          {{ formatVal(item.aktualLuasPakai, formatNumber, 2) }}
         </td>
 
         <!-- AD-AI: TOTAL WASTE -->
         <td class="text-right" :class="{ 'text-red-bold': item.isLO }">
-          {{ formatVal(item.wasteM2, formatNumber, 1) }}
+          {{ formatVal(item.wasteM2, formatNumber, 2) }}
         </td>
         <td class="text-right" :class="{ 'text-red-bold': item.isLO }">
-          {{ formatPercent(item.wastePersen, formatNumber) }}
+          {{ formatPercent(item.wastePersen, formatNumber, 2) }}
         </td>
         <td class="text-right" :class="{ 'text-red-bold': item.isLO }">
-          {{ formatVal(item.lostM2, formatNumber, 1) }}
+          {{ formatVal(item.lostM2, formatNumber, 2) }}
         </td>
         <td class="text-right" :class="{ 'text-red-bold': item.isLO }">
-          {{ formatPercent(item.lostPersen, formatNumber) }}
+          {{ formatPercent(item.lostPersen, formatNumber, 2) }}
         </td>
         <td
           class="text-right font-weight-bold"
           :class="{ 'text-red-bold': item.isLO }"
         >
-          {{ formatVal(item.totalWasteM2, formatNumber, 1) }}
+          {{ formatVal(item.totalWasteM2, formatNumber, 2) }}
         </td>
         <td
           class="text-right font-weight-bold"
           :class="{ 'text-red-bold': item.isLO }"
         >
-          {{ formatPercent(item.totalWastePersen, formatNumber) }}
+          {{ formatPercent(item.totalWastePersen, formatNumber, 2) }}
         </td>
 
         <!-- AJ-AY: PENGGUNAAN TINTA -->
         <td class="text-right ink-c">
-          {{ formatVal(item.inkC_MT02, formatNumber, 1) }}
+          {{ formatVal(item.inkC_MT02, formatNumber, 2) }}
         </td>
         <td class="text-right ink-m">
-          {{ formatVal(item.inkM_MT02, formatNumber, 1) }}
+          {{ formatVal(item.inkM_MT02, formatNumber, 2) }}
         </td>
         <td class="text-right ink-y">
-          {{ formatVal(item.inkY_MT02, formatNumber, 1) }}
+          {{ formatVal(item.inkY_MT02, formatNumber, 2) }}
         </td>
         <td class="text-right ink-k">
-          {{ formatVal(item.inkK_MT02, formatNumber, 1) }}
+          {{ formatVal(item.inkK_MT02, formatNumber, 2) }}
         </td>
 
         <td class="text-right ink-c">
-          {{ formatVal(item.inkC_MT03, formatNumber, 1) }}
+          {{ formatVal(item.inkC_MT03, formatNumber, 2) }}
         </td>
         <td class="text-right ink-m">
-          {{ formatVal(item.inkM_MT03, formatNumber, 1) }}
+          {{ formatVal(item.inkM_MT03, formatNumber, 2) }}
         </td>
         <td class="text-right ink-y">
-          {{ formatVal(item.inkY_MT03, formatNumber, 1) }}
+          {{ formatVal(item.inkY_MT03, formatNumber, 2) }}
         </td>
         <td class="text-right ink-k">
-          {{ formatVal(item.inkK_MT03, formatNumber, 1) }}
+          {{ formatVal(item.inkK_MT03, formatNumber, 2) }}
         </td>
 
         <td class="text-right ink-c">
-          {{ formatVal(item.inkC_MT04, formatNumber, 1) }}
+          {{ formatVal(item.inkC_MT04, formatNumber, 2) }}
         </td>
         <td class="text-right ink-m">
-          {{ formatVal(item.inkM_MT04, formatNumber, 1) }}
+          {{ formatVal(item.inkM_MT04, formatNumber, 2) }}
         </td>
         <td class="text-right ink-y">
-          {{ formatVal(item.inkY_MT04, formatNumber, 1) }}
+          {{ formatVal(item.inkY_MT04, formatNumber, 2) }}
         </td>
         <td class="text-right ink-k">
-          {{ formatVal(item.inkK_MT04, formatNumber, 1) }}
+          {{ formatVal(item.inkK_MT04, formatNumber, 2) }}
         </td>
 
         <td class="text-right ink-c">
-          {{ formatVal(item.inkC_MT05, formatNumber, 1) }}
+          {{ formatVal(item.inkC_MT05, formatNumber, 2) }}
         </td>
         <td class="text-right ink-m">
-          {{ formatVal(item.inkM_MT05, formatNumber, 1) }}
+          {{ formatVal(item.inkM_MT05, formatNumber, 2) }}
         </td>
         <td class="text-right ink-y">
-          {{ formatVal(item.inkY_MT05, formatNumber, 1) }}
+          {{ formatVal(item.inkY_MT05, formatNumber, 2) }}
         </td>
         <td class="text-right ink-k">
-          {{ formatVal(item.inkK_MT05, formatNumber, 1) }}
+          {{ formatVal(item.inkK_MT05, formatNumber, 2) }}
         </td>
       </tr>
     </template>
 
-    <!-- BARIS GRAND TOTAL / KESELURUHAN PADA TABEL UI -->
+    <!-- BARIS GRAND TOTAL PADA TABEL UI -->
     <template #tfoot="{ formatNumber }">
       <tr class="grand-total-row font-weight-bold bg-grey-lighten-3">
         <td
@@ -395,10 +395,10 @@
         <td class="text-right">{{ formatVal(totals.s34, formatNumber, 2) }}</td>
         <td class="text-right">-</td>
         <td class="text-right">
-          {{ formatVal(totals.toleransiM2, formatNumber, 1) }}
+          {{ formatVal(totals.toleransiM2, formatNumber, 2) }}
         </td>
         <td class="text-right">
-          {{ formatPercent(totals.toleransiPersen, formatNumber) }}
+          {{ formatPercent(totals.toleransiPersen, formatNumber, 2) }}
         </td>
 
         <!-- H-I: INFO SPK -->
@@ -416,123 +416,123 @@
           {{ formatVal(totals.orderPcs, formatNumber, 0) }}
         </td>
         <td class="text-right">
-          {{ formatVal(totals.orderLuas, formatNumber, 1) }}
+          {{ formatVal(totals.orderLuas, formatNumber, 2) }}
         </td>
 
         <!-- Q-S: HASIL CETAK TOTAL -->
         <td class="text-right">
-          {{ formatVal(totals.hasilPRoll, formatNumber, 1) }}
+          {{ formatVal(totals.hasilPRoll, formatNumber, 2) }}
         </td>
         <td class="text-right">
           {{ formatVal(totals.hasilQty, formatNumber, 0) }}
         </td>
         <td class="text-right">
-          {{ formatVal(totals.hasilLuas, formatNumber, 1) }}
+          {{ formatVal(totals.hasilLuas, formatNumber, 2) }}
         </td>
 
         <!-- T-V: AMBIL BAHAN TOTAL -->
         <td class="text-right">
-          {{ formatVal(totals.ambilP, formatNumber, 1) }}
+          {{ formatVal(totals.ambilP, formatNumber, 2) }}
         </td>
         <td class="text-right">-</td>
         <td class="text-right">
-          {{ formatVal(totals.ambilLuas, formatNumber, 1) }}
+          {{ formatVal(totals.ambilLuas, formatNumber, 2) }}
         </td>
 
         <!-- W-Y: KEMBALIAN BISA PAKAI TOTAL -->
         <td class="text-right">
-          {{ formatVal(totals.sisaBisaPakaiP, formatNumber, 1) }}
+          {{ formatVal(totals.sisaBisaPakaiP, formatNumber, 2) }}
         </td>
         <td class="text-right">-</td>
         <td class="text-right text-success">
-          {{ formatVal(totals.sisaBisaPakaiLuas, formatNumber, 1) }}
+          {{ formatVal(totals.sisaBisaPakaiLuas, formatNumber, 2) }}
         </td>
 
         <!-- Z-AB: KEMBALIAN TIDAK BISA PAKAI TOTAL -->
         <td class="text-right">
-          {{ formatVal(totals.sisaRongsokP, formatNumber, 1) }}
+          {{ formatVal(totals.sisaRongsokP, formatNumber, 2) }}
         </td>
         <td class="text-right">-</td>
         <td class="text-right text-danger">
-          {{ formatVal(totals.sisaRongsokLuas, formatNumber, 1) }}
+          {{ formatVal(totals.sisaRongsokLuas, formatNumber, 2) }}
         </td>
 
         <!-- AC: AKTUAL LUAS PAKAI TOTAL -->
         <td class="text-right bg-blue-lighten-4">
-          {{ formatVal(totals.aktualLuasPakai, formatNumber, 1) }}
+          {{ formatVal(totals.aktualLuasPakai, formatNumber, 2) }}
         </td>
 
         <!-- AD-AI: TOTAL WASTE -->
         <td class="text-right">
-          {{ formatVal(totals.wasteM2, formatNumber, 1) }}
+          {{ formatVal(totals.wasteM2, formatNumber, 2) }}
         </td>
         <td class="text-right">
-          {{ formatPercent(totals.wastePersen, formatNumber) }}
+          {{ formatPercent(totals.wastePersen, formatNumber, 2) }}
         </td>
         <td class="text-right">
-          {{ formatVal(totals.lostM2, formatNumber, 1) }}
+          {{ formatVal(totals.lostM2, formatNumber, 2) }}
         </td>
         <td class="text-right">
-          {{ formatPercent(totals.lostPersen, formatNumber) }}
+          {{ formatPercent(totals.lostPersen, formatNumber, 2) }}
         </td>
         <td class="text-right">
-          {{ formatVal(totals.totalWasteM2, formatNumber, 1) }}
+          {{ formatVal(totals.totalWasteM2, formatNumber, 2) }}
         </td>
         <td class="text-right">
-          {{ formatPercent(totals.totalWastePersen, formatNumber) }}
+          {{ formatPercent(totals.totalWastePersen, formatNumber, 2) }}
         </td>
 
         <!-- AJ-AY: TINTA MT 02 - MT 05 TOTAL -->
         <td class="text-right">
-          {{ formatVal(totals.inkC_MT02, formatNumber, 1) }}
+          {{ formatVal(totals.inkC_MT02, formatNumber, 2) }}
         </td>
         <td class="text-right">
-          {{ formatVal(totals.inkM_MT02, formatNumber, 1) }}
+          {{ formatVal(totals.inkM_MT02, formatNumber, 2) }}
         </td>
         <td class="text-right">
-          {{ formatVal(totals.inkY_MT02, formatNumber, 1) }}
+          {{ formatVal(totals.inkY_MT02, formatNumber, 2) }}
         </td>
         <td class="text-right">
-          {{ formatVal(totals.inkK_MT02, formatNumber, 1) }}
-        </td>
-
-        <td class="text-right">
-          {{ formatVal(totals.inkC_MT03, formatNumber, 1) }}
-        </td>
-        <td class="text-right">
-          {{ formatVal(totals.inkM_MT03, formatNumber, 1) }}
-        </td>
-        <td class="text-right">
-          {{ formatVal(totals.inkY_MT03, formatNumber, 1) }}
-        </td>
-        <td class="text-right">
-          {{ formatVal(totals.inkK_MT03, formatNumber, 1) }}
+          {{ formatVal(totals.inkK_MT02, formatNumber, 2) }}
         </td>
 
         <td class="text-right">
-          {{ formatVal(totals.inkC_MT04, formatNumber, 1) }}
+          {{ formatVal(totals.inkC_MT03, formatNumber, 2) }}
         </td>
         <td class="text-right">
-          {{ formatVal(totals.inkM_MT04, formatNumber, 1) }}
+          {{ formatVal(totals.inkM_MT03, formatNumber, 2) }}
         </td>
         <td class="text-right">
-          {{ formatVal(totals.inkY_MT04, formatNumber, 1) }}
+          {{ formatVal(totals.inkY_MT03, formatNumber, 2) }}
         </td>
         <td class="text-right">
-          {{ formatVal(totals.inkK_MT04, formatNumber, 1) }}
+          {{ formatVal(totals.inkK_MT03, formatNumber, 2) }}
         </td>
 
         <td class="text-right">
-          {{ formatVal(totals.inkC_MT05, formatNumber, 1) }}
+          {{ formatVal(totals.inkC_MT04, formatNumber, 2) }}
         </td>
         <td class="text-right">
-          {{ formatVal(totals.inkM_MT05, formatNumber, 1) }}
+          {{ formatVal(totals.inkM_MT04, formatNumber, 2) }}
         </td>
         <td class="text-right">
-          {{ formatVal(totals.inkY_MT05, formatNumber, 1) }}
+          {{ formatVal(totals.inkY_MT04, formatNumber, 2) }}
         </td>
         <td class="text-right">
-          {{ formatVal(totals.inkK_MT05, formatNumber, 1) }}
+          {{ formatVal(totals.inkK_MT04, formatNumber, 2) }}
+        </td>
+
+        <td class="text-right">
+          {{ formatVal(totals.inkC_MT05, formatNumber, 2) }}
+        </td>
+        <td class="text-right">
+          {{ formatVal(totals.inkM_MT05, formatNumber, 2) }}
+        </td>
+        <td class="text-right">
+          {{ formatVal(totals.inkY_MT05, formatNumber, 2) }}
+        </td>
+        <td class="text-right">
+          {{ formatVal(totals.inkK_MT05, formatNumber, 2) }}
         </td>
       </tr>
     </template>
@@ -653,13 +653,13 @@ const totals = computed(() => {
     res.s34 += Number(r.s34) || 0;
     res.toleransiM2 += Number(r.toleransiM2) || 0;
 
-    // JUMLAH ORDER SPK: Hanya diakumulasi dari SPK Biasa + Baris Summary LO (Abaikan Anak SPK Gabungan)
+    // JUMLAH ORDER SPK: Hanya diakumulasi jika BUKAN Anak SPK Gabungan
     if (!isChild) {
       res.orderPcs += Number(r.orderPcs) || 0;
       res.orderLuas += Number(r.orderLuas) || 0;
     }
 
-    // HASIL CETAK: Hanya diakumulasi dari SPK Biasa + Anak SPK Gabungan (Abaikan Baris Summary LO)
+    // HASIL CETAK: Hanya diakumulasi dari SPK Biasa + Anak SPK Gabungan
     if (!isLO) {
       res.hasilPRoll += Number(r.hasilPRoll) || 0;
       res.hasilQty += Number(r.hasilQty) || 0;
@@ -713,7 +713,7 @@ const totals = computed(() => {
   return res;
 });
 
-// Format Tanggal UI Frontend menjadi DD/MM/YYYY (01/07/2026)
+// Format Tanggal UI Frontend menjadi DD/MM/YYYY
 const formatDMY = (dateStr) => {
   if (!dateStr || dateStr === "-") return "-";
   const cleanStr = String(dateStr).substring(0, 10);
@@ -724,7 +724,7 @@ const formatDMY = (dateStr) => {
   return cleanStr;
 };
 
-// Format Tanggal Indonesia untuk Export Excel (contoh: 1 Juli 2026)
+// Format Tanggal Indonesia untuk Export Excel
 const formatIndoMonth = (dateStr) => {
   if (!dateStr) return "";
   const d = new Date(dateStr);
@@ -747,21 +747,23 @@ const formatIndoMonth = (dateStr) => {
   return `${d.getDate()} ${bulanIndo[d.getMonth()]} ${d.getFullYear()}`;
 };
 
-// Helper Format Nilai Angka UI
-const formatVal = (val, formatFn, decimals = 1) => {
+// Helper Format Nilai Angka UI (Default Desimal 2 Angka)
+const formatVal = (val, formatFn, decimals = 2) => {
   if (val === null || val === undefined || val === "" || Number(val) === 0)
     return "-";
   return formatFn ? formatFn(val, decimals) : Number(val).toFixed(decimals);
 };
 
-// Helper Format Persentase UI
-const formatPercent = (val, formatFn) => {
+// Helper Format Persentase UI (Default Desimal 2 Angka)
+const formatPercent = (val, formatFn, decimals = 2) => {
   if (val === null || val === undefined || val === "" || Number(val) === 0)
     return "-";
-  return formatFn ? `${formatFn(val, 1)}%` : `${Number(val).toFixed(1)}%`;
+  return formatFn
+    ? `${formatFn(val, decimals)}%`
+    : `${Number(val).toFixed(decimals)}%`;
 };
 
-// --- EXPORT TO EXCEL LENGKAP WITH NUMBER FORMAT & RUMUS SUM ---
+// --- EXPORT TO EXCEL LENGKAP SINKRON 2 DESIMAL ---
 const exportToExcel = (dataToExport) => {
   if (!dataToExport || dataToExport.length === 0) {
     alert("Tidak ada data untuk diekspor");
@@ -810,8 +812,8 @@ const exportToExcel = (dataToExport) => {
     border: thinBorder,
   };
 
-  // Helper agar Excel mengenali Angka sebagai Tipe Number Murni
-  const cellNum = (val, fmt = "#,##0.0") => {
+  // Format Angka Excel Murni 2 Desimal (#,##0.00)
+  const cellNum = (val, fmt = "#,##0.00") => {
     const v = Number(val);
     if (
       val === null ||
@@ -825,6 +827,7 @@ const exportToExcel = (dataToExport) => {
     return { v: v, t: "n", z: fmt, s: styleDataCellRight };
   };
 
+  // Format Persentase Excel Murni 2 Desimal (0.00%)
   const cellPct = (val) => {
     const v = Number(val);
     if (
@@ -834,12 +837,12 @@ const exportToExcel = (dataToExport) => {
       isNaN(v) ||
       v === 0
     ) {
-      return { v: 0, t: "n", z: "0.0%", s: styleDataCellRight };
+      return { v: 0, t: "n", z: "0.00%", s: styleDataCellRight };
     }
-    return { v: v / 100, t: "n", z: "0.0%", s: styleDataCellRight };
+    return { v: v / 100, t: "n", z: "0.00%", s: styleDataCellRight };
   };
 
-  const cellFormula = (formula, fmt = "#,##0.0") => {
+  const cellFormula = (formula, fmt = "#,##0.00") => {
     return {
       f: formula,
       t: "n",
@@ -861,7 +864,7 @@ const exportToExcel = (dataToExport) => {
     [],
   ];
 
-  // BARIS 4 (Index row 3): Header Utama
+  // Header Utama
   wsData.push([
     { v: "TGL", s: styleHeaderMain },
     { v: "SHIFT", s: styleHeaderMain },
@@ -916,7 +919,7 @@ const exportToExcel = (dataToExport) => {
     { v: "", s: styleHeaderMain },
   ]);
 
-  // BARIS 5 (Index row 4): Sub Header
+  // Sub Header
   wsData.push([
     { v: "", s: styleHeaderMain },
     { v: "", s: styleHeaderMain },
@@ -971,10 +974,9 @@ const exportToExcel = (dataToExport) => {
     { v: "K", s: styleHeaderMain },
   ]);
 
-  const startRowExcel = 6; // Baris awal isi data di Excel (A6)
+  const startRowExcel = 6;
   const endRowExcel = startRowExcel + dataToExport.length - 1;
 
-  // MAP DATA KE BARIS EXCEL
   dataToExport.forEach((row) => {
     const isChild = checkIsGabunganChild(row);
     const isLO = Boolean(row.isLO);
@@ -991,7 +993,7 @@ const exportToExcel = (dataToExport) => {
       cellNum(row.s12, "#,##0.00"),
       cellNum(row.s34, "#,##0.00"),
       cellPct(row.persenToleransi),
-      cellNum(row.toleransiM2, "#,##0.0"),
+      cellNum(row.toleransiM2, "#,##0.00"),
       cellPct(row.toleransiPersen),
       { v: row.namaOrder || "", s: styleDataCell },
       {
@@ -1004,59 +1006,56 @@ const exportToExcel = (dataToExport) => {
         v: row.gsm || "",
         s: { ...styleDataCell, alignment: { horizontal: "center" } },
       },
-      cellNum(row.lebarBahan, "#,##0.0"),
-      cellNum(row.pRoll, "#,##0.0"),
+      cellNum(row.lebarBahan, "#,##0.00"),
+      cellNum(row.pRoll, "#,##0.00"),
 
-      // --- 1. JUMLAH ORDER SPK: Anak Gabungan = 0 ---
       cellNum(isChild ? 0 : row.orderPcs, "#,##0"),
-      cellNum(isChild ? 0 : row.orderLuas, "#,##0.0"),
+      cellNum(isChild ? 0 : row.orderLuas, "#,##0.00"),
 
-      // --- 2. HASIL CETAK: Baris LO = 0 ---
-      cellNum(isLO ? 0 : row.hasilPRoll, "#,##0.0"),
+      cellNum(isLO ? 0 : row.hasilPRoll, "#,##0.00"),
       cellNum(isLO ? 0 : row.hasilQty, "#,##0"),
-      cellNum(isLO ? 0 : row.hasilLuas, "#,##0.0"),
+      cellNum(isLO ? 0 : row.hasilLuas, "#,##0.00"),
 
-      cellNum(row.ambilP, "#,##0.0"),
-      cellNum(row.ambilL, "#,##0.0"),
-      cellNum(row.ambilLuas, "#,##0.0"),
+      cellNum(row.ambilP, "#,##0.00"),
+      cellNum(row.ambilL, "#,##0.00"),
+      cellNum(row.ambilLuas, "#,##0.00"),
 
-      cellNum(row.sisaBisaPakaiP, "#,##0.0"),
-      cellNum(row.sisaBisaPakaiL, "#,##0.0"),
-      cellNum(row.sisaBisaPakaiLuas, "#,##0.0"),
-      cellNum(row.sisaRongsokP, "#,##0.0"),
-      cellNum(row.sisaRongsokL, "#,##0.0"),
-      cellNum(row.sisaRongsokLuas, "#,##0.0"),
-      cellNum(row.aktualLuasPakai, "#,##0.0"),
-      cellNum(row.wasteM2, "#,##0.0"),
+      cellNum(row.sisaBisaPakaiP, "#,##0.00"),
+      cellNum(row.sisaBisaPakaiL, "#,##0.00"),
+      cellNum(row.sisaBisaPakaiLuas, "#,##0.00"),
+      cellNum(row.sisaRongsokP, "#,##0.00"),
+      cellNum(row.sisaRongsokL, "#,##0.00"),
+      cellNum(row.sisaRongsokLuas, "#,##0.00"),
+      cellNum(row.aktualLuasPakai, "#,##0.00"),
+      cellNum(row.wasteM2, "#,##0.00"),
       cellPct(row.wastePersen),
-      cellNum(row.lostM2, "#,##0.0"),
+      cellNum(row.lostM2, "#,##0.00"),
       cellPct(row.lostPersen),
-      cellNum(row.totalWasteM2, "#,##0.0"),
+      cellNum(row.totalWasteM2, "#,##0.00"),
       cellPct(row.totalWastePersen),
 
-      cellNum(row.inkC_MT02, "#,##0.0"),
-      cellNum(row.inkM_MT02, "#,##0.0"),
-      cellNum(row.inkY_MT02, "#,##0.0"),
-      cellNum(row.inkK_MT02, "#,##0.0"),
+      cellNum(row.inkC_MT02, "#,##0.00"),
+      cellNum(row.inkM_MT02, "#,##0.00"),
+      cellNum(row.inkY_MT02, "#,##0.00"),
+      cellNum(row.inkK_MT02, "#,##0.00"),
 
-      cellNum(row.inkC_MT03, "#,##0.0"),
-      cellNum(row.inkM_MT03, "#,##0.0"),
-      cellNum(row.inkY_MT03, "#,##0.0"),
-      cellNum(row.inkK_MT03, "#,##0.0"),
+      cellNum(row.inkC_MT03, "#,##0.00"),
+      cellNum(row.inkM_MT03, "#,##0.00"),
+      cellNum(row.inkY_MT03, "#,##0.00"),
+      cellNum(row.inkK_MT03, "#,##0.00"),
 
-      cellNum(row.inkC_MT04, "#,##0.0"),
-      cellNum(row.inkM_MT04, "#,##0.0"),
-      cellNum(row.inkY_MT04, "#,##0.0"),
-      cellNum(row.inkK_MT04, "#,##0.0"),
+      cellNum(row.inkC_MT04, "#,##0.00"),
+      cellNum(row.inkM_MT04, "#,##0.00"),
+      cellNum(row.inkY_MT04, "#,##0.00"),
+      cellNum(row.inkK_MT04, "#,##0.00"),
 
-      cellNum(row.inkC_MT05, "#,##0.0"),
-      cellNum(row.inkM_MT05, "#,##0.0"),
-      cellNum(row.inkY_MT05, "#,##0.0"),
-      cellNum(row.inkK_MT05, "#,##0.0"),
+      cellNum(row.inkC_MT05, "#,##0.00"),
+      cellNum(row.inkM_MT05, "#,##0.00"),
+      cellNum(row.inkY_MT05, "#,##0.00"),
+      cellNum(row.inkK_MT05, "#,##0.00"),
     ]);
   });
 
-  // BARIS GRAND TOTAL DENGAN RUMUS SUM DI EXCEL
   const grandTotalRowIndex = wsData.length + 1;
   const colLetter = (colIdx) => XLSX.utils.encode_col(colIdx);
 
@@ -1066,53 +1065,50 @@ const exportToExcel = (dataToExport) => {
   const getRatioFormula = (numColIdx, denColIdx) =>
     `IF(${colLetter(denColIdx)}${grandTotalRowIndex}>0, ${colLetter(numColIdx)}${grandTotalRowIndex}/${colLetter(denColIdx)}${grandTotalRowIndex}, 0)`;
 
-  // DORONG BARIS GRAND TOTAL KE DALAM ARRAY EXCEL DATA
   wsData.push([
     { v: "GRAND TOTAL", s: styleGrandTotalCell },
     { v: "", s: styleGrandTotalCell },
-    cellFormula(getSumFormula(2), "#,##0.00"), // C: S1,2
-    cellFormula(getSumFormula(3), "#,##0.00"), // D: S3,4
+    cellFormula(getSumFormula(2), "#,##0.00"),
+    cellFormula(getSumFormula(3), "#,##0.00"),
     { v: "-", s: styleGrandTotalCellRight },
-    cellFormula(getSumFormula(5), "#,##0.0"), // F: Toleransi M2
-    cellFormula(getRatioFormula(5, 15), "0.0%"), // G: Toleransi % (vs Order Luas)
-    { v: "-", s: styleGrandTotalCell }, // Nama Order
-    { v: "-", s: styleGrandTotalCell }, // No SPK
-    { v: "-", s: styleGrandTotalCellRight }, // P
-    { v: "-", s: styleGrandTotalCellRight }, // L
-    { v: "-", s: styleGrandTotalCell }, // GSM
-    { v: "-", s: styleGrandTotalCellRight }, // Lebar
-    { v: "-", s: styleGrandTotalCellRight }, // P. Roll
-    cellFormula(getSumFormula(14), "#,##0"), // O: Order Pcs
-    cellFormula(getSumFormula(15), "#,##0.0"), // P: Order Luas
-    cellFormula(getSumFormula(16), "#,##0.0"), // Q: Hasil P.Roll
-    cellFormula(getSumFormula(17), "#,##0"), // R: Hasil Qty
-    cellFormula(getSumFormula(18), "#,##0.0"), // S: Hasil Luas
-    cellFormula(getSumFormula(19), "#,##0.0"), // T: Ambil P
-    { v: "-", s: styleGrandTotalCellRight }, // Ambil L
-    cellFormula(getSumFormula(21), "#,##0.0"), // V: Ambil Luas
-    cellFormula(getSumFormula(22), "#,##0.0"), // W: Sisa Bisa Pakai P
-    { v: "-", s: styleGrandTotalCellRight }, // Sisa Bisa Pakai L
-    cellFormula(getSumFormula(24), "#,##0.0"), // Y: Sisa Bisa Pakai Luas
-    cellFormula(getSumFormula(25), "#,##0.0"), // Z: Sisa Rongsok P
-    { v: "-", s: styleGrandTotalCellRight }, // Sisa Rongsok L
-    cellFormula(getSumFormula(27), "#,##0.0"), // AB: Sisa Rongsok Luas
-    cellFormula(getSumFormula(28), "#,##0.0"), // AC: Aktual Luas Pakai
-    cellFormula(getSumFormula(29), "#,##0.0"), // AD: Waste M2
-    cellFormula(getRatioFormula(29, 15), "0.0%"), // AE: Waste %
-    cellFormula(getSumFormula(31), "#,##0.0"), // AF: Lost M2
-    cellFormula(getRatioFormula(31, 15), "0.0%"), // AG: Lost %
-    cellFormula(getSumFormula(33), "#,##0.0"), // AH: Total Waste M2
-    cellFormula(getRatioFormula(33, 15), "0.0%"), // AI: Total Waste %
+    cellFormula(getSumFormula(5), "#,##0.00"),
+    cellFormula(getRatioFormula(5, 15), "0.00%"),
+    { v: "-", s: styleGrandTotalCell },
+    { v: "-", s: styleGrandTotalCell },
+    { v: "-", s: styleGrandTotalCellRight },
+    { v: "-", s: styleGrandTotalCellRight },
+    { v: "-", s: styleGrandTotalCell },
+    { v: "-", s: styleGrandTotalCellRight },
+    { v: "-", s: styleGrandTotalCellRight },
+    cellFormula(getSumFormula(14), "#,##0"),
+    cellFormula(getSumFormula(15), "#,##0.00"),
+    cellFormula(getSumFormula(16), "#,##0.00"),
+    cellFormula(getSumFormula(17), "#,##0"),
+    cellFormula(getSumFormula(18), "#,##0.00"),
+    cellFormula(getSumFormula(19), "#,##0.00"),
+    { v: "-", s: styleGrandTotalCellRight },
+    cellFormula(getSumFormula(21), "#,##0.00"),
+    cellFormula(getSumFormula(22), "#,##0.00"),
+    { v: "-", s: styleGrandTotalCellRight },
+    cellFormula(getSumFormula(24), "#,##0.00"),
+    cellFormula(getSumFormula(25), "#,##0.00"),
+    { v: "-", s: styleGrandTotalCellRight },
+    cellFormula(getSumFormula(27), "#,##0.00"),
+    cellFormula(getSumFormula(28), "#,##0.00"),
+    cellFormula(getSumFormula(29), "#,##0.00"),
+    cellFormula(getRatioFormula(29, 15), "0.00%"),
+    cellFormula(getSumFormula(31), "#,##0.00"),
+    cellFormula(getRatioFormula(31, 15), "0.00%"),
+    cellFormula(getSumFormula(33), "#,##0.00"),
+    cellFormula(getRatioFormula(33, 15), "0.00%"),
 
-    // Tinta SUM MT 02 - 05 (16 Kolom)
     ...Array.from({ length: 16 }, (_, i) =>
-      cellFormula(getSumFormula(35 + i), "#,##0.0"),
+      cellFormula(getSumFormula(35 + i), "#,##0.00"),
     ),
   ]);
 
   const ws = XLSX.utils.aoa_to_sheet(wsData);
 
-  // KONFIGURASI MERGE HEADER & MERGE KELOMPOK GRAND TOTAL
   ws["!merges"] = [
     { s: { r: 3, c: 0 }, e: { r: 4, c: 0 } },
     { s: { r: 3, c: 1 }, e: { r: 4, c: 1 } },
@@ -1134,12 +1130,10 @@ const exportToExcel = (dataToExport) => {
     { s: { r: 3, c: 43 }, e: { r: 3, c: 46 } },
     { s: { r: 3, c: 47 }, e: { r: 3, c: 50 } },
 
-    // Merge Cell Label Grand Total (Kolom A & B)
     {
       s: { r: grandTotalRowIndex - 1, c: 0 },
       e: { r: grandTotalRowIndex - 1, c: 1 },
     },
-    // Merge Cell Info SPK Grand Total (Kolom H & I)
     {
       s: { r: grandTotalRowIndex - 1, c: 7 },
       e: { r: grandTotalRowIndex - 1, c: 8 },
@@ -1155,9 +1149,7 @@ onMounted(fetchReport);
 </script>
 
 <style scoped>
-/* ==========================================
-   1. BASE TABLE STYLES
-   ========================================== */
+/* Base Table Styles */
 :deep(table) {
   border-collapse: separate !important;
   border-spacing: 0 !important;
@@ -1205,7 +1197,6 @@ onMounted(fetchReport);
   color: #ffffff !important;
 }
 
-/* Footer Sticky untuk Grand Total */
 :deep(tfoot) {
   position: sticky !important;
   bottom: 0 !important;
@@ -1218,9 +1209,6 @@ onMounted(fetchReport);
   background-color: #f1f5f9 !important;
 }
 
-/* ==========================================
-   3. STICKY LEFT COLUMNS (SCROLL HORIZONTAL)
-   ========================================== */
 :deep(.sticky-col-1) {
   position: sticky !important;
   left: 0px !important;
