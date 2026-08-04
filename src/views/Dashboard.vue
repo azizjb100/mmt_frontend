@@ -444,6 +444,8 @@ const rolePermissions = {
     "Mutasi Bahan",
     "Stok Opname",
 
+    "Surat Jalan Approve",
+
     "Retur Beli",
     "Retur Produksi",
     "STBJ",

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, computed, watch } from "vue";
-import { useRouter } from "vue-router";
+import { useRouter, useRoute } from "vue-router";
 import { useToast } from "vue-toastification";
 import api from "@/services/api";
 import * as XLSX from "xlsx-js-style";
@@ -33,9 +33,31 @@ interface PermintaanBahanHeader {
   Detail: PermintaanBahanDetail[];
 }
 
+// --- Props & Route Setup (Support Multi-Cabang/Divisi) ---
+const props = defineProps<{
+  cabang?: string;
+  divisi?: string;
+}>();
+
 const toast = useToast();
 const router = useRouter();
+const route = useRoute();
+
 const API_PERMINTAAN_BAHAN = "/mmt/permintaan-bahan";
+
+// Ambil nilai cabang & divisi dari Props atau Fallback ke Route Meta (Default: P05 & 01)
+const currentCabang = computed(
+  () => props.cabang || (route.meta.cabang as string) || "P05",
+);
+const currentDivisi = computed(
+  () => props.divisi || (route.meta.divisi as string) || "01",
+);
+
+// Judul Halaman Dinamis
+const pageTitle = computed(() => {
+  const namaCabang = currentCabang.value === "P02" ? "Spanduk" : "MMT";
+  return `Data Permintaan Bahan (${namaCabang})`;
+});
 
 const masterData = ref<PermintaanBahanHeader[]>([]);
 const details = ref<Record<string, PermintaanBahanDetail[]>>({});
@@ -76,7 +98,7 @@ const masterHeaders = [
     title: "Detail",
     key: "data-table-expand",
     minWidth: "60px",
-    align: "center",
+    align: "center" as const,
     fixed: true,
   },
   { title: "Nomor", key: "Nomor", minWidth: "150px", fixed: true },
@@ -98,13 +120,13 @@ const masterHeaders = [
 const detailHeaders = [
   { title: "Kode Bahan", key: "Kode", minWidth: "120px", fixed: true },
   { title: "Nama Bahan", key: "Nama_Bahan", minWidth: "250px" },
-  { title: "ACC", key: "Is_Acc", minWidth: "100px", align: "center" },
-  { title: "Jumlah", key: "Jumlah", minWidth: "100px", align: "end" },
+  { title: "ACC", key: "Is_Acc", minWidth: "100px", align: "center" as const },
+  { title: "Jumlah", key: "Jumlah", minWidth: "100px", align: "end" as const },
   {
     title: "Jumlah Terima",
     key: "Total_Diterima",
     minWidth: "120px",
-    align: "end",
+    align: "end" as const,
   },
   { title: "Satuan", key: "Satuan", minWidth: "80px" },
   { title: "Nomor SPK", key: "Nomor_SPK", minWidth: "150px" },
@@ -163,14 +185,18 @@ const fetchData = async () => {
   expanded.value = [];
   try {
     const response = await api.get(API_PERMINTAAN_BAHAN, {
-      params: { startDate: startDate.value, endDate: endDate.value },
+      params: {
+        startDate: startDate.value,
+        endDate: endDate.value,
+        cabang: currentCabang.value, // Pass Filter Cabang (P05/P02)
+        divisi: currentDivisi.value, // Pass Filter Divisi (01)
+      },
     });
     const result = response.data.data ?? response.data;
     masterData.value = Array.isArray(result) ? result : [];
   } catch (err) {
     toast.error("Gagal mengambil data Permintaan Bahan.");
   } finally {
-    // <--- DI SINI (Baris 162)
     loading.value = false;
   }
 };
@@ -193,7 +219,6 @@ const handleExpandUpdate = async (expandedKeys: any[]) => {
   } catch (error) {
     details.value[lastExpandedNomor] = [];
   } finally {
-    // <--- DAN DI SINI (Baris 179)
     loadingDetails.value.delete(lastExpandedNomor);
   }
 };
@@ -201,12 +226,15 @@ const handleExpandUpdate = async (expandedKeys: any[]) => {
 const isLoadingDetails = (nomor: string) => loadingDetails.value.has(nomor);
 
 const handleNewEdit = (mode: "new" | "edit") => {
-  if (mode === "new") router.push({ name: "PermintaanBahanNew" });
-  else if (selectedNomor.value)
+  const routePrefix = currentCabang.value === "P02" ? "Spanduk" : "Mmt";
+  if (mode === "new") {
+    router.push({ name: `${routePrefix}PermintaanBahanNew` });
+  } else if (selectedNomor.value) {
     router.push({
-      name: "PermintaanBahanEdit",
+      name: `${routePrefix}PermintaanBahanEdit`,
       params: { nomor: selectedNomor.value },
     });
+  }
 };
 
 const handleRowClick = (_event: any, row: any) => {
@@ -242,8 +270,9 @@ const handleDelete = async () => {
 
 const handlePrint = () => {
   if (selectedNomor.value) {
+    const routePrefix = currentCabang.value === "P02" ? "Spanduk" : "Mmt";
     const url = router.resolve({
-      name: "PermintaanBahanPrint",
+      name: `${routePrefix}PermintaanBahanPrint`,
       params: { nomor: selectedNomor.value },
     }).href;
     window.open(url, "_blank");
@@ -255,6 +284,7 @@ const dialogTracking = reactive({
   show: false,
   item: null as PermintaanBahanHeader | null,
 });
+
 const trackingSteps = [
   {
     status: "ACC",
@@ -302,7 +332,7 @@ const handleExportHeaderExcel = () => {
 
   loading.value = true;
   try {
-    const fileName = `Laporan_Header_Permintaan_Bahan_${startDate.value}_to_${endDate.value}.xlsx`;
+    const fileName = `Laporan_Header_Permintaan_Bahan_${currentCabang.value}_${startDate.value}_to_${endDate.value}.xlsx`;
 
     const styleHeaderMain = {
       fill: { fgColor: { rgb: "C8E6C9" } },
@@ -359,7 +389,7 @@ const handleExportHeaderExcel = () => {
 
     wsData.push([
       {
-        v: "LAPORAN RINGKASAN (HEADER) PERMINTAAN BAHAN",
+        v: `LAPORAN RINGKASAN (HEADER) PERMINTAAN BAHAN (${currentCabang.value})`,
         s: { font: { bold: true, sz: 14 } },
       },
     ]);
@@ -446,7 +476,7 @@ const handleExportExcel = () => {
 
   loading.value = true;
   try {
-    const fileName = `Permintaan_Bahan_${startDate.value}_to_${endDate.value}.xlsx`;
+    const fileName = `Permintaan_Bahan_${currentCabang.value}_${startDate.value}_to_${endDate.value}.xlsx`;
 
     const styleHeaderMain = {
       fill: { fgColor: { rgb: "B3E5FC" } },
@@ -508,7 +538,7 @@ const handleExportExcel = () => {
 
     wsData.push([
       {
-        v: "LAPORAN TRANSAKSI PERMINTAAN BAHAN",
+        v: `LAPORAN TRANSAKSI PERMINTAAN BAHAN (${currentCabang.value})`,
         s: { font: { bold: true, sz: 14 } },
       },
     ]);
@@ -618,12 +648,14 @@ const handleExportExcel = () => {
 };
 
 onMounted(fetchData);
-watch([startDate, endDate], fetchData);
+
+// Watcher untuk perubahan tanggal dan perpindahan antar-cabang/divisi
+watch([startDate, endDate, currentCabang, currentDivisi], fetchData);
 </script>
 
 <template>
   <BaseBrowse
-    title="Data Permintaan Bahan"
+    :title="pageTitle"
     icon="mdi-basket-fill"
     :headers="masterHeaders"
     :items="masterData"
@@ -655,7 +687,7 @@ watch([startDate, endDate], fetchData);
         size="x-small"
         color="teal"
         :disabled="masterData.length === 0"
-        @click="handleExportHeaderHeaderExcel"
+        @click="handleExportHeaderExcel"
       >
         <v-icon start>mdi-file-excel</v-icon> Export Header
       </v-btn>
@@ -670,7 +702,11 @@ watch([startDate, endDate], fetchData);
     </template>
 
     <template #item.Tanggal="{ value }">
-      {{ value ? format(parseCustomDate(value)!, "dd/MM/yyyy") : "" }}
+      {{
+        value && parseCustomDate(value)
+          ? format(parseCustomDate(value)!, "dd/MM/yyyy")
+          : "-"
+      }}
     </template>
 
     <template #item.Status_PO="{ value }">
@@ -697,11 +733,19 @@ watch([startDate, endDate], fetchData);
     </template>
 
     <template #item.Estimasi_Kedatangan="{ value }">
-      {{ value ? format(parseISO(value), "dd/MM/yyyy") : "-" }}
+      {{
+        value && isValid(parseISO(value))
+          ? format(parseISO(value), "dd/MM/yyyy")
+          : "-"
+      }}
     </template>
 
     <template #item.Tanggal_Datang="{ value }">
-      {{ value ? format(parseISO(value), "dd/MM/yyyy") : "-" }}
+      {{
+        value && isValid(parseISO(value))
+          ? format(parseISO(value), "dd/MM/yyyy")
+          : "-"
+      }}
     </template>
 
     <template #item.Status_Acc="{ value }">
@@ -714,66 +758,91 @@ watch([startDate, endDate], fetchData);
       </v-chip>
     </template>
 
-    <template #expanded-content="{ item }">
-      <div v-if="isLoadingDetails(item.Nomor)" class="text-center pa-2">
-        <v-progress-circular
-          indeterminate
-          size="20"
-          color="primary"
-          class="mr-2"
-        />
-        <span class="text-caption">Memuat detail barang PO...</span>
-      </div>
-
-      <div
-        v-else-if="
-          !(details[item.Nomor] || item.Detail) ||
-          (details[item.Nomor] || item.Detail).length === 0
-        "
-        class="text-center pa-2 text-caption text-grey"
-      >
-        Tidak ada data detail untuk nomor {{ item.Nomor }}
-      </div>
-
-      <v-data-table
-        v-else
-        :headers="detailHeaders"
-        :items="details[item.Nomor] || item.Detail || []"
-        density="compact"
-        class="bg-white border rounded"
-        :items-per-page="-1"
-        hide-default-footer
-        :row-props="getDetailRowProps"
-      >
-        <template #[`item.Is_Acc`]="{ value }">
-          <v-chip
-            :color="value === 'Y' ? 'success' : 'error'"
-            size="x-small"
-            label
-            class="font-weight-bold"
-          >
-            {{ value }}
-          </v-chip>
-        </template>
-
-        <template #[`item.Jumlah`]="{ value }">
-          <div class="text-right">
-            {{ Number(value || 0).toFixed(2) }}
-          </div>
-        </template>
-
-        <template #[`item.Total_Diterima`]="{ value, item: d }">
+    <template #expanded-row="{ columns, item }">
+      <tr>
+        <td :colspan="columns.length" class="pa-3 bg-grey-lighten-4">
+          <!-- Container 80% Rata Kiri dengan Efek Card & Border Aksen Samping -->
           <div
-            :class="[
-              'text-right',
-              'font-weight-bold',
-              d.Is_Acc === 'N' ? 'text-red' : 'text-primary',
-            ]"
+            class="expanded-container ml-0 pa-3 bg-white rounded-lg elevation-2"
+            style="width: 80%; border-left: 4px solid #1976d2"
           >
-            {{ Number(value || 0).toFixed(2) }}
+            <!-- Header Judul Sub-Table -->
+            <div class="d-flex align-center mb-2 px-1">
+              <v-icon size="small" color="primary" class="mr-2"
+                >mdi-package-variant-closed</v-icon
+              >
+              <span class="text-caption font-weight-bold text-grey-darken-3">
+                Detail Bahan Permintaan: {{ item.Nomor }}
+              </span>
+            </div>
+
+            <!-- Loading State -->
+            <div v-if="isLoadingDetails(item.Nomor)" class="text-center pa-4">
+              <v-progress-circular
+                indeterminate
+                size="22"
+                color="primary"
+                class="mr-2"
+              />
+              <span class="text-caption text-grey-darken-1"
+                >Memuat detail barang...</span
+              >
+            </div>
+
+            <!-- Empty State -->
+            <div
+              v-else-if="
+                !(details[item.Nomor] || item.Detail) ||
+                (details[item.Nomor] || item.Detail).length === 0
+              "
+              class="text-center pa-3 text-caption text-grey-darken-1 border rounded bg-grey-lighten-5"
+            >
+              Tidak ada data detail untuk nomor {{ item.Nomor }}
+            </div>
+
+            <!-- Tabel Detail dengan Styling Baru -->
+            <v-data-table
+              v-else
+              :headers="detailHeaders"
+              :items="details[item.Nomor] || item.Detail || []"
+              density="compact"
+              class="sub-table border rounded"
+              :items-per-page="-1"
+              hide-default-footer
+              :row-props="getDetailRowProps"
+            >
+              <template #[`item.Is_Acc`]="{ value }">
+                <v-chip
+                  :color="value === 'Y' ? 'success' : 'error'"
+                  size="x-small"
+                  label
+                  class="font-weight-bold"
+                >
+                  {{ value }}
+                </v-chip>
+              </template>
+
+              <template #[`item.Jumlah`]="{ value }">
+                <div class="text-right font-weight-medium">
+                  {{ Number(value || 0).toFixed(2) }}
+                </div>
+              </template>
+
+              <template #[`item.Total_Diterima`]="{ value, item: d }">
+                <div
+                  :class="[
+                    'text-right',
+                    'font-weight-bold',
+                    d.Is_Acc === 'N' ? 'text-red' : 'text-primary',
+                  ]"
+                >
+                  {{ Number(value || 0).toFixed(2) }}
+                </div>
+              </template>
+            </v-data-table>
           </div>
-        </template>
-      </v-data-table>
+        </td>
+      </tr>
     </template>
   </BaseBrowse>
 
@@ -897,5 +966,26 @@ watch([startDate, endDate], fetchData);
 }
 :deep(.row-rejected td) {
   background-color: #ffebee !important;
+}
+
+.sub-table {
+  font-size: 11px !important;
+}
+
+/* Mengubah warna header tabel detail menjadi abu-abu netral agar kontras dari tabel utama */
+:deep(.sub-table .v-data-table-header th) {
+  background-color: #eceff1 !important; /* Warna Grey Lighten-4/Slate */
+  color: #37474f !important; /* Text Gelap Kontras */
+  font-weight: 700 !important;
+  font-size: 11px !important;
+  height: 30px !important;
+}
+
+:deep(.sub-table td) {
+  height: 28px !important;
+}
+
+.expanded-container {
+  transition: all 0.2s ease-in-out;
 }
 </style>

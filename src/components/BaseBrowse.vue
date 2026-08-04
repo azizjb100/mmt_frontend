@@ -79,7 +79,7 @@
               <v-icon>mdi-refresh</v-icon> Refresh
             </v-btn>
 
-            <!-- FIX 1: PERBAIKAN PENTING - Tambahkan slot #filter-fields di sini! -->
+            <!-- Slot untuk Filter Tambahan -->
             <slot name="filter-fields"></slot>
 
             <v-spacer />
@@ -103,14 +103,53 @@
           class="desktop-table elevation-1"
           fixed-header
           return-object
-          :show-expand="showExpand"
+          :show-expand="computedShowExpand"
           @click:row="(e, row) => $emit('row-click', e, row)"
           :row-props="rowProps"
         >
-          <!-- FIX 2: Forward Semua Slots Secara Otomatis Kecuali Slot Bawaan yang di-override -->
+          <!-- Handle Slot #expanded-row bawaan Vuetify 3 -->
+          <template #expanded-row="slotProps" v-if="$slots['expanded-row']">
+            <slot name="expanded-row" v-bind="slotProps" />
+          </template>
+
+          <!-- Fallback/Forward untuk Slot #expanded-content (Digunakan di Permintaan Produksi) -->
+          <template
+            #expanded-row="slotProps"
+            v-else-if="$slots['expanded-content']"
+          >
+            <tr>
+              <td
+                :colspan="slotProps.columns?.length || headers.length"
+                class="pa-3 bg-grey-lighten-4"
+              >
+                <!-- Wrapper Container 80% Rata Kiri & Bergaris Aksen Samping -->
+                <div
+                  class="expanded-container ml-0 pa-3 bg-white rounded-lg elevation-2 border"
+                  style="width: 80%; border-left: 4px solid #1976d2 !important"
+                >
+                  <div class="d-flex align-center mb-2 px-1">
+                    <v-icon size="small" color="primary" class="mr-2"
+                      >mdi-package-variant-closed</v-icon
+                    >
+                    <span
+                      class="text-caption font-weight-bold text-grey-darken-3"
+                    >
+                      Detail Items:
+                      {{ slotProps.item?.raw?.Nomor || slotProps.item?.Nomor }}
+                    </span>
+                  </div>
+
+                  <slot name="expanded-content" v-bind="slotProps" />
+                </div>
+              </td>
+            </tr>
+          </template>
+
+          <!-- Forward Semua Dynamic Custom Slots Lainnya -->
           <template
             v-for="(_, slotName) in customSlots"
             #[slotName]="slotProps"
+            :key="slotName"
           >
             <slot :name="slotName" v-bind="slotProps ?? {}" />
           </template>
@@ -130,7 +169,7 @@ const props = defineProps({
   headers: { type: Array, required: true },
   items: { type: Array, required: true },
   loading: { type: Boolean, default: false },
-  
+
   // Dukungan Fleksibel untuk Date Filter
   startDate: { type: String, default: "" },
   endDate: { type: String, default: "" },
@@ -161,14 +200,29 @@ const emit = defineEmits([
 
 const slots = useSlots();
 
-// Mengambil hanya slot yang dikirim dari parent agar tidak terjadi konflik template
+// Otomatis aktifkan tombol expand jika parent mempunyai slot detail/expanded
+const computedShowExpand = computed(() => {
+  return (
+    props.showExpand || !!slots["expanded-row"] || !!slots["expanded-content"]
+  );
+});
+
+// Mengambil slot custom tanpa menyertakan slot internal / layout
 const customSlots = computed(() => {
-  const { 'extra-actions': _, 'filter-fields': __, ...rest } = slots;
+  const {
+    "extra-actions": _,
+    "filter-fields": __,
+    "expanded-row": ___,
+    "expanded-content": ____,
+    ...rest
+  } = slots;
   return rest;
 });
 
-// Getter & Event Handler Tanggal (Mendukung p-bind via prop filters maupun startDate/endDate)
-const startDateVal = computed(() => props.filters?.startDate ?? props.startDate);
+// Getter & Event Handler Tanggal
+const startDateVal = computed(
+  () => props.filters?.startDate ?? props.startDate,
+);
 const endDateVal = computed(() => props.filters?.endDate ?? props.endDate);
 
 const onStartDateChange = (val: string) => {
@@ -213,5 +267,17 @@ const isSingleSelected = computed(() => props.selected.length === 1);
 }
 .filter-section {
   padding: 4px 8px;
+}
+
+/* Styling Khusus Sub-Table/Detail di Dalam Expanded */
+:deep(.expanded-container .v-data-table-header th) {
+  background-color: #eceff1 !important; /* Warna Slate Grey Netral */
+  color: #37474f !important;
+  font-weight: 700 !important;
+  font-size: 11px !important;
+  height: 30px !important;
+}
+:deep(.expanded-container .v-data-table td) {
+  height: 28px !important;
 }
 </style>

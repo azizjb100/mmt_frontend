@@ -2,8 +2,8 @@
 import { ref, computed, onMounted, watch } from "vue";
 import api from "@/services/api";
 import { useRouter } from "vue-router";
-import { format, subDays } from "date-fns";
-import PageLayout from "../components/PageLayout.vue";
+import { format, subDays, parseISO, isValid } from "date-fns";
+import BaseBrowse from "@/components/BaseBrowse.vue"; // Sesuaikan path jika berbeda
 
 // --- Interfaces ---
 interface ReturProduksiDetail {
@@ -48,6 +48,9 @@ const isSingleSelected = computed(() => selected.value.length === 1);
 // --- Helpers ---
 const parseCustomDate = (dateString: string) => {
   if (!dateString) return new Date();
+  const parsedISO = parseISO(dateString);
+  if (isValid(parsedISO)) return parsedISO;
+
   try {
     const [day, monthName, year] = dateString.split("-");
     const months = [
@@ -67,10 +70,13 @@ const parseCustomDate = (dateString: string) => {
     const monthIndex = months.findIndex((m) =>
       m.toLowerCase().startsWith(monthName.toLowerCase()),
     );
-    return new Date(Number(year), monthIndex, Number(day));
+    if (monthIndex !== -1) {
+      return new Date(Number(year), monthIndex, Number(day));
+    }
   } catch (e) {
     return new Date();
   }
+  return new Date();
 };
 
 // --- Headers ---
@@ -82,7 +88,6 @@ const masterHeaders = [
   { title: "No. SPK", key: "NomorSPK", minWidth: "150px" },
   { title: "Tipe", key: "TypeLabel", minWidth: "120px" },
   { title: "Keterangan", key: "Keterangan", minWidth: "250px" },
-  { title: "", key: "data-table-expand", minWidth: "40px" },
 ];
 
 const detailHeaders = [
@@ -113,8 +118,16 @@ const fetchData = async () => {
 };
 
 const handleRowClick = (_event: any, row: any) => {
-  selected.value = [row.item];
+  selected.value = selected.value.some((s) => s.Nomor === row.item.Nomor)
+    ? []
+    : [row.item];
 };
+
+const getRowProps = ({ item }: { item: ReturProduksiHeader }) => ({
+  class: selected.value.some((s) => s.Nomor === item.Nomor)
+    ? "row-selected"
+    : "",
+});
 
 const handleDelete = async () => {
   if (!isSingleSelected.value) return;
@@ -134,173 +147,111 @@ watch([startDate, endDate], fetchData);
 </script>
 
 <template>
-  <PageLayout title="Data Retur Produksi MMT" icon="mdi-keyboard-return">
-    <template #header-actions>
-      <v-btn
-        size="x-small"
-        color="success"
-        @click="router.push({ name: 'ReturProduksiNew' })"
-      >
-        <v-icon start>mdi-plus</v-icon> Baru
-      </v-btn>
-      <v-divider vertical class="mx-2" />
-      <v-btn
-        size="x-small"
-        color="error"
-        :disabled="!isSingleSelected"
-        @click="handleDelete"
-      >
-        <v-icon start>mdi-trash-can</v-icon> Hapus
-      </v-btn>
+  <BaseBrowse
+    title="Data Retur Produksi MMT"
+    icon="mdi-keyboard-return"
+    :headers="masterHeaders"
+    :items="masterData"
+    :loading="loading"
+    v-model:startDate="startDate"
+    v-model:endDate="endDate"
+    v-model:selected="selected"
+    v-model:expanded="expanded"
+    @refresh="fetchData"
+    @action:new="router.push({ name: 'ReturProduksiNew' })"
+    @action:delete="handleDelete"
+    @row-click="handleRowClick"
+    :row-props="getRowProps"
+  >
+    <!-- Custom Format Kolom Tabel Utama -->
+    <template #item.Nomor="{ value }">
+      <span class="font-weight-bold text-primary">{{ value }}</span>
     </template>
 
-    <div class="browse-content">
-      <v-card flat class="mb-1">
-        <v-card-text>
-          <div class="filter-section d-flex align-center flex-wrap ga-4">
-            <v-label class="filter-label">Periode Mulai:</v-label>
-            <v-text-field
-              v-model="startDate"
-              type="date"
-              density="compact"
-              hide-details
-              variant="outlined"
-              style="max-width: 150px"
-            />
-            <v-label class="mx-2">s/d</v-label>
-            <v-text-field
-              v-model="endDate"
-              type="date"
-              density="compact"
-              hide-details
-              variant="outlined"
-              style="max-width: 150px"
-            />
-            <v-btn
-              variant="text"
-              size="x-small"
-              @click="fetchData"
-              :loading="loading"
-            >
-              <v-icon>mdi-refresh</v-icon> Refresh
-            </v-btn>
-          </div>
-        </v-card-text>
-      </v-card>
+    <template #item.Tanggal="{ value }">
+      {{ value ? format(parseCustomDate(value), "dd/MM/yyyy") : "" }}
+    </template>
 
-      <div class="table-container">
-        <v-data-table
-          v-model:selected="selected"
-          v-model:expanded="expanded"
-          :headers="masterHeaders"
-          :items="masterData"
-          :loading="loading"
-          item-value="Nomor"
-          density="compact"
-          class="desktop-table elevation-1 border"
-          show-select
-          select-strategy="single"
-          return-object
-          show-expand
-          hover
-          @click:row="handleRowClick"
-        >
-          <template #item.Tanggal="{ item }">
-            {{
-              item.Tanggal
-                ? format(parseCustomDate(item.Tanggal), "dd/MM/yyyy")
-                : ""
-            }}
-          </template>
+    <template #item.TypeLabel="{ value }">
+      <v-chip
+        size="x-small"
+        :color="value === 'PRODUKSI' ? 'blue' : 'orange'"
+        variant="tonal"
+        class="font-weight-bold chip-custom"
+      >
+        {{ value }}
+      </v-chip>
+    </template>
 
-          <template #item.Nomor="{ item }">
-            <span class="font-weight-bold text-primary">{{ item.Nomor }}</span>
-          </template>
-
-          <template #item.TypeLabel="{ item }">
-            <v-chip
-              size="x-small"
-              :color="item.TypeLabel === 'PRODUKSI' ? 'blue' : 'orange'"
-              variant="tonal"
-            >
-              {{ item.TypeLabel }}
-            </v-chip>
-          </template>
-
-          <template #expanded-row="{ columns, item }">
-            <tr>
-              <td :colspan="columns.length" class="pa-0 border-0">
-                <div class="detail-container">
-                  <v-data-table
-                    :headers="detailHeaders"
-                    :items="item.Detail || []"
-                    density="compact"
-                    hide-default-footer
-                    class="border-0 bg-transparent"
-                  >
-                    <template #[`item.Jumlah`]="{ item: d }">
-                      {{ Number(d.Jumlah).toFixed(2) }}
-                    </template>
-                    <template #[`item.Panjang`]="{ item: d }">
-                      <span class="text-blue font-weight-bold">{{
-                        Number(d.Panjang).toFixed(2)
-                      }}</span>
-                    </template>
-                    <template #[`item.Lebar`]="{ item: d }">
-                      <span class="text-blue font-weight-bold">{{
-                        Number(d.Lebar).toFixed(2)
-                      }}</span>
-                    </template>
-                  </v-data-table>
-                </div>
-              </td>
-            </tr>
-          </template>
-        </v-data-table>
+    <!-- Tabel Detail (Expanded Row Ringkas & Hemat Tempat) -->
+    <template #expanded-content="{ item }">
+      <div
+        v-if="!(item.Detail && item.Detail.length)"
+        class="text-center pa-2 text-caption text-grey"
+      >
+        Tidak ada data detail.
       </div>
-    </div>
-  </PageLayout>
+
+      <v-data-table
+        v-else
+        :headers="detailHeaders"
+        :items="item.Detail || []"
+        density="compact"
+        class="sub-table-compact border"
+        hide-default-footer
+        :items-per-page="-1"
+      >
+        <template #[`item.Jumlah`]="{ value }">
+          <div class="text-right font-weight-medium">
+            {{ Number(value || 0).toFixed(2) }}
+          </div>
+        </template>
+
+        <template #[`item.Panjang`]="{ value }">
+          <div class="text-right text-blue font-weight-bold">
+            {{ Number(value || 0).toFixed(2) }}
+          </div>
+        </template>
+
+        <template #[`item.Lebar`]="{ value }">
+          <div class="text-right text-blue font-weight-bold">
+            {{ Number(value || 0).toFixed(2) }}
+          </div>
+        </template>
+      </v-data-table>
+    </template>
+  </BaseBrowse>
 </template>
 
 <style scoped>
-/* 1. Atur Ukuran Font Umum Tabel */
-:deep(.v-data-table) {
-  font-size: 11px !important;
+/* State Warna Pilih Baris */
+.row-selected {
+  background-color: #d8efff !important;
+}
+:deep(.row-selected td) {
+  background-color: #d8efff !important;
 }
 
-/* 2. Atur Header Tabel (Master & Detail) */
-:deep(.v-data-table-header th) {
+/* Styling Tabel Detail Ultra Compact */
+.sub-table-compact {
   font-size: 11px !important;
-  height: 32px !important;
+  background-color: #ffffff !important;
+}
+
+:deep(.sub-table-compact .v-data-table-header th) {
+  background-color: #e0e0e0 !important;
+  color: #212121 !important;
   font-weight: bold !important;
-  background-color: #f8f9fa !important;
-  text-transform: uppercase;
+  font-size: 10px !important;
+  height: 26px !important;
 }
 
-/* 3. Atur Baris Tabel */
-:deep(.v-data-table td) {
+:deep(.sub-table-compact td) {
+  height: 24px !important;
   font-size: 11px !important;
-  height: 32px !important;
 }
 
-/* 4. Container Detail */
-.detail-container {
-  padding: 8px 12px !important;
-  background-color: #f1f3f4;
-  border-top: 1px solid rgba(0, 0, 0, 0.05);
-}
-
-.table-container {
-  margin-top: 4px;
-}
-
-.filter-section {
-  background-color: #ffffff;
-}
-
-/* Warna Row Hover */
-:deep(.v-data-table__tr:hover) {
-  background-color: #f0f4f8 !important;
-  cursor: pointer;
+:deep(.chip-custom .v-chip__content) {
+  font-size: 11px !important;
 }
 </style>
