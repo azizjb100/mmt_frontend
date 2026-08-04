@@ -995,7 +995,7 @@ const loaddataall = async (nomor: string) => {
       // 1. Ambil data Header LHK
       formData.nomor = h.lpr_nomor;
       formData.tanggal = h.lpr_tanggal;
-      formData.jenis = h.lpr_jenis || "M"; // Pastikan jenis terisi dahulu (M / T / S)
+      formData.jenis = h.lpr_jenis || "M";
       formData.shift = h.lpr_shift || 1;
       formData.operator = h.lpr_operator || "";
       formData.mesin = h.lpr_mesin || "";
@@ -1007,7 +1007,6 @@ const loaddataall = async (nomor: string) => {
       detailData.value = [];
 
       if (Array.isArray(res.details) && res.details.length > 0) {
-        // Ambil record detail pertama untuk memetakan kondisi Bahan Utama saat LHK ini dibuat
         const firstDetail = res.details[0];
 
         let pAwalHistori = parseFloat(firstDetail.lprd_panjang_awal || 0);
@@ -1016,8 +1015,6 @@ const loaddataall = async (nomor: string) => {
           firstDetail.lprd_sisa_lebar || h.lpr_lebar_sisa_manual || 0,
         );
 
-        // --- KONVERSI BALIK KE METER UNTUK TAMPILAN FRONTEND ---
-        // Jika Tekstil ('T'), data di DB bermutasi dalam YARD. Konversi ke METER (* 0.9) agar UI/Canvas match.
         if (formData.jenis === "T") {
           pAwalHistori = parseFloat((pAwalHistori * 0.9).toFixed(2));
           pSisaHistori = parseFloat((pSisaHistori * 0.9).toFixed(2));
@@ -1036,7 +1033,10 @@ const loaddataall = async (nomor: string) => {
             nama_spk: d.Nama_SPK || d.spk_nama || "",
             panjang_spk: parseFloat(d.Panjang || d.lprd_panjang || 0),
             lebar_spk: parseFloat(d.Lebar || d.lprd_lebar || 0),
-            padding: d.Padding || d.lprd_padding || 3,
+
+            // --- AMBIL DARI BACKEND DENGAN FALLBACK TO DEFAULT 3 ---
+            padding: parseFloat(d.lprd_padd ?? d.Padding ?? 3),
+
             tile: d.Tile || d.lprd_tile || 1,
             jumlah: parseFloat(d.J_Order || d.lprd_j_order || 0),
             orientasi: d.Orientasi || d.lprd_orientasi || "lebar",
@@ -1048,7 +1048,6 @@ const loaddataall = async (nomor: string) => {
             keterangan: d.lprd_keterangan || "",
           };
 
-          // Load data cetak 1 - 7 jika ada
           for (let i = 1; i <= 7; i++) {
             detailObj[`cetak${i}`] = parseFloat(d[`cetak${i}`]) || 0;
           }
@@ -1057,7 +1056,6 @@ const loaddataall = async (nomor: string) => {
         });
       }
 
-      // 3. Picu hitung ulang layout berdasarkan data snapshot yang berhasil di-load
       nextTick(() => {
         recalculateCombine();
       });
@@ -1108,7 +1106,7 @@ const handleSave = async (statusValue: "DRAFT" | "POSTED" = "DRAFT") => {
   try {
     const currentUser = authStore.user?.kdUser || "SYSTEM";
 
-    // --- PERBAIKAN LOGIKA SISA BAHAN (Mencegah Angka 0 Saat Edit) ---
+    // --- LOGIKA SISA BAHAN ---
     let sisaPanjangFinal = sisaStokOtomatis.value;
 
     if (
@@ -1120,7 +1118,6 @@ const handleSave = async (statusValue: "DRAFT" | "POSTED" = "DRAFT") => {
     }
 
     const sisaLebarFinal = formData.sisa_lebar_manual ?? formData.Lebar_bahan;
-    // -----------------------------------------------------------------
 
     const payload = {
       header: {
@@ -1129,10 +1126,10 @@ const handleSave = async (statusValue: "DRAFT" | "POSTED" = "DRAFT") => {
         gdgKode: "GPM",
         jenis: formData.jenis,
         shift: formData.shift,
-        operator: formData.operator, // Dikirim sebagai operator
+        operator: formData.operator,
         mesin: formData.mesin,
         barcode_input: formData.barcode_input,
-        keterangan: formData.keterangan, // Dikirim sebagai keterangan riil dari input baru
+        keterangan: formData.keterangan,
         user: currentUser,
         panjang_bs: Number(formData.panjang_bs) || 0,
         lebar_bs: Number(formData.lebar_bs) || 0,
@@ -1145,15 +1142,18 @@ const handleSave = async (statusValue: "DRAFT" | "POSTED" = "DRAFT") => {
           lebar: Number(d.lebar_spk) || 0,
           aktual_proof: Number(d.totalcetak) || 0,
           barcode_detail: formData.barcode_input,
-          jenis_bahan: d.nomor_spk,
+          jenis_bahan: d.jenis_bahan || d.nomor_spk,
           lokasi: formData.mesin,
           keterangan: d.keterangan || "",
           panjang_roll_awal: Number(formData.Panjang_bahan) || 0,
           sisabahan: parseFloat(Number(sisaPanjangFinal).toFixed(2)),
           sisabahanlebar: parseFloat(Number(sisaLebarFinal).toFixed(2)),
+
+          // --- PERBAIKAN: Pastikan membaca property d.padding secara presisi ---
+          lprd_padd: Number(d.padding) || 0,
         };
 
-        // --- TAMBAHAN BARU: Kirim pecahan data cetak 1 sampai 7 ke backend ---
+        // Kirim pecahan data cetak 1 sampai 7 ke backend
         for (let i = 1; i <= 7; i++) {
           detailEntry[`cetak${i}`] = Number(d[`cetak${i}`]) || 0;
         }

@@ -72,10 +72,19 @@ const {
         ? parseFloat(details[0].ltd_ambil_bahan || details[0].Ambil_Bahan || 0)
         : 0;
 
-    const sisaBahanFromDtl =
-      details.length > 0 && details[0].sisabahan !== undefined
-        ? parseFloat(details[0].sisabahan)
-        : null;
+    // 1. Ambil nilai sisa fisik langsung dari kolom ltd_sisameter (Satuan Meter)
+    const dtlFirst = details.length > 0 ? details[0] : null;
+
+    let sisaMeterFromDtl: number | null = null;
+    if (dtlFirst) {
+      const rawVal =
+        dtlFirst.ltd_sisameter ??
+        dtlFirst.Sisa_Meter ??
+        dtlFirst.sisabahan_meter;
+      if (rawVal !== undefined && rawVal !== null && rawVal !== "") {
+        sisaMeterFromDtl = parseFloat(rawVal);
+      }
+    }
 
     return {
       nomor: h.Nomor || h.lth_nomor,
@@ -101,12 +110,13 @@ const {
       mesin_nama:
         h.Mesin || h.Nama_Mesin || h.mesin_nama || h.lth_mesin_nama || "",
 
+      // 2. Tampilkan Sisa Manual (Fisik) dalam METER
       sisa_panjang_manual:
-        sisaBahanFromDtl !== null
-          ? sisaBahanFromDtl
+        sisaMeterFromDtl !== null
+          ? sisaMeterFromDtl
           : h.sisa_panjang_manual !== undefined &&
               h.sisa_panjang_manual !== null
-            ? parseFloat(h.sisa_panjang_manual)
+            ? parseFloat((parseFloat(h.sisa_panjang_manual) * 0.9).toFixed(2)) // Fallback jika header masih dalam Yard
             : null,
 
       panjang_bahan:
@@ -147,17 +157,24 @@ const {
           cetak7: parseInt(d.ltd_cetak7 ?? d.Cetak_7 ?? d.cetak7 ?? 0),
           totalcetak: parseInt(d.Jml_Cetak || d.totalcetak || 0),
           kurangcetak: 0,
+          ltd_sisameter: d.ltd_sisameter ? parseFloat(d.ltd_sisameter) : 0, // Diteruskan di level item detail jika diperlukan
         };
       }),
     };
   },
   submitApi: async (data: typeof initialData): Promise<unknown> => {
-    const sisaOtomatisYard = sisaStokOtomatisYrd.value;
-    const sisaFinalYard =
+    // 1. Sisa Meter Otomatis & Manual (Fisik)
+    const sisaOtomatisMeter = sisaStokOtomatisM.value;
+
+    // Jika diisi manual -> pakai manual. Jika kosong -> pakai sisa otomatis
+    const sisaFinalMeter =
       formData.value.sisa_panjang_manual !== null &&
       formData.value.sisa_panjang_manual !== ""
         ? parseFloat(Number(formData.value.sisa_panjang_manual).toFixed(2))
-        : parseFloat(Number(sisaOtomatisYard).toFixed(2));
+        : parseFloat(Number(sisaOtomatisMeter).toFixed(2));
+
+    // Konversi Sisa Meter ke Yard untuk kebutuhan potongan stok tmasterstok_mmt (1 Yrd = M / 0.9)
+    const sisaFinalYard = parseFloat((sisaFinalMeter / 0.9).toFixed(2));
 
     const formattedDetails = formData.value.details.map((d) => ({
       ...d,
@@ -165,7 +182,8 @@ const {
       panjang_per_pcs: parseFloat(d.panjang_spk || 0),
       jumlah_cetak: parseInt(d.totalcetak || 0),
       ltd_ambil_bahan: parseFloat(formData.value.panjang_bahan || 0),
-      sisabahan: sisaFinalYard,
+      sisabahan: sisaFinalYard, // Dalam YARD (Untuk tmasterstok_mmt)
+      sisabahan_meter: sisaFinalMeter, // <-- Dalam METER (Untuk ltd_sisameter)
       padding: parseFloat(d.padding || 0),
       cetak_1: parseInt(d.cetak1 || 0),
       cetak_2: parseInt(d.cetak2 || 0),

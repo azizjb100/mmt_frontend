@@ -298,7 +298,6 @@ const handleAcc = async () => {
   if (result.isConfirmed) {
     loading.acc = true;
     try {
-      // Sesuaikan URL endpoint ini dengan backend Anda (misal: POST /mmt/lhk-proof/acc/:nomor)
       await api.post(`/mmt/lhk-proof/acc/${selectedItem.value}`);
       toast.success(`LHK ${selectedItem.value} berhasil di-ACC.`);
       fetchMasterData();
