@@ -33,28 +33,39 @@ const isLoadingImage = ref(false);
 const mkbDetail = ref<any[]>([]);
 const isLoadingMkb = ref(false);
 
-const getBaseUrl = () =>
-  (api.defaults.baseURL || import.meta.env.VITE_API_URL || "").replace(
-    /\/api\/?$/,
-    "",
-  );
+// IP Server Khusus Media Gambar Static
+// Ganti URL IP Server dengan domain resmi
+const MEDIA_SERVER = "https://manksi.com";
 
 const resolveDesignImage = () => {
-  const nomor = props.formData.so_nomor;
-  if (!nomor) {
+  const nomor = props.formData.so_nomor?.trim();
+  const map = props.formData.so_map?.trim();
+  const cab = props.formData.so_cab?.trim() || "P05";
+
+  if (!nomor && !map) {
     resolvedImageUrl.value = "";
     isImageError.value = false;
+    isLoadingImage.value = false;
     return;
   }
-  const base = getBaseUrl();
-  const cab = props.formData.so_cab || "HO-";
-  const map = props.formData.so_map || "";
 
-  const candidates = [`${base}/images/${cab}/${encodeURIComponent(nomor)}.jpg`];
+  const base = getBaseUrl();
+  const candidates: string[] = [];
+
+  // 1. Prioritas Utama: Jalur MAP via Domain manksi.com
   if (map) {
+    // Hasil URL: https://manksi.com/images/P05/map/MAP-JA-MX-001436.jpg
+    candidates.push(`${MEDIA_SERVER}/images/${cab}/map/${map}.jpg`);
     candidates.push(`${base}/images/${cab}/map/${encodeURIComponent(map)}.jpg`);
+    candidates.push(`/file-gambar/${encodeURIComponent(map)}.jpg`);
   }
-  candidates.push(`/file-gambar/${encodeURIComponent(map || nomor)}.jpg`);
+
+  // 2. Prioritas Kedua: Jalur Nomor SO/SPK
+  if (nomor) {
+    candidates.push(`${MEDIA_SERVER}/images/${cab}/${nomor}.jpg`);
+    candidates.push(`${base}/images/${cab}/${encodeURIComponent(nomor)}.jpg`);
+    candidates.push(`/file-gambar/${encodeURIComponent(nomor)}.jpg`);
+  }
 
   isImageError.value = false;
   resolvedImageUrl.value = "";
@@ -66,14 +77,17 @@ const resolveDesignImage = () => {
       isLoadingImage.value = false;
       return;
     }
+
     const img = new Image();
     img.onload = () => {
       resolvedImageUrl.value = candidates[idx];
       isLoadingImage.value = false;
+      isImageError.value = false;
     };
     img.onerror = () => tryNext(idx + 1);
     img.src = candidates[idx];
   };
+
   tryNext(0);
 };
 
@@ -104,6 +118,7 @@ const totalExtraCols = computed(() => {
   return n;
 });
 
+// Watcher untuk merespon perubahan data SO/MAP/Cabang
 watch(
   [
     () => props.formData.so_nomor,
@@ -117,8 +132,6 @@ watch(
 );
 
 // --- Load detail SO (sumber data untuk SPK PPIC baru) ---
-// Validasi spk_aktif & spk_cmo sudah ditangani di backend (getSoSourceDetail),
-// jadi di sini cukup tangani error-nya saja.
 const loadSoDetail = async (nomor: string) => {
   if (!nomor) return;
   isLoadingSo.value = true;
@@ -159,14 +172,14 @@ const loadSoDetail = async (nomor: string) => {
     props.formData.so_dateline = h.spk_dateline?.substring(0, 10) || "";
     props.formData.spk_keterangan = h.spk_keterangan || "";
 
-    // Ambil detail size dari SO (jadi starting point, boleh disesuaikan PPIC nanti)
+    // Ambil detail size dari SO
     props.formData.Sizes = d.dtlSize || [];
 
     // Emit ke parent agar tab lain bisa ikut update
     emit("so-loaded", d);
 
-    resolvedImageUrl.value = "";
-    isImageError.value = false;
+    // Panggil ulang secara eksplisit jika watcher tidak otomatis memicu
+    resolveDesignImage();
 
     toast.success(`Data Sales Order ${nomor} berhasil dimuat.`);
   } catch (e: any) {
@@ -436,7 +449,6 @@ onMounted(async () => {
             />
           </div>
 
-          <!-- Warna badan/lengan/lain hanya relevan buat garmen (premium) -->
           <div v-if="isPremiumFlow" class="fr">
             <label class="lbl">Warna Badan</label>
             <input
@@ -508,7 +520,6 @@ onMounted(async () => {
               <tr>
                 <th>Size</th>
                 <th class="tr">Qty</th>
-                <!-- Kolom atasan — tampil hanya jika ada nilai -->
                 <th v-if="hasAtasanData" class="tr">LD</th>
                 <th v-if="hasAtasanData" class="tr">PB</th>
                 <th v-if="hasPlPendek" class="tr">PL Pendek</th>
@@ -516,7 +527,6 @@ onMounted(async () => {
                 <th v-if="hasAtasanData" class="tr">P.Bahu</th>
                 <th v-if="hasAtasanData" class="tr">L.Lengan</th>
                 <th v-if="hasAtasanData" class="tr">L.Manset</th>
-                <!-- Kolom bawahan -->
                 <th v-if="hasBawahanData" class="tr">L.Pinggang</th>
                 <th v-if="hasBawahanData" class="tr">P.Celana</th>
                 <th v-if="hasBawahanData" class="tr">L.Panggul</th>
@@ -580,7 +590,7 @@ onMounted(async () => {
         <div class="sec-title">Gambar Desain</div>
         <div class="img-box">
           <img
-            v-if="displayImageUrl"
+            v-if="displayImageUrl && !isImageError"
             :src="displayImageUrl"
             class="img-preview"
             style="cursor: pointer"
@@ -625,9 +635,9 @@ onMounted(async () => {
             <div class="mkb-bahan">{{ m.NamaBahan }}</div>
             <div class="mkb-item-foot">
               <span v-if="m.Warna" class="mkb-tag">{{ m.Warna }}</span>
-              <span v-if="m.Babaran" class="mkb-tag"
-                >Babaran: {{ m.Babaran }}</span
-              >
+              <span v-if="m.Babaran" class="mkb-tag">
+                Babaran: {{ m.Babaran }}
+              </span>
               <span class="mkb-qty">
                 {{ Number(m.Butuh).toLocaleString("id-ID") }} {{ m.Satuan }}
               </span>

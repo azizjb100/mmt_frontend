@@ -6,6 +6,7 @@ import { useToast } from "vue-toastification";
 import { useForm } from "@/composables/useForm";
 import api from "@/services/api";
 import BaseForm from "@/components/BaseForm.vue";
+import { useAuthStore } from "@/stores/authStore";
 import MesinLookupView from "@/modal/MesinLookupModal.vue";
 import SpkLookupView from "@/modal/SpkMesinLookupModal.vue";
 import {
@@ -21,6 +22,7 @@ import {
 const toast = useToast();
 const route = useRoute();
 const router = useRouter();
+const authStore = useAuthStore();
 
 const SCALE = 60; // Skala rendering layout canvas visual
 
@@ -183,7 +185,7 @@ const {
       jumlah_cetak: parseInt(d.totalcetak || 0),
       ltd_ambil_bahan: parseFloat(formData.value.panjang_bahan || 0),
       sisabahan: sisaFinalYard, // Dalam YARD (Untuk tmasterstok_mmt)
-      sisabahan_meter: sisaFinalMeter, // <-- Dalam METER (Untuk ltd_sisameter)
+      sisabahan_meter: sisaFinalMeter, // Dalam METER (Untuk ltd_sisameter)
       padding: parseFloat(d.padding || 0),
       cetak_1: parseInt(d.cetak1 || 0),
       cetak_2: parseInt(d.cetak2 || 0),
@@ -194,9 +196,14 @@ const {
       cetak_7: parseInt(d.cetak7 || 0),
     }));
 
+    // AMBIL KODE USER DARI kdUser STORE
+    const currentUser =
+      authStore.user?.kdUser || authStore.user?.kd_user || "SYSTEM";
+
     const payload = {
       header: {
         ...formData.value,
+        user: currentUser, // <-- Sudah mengambil dari kdUser
         panjang_bs:
           formData.value.panjang_bs !== ""
             ? parseFloat(formData.value.panjang_bs)
@@ -210,6 +217,7 @@ const {
       },
       details: formattedDetails,
     };
+
     return await api.post("/mmt/lhk-tekstil-mmt", payload);
   },
 });
