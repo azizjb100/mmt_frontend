@@ -3,10 +3,9 @@ import { ref, computed, onMounted, watch } from "vue";
 import { useRouter } from "vue-router";
 import { useToast } from "vue-toastification";
 import { format, isValid, parseISO } from "date-fns";
+import { soToSpkService } from "@/services/mmt/soToSpkService.ts";
 import BaseBrowse from "@/components/BaseBrowse.vue";
-import { soToSpkService } from "@/services/mmt/soToSpkService";
 
-// --- Interfaces ---
 interface SpkDetailSize {
   Nomor: string;
   Size: string;
