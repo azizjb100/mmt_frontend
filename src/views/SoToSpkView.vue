@@ -6,6 +6,7 @@ import { format, isValid, parseISO } from "date-fns";
 import { soToSpkService } from "@/services/mmt/soToSpkService.ts";
 import BaseBrowse from "@/components/BaseBrowse.vue";
 
+// --- Type Definitions ---
 interface SpkDetailSize {
   Nomor: string;
   Size: string;
