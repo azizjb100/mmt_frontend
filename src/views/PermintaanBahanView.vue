@@ -33,10 +33,10 @@ interface PermintaanBahanHeader {
   Detail: PermintaanBahanDetail[];
 }
 
-// --- Props & Route Setup (Support Multi-Cabang/Divisi) ---
+// --- Props & Route Setup (Dukungan Multi-Cabang & Divisi 1) ---
 const props = defineProps<{
   cabang?: string;
-  divisi?: string;
+  divisi?: number | string;
 }>();
 
 const toast = useToast();
@@ -45,12 +45,12 @@ const route = useRoute();
 
 const API_PERMINTAAN_BAHAN = "/mmt/permintaan-bahan";
 
-// Ambil nilai cabang & divisi dari Props atau Fallback ke Route Meta (Default: P05 & 01)
+// Ambil nilai cabang & divisi dari Props atau Fallback ke Route Meta (Default: Cabang P05 & Divisi 1)
 const currentCabang = computed(
   () => props.cabang || (route.meta.cabang as string) || "P05",
 );
 const currentDivisi = computed(
-  () => props.divisi || (route.meta.divisi as string) || "01",
+  () => props.divisi ?? (route.meta.divisi as number | string) ?? 1,
 );
 
 // Judul Halaman Dinamis
@@ -189,7 +189,7 @@ const fetchData = async () => {
         startDate: startDate.value,
         endDate: endDate.value,
         cabang: currentCabang.value, // Pass Filter Cabang (P05/P02)
-        divisi: currentDivisi.value, // Pass Filter Divisi (01)
+        divisi: currentDivisi.value, // Pass Filter Divisi (1)
       },
     });
     const result = response.data.data ?? response.data;

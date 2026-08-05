@@ -128,6 +128,8 @@ import MasterBahanSpandukView from "@/views/spanduk/MasterBahanSpandukView.vue";
 import PenerimaanBahanPenolongView from "@/views/spanduk/PenerimaanBahanPenolongView.vue";
 import LapKartuStokMmtView from "@/views/LapKartuStokMmtView.vue";
 import LapPemakaianBahanTekstil from "@/views/LapPemakaianBahanTekstil.vue";
+import SoToSpkView from "@/views/SoToSpkView.vue";
+import FormSoToSpkView from "@/views/FormSoToSpkView.vue";
 
 const routes: RouteRecordRaw[] = [
   {
@@ -220,6 +222,12 @@ const routes: RouteRecordRaw[] = [
         component: SpkPrintView,
         props: true,
       },
+      { path: "mmt/so-spk", name: "BrowseSoToSpk", component: SoToSpkView },
+      {
+        path: "mmt/so-spk/new",
+        name: "BrowseSoToSpkNew",
+        component: FormSoToSpkView,
+      },
 
       {
         path: "mmt/jadwal-kirim",
@@ -304,10 +312,10 @@ const routes: RouteRecordRaw[] = [
         component: PermintaanBahanView,
         meta: {
           title: "Permintaan Bahan MMT",
-          divisi: "01",
+          divisi: 1,
           cabang: "P05",
         },
-        props: { divisi: "01", cabang: "P05" },
+        props: { divisi: 1, cabang: "P05" },
       },
 
       {
@@ -341,10 +349,10 @@ const routes: RouteRecordRaw[] = [
         component: PermintaanBahanView, // Menggunakan komponen View yang sama
         meta: {
           title: "Permintaan Bahan Spanduk",
-          divisi: "01",
+          divisi: 1,
           cabang: "P02",
         },
-        props: { divisi: "01", cabang: "P02" },
+        props: { divisi: 1, cabang: "P02" },
       },
       {
         path: "mmt/voucher-pembelian",
