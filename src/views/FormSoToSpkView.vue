@@ -10,8 +10,8 @@ import { IconClipboardText } from "@tabler/icons-vue";
 import SpkTabOrder from "@/components/SpkTabOrder.vue";
 import SpkTabKomponen from "@/components/spk/SpkTabKomponen.vue";
 import SpkTabLayoutProses from "@/components/spk/SpkTabLayoutProses.vue";
-// import SpkTabKeterangan from "./components/SpkTabKeterangan.vue";
-// import SpkTabAlokasi from "./components/SpkTabAlokasi.vue";
+import SpkTabKeterangan from "@/components/spk/SpkTabKeterangan.vue";
+import SpkTabAlokasi from "@/components/spk/SpkTabAlokasi.vue";
 
 const route = useRoute();
 const router = useRouter();

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
 import { useToast } from "vue-toastification";
-import { soToSpkService } from "@/services/mmt/soToSpkService";
+import { soToSpkService } from "@/services/mmt/soToSpkService.ts";
 import { IconUpload, IconFileSpreadsheet } from "@tabler/icons-vue";
 const props = defineProps<{
   formData: any;

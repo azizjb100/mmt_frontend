@@ -63,7 +63,7 @@ const loadKomponenFromProof = async () => {
   isLoading.value = true;
   try {
     const res = await api.get(
-      `/ppic/spk/form/komponen-from-proof/${encodeURIComponent(identifier.value)}`,
+      `/mmt/so-spk/komponen-from-proof/${encodeURIComponent(identifier.value)}`,
     );
     const proofPotong = res.data.data.ListPotong || [];
     const proofCetakBordir = res.data.data.ListCetakBordir || [];

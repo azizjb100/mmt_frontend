@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { ref, watch } from "vue";
-import { salesOrderService } from "@/services/mmt/SalesOrderService";
+import { salesOrderService } from "@/services/mmt/salesOrderService";
 import { IconSearch, IconX } from "@tabler/icons-vue";
 
 const props = defineProps<{ modelValue: boolean }>();
 const emit = defineEmits(["update:modelValue", "selected"]);
 
 const query = ref("");
+
 const items = ref<any[]>([]);
 const isLoading = ref(false);
 const page = ref(1);

@@ -23,7 +23,7 @@ const ensureTrailingEmptyRow = () => {
 const initKetKomponen = async () => {
   if (props.formData.KetKomponenList?.length > 0) return;
   try {
-    const res = await api.get("/ppic/spk/form/ket-komponen-master");
+    const res = await api.get("/mmt/so-spk/form/ket-komponen-master");
     props.formData.KetKomponenList = res.data.data.map((k: any) => ({
       kode: k.kode,
       nama: k.nama,
@@ -70,7 +70,7 @@ const loadMkaFromMap = async () => {
   isLoadingMka.value = true;
   try {
     const res = await api.get(
-      `/ppic/spk/form/mka-from-map/${encodeURIComponent(mapNomor)}`,
+      `/mmt/so-spk/form/mka-from-map/${encodeURIComponent(mapNomor)}`,
     );
     mkaFromMap.value = res.data.data;
   } catch {

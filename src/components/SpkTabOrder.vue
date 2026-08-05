@@ -2,7 +2,7 @@
 import { ref, computed, watch, onMounted } from "vue";
 import { useToast } from "vue-toastification";
 import { useAuthStore } from "@/stores/authStore";
-import { soToSpkService } from "@/services/mmt/SoToSpkService";
+import { soToSpkService } from "@/services/mmt/soToSpkService";
 import api from "@/services/api";
 import SalesOrderSearchModal from "@/components/SalesOrderModal.vue";
 import { IconSearch, IconX, IconPhoto, IconMaximize } from "@tabler/icons-vue";
