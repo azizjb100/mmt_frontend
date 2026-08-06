@@ -226,12 +226,12 @@ const handleExpandUpdate = async (expandedKeys: any[]) => {
 const isLoadingDetails = (nomor: string) => loadingDetails.value.has(nomor);
 
 const handleNewEdit = (mode: "new" | "edit") => {
-  const routePrefix = currentCabang.value === "P02" ? "Spanduk" : "Mmt";
   if (mode === "new") {
-    router.push({ name: `${routePrefix}PermintaanBahanNew` });
+    // Samakan persis dengan "name" di router
+    router.push({ name: "PermintaanBahanNew" });
   } else if (selectedNomor.value) {
     router.push({
-      name: `${routePrefix}PermintaanBahanEdit`,
+      name: "PermintaanBahanEdit", // Samakan juga jika ada rute edit
       params: { nomor: selectedNomor.value },
     });
   }
