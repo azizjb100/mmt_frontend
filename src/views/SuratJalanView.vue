@@ -215,7 +215,7 @@ const getRowProps = ({ item }: any) => ({
 // =========================================================================
 // FITUR 1: CETAK SURAT JALAN (MEMBUKA FILE PRINT TERPISAH)
 // =========================================================================
-const handlePrint = (mode: "inkjet" | "dotmatrix" = "inkjet") => {
+const handlePrint = () => {
   if (selected.value.length === 0) {
     toast.warning("Pilih Surat Jalan yang akan dicetak.");
     return;
@@ -223,12 +223,11 @@ const handlePrint = (mode: "inkjet" | "dotmatrix" = "inkjet") => {
 
   const item = selected.value[0];
 
-  // Membuka tab baru yang mengarah ke file SuratJalanPrintView.vue via Vue Router
+  // Membuka tab cetak tanpa query mode=inkjet
   const routeData = router.resolve({
-    path: "/surat-jalan/print", // Adjust this route path to match your router setup
+    path: "/mmt/surat-jalan/print",
     query: {
       nomor: item.Nomor,
-      mode: mode,
     },
   });
 
@@ -355,22 +354,10 @@ onMounted(fetchData);
           color="info"
           class="mr-2 text-none"
           :disabled="selected.length === 0"
-          @click="handlePrint('inkjet')"
+          @click="handlePrint"
         >
           <v-icon start>mdi-printer</v-icon>
           Cetak SJ
-        </v-btn>
-
-        <!-- Tombol Cetak Dot Matrix -->
-        <v-btn
-          size="small"
-          color="teal"
-          class="mr-2 text-none"
-          :disabled="selected.length === 0"
-          @click="handlePrint('dotmatrix')"
-        >
-          <v-icon start>mdi-printer-pos</v-icon>
-          Dot Matrix
         </v-btn>
 
         <!-- Tombol Pengajuan Edit -->

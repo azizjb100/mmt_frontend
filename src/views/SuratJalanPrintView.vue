@@ -3,13 +3,25 @@ import { ref, computed, onMounted } from "vue";
 import { useRoute } from "vue-router";
 import { suratJalanService as svc } from "@/services/mmt/suratJalanService";
 
-// Import Logo Perusahaan
-import logoKP from "@/assets/kp.jpg";
-import logoJA from "@/assets/ja.jpg";
-import logoMD from "@/assets/md.jpg";
+// 1. Terima 'nomor' dari Props (karena di router diset props: true)
+const props = defineProps<{
+  nomor: string | string[];
+}>();
 
 const route = useRoute();
-const nomor = route.query.nomor as string;
+
+// 2. Olah parameter nomor (jika berupa array dari route wildcard, gabungkan kembali dengan '/')
+const nomorSJ = computed(() => {
+  if (Array.isArray(props.nomor)) {
+    return props.nomor.join("/");
+  }
+  return (
+    props.nomor ||
+    (route.params.nomor as string) ||
+    (route.query.nomor as string) ||
+    ""
+  );
+});
 
 const header = ref<any>({});
 const detail = ref<any[]>([]);
@@ -19,74 +31,16 @@ const isLoading = ref(true);
 const doPrint = () => window.print();
 const doClose = () => window.close();
 
-// ── Watermark Per Rangkap ──
-const copies = computed(() => [
-  { label: "ASLI" },
-  { label: "COPY 1" },
-  { label: "COPY 2" },
-  { label: "COPY 3" },
-]);
-
-// ── Chunking Data (Maksimal 6 Baris Per Halaman A5) ──
-const rowsPerPage = 6;
-
-const paginatedDetails = computed(() => {
-  const arr = detail.value || [];
-  const chunks = [];
-  for (let i = 0; i < arr.length; i += rowsPerPage) {
-    chunks.push(arr.slice(i, i + rowsPerPage));
-  }
-  return chunks.length > 0 ? chunks : [[]];
-});
-
-// ── Logo Perusahaan ──
-const companyLogo = computed(() => {
-  const kode = (
-    header.value.perush_kode ||
-    header.value.sj_perush_kode ||
-    header.value.spk_perush_kode ||
-    ""
-  ).toUpperCase();
-
-  const nama = (header.value.perush_nama || "").toUpperCase();
-
-  if (kode === "KP" || nama.includes("KENCANA")) return logoKP;
-  if (kode === "JA" || nama.includes("JAYA ABADI")) return logoJA;
-  if (kode === "MD" || nama.includes("MADANI")) return logoMD;
-  return null;
-});
-
-// ── Formatter ──
-const fmtDate = (v: string) => {
-  if (!v) return "";
-  const d = new Date(v);
-  return `${String(d.getDate()).padStart(2, "0")}/${String(
-    d.getMonth() + 1,
-  ).padStart(2, "0")}/${d.getFullYear()}`;
-};
-
-const num = (v: any) => {
-  const n = Number(v || 0);
-  const neg = n < 0;
-  const abs = Math.abs(n);
-  const hasDecimal = Math.round(abs * 100) % 100 !== 0;
-  const fixed = abs.toFixed(hasDecimal ? 2 : 0);
-  const [intPartRaw, decPart] = fixed.split(".");
-  let out = "";
-  let cnt = 0;
-  for (let i = intPartRaw.length - 1; i >= 0; i--) {
-    out = intPartRaw[i] + out;
-    cnt++;
-    if (cnt % 3 === 0 && i !== 0) out = "." + out;
-  }
-  if (decPart) out += "," + decPart;
-  return (neg ? "-" : "") + out;
-};
-
 // ── Load Data ──
 const fetchData = async () => {
+  if (!nomorSJ.value) {
+    console.error("Nomor SJ tidak ditemukan");
+    isLoading.value = false;
+    return;
+  }
+
   try {
-    const res = await svc.getDataCetak(nomor);
+    const res = await svc.getDataCetak(nomorSJ.value);
     header.value = res.data.data?.header || res.data?.header || {};
     detail.value = res.data.data?.detail || res.data?.detail || [];
     isReady.value = true;
@@ -101,7 +55,7 @@ const fetchData = async () => {
 };
 
 onMounted(() => {
-  document.title = `Surat Jalan - ${nomor}`;
+  document.title = `Surat Jalan - ${nomorSJ.value}`;
   fetchData();
 });
 </script>
@@ -373,7 +327,7 @@ onMounted(() => {
 /* ── LAYOUT KERTAS A5 LANDSCAPE (210mm x 148mm) ── */
 .page {
   width: 210mm;
-  height: 146mm; /* Presisi tinggi A5 Landscape minus toleransi margin browser */
+  height: 146mm;
   background: white;
   margin: 12px auto;
   padding: 6mm 8mm;
@@ -559,7 +513,6 @@ onMounted(() => {
     margin: 0;
   }
 
-  /* Mengunci ukuran Kertas A5 Landscape saat mencetak */
   @page {
     size: 210mm 148mm landscape;
     margin: 0;
