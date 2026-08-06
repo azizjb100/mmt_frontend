@@ -444,7 +444,7 @@ const rolePermissions = {
     "Planning Produksi",
     "Mutasi Bahan",
     "Stok Opname",
-
+    "Surat Jalan",
     "Surat Jalan Approve",
 
     "Retur Beli",
@@ -590,6 +590,7 @@ const allMenuGroups = [
       { name: "BS & Sisa Digital Print", path: "/mmt/bs-digital" },
       { name: "BS & Sisa Tekstil", path: "/mmt/bs-tekstil" },
       { name: "STBJ", path: "/mmt/stbj" },
+      { name: "Surat Jalan", path: "/mmt/surat-jalan" },
       { name: "Surat Jalan Approve", path: "/mmt/surat-jalan/approve" },
       { name: "Jadwal Kirim", path: "/mmt/jadwal-kirim" },
       {

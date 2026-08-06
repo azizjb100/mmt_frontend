@@ -118,6 +118,7 @@ import LhkLayoutView from "@/views/LhkLayoutView.vue";
 import FormLhkLayoutView from "@/views/FormLhkLayoutView.vue";
 import MutasiInternalView from "@/views/MutasiInternalView.vue";
 import FormMutasiInternalView from "@/views/FormMutasiInternalView.vue";
+import SuratJalanView from "@/views/SuratJalanView.vue";
 import SuratJalanApproveView from "@/views/SuratJalanApproveView.vue";
 import FormSuratJalanApvView from "@/views/FormSuratJalanApvView.vue";
 import LapMonBSView from "@/views/LapMonBSView.vue";
@@ -252,7 +253,11 @@ const routes: RouteRecordRaw[] = [
         component: JadwalKirimPrintView,
         props: true,
       },
-
+      {
+        path: "mmt/surat-jalan",
+        name: "SuratJalanBrowse",
+        component: SuratJalanView,
+      },
       {
         path: "mmt/surat-jalan/approve",
         name: "SuratJalanApprove",
