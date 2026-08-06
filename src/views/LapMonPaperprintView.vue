@@ -285,7 +285,7 @@ const formatNumber = (val: any, decimalPlaces = 0) => {
 };
 
 // --- STATE ---
-const API_URL = "/mmt/lap-mon-paperprint/monitoring";
+const API_URL = "mmt/monitoring-paperprint/monitoring";
 const allData = ref<any[]>([]);
 const loading = ref({ report: false });
 const searchQuery = ref("");
