@@ -85,9 +85,13 @@ const startDate = ref<string>(format(new Date(), "yyyy-MM-dd"));
 const endDate = ref<string>(format(new Date(), "yyyy-MM-dd"));
 const keyword = ref<string>("");
 
+// Flag penanda load pertama kali
+const isFirstLoad = ref<boolean>(true);
+
 // --- EXCEL-STYLE FILTER CABANG STATE ---
 const menuCabang = ref(false);
-const selectedCabangFilter = ref<string[]>([]);
+// Default langsung diset ke P05
+const selectedCabangFilter = ref<string[]>(["P05"]);
 
 // --- EXCEL-STYLE FILTER NOMOR SPK STATE ---
 const menuSpk = ref(false);
@@ -280,7 +284,12 @@ const fetchData = async () => {
     });
     const result = res.data?.data ?? res.data;
     masterData.value = Array.isArray(result) ? result : [];
-    selectedCabangFilter.value = [...availableCabangList.value];
+
+    // Jika baru pertama kali dimuat, set filter cabang default ke 'P05'
+    if (isFirstLoad.value) {
+      selectedCabangFilter.value = ["P05"];
+      isFirstLoad.value = false;
+    }
   } catch (e) {
     toast.error("Gagal mengambil data SPK.");
   } finally {
