@@ -7,6 +7,7 @@ export const soToSpkService = {
     endDate: string;
     workshop?: string;
     customer?: string;
+    [key: string]: any;
   }) => api.get("/mmt/so-spk", { params }),
 
   // 2. Mengambil detail breakdown size SPK
@@ -49,25 +50,56 @@ export const soToSpkService = {
   recordPrint: (nomor: string) =>
     api.post(`/mmt/so-spk/${encodeURIComponent(nomor)}/record-print`),
 
-  getDetail: (nomor: string) =>
-    api.get("/mmt/so-spk/detail", { params: { nomor } }),
+  // ==========================================
+  // 🔧 METHOD BARU & KOREKSI UNTUK FORM & TAB
+  // ==========================================
 
-  // Ambil data SO sebagai dasar create SPK mmt baru
-  getSoSource: (soNomor: string) =>
-    api.get("/mmt/so-spk/so-source", { params: { soNomor } }),
+  // 🟢 FIX ERROR MAIN: createSave & updateSave (Dipanggil oleh FormSoToSpkView.vue)
+  createSave: (payload: any) => api.post("/mmt/so-spk/save", payload),
+  updateSave: (payload: any) => api.put("/mmt/so-spk/save", payload),
 
+  // Method simpan fleksibel (fallback)
   save: (payload: any) =>
     payload.isEdit
       ? api.put("/mmt/so-spk/save", payload)
       : api.post("/mmt/so-spk/save", payload),
+
+  // Ambil detail SPK (Bisa terima String 'SO-123' ATAU Object { nomor: 'SO-123' })
+  getDetail: (params: string | { nomor: string; [key: string]: any }) => {
+    const p = typeof params === "string" ? { nomor: params } : params;
+    return api.get("/mmt/so-spk/detail", { params: p });
+  },
+
+  // Ambil data SO sebagai dasar create SPK (Bisa terima String ATAU Object { nomor })
+  getSoSource: (
+    params: string | { nomor?: string; soNomor?: string; [key: string]: any },
+  ) => {
+    const soNomor =
+      typeof params === "string" ? params : params.soNomor || params.nomor;
+    return api.get("/mmt/so-spk/so-source", { params: { soNomor } });
+  },
 
   getInitSizes: () => api.get("/mmt/so-spk/init-sizes"),
 
   getStandarUkuran: (joKode: string, varian = "STANDAR") =>
     api.get("/mmt/so-spk/standar-ukuran", { params: { joKode, varian } }),
 
-  getMkbDetail: (spkNomor: string) =>
-    api.get("/mmt/so-spk/mkb-detail", { params: { spkNomor } }),
+  // 🟢 FIX COMPATIBILITY: getMkbDetail & getMkbDetailBySpk dibuat kompatibel ganda
+  getMkbDetail: (
+    params: string | { spkNomor?: string; nomor?: string; [key: string]: any },
+  ) => {
+    const spkNomor =
+      typeof params === "string" ? params : params.spkNomor || params.nomor;
+    return api.get("/mmt/so-spk/mkb-detail", { params: { spkNomor } });
+  },
+
+  getMkbDetailBySpk: (
+    params: string | { spkNomor?: string; nomor?: string; [key: string]: any },
+  ) => {
+    const spkNomor =
+      typeof params === "string" ? params : params.spkNomor || params.nomor;
+    return api.get("/mmt/so-spk/mkb-detail", { params: { spkNomor } });
+  },
 
   getKomponenMaster: (isBordir?: boolean) =>
     api.get("/mmt/so-spk/komponen-master", {
@@ -76,8 +108,8 @@ export const soToSpkService = {
 
   importLayoutProses: (spkNomor: string, file: File) => {
     const formData = new FormData();
-    formData.append("file", file); // ← field name harus "file", sesuai upload.excel.single("file")
-    formData.append("spkNomor", spkNomor); // ← field name harus persis "spkNomor", sesuai controller
+    formData.append("file", file);
+    formData.append("spkNomor", spkNomor);
     return api.post("/mmt/so-spk/layout-proses/import", formData, {
       headers: { "Content-Type": "multipart/form-data" },
     });

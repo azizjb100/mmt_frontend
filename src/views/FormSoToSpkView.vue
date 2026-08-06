@@ -46,6 +46,7 @@ const defaultData = {
   so_bordir: "N",
   so_sublim: "N",
   so_cust_perfect: "N",
+  GambarUrl: "",
 
   // SPK header (yang diisi/diubah form PPIC)
   spk_nomor: "",
@@ -84,7 +85,7 @@ const {
   // Mode EDIT: Ambil data detail via soToSpkService
   fetchApi: async () => {
     const nomor = String(route.params.nomor);
-    const res = await soToSpkService.getDetail(nomor);
+    const res = await soToSpkService.getDetail({ nomor });
     const h = res.data.data?.header || {};
     const d = res.data.data || {};
 
@@ -96,7 +97,9 @@ const {
       (!mapped.so_tipe || !mapped.so_kepentingan || !mapped.so_dateline)
     ) {
       try {
-        const resSo = await soToSpkService.getSoSource(mapped.so_nomor);
+        const resSo = await soToSpkService.getSoSource({
+          nomor: mapped.so_nomor,
+        });
         const soH = resSo.data.data?.header || {};
         if (!mapped.so_tipe) mapped.so_tipe = soH.spk_tipe || "";
         if (!mapped.so_kepentingan)
@@ -110,6 +113,7 @@ const {
 
     return {
       ...mapped,
+      GambarUrl: d.GambarUrl || h.GambarUrl || "",
       isPremiumFlow: d.isPremiumFlow ?? true,
       Sizes: d.dtlSize || [],
       KomponenSpk: d.komponenSpk || { ListPotong: [], ListCetakBordir: [] },
@@ -124,32 +128,51 @@ const {
 
   // Mode SAVE: Simpan data via soToSpkService
   submitApi: async (data: any) => {
-    const payload: any = {
-      isEdit: isEditMode.value,
-      spk_ketbeli: data.spk_ketbeli,
-      spk_keterangan: data.spk_keterangan,
-      dtlSize: data.Sizes,
-      komponenSpk: data.KomponenSpk,
-      keteranganKhusus: data.KeteranganKhusus,
-      ketKomponenList: data.KetKomponenList,
-      alokasi: data.Alokasi,
-    };
+    try {
+      const payload: any = {
+        isEdit: isEditMode.value,
+        spk_ketbeli: data.spk_ketbeli || "",
+        spk_keterangan: data.spk_keterangan || "",
+        dtlSize: data.Sizes || [],
+        komponenSpk: data.KomponenSpk || {
+          ListPotong: [],
+          ListCetakBordir: [],
+        },
+        keteranganKhusus: data.KeteranganKhusus || [],
+        ketKomponenList: data.KetKomponenList || [],
+        alokasi: data.Alokasi || [],
+      };
 
-    if (isEditMode.value) {
-      payload.spk_nomor = data.spk_nomor;
-    } else {
-      payload.so_nomor = data.so_nomor;
+      if (isEditMode.value) {
+        payload.spk_nomor = data.spk_nomor;
+      } else {
+        payload.so_nomor = data.so_nomor;
+      }
+
+      console.log("🚀 Payload dikirim ke backend:", payload);
+
+      // 🔧 SAFE CALL: Cek fungsi mana yang tersedia di service agar tidak crash
+      if (typeof (soToSpkService as any).createSave === "function") {
+        return isEditMode.value
+          ? await (soToSpkService as any).updateSave(payload)
+          : await (soToSpkService as any).createSave(payload);
+      }
+
+      // Fallback menggunakan method save() bawaan service kamu
+      if (typeof soToSpkService.save === "function") {
+        return await soToSpkService.save(payload);
+      }
+
+      throw new Error("Method simpan tidak ditemukan di soToSpkService!");
+    } catch (err: any) {
+      console.error("🔴 Error pada submitApi:", err.response?.data || err);
+      throw err;
     }
-
-    return soToSpkService.saveData(
-      payload,
-      isEditMode.value ? data.spk_nomor : undefined,
-    );
   },
 
   onSuccess: () => {
     toast.success("SO to SPK berhasil disimpan.");
-    router.push("/ppic/so-spk");
+    router.push("/mmt/so-spk");
   },
 });
 
@@ -187,6 +210,7 @@ function mapHeaderToFormData(h: any) {
     so_sablon: h.spk_sablon || "N",
     so_bordir: h.spk_bordir || "N",
     so_sublim: h.spk_sublim || "N",
+    GambarUrl: h.GambarUrl || "",
   };
 }
 
@@ -200,6 +224,8 @@ const handleSoLoaded = (soData: any) => {
     formData.value.isPremiumFlow = soData?.isPremiumFlow ?? true;
     formData.value.spk_cab = soData?.header?.spk_cab || "";
     formData.value.Alokasi = soData?.soAlokasi || [];
+    formData.value.GambarUrl =
+      soData?.header?.GambarUrl || soData?.GambarUrl || "";
   }
 };
 

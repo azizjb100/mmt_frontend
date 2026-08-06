@@ -329,7 +329,7 @@ const getRowProps = ({ item }: any) => {
   };
 };
 
-const handleNew = () => router.push("/ppic/so-spk/create");
+const handleNew = () => router.push("/mmt/so-spk/new");
 
 const handleEdit = () => {
   if (!selectedItem.value) return;
@@ -337,7 +337,7 @@ const handleEdit = () => {
     return toast.warning("SPK yang sudah Closed tidak dapat diubah.");
   }
   const nomorSpk = selectedItem.value.SPK || (selectedItem.value as any).Nomor;
-  router.push(`/ppic/so-spk/edit/${encodeURIComponent(nomorSpk)}`);
+  router.push(`/mmt/so-spk/edit/${encodeURIComponent(nomorSpk)}`);
 };
 
 const handlePrint = async () => {
@@ -360,7 +360,7 @@ const handlePrint = async () => {
     if (!res.data?.data?.allowed) {
       return toast.warning("Tidak mendapatkan izin mencetak SPK ini.");
     }
-    window.open(`/ppic/so-spk/print/${encodeURIComponent(nomorSpk)}`, "_blank");
+    window.open(`/mmt/so-spk/print/${encodeURIComponent(nomorSpk)}`, "_blank");
     await soToSpkService.recordPrint(nomorSpk);
   } catch (e: any) {
     toast.error(e.response?.data?.message || "Gagal mencetak SPK.");

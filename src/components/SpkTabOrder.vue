@@ -33,11 +33,29 @@ const isLoadingImage = ref(false);
 const mkbDetail = ref<any[]>([]);
 const isLoadingMkb = ref(false);
 
-// IP Server Khusus Media Gambar Static
-// Ganti URL IP Server dengan domain resmi
+// Domain Media Server Resmi (Dipastikan HTTPS & SSL Valid)
 const MEDIA_SERVER = "https://manksi.com";
 
+const getBaseUrl = () =>
+  (api.defaults.baseURL || import.meta.env.VITE_API_URL || "").replace(
+    /\/api\/?$/,
+    "",
+  );
+
 const resolveDesignImage = () => {
+  // 1. Jika Backend sudah mengirim URL gambar lengkap (GambarUrl / so_gambar_url)
+  const directUrl =
+    props.formData.GambarUrl ||
+    props.formData.so_gambar_url ||
+    props.formData.spk_gambar_url;
+
+  if (directUrl) {
+    resolvedImageUrl.value = directUrl;
+    isImageError.value = false;
+    isLoadingImage.value = false;
+    return;
+  }
+
   const nomor = props.formData.so_nomor?.trim();
   const map = props.formData.so_map?.trim();
   const cab = props.formData.so_cab?.trim() || "P05";
@@ -52,15 +70,14 @@ const resolveDesignImage = () => {
   const base = getBaseUrl();
   const candidates: string[] = [];
 
-  // 1. Prioritas Utama: Jalur MAP via Domain manksi.com
+  // 2. Prioritas Utama: Jalur MAP via Domain manksi.com
   if (map) {
-    // Hasil URL: https://manksi.com/images/P05/map/MAP-JA-MX-001436.jpg
     candidates.push(`${MEDIA_SERVER}/images/${cab}/map/${map}.jpg`);
     candidates.push(`${base}/images/${cab}/map/${encodeURIComponent(map)}.jpg`);
     candidates.push(`/file-gambar/${encodeURIComponent(map)}.jpg`);
   }
 
-  // 2. Prioritas Kedua: Jalur Nomor SO/SPK
+  // 3. Prioritas Kedua: Jalur Nomor SO / SPK
   if (nomor) {
     candidates.push(`${MEDIA_SERVER}/images/${cab}/${nomor}.jpg`);
     candidates.push(`${base}/images/${cab}/${encodeURIComponent(nomor)}.jpg`);
@@ -118,12 +135,13 @@ const totalExtraCols = computed(() => {
   return n;
 });
 
-// Watcher untuk merespon perubahan data SO/MAP/Cabang
+// Watcher untuk merespon perubahan data SO/MAP/Cabang/GambarUrl
 watch(
   [
     () => props.formData.so_nomor,
     () => props.formData.so_map,
     () => props.formData.so_cab,
+    () => props.formData.GambarUrl,
   ],
   () => {
     resolveDesignImage();
@@ -172,13 +190,17 @@ const loadSoDetail = async (nomor: string) => {
     props.formData.so_dateline = h.spk_dateline?.substring(0, 10) || "";
     props.formData.spk_keterangan = h.spk_keterangan || "";
 
+    // Simpan GambarUrl jika dikirim oleh backend
+    if (h.GambarUrl || d.GambarUrl) {
+      props.formData.GambarUrl = h.GambarUrl || d.GambarUrl;
+    }
+
     // Ambil detail size dari SO
     props.formData.Sizes = d.dtlSize || [];
 
     // Emit ke parent agar tab lain bisa ikut update
     emit("so-loaded", d);
 
-    // Panggil ulang secara eksplisit jika watcher tidak otomatis memicu
     resolveDesignImage();
 
     toast.success(`Data Sales Order ${nomor} berhasil dimuat.`);
@@ -210,6 +232,10 @@ const loadMkbDetail = async (soNomor: string) => {
 const onSoSelected = (item: any) => {
   const nomor = item.Nomor || item.spk_nomor;
   props.formData.so_nomor = nomor;
+  // Jika item modal membawa GambarUrl dari backend, langsung simpan
+  if (item.GambarUrl) {
+    props.formData.GambarUrl = item.GambarUrl;
+  }
   loadSoDetail(nomor);
 };
 
@@ -230,6 +256,7 @@ const clearSo = () => {
   props.formData.so_customer = "";
   props.formData.so_cust_perfect = "N";
   props.formData.so_jo_kode = "";
+  props.formData.GambarUrl = "";
   props.formData.Sizes = [];
   mkbDetail.value = [];
   resolvedImageUrl.value = "";
