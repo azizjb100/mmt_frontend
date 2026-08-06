@@ -97,6 +97,7 @@ import InvoicePrintView from "@/views/InvoicePrintView.vue";
 import FormRekapLhkTekstilView from "@/views/FormRekapLhkTekstilView.vue";
 import FormAbsesnView from "@/views/FormAbsesnView.vue";
 import LapMonProofView from "@/views/LapMonProofView.vue";
+import LapMonPaperprintView from "@/views/LapMonPaperprintView.vue";
 import LhkProofView from "@/views/LhkProofView.vue";
 import FormLhkProofView from "@/views/FormLhkProofView.vue";
 import LhkSublimView from "@/views/LhkSublimView.vue";
@@ -1029,6 +1030,11 @@ const routes: RouteRecordRaw[] = [
         path: "laporan/mmt/lap-mon-proof",
         name: "lapMonProof",
         component: LapMonProofView,
+      },
+      {
+        path: "laporan/mmt/lap-mon-paperprint",
+        name: "lapMonPaperprint",
+        component: LapMonPaperprintView,
       },
       {
         path: "laporan/mmt/lap-mon-sublim",

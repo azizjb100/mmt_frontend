@@ -477,6 +477,7 @@ const rolePermissions = {
     "Lap. Mon Finishing",
     "Lap. Mon Tekstil",
     "Lap. Mon Proof",
+    "Lap. Mon Paperprint",
     "Lap. Mon Sublim",
     "Lap. BS & Sisa Digital Printing",
   ],
@@ -712,6 +713,10 @@ const allMenuGroups = [
               {
                 name: "Lap. Mon Tekstil",
                 path: "/laporan/mmt/lap-mon-tekstil",
+              },
+              {
+                name: "Lap. Mon Paperprint",
+                path: "/laporan/mmt/lap-mon-paperprint",
               },
               { name: "Lap. Mon Proof", path: "/laporan/mmt/lap-mon-proof" },
               { name: "Lap. Mon Sublim", path: "/laporan/mmt/lap-mon-sublim" },
