@@ -22,7 +22,7 @@
       <v-btn
         size="x-small"
         color="teal-darken-1"
-        :disabled="!isSingleSelected"
+        :disabled="!isSingleSelected || selectedObject?.Status_Acc === 'ACC'"
         :loading="loading.acc"
         @click="handleAcc"
       >
@@ -125,6 +125,15 @@
             {{ item.Jenis }}
           </v-chip>
         </template>
+        <template #item.Status_Acc="{ item }">
+          <v-chip
+            size="x-small"
+            :color="item.Status_Acc === 'ACC' ? 'success' : 'grey'"
+            variant="flat"
+          >
+            {{ item.Status_Acc === "ACC" ? "ACC" : "DRAFT" }}
+          </v-chip>
+        </template>
 
         <template #expanded-row="{ columns, item }">
           <tr>
@@ -204,6 +213,7 @@ const masterHeaders = [
     align: "end",
     width: "110px",
   },
+  { title: "Status ACC", key: "Status_Acc", width: "100px" },
   { title: "Keterangan", key: "Keterangan" },
 ];
 

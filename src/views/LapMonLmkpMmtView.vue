@@ -40,22 +40,180 @@
       />
     </template>
 
-    <!-- Slot Header Tabel Berkelompok Custom -->
+    <!-- Slot Header Tabel Berkelompok Custom dengan Filter & Sort Per Kolom -->
     <template #thead>
       <thead>
         <!-- Row 1: Header Utama & Grouping Header -->
         <tr class="header-main">
-          <th rowspan="2" class="text-center sticky-col-1">NOMOR SPK</th>
-          <th rowspan="2" class="text-left sticky-col-2">NAMA ORDER</th>
-          <th rowspan="2" class="text-center">TANGGAL</th>
-          <th rowspan="2" class="text-center">DEADLINE</th>
-          <th rowspan="2" class="text-left">BAHAN</th>
-          <th rowspan="2" class="text-center">GRAMASI</th>
+          <!-- 1. NOMOR SPK -->
+          <th rowspan="2" class="text-center sticky-col-1">
+            <div class="d-flex align-center justify-space-between px-1">
+              <span
+                @click="toggleSort('NOMOR')"
+                class="cursor-pointer font-weight-bold"
+              >
+                NOMOR SPK {{ getSortIcon("NOMOR") }}
+              </span>
+              <v-menu :close-on-content-click="false">
+                <template #activator="{ props }">
+                  <v-btn
+                    v-bind="props"
+                    icon
+                    variant="text"
+                    size="x-small"
+                    class="btn-filter-icon ml-1"
+                  >
+                    <v-icon
+                      size="14"
+                      :color="columnFilters.NOMOR ? 'amber-accent-2' : 'white'"
+                    >
+                      mdi-filter-variant
+                    </v-icon>
+                  </v-btn>
+                </template>
+                <v-card min-width="200" class="pa-2 rounded-lg">
+                  <v-text-field
+                    v-model="columnFilters.NOMOR"
+                    label="Filter Nomor SPK..."
+                    density="compact"
+                    hide-details
+                    variant="outlined"
+                    clearable
+                  />
+                </v-card>
+              </v-menu>
+            </div>
+          </th>
 
+          <!-- 2. NAMA ORDER -->
+          <th rowspan="2" class="text-left sticky-col-2">
+            <div class="d-flex align-center justify-space-between px-1">
+              <span
+                @click="toggleSort('spk_nama')"
+                class="cursor-pointer font-weight-bold"
+              >
+                NAMA ORDER {{ getSortIcon("spk_nama") }}
+              </span>
+              <v-menu :close-on-content-click="false">
+                <template #activator="{ props }">
+                  <v-btn
+                    v-bind="props"
+                    icon
+                    variant="text"
+                    size="x-small"
+                    class="btn-filter-icon ml-1"
+                  >
+                    <v-icon
+                      size="14"
+                      :color="
+                        columnFilters.spk_nama ? 'amber-accent-2' : 'white'
+                      "
+                    >
+                      mdi-filter-variant
+                    </v-icon>
+                  </v-btn>
+                </template>
+                <v-card min-width="220" class="pa-2 rounded-lg">
+                  <v-text-field
+                    v-model="columnFilters.spk_nama"
+                    label="Filter Nama Order..."
+                    density="compact"
+                    hide-details
+                    variant="outlined"
+                    clearable
+                  />
+                </v-card>
+              </v-menu>
+            </div>
+          </th>
+
+          <!-- 3. TANGGAL -->
+          <th rowspan="2" class="text-center">
+            <span
+              @click="toggleSort('spk_tanggal')"
+              class="cursor-pointer font-weight-bold"
+            >
+              TANGGAL {{ getSortIcon("spk_tanggal") }}
+            </span>
+          </th>
+
+          <!-- 4. DEADLINE -->
+          <th rowspan="2" class="text-center">
+            <span
+              @click="toggleSort('deadline')"
+              class="cursor-pointer font-weight-bold"
+            >
+              DEADLINE {{ getSortIcon("deadline") }}
+            </span>
+          </th>
+
+          <!-- 5. BAHAN -->
+          <th rowspan="2" class="text-left border">
+            <div class="d-flex align-center justify-space-between px-1 ga-1">
+              <span
+                @click="toggleSort('KAIN')"
+                class="cursor-pointer font-weight-bold"
+              >
+                BAHAN {{ getSortIcon("KAIN") }}
+              </span>
+              <v-menu :close-on-content-click="false">
+                <template #activator="{ props }">
+                  <v-btn
+                    v-bind="props"
+                    icon
+                    variant="text"
+                    size="x-small"
+                    class="btn-filter-icon"
+                  >
+                    <v-icon
+                      size="14"
+                      :color="
+                        columnFilters.KAIN !== 'SEMUA'
+                          ? 'amber-accent-2'
+                          : 'white'
+                      "
+                    >
+                      mdi-filter-variant
+                    </v-icon>
+                  </v-btn>
+                </template>
+                <v-card min-width="200" class="pa-2 rounded-lg">
+                  <v-select
+                    v-model="columnFilters.KAIN"
+                    :items="kainOptions"
+                    label="Pilih Bahan"
+                    density="compact"
+                    hide-details
+                    variant="outlined"
+                  />
+                </v-card>
+              </v-menu>
+            </div>
+          </th>
+
+          <!-- 6. GRAMASI -->
+          <th rowspan="2" class="text-center">
+            <span
+              @click="toggleSort('spk_gramasi')"
+              class="cursor-pointer font-weight-bold"
+            >
+              GRAMASI {{ getSortIcon("spk_gramasi") }}
+            </span>
+          </th>
+
+          <!-- GROUP PRODUKSI (PCS) -->
           <th colspan="7" class="text-center header-group bg-blue-header">
             PRODUKSI (PCS)
           </th>
-          <th rowspan="2" class="text-right border-l border-r">CTK L.</th>
+
+          <!-- CETAK LUAR -->
+          <th
+            rowspan="2"
+            class="text-right border-l border-r cursor-pointer"
+            @click="toggleSort('cetak_luarx')"
+          >
+            CTK L. {{ getSortIcon("cetak_luarx") }}
+          </th>
 
           <!-- DINAMIS COLSPAN MESIN BASED ON KATEGORI -->
           <th
@@ -65,35 +223,87 @@
             MESIN ({{ jenisLabel }})
           </th>
 
+          <!-- GROUP PRODUKSI (METER) -->
           <th colspan="3" class="text-center header-group bg-teal-header">
             PRODUKSI (METER)
           </th>
         </tr>
 
-        <!-- Row 2: Sub Header Detail -->
+        <!-- Row 2: Sub Header Detail Dengan Fitur Sorting -->
         <tr class="header-sub">
           <!-- Produksi PCS -->
-          <th class="text-right bg-blue-sub">Order</th>
-          <th class="text-right bg-blue-sub">Kirim</th>
-          <th class="text-right bg-blue-sub">K-Kirim</th>
-          <th class="text-right bg-blue-sub">Seam</th>
-          <th class="text-right bg-blue-sub">M.Ayam</th>
-          <th class="text-right bg-blue-sub">Cetak</th>
-          <th class="text-right bg-blue-sub">Coly</th>
+          <th
+            class="text-right bg-blue-sub cursor-pointer"
+            @click="toggleSort('spk_jumlah')"
+          >
+            Order {{ getSortIcon("spk_jumlah") }}
+          </th>
+          <th
+            class="text-right bg-blue-sub cursor-pointer"
+            @click="toggleSort('spk_jumlah_kirim')"
+          >
+            Kirim {{ getSortIcon("spk_jumlah_kirim") }}
+          </th>
+          <th
+            class="text-right bg-blue-sub cursor-pointer"
+            @click="toggleSort('krg_kirim')"
+          >
+            K-Kirim {{ getSortIcon("krg_kirim") }}
+          </th>
+          <th
+            class="text-right bg-blue-sub cursor-pointer"
+            @click="toggleSort('krg_Seaming')"
+          >
+            Seam {{ getSortIcon("krg_Seaming") }}
+          </th>
+          <th
+            class="text-right bg-blue-sub cursor-pointer"
+            @click="toggleSort('krg_mataayam')"
+          >
+            M.Ayam {{ getSortIcon("krg_mataayam") }}
+          </th>
+          <th
+            class="text-right bg-blue-sub cursor-pointer"
+            @click="toggleSort('krg_Cetak')"
+          >
+            Cetak {{ getSortIcon("krg_Cetak") }}
+          </th>
+          <th
+            class="text-right bg-blue-sub cursor-pointer"
+            @click="toggleSort('krg_coly')"
+          >
+            Coly {{ getSortIcon("krg_coly") }}
+          </th>
 
           <!-- DINAMIS SUB HEADER MESIN (MT / MX / SUBLIM) -->
           <th
             v-for="m in mesinColumns"
             :key="m.key"
-            class="text-center bg-cyan-sub"
+            class="text-center bg-cyan-sub cursor-pointer"
+            @click="toggleSort(m.key)"
           >
-            {{ m.label }}
+            {{ m.label }} {{ getSortIcon(m.key) }}
           </th>
 
           <!-- Produksi Meter -->
-          <th class="text-right bg-teal-sub">K-KRM</th>
-          <th class="text-right bg-teal-sub">K-CTK</th>
-          <th class="text-right bg-teal-sub">K-CLY</th>
+          <th
+            class="text-right bg-teal-sub cursor-pointer"
+            @click="toggleSort('krg_kirim_meter')"
+          >
+            K-KRM {{ getSortIcon("krg_kirim_meter") }}
+          </th>
+          <th
+            class="text-right bg-teal-sub cursor-pointer"
+            @click="toggleSort('krg_Cetak_meter')"
+          >
+            K-CTK {{ getSortIcon("krg_Cetak_meter") }}
+          </th>
+          <th
+            class="text-right bg-teal-sub cursor-pointer"
+            @click="toggleSort('krg_coly_meter')"
+          >
+            K-CLY {{ getSortIcon("krg_coly_meter") }}
+          </th>
         </tr>
       </thead>
     </template>
@@ -290,6 +500,41 @@ const loading = reactive({ report: false });
 const allData = ref<any[]>([]);
 const summary = ref({ outputPerHari: "0", estimasiSelesaiHari: "0" });
 
+// --- COLUMN FILTERS & SORTING STATE ---
+const columnFilters = reactive({
+  NOMOR: "",
+  spk_nama: "",
+  KAIN: "SEMUA",
+});
+
+const sortKey = ref("");
+const sortOrder = ref<"asc" | "desc">("asc");
+
+const toggleSort = (key: string) => {
+  if (sortKey.value === key) {
+    if (sortOrder.value === "asc") {
+      sortOrder.value = "desc";
+    } else {
+      sortKey.value = "";
+      sortOrder.value = "asc";
+    }
+  } else {
+    sortKey.value = key;
+    sortOrder.value = "asc";
+  }
+};
+
+const getSortIcon = (key: string) => {
+  if (sortKey.value !== key) return "⇅";
+  return sortOrder.value === "asc" ? "▲" : "▼";
+};
+
+// --- OPTIONS FOR DROPDOWN FILTER ---
+const kainOptions = computed(() => {
+  const list = allData.value.map((x) => x.KAIN).filter(Boolean);
+  return ["SEMUA", ...new Set(list)];
+});
+
 // --- LABEL KATEGORI ---
 const jenisLabel = computed(() => {
   if (jenisIndex.value === "1") return "MX";
@@ -300,7 +545,6 @@ const jenisLabel = computed(() => {
 // --- SKEMA MESIN DINAMIS BASED ON KATEGORI ---
 const mesinColumns = computed(() => {
   if (jenisIndex.value === "1") {
-    // Kategori MX
     return [
       { label: "MX01", key: "mx01" },
       { label: "MX02", key: "mx02" },
@@ -310,7 +554,6 @@ const mesinColumns = computed(() => {
     ];
   }
   if (jenisIndex.value === "2") {
-    // Kategori SUBLIM
     return [
       { label: "SB01", key: "sb01" },
       { label: "SB02", key: "sb02" },
@@ -319,7 +562,6 @@ const mesinColumns = computed(() => {
       { label: "SB05", key: "sb05" },
     ];
   }
-  // Kategori MT (Default)
   return [
     { label: "MT01", key: "mt01" },
     { label: "MT02", key: "mt02" },
@@ -351,17 +593,74 @@ const fetchReport = async () => {
   }
 };
 
-// --- SEARCH FILTER ---
+// --- FILTERED & SORTED DATA ---
 const filteredData = computed(() => {
-  if (!searchQuery.value) return allData.value;
-  const q = searchQuery.value.toLowerCase().trim();
-  return allData.value.filter((item: any) => {
-    return (
-      item.NOMOR?.toLowerCase().includes(q) ||
-      item.spk_nama?.toLowerCase().includes(q) ||
-      item.KAIN?.toLowerCase().includes(q)
+  let result = [...allData.value];
+
+  // 1. Filter Global Search
+  if (searchQuery.value) {
+    const q = searchQuery.value.toLowerCase().trim();
+    result = result.filter((item: any) => {
+      return (
+        item.NOMOR?.toLowerCase().includes(q) ||
+        item.spk_nama?.toLowerCase().includes(q) ||
+        item.KAIN?.toLowerCase().includes(q)
+      );
+    });
+  }
+
+  // 2. Filter Per Kolom (NOMOR SPK)
+  if (columnFilters.NOMOR) {
+    const q = columnFilters.NOMOR.toLowerCase().trim();
+    result = result.filter((item: any) =>
+      item.NOMOR?.toLowerCase().includes(q),
     );
-  });
+  }
+
+  // 3. Filter Per Kolom (NAMA ORDER)
+  if (columnFilters.spk_nama) {
+    const q = columnFilters.spk_nama.toLowerCase().trim();
+    result = result.filter((item: any) =>
+      item.spk_nama?.toLowerCase().includes(q),
+    );
+  }
+
+  // 4. Filter Per Kolom (BAHAN / KAIN)
+  if (columnFilters.KAIN && columnFilters.KAIN !== "SEMUA") {
+    result = result.filter((item: any) => item.KAIN === columnFilters.KAIN);
+  }
+
+  // 5. Logic Sorting Pintar (Mendukung Teks, Angka, dan Null)
+  if (sortKey.value) {
+    result.sort((a, b) => {
+      let valA = a[sortKey.value];
+      let valB = b[sortKey.value];
+
+      // Handle null & undefined
+      if (valA === null || valA === undefined) valA = "";
+      if (valB === null || valB === undefined) valB = "";
+
+      // Cek apakah kedua nilai adalah tipe angka (Numeric Sort)
+      const numA = Number(valA);
+      const numB = Number(valB);
+      const isNumA = !isNaN(numA) && valA !== "" && typeof valA !== "boolean";
+      const isNumB = !isNaN(numB) && valB !== "" && typeof valB !== "boolean";
+
+      if (isNumA && isNumB) {
+        return sortOrder.value === "asc" ? numA - numB : numB - numA;
+      }
+
+      // Fallback ke String Sort jika berupa teks/tanggal
+      const strA = String(valA).toLowerCase();
+      const strB = String(valB).toLowerCase();
+
+      if (strA < strB) return sortOrder.value === "asc" ? -1 : 1;
+      if (strA > strB) return sortOrder.value === "asc" ? 1 : -1;
+      return 0;
+    });
+  }
+
+  return result;
 });
 
 // --- CALCULATE TOTALS ---
@@ -377,7 +676,6 @@ const totals = computed(() => {
       acc.krg_coly += Number(item.krg_coly || 0);
       acc.cetak_luarx += Number(item.cetak_luarx || 0);
 
-      // Akumulasi Mesin MT
       acc.mt01 += Number(item.mt01 || 0);
       acc.mt02 += Number(item.mt02 || 0);
       acc.mt03 += Number(item.mt03 || 0);
@@ -385,14 +683,12 @@ const totals = computed(() => {
       acc.mt05 += Number(item.mt05 || 0);
       acc.mi += Number(item.mi || 0);
 
-      // Akumulasi Mesin MX
       acc.mx01 += Number(item.mx01 || 0);
       acc.mx02 += Number(item.mx02 || 0);
       acc.mx03 += Number(item.mx03 || 0);
       acc.mx04 += Number(item.mx04 || 0);
       acc.mx05 += Number(item.mx05 || 0);
 
-      // Akumulasi Mesin SUBLIM
       acc.sb01 += Number(item.sb01 || 0);
       acc.sb02 += Number(item.sb02 || 0);
       acc.sb03 += Number(item.sb03 || 0);
@@ -468,7 +764,6 @@ const formatDateFull = (dateStr: string) => {
   if (!dateStr) return "-";
   const date = parseISO(dateStr);
   if (!isValid(date)) return dateStr;
-
   return format(date, "dd MMMM yyyy", { locale: id });
 };
 
@@ -525,7 +820,7 @@ const exportToExcel = (dataToExport: any[]) => {
 
   const wsData: any[] = [
     [{ v: "LAPORAN MONITORING LMKP", s: { font: { bold: true, sz: 14 } } }],
-    [{ v: `Periode : ${formattedStart} s/d ${formattedEnd}` }], // <-- Format baru (01 Juli 2026 s/d 28 Juli 2026)
+    [{ v: `Periode : ${formattedStart} s/d ${formattedEnd}` }],
     [{ v: `Kategori: ${jenisLabel.value}` }],
     [],
   ];
@@ -549,13 +844,11 @@ const exportToExcel = (dataToExport: any[]) => {
     { v: "MESIN", s: styleHeaderMain },
   ];
 
-  // Padding blank untuk header Mesin
   for (let i = 1; i < mesinColumns.value.length; i++) {
     headerRow1.push({ v: "", s: styleHeaderMain });
   }
 
   headerRow1.push({ v: "PRODUKSI (METER)", s: styleHeaderMain }, "", "");
-
   wsData.push(headerRow1);
 
   // Header Row 2
@@ -572,7 +865,7 @@ const exportToExcel = (dataToExport: any[]) => {
 
   const headerRow2 = Array(6).fill({ v: "", s: styleHeaderMain });
   subPcs.forEach((h) => headerRow2.push({ v: h, s: styleHeaderSub }));
-  headerRow2.push({ v: "", s: styleHeaderMain }); // CTK L.
+  headerRow2.push({ v: "", s: styleHeaderMain });
 
   mesinColumns.value.forEach((m) => {
     headerRow2.push({ v: m.label, s: styleHeaderSub });
@@ -602,7 +895,6 @@ const exportToExcel = (dataToExport: any[]) => {
         v: item.spk_gramasi || "",
         s: { ...styleDataCell, alignment: { horizontal: "center" } },
       },
-
       {
         v: num(item.spk_jumlah),
         t: "n",
@@ -645,7 +937,6 @@ const exportToExcel = (dataToExport: any[]) => {
         z: "#,##0",
         s: { ...styleDataCell, alignment: { horizontal: "right" } },
       },
-
       {
         v: num(item.cetak_luarx),
         t: "n",
@@ -654,7 +945,6 @@ const exportToExcel = (dataToExport: any[]) => {
       },
     ];
 
-    // Data Mesin Dinamis
     mesinColumns.value.forEach((m) => {
       row.push({
         v: num(item[m.key]),
@@ -695,7 +985,6 @@ const exportToExcel = (dataToExport: any[]) => {
       s: { ...styleFooterCell, alignment: { horizontal: "center" } },
     },
     ...Array(5).fill({ v: "", s: styleFooterCell }),
-
     {
       v: num(totals.value.spk_jumlah),
       t: "n",
@@ -738,7 +1027,6 @@ const exportToExcel = (dataToExport: any[]) => {
       z: "#,##0",
       s: { ...styleFooterCell, alignment: { horizontal: "right" } },
     },
-
     {
       v: num(totals.value.cetak_luarx),
       t: "n",
@@ -747,7 +1035,6 @@ const exportToExcel = (dataToExport: any[]) => {
     },
   ];
 
-  // Total Mesin Dinamis
   mesinColumns.value.forEach((m) => {
     footerRow.push({
       v: num(totals.value[m.key]),
@@ -793,11 +1080,9 @@ const exportToExcel = (dataToExport: any[]) => {
     { s: { r: 4, c: 4 }, e: { r: 5, c: 4 } },
     { s: { r: 4, c: 5 }, e: { r: 5, c: 5 } },
     { s: { r: 4, c: 13 }, e: { r: 5, c: 13 } },
-
     { s: { r: 4, c: 6 }, e: { r: 4, c: 12 } },
     { s: { r: 4, c: mesinStartCol }, e: { r: 4, c: mesinEndCol } },
     { s: { r: 4, c: mesinEndCol + 1 }, e: { r: 4, c: mesinEndCol + 3 } },
-
     { s: { r: wsData.length - 1, c: 0 }, e: { r: wsData.length - 1, c: 5 } },
   ];
 
@@ -813,9 +1098,7 @@ onMounted(fetchReport);
 /* 1. CONTAINER WRAPPER UNTUK OVERFLOW SCROLL */
 :deep(.v-table__wrapper),
 :deep(.v-data-table__wrapper) {
-  max-height: calc(
-    100vh - 280px
-  ) !important; /* Sesuaikan tinggi agar muat di layar */
+  max-height: calc(100vh - 280px) !important;
   overflow-y: auto !important;
   overflow-x: auto !important;
 }
@@ -834,7 +1117,7 @@ onMounted(fetchReport);
   padding: 6px 8px !important;
 }
 
-/* 3. STICKY HEADER (TETAP DI ATAS SAAT SCROLL VERTIKAL) */
+/* 3. STICKY HEADER */
 :deep(thead) {
   position: sticky !important;
   top: 0 !important;
@@ -844,11 +1127,12 @@ onMounted(fetchReport);
 .header-main th {
   background: linear-gradient(180deg, #142f7b 0%, #3b82f6 100%) !important;
   border-right: 1px solid #3b82f6 !important;
+  color: #ffffff !important;
 }
 
 .header-sub th {
   background: #2563eb !important;
-  font-size: 11px !important; /* Diubah dari 10px ke 11px */
+  font-size: 11px !important;
   border-right: 1px solid #60a5fa !important;
 }
 
@@ -857,7 +1141,7 @@ onMounted(fetchReport);
   border-right: 1px solid #60a5fa !important;
 }
 
-/* 4. STICKY FOOTER (TETAP DI BAWAH SAAT SCROLL VERTIKAL) */
+/* 4. STICKY FOOTER */
 :deep(tfoot) {
   position: sticky !important;
   bottom: 0 !important;
@@ -865,29 +1149,28 @@ onMounted(fetchReport);
 }
 
 .table-footer-row td {
-  background-color: #c7ecfe !important; /* Warna background footer agar isi tabel tidak menembus */
+  background-color: #c7ecfe !important;
   border-top: 2px solid #000 !important;
   border-bottom: 2px solid #000 !important;
 }
 
-/* 5. STICKY LEFT COLUMNS (INTERSEKSI HEADER, BODY, DAN FOOTER) */
+/* 5. STICKY LEFT COLUMNS */
 :deep(.sticky-col-1) {
   position: sticky !important;
   left: 0px !important;
-  width: 120px !important;
-  min-width: 120px !important;
-  max-width: 120px !important;
+  width: 130px !important;
+  min-width: 130px !important;
+  max-width: 130px !important;
 }
 
 :deep(.sticky-col-2) {
   position: sticky !important;
-  left: 120px !important;
+  left: 130px !important;
   box-shadow: 3px 0px 5px -2px rgba(0, 0, 0, 0.15);
   width: 220px !important;
   min-width: 220px !important;
 }
 
-/* Prioritas z-index agar sticky kolom & header tidak saling bertumpuk salah urutan */
 :deep(tbody .sticky-col-1),
 :deep(tbody .sticky-col-2) {
   z-index: 5 !important;
@@ -934,12 +1217,22 @@ onMounted(fetchReport);
   color: #000 !important;
 }
 
-/* 7. UTILITY BORDERS */
+/* 7. UTILITY BORDERS & BUTTONS */
 .border-l {
   border-left: 1px solid #cbd5e1 !important;
 }
 .border-r {
   border-right: 1px solid #cbd5e1 !important;
+}
+.cursor-pointer {
+  cursor: pointer;
+  user-select: none;
+}
+.btn-filter-icon {
+  opacity: 0.85;
+}
+.btn-filter-icon:hover {
+  opacity: 1;
 }
 
 /* 8. STYLING TABEL SUMMARY OUTPUT & WAITING LIST */

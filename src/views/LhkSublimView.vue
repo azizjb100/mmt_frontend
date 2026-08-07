@@ -5,10 +5,12 @@
     class="custom-font"
   >
     <template #header-actions>
+      <!-- Tombol Buat Baru -->
       <v-btn size="x-small" color="primary" @click="handleCreate">
         <v-icon start size="14">mdi-plus</v-icon> Baru
       </v-btn>
 
+      <!-- Tombol Ubah / Edit -->
       <v-btn
         size="x-small"
         color="warning"
@@ -18,6 +20,18 @@
         <v-icon start size="14">mdi-pencil</v-icon> Ubah
       </v-btn>
 
+      <!-- Tombol ACC -->
+      <v-btn
+        size="x-small"
+        color="teal-darken-1"
+        :disabled="!isSingleSelected"
+        :loading="loading.acc"
+        @click="handleAcc"
+      >
+        <v-icon start size="14">mdi-check-decagram</v-icon> ACC
+      </v-btn>
+
+      <!-- Tombol Kelola Bahan -->
       <v-btn
         size="x-small"
         color="secondary"
@@ -29,6 +43,7 @@
 
       <v-divider vertical class="mx-2" />
 
+      <!-- Tombol Hapus -->
       <v-btn
         size="x-small"
         color="error"
@@ -38,6 +53,7 @@
         <v-icon start size="14">mdi-delete</v-icon> Hapus
       </v-btn>
 
+      <!-- Tombol Cetak Slip -->
       <v-btn
         size="x-small"
         color="info"
@@ -47,6 +63,7 @@
         <v-icon start size="14">mdi-printer</v-icon> Slip
       </v-btn>
 
+      <!-- Tombol Export Excel -->
       <v-btn
         size="x-small"
         color="success"
@@ -59,12 +76,13 @@
     </template>
 
     <div class="browse-content">
+      <!-- Filter Card -->
       <v-card flat class="mb-4 border">
         <v-card-text class="pa-3">
           <div class="d-flex align-center flex-wrap ga-4">
-            <v-label class="font-weight-bold" style="font-size: 11px"
-              >Periode Laporan:</v-label
-            >
+            <v-label class="font-weight-bold" style="font-size: 11px">
+              Periode Laporan:
+            </v-label>
 
             <v-text-field
               v-model="filters.startDate"
@@ -100,14 +118,15 @@
 
             <div class="d-flex align-center ga-2 italic">
               <v-icon color="error" size="14">mdi-alert-circle</v-icon>
-              <span class="text-error" style="font-size: 11px"
-                >Teks Merah = Belum Lengkap</span
-              >
+              <span class="text-error" style="font-size: 11px">
+                Teks Merah = Belum Lengkap
+              </span>
             </div>
           </div>
         </v-card-text>
       </v-card>
 
+      <!-- Master Data Table -->
       <v-data-table
         v-model:selected="selected"
         v-model:expanded="expanded"
@@ -125,7 +144,8 @@
         @click:row="handleRowClick"
         @update:expanded="loadDetails"
       >
-        <template #[`item.Nomor`]="{ item }">
+        <!-- Slot Kolom Nomor -->
+        <template #item.Nomor="{ item }">
           <span
             :class="item.Lengkap !== 'Y' ? 'text-error font-weight-bold' : ''"
           >
@@ -133,20 +153,27 @@
           </span>
         </template>
 
-        <template #[`item.total_meter`]="{ item }">
-          {{ Number(item.total_meter || 0).toFixed(2) }}
+        <template #item.Tanggal="{ item }">
+          {{ formatDate(item.Tanggal) }}
         </template>
 
-        <template #[`item.Lengkap`]="{ item }">
+        <!-- Slot Kolom Status ACC -->
+        <template #item.Status_Acc="{ item }">
           <v-chip
             size="x-small"
-            :color="item.Lengkap === 'Y' ? 'success' : 'error'"
+            :color="item.Status_Acc === 'ACC' ? 'success' : 'grey'"
             variant="flat"
           >
-            {{ item.Lengkap === "Y" ? "YA" : "TIDAK" }}
+            {{ item.Status_Acc === "ACC" ? "ACC" : "DRAFT" }}
           </v-chip>
         </template>
 
+        <!-- Slot Format Total Meter -->
+        <template #item.total_meter="{ item }">
+          {{ Number(item.total_meter || 0).toFixed(2) }}
+        </template>
+
+        <!-- Slot Detail Expansion Row -->
         <template #expanded-row="{ columns, item }">
           <tr>
             <td :colspan="columns.length" class="bg-grey-lighten-4 pa-4">
@@ -164,11 +191,11 @@
                   class="custom-table"
                   :items-per-page="-1"
                 >
-                  <template #[`item.Ukuran`]="{ item: detailItem }">
+                  <template #item.Ukuran="{ item: detailItem }">
                     {{ detailItem.Panjang }} x {{ detailItem.Lebar }}
                   </template>
 
-                  <template #[`item.Jumlah_Meter`]="{ item: detailItem }">
+                  <template #item.Jumlah_Meter="{ item: detailItem }">
                     <span class="font-weight-bold">
                       {{ Number(detailItem.Jumlah_Meter || 0).toFixed(2) }}
                     </span>
@@ -191,7 +218,6 @@ import Swal from "sweetalert2";
 import PageLayout from "../components/PageLayout.vue";
 import api from "@/services/api";
 import * as XLSX from "xlsx-js-style";
-import { title } from "process";
 
 const router = useRouter();
 const toast = useToast();
@@ -201,14 +227,20 @@ const selected = ref<any[]>([]);
 const expanded = ref<any[]>([]);
 const masterData = ref<any[]>([]);
 const details = ref<Record<string, any[]>>({});
-const loading = reactive({ master: false });
+
+const loading = reactive({
+  master: false,
+  acc: false,
+});
+
 const loadingDetails = ref<Set<string>>(new Set());
 
-// Mengambil tanggal default secara manual demi performa & anti crash format regional
+// --- Helper Tanggal ---
 const getTodayString = () => {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 };
+
 const get30DaysAgoString = () => {
   const d = new Date();
   d.setDate(d.getDate() - 30);
@@ -220,41 +252,39 @@ const filters = reactive({
   endDate: getTodayString(),
 });
 
-// --- Table Headers (Master Sublim) ---
+// --- Table Headers ---
 const masterHeaders = [
   { title: "Nomor", key: "Nomor", width: "150px" },
-  { title: "Tanggal", key: "Tanggal", width: "120px" },
-  { title: "Gudang", key: "Nama_Gudang" },
-  { title: "Operator", key: "Operator", width: "150px" },
-  { title: "Mesin", key: "Mesin", width: "150px" },
-  { title: "SPK", key: "NomorSPK" },
+  { title: "Tanggal", key: "Tanggal", width: "110px" },
+  { title: "ACC", key: "Status_Acc", width: "90px", align: "center" as const },
+  { title: "Gudang", key: "Nama_Gudang", width: "130px" },
+  { title: "Operator", key: "Operator", width: "130px" },
+  { title: "Mesin", key: "Mesin", width: "110px" },
+  { title: "SPK", key: "NomorSPK", width: "140px" },
   { title: "Nama SPK", key: "NamaOrder" },
   {
     title: "Total Item",
     key: "Total_Item",
     align: "end" as const,
-    width: "100px",
+    width: "90px",
   },
   {
     title: "Total Qty",
     key: "Total_Qty",
     align: "end" as const,
-    width: "100px",
+    width: "90px",
   },
-  { title: "Shift", key: "Shift", width: "80px" },
-  { title: "Barcode", key: "Barcode_Roll" },
-  { title: "Ambil Bahan (M)", key: "PanjangBahanAwal" },
-
+  { title: "Shift", key: "Shift", width: "70px" },
+  { title: "Barcode", key: "Barcode_Roll", width: "130px" },
+  { title: "Ambil Bahan (M)", key: "PanjangBahanAwal", width: "130px" },
   {
     title: "Cetak (m²)",
     key: "total_meter",
     align: "end" as const,
     width: "100px",
   },
-  //{ title: "Lengkap", key: "Lengkap", width: "80px", align: "center" as const },
 ];
 
-// --- Table Headers (Detail Sublim) ---
 const detailHeaders = [
   { title: "No. Urut", key: "lmsd_no_urut", width: "70px" },
   { title: "No. SPK", key: "Nomor_SPK", width: "130px" },
@@ -272,12 +302,10 @@ const isSingleSelected = computed(() => selected.value.length === 1);
 const selectedItemNomor = computed(() => {
   if (selected.value.length === 0) return null;
   const item = selected.value[0];
-
-  // PERBAIKAN: Mengantisipasi jika Vuetify hanya menyimpan string Nomor atau seluruh Object item
   if (typeof item === "object" && item !== null) {
     return item.Nomor || item.raw?.Nomor || null;
   }
-  return item; // Jika item langsung berupa string nomor
+  return item;
 });
 
 // --- Methods ---
@@ -293,7 +321,6 @@ const fetchMasterData = async () => {
   }
 };
 
-// Expand Row Logic (Melalui event Vuetify data table atau watch expanded)
 const loadDetails = async (expandedKeys: any[]) => {
   if (expandedKeys.length === 0) return;
   const lastExpanded = expandedKeys[expandedKeys.length - 1];
@@ -313,7 +340,6 @@ const loadDetails = async (expandedKeys: any[]) => {
   }
 };
 
-// Mengaktifkan load rincian manual sinkron dengan v-data-table update expanded event
 watch(
   expanded,
   (newVal) => {
@@ -323,7 +349,6 @@ watch(
 );
 
 const getRowProps = ({ item }: any) => {
-  // PERBAIKAN: Menyamakan pengecekan kecocokan baris yang aktif terpilih
   const isContained = selected.value.some((sel: any) => {
     const selNomor = typeof sel === "object" ? sel.Nomor : sel;
     return selNomor === item.Nomor;
@@ -335,29 +360,78 @@ const getRowProps = ({ item }: any) => {
 };
 
 const handleRowClick = (event: any, { item }: any) => {
-  // PERBAIKAN: Sesuai standarisasi Vuetify 3 select-strategy="single"
-  // Kita simpan string Nomor-nya agar sinkron dengan item-value="Nomor" pada tabel
-  if (item && item.Nomor) {
-    selected.value = [item.Nomor];
-  } else if (item && item.raw && item.raw.Nomor) {
-    selected.value = [item.raw.Nomor];
+  const targetNomor = item?.Nomor || item?.raw?.Nomor;
+  if (!targetNomor) return;
+
+  const isAlreadySelected = selected.value.some((s: any) => {
+    const currentNomor = typeof s === "object" ? s.Nomor : s;
+    return currentNomor === targetNomor;
+  });
+
+  if (isAlreadySelected) {
+    selected.value = [];
+  } else {
+    selected.value = [targetNomor];
   }
 };
 
 const handleCreate = () => {
   router.push({ name: "LHKSublimMMTNew" });
 };
+
 const handleEdit = () => {
   if (!selectedItemNomor.value) {
     toast.warning("Silakan pilih satu data terlebih dahulu");
     return;
   }
-
-  // Mengarahkan ke halaman edit dengan membawa parameter nomor yang valid
   router.push({
     name: "LHKSublimMMTEdit",
     params: { nomor: selectedItemNomor.value },
   });
+};
+
+const formatDate = (dateStr: string) => {
+  if (!dateStr) return "-";
+  try {
+    const cleanDate = dateStr.split("T")[0]; // Menghilangkan jam/menit jika ada
+    const parts = cleanDate.split("-");
+    if (parts.length === 3) {
+      return `${parts[2]}/${parts[1]}/${parts[0]}`; // Hasil: DD/MM/YYYY
+    }
+    return dateStr;
+  } catch {
+    return dateStr;
+  }
+};
+
+const handleAcc = async () => {
+  if (!selectedItemNomor.value) return;
+
+  const result = await Swal.fire({
+    title: "Konfirmasi ACC LHK",
+    text: `Apakah Anda yakin ingin menyetujui (ACC) LHK Paperprint Nomor: ${selectedItemNomor.value}?`,
+    icon: "question",
+    showCancelButton: true,
+    confirmButtonColor: "#00897B",
+    confirmButtonText: "Ya, ACC!",
+    cancelButtonText: "Batal",
+  });
+
+  if (result.isConfirmed) {
+    loading.acc = true;
+    try {
+      await api.post(`/mmt/lhk-paperprint/acc/${selectedItemNomor.value}`);
+      toast.success(`LHK ${selectedItemNomor.value} berhasil di-ACC.`);
+      fetchMasterData();
+      selected.value = [];
+    } catch (e: any) {
+      toast.error(
+        e?.response?.data?.message || "Gagal memproses ACC LHK Sublim.",
+      );
+    } finally {
+      loading.acc = false;
+    }
+  }
 };
 
 const handleBahan = () => {
@@ -373,7 +447,7 @@ const handleDelete = async () => {
 
   const result = await Swal.fire({
     title: "Yakin ingin hapus?",
-    text: `Data LHK Sublim Nomor: ${selectedItemNomor.value} akan dihapus beserta detailnya.`,
+    text: `Data LHK Sublim Nomor: ${selectedItemNomor.value} akan dihapus permanen.`,
     icon: "warning",
     showCancelButton: true,
     confirmButtonColor: "#d33",
@@ -401,7 +475,7 @@ const handlePrint = () => {
   );
 };
 
-// --- Fungsi Baru: Export Excel Hasil Kerja Sublim MMT ---
+// --- Export Logic ---
 const exportToExcel = async () => {
   if (masterData.value.length === 0) {
     toast.warning("Tidak ada data untuk diekspor");
@@ -410,7 +484,6 @@ const exportToExcel = async () => {
 
   loading.master = true;
   try {
-    // 1. Pre-fetch detail data dari API untuk baris master yang belum terbuka
     for (const header of masterData.value) {
       if (
         !details.value[header.Nomor] ||
@@ -433,9 +506,8 @@ const exportToExcel = async () => {
 
     const fileName = `LHK_Sublim_MMT_${filters.startDate}_to_${filters.endDate}.xlsx`;
 
-    // Style Definition
     const styleHeaderMain = {
-      fill: { fgColor: { rgb: "B3E5FC" } }, // Biru Muda khas Kaosan MMT
+      fill: { fgColor: { rgb: "B3E5FC" } },
       font: { bold: true, color: { rgb: "000000" }, sz: 10 },
       alignment: { horizontal: "center", vertical: "center", wrapText: true },
       border: {
@@ -467,7 +539,6 @@ const exportToExcel = async () => {
       alignment: { horizontal: "right", vertical: "center" },
     };
 
-    // Format Tanggal Manual Lokal Anti-Crash (Bebas dari Bug library Date-fns regional)
     const formatTglManual = (dateStr: string) => {
       if (!dateStr) return "-";
       try {
@@ -475,9 +546,9 @@ const exportToExcel = async () => {
           const parts = dateStr.split("T")[0].split("-");
           if (parts.length === 3) {
             if (parts[0].length === 4) {
-              return `${parts[2]}/${parts[1]}/${parts[0]}`; // yyyy-mm-dd -> dd/mm/yyyy
+              return `${parts[2]}/${parts[1]}/${parts[0]}`;
             }
-            return `${parts[0]}/${parts[1]}/${parts[2]}`; // dd-mm-yyyy -> dd/mm/yyyy
+            return `${parts[0]}/${parts[1]}/${parts[2]}`;
           }
         }
         return dateStr;
@@ -486,7 +557,7 @@ const exportToExcel = async () => {
       }
     };
 
-    const worksheetData = [];
+    const worksheetData: any[] = [];
     worksheetData.push([
       {
         v: "LAPORAN HASIL KERJA SUBLIM MMT",
@@ -501,14 +572,13 @@ const exportToExcel = async () => {
     ]);
     worksheetData.push([]);
 
-    // Headers Kolom Excel
     const headersTable = [
       { v: "NOMOR LHK", s: styleHeaderMain },
       { v: "TANGGAL", s: styleHeaderMain },
+      { v: "STATUS ACC", s: styleHeaderMain },
       { v: "GUDANG", s: styleHeaderMain },
       { v: "SHIFT", s: styleHeaderMain },
       { v: "TOTAL (M²)", s: styleHeaderMain },
-      { v: "LENGKAP", s: styleHeaderMain },
       { v: "NO URUT", s: styleHeaderMain },
       { v: "NOMOR SPK", s: styleHeaderMain },
       { v: "NAMA SPK / ORDER", s: styleHeaderMain },
@@ -523,31 +593,32 @@ const exportToExcel = async () => {
     masterData.value.forEach((header: any) => {
       const targetDetails = details.value[header.Nomor] || [];
       const tglHeader = header.Tanggal ? formatTglManual(header.Tanggal) : "";
-      const statusLengkap = header.Lengkap === "Y" ? "YA" : "TIDAK";
+      const statusAcc = header.Status_Acc === "ACC" ? "ACC" : "DRAFT";
 
       if (targetDetails.length > 0) {
         targetDetails.forEach((dtl: any, index: number) => {
+          const isFirstRow = index === 0;
           const ukuranText =
             dtl.Panjang && dtl.Lebar ? `${dtl.Panjang} x ${dtl.Lebar}` : "-";
 
           const row = [
-            { v: index === 0 ? header.Nomor : "", s: styleDataCellCenter },
-            { v: index === 0 ? tglHeader : "", s: styleDataCellCenter },
+            { v: isFirstRow ? header.Nomor : "", s: styleDataCellCenter },
+            { v: isFirstRow ? tglHeader : "", s: styleDataCellCenter },
+            { v: isFirstRow ? statusAcc : "", s: styleDataCellCenter },
             {
-              v: index === 0 ? header.Nama_Gudang || "-" : "",
+              v: isFirstRow ? header.Nama_Gudang || "-" : "",
               s: styleDataCell,
             },
             {
-              v: index === 0 ? header.Shift || "-" : "",
+              v: isFirstRow ? header.Shift || "-" : "",
               s: styleDataCellCenter,
             },
             {
-              v: index === 0 ? Number(header.total_meter || 0) : "",
+              v: isFirstRow ? Number(header.total_meter || 0) : "",
+              t: "n",
+              z: "#,##0.00",
               s: styleDataCellRight,
             },
-            { v: index === 0 ? statusLengkap : "", s: styleDataCellCenter },
-
-            // Detail Columns
             { v: dtl.lmsd_no_urut || index + 1, s: styleDataCellCenter },
             { v: dtl.Nomor_SPK || "-", s: styleDataCellCenter },
             { v: dtl.Nama_SPK || "-", s: styleDataCell },
@@ -555,14 +626,20 @@ const exportToExcel = async () => {
             { v: dtl.Bahan || "-", s: styleDataCell },
             {
               v: dtl.J_Order !== undefined ? Number(dtl.J_Order) : 0,
+              t: "n",
+              z: "#,##0",
               s: styleDataCellRight,
             },
             {
               v: dtl.Jumlah !== undefined ? Number(dtl.Jumlah) : 0,
+              t: "n",
+              z: "#,##0",
               s: styleDataCellRight,
             },
             {
               v: dtl.Jumlah_Meter !== undefined ? Number(dtl.Jumlah_Meter) : 0,
+              t: "n",
+              z: "#,##0.00",
               s: styleDataCellRight,
             },
           ];
@@ -572,18 +649,23 @@ const exportToExcel = async () => {
         const row = [
           { v: header.Nomor, s: styleDataCellCenter },
           { v: tglHeader, s: styleDataCellCenter },
+          { v: statusAcc, s: styleDataCellCenter },
           { v: header.Nama_Gudang || "-", s: styleDataCell },
           { v: header.Shift || "-", s: styleDataCellCenter },
-          { v: Number(header.total_meter || 0), s: styleDataCellRight },
-          { v: statusLengkap, s: styleDataCellCenter },
+          {
+            v: Number(header.total_meter || 0),
+            t: "n",
+            z: "#,##0.00",
+            s: styleDataCellRight,
+          },
           { v: "-", s: styleDataCellCenter },
           { v: "-", s: styleDataCellCenter },
           { v: "Tidak ada data detail pekerjaan sublim", s: styleDataCell },
           { v: "-", s: styleDataCellCenter },
           { v: "-", s: styleDataCell },
-          { v: 0, s: styleDataCellRight },
-          { v: 0, s: styleDataCellRight },
-          { v: 0, s: styleDataCellRight },
+          { v: 0, t: "n", z: "#,##0", s: styleDataCellRight },
+          { v: 0, t: "n", z: "#,##0", s: styleDataCellRight },
+          { v: 0, t: "n", z: "#,##0.00", s: styleDataCellRight },
         ];
         worksheetData.push(row);
       }
@@ -594,10 +676,10 @@ const exportToExcel = async () => {
     ws["!cols"] = [
       { wch: 22 },
       { wch: 12 },
+      { wch: 10 },
       { wch: 20 },
       { wch: 8 },
       { wch: 15 },
-      { wch: 10 },
       { wch: 8 },
       { wch: 18 },
       { wch: 35 },
