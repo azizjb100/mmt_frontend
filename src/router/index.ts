@@ -133,6 +133,7 @@ import LapKartuStokMmtView from "@/views/LapKartuStokMmtView.vue";
 import LapPemakaianBahanTekstil from "@/views/LapPemakaianBahanTekstil.vue";
 import SoToSpkView from "@/views/SoToSpkView.vue";
 import FormSoToSpkView from "@/views/FormSoToSpkView.vue";
+import SoToSpkPrintView from "@/views/SoToSpkPrintView.vue";
 
 const routes: RouteRecordRaw[] = [
   {
@@ -231,7 +232,12 @@ const routes: RouteRecordRaw[] = [
         name: "BrowseSoToSpkNew",
         component: FormSoToSpkView,
       },
-
+      {
+        path: "mmt/so-spk/print/:nomor",
+        name: "SoToSpkPrint",
+        component: SoToSpkPrintView,
+        props: true,
+      },
       {
         path: "mmt/jadwal-kirim",
         name: "JadwalKirimBrowse",
