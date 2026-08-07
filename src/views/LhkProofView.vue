@@ -351,6 +351,10 @@ const handlePrint = () => {
   window.open(`/api/report/lhk-proof-slip/${selectedItem.value}`, "_blank");
 };
 
+onMounted(() => {
+  fetchMasterData();
+});
+
 // --- EXPORT LOGIC FIXED (LHK PROOF MMT WITH GRAND TOTAL & BORDERS) ---
 const exportToExcel = async () => {
   loading.master = true;

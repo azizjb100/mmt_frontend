@@ -564,7 +564,7 @@ import { format } from "date-fns";
 import api from "@/services/api";
 import { useToast } from "vue-toastification";
 import MesinLookupView from "@/modal/MesinLookupModal.vue";
-import SpkLookupView from "@/modal/SpkMemoLookupModal.vue"; // Menembak view baru non-memo
+import SpkLookupView from "@/modal/SpkMemoLookupModal.vue";
 import PageLayout from "../components/PageLayout.vue";
 import { useAuthStore } from "@/stores/authStore";
 
@@ -572,7 +572,7 @@ import { useAuthStore } from "@/stores/authStore";
 const route = useRoute();
 const router = useRouter();
 const toast = useToast();
-const API_BASE_URL = "/mmt/lhk-proof"; // Mengarah ke route endpoint baru lhk-proof
+const API_BASE_URL = "/mmt/lhk-proof";
 const SCALE = 60;
 
 // --- States Handler ---
@@ -600,9 +600,11 @@ const formData = reactive({
   sisa_lebar_manual: null as number | null,
   panjang_nyempil_manual: null as number | null,
   lebar_nyempil_manual: null as number | null,
-  panjang_bs: 0 as number | string, // Default diset 0 agar lolos validasi awal
-  lebar_bs: 0 as number | string, // Default diset 0 agar lolos validasi awal
+  panjang_bs: 0 as number | string,
+  lebar_bs: 0 as number | string,
   barcode_spk: "",
+  jenis: "M",
+  keterangan: "",
 });
 
 const detailData = ref<any[]>([]);
@@ -844,63 +846,48 @@ const recalculateCombine = () => {
   });
 };
 
-// --- LOGIKA SCAN BARCODE KARTU STOK INDUK (KONTROL PENURUNAN BAHAN) ---
 const handleBarcodeScan = async () => {
   const code = formData.barcode_input?.trim();
   if (!code) return;
 
   try {
     const res = await api.get(`/mmt/stok-gudang/${code}`);
-
-    // 1. Ambil bungkus luar data dari axios
     const apiResult = res.data;
 
     if (apiResult.success && apiResult.data) {
-      const wrapper = apiResult.data; // Ini berisi { data: {...}, status: "READY" }
-      const coreData = wrapper.data; // Ini objek terdalam yang berisi Barcode, Sisa_Panjang, dll
+      const wrapper = apiResult.data;
+      const coreData = wrapper.data;
 
       if (wrapper.status === "READY") {
-        // 2. Petakan ke formData menggunakan objek coreData terdalam
         formData.sku_aktif = coreData.Barcode || code;
         formData.kode_bahan_aktif = coreData.Kode;
 
-        // --- MODIFIKASI: Konversi Yard ke Meter jika Jenis LHK adalah TEKSTIL ('T') ---
-        let panjangMentah = parseFloat(coreData.Sisa_Panjang) || 0;
-
-        if (formData.jenis === "T") {
-          // Jika Tekstil, asumsikan input awal adalah Yard, konversi ke Meter (Yard * 0.9)
-          formData.Panjang_bahan = parseFloat((panjangMentah * 0.9).toFixed(2));
-        } else {
-          // Jika MMT / Lainnya, gunakan nilai meter lari asli dari database
-          formData.Panjang_bahan = panjangMentah;
-        }
-
+        // Lebar bahan diambil dari master
         formData.Lebar_bahan = parseFloat(
           coreData.Lebar || coreData.mst_lebar || 0,
         );
 
-        // 3. Hitung ulang kombinasi layout agar canvas nesting ter-update
+        // =====================================================================
+        // 🔥 JIKA MODE EDIT & PANJANG BAHAN SUDAH TERISI (DARI panjang_roll_awal 7.44)
+        // JANGAN TIMPA DENGAN SISA STOK GUDANG!
+        // =====================================================================
+        if (!isEditMode.value || !formData.Panjang_bahan) {
+          let panjangMentah = parseFloat(coreData.Sisa_Panjang) || 0;
+
+          if (formData.jenis === "T") {
+            formData.Panjang_bahan = parseFloat(
+              (panjangMentah * 0.9).toFixed(2),
+            );
+          } else {
+            formData.Panjang_bahan = panjangMentah;
+          }
+        }
+
         recalculateCombine();
-
-        const unitInfo =
-          formData.jenis === "T"
-            ? `(Konversi ${panjangMentah} Yard menjadi ${formData.Panjang_bahan} M)`
-            : "";
-
-        toast.success(
-          `Roll Core Valid. Sisa Bahan Utama: ${formData.Panjang_bahan} M ${unitInfo}`,
-        );
-      } else {
-        toast.error(`Barcode tidak tersedia. Status: ${wrapper.status}`);
       }
     }
   } catch (e) {
-    toast.error(
-      "Gagal verifikasi Barcode Roll Bahan. Pastikan item terdaftar di Gudang.",
-    );
-    formData.barcode_input = "";
-    formData.Panjang_bahan = 0;
-    formData.Lebar_bahan = 0;
+    console.error("Error scan barcode:", e);
   }
 };
 
@@ -957,15 +944,14 @@ const handleSpkSelect = (spk: any) => {
     return;
   }
 
-  // Fallback: jika panjang/lebar bernilai 0 (khas Memo), coba gunakan dimensi default cetak (misal 1 x 1 meter atau sesuaikan kebutuhan produksi)
   const pSpk = parseFloat(spk.Panjang) || 0;
   const lSpk = parseFloat(spk.Lebar) || 0;
 
   const newEntry: any = {
     nomor_spk: code,
     nama_spk: spk.Nama || spk.spk_nama || "",
-    panjang_spk: pSpk === 0 ? 1.0 : pSpk, // Set default 1 meter jika data mentah bernilai 0
-    lebar_spk: lSpk === 0 ? 1.0 : lSpk, // Set default 1 meter jika data mentah bernilai 0
+    panjang_spk: pSpk === 0 ? 1.0 : pSpk,
+    lebar_spk: lSpk === 0 ? 1.0 : lSpk,
     jumlah: parseFloat(spk.Jumlah || spk.Jumlah_Order || 1),
     sudahcetak: parseFloat(spk.Sudah_Cetak || 0),
     kurangcetak_asli: parseFloat(spk.Kurang_Cetak || 1),
@@ -983,6 +969,7 @@ const handleSpkSelect = (spk: any) => {
   isSpkLookupVisible.value = false;
 };
 
+// --- LOGIKA LOAD DATA EDIT: AMBIL DATA DARI HISTORI AMBIL BAHAN / DETAIL ---
 const loaddataall = async (nomor: string) => {
   isSaving.value = true;
   try {
@@ -1009,22 +996,41 @@ const loaddataall = async (nomor: string) => {
       if (Array.isArray(res.details) && res.details.length > 0) {
         const firstDetail = res.details[0];
 
-        let pAwalHistori = parseFloat(firstDetail.lprd_panjang_awal || 0);
-        let pSisaHistori = parseFloat(firstDetail.lprd_sisa_bahan || 0);
-        let lSisaHistori = parseFloat(
-          firstDetail.lprd_sisa_lebar || h.lpr_lebar_sisa_manual || 0,
+        // =====================================================================
+        // 🔥 BACA PANJANG BAHAN AWAL DARI "panjang_roll_awal" SESUAI RESPONSE API
+        // =====================================================================
+        let pAwalHistori = parseFloat(
+          firstDetail.panjang_roll_awal || // <--- Mengambil "7.44" dari JSON
+            firstDetail.ld_ambilbahan ||
+            firstDetail.lprd_panjang_awal ||
+            firstDetail.AmbilBahanPanjang ||
+            h.Panjang_Awal ||
+            0,
+        );
+
+        let lAwalHistori = parseFloat(
+          firstDetail.AmbilBahanLebar || firstDetail.lprd_lebar || 0,
         );
 
         if (formData.jenis === "T") {
           pAwalHistori = parseFloat((pAwalHistori * 0.9).toFixed(2));
-          pSisaHistori = parseFloat((pSisaHistori * 0.9).toFixed(2));
         }
 
+        // Set Nilai Bahan Awal LHK
         formData.Panjang_bahan = pAwalHistori;
-        formData.sisa_panjang_manual = pSisaHistori;
-        formData.sisa_lebar_manual = lSisaHistori > 0 ? lSisaHistori : null;
-        formData.sku_aktif = firstDetail.lprd_barcode || formData.barcode_input;
-        formData.kode_bahan_aktif = firstDetail.lprd_bahan || "";
+        if (lAwalHistori > 0) {
+          formData.Lebar_bahan = lAwalHistori;
+        }
+
+        // Dibiarkan null agar pemakaian & sisa dihitung ulang secara otomatis oleh sistem
+        formData.sisa_panjang_manual = null;
+        formData.sisa_lebar_manual = null;
+        formData.sku_aktif =
+          firstDetail.barcode_detail ||
+          firstDetail.lprd_barcode ||
+          formData.barcode_input;
+        formData.kode_bahan_aktif =
+          firstDetail.Jenis_Bahan || firstDetail.lprd_bahan || "";
 
         // 2. Petakan seluruh baris SPK Detail
         res.details.forEach((d: any) => {
@@ -1033,19 +1039,16 @@ const loaddataall = async (nomor: string) => {
             nama_spk: d.Nama_SPK || d.spk_nama || "",
             panjang_spk: parseFloat(d.Panjang || d.lprd_panjang || 0),
             lebar_spk: parseFloat(d.Lebar || d.lprd_lebar || 0),
-
-            // --- AMBIL DARI BACKEND DENGAN FALLBACK TO DEFAULT 3 ---
             padding: parseFloat(d.lprd_padd ?? d.Padding ?? 3),
-
             tile: d.Tile || d.lprd_tile || 1,
             jumlah: parseFloat(d.J_Order || d.lprd_j_order || 0),
             orientasi: d.Orientasi || d.lprd_orientasi || "lebar",
             sudahcetak: parseFloat(d.Sudah_Cetak_Sebelumnya || 0),
             kurangcetak_asli: parseFloat(d.Kurang_Cetak || 0),
             totalcetak: parseFloat(d.J_Proof || d.lprd_j_proof || 0),
-            lokasi: d.lprd_lokasi || "",
-            jenis_bahan: d.lprd_bahan || "",
-            keterangan: d.lprd_keterangan || "",
+            lokasi: d.Lokasi || d.lprd_lokasi || "",
+            jenis_bahan: d.Jenis_Bahan || d.lprd_bahan || "",
+            keterangan: d.Keterangan || d.lprd_keterangan || "",
           };
 
           for (let i = 1; i <= 7; i++) {
@@ -1056,7 +1059,10 @@ const loaddataall = async (nomor: string) => {
         });
       }
 
-      nextTick(() => {
+      nextTick(async () => {
+        if (formData.barcode_input) {
+          await handleBarcodeScan();
+        }
         recalculateCombine();
       });
     }
@@ -1148,12 +1154,9 @@ const handleSave = async (statusValue: "DRAFT" | "POSTED" = "DRAFT") => {
           panjang_roll_awal: Number(formData.Panjang_bahan) || 0,
           sisabahan: parseFloat(Number(sisaPanjangFinal).toFixed(2)),
           sisabahanlebar: parseFloat(Number(sisaLebarFinal).toFixed(2)),
-
-          // --- PERBAIKAN: Pastikan membaca property d.padding secara presisi ---
           lprd_padd: Number(d.padding) || 0,
         };
 
-        // Kirim pecahan data cetak 1 sampai 7 ke backend
         for (let i = 1; i <= 7; i++) {
           detailEntry[`cetak${i}`] = Number(d[`cetak${i}`]) || 0;
         }
@@ -1243,7 +1246,7 @@ const formTitle = computed(() => {
 
 watch(
   () => formData.jenis,
-  (newJenis) => {
+  () => {
     if (formData.barcode_input) {
       handleBarcodeScan();
     }

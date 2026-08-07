@@ -5,13 +5,17 @@
     :items="filteredData"
     :loading="loading.report"
     :show-gudang-filter="false"
+    :disable-sort="true"
+    :disable-filter="true"
+    :has-active-filter="hasActiveFilter"
     item-key="NOMOR"
     title="Laporan Monitoring LMKP"
     :excel-file-name="`Laporan_LMKP_${jenisLabel}_${startDate}_sd_${endDate}.xlsx`"
     :custom-export-excel="exportToExcel"
     @refresh="fetchReport"
+    @reset-filter="resetAllFilters"
   >
-    <!-- Slot Filter Tambahan: Dropdown Kategori (MT / MX / SUBLIM) & Pencarian SPK -->
+    <!-- Slot Filter Tambahan: Dropdown Kategori & Pencarian SPK -->
     <template #extra-filters>
       <v-select
         v-model="jenisIndex"
@@ -30,7 +34,7 @@
 
       <v-text-field
         v-model="searchQuery"
-        label="Cari SPK / Order..."
+        label="Cari SPK / Order / Finishing..."
         prepend-inner-icon="mdi-magnify"
         density="compact"
         hide-details
@@ -40,18 +44,19 @@
       />
     </template>
 
-    <!-- Slot Header Tabel Berkelompok Custom dengan Filter & Sort Per Kolom -->
+    <!-- Slot Header Tabel Berkelompok Custom -->
     <template #thead>
       <thead>
         <!-- Row 1: Header Utama & Grouping Header -->
         <tr class="header-main">
           <!-- 1. NOMOR SPK -->
-          <th rowspan="2" class="text-center sticky-col-1">
+          <th
+            rowspan="2"
+            class="text-center sticky-col-1 cursor-pointer select-none"
+            @click="toggleSort('NOMOR')"
+          >
             <div class="d-flex align-center justify-space-between px-1">
-              <span
-                @click="toggleSort('NOMOR')"
-                class="cursor-pointer font-weight-bold"
-              >
+              <span class="font-weight-bold">
                 NOMOR SPK {{ getSortIcon("NOMOR") }}
               </span>
               <v-menu :close-on-content-click="false">
@@ -62,6 +67,7 @@
                     variant="text"
                     size="x-small"
                     class="btn-filter-icon ml-1"
+                    @click.stop
                   >
                     <v-icon
                       size="14"
@@ -71,7 +77,7 @@
                     </v-icon>
                   </v-btn>
                 </template>
-                <v-card min-width="200" class="pa-2 rounded-lg">
+                <v-card min-width="200" class="pa-2 rounded-lg" @click.stop>
                   <v-text-field
                     v-model="columnFilters.NOMOR"
                     label="Filter Nomor SPK..."
@@ -86,12 +92,13 @@
           </th>
 
           <!-- 2. NAMA ORDER -->
-          <th rowspan="2" class="text-left sticky-col-2">
+          <th
+            rowspan="2"
+            class="text-left sticky-col-2 cursor-pointer select-none"
+            @click="toggleSort('spk_nama')"
+          >
             <div class="d-flex align-center justify-space-between px-1">
-              <span
-                @click="toggleSort('spk_nama')"
-                class="cursor-pointer font-weight-bold"
-              >
+              <span class="font-weight-bold">
                 NAMA ORDER {{ getSortIcon("spk_nama") }}
               </span>
               <v-menu :close-on-content-click="false">
@@ -102,6 +109,7 @@
                     variant="text"
                     size="x-small"
                     class="btn-filter-icon ml-1"
+                    @click.stop
                   >
                     <v-icon
                       size="14"
@@ -113,7 +121,7 @@
                     </v-icon>
                   </v-btn>
                 </template>
-                <v-card min-width="220" class="pa-2 rounded-lg">
+                <v-card min-width="220" class="pa-2 rounded-lg" @click.stop>
                   <v-text-field
                     v-model="columnFilters.spk_nama"
                     label="Filter Nama Order..."
@@ -128,32 +136,35 @@
           </th>
 
           <!-- 3. TANGGAL -->
-          <th rowspan="2" class="text-center">
-            <span
-              @click="toggleSort('spk_tanggal')"
-              class="cursor-pointer font-weight-bold"
-            >
+          <th
+            rowspan="2"
+            class="text-center cursor-pointer select-none"
+            @click="toggleSort('spk_tanggal')"
+          >
+            <span class="font-weight-bold">
               TANGGAL {{ getSortIcon("spk_tanggal") }}
             </span>
           </th>
 
           <!-- 4. DEADLINE -->
-          <th rowspan="2" class="text-center">
-            <span
-              @click="toggleSort('deadline')"
-              class="cursor-pointer font-weight-bold"
-            >
+          <th
+            rowspan="2"
+            class="text-center cursor-pointer select-none"
+            @click="toggleSort('deadline')"
+          >
+            <span class="font-weight-bold">
               DEADLINE {{ getSortIcon("deadline") }}
             </span>
           </th>
 
           <!-- 5. BAHAN -->
-          <th rowspan="2" class="text-left border">
+          <th
+            rowspan="2"
+            class="text-left border cursor-pointer select-none"
+            @click="toggleSort('KAIN')"
+          >
             <div class="d-flex align-center justify-space-between px-1 ga-1">
-              <span
-                @click="toggleSort('KAIN')"
-                class="cursor-pointer font-weight-bold"
-              >
+              <span class="font-weight-bold">
                 BAHAN {{ getSortIcon("KAIN") }}
               </span>
               <v-menu :close-on-content-click="false">
@@ -164,6 +175,7 @@
                     variant="text"
                     size="x-small"
                     class="btn-filter-icon"
+                    @click.stop
                   >
                     <v-icon
                       size="14"
@@ -177,7 +189,7 @@
                     </v-icon>
                   </v-btn>
                 </template>
-                <v-card min-width="200" class="pa-2 rounded-lg">
+                <v-card min-width="200" class="pa-2 rounded-lg" @click.stop>
                   <v-select
                     v-model="columnFilters.KAIN"
                     :items="kainOptions"
@@ -192,12 +204,46 @@
           </th>
 
           <!-- 6. GRAMASI -->
-          <th rowspan="2" class="text-center">
-            <span
-              @click="toggleSort('spk_gramasi')"
-              class="cursor-pointer font-weight-bold"
-            >
+          <th
+            rowspan="2"
+            class="text-center cursor-pointer select-none"
+            @click="toggleSort('spk_gramasi')"
+          >
+            <span class="font-weight-bold">
               GRAMASI {{ getSortIcon("spk_gramasi") }}
+            </span>
+          </th>
+
+          <!-- 7. PANJANG (BARU) -->
+          <th
+            rowspan="2"
+            class="text-center cursor-pointer select-none"
+            @click="toggleSort('PANJANG')"
+          >
+            <span class="font-weight-bold">
+              PANJANG {{ getSortIcon("PANJANG") }}
+            </span>
+          </th>
+
+          <!-- 8. LEBAR (BARU) -->
+          <th
+            rowspan="2"
+            class="text-center cursor-pointer select-none"
+            @click="toggleSort('LEBAR')"
+          >
+            <span class="font-weight-bold">
+              LEBAR {{ getSortIcon("LEBAR") }}
+            </span>
+          </th>
+
+          <!-- 9. FINISHING (BARU) -->
+          <th
+            rowspan="2"
+            class="text-left cursor-pointer select-none"
+            @click="toggleSort('FINISHING')"
+          >
+            <span class="font-weight-bold">
+              FINISHING {{ getSortIcon("FINISHING") }}
             </span>
           </th>
 
@@ -209,7 +255,7 @@
           <!-- CETAK LUAR -->
           <th
             rowspan="2"
-            class="text-right border-l border-r cursor-pointer"
+            class="text-right border-l border-r cursor-pointer select-none"
             @click="toggleSort('cetak_luarx')"
           >
             CTK L. {{ getSortIcon("cetak_luarx") }}
@@ -233,43 +279,43 @@
         <tr class="header-sub">
           <!-- Produksi PCS -->
           <th
-            class="text-right bg-blue-sub cursor-pointer"
+            class="text-right bg-blue-sub cursor-pointer select-none"
             @click="toggleSort('spk_jumlah')"
           >
             Order {{ getSortIcon("spk_jumlah") }}
           </th>
           <th
-            class="text-right bg-blue-sub cursor-pointer"
+            class="text-right bg-blue-sub cursor-pointer select-none"
             @click="toggleSort('spk_jumlah_kirim')"
           >
             Kirim {{ getSortIcon("spk_jumlah_kirim") }}
           </th>
           <th
-            class="text-right bg-blue-sub cursor-pointer"
+            class="text-right bg-blue-sub cursor-pointer select-none"
             @click="toggleSort('krg_kirim')"
           >
             K-Kirim {{ getSortIcon("krg_kirim") }}
           </th>
           <th
-            class="text-right bg-blue-sub cursor-pointer"
+            class="text-right bg-blue-sub cursor-pointer select-none"
             @click="toggleSort('krg_Seaming')"
           >
             Seam {{ getSortIcon("krg_Seaming") }}
           </th>
           <th
-            class="text-right bg-blue-sub cursor-pointer"
+            class="text-right bg-blue-sub cursor-pointer select-none"
             @click="toggleSort('krg_mataayam')"
           >
             M.Ayam {{ getSortIcon("krg_mataayam") }}
           </th>
           <th
-            class="text-right bg-blue-sub cursor-pointer"
+            class="text-right bg-blue-sub cursor-pointer select-none"
             @click="toggleSort('krg_Cetak')"
           >
             Cetak {{ getSortIcon("krg_Cetak") }}
           </th>
           <th
-            class="text-right bg-blue-sub cursor-pointer"
+            class="text-right bg-blue-sub cursor-pointer select-none"
             @click="toggleSort('krg_coly')"
           >
             Coly {{ getSortIcon("krg_coly") }}
@@ -279,7 +325,7 @@
           <th
             v-for="m in mesinColumns"
             :key="m.key"
-            class="text-center bg-cyan-sub cursor-pointer"
+            class="text-center bg-cyan-sub cursor-pointer select-none"
             @click="toggleSort(m.key)"
           >
             {{ m.label }} {{ getSortIcon(m.key) }}
@@ -287,19 +333,19 @@
 
           <!-- Produksi Meter -->
           <th
-            class="text-right bg-teal-sub cursor-pointer"
+            class="text-right bg-teal-sub cursor-pointer select-none"
             @click="toggleSort('krg_kirim_meter')"
           >
             K-KRM {{ getSortIcon("krg_kirim_meter") }}
           </th>
           <th
-            class="text-right bg-teal-sub cursor-pointer"
+            class="text-right bg-teal-sub cursor-pointer select-none"
             @click="toggleSort('krg_Cetak_meter')"
           >
             K-CTK {{ getSortIcon("krg_Cetak_meter") }}
           </th>
           <th
-            class="text-right bg-teal-sub cursor-pointer"
+            class="text-right bg-teal-sub cursor-pointer select-none"
             @click="toggleSort('krg_coly_meter')"
           >
             K-CLY {{ getSortIcon("krg_coly_meter") }}
@@ -330,12 +376,23 @@
         </td>
         <td
           class="text-left text-truncate"
-          style="max-width: 180px"
+          style="max-width: 150px"
           :title="item.KAIN"
         >
           {{ item.KAIN || "-" }}
         </td>
         <td class="text-center">{{ item.spk_gramasi || "-" }}</td>
+
+        <!-- Data Dimensi & Finishing Baru -->
+        <td class="text-center">{{ formatNumber(item.PANJANG, 2) }}</td>
+        <td class="text-center">{{ formatNumber(item.LEBAR, 2) }}</td>
+        <td
+          class="text-left text-truncate"
+          style="max-width: 180px"
+          :title="item.FINISHING"
+        >
+          {{ item.FINISHING || "-" }}
+        </td>
 
         <!-- Produksi PCS -->
         <td class="text-right">{{ formatNumber(item.spk_jumlah, 0) }}</td>
@@ -377,8 +434,9 @@
     <!-- Slot Total Footer -->
     <template #tfoot="{ formatNumber }">
       <tr class="table-footer-row">
+        <!-- Colspan Diubah dari 6 ke 9 Karena Ada Tambahan 3 Kolom Baru -->
         <td
-          colspan="6"
+          colspan="9"
           class="text-right font-weight-black text-uppercase sticky-footer-title"
         >
           TOTAL (FILTERED):
@@ -435,7 +493,7 @@
     </template>
   </BaseReportLayout>
 
-  <!-- Summary Card Tambahan (Estimasi Output & Waiting List) -->
+  <!-- Summary Card Tambahan -->
   <div class="d-flex justify-end mt-3 px-2">
     <v-card
       flat
@@ -494,7 +552,7 @@ const getStartOfMonth = (date: Date) => {
 // --- STATE MANAGEMENT ---
 const endDate = ref(formatDate(new Date()));
 const startDate = ref(formatDate(getStartOfMonth(new Date())));
-const jenisIndex = ref("0"); // "0" = MT, "1" = MX, "2" = SUBLIM
+const jenisIndex = ref("0");
 const searchQuery = ref("");
 const loading = reactive({ report: false });
 const allData = ref<any[]>([]);
@@ -507,17 +565,12 @@ const columnFilters = reactive({
   KAIN: "SEMUA",
 });
 
-const sortKey = ref("");
+const sortKey = ref("NOMOR"); // Default sorting awal
 const sortOrder = ref<"asc" | "desc">("asc");
 
 const toggleSort = (key: string) => {
   if (sortKey.value === key) {
-    if (sortOrder.value === "asc") {
-      sortOrder.value = "desc";
-    } else {
-      sortKey.value = "";
-      sortOrder.value = "asc";
-    }
+    sortOrder.value = sortOrder.value === "asc" ? "desc" : "asc";
   } else {
     sortKey.value = key;
     sortOrder.value = "asc";
@@ -527,6 +580,25 @@ const toggleSort = (key: string) => {
 const getSortIcon = (key: string) => {
   if (sortKey.value !== key) return "⇅";
   return sortOrder.value === "asc" ? "▲" : "▼";
+};
+
+// State Active Filter
+const hasActiveFilter = computed(() => {
+  return (
+    Boolean(searchQuery.value) ||
+    Boolean(columnFilters.NOMOR) ||
+    Boolean(columnFilters.spk_nama) ||
+    (columnFilters.KAIN && columnFilters.KAIN !== "SEMUA")
+  );
+});
+
+const resetAllFilters = () => {
+  searchQuery.value = "";
+  columnFilters.NOMOR = "";
+  columnFilters.spk_nama = "";
+  columnFilters.KAIN = "SEMUA";
+  sortKey.value = "NOMOR";
+  sortOrder.value = "asc";
 };
 
 // --- OPTIONS FOR DROPDOWN FILTER ---
@@ -593,18 +665,66 @@ const fetchReport = async () => {
   }
 };
 
+// --- HELPER PARSING TANGGAL UTK SORTING ---
+const getTimestamp = (val: any): number => {
+  if (!val) return 0;
+  const strVal = String(val).trim();
+  const parsedISO = parseISO(strVal);
+  if (isValid(parsedISO)) return parsedISO.getTime();
+
+  const fallbackDate = new Date(strVal).getTime();
+  return isNaN(fallbackDate) ? 0 : fallbackDate;
+};
+
+// --- KLASIFIKASI KUNCI KOLOM UNTUK SORTING EKSPLISIT ---
+const DATE_KEYS = ["spk_tanggal", "deadline"];
+// Menambahkan PANJANG dan LEBAR ke NUMERIC_KEYS
+const NUMERIC_KEYS = [
+  "PANJANG",
+  "LEBAR",
+  "spk_gramasi",
+  "spk_jumlah",
+  "spk_jumlah_kirim",
+  "krg_kirim",
+  "krg_Seaming",
+  "krg_mataayam",
+  "krg_Cetak",
+  "krg_coly",
+  "cetak_luarx",
+  "krg_kirim_meter",
+  "krg_Cetak_meter",
+  "krg_coly_meter",
+  "mt01",
+  "mt02",
+  "mt03",
+  "mt04",
+  "mt05",
+  "mi",
+  "mx01",
+  "mx02",
+  "mx03",
+  "mx04",
+  "mx05",
+  "sb01",
+  "sb02",
+  "sb03",
+  "sb04",
+  "sb05",
+];
+
 // --- FILTERED & SORTED DATA ---
 const filteredData = computed(() => {
   let result = [...allData.value];
 
-  // 1. Filter Global Search
+  // 1. Filter Global Search (Ditambahkan pencarian FINISHING)
   if (searchQuery.value) {
     const q = searchQuery.value.toLowerCase().trim();
     result = result.filter((item: any) => {
       return (
         item.NOMOR?.toLowerCase().includes(q) ||
         item.spk_nama?.toLowerCase().includes(q) ||
-        item.KAIN?.toLowerCase().includes(q)
+        item.KAIN?.toLowerCase().includes(q) ||
+        item.FINISHING?.toLowerCase().includes(q)
       );
     });
   }
@@ -630,33 +750,41 @@ const filteredData = computed(() => {
     result = result.filter((item: any) => item.KAIN === columnFilters.KAIN);
   }
 
-  // 5. Logic Sorting Pintar (Mendukung Teks, Angka, dan Null)
+  // 5. Logic Sorting Presisi
   if (sortKey.value) {
+    const key = sortKey.value;
+    const isAsc = sortOrder.value === "asc";
+
     result.sort((a, b) => {
-      let valA = a[sortKey.value];
-      let valB = b[sortKey.value];
+      const valA = a[key];
+      const valB = b[key];
 
-      // Handle null & undefined
-      if (valA === null || valA === undefined) valA = "";
-      if (valB === null || valB === undefined) valB = "";
-
-      // Cek apakah kedua nilai adalah tipe angka (Numeric Sort)
-      const numA = Number(valA);
-      const numB = Number(valB);
-      const isNumA = !isNaN(numA) && valA !== "" && typeof valA !== "boolean";
-      const isNumB = !isNaN(numB) && valB !== "" && typeof valB !== "boolean";
-
-      if (isNumA && isNumB) {
-        return sortOrder.value === "asc" ? numA - numB : numB - numA;
+      // A. Sorting Kolom Tanggal (spk_tanggal & deadline)
+      if (DATE_KEYS.includes(key)) {
+        const timeA = getTimestamp(valA);
+        const timeB = getTimestamp(valB);
+        return isAsc ? timeA - timeB : timeB - timeA;
       }
 
-      // Fallback ke String Sort jika berupa teks/tanggal
-      const strA = String(valA).toLowerCase();
-      const strB = String(valB).toLowerCase();
+      // B. Sorting Kolom Angka (Jumlah, Meter, Gramasi, Panjang, Lebar, Mesin, dll)
+      if (NUMERIC_KEYS.includes(key)) {
+        const numA =
+          valA !== null && valA !== undefined && valA !== "" ? Number(valA) : 0;
+        const numB =
+          valB !== null && valB !== undefined && valB !== "" ? Number(valB) : 0;
+        return isAsc ? numA - numB : numB - numA;
+      }
 
-      if (strA < strB) return sortOrder.value === "asc" ? -1 : 1;
-      if (strA > strB) return sortOrder.value === "asc" ? 1 : -1;
-      return 0;
+      // C. Sorting Kolom Teks / Alfanumerik (NOMOR, spk_nama, KAIN, FINISHING)
+      const strA = valA !== null && valA !== undefined ? String(valA) : "";
+      const strB = valB !== null && valB !== undefined ? String(valB) : "";
+
+      const res = strA.localeCompare(strB, "id", {
+        numeric: true,
+        sensitivity: "base",
+      });
+
+      return isAsc ? res : -res;
     });
   }
 
@@ -825,7 +953,7 @@ const exportToExcel = (dataToExport: any[]) => {
     [],
   ];
 
-  // Header Row 1
+  // Header Row 1 (Ditambahkan PANJANG, LEBAR, FINISHING)
   const headerRow1 = [
     { v: "NOMOR SPK", s: styleHeaderMain },
     { v: "NAMA ORDER", s: styleHeaderMain },
@@ -833,6 +961,9 @@ const exportToExcel = (dataToExport: any[]) => {
     { v: "DEADLINE", s: styleHeaderMain },
     { v: "BAHAN", s: styleHeaderMain },
     { v: "GRAMASI", s: styleHeaderMain },
+    { v: "PANJANG", s: styleHeaderMain },
+    { v: "LEBAR", s: styleHeaderMain },
+    { v: "FINISHING", s: styleHeaderMain },
     { v: "PRODUKSI (PCS)", s: styleHeaderMain },
     "",
     "",
@@ -863,7 +994,7 @@ const exportToExcel = (dataToExport: any[]) => {
   ];
   const subMeter = ["K-KRM", "K-CTK", "K-CLY"];
 
-  const headerRow2 = Array(6).fill({ v: "", s: styleHeaderMain });
+  const headerRow2 = Array(9).fill({ v: "", s: styleHeaderMain });
   subPcs.forEach((h) => headerRow2.push({ v: h, s: styleHeaderSub }));
   headerRow2.push({ v: "", s: styleHeaderMain });
 
@@ -874,7 +1005,7 @@ const exportToExcel = (dataToExport: any[]) => {
   subMeter.forEach((h) => headerRow2.push({ v: h, s: styleHeaderSub }));
   wsData.push(headerRow2);
 
-  // Loop Data
+  // Loop Data (Ditambahkan PANJANG, LEBAR, FINISHING)
   dataToExport.forEach((item: any) => {
     const row = [
       {
@@ -895,6 +1026,19 @@ const exportToExcel = (dataToExport: any[]) => {
         v: item.spk_gramasi || "",
         s: { ...styleDataCell, alignment: { horizontal: "center" } },
       },
+      {
+        v: num(item.PANJANG),
+        t: "n",
+        z: "#,##0.00",
+        s: { ...styleDataCell, alignment: { horizontal: "center" } },
+      },
+      {
+        v: num(item.LEBAR),
+        t: "n",
+        z: "#,##0.00",
+        s: { ...styleDataCell, alignment: { horizontal: "center" } },
+      },
+      { v: item.FINISHING || "", s: styleDataCell },
       {
         v: num(item.spk_jumlah),
         t: "n",
@@ -978,13 +1122,13 @@ const exportToExcel = (dataToExport: any[]) => {
     wsData.push(row);
   });
 
-  // Footer Total
+  // Footer Total (Array padding disesuaikan)
   const footerRow = [
     {
       v: "TOTAL (FILTERED)",
       s: { ...styleFooterCell, alignment: { horizontal: "center" } },
     },
-    ...Array(5).fill({ v: "", s: styleFooterCell }),
+    ...Array(8).fill({ v: "", s: styleFooterCell }),
     {
       v: num(totals.value.spk_jumlah),
       t: "n",
@@ -1069,7 +1213,7 @@ const exportToExcel = (dataToExport: any[]) => {
 
   const ws = XLSX.utils.aoa_to_sheet(wsData);
 
-  const mesinStartCol = 14;
+  const mesinStartCol = 17;
   const mesinEndCol = mesinStartCol + mesinColumns.value.length - 1;
 
   ws["!merges"] = [
@@ -1079,11 +1223,14 @@ const exportToExcel = (dataToExport: any[]) => {
     { s: { r: 4, c: 3 }, e: { r: 5, c: 3 } },
     { s: { r: 4, c: 4 }, e: { r: 5, c: 4 } },
     { s: { r: 4, c: 5 }, e: { r: 5, c: 5 } },
-    { s: { r: 4, c: 13 }, e: { r: 5, c: 13 } },
-    { s: { r: 4, c: 6 }, e: { r: 4, c: 12 } },
+    { s: { r: 4, c: 6 }, e: { r: 5, c: 6 } }, // Merge Panjang
+    { s: { r: 4, c: 7 }, e: { r: 5, c: 7 } }, // Merge Lebar
+    { s: { r: 4, c: 8 }, e: { r: 5, c: 8 } }, // Merge Finishing
+    { s: { r: 4, c: 16 }, e: { r: 5, c: 16 } }, // Merge CTK L.
+    { s: { r: 4, c: 9 }, e: { r: 4, c: 15 } }, // Merge Group Produksi PCS
     { s: { r: 4, c: mesinStartCol }, e: { r: 4, c: mesinEndCol } },
     { s: { r: 4, c: mesinEndCol + 1 }, e: { r: 4, c: mesinEndCol + 3 } },
-    { s: { r: wsData.length - 1, c: 0 }, e: { r: wsData.length - 1, c: 5 } },
+    { s: { r: wsData.length - 1, c: 0 }, e: { r: wsData.length - 1, c: 8 } },
   ];
 
   const wb = XLSX.utils.book_new();
@@ -1226,6 +1373,8 @@ onMounted(fetchReport);
 }
 .cursor-pointer {
   cursor: pointer;
+}
+.select-none {
   user-select: none;
 }
 .btn-filter-icon {
