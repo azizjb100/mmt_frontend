@@ -357,9 +357,9 @@ const handlePrint = async () => {
 
   try {
     const res = await soToSpkService.checkPrintPermission(nomorSpk);
-    if (!res.data?.data?.allowed) {
-      return toast.warning("Tidak mendapatkan izin mencetak SPK ini.");
-    }
+    // if (!res.data?.data?.allowed) {
+    //   return toast.warning("Tidak mendapatkan izin mencetak SPK ini.");
+    // }
     window.open(`/mmt/so-spk/print/${encodeURIComponent(nomorSpk)}`, "_blank");
     await soToSpkService.recordPrint(nomorSpk);
   } catch (e: any) {
