@@ -2,7 +2,7 @@
 import { ref, onMounted, reactive, watch, computed } from "vue";
 import { useToast } from "vue-toastification";
 import api from "@/services/api";
-import { format, subDays, parseISO, isValid } from "date-fns"; // PERBAIKAN: Import parseISO & isValid
+import { format, subDays, parseISO, isValid } from "date-fns";
 import BaseBrowse from "@/components/BaseBrowse.vue";
 
 const toast = useToast();
@@ -99,10 +99,11 @@ const resetCustomerFilter = () => {
   filterCustomerInput.value = "";
 };
 
-// --- LOGIKA FILTERING LOKAL (EXCEL-STYLE) ---
+// --- LOGIKA FILTERING & SORTING (PENDING FIRST) ---
 const filteredMasterData = computed(() => {
-  return masterData.value.filter((item) => {
-    // 1. Filter Nomor SJ
+  // 1. Filter Data
+  const filtered = masterData.value.filter((item) => {
+    // Filter Nomor SJ
     const nomorSJ = item.Nomor || "";
     const matchesNomor =
       !filterNomorInput.value ||
@@ -110,13 +111,13 @@ const filteredMasterData = computed(() => {
         .toLowerCase()
         .includes(filterNomorInput.value.trim().toLowerCase());
 
-    // 2. Filter Gudang
+    // Filter Gudang
     const matchesGudang =
       selectedGudangFilter.value.length === 0 ||
       selectedGudangFilter.value.length === availableGudangList.value.length ||
       selectedGudangFilter.value.includes(item.Gudang);
 
-    // 3. Filter Customer
+    // Filter Customer
     const customer = item.Customer || "";
     const matchesCustomer =
       !filterCustomerInput.value ||
@@ -125,6 +126,26 @@ const filteredMasterData = computed(() => {
         .includes(filterCustomerInput.value.trim().toLowerCase());
 
     return matchesNomor && matchesGudang && matchesCustomer;
+  });
+
+  // 2. Sorting Data: Prioritaskan status PENDING di paling atas
+  return filtered.sort((a, b) => {
+    const getPriority = (status: string) => {
+      if (!status || status === "Pending") return 1; // Prioritas Utama: Pending
+      if (status === "Sudah") return 2; // Prioritas Kedua: Sudah Approved
+      if (status === "Batal") return 3; // Prioritas Terakhir: Batal
+      return 4;
+    };
+
+    const priorityA = getPriority(a.Approved);
+    const priorityB = getPriority(b.Approved);
+
+    if (priorityA !== priorityB) {
+      return priorityA - priorityB; // Urutkan berdasarkan hirarki status
+    }
+
+    // Jika status sama, urutkan berdasarkan Nomor SJ (Terbaru/Terbesar diatas)
+    return (b.Nomor || "").localeCompare(a.Nomor || "");
   });
 });
 
@@ -178,10 +199,8 @@ const formatDateDisplay = (dateStr: string | null | undefined) => {
   if (!dateStr) return "-";
 
   try {
-    // 1. Coba parse jika formatnya ISO / YYYY-MM-DD
     let d = parseISO(dateStr);
 
-    // 2. Jika tidak valid (misal format aslinya DD-MM-YYYY)
     if (!isValid(d)) {
       const parts = dateStr.split(/[-/]/);
       if (parts.length === 3) {
