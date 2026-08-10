@@ -2,7 +2,7 @@
 import { ref, onMounted, reactive, watch, computed } from "vue";
 import { useToast } from "vue-toastification";
 import api from "@/services/api";
-import { format, subDays } from "date-fns";
+import { format, subDays, parseISO, isValid } from "date-fns"; // PERBAIKAN: Import parseISO & isValid
 import BaseBrowse from "@/components/BaseBrowse.vue";
 
 const toast = useToast();
@@ -20,6 +20,19 @@ const startDate = ref(format(subDays(new Date(), 30), "yyyy-MM-dd"));
 const endDate = ref(format(new Date(), "yyyy-MM-dd"));
 const pendingOnly = ref(false);
 
+// --- EXCEL-STYLE FILTER STATE ---
+// 1. Filter Nomor SJ
+const menuNomor = ref(false);
+const filterNomorInput = ref<string>("");
+
+// 2. Filter Gudang
+const menuGudang = ref(false);
+const selectedGudangFilter = ref<string[]>([]);
+
+// 3. Filter Customer
+const menuCustomer = ref(false);
+const filterCustomerInput = ref<string>("");
+
 // --- Ambil Cabang Dinamis dari Session Storage / Local Storage ---
 const getSessionUser = () => {
   try {
@@ -36,6 +49,85 @@ const userConfig = reactive({
   zcus: 1,
 });
 
+// --- DYNAMIC FILTER OPTIONS & COMPUTED ---
+const availableGudangList = computed(() => {
+  const setGudang = new Set<string>();
+  masterData.value.forEach((item) => {
+    if (item.Gudang) setGudang.add(item.Gudang);
+  });
+  return Array.from(setGudang).sort();
+});
+
+// Indikator Status Aktif Filter
+const isNomorFilterActive = computed(
+  () => filterNomorInput.value.trim().length > 0,
+);
+const isCustomerFilterActive = computed(
+  () => filterCustomerInput.value.trim().length > 0,
+);
+const isGudangFilterActive = computed(() => {
+  return (
+    selectedGudangFilter.value.length > 0 &&
+    selectedGudangFilter.value.length < availableGudangList.value.length
+  );
+});
+
+const isAllGudangSelected = computed(() => {
+  return (
+    availableGudangList.value.length > 0 &&
+    selectedGudangFilter.value.length === availableGudangList.value.length
+  );
+});
+
+const toggleSelectAllGudang = () => {
+  if (isAllGudangSelected.value) {
+    selectedGudangFilter.value = [];
+  } else {
+    selectedGudangFilter.value = [...availableGudangList.value];
+  }
+};
+
+const resetGudangFilter = () => {
+  selectedGudangFilter.value = [...availableGudangList.value];
+};
+
+const resetNomorFilter = () => {
+  filterNomorInput.value = "";
+};
+
+const resetCustomerFilter = () => {
+  filterCustomerInput.value = "";
+};
+
+// --- LOGIKA FILTERING LOKAL (EXCEL-STYLE) ---
+const filteredMasterData = computed(() => {
+  return masterData.value.filter((item) => {
+    // 1. Filter Nomor SJ
+    const nomorSJ = item.Nomor || "";
+    const matchesNomor =
+      !filterNomorInput.value ||
+      nomorSJ
+        .toLowerCase()
+        .includes(filterNomorInput.value.trim().toLowerCase());
+
+    // 2. Filter Gudang
+    const matchesGudang =
+      selectedGudangFilter.value.length === 0 ||
+      selectedGudangFilter.value.length === availableGudangList.value.length ||
+      selectedGudangFilter.value.includes(item.Gudang);
+
+    // 3. Filter Customer
+    const customer = item.Customer || "";
+    const matchesCustomer =
+      !filterCustomerInput.value ||
+      customer
+        .toLowerCase()
+        .includes(filterCustomerInput.value.trim().toLowerCase());
+
+    return matchesNomor && matchesGudang && matchesCustomer;
+  });
+});
+
 // --- Grid Header Definition ---
 const masterHeaders = computed(() => {
   const baseHeaders = [
@@ -48,7 +140,7 @@ const masterHeaders = computed(() => {
     },
     { title: "Approved", key: "Approved", minWidth: "120px", fixed: true },
     { title: "Divisi", key: "Divisi", minWidth: "120px" },
-    { title: "Nomor", key: "Nomor", minWidth: "150px", fixed: true },
+    { title: "Nomor", key: "Nomor", minWidth: "160px", fixed: true },
     { title: "Tanggal", key: "Tanggal", minWidth: "120px" },
     { title: "Kode Gdg", key: "KodeGdg", minWidth: "100px" },
     { title: "Gudang", key: "Gudang", minWidth: "180px" },
@@ -57,7 +149,7 @@ const masterHeaders = computed(() => {
   if (userConfig.zcus === 1) {
     baseHeaders.push(
       { title: "Kode Customer", key: "KodeCustomer", minWidth: "130px" },
-      { title: "Customer", key: "Customer", minWidth: "200px" },
+      { title: "Customer", key: "Customer", minWidth: "220px" },
       { title: "Alamat", key: "Alamat", minWidth: "250px" },
       { title: "Kota", key: "Kota", minWidth: "120px" },
     );
@@ -82,11 +174,37 @@ const detailHeaders = [
   { title: "Keterangan", key: "sjd_keterangan", minWidth: "200px" },
 ];
 
-const parseCustomDate = (dateString: string): Date | null => {
-  if (!dateString) return null;
-  const parts = dateString.split("-");
-  if (parts.length !== 3) return null;
-  return new Date(Number(parts[2]), Number(parts[1]) - 1, Number(parts[0]));
+const formatDateDisplay = (dateStr: string | null | undefined) => {
+  if (!dateStr) return "-";
+
+  try {
+    // 1. Coba parse jika formatnya ISO / YYYY-MM-DD
+    let d = parseISO(dateStr);
+
+    // 2. Jika tidak valid (misal format aslinya DD-MM-YYYY)
+    if (!isValid(d)) {
+      const parts = dateStr.split(/[-/]/);
+      if (parts.length === 3) {
+        if (parts[0].length === 4) {
+          d = new Date(
+            Number(parts[0]),
+            Number(parts[1]) - 1,
+            Number(parts[2]),
+          );
+        } else {
+          d = new Date(
+            Number(parts[2]),
+            Number(parts[1]) - 1,
+            Number(parts[0]),
+          );
+        }
+      }
+    }
+
+    return isValid(d) ? format(d, "dd/MM/yyyy") : "-";
+  } catch (e) {
+    return dateStr;
+  }
 };
 
 // --- Data Fetching ---
@@ -106,6 +224,11 @@ const fetchData = async () => {
     });
 
     masterData.value = res.data.data || [];
+    selectedGudangFilter.value = [...availableGudangList.value];
+  } catch (error) {
+    console.error("Gagal mengambil data Surat Jalan:", error);
+    toast.error("Gagal mengambil data Surat Jalan");
+    masterData.value = [];
   } finally {
     loading.value = false;
   }
@@ -152,7 +275,7 @@ const getStatusColor = (status: string) => {
   return "green";
 };
 
-// --- PERBAIKAN: Logika Aksi untuk Banyak Data (Bulk Action) ---
+// --- Logika Aksi Bulk Action ---
 const handleProcessAction = async (
   actionType: "approve" | "pending" | "batal",
 ) => {
@@ -161,13 +284,11 @@ const handleProcessAction = async (
     return;
   }
 
-  const count = selected.value.length;
   let validItems: any[] = [];
 
-  // Validasi kondisi item berdasarkan aksi yang dipilih
   for (const item of selected.value) {
     if (actionType === "approve") {
-      if (item.Approved === "Sudah") continue; // Lewati yang sudah di-approve
+      if (item.Approved === "Sudah") continue;
       if (item.Approved === "Batal") {
         toast.warning(
           `Nomor ${item.Nomor} status Batal. Masukkan ke Pending dulu.`,
@@ -175,7 +296,7 @@ const handleProcessAction = async (
         return;
       }
     } else if (actionType === "pending") {
-      if (!item.Approved) continue; // Lewati yang memeng sudah pending/kosong
+      if (!item.Approved) continue;
     } else if (actionType === "batal") {
       if (item.Approved === "Sudah") {
         toast.warning(
@@ -183,7 +304,7 @@ const handleProcessAction = async (
         );
         return;
       }
-      if (item.Approved === "Batal") continue; // Lewati yang memang sudah batal
+      if (item.Approved === "Batal") continue;
     }
     validItems.push(item);
   }
@@ -206,7 +327,6 @@ const handleProcessAction = async (
 
   loading.value = true;
   try {
-    // Eksekusi request secara paralel menggunakan Promise.all
     const promises = validItems.map((item) =>
       api.post(
         `${API_SURAT_JALAN}/${actionType}/${encodeURIComponent(item.Nomor)}`,
@@ -217,7 +337,7 @@ const handleProcessAction = async (
     await Promise.all(promises);
 
     toast.success(`Berhasil memproses ${validItems.length} data Surat Jalan!`);
-    selected.value = []; // Reset pilihan setelah sukses
+    selected.value = [];
     fetchData();
   } catch (error: any) {
     toast.error(
@@ -229,15 +349,14 @@ const handleProcessAction = async (
   }
 };
 
-// --- PERBAIKAN: Ubah Row Click agar Mendukung Multi-Select ---
 const handleRowClick = (_event: any, row: any) => {
   const index = selected.value.findIndex(
     (s: any) => s.Nomor === row.item.Nomor,
   );
   if (index > -1) {
-    selected.value.splice(index, 1); // Jika sudah ada, hapus dari pilihan (unselect)
+    selected.value.splice(index, 1);
   } else {
-    selected.value.push(row.item); // Jika belum ada, tambahkan ke pilihan (select)
+    selected.value.push(row.item);
   }
 };
 
@@ -268,7 +387,7 @@ onMounted(fetchData);
       title="Approval Surat Jalan"
       icon="mdi-file-check-outline"
       :headers="masterHeaders"
-      :items="masterData"
+      :items="filteredMasterData"
       :loading="loading"
       v-model:startDate="startDate"
       v-model:endDate="endDate"
@@ -312,8 +431,233 @@ onMounted(fetchData);
         </v-btn>
       </template>
 
+      <!-- ======================================================== -->
+      <!-- EXCEL-STYLE FILTER HEADERS                               -->
+      <!-- ======================================================== -->
+
+      <!-- 1. FILTER NOMOR SURAT JALAN -->
+      <template #header.Nomor="{ column }">
+        <div class="d-flex align-center justify-space-between w-100">
+          <span class="font-weight-bold">{{ column.title }}</span>
+          <v-menu
+            v-model="menuNomor"
+            :close-on-content-click="false"
+            location="bottom start"
+          >
+            <template #activator="{ props }">
+              <v-btn
+                icon
+                variant="text"
+                density="compact"
+                size="small"
+                v-bind="props"
+                :color="isNomorFilterActive ? 'primary' : 'default'"
+              >
+                <v-icon size="18">
+                  {{
+                    isNomorFilterActive ? "mdi-filter" : "mdi-filter-variant"
+                  }}
+                </v-icon>
+              </v-btn>
+            </template>
+
+            <v-card min-width="240" class="pa-2 border shadow-2 rounded-lg">
+              <div
+                class="text-caption font-weight-bold px-1 py-1 text-grey-darken-1"
+              >
+                Cari Nomor SJ
+              </div>
+              <v-divider class="mb-2" />
+              <v-text-field
+                v-model="filterNomorInput"
+                placeholder="Ketik Nomor SJ..."
+                density="compact"
+                variant="outlined"
+                hide-details
+                clearable
+                autofocus
+                append-inner-icon="mdi-magnify"
+                @keyup.enter="menuNomor = false"
+              />
+              <v-divider class="mt-3 mb-2" />
+              <div class="d-flex justify-space-between align-center">
+                <v-btn
+                  size="x-small"
+                  variant="text"
+                  color="grey-darken-1"
+                  @click="resetNomorFilter"
+                >
+                  Reset
+                </v-btn>
+                <v-btn
+                  size="x-small"
+                  color="primary"
+                  variant="flat"
+                  @click="menuNomor = false"
+                >
+                  OK
+                </v-btn>
+              </div>
+            </v-card>
+          </v-menu>
+        </div>
+      </template>
+
+      <!-- 2. FILTER GUDANG (CHECKLIST DINAMIS) -->
+      <template #header.Gudang="{ column }">
+        <div class="d-flex align-center justify-space-between w-100">
+          <span class="font-weight-bold">{{ column.title }}</span>
+          <v-menu
+            v-model="menuGudang"
+            :close-on-content-click="false"
+            location="bottom end"
+          >
+            <template #activator="{ props }">
+              <v-btn
+                icon
+                variant="text"
+                density="compact"
+                size="small"
+                v-bind="props"
+                :color="isGudangFilterActive ? 'primary' : 'default'"
+              >
+                <v-icon size="18">
+                  {{
+                    isGudangFilterActive ? "mdi-filter" : "mdi-filter-variant"
+                  }}
+                </v-icon>
+              </v-btn>
+            </template>
+
+            <v-card min-width="220" class="pa-2 border shadow-2 rounded-lg">
+              <div
+                class="text-caption font-weight-bold px-2 py-1 text-grey-darken-1"
+              >
+                Filter Gudang
+              </div>
+              <v-divider class="mb-1" />
+
+              <v-checkbox
+                :model-value="isAllGudangSelected"
+                label="(Select All)"
+                density="compact"
+                hide-details
+                color="primary"
+                @click="toggleSelectAllGudang"
+              />
+              <v-divider class="my-1" />
+
+              <div style="max-height: 180px; overflow-y: auto">
+                <v-checkbox
+                  v-for="gdg in availableGudangList"
+                  :key="gdg"
+                  v-model="selectedGudangFilter"
+                  :value="gdg"
+                  :label="gdg"
+                  density="compact"
+                  hide-details
+                  color="primary"
+                />
+              </div>
+
+              <v-divider class="mt-1 mb-2" />
+              <div class="d-flex justify-space-between align-center">
+                <v-btn
+                  size="x-small"
+                  variant="text"
+                  color="grey-darken-1"
+                  @click="resetGudangFilter"
+                >
+                  Reset
+                </v-btn>
+                <v-btn
+                  size="x-small"
+                  color="primary"
+                  variant="flat"
+                  @click="menuGudang = false"
+                >
+                  OK
+                </v-btn>
+              </div>
+            </v-card>
+          </v-menu>
+        </div>
+      </template>
+
+      <!-- 3. FILTER CUSTOMER -->
+      <template #header.Customer="{ column }">
+        <div class="d-flex align-center justify-space-between w-100">
+          <span class="font-weight-bold">{{ column.title }}</span>
+          <v-menu
+            v-model="menuCustomer"
+            :close-on-content-click="false"
+            location="bottom start"
+          >
+            <template #activator="{ props }">
+              <v-btn
+                icon
+                variant="text"
+                density="compact"
+                size="small"
+                v-bind="props"
+                :color="isCustomerFilterActive ? 'primary' : 'default'"
+              >
+                <v-icon size="18">
+                  {{
+                    isCustomerFilterActive ? "mdi-filter" : "mdi-filter-variant"
+                  }}
+                </v-icon>
+              </v-btn>
+            </template>
+
+            <v-card min-width="240" class="pa-2 border shadow-2 rounded-lg">
+              <div
+                class="text-caption font-weight-bold px-1 py-1 text-grey-darken-1"
+              >
+                Cari Customer
+              </div>
+              <v-divider class="mb-2" />
+              <v-text-field
+                v-model="filterCustomerInput"
+                placeholder="Ketik Nama Customer..."
+                density="compact"
+                variant="outlined"
+                hide-details
+                clearable
+                autofocus
+                append-inner-icon="mdi-magnify"
+                @keyup.enter="menuCustomer = false"
+              />
+              <v-divider class="mt-3 mb-2" />
+              <div class="d-flex justify-space-between align-center">
+                <v-btn
+                  size="x-small"
+                  variant="text"
+                  color="grey-darken-1"
+                  @click="resetCustomerFilter"
+                >
+                  Reset
+                </v-btn>
+                <v-btn
+                  size="x-small"
+                  color="primary"
+                  variant="flat"
+                  @click="menuCustomer = false"
+                >
+                  OK
+                </v-btn>
+              </div>
+            </v-card>
+          </v-menu>
+        </div>
+      </template>
+
+      <!-- ======================================================== -->
+      <!-- SLOTS DATA BODY                                          -->
+      <!-- ======================================================== -->
+
       <template #item.Tanggal="{ value }">
-        {{ value ? format(parseCustomDate(value)!, "dd/MM/yyyy") : "" }}
+        {{ formatDateDisplay(value) }}
       </template>
 
       <template #item.Approved="{ value }">

@@ -8,11 +8,61 @@
     v-model:showSaveDialog="showSaveDialog"
     v-model:showCancelDialog="showCancelDialog"
     v-model:showCloseDialog="showCloseDialog"
-    @validate-save="validateBeforeSave(formData.lstatus)"
     @confirm-save="executeSave"
     @confirm-cancel="executeCancel"
     @confirm-close="executeClose"
   >
+    <!-- 1. SLOT HEADER ACTIONS: Tombol Aksi di Bagian Atas Form -->
+    <template #header-actions>
+      <!-- Tombol Simpan Draft -->
+      <v-btn
+        size="small"
+        color="orange-darken-3"
+        variant="tonal"
+        class="mr-2"
+        :loading="isSaving"
+        @click="validateBeforeSave('DRAFT')"
+      >
+        <v-icon start size="16">mdi-content-save-edit-outline</v-icon>
+        Simpan Draft
+      </v-btn>
+
+      <!-- Tombol Simpan Posted -->
+      <v-btn
+        size="small"
+        color="primary"
+        variant="elevated"
+        class="mr-2"
+        :loading="isSaving"
+        @click="validateBeforeSave('POSTED')"
+      >
+        <v-icon start size="16">mdi-send-check-outline</v-icon>
+        Simpan Posted
+      </v-btn>
+
+      <!-- Tombol Batal -->
+      <v-btn
+        size="small"
+        variant="outlined"
+        class="mr-2"
+        @click="showCancelDialog = true"
+      >
+        Batal
+      </v-btn>
+
+      <!-- Tombol Tutup -->
+      <v-btn
+        size="small"
+        variant="tonal"
+        color="error"
+        @click="showCloseDialog = true"
+      >
+        <v-icon start size="16">mdi-close</v-icon>
+        Tutup
+      </v-btn>
+    </template>
+
+    <!-- SLOT KOLOM KIRI: Informasi Utama & Media Roll -->
     <template #left-column>
       <div class="desktop-form-section header-section">
         <div class="text-caption font-weight-bold mb-3 text-primary">
@@ -156,6 +206,7 @@
       </div>
     </template>
 
+    <!-- SLOT KOLOM KANAN: Tabel & Canvas Layout -->
     <template #right-column>
       <div class="d-flex flex-column fill-height">
         <v-card border flat class="d-flex flex-column table-card mb-4">
@@ -220,12 +271,10 @@
                 </tr>
               </thead>
 
-              <!-- TABEL BODY -->
               <tbody>
                 <tr v-for="(item, index) in formData.details" :key="index">
                   <td class="text-center">{{ index + 1 }}</td>
 
-                  <!-- Kolom PO Internal dengan Indikator Visual (Background Kuning Soft) -->
                   <td class="fw-bold px-1" style="background-color: #fcf8e3">
                     <div class="d-flex align-center">
                       <input
@@ -239,7 +288,6 @@
                     </div>
                   </td>
 
-                  <!-- Kolom Size PO -->
                   <td class="text-center bg-grey-lighten-4">
                     {{ item.poi_size || "-" }}
                   </td>
@@ -255,7 +303,6 @@
                     {{ item.spk_nama }}
                   </td>
 
-                  <!-- Field Input Ukuran & Orientasi -->
                   <td>
                     <input
                       type="number"
@@ -327,6 +374,7 @@
             </table>
           </div>
 
+          <!-- FOOTER SUMMARY: Kalkulasi Sisa Bahan & BS -->
           <div class="pa-3 bg-grey-lighten-4 border-t footer-container">
             <v-row dense align="center">
               <v-col cols="12" sm="5" class="border-e pr-4">
@@ -334,8 +382,9 @@
                   <v-col cols="6" class="border-e pr-2">
                     <span
                       class="text-caption text-grey-darken-1 font-weight-bold"
-                      >Sisa Otomatis:</span
                     >
+                      Sisa Otomatis:
+                    </span>
                     <div
                       class="text-h6 font-weight-black lh-1"
                       :class="
@@ -344,23 +393,23 @@
                     >
                       {{ sisaStokOtomatisM.toFixed(2) }} M
                     </div>
-                    <span class="text-xxs text-grey d-block mt-2"
-                      >P. Pakai Sistem:
-                      {{ totalPanjangTerpakai.toFixed(2) }} M</span
-                    >
-                    <span class="text-xxs text-red d-block"
-                      >P. BS Terpotong:
+                    <span class="text-xxs text-grey d-block mt-2">
+                      P. Pakai Sistem: {{ totalPanjangTerpakai.toFixed(2) }} M
+                    </span>
+                    <span class="text-xxs text-red d-block">
+                      P. BS Terpotong:
                       {{
                         (parseFloat(formData.panjang_bs as any) || 0).toFixed(2)
                       }}
-                      M</span
-                    >
+                      M
+                    </span>
                   </v-col>
                   <v-col cols="6" class="pl-2">
                     <span
                       class="text-caption font-weight-bold text-blue-darken-3"
-                      >Sisa Manual (Fisik):</span
                     >
+                      Sisa Manual (Fisik):
+                    </span>
                     <v-text-field
                       v-model.number="formData.sisa_panjang_manual"
                       placeholder="Isi sisa meter..."
@@ -375,17 +424,17 @@
                 </v-row>
               </v-col>
               <v-col cols="12" sm="3" class="border-e px-4">
-                <span class="text-caption text-grey-darken-1 font-weight-bold"
-                  >Sisa Samping Lebar:</span
-                >
+                <span class="text-caption text-grey-darken-1 font-weight-bold">
+                  Sisa Samping Lebar:
+                </span>
                 <div class="text-h6 text-teal-darken-2 font-weight-black">
                   {{ (formData.Lebar_bahan - totalLebarGabungan).toFixed(2) }} M
                 </div>
               </v-col>
               <v-col cols="12" sm="4" class="pl-4">
-                <span class="text-caption font-weight-bold text-red"
-                  >BS / Rusak (Mengurangi Bahan):</span
-                >
+                <span class="text-caption font-weight-bold text-red">
+                  BS / Rusak (Mengurangi Bahan):
+                </span>
                 <v-row dense class="mt-1">
                   <v-col cols="6">
                     <v-text-field
@@ -417,6 +466,7 @@
           </div>
         </v-card>
 
+        <!-- VISUALISASI CANVAS LAYOUT -->
         <v-card flat border class="flex-shrink-0">
           <v-card-title
             class="text-subtitle-2 bg-grey-lighten-3 pa-2 d-flex align-center"
@@ -480,7 +530,7 @@
     </template>
   </BaseForm>
 
-  <!-- GANTI BAGIAN BOTTOM MODAL TEMPLATE DENGAN INI -->
+  <!-- MODAL LOOKUP -->
   <GudangLookupView
     :isVisible="isGudangLookupVisible"
     @close="isGudangLookupVisible = false"
@@ -512,7 +562,7 @@ import { format } from "date-fns";
 import { useToast } from "vue-toastification";
 import { useRoute, useRouter } from "vue-router";
 import api from "@/services/api";
-import { useAuthStore } from "@/stores/authStore"; // 🌟 Pastikan ini sudah di-import di paling atas file
+import { useAuthStore } from "@/stores/authStore";
 
 import BaseForm from "@/components/BaseForm.vue";
 import { useForm } from "@/composables/useForm";
@@ -526,28 +576,58 @@ import { IconBuildingFactory } from "@tabler/icons-vue";
 const toast = useToast();
 const route = useRoute();
 const router = useRouter();
-const SCALE = 60; // Skala rendering canvas
 const authStore = useAuthStore();
+const SCALE = 60; // Skala rendering visual canvas
 
 const manualOffsets = reactive<
   Record<number, { x: number; y: number; rotation: number }>
 >({});
 const totalPanjangTerpakai = ref(0);
 const totalLebarGabungan = ref(0);
-const isMesinLookupVisible = ref(false);
 const isGudangLookupVisible = ref(false);
 const isSpkLookupVisible = ref(false);
-const isPoiLookupVisible = ref(false); // <-- Visibility Modal PO
+const isPoiLookupVisible = ref(false);
 const activePoiRowIdx = ref(-1);
 
+const lookup = reactive({
+  mesin: false,
+  spk: false,
+  gudang: false,
+  poi: false,
+});
+
+// 1. INITIAL DATA STATE
+const initialData = {
+  lsb_nomor: "AUTO",
+  lsb_tanggal: format(new Date(), "yyyy-MM-dd"),
+  lsb_shift: 1,
+  mesin_kode: "SB01",
+  mesin_nama: "",
+  lsb_gdg_kode: "GPM",
+  gdg_nama: "",
+  barcode_input: "",
+  barcode_spk: "",
+  brg_kode: "",
+  brg_nama: "",
+  Panjang_bahan: 0,
+  Lebar_bahan: 0,
+  sisa_panjang_manual: null as number | null,
+  panjang_bs: "",
+  lebar_bs: "",
+  lstatus: "DRAFT",
+  details: [] as any[],
+};
+
+// 2. FETCH API UNTUK MODE EDIT
 const fetchApi = async () => {
   const nomorLhk = route.params.nomor as string;
   if (!nomorLhk) return initialData;
 
   const res = await api.get(`/mmt/lhk-paperprint/detail/${nomorLhk}`);
-  const listData = res.data || [];
+  // 1. Amankan pembacaan data jika API mengembalikan { data: [...] }
+  const listData = res.data?.data || res.data || [];
 
-  if (listData.length === 0) {
+  if (!Array.isArray(listData) || listData.length === 0) {
     toast.error("Data tidak ditemukan di database");
     return initialData;
   }
@@ -564,9 +644,12 @@ const fetchApi = async () => {
   }
 
   return {
-    lsb_nomor: firstRow.Nomor || nomorLhk,
+    lsb_nomor: firstRow.Nomor || firstRow.lsb_nomor || nomorLhk,
     lsb_tanggal: tanggalTerformat,
     lsb_shift: parseInt(firstRow.Shift || firstRow.lsb_shift) || 1,
+    mesin_kode:
+      firstRow.Kode_Mesin || firstRow.lmesin || firstRow.lsbd_lokasi || "SB01",
+    mesin_nama: firstRow.Nama_Mesin || firstRow.mesin_nama || "",
     lsb_gdg_kode: firstRow.Kode_Gudang || firstRow.lsb_gdg_kode || "GPM",
     gdg_nama: firstRow.Nama_Gudang || firstRow.gdg_nama || "",
     barcode_input:
@@ -575,32 +658,30 @@ const fetchApi = async () => {
     brg_kode:
       firstRow.Kode_Bahan || firstRow.lsb_brg_kode || firstRow.Bahan || "",
     brg_nama: firstRow.Nama_Bahan || firstRow.brg_nama || "",
+
+    // 🌟 2. AMBIL PANJANG BAHAN DARI ALIAS DB LHK (panjang_awal / lsbd_ambilbahan)
     Panjang_bahan: parseFloat(
-      firstRow.Panjang_Awal || firstRow.Panjang_bahan || 0,
+      firstRow.panjang_awal ||
+        firstRow.Panjang_Awal ||
+        firstRow.lsbd_ambilbahan ||
+        firstRow.Panjang_bahan ||
+        0,
     ),
-    Lebar_bahan: parseFloat(firstRow.Lebar_Bahan || firstRow.Lebar_bahan || 0),
+    Lebar_bahan: parseFloat(
+      firstRow.Lebar_Bahan || firstRow.lebar_bahan || firstRow.Lebar_bahan || 0,
+    ),
+
+    // 🌟 3. AMBIL SISA MANUAL DARI DB JIKA ADA (BERI FALLBACK NULL)
     sisa_panjang_manual:
-      firstRow.sisa_panjang_manual !== undefined
+      firstRow.sisa_panjang_manual !== undefined &&
+      firstRow.sisa_panjang_manual !== null
         ? parseFloat(firstRow.sisa_panjang_manual)
         : null,
 
-    panjang_bs:
-      firstRow.lsb_panjang_bs !== undefined && firstRow.lsb_panjang_bs !== null
-        ? firstRow.lsb_panjang_bs.toString()
-        : firstRow.Panjang_BS !== undefined && firstRow.Panjang_BS !== null
-          ? firstRow.Panjang_BS.toString()
-          : "",
-
-    lebar_bs:
-      firstRow.lsb_lebar_bs !== undefined && firstRow.lsb_lebar_bs !== null
-        ? firstRow.lsb_lebar_bs.toString()
-        : firstRow.Lebar_BS !== undefined && firstRow.Lebar_BS !== null
-          ? firstRow.Lebar_BS.toString()
-          : "",
-
+    panjang_bs: firstRow.lsb_panjang_bs ?? firstRow.Panjang_BS ?? "",
+    lebar_bs: firstRow.lsb_lebar_bs ?? firstRow.Lebar_BS ?? "",
     lstatus: firstRow.STATUS || firstRow.lstatus || "DRAFT",
 
-    // 🌟 PERBAIKAN DI SINI: Petakan Poi_Nomor & Poi_Size dari Backend 🌟
     details: listData.map((item: any) => ({
       poi_nomor:
         item.Poi_Nomor ||
@@ -614,120 +695,93 @@ const fetchApi = async () => {
         item.lsbd_poid_size ||
         item.Size ||
         "",
-      spk_nomor: item.Nomor_SPK || item.spk_nomor,
-      spk_nama: item.Nama_SPK || item.spk_nama,
-      spk_panjang: parseFloat(item.Panjang || item.spk_panjang || 0),
-      spk_lebar: parseFloat(item.Lebar || item.spk_lebar || 0),
+      spk_nomor: item.Nomor_SPK || item.spk_nomor || item.lsbd_spk_nomor,
+      spk_nama: item.Nama_SPK || item.spk_nama || item.lsbd_spk_nama,
+      spk_panjang: parseFloat(
+        item.Panjang || item.spk_panjang || item.lsbd_panjang || 0,
+      ),
+      spk_lebar: parseFloat(
+        item.Lebar || item.spk_lebar || item.lsbd_lebar || 0,
+      ),
       spk_jmlorder: parseInt(
         item.J_Order || item.lsbd_jumlah_order || item.Jumlah || 0,
       ),
-      jumlah_sublim: parseInt(item.Jumlah || item.jumlah_sublim || 1),
+      jumlah_sublim: parseInt(
+        item.Jumlah || item.jumlah_sublim || item.lsbd_jumlah || 1,
+      ),
       padding: item.Padding || item.padding || "0.03",
       orientasi: item.Orientasi || item.orientasi || "lebar",
-      spk_jmlmeter: parseFloat(item.Jumlah_Meter || item.spk_jmlmeter || 0),
-      lsbd_ambilbahan: parseFloat(item.lsbd_ambilbahan || 0),
-      lsbd_panjang_pakai: parseFloat(item.lsbd_panjang_pakai || 0),
-      lsbd_lebar_pakai: parseFloat(item.lsbd_lebar_pakai || 0),
+      spk_jmlmeter: parseFloat(
+        item.Jumlah_Meter || item.spk_jmlmeter || item.lsbd_j_meter || 0,
+      ),
     })),
   };
 };
 
-const submitApi = async () => {
-  // 1. Validasi awal: pastikan mesin dan bahan sudah dipilih
-  if (!formData.value.mesin_kode) {
-    toast.error("Gagal: Mesin produksi belum dipilih!");
-    return;
-  }
-  if (!formData.value.barcode_input || !formData.value.brg_kode) {
-    toast.error("Gagal: Barcode Material Roll belum discan!");
-    return;
-  }
+// 3. SUBMIT API PENYIMPANAN DATA
+const submitApi = async (): Promise<unknown> => {
+  recalculateCombine();
 
-  // 2. Ambil nilai sisa panjang akhir
+  const currentUser =
+    authStore.user?.kdUser || authStore.user?.username || "SYSTEM";
+
+  // 🌟 HITUNG SISA FINAL METER: Prioritaskan Sisa Manual, jika Kosong/Null gunakan Sisa Otomatis
   const sisaInput = formData.value.sisa_panjang_manual;
   const sisaFinalM =
     sisaInput !== null &&
     sisaInput !== undefined &&
     String(sisaInput).trim() !== ""
-      ? Math.round(parseFloat(sisaInput) * 100) / 100
-      : Math.round(parseFloat(sisaStokOtomatisM.value || 0) * 100) / 100;
+      ? parseFloat(Number(sisaInput).toFixed(2))
+      : parseFloat(Number(sisaStokOtomatisM.value || 0).toFixed(2));
 
-  // 3. Mapping data detail ke bentuk array yang siap dibaca backend
-  const formattedDetails = formData.value.details.map((d: any) => {
-    return {
-      ...d,
-      lsbd_poi_nomor: d.poi_nomor || "",
-      lsbd_poid_size: d.poi_size || "",
-      spk_nomor: d.spk_nomor || d.Nomor_SPK || "",
-      spk_nama: d.spk_nama || d.Nama_SPK || "",
-      spk_jmlorder: parseInt(d.spk_jmlorder || d.J_Order || 0),
-      jumlah_sublim: parseInt(d.jumlah_sublim || d.Jumlah || 0),
-      spk_panjang: parseFloat(d.spk_panjang || d.Panjang || 0),
-      spk_lebar: parseFloat(d.spk_lebar || d.Lebar || 0),
-      spk_jmlmeter: parseFloat(d.spk_jmlmeter || 0),
+  // 🌟 PASANG lsbd_sisameter DI TIAP BARIS DETAIL
+  const formattedDetails = formData.value.details.map((d: any) => ({
+    ...d,
+    lsbd_poi_nomor: d.poi_nomor || "",
+    lsbd_poid_size: d.poi_size || "",
+    spk_nomor: d.spk_nomor || d.Nomor_SPK || "",
+    spk_nama: d.spk_nama || d.Nama_SPK || "",
+    spk_jmlorder: parseInt(d.spk_jmlorder || d.J_Order || 0),
+    jumlah_sublim: parseInt(d.jumlah_sublim || d.Jumlah || 0),
+    spk_panjang: parseFloat(d.spk_panjang || d.Panjang || 0),
+    spk_lebar: parseFloat(d.spk_lebar || d.Lebar || 0),
+    spk_jmlmeter: parseFloat(d.spk_jmlmeter || 0),
+    lokasi: formData.value.mesin_kode,
+    jenis_bahan: d.jenis_bahan || formData.value.brg_kode,
 
-      // 🌟 KUNCI PERBAIKAN DINAMIS:
-      // Memaksa kolom lokasi detail mengikuti kode mesin yang dipilih di sebelah kiri form (Contoh: 'SB02')
-      lokasi: formData.value.mesin_kode,
+    lsbd_ambilbahan: parseFloat((formData.value.Panjang_bahan as any) || 0),
+    lsbd_panjang_pakai: parseFloat((totalPanjangTerpakai.value as any) || 0),
+    lsbd_sisameter: sisaFinalM, // 👈 DIKIRIMKAN KE BACKEND
+  }));
 
-      jenis_bahan: d.jenis_bahan || formData.value.brg_kode,
-    };
-  });
-
-  // 4. Bungkus semua data ke dalam Payload terstruktur
   const payload = {
     header: {
       ...formData.value,
-      kdUser: authStore.user?.kdUser || authStore.user?.username || "SYSTEM",
-      barcode_input: formData.value.barcode_input.trim(),
-      brg_kode: formData.value.brg_kode.trim(),
-
-      // Mengirimkan juga parameter kode mesin ke objek header
+      kdUser: currentUser,
+      barcode_input: (formData.value.barcode_input || "").trim(),
+      brg_kode: (formData.value.brg_kode || "").trim(),
       lmesin: formData.value.mesin_kode,
-
+      lstatus: formData.value.lstatus,
       panjang_bs: formData.value.panjang_bs
         ? parseFloat(formData.value.panjang_bs)
         : 0,
       lebar_bs: formData.value.lebar_bs
         ? parseFloat(formData.value.lebar_bs)
         : 0,
-      sisa_panjang_manual: sisaFinalM,
-      total_panjang_terpakai: parseFloat(totalPanjangTerpakai.value || 0),
+      sisa_panjang_manual: formData.value.sisa_panjang_manual,
+      sisabahan: sisaFinalM, // 👈 DITERIMA BACKEND UNTUK FALLBACK HEADER
+      total_panjang_terpakai: parseFloat(
+        (totalPanjangTerpakai.value as any) || 0,
+      ),
     },
     details: formattedDetails,
+    existingNomor: isEditMode.value ? formData.value.lsb_nomor : null,
   };
 
-  // 5. Kirim data bersih ke API
   return await api.post("/mmt/lhk-paperprint", payload);
 };
 
-const initialData = {
-  lsb_nomor: "AUTO",
-  lsb_tanggal: format(new Date(), "yyyy-MM-dd"),
-  lsb_shift: 1,
-  mesin_kode: "SB01",
-  lsb_gdg_kode: "GPM",
-  gdg_nama: "",
-  barcode_input: "",
-  barcode_spk: "",
-  brg_kode: "",
-  brg_nama: "",
-  Panjang_bahan: 0, // Murni dalam satuan METER dari DB
-  Lebar_bahan: 0,
-  sisa_panjang_manual: null as number | null,
-  panjang_bs: "",
-  lebar_bs: "",
-  details: [] as any[],
-  lstatus: "DRAFT",
-};
-
-const lookup = ref({
-  mesin: false,
-  spk: false, // Jika Anda menggunakan modal lookup SPK
-  gudang: false, // Jika Anda menggunakan modal lookup Gudang
-  poi: false,
-});
-
+// 4. INTEGRASI USEFORM COMPOSABLE
 const {
   formData,
   isEditMode,
@@ -747,7 +801,7 @@ const {
   submitApi,
 });
 
-// --- LOGIKA HITUNG SISA STOK METER BASE ---
+// 5. KALKULASI SISA STOK BAHAN
 const sisaStokOtomatisM = computed(() => {
   const rawBs = formData.value.panjang_bs;
   const bsPanjang = rawBs && !isNaN(parseFloat(rawBs)) ? parseFloat(rawBs) : 0;
@@ -760,11 +814,41 @@ const isFormValid = computed(() => {
   return (
     formData.value.details.length > 0 &&
     formData.value.brg_kode !== "" &&
+    formData.value.mesin_kode !== "" &&
     formData.value.details.every((d: any) => d.jumlah_sublim > 0)
   );
 });
 
-// --- RECALCULATE COMBINE (METER ONLY) ---
+// 6. VALIDASI PRA-PENYIMPANAN
+const validateBeforeSave = (status: string) => {
+  if (!formData.value.mesin_kode) {
+    return toast.error("Silakan pilih mesin terlebih dahulu!");
+  }
+  if (!formData.value.barcode_input || !formData.value.brg_kode) {
+    return toast.error("Silakan scan barcode material roll terlebih dahulu!");
+  }
+  if (formData.value.details.length === 0) {
+    return toast.error("Daftar pekerjaan/SPK tidak boleh kosong!");
+  }
+  if (
+    formData.value.panjang_bs === null ||
+    formData.value.panjang_bs === "" ||
+    formData.value.lebar_bs === null ||
+    formData.value.lebar_bs === ""
+  ) {
+    return toast.error(
+      "Ukuran BS (Panjang & Lebar) wajib diisi! (Ketik 0 jika tidak ada BS).",
+    );
+  }
+  if (status === "POSTED" && !isFormValid.value) {
+    return toast.error("Cek kembali kelengkapan data atau QTY pekerjaan.");
+  }
+
+  formData.value.lstatus = status;
+  showSaveDialog.value = true;
+};
+
+// 7. HITUNG ULANG KOMBINASI TERPAKAI
 const recalculateCombine = () => {
   let subtotalSistemSemuaBaris = 0;
 
@@ -774,10 +858,8 @@ const recalculateCombine = () => {
     const qty = parseFloat(d.jumlah_sublim) || 0;
     const padM = parseFloat(d.padding) || 0;
 
-    // Menghitung spk_jmlmeter sebagai Total Luas Area (M²) per item baris
     d.spk_jmlmeter = pSpk * lSpk * qty;
 
-    // Akumulasi panjang linier bahan yang terserap sistem berdasarkan orientasi layout
     if (d.orientasi === "panjang") {
       subtotalSistemSemuaBaris += (lSpk + padM) * qty;
     } else {
@@ -792,15 +874,7 @@ const recalculateCombine = () => {
   });
 };
 
-const totalMeterPekerjaan = computed(() => {
-  if (!formData.value.details) return 0;
-  return formData.value.details.reduce(
-    (acc: number, curr: any) => acc + (Number(curr.spk_jmlmeter) || 0),
-    0,
-  );
-});
-
-// --- CORE INPUT MANAGEMENT (TITIK & KOMA DESIMAL AMAN) ---
+// 8. KONTROL INPUT METER & BS
 const handleBsInput = (event: any) => {
   let val = event.target.value.replace(",", ".");
   formData.value.panjang_bs = val;
@@ -816,7 +890,7 @@ const handlePaddingTableInput = (event: any, item: any) => {
   recalculateCombine();
 };
 
-// --- AUTOMATIC LAYOUT ENGINE (METER BASE) ---
+// 9. ENGINE LAYOUT CANVAS
 const autoFillLayout = (isSilent = false) => {
   if (formData.value.details.length === 0 || formData.value.Lebar_bahan <= 0) {
     totalLebarGabungan.value = 0;
@@ -947,14 +1021,14 @@ const rollStyle = computed(() => ({
   backgroundSize: `${SCALE}px 100%`,
 }));
 
-// --- API ACTIONS ---
+// 10. SCAN & LOOKUP ACTIONS
 const handleBarcodeScan = async () => {
   const code = formData.value.barcode_input?.trim();
   if (!code) return;
 
   const regex = /^[a-zA-Z0-9-]+$/;
   if (!regex.test(code)) {
-    toast.error("Format Barcode tidak valid! (Ada spasi atau karakter ilegal)");
+    toast.error("Format Barcode tidak valid!");
     clearBahan();
     return;
   }
@@ -964,7 +1038,7 @@ const handleBarcodeScan = async () => {
     const responsePayload = res.data;
 
     if (!responsePayload || !responsePayload.success || !responsePayload.data) {
-      toast.error("Barcode tidak terdaftar atau tidak ditemukan!");
+      toast.error("Barcode tidak terdaftar!");
       clearBahan();
       return;
     }
@@ -974,17 +1048,21 @@ const handleBarcodeScan = async () => {
     const statusGudang = wrapperData.status;
 
     if (!info) {
-      toast.error("Detail data material kosong atau stok habis!");
+      toast.error("Detail material kosong atau stok habis!");
       clearBahan();
       return;
     }
 
-    // 🌟 PERBAIKAN DI SINI: Dahulukan info.Kode agar menyimpan "280ADM3280A" (Bukan Barcodenya)
     formData.value.brg_kode = info.Kode || info.Barcode || "";
-
     formData.value.brg_nama =
       info.Nama_Bahan || info.Nama_Barang || info.Nama || "";
-    formData.value.Panjang_bahan = parseFloat(info.Sisa_Panjang) || 0;
+
+    // 🌟 PERBAIKAN DI SINI:
+    // Jika Mode Edit dan Panjang_bahan sudah ada dari DB LHK (panjang_awal), JANGAN ditimpa Sisa_Panjang gudang.
+    if (!isEditMode.value || !formData.value.Panjang_bahan) {
+      formData.value.Panjang_bahan = parseFloat(info.Sisa_Panjang) || 0;
+    }
+
     formData.value.Lebar_bahan = parseFloat(info.Lebar) || 0;
 
     if (statusGudang === "READY") {
@@ -993,37 +1071,30 @@ const handleBarcodeScan = async () => {
     } else if (statusGudang === "NEED_MUTATION") {
       formData.value.lsb_gdg_kode = info.Kode_Gudang || "WH-16";
       toast.error(
-        `⛔ BARANG MASIH DI GUDANG UTAMA (${info.Kode_Gudang})! Silakan mutasi ke GPM.`,
+        `⛔ BARANG MASIH DI GUDANG UTAMA (${info.Kode_Gudang})! Silakan mutasi.`,
       );
-    } else {
-      toast.success("Material Bahan Siap");
     }
 
-    // Hitung ulang kombinasi setelah kode bahan diperbarui
     recalculateCombine();
   } catch (e) {
-    toast.error("Gagal memuat atau membaca data barcode");
+    toast.error("Gagal memuat data barcode");
     clearBahan();
-    console.error("Error Scan Bahan:", e);
   }
 };
 
-// 2. Fungsi Pembuka Modal PO Internal Header & Row
 const openPoiSearch = () => {
-  activePoiRowIdx.value = -1; // Menandakan tambah dari tombol header
+  activePoiRowIdx.value = -1;
   isPoiLookupVisible.value = true;
 };
 
 const openPoiSearchRow = (idx: number) => {
-  activePoiRowIdx.value = idx; // Menandakan edit dari baris grid
+  activePoiRowIdx.value = idx;
   isPoiLookupVisible.value = true;
 };
 
-// 3. Handler saat Data PO Internal Dipilih (Alur Identik dengan handleSpkSelect)
 const handlePoiSelect = (poiData: any) => {
   if (!poiData) return;
 
-  // Mendukung jika modal mengembalikan array atau single object
   const rawItem = Array.isArray(poiData)
     ? poiData[0]
     : poiData.data
@@ -1031,7 +1102,6 @@ const handlePoiSelect = (poiData: any) => {
       : poiData;
   if (!rawItem) return;
 
-  // Deteksi field utama dari PO Internal
   const targetPoiNomor =
     rawItem.poi_nomor || rawItem.Nomor_POI || rawItem.poiNomor;
   const targetPoiSize =
@@ -1042,7 +1112,6 @@ const handlePoiSelect = (poiData: any) => {
     rawItem.sisa_qty ?? rawItem.poid_jumlah ?? rawItem.Jumlah ?? 0,
   );
 
-  // Cek jika SPK sudah ada di grid
   const currentDetails = formData.value.details || [];
   if (
     activePoiRowIdx.value === -1 &&
@@ -1054,7 +1123,6 @@ const handlePoiSelect = (poiData: any) => {
     return;
   }
 
-  // Objek Baris Baru
   const newRow = {
     poi_nomor: targetPoiNomor,
     poi_size: targetPoiSize,
@@ -1069,11 +1137,9 @@ const handlePoiSelect = (poiData: any) => {
     spk_jmlmeter: 0,
   };
 
-  // Hitung meter awal
   newRow.spk_jmlmeter =
     newRow.spk_panjang * newRow.spk_lebar * newRow.jumlah_sublim;
 
-  // A. Jika memilih dari ikon magnify di baris tabel yang ada
   if (
     activePoiRowIdx.value !== -1 &&
     formData.value.details[activePoiRowIdx.value]
@@ -1082,14 +1148,12 @@ const handlePoiSelect = (poiData: any) => {
       ...formData.value.details[activePoiRowIdx.value],
       ...newRow,
     };
-  }
-  // B. Jika memilih dari tombol "Lookup PO Internal" di Header
-  else {
+  } else {
     formData.value.details.push(newRow);
   }
 
   recalculateCombine();
-  isPoiLookupVisible.value = false; // <-- Tutup modal
+  isPoiLookupVisible.value = false;
   activePoiRowIdx.value = -1;
   toast.success(`Berhasil menambahkan PO Internal ${targetPoiNomor}`);
 };
@@ -1118,8 +1182,6 @@ const handleSpkScan = async () => {
 
 const handleSpkSelect = (spk: any) => {
   if (!spk) return;
-
-  // 1. Amankan deteksi nomor SPK dari modal lookup (case-sensitive)
   const targetNomor =
     spk.SPK || spk.Spk || spk.spk_nomor || spk.Nomor_SPK || spk.Id;
 
@@ -1130,18 +1192,15 @@ const handleSpkSelect = (spk: any) => {
     return;
   }
 
-  // 2. Oper data SPK ke fungsi helper injector
   injectSpkObject(spk);
   isSpkLookupVisible.value = false;
 };
 
-// Fungsi Helper terpusat untuk memetakan data SPK dari Modal / Scan ke dalam tabel
 const injectSpkObject = (spk: any) => {
   if (!formData.value.details) {
     formData.value.details = [];
   }
 
-  // Mengambil kuantitas pesanan asli dari API SPK (Berdasarkan JSON Anda: "Jumlah": 5)
   const qtyOrderSpk = parseInt(spk.Jumlah || spk.J_Order || spk.jumlah || 0);
 
   const newRow = {
@@ -1149,38 +1208,19 @@ const injectSpkObject = (spk: any) => {
     spk_nama: spk.Nama || spk.Nama_SPK || spk.spk_nama || "No Name",
     spk_panjang: parseFloat(spk.Panjang || 0),
     spk_lebar: parseFloat(spk.Lebar || 0),
-
-    // lsbd_jumlah_order: Jumlah pesanan dari SPK (Nilai: 5)
     spk_jmlorder: qtyOrderSpk,
-
-    // lsbd_jumlah: Jumlah hasil cetak LHK Sublim (Default di-set 1 atau sesuai input prod)
-    jumlah_sublim: qtyOrderSpk, // Bisa diisi 1 atau qtyOrderSpk jika langsung diproduksi semua
-
+    jumlah_sublim: qtyOrderSpk,
     padding: "0.03",
     orientasi: "lebar",
     spk_jmlmeter: 0,
   };
 
-  // Hitung M² awal
   newRow.spk_jmlmeter =
     newRow.spk_panjang * newRow.spk_lebar * newRow.jumlah_sublim;
 
   formData.value.details.push(newRow);
   recalculateCombine();
   toast.success(`Berhasil menambahkan SPK ${newRow.spk_nomor}`);
-};
-
-const validateBeforeSave = (status: string) => {
-  if (formData.value.panjang_bs === "" || formData.value.lebar_bs === "") {
-    return toast.error(
-      "Ukuran BS (Panjang & Lebar) wajib diisi (Ketik 0 jika tidak ada BS).",
-    );
-  }
-  if (status === "POSTED" && !isFormValid.value) {
-    return toast.error("Cek kelengkapan data atau sisa bahan terpakai.");
-  }
-  formData.value.lstatus = status;
-  showSaveDialog.value = true;
 };
 
 const clearBahan = () => {
@@ -1193,10 +1233,12 @@ const clearBahan = () => {
 const openGudangSearch = () => {
   isGudangLookupVisible.value = true;
 };
+
 const handleGudangSelect = (gdg: any) => {
   formData.value.lsb_gdg_kode = gdg.Kode || gdg.Kode_Gudang;
   isGudangLookupVisible.value = false;
 };
+
 const openSpkSearch = () => {
   isSpkLookupVisible.value = true;
 };
@@ -1211,15 +1253,10 @@ const handleMesinSelect = (mesin: any) => {
 
 onMounted(async () => {
   if (isEditMode.value) {
-    // 1. Ambil data transaksi dasar dari API rincian LHK
     await fetchData();
-
-    // 2. Jika kode bahan/barcode terisi, tembak API stok gudang secara otomatis
     if (formData.value.barcode_input) {
       await handleBarcodeScan();
     }
-
-    // 3. Hitung ulang akumulasi sistem & tata letak visual canvas
     recalculateCombine();
   }
 });
