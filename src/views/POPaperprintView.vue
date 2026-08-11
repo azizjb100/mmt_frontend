@@ -1,448 +1,599 @@
-<template>
-  <PageLayout
-    title="Data Penerimaan Paper Print"
-    icon="mdi-receipt-text-check-outline"
-  >
-    <template #header-actions>
-      <v-btn
-        v-if="authStore.can(MENU_ID, 'insert')"
-        size="x-small"
-        color="success"
-        @click="handleNew"
-      >
-        <v-icon start>mdi-plus</v-icon> Baru
-      </v-btn>
-
-      <v-btn
-        v-if="authStore.can(MENU_ID, 'edit')"
-        size="x-small"
-        color="warning"
-        :disabled="!isSingleSelected"
-        @click="handleEdit"
-      >
-        <v-icon start>mdi-pencil</v-icon> Ubah
-      </v-btn>
-
-      <v-btn
-        v-if="authStore.can(MENU_ID, 'delete')"
-        size="x-small"
-        color="error"
-        :disabled="!isSingleSelected"
-        @click="handleDelete"
-      >
-        <v-icon start>mdi-trash-can</v-icon> Hapus
-      </v-btn>
-
-      <v-divider vertical class="mx-2" />
-
-      <v-btn
-        v-if="authStore.can(MENU_ID, 'view')"
-        size="x-small"
-        color="info"
-        :disabled="!isSingleSelected"
-        @click="handlePrint"
-      >
-        <v-icon start>mdi-printer</v-icon> Cetak
-      </v-btn>
-    </template>
-
-    <div class="browse-content">
-      <v-card flat class="mb-4">
-        <v-card-text>
-          <div class="filter-section d-flex align-center flex-wrap ga-4">
-            <v-label class="filter-label">Periode Mulai:</v-label>
-            <v-text-field
-              v-model="filters.startDate"
-              type="date"
-              density="compact"
-              hide-details
-              variant="outlined"
-              style="max-width: 150px"
-            />
-
-            <v-label class="mx-2">s/d</v-label>
-
-            <v-text-field
-              v-model="filters.endDate"
-              type="date"
-              density="compact"
-              hide-details
-              variant="outlined"
-              style="max-width: 150px"
-            />
-
-            <v-text-field
-              v-model="filters.spk"
-              label="Filter SPK"
-              density="compact"
-              hide-details
-              variant="outlined"
-              style="max-width: 180px"
-            />
-
-            <v-btn variant="text" size="x-small" @click="fetchData">
-              <v-icon>mdi-refresh</v-icon> Refresh
-            </v-btn>
-            <v-spacer />
-          </div>
-        </v-card-text>
-      </v-card>
-
-      <div class="table-container">
-        <v-data-table
-          v-model:selected="selected"
-          v-model:expanded="expanded"
-          :headers="masterHeaders"
-          :items="masterData || []"
-          :loading="loading"
-          item-value="Nomor"
-          density="compact"
-          class="desktop-table elevation-1"
-          fixed-header
-          show-select
-          return-object
-          show-expand
-          @update:expanded="loadDetails"
-        >
-          <template #item.Tanggal="{ item }">
-            {{ safeFormatDate(item.Tanggal) }}
-          </template>
-
-          <template #item.Dateline="{ item }">
-            {{ safeFormatDate(item.Dateline) }}
-          </template>
-
-          <template #expanded-row="{ columns, item }">
-            <tr>
-              <td :colspan="columns.length">
-                <div class="detail-container">
-                  <div class="detail-table-wrapper">
-                    <div
-                      v-if="isLoadingDetails(item.Nomor)"
-                      class="text-center pa-4 text-caption"
-                    >
-                      Memuat detail...
-                    </div>
-
-                    <v-data-table
-                      v-else
-                      :headers="detailHeaders"
-                      :items="details[item.Nomor] || []"
-                      density="compact"
-                      class="detail-table"
-                      :items-per-page="-1"
-                      hide-default-footer
-                    >
-                      <template #item.Qty="{ item: d }">
-                        {{ Number(d.Qty).toFixed(2) }}
-                      </template>
-                      <template #item.Qty_Terima="{ item: d }">
-                        {{ Number(d.Qty_Terima).toFixed(2) }}
-                      </template>
-                      <template #item.Harga="{ item: d }">
-                        {{ Number(d.Harga).toFixed(2) }}
-                      </template>
-                    </v-data-table>
-
-                    <div
-                      v-if="
-                        !details[item.Nomor] || details[item.Nomor].length === 0
-                      "
-                      class="text-center pa-4 text-caption"
-                    >
-                      Tidak ada data detail.
-                    </div>
-                  </div>
-                </div>
-              </td>
-            </tr>
-          </template>
-        </v-data-table>
-      </div>
-    </div>
-  </PageLayout>
-</template>
-
 <script setup lang="ts">
-import { ref, reactive, onMounted, computed, watch } from "vue";
-import { useRouter } from "vue-router";
+import { ref, onMounted, reactive, watch, computed } from "vue";
 import { useToast } from "vue-toastification";
-import { useAuthStore } from "../stores/authStore";
-import axios from "axios";
+import { useRouter } from "vue-router";
+import api from "@/services/api";
 import { format, subDays, parseISO, isValid } from "date-fns";
-import PageLayout from "../components/PageLayout.vue";
+import BaseBrowse from "@/components/BaseBrowse.vue";
 
-// --- Interfaces Penerimaan Paper Print ---
-
-interface RecPaperDetail {
-  Nomor: string; // pjd_nomor_rec
-  pjd_Nomor: string; // pjd_nomor (Nomor PO)
-  Spk: string; // pjd_spk
-  NamaSpk: string; // pjd_nama
-  Ukuran: string; // pjd_ukuran
-  Bahan: string; // pjd_bahan
-  Qty: number; // pjd_qty (QTY PO)
-  Qty_Terima: number; // pjd_qtyterima (QTY diterima)
-  Harga: number; // pjd_harga
-  Keterangan: string; // pjd_ket
-  [key: string]: any;
-}
-
-interface RecPaperHeader {
-  Nomor: string; // pjh_nomor_rec
-  PO_Nomor: string; // pjh_nomor
-  Cab: string; // pjh_cab
-  Tanggal: string; // pjh_tanggal (Tanggal Rec)
-  Dateline: string; // pjh_dateline (Tanggal Dateline PO)
-  KodeSup: string;
-  Nama: string; // Sup_nama
-  Alamat: string; // Sup_alamat
-  Keterangan: string; // pjh_ket
-  [key: string]: any;
-}
-
-const api = axios;
-const API_BASE_URL = "http://localhost:8003/api/mmt/po-paperprint";
-const MENU_ID = "MMT_REC_PAPER";
-
-// --- Store & utils ---
-const router = useRouter();
 const toast = useToast();
-const authStore = useAuthStore();
+const router = useRouter();
+const API_PO_PAPER = "mmt/po-paperprint"; // Endpoint Backend PO Paper
 
-// --- State ---
-const masterData = ref<RecPaperHeader[]>([]);
-const details = ref<Record<string, RecPaperDetail[]>>({});
-const loading = ref<boolean>(true);
-const loadingDetails = ref<Set<string>>(new Set());
-const selected = ref<RecPaperHeader[]>([]);
-const expanded = ref<string[]>([]);
+// --- State Management ---
+const masterData = ref<any[]>([]);
+const details = ref<Record<string, any[]>>({});
+const loading = ref(true);
+const loadingDetails = ref(new Set<string>());
+const selected = ref<any[]>([]);
+const expanded = ref<any[]>([]);
 
-const thirtyDaysAgo = format(subDays(new Date(), 30), "yyyy-MM-dd");
-const today = format(new Date(), "yyyy-MM-dd");
+// Filter Tanggal & SPK Tambahan dari Delphi (edtspk)
+const startDate = ref(format(subDays(new Date(), 30), "yyyy-MM-dd"));
+const endDate = ref(format(new Date(), "yyyy-MM-dd"));
+const edtspk = ref<string>("");
 
-const filters = reactive({
-  startDate: thirtyDaysAgo,
-  endDate: today,
-  spk: "", // Filter tambahan untuk SPK dari edtspk
-});
+// --- EXCEL-STYLE FILTER STATE ---
+// 1. Filter Nomor PO
+const menuNomor = ref(false);
+const filterNomorInput = ref<string>("");
 
-// --- Computed ---
+// 2. Filter Supplier (Nama / Kode)
+const menuSupplier = ref(false);
+const filterSupplierInput = ref<string>("");
 
-const isSingleSelected = computed(() => selected.value.length === 1);
-const selectedNomor = computed<string | null>(() =>
-  isSingleSelected.value ? (selected.value[0] as RecPaperHeader).Nomor : null
-);
+// 3. Filter SPK
+const menuSpk = ref(false);
+const filterSpkInput = ref<string>("");
 
-const selectedRow = computed<RecPaperHeader | null>(() =>
-  isSingleSelected.value ? (selected.value[0] as RecPaperHeader) : null
-);
-
-// Asumsi isFormValid hanya relevan untuk form entri
-const isFormValid = computed(() => true);
-
-// --- Helpers ---
-
-const safeFormatDate = (dateString: string | undefined): string => {
-  if (!dateString) return "";
+// --- User Config & Session Storage ---
+const getSessionUser = () => {
   try {
-    const parsedDate = parseISO(dateString);
-    if (isValid(parsedDate)) {
-      return format(parsedDate, "dd/MM/yyyy");
-    }
-    // Fallback untuk format Delphi (DD-Month-YYYY)
-    const parts = dateString.split("-");
-    if (parts.length === 3) {
-      return dateString;
-    }
-    return "";
+    const userSession = localStorage.getItem("userData");
+    return userSession ? JSON.parse(userSession) : null;
   } catch (e) {
-    return "";
+    console.error("Gagal membaca userData", e);
+    return null;
   }
 };
 
-const isLoadingDetails = (nomor: string) => loadingDetails.value.has(nomor);
+const userConfig = reactive({
+  kdUser: getSessionUser()?.kdUser || getSessionUser()?.username || "",
+  cab: getSessionUser()?.cab || "",
+});
 
-// --- Headers ---
+const filteredMasterData = computed(() => {
+  return masterData.value.filter((item) => {
+    const nomor = item.Nomor || "";
+    const matchesNomor =
+      !filterNomorInput.value ||
+      nomor.toLowerCase().includes(filterNomorInput.value.trim().toLowerCase());
 
+    const supNama = item.Supplier || item.Nama || ""; // <-- Disesuaikan
+    const supKode = item.KodeSup || "";
+    const matchesSupplier =
+      !filterSupplierInput.value ||
+      supNama
+        .toLowerCase()
+        .includes(filterSupplierInput.value.trim().toLowerCase()) ||
+      supKode
+        .toLowerCase()
+        .includes(filterSupplierInput.value.trim().toLowerCase());
+
+    return matchesNomor && matchesSupplier;
+  });
+});
+
+// --- FILTER INDICATORS ---
+const isNomorFilterActive = computed(
+  () => filterNomorInput.value.trim().length > 0,
+);
+const isSupplierFilterActive = computed(
+  () => filterSupplierInput.value.trim().length > 0,
+);
+const isSpkFilterActive = computed(
+  () => filterSpkInput.value.trim().length > 0,
+);
+
+const resetNomorFilter = () => {
+  filterNomorInput.value = "";
+};
+
+const resetSupplierFilter = () => {
+  filterSupplierInput.value = "";
+};
+
+const resetSpkFilter = () => {
+  filterSpkInput.value = "";
+};
+
+// --- Grid Header Definition ---
 const masterHeaders = [
-  { title: "Nomor ", key: "Nomor", minWidth: "150px", fixed: true }, // pjh_nomor_rec
-  { title: "Nomor PO", key: "PO_Nomor", minWidth: "150px" }, // pjh_nomor
-  { title: "Cab", key: "Cab", minWidth: "100px" }, // pjh_cab
-  { title: "Tanggal ", key: "Tanggal", minWidth: "120px" },
-  { title: "Dateline", key: "Dateline", minWidth: "120px" },
-  { title: "Kode Sup", key: "KodeSup", minWidth: "100px" },
-  { title: "Supplier", key: "Nama", minWidth: "200px" },
+  {
+    title: "Detail",
+    key: "data-table-expand",
+    minWidth: "60px",
+    align: "center" as const,
+    fixed: true,
+  },
+  { title: "Nomor PO", key: "Nomor", minWidth: "160px", fixed: true },
+  { title: "Cab", key: "Cab", minWidth: "90px" },
+  { title: "Tanggal", key: "Tanggal", minWidth: "120px" },
+  { title: "Kode Sup", key: "KodeSup", minWidth: "120px" },
+  { title: "Nama Supplier", key: "Supplier", minWidth: "220px" }, // <-- Disesuaikan
   { title: "Keterangan", key: "Keterangan", minWidth: "250px" },
-  { title: "", key: "data-table-expand", minWidth: "40px" },
-] as any[];
+  {
+    title: "Aksi",
+    key: "actions",
+    minWidth: "150px",
+    align: "center" as const,
+    fixed: true,
+  },
+];
 
 const detailHeaders = [
-  { title: "Nomor Rec", key: "Nomor", minWidth: "140px", fixed: true },
-  { title: "Mesin", key: "pjd_Nomor", minWidth: "140px" },
-  { title: "Nomor PO", key: "pjd_Nomor", minWidth: "140px" },
-  { title: "SPK", key: "SPK", minWidth: "120px" },
-  { title: "Nama SPK", key: "NamaSpk", minWidth: "250px" },
-  { title: "Ukuran", key: "Ukuran", minWidth: "100px" },
-  { title: "Panjang", key: "panjang", minWidth: "140px" },
-  { title: "Lebar", key: "lebar", minWidth: "140px" },
-  { title: "Bahan", key: "Bahan", minWidth: "100px" },
-  { title: "Qty PO", key: "Qty", minWidth: "80px", align: "end" },
-  { title: "Qty Terima", key: "Qty_Terima", minWidth: "100px", align: "end" },
-  { title: "Harga", key: "Harga", minWidth: "100px", align: "end" },
-  { title: "Keterangan", key: "Keterangan", minWidth: "150px" },
-] as any[];
+  { title: "Nomor PO", key: "Nomor", minWidth: "140px", fixed: true },
+  { title: "No. SPK", key: "Spk", minWidth: "150px" },
+  { title: "Nama SPK", key: "NamaSpk", minWidth: "220px" },
+  { title: "Ukuran", key: "Ukuran", minWidth: "120px" },
+  { title: "Bahan", key: "Bahan", minWidth: "150px" },
+  { title: "Qty", key: "Qty", minWidth: "100px", align: "end" as const },
+  { title: "Harga", key: "Harga", minWidth: "120px", align: "end" as const },
+  { title: "Keterangan", key: "Keterangan", minWidth: "200px" },
+];
 
-// --- API calls (Implementasi dari SQL Delphi) ---
+// --- Formatter Tanggal & Mata Uang ---
+const formatDateDisplay = (dateStr: string | null | undefined) => {
+  if (!dateStr) return "-";
+  try {
+    const d = new Date(dateStr);
+    return isValid(d) ? format(d, "dd/MM/yyyy") : dateStr;
+  } catch (e) {
+    return dateStr;
+  }
+};
 
+const formatCurrency = (val: number | string | null) => {
+  if (val === null || val === undefined) return "0.00";
+  return Number(val).toLocaleString("id-ID", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+};
+
+// --- Data Fetching (btnRefreshClick) ---
 const fetchData = async () => {
   loading.value = true;
-  selected.value = [];
-  expanded.value = [];
-  details.value = {};
   try {
-    // Menggantikan btnRefreshClick Delphi
-    const response = await axios.get<RecPaperHeader[]>(`${API_BASE_URL}/`, {
+    const res = await api.get(`${API_PO_PAPER}/`, {
       params: {
-        startDate: filters.startDate,
-        endDate: filters.endDate,
-        spk: filters.spk, // Mengirimkan filter SPK
+        startDate: startDate.value,
+        endDate: endDate.value,
+        cab: userConfig.cab,
+        edtspk: edtspk.value.trim(),
       },
     });
 
-    masterData.value = response.data || [];
-  } catch (err) {
-    toast.error("Gagal mengambil data Penerimaan Paper Print.");
+    // Tangani jika response backend langsung berupa Array [...]
+    const rawData = res.data;
+    masterData.value = Array.isArray(rawData) ? rawData : rawData.data || [];
+  } catch (error) {
+    console.error("Gagal mengambil data PO Paper:", error);
+    toast.error("Gagal mengambil data PO Paper");
+    masterData.value = [];
   } finally {
     loading.value = false;
   }
 };
 
-const loadDetails = async (newlyExpandedItems: RecPaperHeader[]) => {
-  // Menggantikan SQLDetail Delphi
-  const itemToLoad = newlyExpandedItems?.find(
-    (it) =>
-      it && !details.value[it.Nomor] && !loadingDetails.value.has(it.Nomor)
-  );
-  if (!itemToLoad) return;
+// Expand Detail Data Handler
+const handleExpandUpdate = async (expandedKeys: any[]) => {
+  const lastItem = expandedKeys[expandedKeys.length - 1];
+  if (!lastItem) return;
 
-  loadingDetails.value.add(itemToLoad.Nomor);
+  const lastExpandedNomor =
+    typeof lastItem === "object" ? lastItem.Nomor : lastItem;
+  if (!lastExpandedNomor || details.value[lastExpandedNomor]) return;
+
+  loadingDetails.value.add(lastExpandedNomor);
   try {
-    // Asumsi endpoint /browse-detail mengembalikan detail Penerimaan Paper Print
-    const res = await axios.get<RecPaperDetail[]>(`${API_BASE_URL}/detail`, {
-      params: { nomor: itemToLoad.Nomor },
-    });
-
-    // Pastikan data numerik diubah/difilter untuk toFixed
-    details.value[itemToLoad.Nomor] =
-      res.data.map((d) => ({
-        ...d,
-        Qty: d.Qty || 0,
-        Qty_Terima: d.Qty_Terima || 0,
-        Harga: d.Harga || 0,
-      })) || [];
-  } catch (err) {
-    toast.error(`Gagal memuat detail untuk ${itemToLoad.Nomor}`);
-    details.value[itemToLoad.Nomor] = [];
+    const response = await api.get(
+      `${API_PO_PAPER}/detail/${encodeURIComponent(lastExpandedNomor)}`,
+    );
+    details.value[lastExpandedNomor] = response.data?.data ?? [];
+  } catch (error) {
+    console.error("Gagal mengambil detail PO Paper:", error);
+    details.value[lastExpandedNomor] = [];
   } finally {
-    loadingDetails.value.delete(itemToLoad.Nomor);
+    loadingDetails.value.delete(lastExpandedNomor);
   }
 };
 
-// --- Actions ---
+const isLoadingDetails = (nomor: string) => loadingDetails.value.has(nomor);
 
-const handleNew = () => {
-  // cxButton2Click
-  router.push({ name: "RecPaperCreate" });
-};
-
-const handleEdit = () => {
-  // cxButton1Click
-  if (!selectedNomor.value) return;
-  // Asumsi form Edit Paper Print ada:
-  router.push({ name: "RecPaperEdit", params: { nomor: selectedNomor.value } });
-};
-
-const handleDelete = async () => {
-  // cxButton4Click
-  if (!selectedNomor.value) return;
-
-  if (
-    confirm(`Yakin ingin hapus Penerimaan Paper Print ${selectedNomor.value}?`)
-  ) {
-    try {
-      // Logika delete dari Delphi (menghapus detail dan header)
-      await axios.delete(`${API_BASE_URL}/${selectedNomor.value}`);
-      toast.success("Data sudah diHapus.");
-      await fetchData();
-    } catch (error) {
-      toast.error("Gagal Hapus.");
-    }
+// --- Cek Hak Akses Utility ---
+const checkPermission = async (action: "insert" | "edit" | "delete") => {
+  try {
+    const res = await api.post(`${API_PO_PAPER}/check-permission`, {
+      kdUser: userConfig.kdUser,
+      formName: "ufrmBrowsePoPaper",
+      action: action,
+    });
+    return res.data?.allowed ?? true;
+  } catch (e) {
+    return true; // Fallback jika tidak ada backend permission khusus
   }
 };
 
-const handlePrint = () => {
-  // cxButton3Click (membuka form ufrmRecPaper dalam mode print)
-  if (!selectedNomor.value) return;
-  // Asumsi form Print Paper Print ada:
+// --- Aksi Handler (Tambah, Edit, Cetak, Hapus) ---
+
+// 1. Tambah (cxButton2Click)
+const handleAdd = async () => {
+  const isAllowed = await checkPermission("insert");
+  if (!isAllowed) {
+    toast.warning("Anda tidak berhak Menambah data di Modul ini");
+    return;
+  }
+  router.push({ name: "PoPaperForm", query: { mode: "add" } });
+};
+
+// 2. Edit (cxButton1Click)
+const handleEdit = async (row: any) => {
+  if (!row || !row.Nomor) return;
+
+  const isAllowed = await checkPermission("edit");
+  if (!isAllowed) {
+    toast.warning("Anda tidak berhak mengubah data di Modul ini.");
+    return;
+  }
+
   router.push({
-    name: "RecPaperPrint",
-    params: { nomor: selectedNomor.value },
+    name: "PoPaperForm",
+    query: { mode: "edit", nomor: row.Nomor },
   });
 };
 
-// --- Lifecycle ---
-onMounted(() => {
-  fetchData(); // Menggantikan FormShow
+// 3. Cetak (cxButton3Click)
+const handlePrint = (row: any) => {
+  if (!row || !row.Nomor) return;
+  router.push({
+    name: "PoPaperForm",
+    query: { mode: "print", nomor: row.Nomor, prn: "true" },
+  });
+};
+
+// 4. Hapus (cxButton4Click)
+const handleDelete = async (row: any) => {
+  if (!row || !row.Nomor) return;
+
+  const isAllowed = await checkPermission("delete");
+  if (!isAllowed) {
+    toast.warning("Anda tidak berhak Menghapus di Modul ini");
+    return;
+  }
+
+  if (!confirm(`Yakin ingin hapus PO Paper No: ${row.Nomor} ?`)) return;
+
+  loading.value = true;
+  try {
+    await api.delete(`${API_PO_PAPER}/${encodeURIComponent(row.Nomor)}`);
+    toast.success("Sukses menghapus data");
+
+    // Hapus dari state lokal
+    masterData.value = masterData.value.filter(
+      (item) => item.Nomor !== row.Nomor,
+    );
+    selected.value = selected.value.filter((item) => item.Nomor !== row.Nomor);
+  } catch (error: any) {
+    console.error("Gagal Hapus PO Paper:", error);
+    toast.error(error.response?.data?.message || "Gagal Hapus");
+  } finally {
+    loading.value = false;
+  }
+};
+
+// --- Row Interaction ---
+const handleRowClick = (_event: any, row: any) => {
+  const index = selected.value.findIndex(
+    (s: any) => s.Nomor === row.item.Nomor,
+  );
+  if (index > -1) {
+    selected.value.splice(index, 1);
+  } else {
+    selected.value.push(row.item);
+  }
+};
+
+const getRowProps = ({ item }: any) => ({
+  class: selected.value.some((s: any) => s.Nomor === item.Nomor)
+    ? "row-selected"
+    : "",
 });
 
-watch(filters, fetchData, { deep: true });
+watch([startDate, endDate], fetchData);
+onMounted(fetchData);
 </script>
 
+<template>
+  <div class="po-paper-browse-wrapper">
+    <!-- Filter Bar Tambahan (Pencarian No. SPK) -->
+    <v-row class="px-4 pt-2 align-center bg-grey-lighten-4 rounded mb-2">
+      <v-col cols="12" sm="4" md="3">
+        <v-text-field
+          v-model="edtspk"
+          label="Cari No. SPK (edtspk)"
+          placeholder="Ketik Nomor SPK..."
+          density="compact"
+          variant="outlined"
+          hide-details
+          clearable
+          prepend-inner-icon="mdi-magnify"
+          @keyup.enter="fetchData"
+        />
+      </v-col>
+      <v-col cols="12" sm="2">
+        <v-btn
+          color="primary"
+          size="small"
+          class="text-none"
+          @click="fetchData"
+        >
+          <v-icon start>mdi-filter-outline</v-icon>
+          Filter SPK
+        </v-btn>
+      </v-col>
+    </v-row>
+
+    <BaseBrowse
+      title="PO Paper Print Browse"
+      icon="mdi-file-document-outline"
+      :headers="masterHeaders"
+      :items="filteredMasterData"
+      :loading="loading"
+      v-model:startDate="startDate"
+      v-model:endDate="endDate"
+      v-model:selected="selected"
+      v-model:expanded="expanded"
+      @refresh="fetchData"
+      @row-click="handleRowClick"
+      :row-props="getRowProps"
+      @update:expanded="handleExpandUpdate(expanded)"
+    >
+      <!-- Action Toolbar Tambahan (Tambah Data Baru) -->
+      <template #extra-actions>
+        <v-btn
+          size="small"
+          color="primary"
+          class="mr-2 text-none custom-action"
+          @click="handleAdd"
+        >
+          <v-icon start>mdi-plus-circle</v-icon>
+          Tambah PO Paper
+        </v-btn>
+      </template>
+
+      <!-- ======================================================== -->
+      <!-- EXCEL-STYLE FILTER HEADERS                               -->
+      <!-- ======================================================== -->
+
+      <!-- 1. FILTER NOMOR PO -->
+      <template #header.Nomor="{ column }">
+        <div class="d-flex align-center justify-space-between w-100">
+          <span class="font-weight-bold">{{ column.title }}</span>
+          <v-menu
+            v-model="menuNomor"
+            :close-on-content-click="false"
+            location="bottom start"
+          >
+            <template #activator="{ props }">
+              <v-btn
+                icon
+                variant="text"
+                density="compact"
+                size="small"
+                v-bind="props"
+                :color="isNomorFilterActive ? 'primary' : 'default'"
+              >
+                <v-icon size="18">
+                  {{
+                    isNomorFilterActive ? "mdi-filter" : "mdi-filter-variant"
+                  }}
+                </v-icon>
+              </v-btn>
+            </template>
+
+            <v-card min-width="240" class="pa-2 border shadow-2 rounded-lg">
+              <div
+                class="text-caption font-weight-bold px-1 py-1 text-grey-darken-1"
+              >
+                Cari Nomor PO
+              </div>
+              <v-divider class="mb-2" />
+              <v-text-field
+                v-model="filterNomorInput"
+                placeholder="Ketik Nomor PO..."
+                density="compact"
+                variant="outlined"
+                hide-details
+                clearable
+                autofocus
+                append-inner-icon="mdi-magnify"
+                @keyup.enter="menuNomor = false"
+              />
+              <v-divider class="mt-3 mb-2" />
+              <div class="d-flex justify-space-between align-center">
+                <v-btn
+                  size="x-small"
+                  variant="text"
+                  color="grey-darken-1"
+                  @click="resetNomorFilter"
+                >
+                  Reset
+                </v-btn>
+                <v-btn
+                  size="x-small"
+                  color="primary"
+                  variant="flat"
+                  @click="menuNomor = false"
+                >
+                  OK
+                </v-btn>
+              </div>
+            </v-card>
+          </v-menu>
+        </div>
+      </template>
+
+      <!-- 2. FILTER SUPPLIER -->
+      <template #header.Nama="{ column }">
+        <div class="d-flex align-center justify-space-between w-100">
+          <span class="font-weight-bold">{{ column.title }}</span>
+          <v-menu
+            v-model="menuSupplier"
+            :close-on-content-click="false"
+            location="bottom start"
+          >
+            <template #activator="{ props }">
+              <v-btn
+                icon
+                variant="text"
+                density="compact"
+                size="small"
+                v-bind="props"
+                :color="isSupplierFilterActive ? 'primary' : 'default'"
+              >
+                <v-icon size="18">
+                  {{
+                    isSupplierFilterActive ? "mdi-filter" : "mdi-filter-variant"
+                  }}
+                </v-icon>
+              </v-btn>
+            </template>
+
+            <v-card min-width="240" class="pa-2 border shadow-2 rounded-lg">
+              <div
+                class="text-caption font-weight-bold px-1 py-1 text-grey-darken-1"
+              >
+                Cari Supplier
+              </div>
+              <v-divider class="mb-2" />
+              <v-text-field
+                v-model="filterSupplierInput"
+                placeholder="Ketik Nama / Kode Sup..."
+                density="compact"
+                variant="outlined"
+                hide-details
+                clearable
+                autofocus
+                append-inner-icon="mdi-magnify"
+                @keyup.enter="menuSupplier = false"
+              />
+              <v-divider class="mt-3 mb-2" />
+              <div class="d-flex justify-space-between align-center">
+                <v-btn
+                  size="x-small"
+                  variant="text"
+                  color="grey-darken-1"
+                  @click="resetSupplierFilter"
+                >
+                  Reset
+                </v-btn>
+                <v-btn
+                  size="x-small"
+                  color="primary"
+                  variant="flat"
+                  @click="menuSupplier = false"
+                >
+                  OK
+                </v-btn>
+              </div>
+            </v-card>
+          </v-menu>
+        </div>
+      </template>
+
+      <!-- ======================================================== -->
+      <!-- SLOTS DATA BODY                                          -->
+      <!-- ======================================================== -->
+
+      <template #item.Tanggal="{ value }">
+        {{ formatDateDisplay(value) }}
+      </template>
+
+      <template #item.Dateline="{ value }">
+        {{ formatDateDisplay(value) }}
+      </template>
+
+      <!-- Action Column per Row -->
+      <template #item.actions="{ item }">
+        <div class="d-flex justify-center ga-1">
+          <v-btn
+            icon="mdi-pencil"
+            size="x-small"
+            color="warning"
+            variant="tonal"
+            title="Edit PO"
+            @click.stop="handleEdit(item)"
+          />
+          <v-btn
+            icon="mdi-printer"
+            size="x-small"
+            color="info"
+            variant="tonal"
+            title="Cetak PO"
+            @click.stop="handlePrint(item)"
+          />
+          <v-btn
+            icon="mdi-delete"
+            size="x-small"
+            color="error"
+            variant="tonal"
+            title="Hapus PO"
+            @click.stop="handleDelete(item)"
+          />
+        </div>
+      </template>
+
+      <!-- Expand Detail Content -->
+      <template #expanded-content="{ item }">
+        <div v-if="isLoadingDetails(item.Nomor)" class="text-center pa-2">
+          <v-progress-circular
+            indeterminate
+            size="20"
+            color="primary"
+            class="mr-2"
+          />
+          <span class="text-caption">Memuat detail item SPK Kertas...</span>
+        </div>
+
+        <div
+          v-else-if="!details[item.Nomor] || details[item.Nomor].length === 0"
+          class="text-center pa-2 text-caption text-grey"
+        >
+          Tidak ada data detail item untuk Nomor PO {{ item.Nomor }}
+        </div>
+
+        <v-data-table
+          v-else
+          :headers="detailHeaders"
+          :items="details[item.Nomor]"
+          density="compact"
+          class="bg-white border rounded"
+          :items-per-page="-1"
+          hide-default-footer
+        >
+          <template #[`item.Qty`]="{ item: d }">
+            <div class="text-right">
+              {{ formatCurrency(d.Qty) }}
+            </div>
+          </template>
+          <template #[`item.Harga`]="{ item: d }">
+            <div class="text-right">Rp {{ formatCurrency(d.Harga) }}</div>
+          </template>
+        </v-data-table>
+      </template>
+    </BaseBrowse>
+  </div>
+</template>
+
 <style scoped>
-/* Menyesuaikan gaya Vuetify agar lebih padat dan ringkas */
-.browse-content {
-  padding-top: 10px;
+.row-selected {
+  background-color: #d8efff !important;
 }
-
-.filter-section {
-  padding: 10px 16px;
+:deep(.row-selected td) {
+  background-color: #d8efff !important;
 }
-.v-data-table__td--expanded-row .v-btn {
-  /* Mengurangi ukuran fisik tombol ikon */
-  height: 2px !important; /* Atur tinggi tombol */
-  width: 2px !important; /* Atur lebar tombol */
-  padding: 0 !important; /* Hilangkan padding internal tombol */
-}
-
-.v-data-table__td--expanded-row .v-icon {
-  /* Mengurangi ukuran font/ikon itu sendiri */
-  font-size: 16px !important; /* Nilai default biasanya 24px atau 20px */
-}
-
-/* Detail Table Styling */
-.detail-container {
-  padding: 10px 0;
-  background-color: #f7f7f7;
-  border-top: 1px solid #ddd;
-}
-
-.detail-table-wrapper {
-  padding: 0 40px;
-}
-
-.detail-table {
-  background-color: white !important;
-  font-size: 0.8rem;
-}
-
-/* FIX: Ensure numeric alignment in tables */
-.v-data-table :deep(.text-end) {
-  text-align: right !important;
-}
-.v-data-table__td .v-btn {
-  /* Mengurangi ukuran tombol, jika perlu */
-  height: 10px !important;
-  width: 24px !important;
+.po-paper-browse-wrapper {
+  width: 100%;
 }
 </style>

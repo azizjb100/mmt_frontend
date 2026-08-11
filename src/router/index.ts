@@ -134,6 +134,8 @@ import LapPemakaianBahanTekstil from "@/views/LapPemakaianBahanTekstil.vue";
 import SoToSpkView from "@/views/SoToSpkView.vue";
 import FormSoToSpkView from "@/views/FormSoToSpkView.vue";
 import SoToSpkPrintView from "@/views/SoToSpkPrintView.vue";
+import FormPoPaperprintView from "@/views/FormPoPaperprintView.vue";
+import mapView from "@/views/mapView.vue";
 
 const routes: RouteRecordRaw[] = [
   {
@@ -676,6 +678,16 @@ const routes: RouteRecordRaw[] = [
         component: ComingSoon,
       },
       {
+        path: "mmt/map",
+        name: "MapBrowse",
+        component: mapView,
+      },
+      {
+        path: "mmt/search-barcode",
+        name: "SearchBarcodeBrowse",
+        component: SearchBarcodeView,
+      },
+      {
         path: "garmen/retur-material",
         name: "Retur Material",
         component: ComingSoon,
@@ -944,8 +956,13 @@ const routes: RouteRecordRaw[] = [
       { path: "mmt/bahan-sisa", name: "Bahan Sisa MMT", component: ComingSoon },
       {
         path: "mmt/po-paperprint",
-        name: "PO Paperprint MMT",
+        name: "POPaperprintMMT",
         component: POPaperprintView,
+      },
+      {
+        path: "mmt/po-paperprint/new",
+        name: "POPaperprintMMTNew",
+        component: FormPoPaperprintView,
       },
       {
         path: "mmt/penerimaan-po-external",
