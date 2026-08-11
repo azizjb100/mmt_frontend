@@ -33,7 +33,7 @@ const menuId = "162";
 const showPrintDialog = ref(false);
 const printNomorBrowse = ref("");
 
-// Ganti cara mendapatkan 'today' agar menggunakan local timezone
+// Helper Tanggal Lokal YYYY-MM-DD
 const getLocalDate = () => {
   const d = new Date();
   const year = d.getFullYear();
@@ -51,6 +51,7 @@ const getFutureLocalDate = (daysAhead: number) => {
   return `${year}-${month}-${day}`;
 };
 
+// State Filter Tanggal
 const filterState = ref({
   startDate: getLocalDate(),
   endDate: getFutureLocalDate(5),
@@ -68,11 +69,13 @@ const alasanNomor = ref("");
 const isBagianDesain = computed(
   () => authStore.user?.bagian?.toUpperCase() === "DESAIN",
 );
+
 interface DesignRow {
   Nomor: string;
   Nama: string;
   DesignDone: string;
 }
+
 const dialogDesign = ref(false);
 const designList = ref<DesignRow[]>([]);
 const isLoadingDesign = ref(false);
@@ -85,7 +88,15 @@ const openDesignDialog = async () => {
       filterState.value.startDate,
       filterState.value.endDate,
     );
-    designList.value = (res.data.data || []).map((r: any) => ({
+
+    // Safely extract array data
+    const rawList = Array.isArray(res)
+      ? res
+      : Array.isArray(res?.data)
+        ? res.data
+        : res?.data?.data || [];
+
+    designList.value = rawList.map((r: any) => ({
       Nomor: r.Nomor,
       Nama: r.Nama,
       DesignDone: r.DesignDone || "N",
@@ -112,6 +123,7 @@ const submitDesignStatus = async () => {
   }
 };
 
+// Composable Browse
 const {
   items,
   isLoading,
@@ -124,13 +136,17 @@ const {
 } = useBrowse({
   menuId,
   fetchApi: async () => {
-    // Memastikan startDate dan endDate benar-benar dikirim sesuai input lokal
     const payload = {
       startDate: filterState.value.startDate,
       endDate: filterState.value.endDate,
     };
     const res = await mapService.getBrowseList(payload);
-    return res.data.data || [];
+
+    // Flexible array extraction
+    if (Array.isArray(res)) return res;
+    if (Array.isArray(res?.data)) return res.data;
+    if (Array.isArray(res?.data?.data)) return res.data.data;
+    return [];
   },
   immediate: true,
 });
@@ -142,7 +158,7 @@ const canLihatHarga = computed(
   () => Number(authStore.user?.flags?.lihatHarga) === 1,
 );
 
-// Definisi Kolom berdasarkan query Delphi
+// Headers Datatable
 const headers = computed(() => {
   const h: any[] = [
     { title: "Nomor", key: "Nomor", width: "160px" },
@@ -223,26 +239,23 @@ const headers = computed(() => {
 });
 
 const fmtNum = (val: number | string | null) => {
-  if (!val) return "0";
+  if (val === null || val === undefined || val === "") return "0";
   return new Intl.NumberFormat("id-ID").format(Number(val));
 };
 
-// Pewarnaan baris berdasarkan logika Delphi:
-// - Aktif='Y' & Close='N' -> Merah
-// - Aktif='N' -> Abu-abu
+// Pewarnaan Baris (Sesuai Logika Delphi)
 const getRowProps = (data: any) => {
   const row = data.item?.raw || data.item;
   if (row.Aktif === "N") return { class: "row-passive text-grey" };
-  // Sesuai Delphi: Aktif = Y, CloseStatus = N --> Merah
   if (row.Aktif === "Y" && row.CloseStatus === "N")
     return { class: "row-active-open text-red-darken-2 font-weight-medium" };
-  // Sisa (Aktif = Y, CloseStatus = Y) --> Hitam (bawaan)
   return {};
 };
 
-// Aksi Dasar
+// Aksi CRUD
 const goAdd = () =>
   router.push({ name: "MapFormCreate", query: { mode: "new" } });
+
 const goEdit = (item: any) =>
   router.push({
     name: "MapFormEdit",
@@ -252,7 +265,7 @@ const goEdit = (item: any) =>
 const goDelete = async (item: any) => {
   isLoading.value = true;
   try {
-    await mapService.deleteMap(encodeURIComponent(item.Nomor));
+    await mapService.deleteMap(item.Nomor);
     toast.success("Berhasil dihapus.");
     fetchData();
   } catch (e: any) {
@@ -262,7 +275,7 @@ const goDelete = async (item: any) => {
   }
 };
 
-// Aksi Ekstra
+// Handle Modal & Gambar
 const fallbackStep = ref(0);
 
 const lihatGambar = () => {
@@ -271,7 +284,7 @@ const lihatGambar = () => {
   const base = api.defaults.baseURL?.replace(/\/api\/?$/, "") || "";
   const cab = item.Cab || "HO-";
 
-  fallbackStep.value = 0; // ✅ Reset step tiap buka gambar baru
+  fallbackStep.value = 0;
   gambarUrl.value = `${base}/images/${cab}/map/${encodeURIComponent(item.Nomor)}.jpg`;
   dialogGambar.value = true;
 };
@@ -281,27 +294,19 @@ const onGambarError = () => {
   const item = selected.value[0];
 
   const nomor = item.Nomor;
-  const referensi = item.NoReferensi || item.MAP || ""; // Field referensi dari row
+  const referensi = item.NoReferensi || item.MAP || "";
   const cab = item.Cab || "HO-";
   const base = api.defaults.baseURL?.replace(/\/api\/?$/, "") || "";
 
-  // Daftar urutan URL fallback yang akan dicoba berurutan jika gambar sebelumnya 404
   const fallbacks: string[] = [];
 
-  // 1. Coba MAP ini di root VPS lama (/mnt/image -> /file-gambar)
   if (nomor) fallbacks.push(`/file-gambar/${encodeURIComponent(nomor)}.jpg`);
-
-  // 2. Jika ini MAP revisi, coba gambar referensinya di folder upload baru
   if (referensi)
     fallbacks.push(
       `${base}/images/${cab}/map/${encodeURIComponent(referensi)}.jpg`,
     );
-
-  // 3. Coba gambar referensi di root VPS lama
   if (referensi)
     fallbacks.push(`/file-gambar/${encodeURIComponent(referensi)}.jpg`);
-
-  // 4. Coba cari di subfolder mintaharga (jaga-jaga sumber awalnya dari sana)
   if (nomor)
     fallbacks.push(`/file-gambar/mintaharga/${encodeURIComponent(nomor)}.jpg`);
   if (referensi)
@@ -309,35 +314,27 @@ const onGambarError = () => {
       `/file-gambar/mintaharga/${encodeURIComponent(referensi)}.jpg`,
     );
 
-  // Eksekusi fallback secara bertahap
   if (fallbackStep.value < fallbacks.length) {
     gambarUrl.value = fallbacks[fallbackStep.value];
     fallbackStep.value++;
   } else {
-    // Jika semua opsi habis dan gagal, kosongkan agar <v-img> menampilkan icon #error
     gambarUrl.value = "";
   }
 };
 
+// Cetak & Export
 const cetak = () => {
   if (selected.value.length === 0) return;
   const item = selected.value[0];
-
-  // 1. Ambil bagian user dari authStore
-  // Gunakan optional chaining (?.) untuk menghindari error jika user null
   const zBagian = authStore.user?.bagian?.toUpperCase() || "";
 
-  // 2. Terapkan Validasi Delphi
-  // If (zBagian<>'MARKETING') and (CDSMaster.FieldByname('CMO').AsString='') then
-  //   MessageDlg('MAP tsb belum diapprove oleh Chief Marketing.\nTidak bisa dicetak.',mtWarning, [mbOK],0);
   if (zBagian !== "MARKETING" && (!item.CMO || item.CMO.trim() === "")) {
     toast.warning(
       "MAP tsb belum diapprove oleh Chief Marketing.\nTidak bisa dicetak.",
     );
-    return; // Stop eksekusi di sini, dialog cetak tidak akan muncul
+    return;
   }
 
-  // 3. Lanjut buka modal jika lolos validasi
   printNomorBrowse.value = item.Nomor;
   showPrintDialog.value = true;
 };
@@ -358,6 +355,7 @@ const pilihGambarHorizontalBrowse = () => {
   );
 };
 
+// Modal Actions
 const pengajuanPerubahan = () => {
   if (selected.value.length === 0) return;
   alasanNomor.value = selected.value[0].Nomor;
@@ -458,21 +456,36 @@ const confirmToggleClose = async () => {
     @export="exportToExcel('MAP')"
   >
     <template #filter-left>
-      <div class="filter-container">
-        <!-- Filter Tanggal Awal -->
-        <div class="filter-item">
-          <label>Tanggal Awal:</label>
-          <input type="date" v-model="filters.startDate" @change="fetchData" />
-        </div>
+      <!-- Filter Tanggal (DIPERBAIKI: Menggunakan filterState) -->
+      <div class="filter-group">
+        <span class="filter-label">Tanggal Awal:</span>
+        <input
+          type="date"
+          class="date-inp"
+          v-model="filterState.startDate"
+          @change="fetchData"
+        />
 
-        <!-- Filter Tanggal Akhir -->
-        <div class="filter-item">
-          <label>Tanggal Akhir:</label>
-          <input type="date" v-model="filters.endDate" @change="fetchData" />
-        </div>
+        <span class="filter-label ml-2">s/d Akhir:</span>
+        <input
+          type="date"
+          class="date-inp"
+          v-model="filterState.endDate"
+          @change="fetchData"
+        />
 
-        <button @click="fetchData">Cari</button>
+        <v-btn
+          size="x-small"
+          color="primary"
+          variant="flat"
+          class="ml-2"
+          @click="fetchData"
+        >
+          Cari
+        </v-btn>
       </div>
+
+      <div class="filter-divider"></div>
 
       <div class="legend-group">
         <div class="legend-item">
@@ -481,17 +494,17 @@ const confirmToggleClose = async () => {
         </div>
         <div class="legend-item">
           <div class="legend-box bg-red"></div>
-          <span>= Aktif dan Open</span>
+          <span>= Aktif & Open</span>
         </div>
         <div class="legend-item">
           <div class="legend-box bg-black"></div>
-          <span>= Close (Aktif dan Sudah Jadi SO)</span>
+          <span>= Close</span>
         </div>
         <div class="legend-item">
           <v-chip color="error" size="x-small" density="comfortable"
             >Belum</v-chip
           >
-          <span>= Belum ada persetujuan customer</span>
+          <span>= Belum Acc Cust</span>
         </div>
       </div>
     </template>
@@ -505,11 +518,12 @@ const confirmToggleClose = async () => {
         :loading="isLoadingDesign"
         @click="openDesignDialog"
       >
-        <template #prepend
-          ><IconBrush :size="15" :stroke-width="1.7"
-        /></template>
+        <template #prepend>
+          <IconBrush :size="15" :stroke-width="1.7" />
+        </template>
         Update Status Design
       </v-btn>
+
       <v-btn
         size="small"
         variant="flat"
@@ -517,11 +531,12 @@ const confirmToggleClose = async () => {
         :disabled="selected.length === 0"
         @click="cetak"
       >
-        <template #prepend
-          ><IconPrinter :size="15" :stroke-width="1.7"
-        /></template>
+        <template #prepend>
+          <IconPrinter :size="15" :stroke-width="1.7" />
+        </template>
         Cetak
       </v-btn>
+
       <v-btn
         size="small"
         variant="flat"
@@ -529,9 +544,9 @@ const confirmToggleClose = async () => {
         :disabled="selected.length === 0"
         @click="lihatGambar"
       >
-        <template #prepend
-          ><IconPhoto :size="15" :stroke-width="1.7"
-        /></template>
+        <template #prepend>
+          <IconPhoto :size="15" :stroke-width="1.7" />
+        </template>
         Lihat Gambar
       </v-btn>
 
@@ -539,41 +554,42 @@ const confirmToggleClose = async () => {
         <template v-slot:activator="{ props }">
           <v-btn color="primary" variant="flat" size="small" v-bind="props">
             Aksi MAP
-            <template #append
-              ><IconChevronDown :size="14" :stroke-width="2"
-            /></template>
+            <template #append>
+              <IconChevronDown :size="14" :stroke-width="2" />
+            </template>
           </v-btn>
         </template>
         <v-list density="compact">
           <v-list-item @click="pengajuanPerubahan">
-            <template #prepend
-              ><IconFileDescription :size="16" :stroke-width="1.7"
-            /></template>
+            <template #prepend>
+              <IconFileDescription :size="16" :stroke-width="1.7" />
+            </template>
             <v-list-item-title>Pengajuan Perubahan</v-list-item-title>
           </v-list-item>
           <v-list-item @click="openApprovalDialog">
-            <template #prepend
-              ><IconDiscountCheck :size="16" :stroke-width="1.7"
-            /></template>
+            <template #prepend>
+              <IconDiscountCheck :size="16" :stroke-width="1.7" />
+            </template>
             <v-list-item-title>Approval MAP</v-list-item-title>
           </v-list-item>
           <v-divider></v-divider>
           <v-list-item @click="openCloseDialog('Y')">
-            <template #prepend
-              ><IconLock :size="16" :stroke-width="1.7"
-            /></template>
+            <template #prepend>
+              <IconLock :size="16" :stroke-width="1.7" />
+            </template>
             <v-list-item-title>Close Data</v-list-item-title>
           </v-list-item>
           <v-list-item @click="openCloseDialog('N')">
-            <template #prepend
-              ><IconLockOpen :size="16" :stroke-width="1.7"
-            /></template>
+            <template #prepend>
+              <IconLockOpen :size="16" :stroke-width="1.7" />
+            </template>
             <v-list-item-title>Open Data</v-list-item-title>
           </v-list-item>
         </v-list>
       </v-menu>
     </template>
 
+    <!-- Custom Columns Formatting -->
     <template #item.Tanggal="{ item }">
       {{ formatTanggal(item.Tanggal) }}
     </template>
@@ -589,7 +605,6 @@ const confirmToggleClose = async () => {
     <template #item.Design_Tanggal="{ item }">
       {{ formatTanggal(item.Design_Tanggal) }}
     </template>
-
     <template #item.Created="{ item }">
       {{ formatTanggalJam(item.Created) }}
     </template>
@@ -603,16 +618,7 @@ const confirmToggleClose = async () => {
     <template #item.HargaRiil="{ item }">{{ fmtNum(item.HargaRiil) }}</template>
 
     <template #item.Keterangan="{ item }">
-      <div
-        style="
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          display: block;
-          font-size: 11px;
-        "
-        :title="item.Keterangan"
-      >
+      <div class="text-truncate-cell" :title="item.Keterangan">
         {{ item.Keterangan }}
       </div>
     </template>
@@ -674,12 +680,7 @@ const confirmToggleClose = async () => {
           'bg-yellow pa-1 rounded font-weight-bold':
             item.Design_Baru === 'Y' && item.Design_Done === 'N',
         }"
-        style="
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          display: block;
-        "
+        class="text-truncate-cell"
         :title="item.Nama"
       >
         {{ item.Nama }}
@@ -687,20 +688,13 @@ const confirmToggleClose = async () => {
     </template>
 
     <template #item.Customer="{ item }">
-      <div
-        style="
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          display: block;
-        "
-        :title="item.Customer"
-      >
+      <div class="text-truncate-cell" :title="item.Customer">
         {{ item.Customer }}
       </div>
     </template>
   </BaseBrowse>
 
+  <!-- Dialog Display Gambar -->
   <v-dialog v-model="dialogGambar" max-width="800px">
     <v-card class="rounded-lg">
       <v-card-title
@@ -753,15 +747,16 @@ const confirmToggleClose = async () => {
       <v-card-actions class="bg-white pa-2 border-t">
         <v-spacer></v-spacer>
         <v-btn color="primary" variant="text" :href="gambarUrl" target="_blank">
-          <template #prepend
-            ><IconExternalLink :size="15" :stroke-width="1.7"
-          /></template>
+          <template #prepend>
+            <IconExternalLink :size="15" :stroke-width="1.7" />
+          </template>
           Buka di Tab Baru
         </v-btn>
       </v-card-actions>
     </v-card>
   </v-dialog>
 
+  <!-- Dialog Pengajuan Perubahan -->
   <v-dialog v-model="dialogAlasan" max-width="500px" persistent>
     <v-card class="rounded-lg">
       <v-card-title
@@ -801,6 +796,7 @@ const confirmToggleClose = async () => {
     </v-card>
   </v-dialog>
 
+  <!-- Dialog Cetak -->
   <v-dialog v-model="showPrintDialog" max-width="450px">
     <v-card class="rounded-lg">
       <v-card-title class="bg-primary text-white d-flex align-center pa-3">
@@ -826,9 +822,9 @@ const confirmToggleClose = async () => {
             variant="flat"
             @click="pilihGambarVertikalBrowse"
           >
-            <template #prepend
-              ><IconLayoutSidebarRight :size="15" :stroke-width="1.7"
-            /></template>
+            <template #prepend>
+              <IconLayoutSidebarRight :size="15" :stroke-width="1.7" />
+            </template>
             Cetak Vertikal (Portrait)
           </v-btn>
           <v-btn
@@ -836,9 +832,9 @@ const confirmToggleClose = async () => {
             variant="tonal"
             @click="pilihGambarHorizontalBrowse"
           >
-            <template #prepend
-              ><IconLayoutSidebarRightCollapse :size="15" :stroke-width="1.7"
-            /></template>
+            <template #prepend>
+              <IconLayoutSidebarRightCollapse :size="15" :stroke-width="1.7" />
+            </template>
             Cetak Horizontal (Landscape)
           </v-btn>
         </div>
@@ -851,9 +847,10 @@ const confirmToggleClose = async () => {
     </v-card>
   </v-dialog>
 
+  <!-- Dialog Confirmation Approval -->
   <v-dialog v-model="showApprovalDialog" max-width="380px" persistent>
     <div class="close-dlg">
-      <div class="close-dlg-header" style="background: #2e7d32">
+      <div class="close-dlg-header bg-success">
         <IconDiscountCheck size="16" color="white" class="mr-2" />
         Konfirmasi Approval MAP
         <button class="dlg-x" @click="showApprovalDialog = false">✕</button>
@@ -861,12 +858,8 @@ const confirmToggleClose = async () => {
       <div class="close-dlg-body">
         <div class="f-lbl-sm mb-1">Yakin ingin meng-approve MAP:</div>
         <div
-          style="
-            font-size: 13px;
-            font-weight: 700;
-            color: #1565c0;
-            margin-top: 6px;
-          "
+          class="text-primary font-weight-bold"
+          style="font-size: 13px; margin-top: 6px"
         >
           {{ approvalItem?.Nomor }}
         </div>
@@ -879,8 +872,7 @@ const confirmToggleClose = async () => {
       </div>
       <div class="close-dlg-footer">
         <button
-          class="dlg-btn text-white"
-          style="background: #2e7d32"
+          class="dlg-btn text-white bg-success"
           :disabled="isLoading"
           @click="confirmApproval"
         >
@@ -897,13 +889,12 @@ const confirmToggleClose = async () => {
     </div>
   </v-dialog>
 
+  <!-- Dialog Toggle Close/Open -->
   <v-dialog v-model="showCloseDialog" max-width="380px" persistent>
     <div class="close-dlg">
       <div
         class="close-dlg-header"
-        :style="
-          closeAction === 'Y' ? 'background:#c62828' : 'background:#2e7d32'
-        "
+        :class="closeAction === 'Y' ? 'bg-error' : 'bg-success'"
       >
         <component
           :is="closeAction === 'Y' ? IconLock : IconLockOpen"
@@ -925,12 +916,8 @@ const confirmToggleClose = async () => {
           }}
         </div>
         <div
-          style="
-            font-size: 13px;
-            font-weight: 700;
-            color: #1565c0;
-            margin-top: 6px;
-          "
+          class="text-primary font-weight-bold"
+          style="font-size: 13px; margin-top: 6px"
         >
           {{ closeItem?.Nomor }}
         </div>
@@ -941,9 +928,7 @@ const confirmToggleClose = async () => {
       <div class="close-dlg-footer">
         <button
           class="dlg-btn text-white"
-          :style="
-            closeAction === 'Y' ? 'background:#c62828' : 'background:#2e7d32'
-          "
+          :class="closeAction === 'Y' ? 'bg-error' : 'bg-success'"
           :disabled="isLoading"
           @click="confirmToggleClose"
         >
@@ -966,7 +951,7 @@ const confirmToggleClose = async () => {
     </div>
   </v-dialog>
 
-  <!-- ── Dialog Update Status Design ── -->
+  <!-- Dialog Update Status Design -->
   <v-dialog v-model="dialogDesign" max-width="600px" persistent>
     <v-card class="rounded-lg">
       <v-card-title
@@ -1046,10 +1031,6 @@ const confirmToggleClose = async () => {
   color: #555;
   white-space: nowrap;
 }
-.filter-sep {
-  font-size: 11px;
-  color: #888;
-}
 .date-inp {
   height: 28px;
   border: 1px solid #ccc;
@@ -1067,10 +1048,9 @@ const confirmToggleClose = async () => {
   gap: 8px;
 }
 .bg-yellow {
-  background-color: yellow !important;
+  background-color: #ffeb3b !important;
   color: #000;
 }
-
 .filter-divider {
   width: 1px;
   height: 24px;
@@ -1108,16 +1088,26 @@ const confirmToggleClose = async () => {
   background-color: #212121;
 }
 
-/* Memaksa warna baris tabel tembus */
+/* Cell Truncate */
+.text-truncate-cell {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
+  font-size: 11px;
+}
+
+/* Row Highlights */
 :deep(.row-passive td) {
-  color: #9e9e9e !important; /* Abu-abu */
+  color: #9e9e9e !important;
 }
 
 :deep(.row-active-open td) {
-  color: #d32f2f !important; /* Merah */
+  color: #d32f2f !important;
   font-weight: 600 !important;
 }
 
+/* Dialog Styling */
 .close-dlg {
   background: white;
   border-radius: 8px;

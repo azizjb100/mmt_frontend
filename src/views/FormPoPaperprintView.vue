@@ -63,15 +63,24 @@ const showPrintConfirm = ref(false);
 const savedNomor = ref("");
 
 // Refs Focus
+const spkRefs = ref<Record<number, HTMLInputElement | null>>({});
 const jumlahRefs = ref<Record<number, HTMLInputElement | null>>({});
 const fileInputRefs = ref<Record<number, HTMLInputElement | null>>({});
 
-// --- BULLETPROOF DATA EXTRACTION FROM LOOKUP MODAL ---
+// --- EXTRACTION DATA LOOKUP SPK ---
+// 1. EXTRACTION REKURSIF (Menembus semua lapisan wrapper modal Vuetify)
 const extractItemData = (input: any): Record<string, any> => {
   if (!input) return {};
-  let val = Array.isArray(input) ? input[0] : input;
-  if (!val || typeof val !== "object") return {};
 
+  let val = input;
+
+  // Jika input berupa Array (pilihan checklist/single select datatable)
+  if (Array.isArray(val)) {
+    if (val.length === 0) return {};
+    val = val[0];
+  }
+
+  // Rekursif menembus wrapper .raw atau .item
   let depth = 0;
   while (val && typeof val === "object" && depth < 5) {
     if (val.raw && typeof val.raw === "object") {
@@ -83,12 +92,15 @@ const extractItemData = (input: any): Record<string, any> => {
     }
     depth++;
   }
-  return val || {};
+
+  return val && typeof val === "object" ? val : {};
 };
 
-// Functions khusus mengambil Nomor & Nama SPK
-const getSpkNomor = (d: any): string => {
+// 2. DETEKTIF KEY SPK (Mencari semua variasi penulisan No. SPK)
+const findSpkNomor = (d: any): string => {
   if (!d || typeof d !== "object") return "";
+
+  // Urutan prioritas key dari respon backend / modal
   const possibleKeys = [
     "SPK",
     "spk",
@@ -104,7 +116,10 @@ const getSpkNomor = (d: any): string => {
     "SPK_Nomor",
     "Nomor_SPK",
     "nomor_spk",
+    "spk_id",
+    "ID_SPK",
   ];
+
   for (const key of possibleKeys) {
     if (
       d[key] !== undefined &&
@@ -114,10 +129,24 @@ const getSpkNomor = (d: any): string => {
       return String(d[key]).trim();
     }
   }
+
+  // Fallback: Jika key ber-format bertingkat/lainnya, scan semua key yang mengandung kata 'spk' atau 'nomor'
+  for (const key of Object.keys(d)) {
+    const k = key.toLowerCase();
+    if (
+      (k.includes("spk") || k.includes("nomor")) &&
+      typeof d[key] === "string" &&
+      d[key].trim() !== ""
+    ) {
+      return String(d[key]).trim();
+    }
+  }
+
   return "";
 };
 
-const getSpkNama = (d: any): string => {
+// 3. DETEKTIF KEY NAMA SPK
+const findSpkNama = (d: any): string => {
   if (!d || typeof d !== "object") return "";
   const possibleKeys = [
     "Nama",
@@ -139,6 +168,61 @@ const getSpkNama = (d: any): string => {
     }
   }
   return "";
+};
+
+// 4. FUNGSIONALITAS UTAMA PENERAPAN DATA SPK KE ROW
+const applySpkToRow = (idx: number, rawData: any) => {
+  console.log("RAW DATA DARI MODAL:", rawData); // Debugging di Console Browser
+
+  const data = extractItemData(rawData);
+  console.log("EXTRACTED DATA:", data); // Debugging Hasil Ekstraksi
+
+  if (!formData.value.details[idx]) return;
+
+  const spkNomor = findSpkNomor(data);
+  const spkNama = findSpkNama(data);
+
+  if (!spkNomor) {
+    console.error("Gagal menemukan key SPK pada objek:", data);
+    toast.error("Gagal membaca Nomor SPK dari data terpilih!");
+    return;
+  }
+
+  const spkUkuran =
+    formData.value.cab === "P05"
+      ? data.Ukuran || data.ukuran || data.spk_ukuran || ""
+      : "";
+  const spkBahan =
+    formData.value.cab === "P05"
+      ? data.Bahan || data.bahan || data.spk_kain || data.spk_bahan || ""
+      : "";
+  const spkFinishing =
+    formData.value.cab === "P05"
+      ? data.Finishing || data.finishing || data.spk_finishing || ""
+      : "";
+
+  const spkJumlah = Number(data.Jumlah ?? data.jumlah ?? data.spk_jumlah ?? 0);
+
+  // Alokasi objek reaktif baru
+  formData.value.details[idx] = {
+    ...formData.value.details[idx],
+    spk: spkNomor,
+    nama: spkNama,
+    ukuran: String(spkUkuran),
+    bahan: String(spkBahan),
+    finishing: String(spkFinishing),
+    jumlah: spkJumlah,
+    idgambar: "",
+    imageUrl: null,
+    newFile: null,
+    removeImage: false,
+  };
+
+  ensureTrailingRow();
+
+  nextTick(() => {
+    jumlahRefs.value[idx]?.focus();
+  });
 };
 
 const createEmptyRow = (): DetailItem => {
@@ -165,7 +249,7 @@ const ensureTrailingRow = () => {
   }
 };
 
-// 1. Initial State
+// Initial State
 const initialData = {
   nomor: "",
   tanggal: formatDateLocal(new Date()),
@@ -178,7 +262,7 @@ const initialData = {
   details: [] as DetailItem[],
 };
 
-// 2. Setup useForm
+// Setup useForm Composable
 const {
   formData,
   isEditMode,
@@ -213,7 +297,7 @@ const {
       details: d.map((item: any) => {
         const qty = Number(item.pjd_qty || item.Qty || item.jumlah) || 0;
         return {
-          spk: item.pjd_spk || item.SPK || "",
+          spk: item.pjd_spk || item.Spk || item.SPK || "",
           nama: item.pjd_nama || item.NamaSpk || item.Nama || "",
           ukuran: item.pjd_ukuran || item.Ukuran || "",
           bahan: item.pjd_bahan || item.Bahan || "",
@@ -277,7 +361,6 @@ const {
   },
 });
 
-// Master Options (Ukuran & Bahan Paper)
 const loadMasterOptions = async () => {
   try {
     const res = await poPaperprintService.getMeta();
@@ -310,7 +393,7 @@ onMounted(async () => {
   }
 });
 
-// Lookup Supplier Handler
+// Supplier Lookup
 const openSupplierModal = () => {
   isLookupOpening.value = true;
   showSupplierModal.value = true;
@@ -350,60 +433,11 @@ const onSupBlur = async () => {
   }
 };
 
-// Lookup SPK Handler per Baris Detail
+// --- SPK LOOKUP HANDLER (GAYA LHK MESIN - MODAL & INPUT GROUP) ---
 const openSpkLookup = (index: number) => {
   isLookupOpening.value = true;
   activeDetailIndex.value = index;
   showSpkModal.value = true;
-};
-
-const applySpkToRow = (idx: number, rawData: any) => {
-  const data = extractItemData(rawData);
-  if (!formData.value.details[idx]) return;
-
-  // DIJAMIN DENGAN GETTER SPESIFIK
-  const spkNomor = getSpkNomor(data);
-  const spkNama = getSpkNama(data);
-
-  const spkUkuran =
-    formData.value.cab === "P05"
-      ? data.Ukuran || data.ukuran || data.spk_ukuran || ""
-      : "";
-  const spkBahan =
-    formData.value.cab === "P05"
-      ? data.Bahan || data.bahan || data.spk_kain || data.spk_bahan || ""
-      : "";
-  const spkFinishing =
-    formData.value.cab === "P05"
-      ? data.Finishing ||
-        data.finishing ||
-        data.fininshing ||
-        data.spk_finishing ||
-        ""
-      : "";
-
-  const spkJumlah = Number(data.Jumlah ?? data.jumlah ?? data.spk_jumlah ?? 0);
-
-  // Update langsung ke array formData.value.details
-  formData.value.details[idx] = {
-    ...formData.value.details[idx],
-    spk: spkNomor,
-    nama: spkNama,
-    ukuran: String(spkUkuran),
-    bahan: String(spkBahan),
-    finishing: String(spkFinishing),
-    jumlah: spkJumlah,
-    idgambar: "",
-    imageUrl: null,
-    newFile: null,
-    removeImage: false,
-  };
-
-  ensureTrailingRow();
-
-  nextTick(() => {
-    jumlahRefs.value[idx]?.focus();
-  });
 };
 
 const onSpkSelected = (selectedItem: any) => {
@@ -452,7 +486,7 @@ const clearSpkRow = (index: number) => {
   row.newFile = null;
 };
 
-// File Upload Handler Gambar Custom per Row
+// File Upload Handler
 const handleFileUpload = (event: Event, item: DetailItem) => {
   const target = event.target as HTMLInputElement;
   if (target.files && target.files[0]) {
@@ -634,7 +668,7 @@ const doNotPrint = () => {
       </div>
     </template>
 
-    <!-- RIGHT COLUMN: DETAIL TABEL SPK KERTAS -->
+    <!-- RIGHT COLUMN: DETAIL TABEL SPK KERTAS (GAYA LHK MESIN) -->
     <template #right-column>
       <v-card border flat class="d-flex flex-column fill-height">
         <div class="table-container flex-grow-1">
@@ -657,14 +691,21 @@ const doNotPrint = () => {
               <tr v-for="(item, index) in formData.details" :key="index">
                 <td class="text-center">{{ index + 1 }}</td>
 
-                <!-- Input / Lookup SPK -->
-                <td class="pa-0">
-                  <div class="d-flex align-center fill-height px-1">
+                <!-- INPUT SPK GAYA LHK MESIN (INPUT GROUP WITH SEARCH ICON & CLEAR BUTTON) -->
+                <td class="p0">
+                  <div class="cell-grp">
                     <input
                       v-model="item.spk"
-                      class="cell-input fw-bold text-primary flex-grow-1"
+                      :ref="(el) => (spkRefs[index] = el as any)"
+                      class="ci"
+                      style="
+                        text-transform: uppercase;
+                        font-weight: 600;
+                        color: #1565c0;
+                      "
                       placeholder="F1 / Kode..."
                       :readonly="!!item.nama"
+                      autocomplete="off"
                       @keydown="onSpkKeydown($event, index)"
                       @keydown.enter.prevent="
                         ($event.target as HTMLInputElement).blur()
@@ -672,29 +713,36 @@ const doNotPrint = () => {
                       @blur="onSpkBlur(index)"
                       @click="!item.nama && openSpkLookup(index)"
                     />
-                    <IconX
+                    <button
                       v-if="item.spk"
-                      :size="14"
-                      class="text-error mr-1 cursor-pointer"
-                      @click="clearSpkRow(index)"
-                    />
-                    <v-btn
+                      type="button"
+                      class="ci-btn"
+                      title="Reset SPK"
+                      @click.stop="clearSpkRow(index)"
+                    >
+                      <IconX :size="12" class="text-error" />
+                    </button>
+                    <button
                       v-if="!item.nama"
-                      size="x-small"
-                      variant="text"
-                      density="comfortable"
-                      color="primary"
+                      type="button"
+                      class="ci-btn"
+                      title="Cari SPK (F1)"
                       @mousedown.prevent="openSpkLookup(index)"
                       @click="openSpkLookup(index)"
                     >
-                      <IconSearch :size="14" :stroke-width="1.7" />
-                    </v-btn>
+                      <IconSearch :size="12" />
+                    </button>
                   </div>
                 </td>
 
                 <!-- Nama SPK -->
                 <td>
-                  <input v-model="item.nama" class="cell-input" readonly />
+                  <input
+                    v-model="item.nama"
+                    class="cell-input"
+                    readonly
+                    placeholder="Nama SPK..."
+                  />
                 </td>
 
                 <!-- Ukuran Dropdown -->
@@ -960,5 +1008,36 @@ const doNotPrint = () => {
 }
 .cursor-pointer {
   cursor: pointer;
+}
+.p0 {
+  padding: 0 !important;
+}
+.cell-grp {
+  display: flex;
+  align-items: center;
+  height: 28px;
+  background: white;
+}
+.cell-grp .ci {
+  flex: 1;
+  height: 100%;
+  border: none;
+  outline: none;
+  padding: 0 6px;
+  font-size: 11px;
+}
+.ci-btn {
+  width: 24px;
+  height: 100%;
+  border: none;
+  background: #e3f2fd;
+  border-left: 1px solid #e0e0e0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.ci-btn:hover {
+  background: #bbdefb;
 }
 </style>
