@@ -66,11 +66,6 @@ const watermarkTiles = computed(() =>
   Array(60).fill(previewWatermarkText.value),
 );
 
-// Coba berantai: (1) file milik SO/SPK sendiri di lokal → (2) file MAP
-// di lokal (folder map/) → (3) VPS lama. Sebelumnya cuma nyoba path #1
-// via @error, sehingga kalau SPK berasal dari MAP (gambar tersimpan di
-// folder map/ dengan nama spk_memo, bukan spk_so_ref), gambar selalu
-// gagal tanpa pernah mencoba kandidat lain.
 const resolveDesignImage = () => {
   if (!spk.value.spk_nomor) {
     resolvedImageUrl.value = "";
@@ -137,7 +132,6 @@ const formatWaktu = (isoStr: string) => {
   return `${pad(d.getDate())}-${pad(d.getMonth() + 1)}-${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 };
 
-// Kolom size yang ada nilainya — tampilkan dinamis seperti tab Order
 const hasAtasan = computed(() =>
   sizes.value.some(
     (s) => Number(s.ld) > 0 || Number(s.pb) > 0 || Number(s.p_bahu) > 0,
@@ -167,7 +161,6 @@ const prosesChips = computed(() => {
   if (spk.value.spk_bordir === "Y") arr.push("BORDIR");
   if (spk.value.spk_sublim === "Y") arr.push("SUBLIM");
 
-  // DTF hanya kalau tidak ada proses apapun dari SO
   if (arr.length === 0) arr.push("DTF");
 
   return arr;
@@ -184,8 +177,6 @@ const hasMkaFromMap = computed(
     mkaFromMap.value.komponen.length > 0,
 );
 
-// --- CETAK SPK P01 ---
-// ── Deteksi Workshop legacy (P01/P02/P05) → pakai format cetak lama ──
 const isP01Print = computed(
   () => spk.value.spk_cab === "P01" || spk.value.spk_cab2 === "P01",
 );
@@ -206,7 +197,6 @@ const spkKetKomponenText = computed(() =>
 
 const alokasi = ref<any[]>([]);
 
-// ── Signature helper (dipakai format lama, sama pola SalesOrderPrintView) ──
 const getSignatureUrl = (kodeUser: string) => {
   if (!kodeUser) return "";
   return `/file-gambar/${encodeURIComponent(kodeUser.trim().toUpperCase())}.jpg`;
@@ -215,13 +205,11 @@ const handleSignatureError = (e: Event) => {
   (e.target as HTMLImageElement).style.opacity = "0";
 };
 
-// ── String Ukuran ringkas: "S=10, M=20, L=30" ──
 const sizeUkuranStr = computed(() => {
   if (!sizes.value.length) return spk.value.spk_ukuran || "-";
   return sizes.value.map((s: any) => `${s.size}=${s.qty}`).join(", ");
 });
 
-// ── String Size Lebar & Panjang Badan (format lama) ──
 const sizeLebarPanjangStr = computed(() => {
   if (!sizes.value.length) return "";
   return sizes.value
@@ -232,14 +220,11 @@ const sizeLebarPanjangStr = computed(() => {
 const p1PageEl = ref<HTMLElement | null>(null);
 const p1InnerEl = ref<HTMLElement | null>(null);
 const p1Scale = ref(1);
-const p1ScaledHeightStyle = ref<string>("auto"); // cuma dipakai saat scale-down
+const p1ScaledHeightStyle = ref<string>("auto");
 const p1MultiPage = ref(false);
 
 const MIN_PRINT_SCALE = 0.72;
 
-// Tunggu semua <img> di dalam elemen selesai load sebelum ukur tinggi —
-// kalau diukur lebih awal, gambar yang belum selesai render bikin hasil
-// pengukuran lebih pendek dari kenyataan.
 const waitForImages = (el: HTMLElement) => {
   const imgs = Array.from(el.querySelectorAll("img"));
   return Promise.all(
@@ -264,20 +249,11 @@ const fitPageToA4 = async () => {
   await waitForImages(p1InnerEl.value);
   await nextTick();
 
-  // Buffer aman ~3mm (di 96dpi ≈ 11px) — kompensasi selisih pembulatan
-  // mm↔px antara render browser biasa vs print engine Chrome, supaya
-  // konten yang "pas banget" gak kepental ke halaman 2 saat benar-benar
-  // dicetak/preview print (walau di layar biasa keliatan muat).
   const PRINT_SAFETY_BUFFER_PX = 4;
   const availablePx = p1PageEl.value.clientHeight - PRINT_SAFETY_BUFFER_PX;
   const contentPx = p1InnerEl.value.scrollHeight;
 
   if (contentPx <= availablePx) {
-    // Konten muat natural — TIDAK perlu dipaksa tinggi persis. CSS
-    // flex (.page1-scale-inner { flex: 1 }) yang dorong blok TTD ke
-    // bawah halaman, otomatis nyesuaiin diri kapan pun (termasuk kalau
-    // ada elemen yang selesai render belakangan, misal QR code) —
-    // sehingga tidak berisiko kepotong seperti sebelumnya.
     return;
   }
 
@@ -291,12 +267,6 @@ const fitPageToA4 = async () => {
   }
 };
 
-// ── Blokir Ctrl+P / Cmd+P / Ctrl+S (lapisan pertama — cegah dialog
-// print/save browser terbuka sama sekali). Ini best-effort: sebagian
-// besar browser modern menghormati preventDefault di keydown untuk
-// shortcut ini, tapi TIDAK ada jaminan 100% di semua browser/OS —
-// makanya lapisan kedua (CSS @media print di bawah) yang jadi jaring
-// pengaman utama, bukan blokir keyboard ini.
 const blockPrintShortcut = (e: KeyboardEvent) => {
   if (!isPreview.value) return;
   const key = e.key.toLowerCase();
@@ -309,8 +279,6 @@ const blockPrintShortcut = (e: KeyboardEvent) => {
 const blockContextMenu = (e: MouseEvent) => {
   if (isPreview.value) e.preventDefault();
 };
-
-let previewResizeObserver: ResizeObserver | null = null;
 
 const injectPageStyle = (css: string) => {
   let el = document.getElementById("dynamic-page-style") as HTMLStyleElement;
@@ -335,14 +303,21 @@ onUnmounted(() => {
 
 onMounted(async () => {
   try {
-    const [resDetail, resLayout, resAlokasi] = await Promise.all([
-      soToSpkService.getDetail(printNomor),
-      soToSpkService.getLayoutProses(printNomor),
-      soToSpkService.getAlokasi(printNomor),
-    ]);
+    // 💡 FIX 1: Ambil data utama SPK dulu tanpa digabung Promise.all kaku
+    const resDetail = await soToSpkService.getDetail(printNomor);
+    const d = resDetail.data?.data || resDetail.data;
 
-    const d = resDetail.data.data;
-    spk.value = d.header || {};
+    if (!d) {
+      isError.value = true;
+      return;
+    }
+
+    spk.value = d.header || d || {};
+    if (!spk.value || !spk.value.spk_nomor) {
+      isError.value = true;
+      return;
+    }
+
     resolveDesignImage();
     sizes.value = (d.dtlSize || []).filter((s: any) => Number(s.qty) > 0);
     komponenPotong.value = d.komponenSpk?.ListPotong || [];
@@ -353,20 +328,28 @@ onMounted(async () => {
     ketKomponenList.value = (d.ketKomponenList || []).filter(
       (k: any) => k.checked,
     );
-    alokasi.value = resAlokasi.data.data || [];
 
-    layoutHeader.value = resLayout.data.data?.header || null;
-    layoutProof.value = resLayout.data.data?.proof || [];
-    layoutSewing.value = resLayout.data.data?.sewing || [];
+    // 💡 FIX 1 (Lanjutan): Endpoint opsional menggunakan Promise.allSettled agar tidak melempar error utama jika kosong
+    await Promise.allSettled([
+      soToSpkService.getLayoutProses(printNomor).then((resLayout) => {
+        layoutHeader.value = resLayout.data.data?.header || null;
+        layoutProof.value = resLayout.data.data?.proof || [];
+        layoutSewing.value = resLayout.data.data?.sewing || [];
+      }),
+      soToSpkService.getAlokasi(printNomor).then((resAlokasi) => {
+        alokasi.value = resAlokasi.data.data || [];
+      }),
+    ]);
 
-    // Fetch MKB pakai spk_so_ref yang sudah diketahui
     if (spk.value.spk_so_ref) {
-      const resMkb = await soToSpkService.getMkbDetail(spk.value.spk_so_ref);
-      mkbDetail.value = resMkb.data.data || [];
+      try {
+        const resMkb = await soToSpkService.getMkbDetail(spk.value.spk_so_ref);
+        mkbDetail.value = resMkb.data.data || [];
+      } catch {
+        mkbDetail.value = [];
+      }
     }
 
-    // Fetch MKA (accessories + babaran) dari BAST MAP kalau SPK ini
-    // berasal dari MAP — sama sumbernya dgn panel di SpkTabKeterangan
     if (spk.value.spk_memo) {
       try {
         const resMka = await api.get(
@@ -383,15 +366,20 @@ onMounted(async () => {
     }
 
     isLoaded.value = true;
+
+    // 💡 FIX 3: Dinamisasi Orientasi Cetak (Landscape / Portrait)
     if (isSpandukMmtPrint.value || isP01Print.value) {
-      injectPageStyle("@page { size: A4 landscape; margin: 8mm 10mm; }");
+      injectPageStyle(
+        "@page { size: A4 landscape; margin: 8mm 10mm !important; }",
+      );
     } else {
-      injectPageStyle("@page { size: A4 portrait; margin: 0; }");
+      injectPageStyle("@page { size: A4 portrait; margin: 0mm !important; }");
       if (!isAnyLegacyPrint.value) {
         await nextTick();
         await fitPageToA4();
       }
     }
+
     if (!isPreview.value) {
       setTimeout(() => window.print(), 400);
     }
@@ -414,21 +402,21 @@ onMounted(async () => {
       tercatat: {{ authStore.userName }}.
     </div>
 
-    <!-- Watermark tile, hanya render di mode preview -->
+    <!-- Watermark tile -->
     <div v-if="isPreview" class="preview-watermark" aria-hidden="true">
       <span v-for="(t, i) in watermarkTiles" :key="i" class="wm-tile">{{
         t
       }}</span>
     </div>
 
-    <!-- Pesan yang MUNCUL kalau print tetap ke-trigger (fallback CSS) -->
     <div class="preview-print-blocked-msg">
       Dokumen ini tidak dapat dicetak melalui mode Preview.<br />
       Silakan gunakan tombol "Cetak" resmi di halaman SPK.
     </div>
+
     <!-- ══════════════════════════════════════════════
-       FORMAT LAMA — khusus Workshop P01
-  ══════════════════════════════════════════════ -->
+        FORMAT LAMA — khusus Workshop P01
+    ══════════════════════════════════════════════ -->
     <template v-if="isP01Print">
       <div class="print-container-p01">
         <div class="print-page-p01">
@@ -438,10 +426,19 @@ onMounted(async () => {
           </div>
 
           <div class="body-p01">
-            <!-- Kiri -->
             <div class="kiri-p01">
               <table class="info-table-p01">
                 <tbody>
+                  <!-- 💡 FIX 2: Tampilkan Nomor SO di atas Nomor SPK -->
+                  <tr>
+                    <td class="w-label-p01">Nomor SO</td>
+                    <td class="w-colon-p01">:</td>
+                    <td>
+                      <span class="fw-p01">{{
+                        spk.spk_so_ref || spk.SO || "-"
+                      }}</span>
+                    </td>
+                  </tr>
                   <tr>
                     <td class="w-label-p01">Nomor SPK</td>
                     <td class="w-colon-p01">:</td>
@@ -580,7 +577,6 @@ onMounted(async () => {
           </div>
         </div>
 
-        <!-- Alokasi — tetap halaman terpisah kalau ada -->
         <div v-if="alokasi.length > 0" class="print-page-p01 alokasi-page-p01">
           <h2 class="alokasi-title-p01">ALOKASI PENGIRIMAN :</h2>
           <table class="alokasi-table-p01 mt-2-p01">
@@ -616,8 +612,8 @@ onMounted(async () => {
     </template>
 
     <!-- ══════════════════════════════════════════════
-       SPANDUK/MMT — Workshop P02/P05, gaya SO landscape 2-copy
-  ══════════════════════════════════════════════ -->
+        SPANDUK/MMT — Workshop P02/P05, gaya SO landscape 2-copy
+    ══════════════════════════════════════════════ -->
     <template v-else-if="isSpandukMmtPrint">
       <div class="print-container-so">
         <div class="print-wrapper-so">
@@ -634,6 +630,14 @@ onMounted(async () => {
 
             <table class="info-table-so">
               <tbody>
+                <!-- 💡 FIX 2: Tampilkan Nomor SO di atas Nomor SPK -->
+                <tr>
+                  <td class="w-label-so">Nomor SO</td>
+                  <td class="w-colon-so">:</td>
+                  <td colspan="3" class="fw-so">
+                    {{ spk.spk_so_ref || spk.SO || "-" }}
+                  </td>
+                </tr>
                 <tr>
                   <td class="w-label-so">Nomor SPK</td>
                   <td class="w-colon-so">:</td>
@@ -775,7 +779,6 @@ Keterangan Komponen :
             </div>
           </div>
 
-          <!-- Alokasi — halaman terpisah, sama gaya panel SO -->
           <div v-if="alokasi.length > 0" class="print-half-so alokasi-panel-so">
             <h2 class="alokasi-title-so">ALOKASI PENGIRIMAN :</h2>
             <table class="alokasi-table-so mt-2-so">
@@ -812,12 +815,9 @@ Keterangan Komponen :
     </template>
 
     <!-- ══════════════════════════════════════════════
-       FORMAT BARU — semua workshop selain P01
-  ══════════════════════════════════════════════ -->
-    <template v-else>
-      <!-- ══════════════════════════════════════════════
-         HALAMAN 1 — Data SPK
+        FORMAT BARU — semua workshop selain P01/P02/P05
     ══════════════════════════════════════════════ -->
+    <template v-else>
       <div
         class="print-page page-1"
         :class="{ 'print-page--multi': p1MultiPage }"
@@ -842,7 +842,11 @@ Keterangan Komponen :
               <div class="ph-title">Surat Perintah Kerja</div>
             </div>
             <div class="ph-right">
-              <div class="ph-nomor">{{ spk.spk_nomor }}</div>
+              <!-- 💡 FIX 2: Tampilkan Nomor SO di atas Nomor SPK pada Header Utama -->
+              <div class="ph-so-nomor">
+                SO: {{ spk.spk_so_ref || spk.SO || "-" }}
+              </div>
+              <div class="ph-nomor">SPK: {{ spk.spk_nomor }}</div>
               <div class="ph-meta">Tgl: {{ tglIndo(spk.spk_tanggal) }}</div>
               <div class="ph-meta">Workshop: {{ spk.spk_cab }}</div>
             </div>
@@ -850,7 +854,6 @@ Keterangan Komponen :
 
           <!-- Body halaman 1 -->
           <div class="p1-body">
-            <!-- Baris 1: Info SO (kiri) + Gambar (kanan) -->
             <div class="p1-row-top">
               <div class="box p1-info">
                 <div class="box-title">Referensi Sales Order</div>
@@ -858,7 +861,7 @@ Keterangan Komponen :
                   <tr>
                     <td class="fl">No. SO</td>
                     <td class="fc">:</td>
-                    <td class="fv">{{ spk.spk_so_ref || "-" }}</td>
+                    <td class="fv fw">{{ spk.spk_so_ref || spk.SO || "-" }}</td>
                   </tr>
                   <tr>
                     <td class="fl">Nama pekerjaan</td>
@@ -1058,7 +1061,7 @@ Keterangan Komponen :
               </table>
             </div>
 
-            <!-- Baris 3: MKB (atas) -->
+            <!-- Baris 3: MKB -->
             <div class="box mb-6">
               <div class="box-title">Kebutuhan Bahan (MKB)</div>
               <table class="dt">
@@ -1098,9 +1101,8 @@ Keterangan Komponen :
               </table>
             </div>
 
-            <!-- Baris 4: Komponen Potong (kiri, lebar) + MKA (kanan, sempit) -->
+            <!-- Baris 4: Komponen Potong + MKA -->
             <div class="p1-row-potong-mka mb-6">
-              <!-- Komponen Potong — dapat ruang penuh, bisa panjang -->
               <div class="box">
                 <div class="box-title">Komponen Potong</div>
                 <table class="dt">
@@ -1124,7 +1126,6 @@ Keterangan Komponen :
                 </table>
               </div>
 
-              <!-- MKA — dipersempit ke kanan -->
               <div v-if="hasMkaFromMap" class="box mka-narrow">
                 <div class="box-title">
                   Aksesoris &amp; Babaran (BAST MAP {{ spk.spk_memo }})
@@ -1213,7 +1214,7 @@ Keterangan Komponen :
               </div>
             </div>
 
-            <!-- Baris 5: Special Process (kalau ada) + Second Process -->
+            <!-- Baris 5: Special Process + Second Process -->
             <div
               class="p1-row-komp mb-6"
               :class="{ 'no-special': keteranganKhusus.length === 0 }"
@@ -1275,7 +1276,7 @@ Keterangan Komponen :
               </div>
             </div>
 
-            <!-- Baris 6: Keterangan Produksi — full width sekarang -->
+            <!-- Baris 6: Keterangan Produksi -->
             <div class="box mb-6">
               <div class="box-title">Keterangan produksi</div>
               <pre class="ket-pre ket-produksi">{{
@@ -1283,7 +1284,7 @@ Keterangan Komponen :
               }}</pre>
             </div>
 
-            <!-- Planning PPIC — breakdown target per proses, diisi manual pakai bolpoin -->
+            <!-- Planning PPIC -->
             <div class="box mb-6">
               <div class="box-title">
                 Planning PPIC — Target Tiap Proses
@@ -1338,15 +1339,15 @@ Keterangan Komponen :
               >Dibuat: {{ spk.user_create }} —
               {{ formatWaktu(spk.date_create) }}</span
             >
-            <span>Referensi SO: {{ spk.spk_so_ref || "—" }}</span>
+            <span>Referensi SO: {{ spk.spk_so_ref || spk.SO || "—" }}</span>
           </div>
         </div>
       </div>
+
       <!-- ══════════════════════════════════════════════
-         HALAMAN 2 — Layout Proses Sewing
-    ══════════════════════════════════════════════ -->
+          HALAMAN 2 — Layout Proses Sewing
+      ══════════════════════════════════════════════ -->
       <div v-if="hasLayoutProses" class="print-page page-2">
-        <!-- Header -->
         <div class="ph">
           <div class="ph-left">
             <img src="@/assets/logo.png" class="ph-logo" />
@@ -1355,11 +1356,14 @@ Keterangan Komponen :
             <div class="ph-title">Layout Proses Sewing</div>
           </div>
           <div class="ph-right">
+            <div class="ph-so-nomor">
+              SO: {{ spk.spk_so_ref || spk.SO || "-" }}
+            </div>
             <div class="ph-nomor">{{ spk.spk_nomor }}</div>
             <div class="ph-meta">{{ spk.spk_nama }}</div>
           </div>
         </div>
-        <!-- Info header layout -->
+
         <div class="layout-info">
           <div class="li-item">
             <div class="li-lbl">No memo</div>
@@ -1394,7 +1398,7 @@ Keterangan Komponen :
             <div class="li-val">{{ layoutHeader?.lh_target_hari || "—" }}</div>
           </div>
         </div>
-        <!-- Tabel Proof (kiri) & Sewing (kanan) — side by side seperti Excel -->
+
         <div class="layout-row">
           <div class="layout-section layout-section--half">
             <div class="layout-sec-title proof-title">Proses</div>
@@ -1487,7 +1491,7 @@ Keterangan Komponen :
             </table>
           </div>
         </div>
-        <!-- Summary & Total -->
+
         <div class="layout-section">
           <table class="lt lt-summary">
             <tbody>
@@ -1518,7 +1522,7 @@ Keterangan Komponen :
             </tbody>
           </table>
         </div>
-        <!-- Footer halaman 2 -->
+
         <div class="pf">
           <span
             >Dibuat: {{ spk.user_create }} —
@@ -1593,6 +1597,11 @@ Keterangan Komponen :
   letter-spacing: 1px;
   color: #000;
 }
+.ph-so-nomor {
+  font-size: 9pt;
+  font-weight: bold;
+  color: #1565c0;
+}
 .ph-nomor {
   font-size: 11pt;
   font-weight: bold;
@@ -1633,23 +1642,13 @@ Keterangan Komponen :
   grid-template-columns: 1fr 1.6fr;
   gap: 8px;
 }
-.p1-row-ket {
-  display: grid;
-  grid-template-columns: 1fr 2fr;
-  gap: 8px;
-}
-.p1-row-ket .full-span {
-  grid-column: 1 / -1;
-}
 
-/* Special process dan gudang lebih compact */
 .ket-small {
   font-size: 7.5pt;
   max-height: 60px;
   overflow: hidden;
 }
 
-/* Keterangan produksi — lebih tinggi, font sedikit lebih besar */
 .ket-produksi {
   font-size: 9pt;
   min-height: 54px;
@@ -1660,7 +1659,6 @@ Keterangan Komponen :
   margin-bottom: 6px;
 }
 
-/* ── Boxes ── */
 .box {
   border: 0.5px solid #aaa;
   border-radius: 3px;
@@ -1720,7 +1718,6 @@ Keterangan Komponen :
   object-fit: contain;
 }
 
-/* ── Field table ── */
 .ft {
   width: 100%;
   border-collapse: collapse;
@@ -1748,7 +1745,6 @@ Keterangan Komponen :
   font-weight: bold;
 }
 
-/* ── Data table ── */
 .dt {
   width: 100%;
   border-collapse: collapse;
@@ -1774,12 +1770,11 @@ Keterangan Komponen :
   font-weight: bold;
 }
 
-/* ── Proses (Back Color Saja) ── */
 .proses-bg {
   display: inline-block;
   margin-right: 4px;
-  padding: 0 4px; /* Sedikit spasi agar tidak terlalu mepet teks */
-  color: #000; /* Teks tetap hitam normal */
+  padding: 0 4px;
+  color: #000;
 }
 .fv-between {
   display: flex;
@@ -1787,21 +1782,19 @@ Keterangan Komponen :
   align-items: center;
 }
 .bg-green-light {
-  background-color: #c8e6c9; /* Hijau muda */
+  background-color: #c8e6c9;
 }
 .bg-blue-light {
-  background-color: #bbdefb; /* Biru muda */
+  background-color: #bbdefb;
 }
 .bg-yellow-light {
-  background-color: #fff59d; /* Kuning muda, sama pola dgn secondary process */
+  background-color: #fff59d;
 }
 
-/* Tambahkan ini untuk memastikan table header yang center benar-benar di tengah */
 .dt thead th.tc {
   text-align: center;
 }
 
-/* ── Keterangan ── */
 .ket-list {
   padding: 4px 6px;
   font-size: 8pt;
@@ -1820,7 +1813,6 @@ Keterangan Komponen :
   font-style: italic;
 }
 
-/* ── TTD ── */
 .ttd-row {
   display: flex;
   justify-content: space-between;
@@ -1861,7 +1853,6 @@ Keterangan Komponen :
   font-family: "Courier New", monospace;
 }
 
-/* ── Page footer ── */
 .pf {
   display: flex;
   justify-content: space-between;
@@ -1879,7 +1870,6 @@ Keterangan Komponen :
   font-size: 6.5pt;
 }
 
-/* ── Auto-fit A4 (Page 1, format baru) ── */
 .print-page.page-1 {
   min-height: 297mm;
   overflow: visible;
@@ -1896,7 +1886,6 @@ Keterangan Komponen :
   flex: 1;
 }
 
-/* Cegah baris tabel/box kepotong di tengah pas fallback multi-halaman */
 .dt tbody tr {
   break-inside: avoid;
 }
@@ -1910,7 +1899,6 @@ Keterangan Komponen :
   page-break-inside: avoid;
 }
 
-/* ── Page 2 — Layout ── */
 .layout-info {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -1951,7 +1939,6 @@ Keterangan Komponen :
   background: #1565c0;
 }
 
-/* ── Layout table ── */
 .lt {
   width: 100%;
   border-collapse: collapse;
@@ -1987,154 +1974,6 @@ Keterangan Komponen :
   white-space: pre-line;
   font-size: 7pt;
   color: #2e7d32;
-}
-
-.merged-title {
-  background: #1565c0;
-}
-
-/* ══ FORMAT LAMA (P01) ══ */
-.print-page-old {
-  width: 210mm;
-  min-height: 297mm;
-  margin: 0 auto;
-  padding: 12mm;
-  box-sizing: border-box;
-  font-family: "Arial", sans-serif;
-  font-size: 9pt;
-  color: #000;
-}
-.old-border {
-  border: 1px solid #b8860b;
-  padding: 14px 18px;
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-}
-.old-header-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  margin-bottom: 10px;
-}
-.old-title {
-  font-size: 15pt;
-  font-weight: bold;
-  text-decoration: underline;
-}
-.old-po {
-  font-size: 12pt;
-  font-weight: bold;
-  text-decoration: underline;
-}
-.old-body {
-  flex: 1;
-  position: relative;
-}
-.old-info-table {
-  border-collapse: collapse;
-  font-size: 9pt;
-}
-.old-info-table td {
-  padding: 1.5px 4px;
-  vertical-align: top;
-}
-.old-lbl {
-  width: 90px;
-  font-weight: normal;
-}
-.old-colon {
-  width: 10px;
-}
-.old-tipe {
-  position: absolute;
-  top: 40px;
-  left: 320px;
-  font-weight: bold;
-  font-size: 9pt;
-}
-.old-img-wrap {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  min-height: 140px;
-  max-height: 200px;
-  margin: 14px 0;
-}
-.old-img {
-  max-width: 100%;
-  max-height: 200px;
-  object-fit: contain;
-}
-.old-section {
-  margin-top: 12px;
-}
-.old-section-title {
-  font-weight: bold;
-  text-decoration: underline;
-  margin-bottom: 4px;
-  font-size: 9pt;
-}
-.old-komp-list {
-  font-size: 8.5pt;
-}
-.old-komp-item {
-  margin-bottom: 2px;
-}
-.old-size-pre,
-.old-ket-pre {
-  font-family: inherit;
-  font-size: 8.5pt;
-  white-space: pre-wrap;
-  margin: 0;
-  line-height: 1.4;
-}
-.old-ket-produksi {
-  margin-top: 14px;
-}
-.old-ttd-wrap {
-  display: flex;
-  justify-content: center;
-  margin-top: 16px;
-}
-.old-ttd-table {
-  width: 220px;
-  border-collapse: collapse;
-  text-align: center;
-  font-size: 9pt;
-  border: 1px solid #000;
-}
-.old-ttd-table td {
-  border: 1px solid #000;
-  padding: 3px;
-  font-weight: bold;
-}
-.old-sign-space {
-  position: relative;
-  height: 55px;
-  vertical-align: bottom;
-  padding-bottom: 3px;
-}
-.old-ttd-img {
-  position: absolute;
-  top: 4px;
-  left: 50%;
-  transform: translateX(-50%);
-  height: 36px;
-  object-fit: contain;
-}
-.old-sign-name {
-  position: absolute;
-  bottom: 3px;
-  left: 0;
-  right: 0;
-  font-size: 8pt;
-}
-.old-footer {
-  text-align: center;
-  font-size: 8pt;
-  margin-top: 6px;
-  color: #444;
 }
 
 .layout-row {
@@ -2180,44 +2019,6 @@ Keterangan Komponen :
   padding: 3px 6px;
 }
 
-.alokasi-page-old {
-  page-break-before: always;
-  break-before: page;
-}
-.alokasi-title-old {
-  font-size: 15pt;
-  font-weight: bold;
-  text-decoration: underline;
-  margin-bottom: 12px;
-}
-.alokasi-table-old {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 9pt;
-  color: #000;
-}
-.alokasi-table-old th,
-.alokasi-table-old td {
-  border: 1px solid #000;
-  padding: 4px 6px;
-  color: #000 !important;
-}
-.alokasi-table-old th {
-  font-weight: bold;
-}
-.text-left {
-  text-align: left;
-}
-.text-center {
-  text-align: center;
-}
-.pl-2 {
-  padding-left: 8px;
-}
-.mt-2 {
-  margin-top: 8px;
-}
-
 .p1-row-potong-mka {
   display: grid;
   grid-template-columns: 1.8fr 1fr;
@@ -2235,6 +2036,7 @@ Keterangan Komponen :
 .dt-narrow td {
   padding: 2px 4px;
 }
+
 /* ── Screen preview ── */
 @media screen {
   body {
@@ -2247,12 +2049,8 @@ Keterangan Komponen :
   }
 }
 
-/* ── Print ── */
+/* 💡 FIX 3: Dihapus kaitan hardcoded @page di sini agar tidak memblokir injectPageStyle() */
 @media print {
-  @page {
-    size: A4 portrait;
-    margin: 0;
-  }
   body {
     margin: 0;
     padding: 0;
@@ -2288,7 +2086,6 @@ Keterangan Komponen :
   letter-spacing: 0.02em;
 }
 
-/* ── Mode Preview: watermark tile, transparan, non-interaktif ── */
 .preview-watermark {
   position: fixed;
   inset: 0;
@@ -2311,9 +2108,6 @@ Keterangan Komponen :
   user-select: none;
 }
 
-/* ── Mode Preview: cegah select/drag sebagai deterrent tambahan
-   (BUKAN pencegahan screenshot — screenshot tetap tidak bisa dicegah
-   dari sisi web sama sekali) ── */
 .preview-mode {
   user-select: none;
 }
@@ -2322,10 +2116,6 @@ Keterangan Komponen :
   pointer-events: none;
 }
 
-/* ── Fallback CSS: kalau print TETAP ke-trigger (misal lewat menu
-   browser yang tidak bisa di-preventDefault via JS), swap seluruh
-   konten jadi pesan blokir. Ini lapisan JAMINAN UTAMA, jauh lebih
-   reliable daripada blokir keydown di atas. ── */
 .preview-print-blocked-msg {
   display: none;
 }
@@ -2562,7 +2352,7 @@ Keterangan Komponen :
   }
 }
 
-/* ══ SPK P01 — landscape, 2 halaman, kanan = Ket. Produksi ══ */
+/* ══ SPK P01 — landscape ══ */
 .print-container-p01 {
   width: 100%;
   font-family: "Arial", sans-serif;

@@ -16,15 +16,18 @@ interface SpkDetailSize {
 }
 
 interface SpkHeader {
+  SO?: string;
   SPK: string;
+  Nomor?: string;
   MO: string;
   CMO: string;
   Tanggal: string;
-  Deadline: string;
+  Dateline?: string;
+  Deadline?: string;
   Kepentingan: string;
   Divisi: string;
   Nama: string;
-  Cabang: string;
+  Cab: string;
   Workshop: string;
   Pending: string;
   Ket_Pending: string;
@@ -84,78 +87,10 @@ const startDate = ref<string>(format(new Date(), "yyyy-MM-dd"));
 const endDate = ref<string>(format(new Date(), "yyyy-MM-dd"));
 const keyword = ref<string>("");
 
-// --- EXCEL-STYLE FILTER CABANG STATE ---
-const menuCabang = ref(false);
-const selectedCabangFilter = ref<string[]>([]);
-
-// --- EXCEL-STYLE FILTER NOMOR SPK STATE ---
-const menuSpk = ref(false);
-const filterSpkInput = ref<string>("");
-
-// Ambil daftar nilai cabang secara unik/dinamis
-const availableCabangList = computed(() => {
-  const setCabang = new Set<string>();
-  masterData.value.forEach((item) => {
-    if (item.Cabang) setCabang.add(item.Cabang);
-  });
-  return Array.from(setCabang).sort();
-});
-
-// Status Indikator Active Filter
-const isCabangFilterActive = computed(() => {
-  return (
-    selectedCabangFilter.value.length > 0 &&
-    selectedCabangFilter.value.length < availableCabangList.value.length
-  );
-});
-
-const isSpkFilterActive = computed(() => {
-  return filterSpkInput.value.trim().length > 0;
-});
-
-const isAllCabangSelected = computed(() => {
-  return (
-    availableCabangList.value.length > 0 &&
-    selectedCabangFilter.value.length === availableCabangList.value.length
-  );
-});
-
-const toggleSelectAllCabang = () => {
-  if (isAllCabangSelected.value) {
-    selectedCabangFilter.value = [];
-  } else {
-    selectedCabangFilter.value = [...availableCabangList.value];
-  }
-};
-
-const resetCabangFilter = () => {
-  selectedCabangFilter.value = [...availableCabangList.value];
-};
-
-const resetSpkFilter = () => {
-  filterSpkInput.value = "";
-};
-
-// --- GABUNGAN FILTERING LOKAL ALA EXCEL ---
-const filteredMasterData = computed(() => {
-  return masterData.value.filter((item) => {
-    // 1. Filter Cabang
-    const matchesCabang =
-      selectedCabangFilter.value.length === 0 ||
-      selectedCabangFilter.value.length === availableCabangList.value.length ||
-      selectedCabangFilter.value.includes(item.Cabang);
-
-    // 2. Filter Nomor SPK
-    const spkNomor = item.SPK || (item as any).Nomor || "";
-    const matchesSpk =
-      !filterSpkInput.value ||
-      spkNomor
-        .toLowerCase()
-        .includes(filterSpkInput.value.trim().toLowerCase());
-
-    return matchesCabang && matchesSpk;
-  });
-});
+// --- EXCEL FILTER STATES ---
+const columnSearch = ref<Record<string, string>>({});
+const selectedValues = ref<Record<string, string[]>>({});
+const menuStates = ref<Record<string, boolean>>({});
 
 // --- Table Headers ---
 const masterHeaders = [
@@ -163,18 +98,32 @@ const masterHeaders = [
     title: "Detail",
     key: "data-table-expand",
     width: "60px",
+    minWidth: "60px",
     fixed: true,
     align: "center",
   },
-  { title: "Nomor SPK", key: "SPK", width: "160px", fixed: true },
+  {
+    title: "Nomor SO",
+    key: "SO",
+    width: "160px",
+    minWidth: "160px",
+    fixed: true,
+  },
+  {
+    title: "Nomor SPK",
+    key: "SPK",
+    width: "160px",
+    minWidth: "160px",
+    fixed: true,
+  },
   { title: "MO", key: "MO", width: "100px" },
   { title: "CMO", key: "CMO", width: "120px" },
   { title: "Tanggal", key: "Tanggal", width: "110px" },
-  { title: "Deadline", key: "Deadline", width: "110px" },
+  { title: "Dateline", key: "Dateline", width: "110px" },
   { title: "Kepentingan", key: "Kepentingan", width: "120px" },
   { title: "Divisi", key: "Divisi", width: "90px" },
   { title: "Nama Pesanan", key: "Nama", width: "250px" },
-  { title: "Cabang", key: "Cabang", width: "120px" },
+  { title: "Cabang", key: "Cab", width: "120px" },
   { title: "Workshop", key: "Workshop", width: "120px" },
   { title: "Pending", key: "Pending", width: "100px" },
   { title: "Ket Pending", key: "Ket_Pending", width: "180px" },
@@ -246,6 +195,12 @@ const detailHeaders = [
 ];
 
 // --- Helpers ---
+const formatDateDisplay = (dateStr: string | null | undefined) => {
+  if (!dateStr) return "-";
+  const d = parseISO(dateStr);
+  return isValid(d) ? format(d, "dd/MM/yyyy") : "-";
+};
+
 const getStatusColor = (item: SpkHeader) => {
   if (item.STATUS === "Closed") return "grey";
   if (item.Ngedit === "WAIT") return "blue";
@@ -254,11 +209,144 @@ const getStatusColor = (item: SpkHeader) => {
   return "orange";
 };
 
-const formatDateDisplay = (dateStr: string | null | undefined) => {
-  if (!dateStr) return "-";
-  const d = parseISO(dateStr);
-  return isValid(d) ? format(d, "dd/MM/yyyy") : "-";
+const getCellValue = (item: any, key: string): string => {
+  let val = item[key];
+
+  if (key === "SPK" && (val === undefined || val === null || val === "")) {
+    val = item.Nomor;
+  }
+  if (key === "Dateline" && (val === undefined || val === null || val === "")) {
+    val = item.Deadline;
+  }
+  if (key === "Cab" && (val === undefined || val === null || val === "")) {
+    val = item.Cabang;
+  }
+
+  if (["Tanggal", "Dateline", "Deadline", "Dateline_PO"].includes(key) && val) {
+    return formatDateDisplay(val);
+  }
+
+  if (val === null || val === undefined || val === "") {
+    return "(Blank)";
+  }
+
+  return String(val);
 };
+
+const filterableHeaders = computed(() => {
+  return masterHeaders.filter((h) => h.key !== "data-table-expand");
+});
+
+// --- EXCEL FILTER CORE LOGIC ---
+const uniqueValuesMap = computed(() => {
+  const map: Record<string, string[]> = {};
+  filterableHeaders.value.forEach((h) => {
+    const key = h.key;
+    const set = new Set<string>();
+    masterData.value.forEach((item) => {
+      set.add(getCellValue(item, key));
+    });
+    map[key] = Array.from(set).sort((a, b) =>
+      a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" }),
+    );
+  });
+  return map;
+});
+
+const getFilteredPopupOptions = (key: string) => {
+  const options = uniqueValuesMap.value[key] || [];
+  const search = columnSearch.value[key]?.trim().toLowerCase();
+  if (!search) return options;
+  return options.filter((opt) => opt.toLowerCase().includes(search));
+};
+
+const isOptionSelected = (key: string, option: string) => {
+  const selected = selectedValues.value[key];
+  if (!selected) return true;
+  return selected.includes(option);
+};
+
+const toggleOption = (key: string, option: string) => {
+  if (!selectedValues.value[key]) {
+    selectedValues.value[key] = [...(uniqueValuesMap.value[key] || [])];
+  }
+  const index = selectedValues.value[key].indexOf(option);
+  if (index > -1) {
+    selectedValues.value[key].splice(index, 1);
+  } else {
+    selectedValues.value[key].push(option);
+  }
+};
+
+const selectAllFiltered = (key: string) => {
+  const visibleOptions = getFilteredPopupOptions(key);
+  const currentSelected = selectedValues.value[key] || [
+    ...(uniqueValuesMap.value[key] || []),
+  ];
+  const newSet = new Set([...currentSelected, ...visibleOptions]);
+  selectedValues.value[key] = Array.from(newSet);
+};
+
+const deselectAllFiltered = (key: string) => {
+  const visibleOptions = getFilteredPopupOptions(key);
+  const currentSelected = selectedValues.value[key] || [
+    ...(uniqueValuesMap.value[key] || []),
+  ];
+  selectedValues.value[key] = currentSelected.filter(
+    (opt) => !visibleOptions.includes(opt),
+  );
+};
+
+const isColumnFilterActive = (key: string) => {
+  const search = columnSearch.value[key]?.trim();
+  if (search) return true;
+
+  const selected = selectedValues.value[key];
+  if (!selected) return false;
+  const all = uniqueValuesMap.value[key] || [];
+  return selected.length < all.length;
+};
+
+const activeFiltersCount = computed(() => {
+  return (
+    Object.keys(columnSearch.value).filter(
+      (k) => !!columnSearch.value[k]?.trim(),
+    ).length +
+    Object.keys(selectedValues.value).filter((key) => isColumnFilterActive(key))
+      .length
+  );
+});
+
+const resetColumnFilter = (key: string) => {
+  delete selectedValues.value[key];
+  columnSearch.value[key] = "";
+};
+
+const resetAllColumnFilters = () => {
+  selectedValues.value = {};
+  columnSearch.value = {};
+};
+
+const filteredMasterData = computed(() => {
+  return masterData.value.filter((item) => {
+    return filterableHeaders.value.every((h) => {
+      const key = h.key;
+      const cellValue = getCellValue(item, key);
+
+      const searchText = columnSearch.value[key]?.trim().toLowerCase();
+      if (searchText && !cellValue.toLowerCase().includes(searchText)) {
+        return false;
+      }
+
+      const selectedArr = selectedValues.value[key];
+      if (selectedArr) {
+        return selectedArr.includes(cellValue);
+      }
+
+      return true;
+    });
+  });
+});
 
 const isSingleSelected = computed(() => selected.value.length === 1);
 const selectedItem = computed(() =>
@@ -278,7 +366,6 @@ const fetchData = async () => {
     });
     const result = res.data?.data ?? res.data;
     masterData.value = Array.isArray(result) ? result : [];
-    selectedCabangFilter.value = [...availableCabangList.value];
   } catch (e) {
     toast.error("Gagal mengambil data SO to SPK.");
   } finally {
@@ -356,10 +443,7 @@ const handlePrint = async () => {
   }
 
   try {
-    const res = await soToSpkService.checkPrintPermission(nomorSpk);
-    // if (!res.data?.data?.allowed) {
-    //   return toast.warning("Tidak mendapatkan izin mencetak SPK ini.");
-    // }
+    await soToSpkService.checkPrintPermission(nomorSpk);
     window.open(`/mmt/so-spk/print/${encodeURIComponent(nomorSpk)}`, "_blank");
     await soToSpkService.recordPrint(nomorSpk);
   } catch (e: any) {
@@ -383,6 +467,9 @@ watch([startDate, endDate], fetchData);
     v-model:selected="selected"
     v-model:expanded="expanded"
     has-print
+    fixed-header
+    height="calc(100vh - 210px)"
+    class="browse-table-container"
     @refresh="fetchData"
     @action:new="handleNew"
     @action:edit="handleEdit"
@@ -391,27 +478,46 @@ watch([startDate, endDate], fetchData);
     :row-props="getRowProps"
     @update:expanded="handleExpandUpdate(expanded)"
   >
-    <!-- Extra Filter Pencarian Umum -->
+    <!-- Extra Filter Pencarian Umum & Reset -->
     <template #extra-filters>
-      <v-text-field
-        v-model="keyword"
-        label="Cari SPK / Nama"
-        density="compact"
-        hide-details
-        variant="outlined"
-        append-inner-icon="mdi-magnify"
-        style="min-width: 200px"
-        @keyup.enter="fetchData"
-      />
+      <div class="d-flex align-center ga-2">
+        <v-text-field
+          v-model="keyword"
+          label="Cari SPK / SO / Nama"
+          density="compact"
+          hide-details
+          variant="outlined"
+          append-inner-icon="mdi-magnify"
+          style="min-width: 200px"
+          @keyup.enter="fetchData"
+        />
+
+        <v-btn
+          v-if="activeFiltersCount > 0"
+          color="warning"
+          variant="tonal"
+          size="small"
+          prepend-icon="mdi-filter-off"
+          @click="resetAllColumnFilters"
+        >
+          Reset Filter ({{ activeFiltersCount }})
+        </v-btn>
+      </div>
     </template>
 
-    <!-- 1. EXCEL-STYLE FILTER HEADER NOMOR SPK -->
-    <template #header.SPK="{ column }">
+    <!-- DYNAMIC EXCEL FILTER PER KOLOM HEADER -->
+    <template
+      v-for="header in filterableHeaders"
+      :key="header.key"
+      #[`header.${header.key}`]="{ column }"
+    >
       <div class="d-flex align-center justify-space-between w-100">
-        <span class="font-weight-bold">{{ column.title }}</span>
+        <span class="font-weight-bold text-truncate mr-1">{{
+          column.title
+        }}</span>
 
         <v-menu
-          v-model="menuSpk"
+          v-model="menuStates[header.key]"
           :close-on-content-click="false"
           location="bottom start"
         >
@@ -420,134 +526,99 @@ watch([startDate, endDate], fetchData);
               icon
               variant="text"
               density="compact"
-              size="small"
+              size="x-small"
               v-bind="props"
-              :color="isSpkFilterActive ? 'primary' : 'default'"
+              :color="
+                isColumnFilterActive(header.key) ? 'primary' : 'grey-darken-1'
+              "
             >
-              <v-icon size="18">
-                {{ isSpkFilterActive ? "mdi-filter" : "mdi-filter-variant" }}
+              <v-icon size="16">
+                {{
+                  isColumnFilterActive(header.key)
+                    ? "mdi-filter"
+                    : "mdi-filter-variant"
+                }}
               </v-icon>
             </v-btn>
           </template>
 
-          <v-card min-width="240" class="pa-2 border shadow-2 rounded-lg">
-            <div
-              class="text-caption font-weight-bold px-1 py-1 text-grey-darken-1"
-            >
-              Cari Nomor SPK
-            </div>
-            <v-divider class="mb-2" />
-
+          <v-card
+            min-width="280"
+            max-width="320"
+            class="pa-2 border shadow-2 rounded-lg"
+          >
             <v-text-field
-              v-model="filterSpkInput"
-              placeholder="Ketik Nomor SPK..."
+              v-model="columnSearch[header.key]"
               density="compact"
               variant="outlined"
               hide-details
               clearable
               autofocus
-              append-inner-icon="mdi-magnify"
-              @keyup.enter="menuSpk = false"
+              placeholder="Cari..."
+              class="mb-1"
             />
 
-            <v-divider class="mt-3 mb-2" />
-
-            <div class="d-flex justify-space-between align-center">
-              <v-btn
-                size="x-small"
-                variant="text"
-                color="grey-darken-1"
-                @click="resetSpkFilter"
-              >
-                Reset
-              </v-btn>
-              <v-btn
-                size="x-small"
-                color="primary"
-                variant="flat"
-                @click="menuSpk = false"
-              >
-                OK
-              </v-btn>
+            <div class="text-caption text-grey-darken-1 my-1 px-1">
+              {{ getFilteredPopupOptions(header.key).length }} dari
+              {{ (uniqueValuesMap[header.key] || []).length }} nilai ditampilkan
             </div>
-          </v-card>
-        </v-menu>
-      </div>
-    </template>
 
-    <!-- 2. EXCEL-STYLE FILTER HEADER CABANG -->
-    <template #header.Cabang="{ column }">
-      <div class="d-flex align-center justify-space-between w-100">
-        <span class="font-weight-bold">{{ column.title }}</span>
-
-        <v-menu
-          v-model="menuCabang"
-          :close-on-content-click="false"
-          location="bottom end"
-        >
-          <template #activator="{ props }">
-            <v-btn
-              icon
-              variant="text"
-              density="compact"
-              size="small"
-              v-bind="props"
-              :color="isCabangFilterActive ? 'primary' : 'default'"
-            >
-              <v-icon size="18">
-                {{ isCabangFilterActive ? "mdi-filter" : "mdi-filter-variant" }}
-              </v-icon>
-            </v-btn>
-          </template>
-
-          <v-card min-width="220" class="pa-2 border shadow-2 rounded-lg">
-            <div
-              class="text-caption font-weight-bold px-2 py-1 text-grey-darken-1"
-            >
-              Filter Cabang
+            <div class="d-flex ga-2 px-1 mb-2 text-caption font-weight-medium">
+              <a
+                href="#"
+                class="text-primary text-decoration-none"
+                @click.prevent="selectAllFiltered(header.key)"
+              >
+                Tampilkan Semua
+              </a>
+              <span class="text-grey-lighten-1">|</span>
+              <a
+                href="#"
+                class="text-error text-decoration-none"
+                @click.prevent="deselectAllFiltered(header.key)"
+              >
+                Sembunyikan Semua
+              </a>
             </div>
-            <v-divider class="mb-1" />
 
-            <v-checkbox
-              :model-value="isAllCabangSelected"
-              label="(Select All)"
-              density="compact"
-              hide-details
-              color="primary"
-              @click="toggleSelectAllCabang"
-            />
+            <v-divider />
 
-            <v-divider class="my-1" />
-
-            <div style="max-height: 180px; overflow-y: auto">
+            <div style="max-height: 220px; overflow-y: auto" class="my-1 px-1">
               <v-checkbox
-                v-for="cbg in availableCabangList"
-                :key="cbg"
-                v-model="selectedCabangFilter"
-                :value="cbg"
-                :label="cbg"
+                v-for="opt in getFilteredPopupOptions(header.key)"
+                :key="opt"
+                :label="opt"
+                :model-value="isOptionSelected(header.key, opt)"
                 density="compact"
                 hide-details
                 color="primary"
+                @update:model-value="toggleOption(header.key, opt)"
               />
+              <div
+                v-if="getFilteredPopupOptions(header.key).length === 0"
+                class="text-caption text-grey text-center py-4"
+              >
+                Tidak ada data
+              </div>
             </div>
 
-            <v-divider class="mt-1 mb-2" />
+            <v-divider class="mb-2" />
 
             <div class="d-flex justify-space-between align-center">
               <v-btn
                 size="x-small"
                 variant="text"
                 color="grey-darken-1"
-                @click="resetCabangFilter"
+                @click="resetColumnFilter(header.key)"
               >
                 Reset
               </v-btn>
               <v-btn
-                size="x-small"
+                size="small"
                 color="primary"
                 variant="flat"
-                @click="menuCabang = false"
+                class="px-4 font-weight-bold"
+                @click="menuStates[header.key] = false"
               >
                 OK
               </v-btn>
@@ -557,9 +628,17 @@ watch([startDate, endDate], fetchData);
       </div>
     </template>
 
-    <!-- Slot Custom Datatable Items -->
+    <!-- Slot Custom Item untuk Nomor SO -->
+    <template #item.SO="{ value }">
+      <span class="font-weight-medium text-primary">
+        {{ value || "-" }}
+      </span>
+    </template>
+
+    <!-- Slot Custom Item untuk Nomor SPK -->
     <template #item.SPK="{ item }">
       <v-chip
+        v-if="item.SPK || (item as any).Nomor"
         :color="getStatusColor(item)"
         size="x-small"
         label
@@ -567,14 +646,21 @@ watch([startDate, endDate], fetchData);
       >
         {{ item.SPK || (item as any).Nomor }}
       </v-chip>
+      <span v-else class="text-caption text-grey">-</span>
     </template>
 
+    <!-- Slot Custom Item untuk Cabang -->
+    <template #item.Cab="{ value, item }">
+      {{ value || item.Cabang || "-" }}
+    </template>
+
+    <!-- Format Tanggal Dateline & Tanggal Lainya -->
     <template #item.Tanggal="{ value }">
       {{ formatDateDisplay(value) }}
     </template>
 
-    <template #item.Deadline="{ value }">
-      {{ formatDateDisplay(value) }}
+    <template #item.Dateline="{ item }">
+      {{ formatDateDisplay(item.Dateline || item.Deadline) }}
     </template>
 
     <template #item.Dateline_PO="{ value }">
@@ -593,7 +679,7 @@ watch([startDate, endDate], fetchData);
       </div>
     </template>
 
-    <!-- Expanded Detail Row (Detail Ukuran / Size) -->
+    <!-- Expanded Detail Row -->
     <template #expanded-content="{ item }">
       <div
         v-if="isLoadingDetails(item.SPK || (item as any).Nomor)"
@@ -672,5 +758,42 @@ watch([startDate, endDate], fetchData);
 }
 :deep(.v-data-table__tr.row-selected:hover > td) {
   background-color: #c0e4ff !important;
+}
+
+/* 💡 MENYESUAIKAN TINGGI DAN PENGUNCIAN HEADER & FOOTER */
+:deep(.v-table) {
+  display: flex !important;
+  flex-direction: column !important;
+  height: calc(
+    100vh - 210px
+  ) !important; /* Sesuaikan angka ini dengan tinggi navbar/filter atas Anda */
+}
+
+/* Area Isi Data (tbody) Mengisi Sisa Ruang dan Ter-scroll */
+:deep(.v-table__wrapper) {
+  flex: 1 1 auto !important;
+  overflow-y: auto !important;
+  overflow-x: auto !important;
+}
+
+/* Footer (Pagination) Tetap Diam di Bawah */
+:deep(.v-data-table-footer) {
+  flex: 0 0 auto !important;
+  border-top: 1px solid rgba(0, 0, 0, 0.12);
+  background-color: #ffffff !important;
+}
+
+/* Header (thead) Sticky / Terkunci di Atas */
+:deep(.v-data-table__thead) {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 10 !important;
+  background-color: #ffffff !important;
+}
+
+/* Mencegah Celah/Gap Antar Kolom Fixed */
+:deep(.v-data-table__th--fixed),
+:deep(.v-data-table__td--fixed) {
+  box-sizing: border-box !important;
 }
 </style>

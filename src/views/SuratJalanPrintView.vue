@@ -709,32 +709,21 @@ onMounted(() => {
 ========================================================= */
 
 .a4-sheet {
-  width: 210mm !important;
-  height: 297mm !important;
+  width: 210mm;
 
-  margin: 0 !important;
-  padding: 0 !important;
+  height: 297mm;
 
-  box-sizing: border-box !important;
+  background: white;
 
-  display: flex !important;
-  flex-direction: column !important;
+  margin: 12px auto;
 
-  background: #ffffff !important;
+  box-sizing: border-box;
 
-  position: relative !important;
+  position: relative;
 
-  page-break-after: always !important;
-  break-after: page !important;
+  display: flex;
 
-  page-break-inside: avoid !important;
-  break-inside: avoid !important;
-}
-
-/* JANGAN buat halaman kosong setelah A4 terakhir */
-.a4-sheet:last-child {
-  page-break-after: auto !important;
-  break-after: auto !important;
+  flex-direction: column;
 }
 
 /* =========================================================
