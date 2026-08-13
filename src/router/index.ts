@@ -136,6 +136,7 @@ import FormSoToSpkView from "@/views/FormSoToSpkView.vue";
 import SoToSpkPrintView from "@/views/SoToSpkPrintView.vue";
 import FormPoPaperprintView from "@/views/FormPoPaperprintView.vue";
 import mapView from "@/views/mapView.vue";
+import MapPrintView from "@/views/MapPrintView.vue";
 
 const routes: RouteRecordRaw[] = [
   {
@@ -235,11 +236,12 @@ const routes: RouteRecordRaw[] = [
         component: FormSoToSpkView,
       },
       {
-        path: "mmt/so-spk/print/:nomor",
-        name: "SoToSpkPrint",
-        component: SoToSpkPrintView,
-        props: true,
+        path: "/mmt/so-spk/print/:nomor",
+        name: "MmtSoSpkPrint",
+        component: () => import("@/views/SoToSpkPrintView.vue"),
+        meta: { title: "Cetak SPK" },
       },
+
       {
         path: "mmt/jadwal-kirim",
         name: "JadwalKirimBrowse",
@@ -681,6 +683,11 @@ const routes: RouteRecordRaw[] = [
         path: "mmt/map",
         name: "MapBrowse",
         component: mapView,
+      },
+      {
+        path: "mmt/map/print/:nomor",
+        name: "MapPrint",
+        component: MapPrintView,
       },
       {
         path: "mmt/search-barcode",

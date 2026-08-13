@@ -48,9 +48,28 @@ const getBaseUrl = () => {
 
 const resolvedImageUrl = ref("");
 const isLoadingImage = ref(false);
+const kaosanExtIndex = ref(0);
+const KAOSAN_EXTENSIONS = ["png", "jpeg", "jpg"];
+
+const buildKaosanUrl = (cabangKaosan: string, invdc: string, ext: string) => {
+  const targetUrl = `https://retail.kaosanofficial.com/images/${cabangKaosan}/${encodeURIComponent(invdc)}.${ext}`;
+  return `${api.defaults.baseURL}/proxy-image?url=${encodeURIComponent(targetUrl)}`;
+};
+
+const isKaosan = computed(() => {
+  const divisi = String(spk.value.spk_divisi || "").toUpperCase();
+  return (
+    divisi.includes("KAOSAN") || divisi === "3" || divisi.includes("DIVISI 3")
+  );
+});
+
+const isNewFormatSO = computed(() =>
+  String(spk.value.spk_nomor || "").startsWith("SPK-"),
+);
 
 const authStore = useAuthStore();
 const isPreview = computed(() => route.query.preview === "1");
+
 const previewWatermarkText = computed(() => {
   const user = authStore.userName || authStore.user?.kode || "USER";
   const now = new Date().toLocaleString("id-ID", {
@@ -62,28 +81,66 @@ const previewWatermarkText = computed(() => {
   });
   return `${user} • ${now} • PREVIEW - DILARANG DICETAK`;
 });
+
 const watermarkTiles = computed(() =>
   Array(60).fill(previewWatermarkText.value),
 );
 
+// Pilihan lokasi file gambar desain
 const resolveDesignImage = () => {
   if (!spk.value.spk_nomor) {
     resolvedImageUrl.value = "";
     return;
   }
+
+  if (isKaosan.value && isNewFormatSO.value && spk.value.spk_invdc) {
+    kaosanExtIndex.value = 0;
+    const cab = spk.value.spk_cab || "HO-";
+    const invdc = spk.value.spk_invdc;
+    const cabangKaosan = invdc.includes(".") ? invdc.split(".")[0] : cab;
+    isLoadingImage.value = true;
+    tryKaosanExt(cabangKaosan, invdc, 0);
+    return;
+  }
+
   const base = getBaseUrl();
   const cab = spk.value.spk_cab || "HO-";
-  const soRef = spk.value.spk_so_ref || spk.value.spk_nomor;
+  const nomor = spk.value.spk_nomor;
+  const soRef = spk.value.spk_so_ref || "";
   const mapNomor = spk.value.spk_memo || "";
-
-  const candidates = [`${base}/images/${cab}/${encodeURIComponent(soRef)}.jpg`];
-  if (mapNomor) {
-    candidates.push(
-      `${base}/images/${cab}/map/${encodeURIComponent(mapNomor)}.jpg`,
-    );
+  const fallbackSoNomor = nomor.startsWith("SPK-")
+    ? nomor.replace("SPK-", "SO-")
+    : nomor.startsWith("SO-")
+      ? nomor
+      : `SO-${nomor}`;
+  const isLegacyFormat = !nomor.startsWith("SPK-");
+  const candidates: string[] = [];
+  const mapCandidates = mapNomor
+    ? [
+        `/file-gambar/${encodeURIComponent(mapNomor)}.jpg`,
+        `${base}/images/${cab}/map/${encodeURIComponent(mapNomor)}.jpg`,
+        `${base}/images/${cab}/${encodeURIComponent(mapNomor)}.jpg`,
+      ]
+    : [];
+  const ownCandidates = [
+    `${base}/images/${cab}/${encodeURIComponent(nomor)}.jpg`,
+    `/file-gambar/${encodeURIComponent(nomor)}.jpg`,
+  ];
+  if (isLegacyFormat) {
+    candidates.push(...ownCandidates, ...mapCandidates);
+  } else {
+    candidates.push(...mapCandidates, ...ownCandidates);
   }
-  candidates.push(`/file-gambar/${encodeURIComponent(mapNomor || soRef)}.jpg`);
-
+  if (soRef && soRef !== nomor) {
+    candidates.push(`${base}/images/${cab}/${encodeURIComponent(soRef)}.jpg`);
+    candidates.push(`/file-gambar/${encodeURIComponent(soRef)}.jpg`);
+  }
+  if (fallbackSoNomor !== nomor && fallbackSoNomor !== soRef) {
+    candidates.push(
+      `${base}/images/${cab}/${encodeURIComponent(fallbackSoNomor)}.jpg`,
+    );
+    candidates.push(`/file-gambar/${encodeURIComponent(fallbackSoNomor)}.jpg`);
+  }
   isLoadingImage.value = true;
   resolvedImageUrl.value = "";
 
@@ -101,6 +158,22 @@ const resolveDesignImage = () => {
     img.src = candidates[idx];
   };
   tryNext(0);
+};
+
+const tryKaosanExt = (cabangKaosan: string, invdc: string, idx: number) => {
+  if (idx >= KAOSAN_EXTENSIONS.length) {
+    resolvedImageUrl.value = "";
+    isLoadingImage.value = false;
+    return;
+  }
+  const url = buildKaosanUrl(cabangKaosan, invdc, KAOSAN_EXTENSIONS[idx]);
+  const img = new Image();
+  img.onload = () => {
+    resolvedImageUrl.value = url;
+    isLoadingImage.value = false;
+  };
+  img.onerror = () => tryKaosanExt(cabangKaosan, invdc, idx + 1);
+  img.src = url;
 };
 
 const tglIndo = (val: string) => {
@@ -171,23 +244,86 @@ const hasLayoutProses = computed(
     !!layoutHeader.value &&
     (layoutProof.value.length > 0 || layoutSewing.value.length > 0),
 );
+
 const hasMkaFromMap = computed(
   () =>
     mkaFromMap.value.aksesoris.length > 0 ||
     mkaFromMap.value.komponen.length > 0,
 );
 
-const isP01Print = computed(
-  () => spk.value.spk_cab === "P01" || spk.value.spk_cab2 === "P01",
+const isMoveSpecialProcess = computed(() => {
+  return komponenPotong.value.length > 5 && keteranganKhusus.value.length > 0;
+});
+
+/* =========================================================
+   DETEKSI CABANG & ORIENTASI CETAK
+========================================================= */
+
+const normalizeCab = (cab: any) => {
+  if (!cab) return "";
+  const s = String(cab).toUpperCase().trim();
+  if (s === "1" || s === "01") return "P01";
+  if (s === "2" || s === "02") return "P02";
+  if (s === "4" || s === "04") return "P04";
+  if (s === "5" || s === "05") return "P05";
+  return s;
+};
+
+const currentCab = computed(() => normalizeCab(spk.value.spk_cab));
+const currentCab2 = computed(() => normalizeCab(spk.value.spk_cab2));
+
+// Pilihan Orientasi Manual oleh User: 'portrait' | 'landscape'
+const printOrientation = ref<"portrait" | "landscape">("portrait");
+
+// Deteksi Khusus Cabang P04 untuk Rotasi 90 Derajat
+const isP04Print = computed(
+  () => currentCab.value === "P04" || currentCab2.value === "P04",
 );
+
+// Template Layout Cabang
+const isP01Print = computed(
+  () => currentCab.value === "P01" || currentCab2.value === "P01",
+);
+
 const isSpandukMmtPrint = computed(
   () =>
-    ["P02", "P05"].includes(spk.value.spk_cab) ||
-    ["P02", "P05"].includes(spk.value.spk_cab2),
+    ["P02", "P05"].includes(currentCab.value) ||
+    ["P02", "P05"].includes(currentCab2.value),
 );
-const isAnyLegacyPrint = computed(
-  () => isP01Print.value || isSpandukMmtPrint.value,
-);
+
+// Injeksi style @page sesuai pilihan orientasi user / P04
+const injectPrintStyle = () => {
+  const oldStyle = document.getElementById("spk-dynamic-print-style");
+  if (oldStyle) oldStyle.remove();
+
+  // Jika P04, kertas fisik tetap diatur Portrait (210mm 297mm) karena elemen diputar 90 deg via CSS.
+  // Jika cabang lain dan user memilih landscape, gunakan Landscape (297mm 210mm).
+  let pageSize = "210mm 297mm";
+  if (!isP04Print.value && printOrientation.value === "landscape") {
+    pageSize = "297mm 210mm";
+  }
+
+  const styleEl = document.createElement("style");
+  styleEl.id = "spk-dynamic-print-style";
+
+  styleEl.innerHTML = `
+    @media print {
+      @page {
+        size: ${pageSize};
+        margin: 0 !important;
+      }
+    }
+  `;
+  document.head.appendChild(styleEl);
+};
+
+// Fungsi Trigger Cetak Manual
+const triggerPrint = () => {
+  injectPrintStyle();
+  nextTick(() => {
+    window.print();
+  });
+};
 
 const spkKetKomponenText = computed(() =>
   ketKomponenList.value
@@ -197,10 +333,20 @@ const spkKetKomponenText = computed(() =>
 
 const alokasi = ref<any[]>([]);
 
+const alokasiChunks = computed(() => {
+  const chunkSize = 24;
+  const chunks: any[][] = [];
+  for (let i = 0; i < alokasi.value.length; i += chunkSize) {
+    chunks.push(alokasi.value.slice(i, i + chunkSize));
+  }
+  return chunks;
+});
+
 const getSignatureUrl = (kodeUser: string) => {
   if (!kodeUser) return "";
   return `/file-gambar/${encodeURIComponent(kodeUser.trim().toUpperCase())}.jpg`;
 };
+
 const handleSignatureError = (e: Event) => {
   (e.target as HTMLImageElement).style.opacity = "0";
 };
@@ -245,25 +391,54 @@ const fitPageToA4 = async () => {
   p1Scale.value = 1;
   p1MultiPage.value = false;
   p1ScaledHeightStyle.value = "auto";
+
   await nextTick();
   await waitForImages(p1InnerEl.value);
-  await nextTick();
 
-  const PRINT_SAFETY_BUFFER_PX = 4;
-  const availablePx = p1PageEl.value.clientHeight - PRINT_SAFETY_BUFFER_PX;
-  const contentPx = p1InnerEl.value.scrollHeight;
+  await new Promise<void>((resolve) => {
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => resolve());
+    });
+  });
 
-  if (contentPx <= availablePx) {
+  const pageHeight = p1PageEl.value.clientHeight;
+  const contentHeight = p1InnerEl.value.scrollHeight;
+
+  if (!pageHeight || !contentHeight) return;
+
+  const computedStyle = window.getComputedStyle(p1PageEl.value);
+  const paddingTop = parseFloat(computedStyle.paddingTop) || 0;
+  const paddingBottom = parseFloat(computedStyle.paddingBottom) || 0;
+  const availableHeight = Math.max(0, pageHeight - paddingTop - paddingBottom);
+
+  if (contentHeight <= availableHeight) {
+    p1Scale.value = 1;
+    p1ScaledHeightStyle.value = "auto";
     return;
   }
 
-  const requiredScale = availablePx / contentPx;
+  const requiredScale = availableHeight / contentHeight;
+
   if (requiredScale >= MIN_PRINT_SCALE) {
-    p1Scale.value = requiredScale;
-    p1ScaledHeightStyle.value = `${availablePx}px`;
+    p1Scale.value = Math.min(1, requiredScale);
+    p1ScaledHeightStyle.value = `${contentHeight}px`;
+    p1MultiPage.value = false;
   } else {
     p1Scale.value = 1;
+    p1ScaledHeightStyle.value = "auto";
     p1MultiPage.value = true;
+  }
+};
+
+const notifyParentReady = () => {
+  if (window.parent !== window) {
+    window.parent.postMessage(
+      {
+        type: "spk-print-ready",
+        height: document.documentElement.scrollHeight,
+      },
+      "*",
+    );
   }
 };
 
@@ -276,18 +451,9 @@ const blockPrintShortcut = (e: KeyboardEvent) => {
     toast.warning("Mode Preview — dokumen ini tidak dapat dicetak/disimpan.");
   }
 };
+
 const blockContextMenu = (e: MouseEvent) => {
   if (isPreview.value) e.preventDefault();
-};
-
-const injectPageStyle = (css: string) => {
-  let el = document.getElementById("dynamic-page-style") as HTMLStyleElement;
-  if (!el) {
-    el = document.createElement("style");
-    el.id = "dynamic-page-style";
-    document.head.appendChild(el);
-  }
-  el.innerHTML = css;
 };
 
 onMounted(() => {
@@ -296,29 +462,32 @@ onMounted(() => {
     document.addEventListener("contextmenu", blockContextMenu);
   }
 });
+
 onUnmounted(() => {
   window.removeEventListener("keydown", blockPrintShortcut, true);
   document.removeEventListener("contextmenu", blockContextMenu);
+  const oldStyle = document.getElementById("spk-dynamic-print-style");
+  if (oldStyle) oldStyle.remove();
 });
 
 onMounted(async () => {
   try {
-    // 💡 FIX 1: Ambil data utama SPK dulu tanpa digabung Promise.all kaku
-    const resDetail = await soToSpkService.getDetail(printNomor);
-    const d = resDetail.data?.data || resDetail.data;
+    const [resDetail, resLayout, resAlokasi] = await Promise.all([
+      soToSpkService.getDetail(printNomor),
+      soToSpkService.getLayoutProses(printNomor),
+      soToSpkService.getAlokasi(printNomor),
+    ]);
 
-    if (!d) {
-      isError.value = true;
-      return;
-    }
-
-    spk.value = d.header || d || {};
-    if (!spk.value || !spk.value.spk_nomor) {
-      isError.value = true;
-      return;
-    }
-
+    const d = resDetail.data.data;
+    spk.value = d.header || {};
     resolveDesignImage();
+
+    // Default orientasi berdasarkan cabang: P01, P02, P05 -> Landscape | Lainnya -> Portrait
+    const autoLandscape =
+      ["P01", "P02", "P05"].includes(currentCab.value) ||
+      ["P01", "P02", "P05"].includes(currentCab2.value);
+    printOrientation.value = autoLandscape ? "landscape" : "portrait";
+
     sizes.value = (d.dtlSize || []).filter((s: any) => Number(s.qty) > 0);
     komponenPotong.value = d.komponenSpk?.ListPotong || [];
     komponenCetakBordir.value = d.komponenSpk?.ListCetakBordir || [];
@@ -328,32 +497,21 @@ onMounted(async () => {
     ketKomponenList.value = (d.ketKomponenList || []).filter(
       (k: any) => k.checked,
     );
+    alokasi.value = resAlokasi.data.data || [];
 
-    // 💡 FIX 1 (Lanjutan): Endpoint opsional menggunakan Promise.allSettled agar tidak melempar error utama jika kosong
-    await Promise.allSettled([
-      soToSpkService.getLayoutProses(printNomor).then((resLayout) => {
-        layoutHeader.value = resLayout.data.data?.header || null;
-        layoutProof.value = resLayout.data.data?.proof || [];
-        layoutSewing.value = resLayout.data.data?.sewing || [];
-      }),
-      soToSpkService.getAlokasi(printNomor).then((resAlokasi) => {
-        alokasi.value = resAlokasi.data.data || [];
-      }),
-    ]);
+    layoutHeader.value = resLayout.data.data?.header || null;
+    layoutProof.value = resLayout.data.data?.proof || [];
+    layoutSewing.value = resLayout.data.data?.sewing || [];
 
     if (spk.value.spk_so_ref) {
-      try {
-        const resMkb = await soToSpkService.getMkbDetail(spk.value.spk_so_ref);
-        mkbDetail.value = resMkb.data.data || [];
-      } catch {
-        mkbDetail.value = [];
-      }
+      const resMkb = await soToSpkService.getMkbDetail(spk.value.spk_so_ref);
+      mkbDetail.value = resMkb.data.data || [];
     }
 
     if (spk.value.spk_memo) {
       try {
         const resMka = await api.get(
-          `/ppic/spk/form/mka-from-map/${encodeURIComponent(spk.value.spk_memo)}`,
+          `/mmt/spk/form/mka-from-map/${encodeURIComponent(spk.value.spk_memo)}`,
         );
         mkaFromMap.value = resMka.data.data || {
           aksesoris: [],
@@ -367,22 +525,21 @@ onMounted(async () => {
 
     isLoaded.value = true;
 
-    // 💡 FIX 3: Dinamisasi Orientasi Cetak (Landscape / Portrait)
-    if (isSpandukMmtPrint.value || isP01Print.value) {
-      injectPageStyle(
-        "@page { size: A4 landscape; margin: 8mm 10mm !important; }",
-      );
-    } else {
-      injectPageStyle("@page { size: A4 portrait; margin: 0mm !important; }");
-      if (!isAnyLegacyPrint.value) {
-        await nextTick();
-        await fitPageToA4();
-      }
+    await nextTick();
+
+    const printRoot = document.querySelector<HTMLElement>(".print-root");
+    if (printRoot) {
+      await waitForImages(printRoot);
     }
 
-    if (!isPreview.value) {
-      setTimeout(() => window.print(), 400);
+    if (!autoLandscape) {
+      await fitPageToA4();
     }
+
+    await nextTick();
+
+    notifyParentReady();
+    injectPrintStyle();
   } catch {
     isError.value = true;
   }
@@ -396,17 +553,44 @@ onMounted(async () => {
   </div>
 
   <div v-else class="print-root" :class="{ 'preview-mode': isPreview }">
-    <!-- Banner mode preview -->
+    <!-- BAR OPTI CETAK CONTROL BAR (TIDAK TERIKUT DICETAK) -->
+    <div v-if="!isPreview" class="print-control-bar no-print">
+      <div class="orientation-selector">
+        <span class="control-label">Pilih Orientasi Kertas:</span>
+        <label :class="{ active: printOrientation === 'portrait' }">
+          <input
+            type="radio"
+            value="portrait"
+            v-model="printOrientation"
+            @change="injectPrintStyle"
+          />
+          📄 Portrait (Tegak)
+        </label>
+        <label :class="{ active: printOrientation === 'landscape' }">
+          <input
+            type="radio"
+            value="landscape"
+            v-model="printOrientation"
+            @change="injectPrintStyle"
+          />
+          📑 Landscape (Mendatar)
+        </label>
+      </div>
+
+      <button class="btn-print" @click="triggerPrint">🖨️ Cetak Dokumen</button>
+    </div>
+
+    <!-- Banner Mode Preview -->
     <div v-if="isPreview" class="preview-banner">
       🔒 MODE PREVIEW — Dokumen ini tidak dapat dicetak/disimpan. Aktivitas
       tercatat: {{ authStore.userName }}.
     </div>
 
-    <!-- Watermark tile -->
+    <!-- Watermark Tile -->
     <div v-if="isPreview" class="preview-watermark" aria-hidden="true">
-      <span v-for="(t, i) in watermarkTiles" :key="i" class="wm-tile">{{
-        t
-      }}</span>
+      <span v-for="(t, i) in watermarkTiles" :key="i" class="wm-tile">
+        {{ t }}
+      </span>
     </div>
 
     <div class="preview-print-blocked-msg">
@@ -426,19 +610,10 @@ onMounted(async () => {
           </div>
 
           <div class="body-p01">
+            <!-- Kiri -->
             <div class="kiri-p01">
               <table class="info-table-p01">
                 <tbody>
-                  <!-- 💡 FIX 2: Tampilkan Nomor SO di atas Nomor SPK -->
-                  <tr>
-                    <td class="w-label-p01">Nomor SO</td>
-                    <td class="w-colon-p01">:</td>
-                    <td>
-                      <span class="fw-p01">{{
-                        spk.spk_so_ref || spk.SO || "-"
-                      }}</span>
-                    </td>
-                  </tr>
                   <tr>
                     <td class="w-label-p01">Nomor SPK</td>
                     <td class="w-colon-p01">:</td>
@@ -577,6 +752,7 @@ onMounted(async () => {
           </div>
         </div>
 
+        <!-- Alokasi -->
         <div v-if="alokasi.length > 0" class="print-page-p01 alokasi-page-p01">
           <h2 class="alokasi-title-p01">ALOKASI PENGIRIMAN :</h2>
           <table class="alokasi-table-p01 mt-2-p01">
@@ -612,7 +788,7 @@ onMounted(async () => {
     </template>
 
     <!-- ══════════════════════════════════════════════
-        SPANDUK/MMT — Workshop P02/P05, gaya SO landscape 2-copy
+        SPANDUK/MMT — Workshop P02/P05
     ══════════════════════════════════════════════ -->
     <template v-else-if="isSpandukMmtPrint">
       <div class="print-container-so">
@@ -630,14 +806,6 @@ onMounted(async () => {
 
             <table class="info-table-so">
               <tbody>
-                <!-- 💡 FIX 2: Tampilkan Nomor SO di atas Nomor SPK -->
-                <tr>
-                  <td class="w-label-so">Nomor SO</td>
-                  <td class="w-colon-so">:</td>
-                  <td colspan="3" class="fw-so">
-                    {{ spk.spk_so_ref || spk.SO || "-" }}
-                  </td>
-                </tr>
                 <tr>
                   <td class="w-label-so">Nomor SPK</td>
                   <td class="w-colon-so">:</td>
@@ -779,48 +947,55 @@ Keterangan Komponen :
             </div>
           </div>
 
+          <!-- Alokasi -->
           <div v-if="alokasi.length > 0" class="print-half-so alokasi-panel-so">
             <h2 class="alokasi-title-so">ALOKASI PENGIRIMAN :</h2>
-            <table class="alokasi-table-so mt-2-so">
-              <thead>
-                <tr>
-                  <th class="text-left-so pl-2-so">Alokasi</th>
-                  <th width="80" class="text-center-so">Jumlah</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="(a, idx) in alokasi" :key="idx">
-                  <td class="pl-2-so">{{ a.kota || a.alamat }}</td>
-                  <td class="text-center-so">
-                    {{ Number(a.jumlah).toLocaleString("id-ID") }}
-                  </td>
-                </tr>
-              </tbody>
-              <tfoot>
-                <tr>
-                  <td class="fw-so text-left-so pl-2-so">Total</td>
-                  <td class="fw-so text-center-so">
-                    {{
-                      alokasi
-                        .reduce((s, a) => s + (Number(a.jumlah) || 0), 0)
-                        .toLocaleString("id-ID")
-                    }}
-                  </td>
-                </tr>
-              </tfoot>
-            </table>
+            <div class="alokasi-cols-so mt-2-so">
+              <table
+                class="alokasi-table-so"
+                v-for="(chunk, idx) in alokasiChunks"
+                :key="idx"
+              >
+                <thead>
+                  <tr>
+                    <th class="text-left-so pl-2-so">Alokasi</th>
+                    <th width="60" class="text-center-so">Jumlah</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="(a, i2) in chunk" :key="i2">
+                    <td class="pl-2-so">{{ a.kota || a.alamat }}</td>
+                    <td class="text-center-so">
+                      {{ Number(a.jumlah).toLocaleString("id-ID") }}
+                    </td>
+                  </tr>
+                </tbody>
+                <tfoot v-if="idx === alokasiChunks.length - 1">
+                  <tr>
+                    <td class="fw-so text-left-so pl-2-so">Total</td>
+                    <td class="fw-so text-center-so">
+                      {{
+                        alokasi
+                          .reduce((s, a) => s + (Number(a.jumlah) || 0), 0)
+                          .toLocaleString("id-ID")
+                      }}
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
           </div>
         </div>
       </div>
     </template>
 
     <!-- ══════════════════════════════════════════════
-        FORMAT BARU — semua workshop selain P01/P02/P05
+        FORMAT BARU — Workshop P04 & Lainnya
     ══════════════════════════════════════════════ -->
     <template v-else>
       <div
         class="print-page page-1"
-        :class="{ 'print-page--multi': p1MultiPage }"
+        :class="{ 'print-page--multi': p1MultiPage, 'rotate-p04': isP04Print }"
         ref="p1PageEl"
       >
         <div
@@ -842,17 +1017,13 @@ Keterangan Komponen :
               <div class="ph-title">Surat Perintah Kerja</div>
             </div>
             <div class="ph-right">
-              <!-- 💡 FIX 2: Tampilkan Nomor SO di atas Nomor SPK pada Header Utama -->
-              <div class="ph-so-nomor">
-                SO: {{ spk.spk_so_ref || spk.SO || "-" }}
-              </div>
-              <div class="ph-nomor">SPK: {{ spk.spk_nomor }}</div>
+              <div class="ph-nomor">{{ spk.spk_nomor }}</div>
               <div class="ph-meta">Tgl: {{ tglIndo(spk.spk_tanggal) }}</div>
               <div class="ph-meta">Workshop: {{ spk.spk_cab }}</div>
             </div>
           </div>
 
-          <!-- Body halaman 1 -->
+          <!-- Body Halaman 1 -->
           <div class="p1-body">
             <div class="p1-row-top">
               <div class="box p1-info">
@@ -861,7 +1032,7 @@ Keterangan Komponen :
                   <tr>
                     <td class="fl">No. SO</td>
                     <td class="fc">:</td>
-                    <td class="fv fw">{{ spk.spk_so_ref || spk.SO || "-" }}</td>
+                    <td class="fv">{{ spk.spk_so_ref || "-" }}</td>
                   </tr>
                   <tr>
                     <td class="fl">Nama pekerjaan</td>
@@ -988,7 +1159,7 @@ Keterangan Komponen :
               </div>
             </div>
 
-            <!-- Baris 2: Detail Size -->
+            <!-- Detail Size -->
             <div v-if="sizes.length > 0" class="box mb-6">
               <div class="box-title">Detail size</div>
               <table class="dt">
@@ -1061,7 +1232,7 @@ Keterangan Komponen :
               </table>
             </div>
 
-            <!-- Baris 3: MKB -->
+            <!-- MKB -->
             <div class="box mb-6">
               <div class="box-title">Kebutuhan Bahan (MKB)</div>
               <table class="dt">
@@ -1101,7 +1272,7 @@ Keterangan Komponen :
               </table>
             </div>
 
-            <!-- Baris 4: Komponen Potong + MKA -->
+            <!-- Komponen Potong + MKA -->
             <div class="p1-row-potong-mka mb-6">
               <div class="box">
                 <div class="box-title">Komponen Potong</div>
@@ -1126,100 +1297,134 @@ Keterangan Komponen :
                 </table>
               </div>
 
-              <div v-if="hasMkaFromMap" class="box mka-narrow">
-                <div class="box-title">
-                  Aksesoris &amp; Babaran (BAST MAP {{ spk.spk_memo }})
+              <div
+                style="
+                  display: flex;
+                  flex-direction: column;
+                  gap: 4px;
+                  min-width: 0;
+                "
+              >
+                <div v-if="hasMkaFromMap" class="box mka-narrow">
+                  <div class="box-title">
+                    Aksesoris &amp; Babaran (BAST MAP {{ spk.spk_memo }})
+                  </div>
+                  <table v-if="mkaFromMap.komponen.length" class="dt dt-narrow">
+                    <thead>
+                      <tr>
+                        <th>Komponen</th>
+                        <th>Warna</th>
+                        <th class="tc">Babaran</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr v-for="(k, idx) in mkaFromMap.komponen" :key="idx">
+                        <td>{{ k.komponen }}</td>
+                        <td>{{ k.warna || "-" }}</td>
+                        <td class="tc">
+                          {{ Number(k.babaran).toLocaleString("id-ID") }}
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                  <table
+                    v-if="mkaFromMap.sizeBreakdown.length"
+                    class="dt dt-narrow"
+                  >
+                    <thead>
+                      <tr>
+                        <th>Komponen</th>
+                        <th>Size</th>
+                        <th class="tc">Babaran</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr
+                        v-for="(s, idx) in mkaFromMap.sizeBreakdown"
+                        :key="idx"
+                      >
+                        <td>{{ s.komponen }}</td>
+                        <td>{{ s.size }}</td>
+                        <td class="tc">
+                          {{ Number(s.babaran).toLocaleString("id-ID") }}
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                  <table class="dt dt-narrow">
+                    <thead>
+                      <tr>
+                        <th>Kode</th>
+                        <th>Nama</th>
+                        <th class="tr">Qty</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr v-for="(a, idx) in mkaFromMap.aksesoris" :key="idx">
+                        <td class="fw">{{ a.kode }}</td>
+                        <td>{{ a.nama }}</td>
+                        <td class="tr">{{ a.qty }}</td>
+                      </tr>
+                      <tr v-if="mkaFromMap.aksesoris.length === 0">
+                        <td colspan="3" class="tc muted">—</td>
+                      </tr>
+                    </tbody>
+                  </table>
                 </div>
-                <table v-if="mkaFromMap.komponen.length" class="dt dt-narrow">
-                  <thead>
-                    <tr>
-                      <th>Komponen</th>
-                      <th>Warna</th>
-                      <th class="tc">Babaran</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr v-for="(k, idx) in mkaFromMap.komponen" :key="idx">
-                      <td>{{ k.komponen }}</td>
-                      <td>{{ k.warna || "-" }}</td>
-                      <td class="tc">
-                        {{ Number(k.babaran).toLocaleString("id-ID") }}
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-                <table
-                  v-if="mkaFromMap.sizeBreakdown.length"
-                  class="dt dt-narrow"
-                >
-                  <thead>
-                    <tr>
-                      <th>Komponen</th>
-                      <th>Size</th>
-                      <th class="tc">Babaran</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr v-for="(s, idx) in mkaFromMap.sizeBreakdown" :key="idx">
-                      <td>{{ s.komponen }}</td>
-                      <td>{{ s.size }}</td>
-                      <td class="tc">
-                        {{ Number(s.babaran).toLocaleString("id-ID") }}
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-                <table class="dt dt-narrow">
-                  <thead>
-                    <tr>
-                      <th>Kode</th>
-                      <th>Nama</th>
-                      <th class="tr">Qty</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr v-for="(a, idx) in mkaFromMap.aksesoris" :key="idx">
-                      <td class="fw">{{ a.kode }}</td>
-                      <td>{{ a.nama }}</td>
-                      <td class="tr">{{ a.qty }}</td>
-                    </tr>
-                    <tr v-if="mkaFromMap.aksesoris.length === 0">
-                      <td colspan="3" class="tc muted">—</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
 
-              <div v-else class="box mka-narrow">
-                <div class="box-title">Kebutuhan Aksesoris (MKA)</div>
-                <table class="dt dt-narrow">
-                  <thead>
-                    <tr>
-                      <th style="width: 30px">Kode</th>
-                      <th>Nama</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr v-for="(k, idx) in ketKomponenList" :key="idx">
-                      <td class="tc fw">{{ k.kode }}</td>
-                      <td>
-                        {{ k.nama }}<span v-if="k.ket"> — {{ k.ket }}</span>
-                      </td>
-                    </tr>
-                    <tr v-if="ketKomponenList.length === 0">
-                      <td colspan="2" class="tc muted">—</td>
-                    </tr>
-                  </tbody>
-                </table>
+                <div v-else class="box mka-narrow">
+                  <div class="box-title">Kebutuhan Aksesoris (MKA)</div>
+                  <table class="dt dt-narrow">
+                    <thead>
+                      <tr>
+                        <th style="width: 30px">Kode</th>
+                        <th>Nama</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr v-for="(k, idx) in ketKomponenList" :key="idx">
+                        <td class="tc fw">{{ k.kode }}</td>
+                        <td>
+                          {{ k.nama }}<span v-if="k.ket"> — {{ k.ket }}</span>
+                        </td>
+                      </tr>
+                      <tr v-if="ketKomponenList.length === 0">
+                        <td colspan="2" class="tc muted">—</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                <div v-if="isMoveSpecialProcess" class="box mka-narrow">
+                  <div class="box-title">Keterangan special process</div>
+                  <div
+                    class="ket-list"
+                    style="font-size: 7.5pt; padding: 3px 5px"
+                  >
+                    <div
+                      v-for="(k, idx) in keteranganKhusus"
+                      :key="idx"
+                      class="ket-item"
+                    >
+                      {{ idx + 1 }}. {{ k }}
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
 
-            <!-- Baris 5: Special Process + Second Process -->
+            <!-- Special Process + Second Process -->
             <div
               class="p1-row-komp mb-6"
-              :class="{ 'no-special': keteranganKhusus.length === 0 }"
+              :class="{
+                'no-special':
+                  keteranganKhusus.length === 0 || isMoveSpecialProcess,
+              }"
             >
-              <div v-if="keteranganKhusus.length > 0" class="box">
+              <div
+                v-if="keteranganKhusus.length > 0 && !isMoveSpecialProcess"
+                class="box"
+              >
                 <div class="box-title">Keterangan special process</div>
                 <div class="ket-list ket-small">
                   <div
@@ -1234,7 +1439,10 @@ Keterangan Komponen :
 
               <div
                 class="box"
-                :class="{ 'full-span': keteranganKhusus.length === 0 }"
+                :class="{
+                  'full-span':
+                    keteranganKhusus.length === 0 || isMoveSpecialProcess,
+                }"
               >
                 <div class="box-title">Second Process (Cetak/Bordir)</div>
                 <table class="dt">
@@ -1276,7 +1484,7 @@ Keterangan Komponen :
               </div>
             </div>
 
-            <!-- Baris 6: Keterangan Produksi -->
+            <!-- Keterangan Produksi -->
             <div class="box mb-6">
               <div class="box-title">Keterangan produksi</div>
               <pre class="ket-pre ket-produksi">{{
@@ -1327,27 +1535,28 @@ Keterangan Komponen :
                 </tr>
               </table>
               <div class="qr-wrap">
-                <qrcode-vue :value="spk.spk_nomor" :size="56" level="L" />
+                <qrcode-vue :value="spk.spk_nomor" :size="50" level="L" />
                 <div class="qr-lbl">{{ spk.spk_nomor }}</div>
               </div>
             </div>
           </div>
 
-          <!-- Footer halaman 1 -->
+          <!-- Footer Halaman 1 -->
           <div class="pf">
-            <span
-              >Dibuat: {{ spk.user_create }} —
-              {{ formatWaktu(spk.date_create) }}</span
-            >
-            <span>Referensi SO: {{ spk.spk_so_ref || spk.SO || "—" }}</span>
+            <span>
+              Dibuat: {{ spk.user_create }} — {{ formatWaktu(spk.date_create) }}
+            </span>
+            <span>Referensi SO: {{ spk.spk_so_ref || "—" }}</span>
           </div>
         </div>
       </div>
 
-      <!-- ══════════════════════════════════════════════
-          HALAMAN 2 — Layout Proses Sewing
-      ══════════════════════════════════════════════ -->
-      <div v-if="hasLayoutProses" class="print-page page-2">
+      <!-- HALAMAN 2 — Layout Proses Sewing -->
+      <div
+        v-if="hasLayoutProses"
+        class="print-page page-2"
+        :class="{ 'rotate-p04': isP04Print }"
+      >
         <div class="ph">
           <div class="ph-left">
             <img src="@/assets/logo.png" class="ph-logo" />
@@ -1356,9 +1565,6 @@ Keterangan Komponen :
             <div class="ph-title">Layout Proses Sewing</div>
           </div>
           <div class="ph-right">
-            <div class="ph-so-nomor">
-              SO: {{ spk.spk_so_ref || spk.SO || "-" }}
-            </div>
             <div class="ph-nomor">{{ spk.spk_nomor }}</div>
             <div class="ph-meta">{{ spk.spk_nama }}</div>
           </div>
@@ -1524,10 +1730,9 @@ Keterangan Komponen :
         </div>
 
         <div class="pf">
-          <span
-            >Dibuat: {{ spk.user_create }} —
-            {{ formatWaktu(spk.date_create) }}</span
-          >
+          <span>
+            Dibuat: {{ spk.user_create }} — {{ formatWaktu(spk.date_create) }}
+          </span>
           <div class="qr-wrap-footer">
             <qrcode-vue :value="spk.spk_nomor" :size="40" level="L" />
             <span>{{ spk.spk_nomor }}</span>
@@ -1539,248 +1744,568 @@ Keterangan Komponen :
 </template>
 
 <style scoped>
+/* =========================================================
+   FLOATING PRINT CONTROL BAR
+========================================================= */
+
+.print-control-bar {
+  position: sticky;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #1e293b;
+  color: #fff;
+  padding: 8px 16px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+  font-size: 13px;
+}
+
+.orientation-selector {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.control-label {
+  font-weight: bold;
+  color: #cbd5e1;
+}
+
+.orientation-selector label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  background: #334155;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.orientation-selector label.active {
+  background: #2563eb;
+  font-weight: bold;
+}
+
+.orientation-selector input {
+  cursor: pointer;
+}
+
+.btn-print {
+  background: #16a34a;
+  color: #fff;
+  border: none;
+  padding: 6px 16px;
+  border-radius: 4px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.btn-print:hover {
+  background: #15803d;
+}
+
+/* =========================================================
+   BASE / RESET
+========================================================= */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
 .loading-state {
   display: flex;
-  justify-content: center;
   align-items: center;
-  height: 100vh;
-  font-family: Arial, sans-serif;
+  justify-content: center;
+  min-height: 100vh;
+  font-family: Arial, Helvetica, sans-serif;
   font-size: 14px;
   color: #555;
 }
 
-/* ── Root ── */
+/* =========================================================
+   ROOT
+========================================================= */
+
 .print-root {
-  font-family: "Arial", "Helvetica", sans-serif;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  font-family: Arial, Helvetica, sans-serif;
   font-size: 8.5pt;
+  line-height: 1.2;
   color: #000;
   background: #fff;
 }
 
-/* ── Page ── */
+/* =========================================================
+   DEFAULT A4 PAGE
+========================================================= */
+
 .print-page {
   width: 210mm;
-  min-height: 297mm;
-  margin: 0 auto;
-  padding: 10mm 12mm 10mm 12mm;
+  min-height: 270mm;
+  margin: 10px auto;
+  padding: 5mm 8mm;
   box-sizing: border-box;
-  display: flex;
-  flex-direction: column;
+  background: #fff;
+  overflow: visible;
 }
 
-/* ── Print header ── */
+/* =========================================================
+   HEADER FORMAT BARU
+========================================================= */
+
 .ph {
+  width: 100%;
   display: flex;
-  justify-content: space-between;
   align-items: flex-start;
+  justify-content: space-between;
+  flex-shrink: 0;
   border-bottom: 2px solid #1565c0;
-  padding-bottom: 6px;
-  margin-bottom: 8px;
+  padding-bottom: 4px;
+  margin-bottom: 6px;
+  min-width: 0;
 }
+
+.ph-left,
+.ph-center,
+.ph-right {
+  min-width: 0;
+}
+
 .ph-left {
   flex: 1;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
 }
+
 .ph-center {
   flex: 1;
   text-align: center;
 }
+
 .ph-right {
   flex: 1;
   text-align: right;
 }
+
 .ph-title {
-  font-size: 14pt;
-  font-weight: bold;
-  letter-spacing: 1px;
+  font-size: 13pt;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  line-height: 1.1;
   color: #000;
 }
-.ph-so-nomor {
-  font-size: 9pt;
-  font-weight: bold;
-  color: #1565c0;
-}
+
 .ph-nomor {
-  font-size: 11pt;
-  font-weight: bold;
+  font-size: 10.5pt;
+  font-weight: 700;
+  line-height: 1.1;
+  overflow-wrap: anywhere;
 }
+
 .ph-meta {
   font-size: 7.5pt;
+  line-height: 1.2;
   color: #444;
 }
+
 .ph-logo {
-  height: 36px;
+  display: block;
+  width: auto;
+  height: 32px;
+  max-width: 100%;
   object-fit: contain;
 }
 
-/* ── Page 1 layout ── */
+/* =========================================================
+   PAGE 1
+========================================================= */
+
 .p1-body {
+  width: 100%;
   flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
+  overflow: visible;
 }
+
 .p1-row-top {
+  width: 100%;
   display: flex;
-  gap: 8px;
-  margin-bottom: 6px;
-}
-.p1-info {
-  flex: 1;
+  gap: 6px;
+  margin-bottom: 4px;
   min-width: 0;
 }
+
+.p1-info {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
 .p1-img-col {
-  flex: 1.3;
+  flex: 1.2 1 0;
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
 }
+
 .p1-row-komp {
+  width: 100%;
   display: grid;
-  grid-template-columns: 1fr 1.6fr;
-  gap: 8px;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr);
+  gap: 6px;
+  min-width: 0;
 }
 
-.ket-small {
-  font-size: 7.5pt;
-  max-height: 60px;
-  overflow: hidden;
+.p1-row-komp.no-special {
+  display: block;
+  width: 100%;
 }
 
-.ket-produksi {
-  font-size: 9pt;
-  min-height: 54px;
-  line-height: 1.6;
-  padding: 6px 8px;
+.p1-row-ket {
+  width: 100%;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+  gap: 6px;
+  min-width: 0;
 }
-.mb-6 {
-  margin-bottom: 6px;
+
+.p1-row-komp .full-span,
+.p1-row-ket .full-span {
+  grid-column: 1 / -1;
 }
+
+.p1-row-potong-mka {
+  width: 100%;
+  display: grid;
+  grid-template-columns: minmax(0, 1.8fr) minmax(0, 1fr);
+  gap: 6px;
+  align-items: start;
+  min-width: 0;
+}
+
+.page1-scale-inner {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  min-width: 0;
+  transform-origin: top center;
+}
+
+/* =========================================================
+   BOX
+========================================================= */
 
 .box {
+  width: 100%;
   border: 0.5px solid #aaa;
   border-radius: 3px;
   overflow: hidden;
+  min-width: 0;
+  background: #fff;
+  break-inside: avoid;
+  page-break-inside: avoid;
 }
+
 .box-title {
-  font-size: 7pt;
-  font-weight: bold;
+  font-size: 6.8pt;
+  font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.4px;
-  padding: 3px 6px;
+  letter-spacing: 0.3px;
+  padding: 2px 5px;
   background: #f5f5f5;
   color: #000;
   border-bottom: 0.5px solid #aaa;
 }
+
 .box-title-note {
-  font-weight: normal;
+  font-weight: 400;
   text-transform: none;
   color: #888;
   font-size: 6.5pt;
   margin-left: 4px;
 }
-.planning-tbl {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 7.5pt;
-  table-layout: fixed;
-}
-.planning-tbl thead th {
-  background: #f5f5f5;
-  color: #000;
-  padding: 3px 5px;
-  font-weight: bold;
-  border: 0.5px solid #ccc;
-  text-align: center;
-}
-.planning-cell {
-  border: 0.5px solid #ccc;
-  border-top: none;
-  height: 22px;
-}
-.img-box-wrap {
-  display: flex;
-  flex-direction: column;
-}
-.img-box {
-  padding: 4px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 220px;
-  flex: 1;
-}
-.design-img {
-  max-width: 100%;
-  max-height: 260px;
-  object-fit: contain;
-}
+
+/* =========================================================
+   FIELD TABLE
+========================================================= */
 
 .ft {
   width: 100%;
   border-collapse: collapse;
-  padding: 4px 6px;
-  display: table;
+  table-layout: fixed;
+  font-size: 7.8pt;
 }
+
 .ft tr td {
-  padding: 1px 6px;
+  padding: 0.5px 5px;
   vertical-align: top;
-  font-size: 8pt;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
+
 .fl {
-  width: 80px;
+  width: 75px;
   color: #555;
   white-space: nowrap;
 }
+
 .fc {
   width: 10px;
   color: #555;
+  text-align: center;
 }
+
 .fv {
   color: #000;
+  min-width: 0;
 }
+
 .fw {
-  font-weight: bold;
+  font-weight: 700;
 }
+
+.fv-between {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+/* =========================================================
+   PLANNING TABLE
+========================================================= */
+
+.planning-tbl {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  font-size: 7pt;
+}
+
+.planning-tbl thead th {
+  background: #f5f5f5;
+  color: #000;
+  padding: 2px 4px;
+  font-weight: 700;
+  border: 0.5px solid #ccc;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.planning-cell {
+  border: 0.5px solid #ccc;
+  border-top: none;
+  height: 18px;
+}
+
+/* =========================================================
+   DESIGN IMAGE
+========================================================= */
+
+.img-box-wrap {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.img-box {
+  width: 100%;
+  min-height: 130px;
+  max-height: 165px;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  overflow: hidden;
+}
+
+.design-img {
+  display: block;
+  max-width: 100%;
+  max-height: 155px;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+}
+
+/* =========================================================
+   DATA TABLE
+========================================================= */
 
 .dt {
   width: 100%;
   border-collapse: collapse;
-  font-size: 7.5pt;
+  table-layout: fixed;
+  font-size: 7.2pt;
+  min-width: 0;
 }
+
 .dt thead th {
   background: #f5f5f5;
   color: #000;
-  padding: 3px 5px;
-  font-weight: bold;
+  padding: 2px 4px;
+  font-weight: 700;
   border-bottom: 0.5px solid #ccc;
   white-space: nowrap;
   text-align: left;
+  overflow: hidden;
 }
+
 .dt tbody td {
-  padding: 2px 5px;
+  padding: 1.5px 4px;
   border-bottom: 0.5px solid #eee;
+  vertical-align: top;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
+
 .dt tfoot td {
-  padding: 3px 5px;
+  padding: 2px 4px;
   background: #f5f5f5;
   border-top: 1px solid #ccc;
-  font-weight: bold;
+  font-weight: 700;
+}
+
+.dt thead th.tc {
+  text-align: center;
+}
+
+.dt tbody tr {
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+/* =========================================================
+   COMPACT TABLE
+========================================================= */
+
+.lt {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  font-size: 7.2pt;
+  border: 0.5px solid #ccc;
+}
+
+.lt thead th {
+  background: #f5f5f5;
+  color: #000;
+  padding: 2px 4px;
+  font-weight: 700;
+  border: 0.5px solid #ccc;
+  white-space: nowrap;
+  text-align: left;
+  overflow: hidden;
+}
+
+.lt tbody td {
+  padding: 1.5px 4px;
+  border-bottom: 0.5px solid #eee;
+  border-right: 0.5px solid #eee;
+  vertical-align: top;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.lt tbody tr:nth-child(even) td {
+  background: #fafafa;
+}
+
+.lt-compact {
+  width: 100%;
+  font-size: 6.2pt;
+  table-layout: fixed;
+}
+
+.lt-compact th,
+.lt-compact td {
+  padding: 1.5px 2.5px;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.lt-compact .ellip {
+  text-overflow: ellipsis;
+}
+
+.lt-compact .wrap {
+  white-space: normal;
+  word-break: break-word;
+  line-height: 1.1;
+}
+
+.lt-summary {
+  font-size: 7.2pt;
+}
+
+.lt-summary .ls-lbl {
+  font-weight: 700;
+  background: #f5f5f5;
+  padding: 2px 5px;
+}
+
+.lt-summary td {
+  border: 0.5px solid #ccc;
+  padding: 2px 5px;
+}
+
+.tr {
+  text-align: right;
+}
+.tc {
+  text-align: center;
+}
+.text-left {
+  text-align: left;
+}
+.text-center {
+  text-align: center;
+}
+.pl-2 {
+  padding-left: 6px;
+}
+.mt-2 {
+  margin-top: 6px;
+}
+.mb-6 {
+  margin-bottom: 4px !important;
+}
+.fw-so,
+.fw-p01 {
+  font-weight: 700;
 }
 
 .proses-bg {
   display: inline-block;
-  margin-right: 4px;
-  padding: 0 4px;
+  margin-right: 3px;
+  padding: 0 3px;
   color: #000;
 }
-.fv-between {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
+
 .bg-green-light {
   background-color: #c8e6c9;
 }
@@ -1791,145 +2316,85 @@ Keterangan Komponen :
   background-color: #fff59d;
 }
 
-.dt thead th.tc {
-  text-align: center;
+.highlight-yellow-so {
+  display: inline-block;
+  background: #fff59d;
+  padding: 1px 4px;
+  font-weight: 700;
+  border: 1px solid #ccc;
 }
 
 .ket-list {
-  padding: 4px 6px;
-  font-size: 8pt;
+  padding: 3px 5px;
+  font-size: 7.5pt;
 }
 .ket-item {
-  margin-bottom: 2px;
+  margin-bottom: 1px;
 }
 .ket-pre {
+  margin: 3px 5px;
   font-family: inherit;
-  font-size: 8pt;
+  font-size: 7.5pt;
+  line-height: 1.25;
   white-space: pre-wrap;
-  margin: 4px 6px;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.ket-small {
+  font-size: 7pt;
+  max-height: 50px;
+  overflow: hidden;
+}
+.ket-produksi {
+  min-height: 32px;
+  padding: 4px 6px;
+  font-size: 8.5pt;
+  line-height: 1.35;
 }
 .muted {
   color: #999;
   font-style: italic;
 }
 
-.ttd-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-end;
-  margin-top: auto;
-  padding-top: 6px;
-  border-top: 0.5px solid #ccc;
-}
-.ttd-tbl {
-  border-collapse: collapse;
-  font-size: 8pt;
-}
-.ttd-hd {
-  border: 0.5px solid #000;
-  padding: 3px 24px;
-  text-align: center;
-  font-weight: bold;
-  background: #f5f5f5;
-}
-.ttd-space {
-  border: 0.5px solid #000;
-  height: 36px;
-  padding: 0 24px;
-}
-.ttd-name {
-  border: 0.5px solid #000;
-  padding: 2px 6px;
-  font-size: 7.5pt;
-  text-align: center;
-}
-.qr-wrap {
-  text-align: center;
-}
-.qr-lbl {
-  font-size: 6.5pt;
-  margin-top: 2px;
-  color: #555;
-  font-family: "Courier New", monospace;
-}
-
-.pf {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  border-top: 0.5px solid #ccc;
-  padding-top: 3px;
-  margin-top: 6px;
-  font-size: 6.5pt;
-  color: #666;
-}
-.qr-wrap-footer {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 6.5pt;
-}
-
-.print-page.page-1 {
-  min-height: 297mm;
-  overflow: visible;
-}
-.print-page.page-1.print-page--multi {
-  height: auto;
-  min-height: 297mm;
-  overflow: visible;
-}
-.page1-scale-inner {
-  display: flex;
-  flex-direction: column;
-  width: 100%;
-  flex: 1;
-}
-
-.dt tbody tr {
-  break-inside: avoid;
-}
-.box {
-  break-inside: avoid;
-}
-
-.ttd-row,
-.pf {
-  break-inside: avoid;
-  page-break-inside: avoid;
-}
-
 .layout-info {
+  width: 100%;
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 4px;
-  padding: 6px 8px;
+  padding: 4px 6px;
   background: #f5f5f5;
   border: 0.5px solid #ccc;
   border-radius: 3px;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
+
 .li-item {
-  font-size: 7.5pt;
+  min-width: 0;
+  font-size: 7.2pt;
+  overflow-wrap: anywhere;
 }
 .li-lbl {
   color: #777;
-  font-size: 7pt;
+  font-size: 6.8pt;
   text-transform: uppercase;
 }
 .li-val {
-  font-weight: bold;
+  font-weight: 700;
   color: #000;
+  overflow-wrap: anywhere;
 }
 
 .layout-section {
-  margin-bottom: 8px;
+  width: 100%;
+  margin-bottom: 6px;
+  min-width: 0;
 }
 .layout-sec-title {
-  font-size: 8pt;
-  font-weight: bold;
+  font-size: 7.5pt;
+  font-weight: 700;
   color: #fff;
-  padding: 3px 8px;
+  padding: 2px 6px;
   border-radius: 3px 3px 0 0;
 }
 .proof-title {
@@ -1939,231 +2404,357 @@ Keterangan Komponen :
   background: #1565c0;
 }
 
-.lt {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 7.5pt;
-  border: 0.5px solid #ccc;
-}
-.lt thead th {
-  background: #f5f5f5;
-  color: #000;
-  padding: 3px 5px;
-  font-weight: bold;
-  border: 0.5px solid #ccc;
-  white-space: nowrap;
-  text-align: left;
-}
-.lt tbody td {
-  padding: 2px 5px;
-  border-bottom: 0.5px solid #eee;
-  border-right: 0.5px solid #eee;
-}
-.lt tbody tr:nth-child(even) td {
-  background: #fafafa;
-}
-
-.tr {
-  text-align: right;
-}
-.tc {
-  text-align: center;
-}
-
-.bahan-datang-cell {
-  white-space: pre-line;
-  font-size: 7pt;
-  color: #2e7d32;
-}
-
 .layout-row {
+  width: 100%;
   display: flex;
   gap: 6px;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
+  min-width: 0;
 }
 .layout-section--half {
   flex: 1 1 0;
   min-width: 0;
   margin-bottom: 0;
 }
-.lt-compact {
-  font-size: 6.3pt;
-  table-layout: fixed;
-  width: 100%;
-}
-.lt-compact th,
-.lt-compact td {
-  padding: 2px 3px;
-  overflow: hidden;
-  white-space: nowrap;
-}
-.lt-compact .ellip {
-  text-overflow: ellipsis;
-}
-.lt-compact .wrap {
-  white-space: normal;
-  word-break: break-word;
-  line-height: 1.15;
+.bahan-datang-cell {
+  white-space: pre-line;
+  font-size: 6.8pt;
+  color: #2e7d32;
 }
 
-.lt-summary {
+.ttd-row {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  margin-top: 4px;
+  padding-top: 4px;
+  border-top: 0.5px solid #ccc;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.ttd-tbl {
+  border-collapse: collapse;
   font-size: 7.5pt;
 }
-.lt-summary .ls-lbl {
-  font-weight: bold;
+.ttd-hd {
+  border: 0.5px solid #000;
+  padding: 2px 18px;
+  text-align: center;
+  font-weight: 700;
   background: #f5f5f5;
-  padding: 3px 6px;
 }
-.lt-summary td {
-  border: 0.5px solid #ccc;
-  padding: 3px 6px;
+.ttd-space {
+  border: 0.5px solid #000;
+  height: 26px;
+  padding: 0 18px;
+}
+.ttd-name {
+  border: 0.5px solid #000;
+  padding: 1.5px 4px;
+  font-size: 7pt;
+  text-align: center;
 }
 
-.p1-row-potong-mka {
-  display: grid;
-  grid-template-columns: 1.8fr 1fr;
-  gap: 8px;
-  align-items: start;
+.qr-wrap {
+  text-align: center;
+  flex-shrink: 0;
 }
-.mka-narrow {
-  font-size: 6.8pt;
+.qr-lbl {
+  font-size: 6pt;
+  margin-top: 1px;
+  color: #555;
+  font-family: "Courier New", monospace;
 }
-.dt-narrow {
-  font-size: 6.8pt;
+
+.pf {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-top: 0.5px solid #ccc;
+  padding-top: 2px;
+  margin-top: 4px;
+  font-size: 6.2pt;
+  color: #666;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.qr-wrap-footer {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 6.2pt;
+}
+
+/* =========================================================
+   FORMAT LAMA P01
+========================================================= */
+
+.print-container-p01 {
+  width: 100%;
+  margin: 0 auto;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 8.5pt;
+  color: #000;
+}
+.print-page-p01 {
+  width: 297mm;
+  height: 210mm;
+  min-height: 210mm;
+  max-height: 210mm;
+  margin: 0 auto;
+  padding: 4mm 6mm;
+  box-sizing: border-box;
+  background: #fff;
+  overflow: hidden;
+  page-break-after: always;
+  break-after: page;
+}
+.print-page-p01:last-child {
+  page-break-after: auto;
+  break-after: auto;
+}
+.alokasi-page-p01 {
+  page-break-before: always;
+  break-before: page;
+}
+
+.header-row-p01 {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 10px;
+  margin-bottom: 8px;
+  min-width: 0;
+}
+.title-main-p01,
+.title-po-p01 {
+  font-size: 13pt;
+  font-weight: 700;
+  text-decoration: underline;
+  line-height: 1;
+  overflow-wrap: anywhere;
+}
+.body-p01 {
+  display: flex;
+  gap: 12px;
+  flex: 1;
+  min-height: 0;
+  margin-top: 5px;
+  overflow: hidden;
+}
+.kiri-p01 {
+  flex: 0 0 55%;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+.kanan-p01 {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  font-size: 8pt;
+}
+
+.info-table-p01 {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
   margin-bottom: 4px;
 }
-.dt-narrow th,
-.dt-narrow td {
-  padding: 2px 4px;
+.info-table-p01 td {
+  padding: 1px 0;
+  vertical-align: top;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
-
-/* ── Screen preview ── */
-@media screen {
-  body {
-    background: #555;
-  }
-  .print-page {
-    background: white;
-    box-shadow: 0 0 12px rgba(0, 0, 0, 0.4);
-    margin: 20px auto;
-  }
+.w-label-p01 {
+  width: 80px;
 }
-
-/* 💡 FIX 3: Dihapus kaitan hardcoded @page di sini agar tidak memblokir injectPageStyle() */
-@media print {
-  body {
-    margin: 0;
-    padding: 0;
-    background: white;
-  }
-  * {
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
-  }
-  .print-page {
-    margin: 0;
-    box-shadow: none;
-    page-break-after: always;
-    break-after: page;
-  }
-  .print-page:last-child {
-    page-break-after: avoid;
-    break-after: avoid;
-  }
-}
-
-/* ── Mode Preview: banner ── */
-.preview-banner {
-  position: sticky;
-  top: 0;
-  z-index: 50;
-  background: #d32f2f;
-  color: white;
+.w-colon-p01 {
+  width: 12px;
   text-align: center;
-  font-size: 11px;
+}
+.fw-p01 {
   font-weight: 700;
-  padding: 6px 12px;
-  letter-spacing: 0.02em;
+}
+.text-xs-p01 {
+  font-size: 7.5pt;
+}
+.ml-8-p01 {
+  margin-left: 8px;
+}
+.mt-1-p01 {
+  margin-top: 4px;
+}
+.mt-2-p01 {
+  margin-top: 8px;
 }
 
-.preview-watermark {
-  position: fixed;
-  inset: 0;
-  z-index: 40;
+.img-center-p01 {
+  flex: 1;
   display: flex;
-  flex-wrap: wrap;
-  align-content: flex-start;
-  gap: 40px 24px;
-  padding: 20px;
-  pointer-events: none;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
   overflow: hidden;
-  transform: rotate(-28deg) scale(1.4);
-  transform-origin: center;
+  padding: 8px 0;
 }
-.wm-tile {
-  font-size: 11px;
+.img-fit-p01 {
+  display: block;
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+}
+.ket-box-p01 {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.ket-title-p01 {
   font-weight: 700;
-  color: rgba(200, 0, 0, 0.12);
-  white-space: nowrap;
-  user-select: none;
+  font-size: 8.5pt;
+  margin-bottom: 4px;
+  border-bottom: 1px solid #000;
+  padding-bottom: 2px;
+}
+.ket-pre-p01 {
+  font-family: inherit;
+  font-size: 8pt;
+  white-space: pre-wrap;
+  margin: 0;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
-.preview-mode {
-  user-select: none;
+.ttd-wrap-p01 {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 10px;
+  margin-top: 12px;
+  flex-shrink: 0;
 }
-.preview-mode img {
-  -webkit-user-drag: none;
-  pointer-events: none;
+.ttd-table-p01 {
+  width: 180px;
+  border-collapse: collapse;
+  text-align: center;
+  font-size: 7.5pt;
+  border: 1px solid #000;
+  color: #000;
+}
+.ttd-table-p01 td {
+  border: 1px solid #000;
+  padding: 2px;
+  font-weight: 700;
+  color: #000 !important;
+}
+.sign-space-p01 {
+  position: relative;
+  height: 45px;
+  vertical-align: bottom;
+  padding-bottom: 2px;
+}
+.ttd-img-p01 {
+  position: absolute;
+  top: 2px;
+  left: 50%;
+  transform: translateX(-50%);
+  height: 32px;
+  object-fit: contain;
+  z-index: 1;
+}
+.sign-name-p01 {
+  position: absolute;
+  bottom: 2px;
+  left: 0;
+  right: 0;
+  z-index: 2;
+}
+.footer-note-p01 {
+  text-align: right;
+  font-size: 6.5pt;
+  border-top: 1px solid #000;
+  padding-top: 3px;
+  margin-top: 5px;
+  flex-shrink: 0;
 }
 
-.preview-print-blocked-msg {
-  display: none;
+.alokasi-title-p01 {
+  font-size: 15pt;
+  font-weight: 700;
+  text-decoration: underline;
+  margin-bottom: 12px;
 }
-@media print {
-  .print-root.preview-mode .print-page,
-  .print-root.preview-mode .print-page-old,
-  .print-root.preview-mode .preview-banner,
-  .print-root.preview-mode .preview-watermark {
-    display: none !important;
-  }
-  .print-root.preview-mode .preview-print-blocked-msg {
-    display: flex !important;
-    align-items: center;
-    justify-content: center;
-    height: 100vh;
-    font-size: 16pt;
-    font-weight: 700;
-    text-align: center;
-    color: #000;
-  }
+.alokasi-table-p01 {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  font-size: 9pt;
+  color: #000;
+}
+.alokasi-table-p01 th,
+.alokasi-table-p01 td {
+  border: 1px solid #000;
+  padding: 4px 6px;
+  color: #000 !important;
+  overflow-wrap: anywhere;
+}
+.text-left-p01 {
+  text-align: left;
+}
+.text-center-p01 {
+  text-align: center;
+}
+.pl-2-p01 {
+  padding-left: 8px;
 }
 
-/* ══ SPANDUK/MMT — gaya SO landscape 2-copy ══ */
+/* =========================================================
+   SPANDUK / MMT FORMAT (P02, P05)
+========================================================= */
+
 .print-container-so {
   width: 100%;
   margin: 0 auto;
   background: #fff;
-  font-family: "Arial", sans-serif;
+  font-family: Arial, Helvetica, sans-serif;
   font-size: 8.5pt;
   color: #000;
   box-sizing: border-box;
 }
 .print-wrapper-so {
+  width: 297mm;
+  height: 210mm;
+  min-height: 210mm;
+  margin: 0 auto;
   display: flex;
   flex-wrap: wrap;
-  width: 297mm;
-  min-height: 209mm;
-  margin: 0 auto;
   box-sizing: border-box;
+  background: #fff;
+  overflow: hidden;
 }
 .print-half-so {
   flex: 0 0 50%;
+  width: 50%;
+  height: 210mm;
+  min-height: 210mm;
   display: flex;
   flex-direction: column;
   padding: 7mm 10mm 7mm 9mm;
   box-sizing: border-box;
   min-width: 0;
-  height: 209mm;
   overflow: hidden;
 }
 .border-right-so {
@@ -2172,31 +2763,41 @@ Keterangan Komponen :
 .alokasi-panel-so {
   flex: 0 0 100%;
   width: 100%;
+  height: 210mm;
+  min-height: 210mm;
   padding: 7mm 10mm;
   break-before: page;
   page-break-before: always;
 }
+
 .header-row-so {
   display: flex;
   justify-content: space-between;
-  margin-bottom: 8px;
   align-items: flex-end;
+  gap: 10px;
+  margin-bottom: 8px;
+  min-width: 0;
 }
 .title-main-so,
 .title-po-so {
   font-size: 12pt;
-  font-weight: bold;
+  font-weight: 700;
   text-decoration: underline;
   line-height: 1;
+  overflow-wrap: anywhere;
 }
+
 .info-table-so {
   width: 100%;
   border-collapse: collapse;
+  table-layout: fixed;
   margin-bottom: 4px;
 }
 .info-table-so td {
   padding: 1px 0;
   vertical-align: top;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 .w-label-so {
   width: 80px;
@@ -2217,19 +2818,17 @@ Keterangan Komponen :
   white-space: pre-wrap;
   margin: 0;
   line-height: 1.2;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
-.highlight-yellow-so {
-  background: yellow;
-  padding: 1px 4px;
-  font-weight: bold;
-  border: 1px solid #ccc;
-}
+
 .layout-box-so {
   display: flex;
   flex: 1;
   min-height: 0;
   gap: 15px;
   margin-top: 8px;
+  overflow: hidden;
 }
 .img-box-so {
   display: flex;
@@ -2238,24 +2837,32 @@ Keterangan Komponen :
   flex-direction: column;
   flex: 1;
   min-width: 0;
+  min-height: 0;
+  overflow: hidden;
 }
 .img-box-so img {
+  display: block;
   max-width: 100%;
   max-height: 190px;
+  width: auto;
+  height: auto;
   object-fit: contain;
 }
 .ukuran-header-so {
   text-align: center;
-  font-weight: bold;
+  font-weight: 700;
   font-size: 8pt;
   letter-spacing: 1px;
   margin-bottom: 5px;
 }
+
 .bottom-ttd-wrapper-so {
   display: flex;
   justify-content: space-between;
   align-items: flex-end;
+  gap: 10px;
   margin-top: 12px;
+  flex-shrink: 0;
 }
 .ttd-table-simple-so {
   width: 180px;
@@ -2268,7 +2875,7 @@ Keterangan Komponen :
 .ttd-table-simple-so td {
   border: 1px solid #000;
   padding: 2px;
-  font-weight: bold;
+  font-weight: 700;
   color: #000 !important;
 }
 .sign-space-simple-so {
@@ -2305,10 +2912,12 @@ Keterangan Komponen :
   border-top: 1px solid #000;
   padding-top: 3px;
   margin-top: 5px;
+  flex-shrink: 0;
 }
+
 .alokasi-title-so {
   font-size: 15pt;
-  font-weight: bold;
+  font-weight: 700;
   text-decoration: underline;
   margin-bottom: 12px;
 }
@@ -2317,15 +2926,29 @@ Keterangan Komponen :
   border-collapse: collapse;
   font-size: 9pt;
   color: #000;
+  table-layout: fixed;
 }
 .alokasi-table-so th,
 .alokasi-table-so td {
   border: 1px solid #000;
   padding: 4px 6px;
   color: #000 !important;
+  overflow-wrap: anywhere;
 }
+.alokasi-cols-so {
+  width: 100%;
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  min-width: 0;
+}
+.alokasi-cols-so .alokasi-table-so {
+  flex: 1;
+  min-width: 0;
+}
+
 .fw-so {
-  font-weight: bold;
+  font-weight: 700;
 }
 .text-left-so {
   text-align: left;
@@ -2340,228 +2963,344 @@ Keterangan Komponen :
   margin-top: 8px;
 }
 
+/* =========================================================
+   PREVIEW SCREEN
+========================================================= */
+
 @media screen {
-  .print-container-so {
+  html,
+  body {
+    margin: 0;
+    padding: 0;
+  }
+  body {
     background: #555;
-    padding: 20px;
+  }
+  .print-root {
+    min-height: 100vh;
+    background: #555;
+  }
+  .print-page {
+    background: #fff;
+    margin: 20px auto;
+    box-shadow: 0 0 12px rgba(0, 0, 0, 0.4);
+  }
+  .print-page-p01 {
+    background: #fff;
+    margin: 20px auto;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
   }
   .print-wrapper-so {
-    background: white;
-    margin: 0 auto;
+    background: #fff;
     box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
   }
 }
 
-/* ══ SPK P01 — landscape ══ */
-.print-container-p01 {
-  width: 100%;
-  font-family: "Arial", sans-serif;
-  font-size: 8.5pt;
-  color: #000;
-}
-.print-page-p01 {
-  width: 277mm;
-  min-height: 190mm;
-  margin: 0 auto;
-  padding: 4mm 6mm;
-  box-sizing: border-box;
-  display: flex;
-  flex-direction: column;
-}
-.alokasi-page-p01 {
-  page-break-before: always;
-  break-before: page;
-}
-.header-row-p01 {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 8px;
-  align-items: flex-end;
-}
-.title-main-p01,
-.title-po-p01 {
-  font-size: 13pt;
-  font-weight: bold;
-  text-decoration: underline;
-  line-height: 1;
-}
-.body-p01 {
-  display: flex;
-  gap: 12px;
-  flex: 1;
-  min-height: 0;
-  margin-top: 5px;
-}
-.kiri-p01 {
-  flex: 0 0 55%;
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
-.kanan-p01 {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  font-size: 8pt;
-}
-.info-table-p01 {
-  width: 100%;
-  border-collapse: collapse;
-  margin-bottom: 4px;
-}
-.info-table-p01 td {
-  padding: 1px 0;
-  vertical-align: top;
-}
-.w-label-p01 {
-  width: 80px;
-}
-.w-colon-p01 {
-  width: 12px;
-  text-align: center;
-}
-.fw-p01 {
-  font-weight: bold;
-}
-.text-xs-p01 {
-  font-size: 7.5pt;
-}
-.ml-8-p01 {
-  margin-left: 8px;
-}
-.mt-1-p01 {
-  margin-top: 4px;
-}
-.mt-2-p01 {
-  margin-top: 8px;
-}
-.img-center-p01 {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 0;
-  overflow: hidden;
-  padding: 8px 0;
-}
-.img-fit-p01 {
-  max-width: 100%;
-  max-height: 100%;
-  object-fit: contain;
-}
-.ket-box-p01 {
-  display: flex;
-  flex-direction: column;
-}
-.ket-title-p01 {
-  font-weight: bold;
-  font-size: 8.5pt;
-  margin-bottom: 4px;
-  border-bottom: 1px solid #000;
-  padding-bottom: 2px;
-}
-.ket-pre-p01 {
-  font-family: inherit;
-  font-size: 8pt;
-  white-space: pre-wrap;
-  margin: 0;
-  line-height: 1.35;
-}
-.ttd-wrap-p01 {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-end;
-  margin-top: 12px;
-}
-.ttd-table-p01 {
-  width: 180px;
-  border-collapse: collapse;
-  text-align: center;
-  font-size: 7.5pt;
-  border: 1px solid #000;
-  color: #000;
-}
-.ttd-table-p01 td {
-  border: 1px solid #000;
-  padding: 2px;
-  font-weight: bold;
-  color: #000 !important;
-}
-.sign-space-p01 {
-  position: relative;
-  height: 45px;
-  vertical-align: bottom;
-  padding-bottom: 2px;
-}
-.ttd-img-p01 {
-  position: absolute;
-  top: 2px;
-  left: 50%;
-  transform: translateX(-50%);
-  height: 32px;
-  object-fit: contain;
-  z-index: 1;
-}
-.sign-name-p01 {
-  position: absolute;
-  bottom: 2px;
-  left: 0;
-  right: 0;
-  z-index: 2;
-}
-.footer-note-p01 {
-  text-align: right;
-  font-size: 6.5pt;
-  border-top: 1px solid #000;
-  padding-top: 3px;
-  margin-top: 5px;
-}
-.alokasi-title-p01 {
-  font-size: 15pt;
-  font-weight: bold;
-  text-decoration: underline;
-  margin-bottom: 12px;
-}
-.alokasi-table-p01 {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 9pt;
-  color: #000;
-}
-.alokasi-table-p01 th,
-.alokasi-table-p01 td {
-  border: 1px solid #000;
-  padding: 4px 6px;
-  color: #000 !important;
-}
-.text-left-p01 {
-  text-align: left;
-}
-.text-center-p01 {
-  text-align: center;
-}
-.pl-2-p01 {
-  padding-left: 8px;
-}
+/* =========================================================
+   PRINT GLOBAL BAWAAN & ROTASI KHUSUS P04
+========================================================= */
 
-@media screen {
-  .print-page-p01 {
-    background: white;
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
-    margin: 20px auto;
-  }
-}
 @media print {
-  .print-page-p01 {
+  .no-print {
+    display: none !important;
+  }
+
+  html,
+  body {
+    width: 100% !important;
+    min-width: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #fff !important;
+  }
+
+  body {
+    overflow: visible !important;
+  }
+  #app {
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  *,
+  *::before,
+  *::after {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .print-root {
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #fff !important;
+  }
+  .print-container-p01,
+  .print-container-so {
+    width: auto !important;
+    min-width: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* PORTRAIT DYNAMIC PRINT STANDARD */
+  .print-page,
+  .print-page.page-1 {
+    width: 210mm !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    margin: 0 !important;
+    padding: 4mm 6mm !important;
+    box-sizing: border-box !important;
+    background: #fff !important;
+    box-shadow: none !important;
+    overflow: visible !important;
+    position: relative !important;
+    page-break-after: auto !important;
+    break-after: auto !important;
+  }
+
+  /* 🛠️ ROTASI KHUSUS P04 SAAT WINDOW PRINT TERBUKA */
+  .print-page.rotate-p04 {
+    transform: rotate(90deg) translateY(-297mm) !important;
+    transform-origin: top left !important;
+    width: 210mm !important;
+    height: 297mm !important;
+    position: relative !important;
+    top: 0 !important;
+    left: 0 !important;
+    padding: 4mm 6mm !important;
+    box-sizing: border-box !important;
+    page-break-after: always !important;
+    break-after: page !important;
+  }
+
+  .print-page:last-child {
+    page-break-after: auto !important;
+    break-after: auto !important;
+  }
+
+  .page1-scale-inner {
+    width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    transform-origin: top center !important;
+  }
+
+  .print-page *,
+  .page1-scale-inner * {
+    max-width: 100%;
+  }
+  table {
+    max-width: 100% !important;
+  }
+  img {
+    max-width: 100% !important;
+  }
+
+  .p1-body {
+    width: 100% !important;
+    min-width: 0 !important;
+    overflow: visible !important;
+  }
+  .p1-row-top,
+  .p1-row-komp,
+  .p1-row-ket,
+  .p1-row-potong-mka {
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+  .p1-info,
+  .p1-img-col,
+  .box {
+    min-width: 0 !important;
+  }
+
+  .dt,
+  .ft,
+  .planning-tbl,
+  .lt,
+  .alokasi-table-p01,
+  .alokasi-table-so {
+    width: 100% !important;
+    max-width: 100% !important;
+    table-layout: fixed;
+  }
+
+  .dt tbody tr,
+  .box,
+  .ttd-row,
+  .pf,
+  .layout-section {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  .print-page,
+  .print-page-p01,
+  .print-wrapper-so {
+    box-shadow: none !important;
+  }
+  .preview-banner,
+  .preview-watermark {
+    display: none !important;
+  }
+
+  .print-container-so {
+    width: 297mm !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #fff !important;
+  }
+  .print-wrapper-so {
+    width: 297mm;
+    height: 210mm;
+    min-height: 210mm;
     margin: 0 auto;
-    box-shadow: none;
-    page-break-after: always;
-    break-after: page;
+    box-sizing: border-box;
+    background: #fff;
+    overflow: hidden;
+  }
+  .print-half-so {
+    width: 50% !important;
+    height: 210mm !important;
+    min-height: 210mm !important;
+    overflow: hidden !important;
+    box-sizing: border-box !important;
+  }
+  .alokasi-panel-so {
+    width: 100% !important;
+    height: 210mm !important;
+    min-height: 210mm !important;
+    page-break-before: always !important;
+    break-before: page !important;
+  }
+
+  .print-container-p01 {
+    width: 297mm !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  .print-page-p01 {
+    width: 297mm !important;
+    height: 210mm !important;
+    min-height: 210mm !important;
+    max-height: 210mm !important;
+    margin: 0 !important;
+    padding: 4mm 6mm !important;
+    box-sizing: border-box !important;
+    background: #fff !important;
+    box-shadow: none !important;
+    overflow: hidden !important;
+    page-break-after: always !important;
+    break-after: page !important;
   }
   .print-page-p01:last-child {
-    page-break-after: avoid;
-    break-after: avoid;
+    page-break-after: auto !important;
+    break-after: auto !important;
+  }
+  .alokasi-page-p01 {
+    page-break-before: always !important;
+    break-before: page !important;
+  }
+
+  .body-p01 {
+    width: 100% !important;
+    min-width: 0 !important;
+    overflow: hidden !important;
+  }
+  .kiri-p01,
+  .kanan-p01 {
+    min-width: 0 !important;
+  }
+  .img-center-p01 {
+    min-width: 0 !important;
+    overflow: hidden !important;
+  }
+  .img-fit-p01 {
+    max-width: 100% !important;
+    max-height: 100% !important;
+  }
+
+  .print-root.preview-mode .print-page,
+  .print-root.preview-mode .print-page-old,
+  .print-root.preview-mode .print-container-p01,
+  .print-root.preview-mode .print-container-so,
+  .print-root.preview-mode .preview-banner,
+  .print-root.preview-mode .preview-watermark {
+    display: none !important;
+  }
+
+  .print-root.preview-mode .preview-print-blocked-msg {
+    display: flex !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    font-size: 16pt;
+    font-weight: 700;
+    text-align: center;
+    color: #000 !important;
+  }
+}
+
+.preview-banner {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: #d32f2f;
+  color: #fff;
+  text-align: center;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 6px 12px;
+  letter-spacing: 0.02em;
+}
+
+.preview-watermark {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  gap: 40px 24px;
+  padding: 20px;
+  pointer-events: none;
+  overflow: hidden;
+  transform: rotate(-28deg) scale(1.4);
+  transform-origin: center;
+}
+
+.wm-tile {
+  font-size: 11px;
+  font-weight: 700;
+  color: rgba(200, 0, 0, 0.12);
+  white-space: nowrap;
+  user-select: none;
+}
+
+.preview-mode {
+  user-select: none;
+}
+.preview-mode img {
+  -webkit-user-drag: none;
+  pointer-events: none;
+}
+
+.preview-print-blocked-msg {
+  display: none;
+}
+
+@media screen and (max-width: 900px) {
+  .print-page,
+  .print-page-p01,
+  .print-wrapper-so {
+    transform-origin: top center;
   }
 }
 </style>

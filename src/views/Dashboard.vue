@@ -434,6 +434,8 @@ const userRoleConfig = computed(() => {
 const rolePermissions = {
   1: [
     "Daftar",
+    "Master Bahan",
+    "Mesin Produksi",
     "Daftar Permintaan Pembelian",
     "Purchase Request (PR)",
     "Penerimaan Bahan",

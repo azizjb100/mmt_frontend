@@ -1,29 +1,29 @@
-import { createApp } from 'vue'
-import { createPinia } from 'pinia'
-import App from './App.vue'
-import router from './router'
+import { createApp } from "vue";
+import { createPinia } from "pinia";
+import App from "./App.vue";
+import router from "./router";
 
 // =======================
 // VUETIFY
 // =======================
-import 'vuetify/styles'
-import { createVuetify } from 'vuetify'
-import * as components from 'vuetify/components'
-import * as directives from 'vuetify/directives'
+import "vuetify/styles";
+import { createVuetify } from "vuetify";
+import * as components from "vuetify/components";
+import * as directives from "vuetify/directives";
 
 // =======================
 // STYLES
 // =======================
-import './styles/global.css'
-import './styles/desktop-app.css'
-import './styles/desktop-theme.css'
-import '@mdi/font/css/materialdesignicons.css'
+import "./styles/global.css";
+import "./styles/desktop-app.css";
+import "./styles/desktop-theme.css";
+import "@mdi/font/css/materialdesignicons.css";
 
 // =======================
 // TOAST
 // =======================
-import Toast from 'vue-toastification'
-import 'vue-toastification/dist/index.css'
+import Toast from "vue-toastification";
+import "vue-toastification/dist/index.css";
 
 // =======================
 // INIT VUETIFY
@@ -32,30 +32,30 @@ const vuetify = createVuetify({
   components,
   directives,
   icons: {
-    defaultSet: 'mdi',
+    defaultSet: "mdi",
   },
-})
+});
 
 // =======================
 // CREATE APP
 // =======================
-const app = createApp(App)
+const app = createApp(App);
 
 // =======================
 // PINIA
 // =======================
-const pinia = createPinia()
-app.use(pinia)
+const pinia = createPinia();
+app.use(pinia);
 
 // =======================
 // ROUTER
 // =======================
-app.use(router)
+app.use(router);
 
 // =======================
 // VUETIFY
 // =======================
-app.use(vuetify)
+app.use(vuetify);
 
 // =======================
 // TOAST
@@ -76,9 +76,9 @@ app.use(Toast, {
   closeButton: "button",
   icon: true,
   rtl: false,
-})
+});
 
 // =======================
 // MOUNT
 // =======================
-app.mount('#app')
+app.mount("#app");

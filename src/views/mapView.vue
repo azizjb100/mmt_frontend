@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from "vue";
+import { ref, computed, watch } from "vue";
 import { useRouter } from "vue-router";
 import { useToast } from "vue-toastification";
 import BaseBrowse from "@/components/BaseBrowse.vue";
@@ -51,11 +51,9 @@ const getFutureLocalDate = (daysAhead: number) => {
   return `${year}-${month}-${day}`;
 };
 
-// State Filter Tanggal
-const filterState = ref({
-  startDate: getLocalDate(),
-  endDate: getFutureLocalDate(5),
-});
+// State Filter Tanggal (Eksplisit)
+const startDate = ref<string>(getLocalDate());
+const endDate = ref<string>(getFutureLocalDate(5));
 
 // --- STATE UNTUK MODAL GAMBAR & ALASAN ---
 const dialogGambar = ref(false);
@@ -84,12 +82,8 @@ const isSavingDesign = ref(false);
 const openDesignDialog = async () => {
   isLoadingDesign.value = true;
   try {
-    const res = await mapService.getDesignList(
-      filterState.value.startDate,
-      filterState.value.endDate,
-    );
+    const res = await mapService.getDesignList(startDate.value, endDate.value);
 
-    // Safely extract array data
     const rawList = Array.isArray(res)
       ? res
       : Array.isArray(res?.data)
@@ -137,18 +131,23 @@ const {
   menuId,
   fetchApi: async () => {
     const payload = {
-      startDate: filterState.value.startDate,
-      endDate: filterState.value.endDate,
+      startDate: startDate.value,
+      endDate: endDate.value,
     };
     const res = await mapService.getBrowseList(payload);
 
-    // Flexible array extraction
     if (Array.isArray(res)) return res;
     if (Array.isArray(res?.data)) return res.data;
     if (Array.isArray(res?.data?.data)) return res.data.data;
     return [];
   },
   immediate: true,
+});
+
+// Auto fetch data & reset filter kolom saat tanggal diubah
+watch([startDate, endDate], () => {
+  resetAllColumnFilters();
+  fetchData();
 });
 
 const canLihatCus = computed(
@@ -158,7 +157,7 @@ const canLihatHarga = computed(
   () => Number(authStore.user?.flags?.lihatHarga) === 1,
 );
 
-// Headers Datatable
+// Headers Datatable MAP
 const headers = computed(() => {
   const h: any[] = [
     { title: "Nomor", key: "Nomor", width: "160px" },
@@ -243,30 +242,217 @@ const fmtNum = (val: number | string | null) => {
   return new Intl.NumberFormat("id-ID").format(Number(val));
 };
 
-// Pewarnaan Baris (Sesuai Logika Delphi)
+// --- EXCEL FILTER CORE LOGIC ---
+const columnSearch = ref<Record<string, string>>({});
+const selectedValues = ref<Record<string, string[]>>({});
+const menuStates = ref<Record<string, boolean>>({});
+
+const getCellValue = (item: any, key: string): string => {
+  if (!item) return "-";
+  let val = item[key];
+
+  if (
+    [
+      "Tanggal",
+      "Dateline",
+      "TglBast",
+      "EstimasiJadi",
+      "Design_Tanggal",
+    ].includes(key)
+  ) {
+    return val ? formatTanggal(val) || "-" : "-";
+  }
+  if (key === "Created") {
+    return val ? formatTanggalJam(val) || "-" : "-";
+  }
+  if (
+    [
+      "Panjang",
+      "Lebar",
+      "Jumlah",
+      "Kirim",
+      "Rencana",
+      "Harga",
+      "HargaRiil",
+    ].includes(key)
+  ) {
+    return val !== null && val !== undefined && val !== "" ? fmtNum(val) : "0";
+  }
+
+  if (val === null || val === undefined || val === "") {
+    return "-";
+  }
+
+  return String(val);
+};
+
+const uniqueValuesMap = computed(() => {
+  const map: Record<string, string[]> = {};
+  const currentItems = items.value ?? [];
+  headers.value.forEach((h: any) => {
+    const key = h.key;
+    const set = new Set<string>();
+    currentItems.forEach((item: any) => {
+      set.add(getCellValue(item, key));
+    });
+    map[key] = Array.from(set).sort((a, b) =>
+      a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" }),
+    );
+  });
+  return map;
+});
+
+const getFilteredPopupOptions = (key: string) => {
+  const options = uniqueValuesMap.value[key] || [];
+  const search = columnSearch.value[key]?.trim().toLowerCase();
+  if (!search) return options;
+  return options.filter((opt) => opt.toLowerCase().includes(search));
+};
+
+const isOptionSelected = (key: string, option: string) => {
+  const sel = selectedValues.value[key];
+  if (!sel) return true;
+  return sel.includes(option);
+};
+
+const toggleOption = (key: string, option: string) => {
+  if (!selectedValues.value[key]) {
+    selectedValues.value[key] = [...(uniqueValuesMap.value[key] || [])];
+  }
+  const index = selectedValues.value[key].indexOf(option);
+  if (index > -1) {
+    selectedValues.value[key].splice(index, 1);
+  } else {
+    selectedValues.value[key].push(option);
+  }
+};
+
+const selectAllFiltered = (key: string) => {
+  const visibleOptions = getFilteredPopupOptions(key);
+  const currentSelected = selectedValues.value[key] || [
+    ...(uniqueValuesMap.value[key] || []),
+  ];
+  const newSet = new Set([...currentSelected, ...visibleOptions]);
+  selectedValues.value[key] = Array.from(newSet);
+};
+
+const deselectAllFiltered = (key: string) => {
+  const visibleOptions = getFilteredPopupOptions(key);
+  const currentSelected = selectedValues.value[key] || [
+    ...(uniqueValuesMap.value[key] || []),
+  ];
+  selectedValues.value[key] = currentSelected.filter(
+    (opt) => !visibleOptions.includes(opt),
+  );
+};
+
+const isColumnFilterActive = (key: string) => {
+  const search = columnSearch.value[key]?.trim();
+  if (search) return true;
+
+  const sel = selectedValues.value[key];
+  if (!sel) return false;
+  const all = uniqueValuesMap.value[key] || [];
+  return sel.length < all.length;
+};
+
+const activeFiltersCount = computed(() => {
+  return (
+    Object.keys(columnSearch.value).filter(
+      (k) => !!columnSearch.value[k]?.trim(),
+    ).length +
+    Object.keys(selectedValues.value).filter((key) => isColumnFilterActive(key))
+      .length
+  );
+});
+
+const resetColumnFilter = (key: string) => {
+  delete selectedValues.value[key];
+  columnSearch.value[key] = "";
+};
+
+const resetAllColumnFilters = () => {
+  selectedValues.value = {};
+  columnSearch.value = {};
+};
+
+const filteredItems = computed(() => {
+  const rawItems = items.value ?? [];
+  return rawItems.filter((item: any) => {
+    return headers.value.every((h: any) => {
+      const key = h.key;
+      const cellValue = getCellValue(item, key);
+
+      const searchText = columnSearch.value[key]?.trim().toLowerCase();
+      if (searchText && !cellValue.toLowerCase().includes(searchText)) {
+        return false;
+      }
+
+      const selectedArr = selectedValues.value[key];
+      if (selectedArr) {
+        return selectedArr.includes(cellValue);
+      }
+
+      return true;
+    });
+  });
+});
+
+// Klik Baris Tabel
+const handleRowClick = (_event: any, rowData: any) => {
+  const item = rowData.item?.raw || rowData.item || rowData;
+  if (!item || !item.Nomor) return;
+
+  const exists = selected.value.some((s: any) => s.Nomor === item.Nomor);
+  if (exists) {
+    selected.value = [];
+  } else {
+    selected.value = [item];
+  }
+};
+
+// Highlight Baris
 const getRowProps = (data: any) => {
   const row = data.item?.raw || data.item;
-  if (row.Aktif === "N") return { class: "row-passive text-grey" };
-  if (row.Aktif === "Y" && row.CloseStatus === "N")
-    return { class: "row-active-open text-red-darken-2 font-weight-medium" };
-  return {};
+  const isSelected = selected.value.some((s: any) => s.Nomor === row.Nomor);
+  const classes: string[] = [];
+
+  if (isSelected) {
+    classes.push("row-selected");
+  }
+  if (row.Aktif === "N") {
+    classes.push("row-passive text-grey");
+  } else if (row.Aktif === "Y" && row.CloseStatus === "N") {
+    classes.push("row-active-open text-red-darken-2 font-weight-medium");
+  }
+
+  return { class: classes.join(" ") };
 };
 
 // Aksi CRUD
 const goAdd = () =>
   router.push({ name: "MapFormCreate", query: { mode: "new" } });
 
-const goEdit = (item: any) =>
+const goEdit = (item?: any) => {
+  const targetItem =
+    item || (selected.value.length > 0 ? selected.value[0] : null);
+  if (!targetItem) return;
   router.push({
     name: "MapFormEdit",
-    params: { nomor: encodeURIComponent(item.Nomor) },
+    params: { nomor: encodeURIComponent(targetItem.Nomor) },
   });
+};
 
-const goDelete = async (item: any) => {
+const goDelete = async (item?: any) => {
+  const targetItem =
+    item || (selected.value.length > 0 ? selected.value[0] : null);
+  if (!targetItem) return;
+
   isLoading.value = true;
   try {
-    await mapService.deleteMap(item.Nomor);
+    await mapService.deleteMap(targetItem.Nomor);
     toast.success("Berhasil dihapus.");
+    selected.value = [];
     fetchData();
   } catch (e: any) {
     toast.error(e.response?.data?.message || "Gagal menghapus data.");
@@ -324,7 +510,10 @@ const onGambarError = () => {
 
 // Cetak & Export
 const cetak = () => {
-  if (selected.value.length === 0) return;
+  if (selected.value.length === 0) {
+    toast.warning("Pilih salah satu baris MAP terlebih dahulu.");
+    return;
+  }
   const item = selected.value[0];
   const zBagian = authStore.user?.bagian?.toUpperCase() || "";
 
@@ -341,18 +530,22 @@ const cetak = () => {
 
 const pilihGambarVertikalBrowse = () => {
   showPrintDialog.value = false;
-  window.open(
-    `/penjualan/map/print/${encodeURIComponent(printNomorBrowse.value)}?layout=vertikal`,
-    "_blank",
-  );
+  const routeData = router.resolve({
+    name: "MapPrint",
+    params: { nomor: printNomorBrowse.value },
+    query: { layout: "vertikal" },
+  });
+  window.open(routeData.href, "_blank");
 };
 
 const pilihGambarHorizontalBrowse = () => {
   showPrintDialog.value = false;
-  window.open(
-    `/penjualan/map/print/${encodeURIComponent(printNomorBrowse.value)}?layout=horizontal`,
-    "_blank",
-  );
+  const routeData = router.resolve({
+    name: "MapPrint",
+    params: { nomor: printNomorBrowse.value },
+    query: { layout: "horizontal" },
+  });
+  window.open(routeData.href, "_blank");
 };
 
 // Modal Actions
@@ -439,11 +632,15 @@ const confirmToggleClose = async () => {
     :menu-id="menuId"
     :icon="IconClipboardText"
     :headers="headers"
-    :items="items ?? []"
+    :items="filteredItems"
     item-value="Nomor"
     :is-loading="isLoading"
     v-model:selected="selected"
-    v-model:filterState="filterState"
+    v-model:startDate="startDate"
+    v-model:endDate="endDate"
+    v-model:start-date="startDate"
+    v-model:end-date="endDate"
+    has-print
     :can-insert="canInsert"
     :can-edit="canEdit"
     :can-delete="canDelete"
@@ -453,35 +650,22 @@ const confirmToggleClose = async () => {
     @add="goAdd"
     @edit="goEdit"
     @delete="goDelete"
+    @print="cetak"
+    @action:print="cetak"
     @export="exportToExcel('MAP')"
+    @row-click="handleRowClick"
   >
     <template #filter-left>
-      <!-- Filter Tanggal (DIPERBAIKI: Menggunakan filterState) -->
-      <div class="filter-group">
-        <span class="filter-label">Tanggal Awal:</span>
-        <input
-          type="date"
-          class="date-inp"
-          v-model="filterState.startDate"
-          @change="fetchData"
-        />
-
-        <span class="filter-label ml-2">s/d Akhir:</span>
-        <input
-          type="date"
-          class="date-inp"
-          v-model="filterState.endDate"
-          @change="fetchData"
-        />
-
+      <div class="d-flex align-center gap-2">
+        <!-- Tombol Reset Filter Kolom Excel -->
         <v-btn
+          v-if="activeFiltersCount > 0"
+          color="warning"
+          variant="tonal"
           size="x-small"
-          color="primary"
-          variant="flat"
-          class="ml-2"
-          @click="fetchData"
+          @click="resetAllColumnFilters"
         >
-          Cari
+          Reset Filter Kolom ({{ activeFiltersCount }})
         </v-btn>
       </div>
 
@@ -524,6 +708,7 @@ const confirmToggleClose = async () => {
         Update Status Design
       </v-btn>
 
+      <!-- TOMBOL CETAK EKSPLISIT -->
       <v-btn
         size="small"
         variant="flat"
@@ -587,6 +772,130 @@ const confirmToggleClose = async () => {
           </v-list-item>
         </v-list>
       </v-menu>
+    </template>
+
+    <!-- EXCEL FILTER PER HEADER KOLOM -->
+    <template
+      v-for="header in headers"
+      :key="header.key"
+      #[`header.${header.key}`]="{ column }"
+    >
+      <div class="d-flex align-center justify-space-between w-100">
+        <span class="font-weight-bold text-truncate mr-1">{{
+          column.title
+        }}</span>
+
+        <v-menu
+          v-model="menuStates[header.key]"
+          :close-on-content-click="false"
+          location="bottom start"
+        >
+          <template #activator="{ props }">
+            <v-btn
+              icon
+              variant="text"
+              density="compact"
+              size="x-small"
+              v-bind="props"
+              @click.stop
+              :color="
+                isColumnFilterActive(header.key) ? 'primary' : 'grey-darken-1'
+              "
+            >
+              <v-icon size="16">
+                {{
+                  isColumnFilterActive(header.key)
+                    ? "mdi-filter"
+                    : "mdi-filter-variant"
+                }}
+              </v-icon>
+            </v-btn>
+          </template>
+
+          <v-card
+            min-width="280"
+            max-width="320"
+            class="pa-2 border shadow-2 rounded-lg"
+          >
+            <v-text-field
+              v-model="columnSearch[header.key]"
+              density="compact"
+              variant="outlined"
+              hide-details
+              clearable
+              autofocus
+              placeholder="Cari..."
+              class="mb-1"
+            />
+
+            <div class="text-caption text-grey-darken-1 my-1 px-1">
+              {{ getFilteredPopupOptions(header.key).length }} dari
+              {{ (uniqueValuesMap[header.key] || []).length }} nilai ditampilkan
+            </div>
+
+            <div class="d-flex ga-2 px-1 mb-2 text-caption font-weight-medium">
+              <a
+                href="#"
+                class="text-primary text-decoration-none"
+                @click.prevent="selectAllFiltered(header.key)"
+              >
+                Tampilkan Semua
+              </a>
+              <span class="text-grey-lighten-1">|</span>
+              <a
+                href="#"
+                class="text-error text-decoration-none"
+                @click.prevent="deselectAllFiltered(header.key)"
+              >
+                Sembunyikan Semua
+              </a>
+            </div>
+
+            <v-divider />
+
+            <div style="max-height: 220px; overflow-y: auto" class="my-1 px-1">
+              <v-checkbox
+                v-for="opt in getFilteredPopupOptions(header.key)"
+                :key="opt"
+                :label="opt"
+                :model-value="isOptionSelected(header.key, opt)"
+                density="compact"
+                hide-details
+                color="primary"
+                @update:model-value="toggleOption(header.key, opt)"
+              />
+              <div
+                v-if="getFilteredPopupOptions(header.key).length === 0"
+                class="text-caption text-grey text-center py-4"
+              >
+                Tidak ada data
+              </div>
+            </div>
+
+            <v-divider class="mb-2" />
+
+            <div class="d-flex justify-space-between align-center">
+              <v-btn
+                size="x-small"
+                variant="text"
+                color="grey-darken-1"
+                @click="resetColumnFilter(header.key)"
+              >
+                Reset
+              </v-btn>
+              <v-btn
+                size="small"
+                color="primary"
+                variant="flat"
+                class="px-4 font-weight-bold"
+                @click="menuStates[header.key] = false"
+              >
+                OK
+              </v-btn>
+            </div>
+          </v-card>
+        </v-menu>
+      </div>
     </template>
 
     <!-- Custom Columns Formatting -->
@@ -796,7 +1105,7 @@ const confirmToggleClose = async () => {
     </v-card>
   </v-dialog>
 
-  <!-- Dialog Cetak -->
+  <!-- Dialog Cetak MAP -->
   <v-dialog v-model="showPrintDialog" max-width="450px">
     <v-card class="rounded-lg">
       <v-card-title class="bg-primary text-white d-flex align-center pa-3">
@@ -1020,30 +1329,6 @@ const confirmToggleClose = async () => {
 </template>
 
 <style scoped>
-.filter-group {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-.filter-label {
-  font-size: 11px;
-  font-weight: 700;
-  color: #555;
-  white-space: nowrap;
-}
-.date-inp {
-  height: 28px;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  padding: 0 6px;
-  font-size: 12px;
-  background: white;
-  outline: none;
-  color: #212121;
-}
-.date-inp:focus {
-  border-color: #1976d2;
-}
 .gap-2 {
   gap: 8px;
 }
@@ -1056,6 +1341,11 @@ const confirmToggleClose = async () => {
   height: 24px;
   background-color: #d0d0d0;
   margin: 0 12px;
+}
+
+/* Style Highlight Klik Baris */
+:deep(.row-selected td) {
+  background-color: #e3f2fd !important;
 }
 
 /* Legend Styles */
