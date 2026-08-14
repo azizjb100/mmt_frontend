@@ -1370,40 +1370,115 @@ const handleSyncStokBahan = async () => {
 const handleSpkScan = async () => {
   const code = formData.value.barcode_spk?.trim();
   if (!code) return;
-  if (formData.value.details.some((d) => d.nomor_spk === code)) {
+
+  // Cek jika SPK sudah ada di tabel
+  if (
+    formData.value.details.some(
+      (d) =>
+        d.nomor_spk === code ||
+        d.nomor_spk?.toString().toLowerCase() === code.toLowerCase(),
+    )
+  ) {
     toast.warning("SPK sudah ada di list.");
     formData.value.barcode_spk = "";
     return;
   }
+
   try {
     const res = await api.get(`/mmt/SPK/${code}`);
-    const spk = res.data.data || res.data;
-    if (spk) {
-      injectSpkObject(spk);
-      formData.value.barcode_spk = "";
+
+    // Ekstraksi response dari backend (mendukung nested .data)
+    let spkData = res.data?.data?.data || res.data?.data || res.data;
+    if (Array.isArray(spkData)) {
+      spkData = spkData[0];
     }
-  } catch (e) {
-    toast.error("Gagal memuat barcode SPK");
+
+    if (spkData) {
+      // 💡 PASSING `code` SEBAGAI FALLBACK JIKA BACKEND TIDAK MENGIRIM FIELD NOMOR SPK
+      injectSpkObject(spkData, code);
+      formData.value.barcode_spk = "";
+    } else {
+      toast.error("Data SPK tidak ditemukan!");
+    }
+  } catch (e: any) {
+    console.error("Error scan SPK:", e);
+    toast.error(e.response?.data?.message || "Gagal memuat barcode SPK");
   }
 };
 
-const injectSpkObject = (spk: any) => {
+const injectSpkObject = (spk: any, fallbackCode: string = "") => {
+  if (!spk) return;
+
+  // Tangani jika spk terbungkus .data
+  const item = Array.isArray(spk) ? spk[0] : spk.data || spk;
+
+  // 1. Ekstraksi Nomor SPK dari berbagai variasi key backend,
+  //    dan fallback ke fallbackCode (teks barcode scan) jika semua key falsy/kosong.
+  const nomorSpk =
+    item.spk_nomor ||
+    item.ltd_spk_nomor ||
+    item.SPK ||
+    item.Spk ||
+    item.spk ||
+    item.Nomor ||
+    item.Nomor_Spk ||
+    item.Nomor_SPK ||
+    item.No_SPK ||
+    item.no_spk ||
+    item.nomor_spk ||
+    item.kode_spk ||
+    item.spk_code ||
+    item.Id ||
+    item.id ||
+    fallbackCode;
+
+  // 2. Ekstraksi Nama SPK / Produk
+  const namaSpk =
+    item.nama_spk ||
+    item.spk_nama ||
+    item.Nama ||
+    item.Nama_Produk ||
+    item.nama_produk ||
+    item.nama ||
+    "No Name";
+
+  // 3. Ekstraksi Dimensi & Qty
+  const panjangSpk = parseFloat(
+    item.spk_panjang || item.Panjang || item.panjang || 0,
+  );
+  const lebarSpk = parseFloat(item.spk_lebar || item.Lebar || item.lebar || 0);
+  const qtyJumlah = parseFloat(
+    item.spk_qty || item.Jumlah || item.jumlah || item.qty || 0,
+  );
+  const sudahCetak = parseFloat(
+    item.spk_sudah_cetak || item.Sudah_Cetak || item.sudahcetak || 0,
+  );
+  const kurangCetak = parseFloat(
+    item.kurangcetak_asli ||
+      item.Kurang_Cetak ||
+      item.kurang_cetak ||
+      qtyJumlah - sudahCetak,
+  );
+
   const newEntry: any = {
-    nomor_spk: spk.Spk || spk.nomor_spk || spk.Id,
-    nama_spk: spk.Nama || spk.nama || "No Name",
-    panjang_spk: parseFloat(spk.Panjang || 0),
-    lebar_spk: parseFloat(spk.Lebar || 0),
-    jumlah: parseFloat(spk.Jumlah || 0),
-    sudahcetak: parseFloat(spk.Sudah_Cetak || 0),
-    kurangcetak_asli: parseFloat(spk.Kurang_Cetak || spk.Jumlah || 0),
-    padding: 3,
-    tile: 1,
-    orientasi: "lebar",
+    nomor_spk: nomorSpk,
+    nama_spk: namaSpk,
+    panjang_spk: panjangSpk,
+    lebar_spk: lebarSpk,
+    jumlah: qtyJumlah,
+    sudahcetak: sudahCetak,
+    kurangcetak_asli: kurangCetak > 0 ? kurangCetak : qtyJumlah,
+    padding: item.padding !== undefined ? item.padding : 3,
+    tile: item.tile || 1,
+    orientasi: item.orientasi || "lebar",
     totalcetak: 0,
     luas_satuan: 0,
     total_luas: 0,
   };
-  for (let i = 1; i <= 7; i++) newEntry[`cetak${i}`] = 0;
+
+  for (let i = 1; i <= 7; i++) {
+    newEntry[`cetak${i}`] = parseFloat(item[`cetak${i}`] || 0);
+  }
 
   formData.value.details.push(newEntry);
   recalculateCombine();

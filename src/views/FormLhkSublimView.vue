@@ -260,13 +260,17 @@
                   <th width="60">Size PO</th>
                   <th width="120">Nomor SPK</th>
                   <th>Nama Pekerjaan</th>
-                  <th width="65">P (M)</th>
-                  <th width="65">L (M)</th>
-                  <th width="120">Orientasi</th>
-                  <th width="65">Pad(M)</th>
-                  <th width="55">Order</th>
-                  <th width="55">QTY</th>
-                  <th width="100">Total M²</th>
+                  <!-- 🆕 KOLOM KOMPONEN BARU -->
+                  <th width="120">Komponen</th>
+                  <th width="55">P (M)</th>
+                  <th width="55">L (M)</th>
+                  <th width="110">Orientasi</th>
+                  <th width="55">Pad(M)</th>
+                  <th width="50">Order</th>
+                  <th width="55">Sdh Ctk</th>
+                  <th width="55">Kurang</th>
+                  <th width="55">Cetak</th>
+                  <th width="80">Total M²</th>
                   <th width="35"></th>
                 </tr>
               </thead>
@@ -295,12 +299,27 @@
                   <td class="fw-bold text-blue-darken-4 px-2">
                     {{ item.spk_nomor }}
                   </td>
+
                   <td
                     class="px-2 text-truncate"
-                    style="max-width: 150px"
+                    style="max-width: 140px"
                     :title="item.spk_nama"
                   >
                     {{ item.spk_nama }}
+                  </td>
+
+                  <!-- 🆕 TAMPILAN KOMPONEN / ALL SET -->
+                  <td
+                    class="px-2 text-truncate font-weight-bold"
+                    style="max-width: 120px"
+                    :class="
+                      item.spk_komponen === 'ALL SET'
+                        ? 'text-teal-darken-3'
+                        : 'text-indigo-darken-3'
+                    "
+                    :title="item.spk_komponen || 'ALL SET'"
+                  >
+                    {{ item.spk_komponen || "ALL SET" }}
                   </td>
 
                   <td>
@@ -338,13 +357,29 @@
                     />
                   </td>
 
+                  <!-- Order / Target -->
                   <td
                     class="text-right px-2 text-grey-darken-1 font-weight-bold"
                   >
                     {{ item.spk_jmlorder || 0 }}
                   </td>
 
-                  <td>
+                  <!-- Sudah / Pernah Cetak -->
+                  <td
+                    class="text-right px-2 text-blue-darken-1 font-weight-bold"
+                  >
+                    {{ item.spk_sudah_cetak || 0 }}
+                  </td>
+
+                  <!-- Sisa Kurang Cetak -->
+                  <td
+                    class="text-right px-2 text-red-darken-1 font-weight-bold"
+                  >
+                    {{ item.spk_kurang_cetak || 0 }}
+                  </td>
+
+                  <!-- Input Qty Cetak Sekarang -->
+                  <td class="bg-yellow-lighten-5">
                     <input
                       type="number"
                       v-model.number="item.jumlah_sublim"
@@ -353,9 +388,13 @@
                       @wheel="$event.target.blur()"
                     />
                   </td>
+
+                  <!-- Total Luas Meter -->
                   <td class="text-right font-weight-bold px-2 text-deep-purple">
-                    {{ (item.spk_jmlmeter || 0).toFixed(3) }}
+                    {{ (item.spk_jmlmeter || 0).toFixed(2).replace(".", ",") }}
+                    M²
                   </td>
+
                   <td class="text-center">
                     <v-btn
                       size="x-small"
@@ -568,7 +607,7 @@ import BaseForm from "@/components/BaseForm.vue";
 import { useForm } from "@/composables/useForm";
 import PoiLookupModal from "@/modal/PoInternalLookupView.vue";
 import GudangLookupView from "@/modal/GudangLookupView.vue";
-import SpkLookupView from "@/modal/SpkLookupModal.vue";
+import SpkLookupView from "@/modal/SpkSublimLookupModal.vue";
 import MesinLookupView from "@/modal/MesinLookupModal.vue";
 
 import { IconBuildingFactory } from "@tabler/icons-vue";
@@ -618,13 +657,17 @@ const initialData = {
   details: [] as any[],
 };
 
+const ensureMeter = (val: any) => {
+  const num = parseFloat(val) || 0;
+  return num > 10 ? parseFloat((num / 100).toFixed(2)) : num;
+};
+
 // 2. FETCH API UNTUK MODE EDIT
 const fetchApi = async () => {
   const nomorLhk = route.params.nomor as string;
   if (!nomorLhk) return initialData;
 
   const res = await api.get(`/mmt/lhk-paperprint/detail/${nomorLhk}`);
-  // 1. Amankan pembacaan data jika API mengembalikan { data: [...] }
   const listData = res.data?.data || res.data || [];
 
   if (!Array.isArray(listData) || listData.length === 0) {
@@ -659,7 +702,6 @@ const fetchApi = async () => {
       firstRow.Kode_Bahan || firstRow.lsb_brg_kode || firstRow.Bahan || "",
     brg_nama: firstRow.Nama_Bahan || firstRow.brg_nama || "",
 
-    // 🌟 2. AMBIL PANJANG BAHAN DARI ALIAS DB LHK (panjang_awal / lsbd_ambilbahan)
     Panjang_bahan: parseFloat(
       firstRow.panjang_awal ||
         firstRow.Panjang_Awal ||
@@ -671,7 +713,6 @@ const fetchApi = async () => {
       firstRow.Lebar_Bahan || firstRow.lebar_bahan || firstRow.Lebar_bahan || 0,
     ),
 
-    // 🌟 3. AMBIL SISA MANUAL DARI DB JIKA ADA (BERI FALLBACK NULL)
     sisa_panjang_manual:
       firstRow.sisa_panjang_manual !== undefined &&
       firstRow.sisa_panjang_manual !== null
@@ -682,39 +723,71 @@ const fetchApi = async () => {
     lebar_bs: firstRow.lsb_lebar_bs ?? firstRow.Lebar_BS ?? "",
     lstatus: firstRow.STATUS || firstRow.lstatus || "DRAFT",
 
-    details: listData.map((item: any) => ({
-      poi_nomor:
-        item.Poi_Nomor ||
-        item.poi_nomor ||
-        item.lsbd_poi_nomor ||
-        item.No_PO_Internal ||
-        "",
-      poi_size:
-        item.Poi_Size ||
-        item.poi_size ||
-        item.lsbd_poid_size ||
-        item.Size ||
-        "",
-      spk_nomor: item.Nomor_SPK || item.spk_nomor || item.lsbd_spk_nomor,
-      spk_nama: item.Nama_SPK || item.spk_nama || item.lsbd_spk_nama,
-      spk_panjang: parseFloat(
-        item.Panjang || item.spk_panjang || item.lsbd_panjang || 0,
-      ),
-      spk_lebar: parseFloat(
-        item.Lebar || item.spk_lebar || item.lsbd_lebar || 0,
-      ),
-      spk_jmlorder: parseInt(
-        item.J_Order || item.lsbd_jumlah_order || item.Jumlah || 0,
-      ),
-      jumlah_sublim: parseInt(
-        item.Jumlah || item.jumlah_sublim || item.lsbd_jumlah || 1,
-      ),
-      padding: item.Padding || item.padding || "0.03",
-      orientasi: item.Orientasi || item.orientasi || "lebar",
-      spk_jmlmeter: parseFloat(
-        item.Jumlah_Meter || item.spk_jmlmeter || item.lsbd_j_meter || 0,
-      ),
-    })),
+    details: listData.map((item: any) => {
+      const order = parseInt(
+        item.J_Order ||
+          item.lsbd_jumlah_order ||
+          item.Jumlah ||
+          item.spk_jmlorder ||
+          0,
+      );
+      const sdhCetak = parseFloat(
+        item.Sudah_Cetak || item.spk_sudah_cetak || item.sudahcetak || 0,
+      );
+      const inputCetak = parseInt(
+        item.Jumlah || item.jumlah_sublim || item.lsbd_jumlah || 0,
+      );
+
+      const kurangAsli =
+        item.kurangcetak_asli !== undefined
+          ? parseFloat(item.kurangcetak_asli)
+          : order - sdhCetak + inputCetak;
+
+      return {
+        poi_nomor:
+          item.Poi_Nomor ||
+          item.poi_nomor ||
+          item.lsbd_poi_nomor ||
+          item.No_PO_Internal ||
+          "",
+        poi_size:
+          item.Poi_Size ||
+          item.poi_size ||
+          item.lsbd_poid_size ||
+          item.Size ||
+          "",
+        spk_nomor: item.Nomor_SPK || item.spk_nomor || item.lsbd_spk_nomor,
+        spk_nama: item.Nama_SPK || item.spk_nama || item.lsbd_spk_nama,
+
+        // 🛠️ PERBAIKAN 1: LOAD NAMA KOMPONEN DARI DATABASE DENGAN BENAR
+        spk_komponen:
+          item.lsbd_komponen ||
+          item.spk_komponen ||
+          item.Komponen ||
+          item.Nama_Komponen ||
+          item.nama_komponen ||
+          "ALL SET",
+
+        // 🛠️ PERBAIKAN 2: PASTIKAN PANJANG & LEBAR DALAM SATUAN METER
+        spk_panjang: ensureMeter(
+          item.Panjang || item.spk_panjang || item.lsbd_panjang || 0,
+        ),
+        spk_lebar: ensureMeter(
+          item.Lebar || item.spk_lebar || item.lsbd_lebar || 0,
+        ),
+
+        spk_jmlorder: order,
+        spk_sudah_cetak: sdhCetak,
+        kurangcetak_asli: kurangAsli,
+        jumlah_sublim: inputCetak,
+        spk_kurang_cetak: kurangAsli - inputCetak,
+        padding: item.Padding || item.padding || "0.03",
+        orientasi: item.Orientasi || item.orientasi || "lebar",
+        spk_jmlmeter: parseFloat(
+          item.Jumlah_Meter || item.spk_jmlmeter || item.lsbd_j_meter || 0,
+        ),
+      };
+    }),
   };
 };
 
@@ -725,7 +798,6 @@ const submitApi = async (): Promise<unknown> => {
   const currentUser =
     authStore.user?.kdUser || authStore.user?.username || "SYSTEM";
 
-  // 🌟 HITUNG SISA FINAL METER: Prioritaskan Sisa Manual, jika Kosong/Null gunakan Sisa Otomatis
   const sisaInput = formData.value.sisa_panjang_manual;
   const sisaFinalM =
     sisaInput !== null &&
@@ -734,24 +806,28 @@ const submitApi = async (): Promise<unknown> => {
       ? parseFloat(Number(sisaInput).toFixed(2))
       : parseFloat(Number(sisaStokOtomatisM.value || 0).toFixed(2));
 
-  // 🌟 PASANG lsbd_sisameter DI TIAP BARIS DETAIL
   const formattedDetails = formData.value.details.map((d: any) => ({
     ...d,
     lsbd_poi_nomor: d.poi_nomor || "",
     lsbd_poid_size: d.poi_size || "",
     spk_nomor: d.spk_nomor || d.Nomor_SPK || "",
     spk_nama: d.spk_nama || d.Nama_SPK || "",
-    spk_jmlorder: parseInt(d.spk_jmlorder || d.J_Order || 0),
-    jumlah_sublim: parseInt(d.jumlah_sublim || d.Jumlah || 0),
-    spk_panjang: parseFloat(d.spk_panjang || d.Panjang || 0),
-    spk_lebar: parseFloat(d.spk_lebar || d.Lebar || 0),
+
+    // 🌟 Kirim Nama Komponen
+    spk_komponen: d.spk_komponen || "ALL SET",
+    lsbd_komponen: d.spk_komponen || "ALL SET",
+
+    spk_jmlorder: parseInt(d.spk_jmlorder || 0),
+    jumlah_sublim: parseInt(d.jumlah_sublim || 0),
+    spk_panjang: parseFloat(d.spk_panjang || 0),
+    spk_lebar: parseFloat(d.spk_lebar || 0),
     spk_jmlmeter: parseFloat(d.spk_jmlmeter || 0),
     lokasi: formData.value.mesin_kode,
     jenis_bahan: d.jenis_bahan || formData.value.brg_kode,
 
     lsbd_ambilbahan: parseFloat((formData.value.Panjang_bahan as any) || 0),
     lsbd_panjang_pakai: parseFloat((totalPanjangTerpakai.value as any) || 0),
-    lsbd_sisameter: sisaFinalM, // 👈 DIKIRIMKAN KE BACKEND
+    lsbd_sisameter: sisaFinalM,
   }));
 
   const payload = {
@@ -769,7 +845,7 @@ const submitApi = async (): Promise<unknown> => {
         ? parseFloat(formData.value.lebar_bs)
         : 0,
       sisa_panjang_manual: formData.value.sisa_panjang_manual,
-      sisabahan: sisaFinalM, // 👈 DITERIMA BACKEND UNTUK FALLBACK HEADER
+      sisabahan: sisaFinalM,
       total_panjang_terpakai: parseFloat(
         (totalPanjangTerpakai.value as any) || 0,
       ),
@@ -858,6 +934,20 @@ const recalculateCombine = () => {
     const qty = parseFloat(d.jumlah_sublim) || 0;
     const padM = parseFloat(d.padding) || 0;
 
+    const order = parseFloat(d.spk_jmlorder) || 0;
+    const sdhCetak = parseFloat(d.spk_sudah_cetak) || 0;
+
+    if (d.kurangcetak_asli === undefined) {
+      d.kurangcetak_asli = order - sdhCetak;
+    }
+
+    if (qty > d.kurangcetak_asli && d.kurangcetak_asli > 0) {
+      toast.warning(
+        `SPK ${d.spk_nomor} (Input: ${qty} melebihi sisa order: ${d.kurangcetak_asli})`,
+      );
+    }
+
+    d.spk_kurang_cetak = d.kurangcetak_asli - qty;
     d.spk_jmlmeter = pSpk * lSpk * qty;
 
     if (d.orientasi === "panjang") {
@@ -1057,8 +1147,6 @@ const handleBarcodeScan = async () => {
     formData.value.brg_nama =
       info.Nama_Bahan || info.Nama_Barang || info.Nama || "";
 
-    // 🌟 PERBAIKAN DI SINI:
-    // Jika Mode Edit dan Panjang_bahan sudah ada dari DB LHK (panjang_awal), JANGAN ditimpa Sisa_Panjang gudang.
     if (!isEditMode.value || !formData.value.Panjang_bahan) {
       formData.value.Panjang_bahan = parseFloat(info.Sisa_Panjang) || 0;
     }
@@ -1108,8 +1196,19 @@ const handlePoiSelect = (poiData: any) => {
     rawItem.poid_size || rawItem.poi_size || rawItem.Size || "";
   const targetSpkNomor =
     rawItem.poi_spk_nomor || rawItem.spk_nomor || rawItem.Nomor_SPK;
+
   const qtyOrder = parseInt(
-    rawItem.sisa_qty ?? rawItem.poid_jumlah ?? rawItem.Jumlah ?? 0,
+    rawItem.spk_qty ??
+      rawItem.poid_jumlah ??
+      rawItem.Jumlah ??
+      rawItem.J_Order ??
+      0,
+  );
+  const sdhCetak = parseFloat(
+    rawItem.Sudah_Cetak || rawItem.spk_sudah_cetak || rawItem.sudahcetak || 0,
+  );
+  const sisaQty = parseInt(
+    rawItem.sisa_qty ?? rawItem.Kurang_Cetak ?? qtyOrder - sdhCetak,
   );
 
   const currentDetails = formData.value.details || [];
@@ -1128,10 +1227,19 @@ const handlePoiSelect = (poiData: any) => {
     poi_size: targetPoiSize,
     spk_nomor: targetSpkNomor || "",
     spk_nama: rawItem.spk_nama || rawItem.Nama_SPK || rawItem.Nama || "No Name",
+    spk_komponen:
+      rawItem.spk_komponen ||
+      rawItem.Nama_Komponen ||
+      rawItem.nama_komponen ||
+      rawItem.Bhn_Name ||
+      "ALL SET",
     spk_panjang: parseFloat(rawItem.spk_panjang || rawItem.Panjang || 0),
     spk_lebar: parseFloat(rawItem.spk_lebar || rawItem.Lebar || 0),
     spk_jmlorder: qtyOrder,
-    jumlah_sublim: qtyOrder || 1,
+    spk_sudah_cetak: sdhCetak,
+    kurangcetak_asli: sisaQty > 0 ? sisaQty : qtyOrder,
+    spk_kurang_cetak: 0,
+    jumlah_sublim: sisaQty > 0 ? sisaQty : qtyOrder,
     padding: "0.03",
     orientasi: "lebar",
     spk_jmlmeter: 0,
@@ -1170,48 +1278,154 @@ const handleSpkScan = async () => {
 
   try {
     const res = await api.get(`/mmt/SPK/${code}`);
-    const spk = res.data.data || res.data;
-    if (spk) {
-      injectSpkObject(spk);
-      formData.value.barcode_spk = "";
+    let spkData = res.data?.data?.data || res.data?.data || res.data;
+    if (Array.isArray(spkData)) {
+      spkData = spkData[0];
     }
-  } catch (e) {
+
+    if (spkData) {
+      injectSpkObject(spkData, code);
+      formData.value.barcode_spk = "";
+    } else {
+      toast.error("Data SPK tidak ditemukan!");
+    }
+  } catch (e: any) {
     toast.error("Gagal memuat barcode SPK");
   }
 };
 
-const handleSpkSelect = (spk: any) => {
-  if (!spk) return;
-  const targetNomor =
-    spk.SPK || spk.Spk || spk.spk_nomor || spk.Nomor_SPK || spk.Id;
+// --- Handle Pilihan SPK dari Modal Sublim Lookup ---
+const handleSpkSelect = (payload: any) => {
+  if (!payload) return;
 
-  const currentDetails = formData.value.details || [];
-  if (currentDetails.some((d: any) => d.spk_nomor === targetNomor)) {
-    toast.warning("SPK sudah ada di daftar.");
-    isSpkLookupVisible.value = false;
-    return;
-  }
+  // Ekstrak Array Item Data dari Payload Modal Lookup
+  const items: any[] = Array.isArray(payload)
+    ? payload
+    : Array.isArray(payload?.data)
+      ? payload.data
+      : [payload?.data || payload];
 
-  injectSpkObject(spk);
+  items.forEach((spkItem: any) => {
+    if (!spkItem) return;
+
+    const targetNomor =
+      spkItem.spk_nomor ||
+      spkItem.SPK ||
+      spkItem.Spk ||
+      spkItem.poi_spk_nomor ||
+      spkItem.Nomor_SPK ||
+      spkItem.Id;
+
+    const currentDetails = formData.value.details || [];
+
+    // Cek duplikasi jika memilih komponen yang sama pada SPK yang sama
+    const targetKomponen =
+      spkItem.spk_komponen ||
+      spkItem.Nama_Komponen ||
+      spkItem.nama_komponen ||
+      spkItem.Bhn_Name ||
+      "ALL SET";
+
+    if (
+      targetNomor &&
+      currentDetails.some(
+        (d: any) =>
+          d.spk_nomor === targetNomor &&
+          (d.spk_komponen || "ALL SET") === targetKomponen,
+      )
+    ) {
+      toast.warning(
+        `SPK ${targetNomor} (${targetKomponen}) sudah ada di daftar.`,
+      );
+      return;
+    }
+
+    // Inject data SPK per item
+    injectSpkObject(spkItem);
+  });
+
   isSpkLookupVisible.value = false;
 };
 
-const injectSpkObject = (spk: any) => {
+// --- Fungsi Inject Data Row SPK ke Tabel Details ---
+const injectSpkObject = (spk: any, fallbackCode: string = "") => {
   if (!formData.value.details) {
     formData.value.details = [];
   }
 
-  const qtyOrderSpk = parseInt(spk.Jumlah || spk.J_Order || spk.jumlah || 0);
+  let item = spk;
+  if (item && Array.isArray(item.data)) {
+    item = item.data[0];
+  } else if (Array.isArray(item)) {
+    item = item[0];
+  }
+
+  if (!item) return;
+
+  const nomorSpk =
+    item.spk_nomor ||
+    item.SPK ||
+    item.Spk ||
+    item.poi_spk_nomor ||
+    item.Nomor_SPK ||
+    item.No_SPK ||
+    item.Id ||
+    fallbackCode;
+
+  const namaSpk =
+    item.spk_nama ||
+    item.Nama ||
+    item.nama_pekerjaan ||
+    item.Nama_SPK ||
+    "No Name";
+
+  const namaKomponen =
+    item.spk_komponen ||
+    item.Nama_Komponen ||
+    item.nama_komponen ||
+    item.Bhn_Name ||
+    item.bhn_name ||
+    "ALL SET";
+
+  const qtyOrderSpk = parseInt(
+    item.spk_jmlorder ||
+      item.Jumlah ||
+      item.Qty_Order ||
+      item.J_Order ||
+      item.spk_qty ||
+      item.jumlah ||
+      0,
+  );
+  const sdhCetak = parseFloat(
+    item.Sudah_Cetak || item.spk_sudah_cetak || item.sudahcetak || 0,
+  );
+  const kurangAsli = parseFloat(
+    item.spk_kurang_cetak ||
+      item.Kurang_Cetak ||
+      item.kurang_cetak ||
+      qtyOrderSpk - sdhCetak,
+  );
+
+  // 🛠️ KONVERSI PANJANG & LEBAR KE METER JIKA TERSIMPAN DALAM CM (> 10)
+  const rawP = parseFloat(item.spk_panjang || item.Panjang || 0);
+  const rawL = parseFloat(item.spk_lebar || item.Lebar || 0);
 
   const newRow = {
-    spk_nomor: spk.SPK || spk.Spk || spk.Nomor_SPK || spk.Id,
-    spk_nama: spk.Nama || spk.Nama_SPK || spk.spk_nama || "No Name",
-    spk_panjang: parseFloat(spk.Panjang || 0),
-    spk_lebar: parseFloat(spk.Lebar || 0),
+    poi_nomor: item.poi_nomor || item.Poi_Nomor || "",
+    poi_size:
+      item.poi_size || item.poid_size || item.Poi_Size || item.Size || "",
+    spk_nomor: nomorSpk,
+    spk_nama: namaSpk,
+    spk_komponen: namaKomponen,
+    spk_panjang: ensureMeter(rawP),
+    spk_lebar: ensureMeter(rawL),
     spk_jmlorder: qtyOrderSpk,
-    jumlah_sublim: qtyOrderSpk,
-    padding: "0.03",
-    orientasi: "lebar",
+    spk_sudah_cetak: sdhCetak,
+    kurangcetak_asli: kurangAsli > 0 ? kurangAsli : qtyOrderSpk,
+    spk_kurang_cetak: 0,
+    jumlah_sublim: kurangAsli > 0 ? kurangAsli : qtyOrderSpk,
+    padding: item.padding || "0.03",
+    orientasi: item.orientasi || "lebar",
     spk_jmlmeter: 0,
   };
 
@@ -1220,7 +1434,9 @@ const injectSpkObject = (spk: any) => {
 
   formData.value.details.push(newRow);
   recalculateCombine();
-  toast.success(`Berhasil menambahkan SPK ${newRow.spk_nomor}`);
+  toast.success(
+    `Berhasil menambahkan SPK ${newRow.spk_nomor} (${namaKomponen})`,
+  );
 };
 
 const clearBahan = () => {

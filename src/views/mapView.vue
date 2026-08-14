@@ -635,6 +635,8 @@ const confirmToggleClose = async () => {
     :items="filteredItems"
     item-value="Nomor"
     :is-loading="isLoading"
+    height="500px"
+    fixed-header
     v-model:selected="selected"
     v-model:startDate="startDate"
     v-model:endDate="endDate"
@@ -1341,6 +1343,30 @@ const confirmToggleClose = async () => {
   height: 24px;
   background-color: #d0d0d0;
   margin: 0 12px;
+}
+
+/* BaseBrowse Container & Table Custom Scrollbar + Fixed Header/Footer */
+:deep(.v-table__wrapper),
+:deep(.v-data-table__overflow) {
+  max-height: 500px !important;
+  overflow-y: auto !important;
+}
+
+:deep(.v-data-table thead th),
+:deep(.v-table thead th) {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 2 !important;
+  background-color: #72cfee !important;
+}
+
+:deep(.v-data-table-footer),
+:deep(.v-data-table__footer) {
+  position: sticky !important;
+  bottom: 0 !important;
+  z-index: 2 !important;
+  background-color: #ffffff !important;
+  border-top: 1px solid #e0e0e0;
 }
 
 /* Style Highlight Klik Baris */

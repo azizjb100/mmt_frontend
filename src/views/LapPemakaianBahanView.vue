@@ -11,32 +11,47 @@
     :custom-export-excel="exportToExcel"
     @refresh="fetchReport"
   >
+    <!-- FILTER TAMBAHAN: TIPE LHK & PENCARIAN -->
     <template #extra-filters>
-      <v-text-field
-        v-model="searchQuery"
-        label="Cari SPK / Nama Order..."
-        prepend-inner-icon="mdi-magnify"
-        density="compact"
-        hide-details
-        variant="outlined"
-        clearable
-        style="max-width: 260px"
-      />
+      <div class="d-flex align-center" style="gap: 12px; flex-wrap: wrap">
+        <v-select
+          v-model="selectedTipeLhk"
+          :items="tipeLhkOptions"
+          label="Tipe LHK"
+          density="compact"
+          hide-details
+          variant="outlined"
+          style="min-width: 150px; max-width: 180px"
+          @update:modelValue="fetchReport"
+        />
+
+        <v-text-field
+          v-model="searchQuery"
+          label="Cari SPK / Nama Order..."
+          prepend-inner-icon="mdi-magnify"
+          density="compact"
+          hide-details
+          variant="outlined"
+          clearable
+          style="min-width: 220px; max-width: 260px"
+        />
+      </div>
     </template>
 
     <template #thead>
       <thead>
-        <!-- Row 1: Group Header (A s/d AY) -->
+        <!-- Row 1: Group Header (A s/d AZ) -->
         <tr class="header-main">
           <th rowspan="2" class="text-center sticky-col-1">TANGGAL</th>
           <th rowspan="2" class="text-center sticky-col-2">SHIFT</th>
+          <th rowspan="2" class="text-center">TIPE LHK</th>
 
-          <!-- Toleransi Bahan (C-G) -->
+          <!-- Toleransi Bahan -->
           <th colspan="5" class="text-center bg-orange-header">
             TOLERANSI BAHAN
           </th>
 
-          <!-- Info SPK (H-I) -->
+          <!-- Info SPK -->
           <th rowspan="2" class="text-left" style="min-width: 200px">
             NAMA ORDER SPK
           </th>
@@ -44,40 +59,40 @@
             NO. SPK
           </th>
 
-          <!-- Ukuran & Jenis Bahan (J-N) -->
+          <!-- Ukuran & Jenis Bahan -->
           <th colspan="2" class="text-center bg-grey-header">UKURAN</th>
           <th colspan="3" class="text-center bg-grey-header">JENIS BAHAN</th>
 
-          <!-- Jumlah Order SPK (O-P) -->
+          <!-- Jumlah Order SPK -->
           <th colspan="2" class="text-center bg-green-header">
             JUMLAH ORDER SPK
           </th>
 
-          <!-- Hasil Cetak (Q-S) -->
+          <!-- Hasil Cetak -->
           <th colspan="3" class="text-center bg-yellow-header">HASIL CETAK</th>
 
-          <!-- Ambil Bahan (T-V) -->
+          <!-- Ambil Bahan -->
           <th colspan="3" class="text-center bg-yellow-header">AMBIL BAHAN</th>
 
-          <!-- Kembalian Bahan Bisa Pakai (W-Y) -->
+          <!-- Kembalian Bahan Bisa Pakai -->
           <th colspan="3" class="text-center bg-green-header">
             KEMBALIAN BAHAN BISA PAKAI
           </th>
 
-          <!-- Kembalian Bahan Tidak Bisa Pakai (Z-AB) -->
+          <!-- Kembalian Bahan Tidak Bisa Pakai -->
           <th colspan="3" class="text-center bg-red-header">
             KEMBALIAN BAHAN TIDAK BISA PAKAI
           </th>
 
-          <!-- Aktual Luas Pakai (AC) -->
+          <!-- Aktual Luas Pakai -->
           <th rowspan="2" class="text-center bg-blue-header">
             AKTUAL LUAS PAKAI (M²)
           </th>
 
-          <!-- Total Waste (AD-AI) -->
+          <!-- Total Waste -->
           <th colspan="6" class="text-center bg-waste-header">TOTAL WASTE</th>
 
-          <!-- Tinta MT 02 - MT 05 (AJ-AY) -->
+          <!-- Tinta MT 02 - MT 05 -->
           <th colspan="4" class="text-center bg-ink-header">
             PENGGUNAAN TINTA MT 02
           </th>
@@ -154,15 +169,18 @@
 
     <template #row="{ item, formatNumber }">
       <tr class="table-row-item" :class="{ 'row-lo-highlight': item.isLO }">
-        <!-- A-B: TGL, SHIFT -->
+        <!-- TGL, SHIFT, TIPE LHK -->
         <td class="text-center sticky-col-1 font-weight-bold">
           {{ item.showTgl ? formatDMY(item.tgl) : "" }}
         </td>
         <td class="text-center sticky-col-2 font-weight-bold">
           {{ item.showShift ? item.shift || "-" : "" }}
         </td>
+        <td class="text-center font-weight-bold text-primary">
+          {{ item.tipeLhk || "MMT" }}
+        </td>
 
-        <!-- C-G: TOLERANSI BAHAN -->
+        <!-- TOLERANSI BAHAN -->
         <td class="text-right" :class="{ 'text-red-bold': item.isLO }">
           {{ formatVal(item.s12, formatNumber, 2) }}
         </td>
@@ -179,7 +197,7 @@
           {{ formatPercent(item.toleransiPersen, formatNumber, 2) }}
         </td>
 
-        <!-- H-I: INFO SPK -->
+        <!-- INFO SPK -->
         <td
           class="text-left text-truncate"
           style="max-width: 220px"
@@ -190,7 +208,7 @@
         </td>
         <td class="text-center font-weight-bold">{{ item.noSpk || "" }}</td>
 
-        <!-- J-N: UKURAN & JENIS BAHAN -->
+        <!-- UKURAN & JENIS BAHAN -->
         <td class="text-right" :class="{ 'text-red-bold': item.isLO }">
           {{ formatVal(item.p, formatNumber, 2) }}
         </td>
@@ -207,7 +225,7 @@
           {{ formatVal(item.ambilP, formatNumber, 2) }}
         </td>
 
-        <!-- O-P: JUMLAH ORDER SPK -->
+        <!-- JUMLAH ORDER SPK -->
         <td
           class="text-right bg-green-light"
           :class="{ 'text-red-bold': item.isLO }"
@@ -229,7 +247,7 @@
           }}
         </td>
 
-        <!-- Q-S: HASIL CETAK -->
+        <!-- HASIL CETAK -->
         <td
           class="text-right bg-yellow-light"
           :class="{ 'text-red-bold': item.isLO }"
@@ -249,7 +267,7 @@
           {{ item.isLO ? "-" : formatVal(item.hasilLuas, formatNumber, 2) }}
         </td>
 
-        <!-- T-V: AMBIL BAHAN -->
+        <!-- AMBIL BAHAN -->
         <td class="text-right" :class="{ 'text-red-bold': item.isLO }">
           {{ formatVal(item.ambilP, formatNumber, 2) }}
         </td>
@@ -263,7 +281,7 @@
           {{ formatVal(item.ambilLuas, formatNumber, 2) }}
         </td>
 
-        <!-- W-Y: KEMBALIAN BISA PAKAI -->
+        <!-- KEMBALIAN BISA PAKAI -->
         <td class="text-right" :class="{ 'text-red-bold': item.isLO }">
           {{ formatVal(item.sisaBisaPakaiP, formatNumber, 2) }}
         </td>
@@ -277,7 +295,7 @@
           {{ formatVal(item.sisaBisaPakaiLuas, formatNumber, 2) }}
         </td>
 
-        <!-- Z-AB: KEMBALIAN TIDAK BISA PAKAI -->
+        <!-- KEMBALIAN TIDAK BISA PAKAI -->
         <td class="text-right" :class="{ 'text-red-bold': item.isLO }">
           {{ formatVal(item.sisaRongsokP, formatNumber, 2) }}
         </td>
@@ -291,7 +309,7 @@
           {{ formatVal(item.sisaRongsokLuas, formatNumber, 2) }}
         </td>
 
-        <!-- AC: AKTUAL LUAS PAKAI -->
+        <!-- AKTUAL LUAS PAKAI -->
         <td
           class="text-right font-weight-bold bg-blue-light"
           :class="{ 'text-red-bold': item.isLO }"
@@ -299,7 +317,7 @@
           {{ formatVal(item.aktualLuasPakai, formatNumber, 2) }}
         </td>
 
-        <!-- AD-AI: TOTAL WASTE -->
+        <!-- TOTAL WASTE -->
         <td class="text-right" :class="{ 'text-red-bold': item.isLO }">
           {{ formatVal(item.wasteM2, formatNumber, 2) }}
         </td>
@@ -325,7 +343,7 @@
           {{ formatPercent(item.totalWastePersen, formatNumber, 2) }}
         </td>
 
-        <!-- AJ-AY: PENGGUNAAN TINTA -->
+        <!-- PENGGUNAAN TINTA -->
         <td class="text-right ink-c">
           {{ formatVal(item.inkC_MT02, formatNumber, 2) }}
         </td>
@@ -338,7 +356,6 @@
         <td class="text-right ink-k">
           {{ formatVal(item.inkK_MT02, formatNumber, 2) }}
         </td>
-
         <td class="text-right ink-c">
           {{ formatVal(item.inkC_MT03, formatNumber, 2) }}
         </td>
@@ -351,7 +368,6 @@
         <td class="text-right ink-k">
           {{ formatVal(item.inkK_MT03, formatNumber, 2) }}
         </td>
-
         <td class="text-right ink-c">
           {{ formatVal(item.inkC_MT04, formatNumber, 2) }}
         </td>
@@ -364,7 +380,6 @@
         <td class="text-right ink-k">
           {{ formatVal(item.inkK_MT04, formatNumber, 2) }}
         </td>
-
         <td class="text-right ink-c">
           {{ formatVal(item.inkC_MT05, formatNumber, 2) }}
         </td>
@@ -383,14 +398,14 @@
     <!-- BARIS GRAND TOTAL PADA TABEL UI -->
     <template #tfoot="{ formatNumber }">
       <tr class="grand-total-row font-weight-bold bg-grey-lighten-3">
+        <!-- Kolom digabung menjadi 3 karena ada tambahan TIPE LHK -->
         <td
-          colspan="2"
+          colspan="3"
           class="text-center sticky-col-1 font-weight-bold bg-grey-lighten-2"
         >
           GRAND TOTAL
         </td>
 
-        <!-- C-G: TOLERANSI BAHAN TOTAL -->
         <td class="text-right">{{ formatVal(totals.s12, formatNumber, 2) }}</td>
         <td class="text-right">{{ formatVal(totals.s34, formatNumber, 2) }}</td>
         <td class="text-right">-</td>
@@ -401,17 +416,14 @@
           {{ formatPercent(totals.toleransiPersen, formatNumber, 2) }}
         </td>
 
-        <!-- H-I: INFO SPK -->
         <td colspan="2" class="text-center">-</td>
 
-        <!-- J-N: UKURAN & JENIS BAHAN -->
         <td class="text-right">-</td>
         <td class="text-right">-</td>
         <td class="text-center">-</td>
         <td class="text-right">-</td>
         <td class="text-right">-</td>
 
-        <!-- O-P: ORDER SPK TOTAL -->
         <td class="text-right">
           {{ formatVal(totals.orderPcs, formatNumber, 0) }}
         </td>
@@ -419,7 +431,6 @@
           {{ formatVal(totals.orderLuas, formatNumber, 2) }}
         </td>
 
-        <!-- Q-S: HASIL CETAK TOTAL -->
         <td class="text-right">
           {{ formatVal(totals.hasilPRoll, formatNumber, 2) }}
         </td>
@@ -430,7 +441,6 @@
           {{ formatVal(totals.hasilLuas, formatNumber, 2) }}
         </td>
 
-        <!-- T-V: AMBIL BAHAN TOTAL -->
         <td class="text-right">
           {{ formatVal(totals.ambilP, formatNumber, 2) }}
         </td>
@@ -439,7 +449,6 @@
           {{ formatVal(totals.ambilLuas, formatNumber, 2) }}
         </td>
 
-        <!-- W-Y: KEMBALIAN BISA PAKAI TOTAL -->
         <td class="text-right">
           {{ formatVal(totals.sisaBisaPakaiP, formatNumber, 2) }}
         </td>
@@ -448,7 +457,6 @@
           {{ formatVal(totals.sisaBisaPakaiLuas, formatNumber, 2) }}
         </td>
 
-        <!-- Z-AB: KEMBALIAN TIDAK BISA PAKAI TOTAL -->
         <td class="text-right">
           {{ formatVal(totals.sisaRongsokP, formatNumber, 2) }}
         </td>
@@ -457,12 +465,10 @@
           {{ formatVal(totals.sisaRongsokLuas, formatNumber, 2) }}
         </td>
 
-        <!-- AC: AKTUAL LUAS PAKAI TOTAL -->
         <td class="text-right bg-blue-lighten-4">
           {{ formatVal(totals.aktualLuasPakai, formatNumber, 2) }}
         </td>
 
-        <!-- AD-AI: TOTAL WASTE -->
         <td class="text-right">
           {{ formatVal(totals.wasteM2, formatNumber, 2) }}
         </td>
@@ -482,7 +488,6 @@
           {{ formatPercent(totals.totalWastePersen, formatNumber, 2) }}
         </td>
 
-        <!-- AJ-AY: TINTA MT 02 - MT 05 TOTAL -->
         <td class="text-right">
           {{ formatVal(totals.inkC_MT02, formatNumber, 2) }}
         </td>
@@ -495,7 +500,6 @@
         <td class="text-right">
           {{ formatVal(totals.inkK_MT02, formatNumber, 2) }}
         </td>
-
         <td class="text-right">
           {{ formatVal(totals.inkC_MT03, formatNumber, 2) }}
         </td>
@@ -508,7 +512,6 @@
         <td class="text-right">
           {{ formatVal(totals.inkK_MT03, formatNumber, 2) }}
         </td>
-
         <td class="text-right">
           {{ formatVal(totals.inkC_MT04, formatNumber, 2) }}
         </td>
@@ -521,7 +524,6 @@
         <td class="text-right">
           {{ formatVal(totals.inkK_MT04, formatNumber, 2) }}
         </td>
-
         <td class="text-right">
           {{ formatVal(totals.inkC_MT05, formatNumber, 2) }}
         </td>
@@ -555,17 +557,33 @@ const getStartOfMonth = (date) => {
   return new Date(d.getFullYear(), d.getMonth(), 1);
 };
 
+// Parameter Filter
 const endDate = ref(formatDate(new Date()));
 const startDate = ref(formatDate(getStartOfMonth(new Date())));
 const searchQuery = ref("");
+const selectedTipeLhk = ref("ALL");
 const loading = reactive({ report: false });
 const productionData = ref([]);
+
+// Opsi Tipe LHK
+const tipeLhkOptions = [
+  { title: "Semua LHK", value: "ALL" },
+  { title: "Cetak MMT", value: "MMT" },
+  { title: "Proof MMT", value: "PROOF" },
+  { title: "Tekstil", value: "TEKSTIL" },
+  { title: "Sublim RTR", value: "SUBLIM" },
+  { title: "Paperprint", value: "PAPERPRINT" },
+];
 
 const fetchReport = async () => {
   loading.report = true;
   try {
     const res = await api.get("/mmt/lap-pemakaian-bahan", {
-      params: { startDate: startDate.value, endDate: endDate.value },
+      params: {
+        startDate: startDate.value,
+        endDate: endDate.value,
+        tipeLhk: selectedTipeLhk.value, // Param Tipe LHK
+      },
     });
     productionData.value = Array.isArray(res.data)
       ? res.data
@@ -653,13 +671,11 @@ const totals = computed(() => {
     res.s34 += Number(r.s34) || 0;
     res.toleransiM2 += Number(r.toleransiM2) || 0;
 
-    // JUMLAH ORDER SPK: Hanya diakumulasi jika BUKAN Anak SPK Gabungan
     if (!isChild) {
       res.orderPcs += Number(r.orderPcs) || 0;
       res.orderLuas += Number(r.orderLuas) || 0;
     }
 
-    // HASIL CETAK: Hanya diakumulasi dari SPK Biasa + Anak SPK Gabungan
     if (!isLO) {
       res.hasilPRoll += Number(r.hasilPRoll) || 0;
       res.hasilQty += Number(r.hasilQty) || 0;
@@ -668,35 +684,27 @@ const totals = computed(() => {
 
     res.ambilP += Number(r.ambilP) || 0;
     res.ambilLuas += Number(r.ambilLuas) || 0;
-
     res.sisaBisaPakaiP += Number(r.sisaBisaPakaiP) || 0;
     res.sisaBisaPakaiLuas += Number(r.sisaBisaPakaiLuas) || 0;
-
     res.sisaRongsokP += Number(r.sisaRongsokP) || 0;
     res.sisaRongsokLuas += Number(r.sisaRongsokLuas) || 0;
-
     res.aktualLuasPakai += Number(r.aktualLuasPakai) || 0;
-
     res.wasteM2 += Number(r.wasteM2) || 0;
     res.lostM2 += Number(r.lostM2) || 0;
     res.totalWasteM2 += Number(r.totalWasteM2) || 0;
 
-    // Tinta
     res.inkC_MT02 += Number(r.inkC_MT02) || 0;
     res.inkM_MT02 += Number(r.inkM_MT02) || 0;
     res.inkY_MT02 += Number(r.inkY_MT02) || 0;
     res.inkK_MT02 += Number(r.inkK_MT02) || 0;
-
     res.inkC_MT03 += Number(r.inkC_MT03) || 0;
     res.inkM_MT03 += Number(r.inkM_MT03) || 0;
     res.inkY_MT03 += Number(r.inkY_MT03) || 0;
     res.inkK_MT03 += Number(r.inkK_MT03) || 0;
-
     res.inkC_MT04 += Number(r.inkC_MT04) || 0;
     res.inkM_MT04 += Number(r.inkM_MT04) || 0;
     res.inkY_MT04 += Number(r.inkY_MT04) || 0;
     res.inkK_MT04 += Number(r.inkK_MT04) || 0;
-
     res.inkC_MT05 += Number(r.inkC_MT05) || 0;
     res.inkM_MT05 += Number(r.inkM_MT05) || 0;
     res.inkY_MT05 += Number(r.inkY_MT05) || 0;
@@ -713,7 +721,7 @@ const totals = computed(() => {
   return res;
 });
 
-// Format Tanggal UI Frontend menjadi DD/MM/YYYY
+// Format Tanggal
 const formatDMY = (dateStr) => {
   if (!dateStr || dateStr === "-") return "-";
   const cleanStr = String(dateStr).substring(0, 10);
@@ -724,7 +732,6 @@ const formatDMY = (dateStr) => {
   return cleanStr;
 };
 
-// Format Tanggal Indonesia untuk Export Excel
 const formatIndoMonth = (dateStr) => {
   if (!dateStr) return "";
   const d = new Date(dateStr);
@@ -747,14 +754,12 @@ const formatIndoMonth = (dateStr) => {
   return `${d.getDate()} ${bulanIndo[d.getMonth()]} ${d.getFullYear()}`;
 };
 
-// Helper Format Nilai Angka UI (Default Desimal 2 Angka)
 const formatVal = (val, formatFn, decimals = 2) => {
   if (val === null || val === undefined || val === "" || Number(val) === 0)
     return "-";
   return formatFn ? formatFn(val, decimals) : Number(val).toFixed(decimals);
 };
 
-// Helper Format Persentase UI (Default Desimal 2 Angka)
 const formatPercent = (val, formatFn, decimals = 2) => {
   if (val === null || val === undefined || val === "" || Number(val) === 0)
     return "-";
@@ -763,7 +768,7 @@ const formatPercent = (val, formatFn, decimals = 2) => {
     : `${Number(val).toFixed(decimals)}%`;
 };
 
-// --- EXPORT TO EXCEL LENGKAP SINKRON 2 DESIMAL ---
+// --- EXPORT TO EXCEL ---
 const exportToExcel = (dataToExport) => {
   if (!dataToExport || dataToExport.length === 0) {
     alert("Tidak ada data untuk diekspor");
@@ -812,7 +817,6 @@ const exportToExcel = (dataToExport) => {
     border: thinBorder,
   };
 
-  // Format Angka Excel Murni 2 Desimal (#,##0.00)
   const cellNum = (val, fmt = "#,##0.00") => {
     const v = Number(val);
     if (
@@ -827,7 +831,6 @@ const exportToExcel = (dataToExport) => {
     return { v: v, t: "n", z: fmt, s: styleDataCellRight };
   };
 
-  // Format Persentase Excel Murni 2 Desimal (0.00%)
   const cellPct = (val) => {
     const v = Number(val);
     if (
@@ -864,10 +867,11 @@ const exportToExcel = (dataToExport) => {
     [],
   ];
 
-  // Header Utama
+  // Header Utama (Ditambah Kolom TIPE LHK)
   wsData.push([
     { v: "TGL", s: styleHeaderMain },
     { v: "SHIFT", s: styleHeaderMain },
+    { v: "TIPE LHK", s: styleHeaderMain }, // 🌟 BARU
     { v: "TOLERANSI BAHAN", s: styleHeaderMain },
     { v: "", s: styleHeaderMain },
     { v: "", s: styleHeaderMain },
@@ -923,6 +927,7 @@ const exportToExcel = (dataToExport) => {
   wsData.push([
     { v: "", s: styleHeaderMain },
     { v: "", s: styleHeaderMain },
+    { v: "", s: styleHeaderMain }, // 🌟 BARU
     { v: "S 1,2", s: styleHeaderMain },
     { v: "S 3,4", s: styleHeaderMain },
     { v: "% TOLERANSI", s: styleHeaderMain },
@@ -990,6 +995,11 @@ const exportToExcel = (dataToExport) => {
         v: row.showShift ? row.shift || "" : "",
         s: { ...styleDataCell, alignment: { horizontal: "center" } },
       },
+      {
+        v: row.tipeLhk || "MMT",
+        s: { ...styleDataCell, alignment: { horizontal: "center" } },
+      }, // 🌟 BARU
+
       cellNum(row.s12, "#,##0.00"),
       cellNum(row.s34, "#,##0.00"),
       cellPct(row.persenToleransi),
@@ -1038,17 +1048,14 @@ const exportToExcel = (dataToExport) => {
       cellNum(row.inkM_MT02, "#,##0.00"),
       cellNum(row.inkY_MT02, "#,##0.00"),
       cellNum(row.inkK_MT02, "#,##0.00"),
-
       cellNum(row.inkC_MT03, "#,##0.00"),
       cellNum(row.inkM_MT03, "#,##0.00"),
       cellNum(row.inkY_MT03, "#,##0.00"),
       cellNum(row.inkK_MT03, "#,##0.00"),
-
       cellNum(row.inkC_MT04, "#,##0.00"),
       cellNum(row.inkM_MT04, "#,##0.00"),
       cellNum(row.inkY_MT04, "#,##0.00"),
       cellNum(row.inkK_MT04, "#,##0.00"),
-
       cellNum(row.inkC_MT05, "#,##0.00"),
       cellNum(row.inkM_MT05, "#,##0.00"),
       cellNum(row.inkY_MT05, "#,##0.00"),
@@ -1068,11 +1075,12 @@ const exportToExcel = (dataToExport) => {
   wsData.push([
     { v: "GRAND TOTAL", s: styleGrandTotalCell },
     { v: "", s: styleGrandTotalCell },
-    cellFormula(getSumFormula(2), "#,##0.00"),
+    { v: "", s: styleGrandTotalCell },
     cellFormula(getSumFormula(3), "#,##0.00"),
+    cellFormula(getSumFormula(4), "#,##0.00"),
     { v: "-", s: styleGrandTotalCellRight },
-    cellFormula(getSumFormula(5), "#,##0.00"),
-    cellFormula(getRatioFormula(5, 15), "0.00%"),
+    cellFormula(getSumFormula(6), "#,##0.00"),
+    cellFormula(getRatioFormula(6, 16), "0.00%"), // Shift ratio denominator to new Order Luas index
     { v: "-", s: styleGrandTotalCell },
     { v: "-", s: styleGrandTotalCell },
     { v: "-", s: styleGrandTotalCellRight },
@@ -1080,30 +1088,30 @@ const exportToExcel = (dataToExport) => {
     { v: "-", s: styleGrandTotalCell },
     { v: "-", s: styleGrandTotalCellRight },
     { v: "-", s: styleGrandTotalCellRight },
-    cellFormula(getSumFormula(14), "#,##0"),
-    cellFormula(getSumFormula(15), "#,##0.00"),
+    cellFormula(getSumFormula(15), "#,##0"),
     cellFormula(getSumFormula(16), "#,##0.00"),
-    cellFormula(getSumFormula(17), "#,##0"),
-    cellFormula(getSumFormula(18), "#,##0.00"),
+    cellFormula(getSumFormula(17), "#,##0.00"),
+    cellFormula(getSumFormula(18), "#,##0"),
     cellFormula(getSumFormula(19), "#,##0.00"),
+    cellFormula(getSumFormula(20), "#,##0.00"),
     { v: "-", s: styleGrandTotalCellRight },
-    cellFormula(getSumFormula(21), "#,##0.00"),
     cellFormula(getSumFormula(22), "#,##0.00"),
+    cellFormula(getSumFormula(23), "#,##0.00"),
     { v: "-", s: styleGrandTotalCellRight },
-    cellFormula(getSumFormula(24), "#,##0.00"),
     cellFormula(getSumFormula(25), "#,##0.00"),
+    cellFormula(getSumFormula(26), "#,##0.00"),
     { v: "-", s: styleGrandTotalCellRight },
-    cellFormula(getSumFormula(27), "#,##0.00"),
     cellFormula(getSumFormula(28), "#,##0.00"),
     cellFormula(getSumFormula(29), "#,##0.00"),
-    cellFormula(getRatioFormula(29, 15), "0.00%"),
-    cellFormula(getSumFormula(31), "#,##0.00"),
-    cellFormula(getRatioFormula(31, 15), "0.00%"),
-    cellFormula(getSumFormula(33), "#,##0.00"),
-    cellFormula(getRatioFormula(33, 15), "0.00%"),
+    cellFormula(getSumFormula(30), "#,##0.00"),
+    cellFormula(getRatioFormula(30, 16), "0.00%"),
+    cellFormula(getSumFormula(32), "#,##0.00"),
+    cellFormula(getRatioFormula(32, 16), "0.00%"),
+    cellFormula(getSumFormula(34), "#,##0.00"),
+    cellFormula(getRatioFormula(34, 16), "0.00%"),
 
     ...Array.from({ length: 16 }, (_, i) =>
-      cellFormula(getSumFormula(35 + i), "#,##0.00"),
+      cellFormula(getSumFormula(36 + i), "#,##0.00"),
     ),
   ]);
 
@@ -1112,31 +1120,33 @@ const exportToExcel = (dataToExport) => {
   ws["!merges"] = [
     { s: { r: 3, c: 0 }, e: { r: 4, c: 0 } },
     { s: { r: 3, c: 1 }, e: { r: 4, c: 1 } },
-    { s: { r: 3, c: 7 }, e: { r: 4, c: 7 } },
+    { s: { r: 3, c: 2 }, e: { r: 4, c: 2 } }, // 🌟 Merge Kolom TIPE LHK
     { s: { r: 3, c: 8 }, e: { r: 4, c: 8 } },
-    { s: { r: 3, c: 28 }, e: { r: 4, c: 28 } },
+    { s: { r: 3, c: 9 }, e: { r: 4, c: 9 } },
+    { s: { r: 3, c: 29 }, e: { r: 4, c: 29 } }, // Geser ke kanan
 
-    { s: { r: 3, c: 2 }, e: { r: 3, c: 6 } },
-    { s: { r: 3, c: 9 }, e: { r: 3, c: 10 } },
-    { s: { r: 3, c: 11 }, e: { r: 3, c: 13 } },
-    { s: { r: 3, c: 14 }, e: { r: 3, c: 15 } },
-    { s: { r: 3, c: 16 }, e: { r: 3, c: 18 } },
-    { s: { r: 3, c: 19 }, e: { r: 3, c: 21 } },
-    { s: { r: 3, c: 22 }, e: { r: 3, c: 24 } },
-    { s: { r: 3, c: 25 }, e: { r: 3, c: 27 } },
-    { s: { r: 3, c: 29 }, e: { r: 3, c: 34 } },
-    { s: { r: 3, c: 35 }, e: { r: 3, c: 38 } },
-    { s: { r: 3, c: 39 }, e: { r: 3, c: 42 } },
-    { s: { r: 3, c: 43 }, e: { r: 3, c: 46 } },
-    { s: { r: 3, c: 47 }, e: { r: 3, c: 50 } },
+    { s: { r: 3, c: 3 }, e: { r: 3, c: 7 } },
+    { s: { r: 3, c: 10 }, e: { r: 3, c: 11 } },
+    { s: { r: 3, c: 12 }, e: { r: 3, c: 14 } },
+    { s: { r: 3, c: 15 }, e: { r: 3, c: 16 } },
+    { s: { r: 3, c: 17 }, e: { r: 3, c: 19 } },
+    { s: { r: 3, c: 20 }, e: { r: 3, c: 22 } },
+    { s: { r: 3, c: 23 }, e: { r: 3, c: 25 } },
+    { s: { r: 3, c: 26 }, e: { r: 3, c: 28 } },
+    { s: { r: 3, c: 30 }, e: { r: 3, c: 35 } },
+    { s: { r: 3, c: 36 }, e: { r: 3, c: 39 } },
+    { s: { r: 3, c: 40 }, e: { r: 3, c: 43 } },
+    { s: { r: 3, c: 44 }, e: { r: 3, c: 47 } },
+    { s: { r: 3, c: 48 }, e: { r: 3, c: 51 } },
 
+    // Grand Total Merge
     {
       s: { r: grandTotalRowIndex - 1, c: 0 },
-      e: { r: grandTotalRowIndex - 1, c: 1 },
+      e: { r: grandTotalRowIndex - 1, c: 2 }, // Merging TGL, SHIFT & TIPE LHK
     },
     {
-      s: { r: grandTotalRowIndex - 1, c: 7 },
-      e: { r: grandTotalRowIndex - 1, c: 8 },
+      s: { r: grandTotalRowIndex - 1, c: 8 },
+      e: { r: grandTotalRowIndex - 1, c: 9 },
     },
   ];
 

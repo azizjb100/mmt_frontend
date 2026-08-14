@@ -5,13 +5,17 @@
     :items="filteredData"
     :loading="loading.report"
     :show-gudang-filter="false"
+    :disable-sort="true"
+    :disable-filter="true"
+    :has-active-filter="hasActiveFilter"
     item-key="mspk_nomor"
     title="Laporan Monitoring Proof"
     :excel-file-name="`Laporan_Monitoring_Proof_${startDate}_sd_${endDate}.xlsx`"
     :custom-export-excel="exportToExcel"
     @refresh="fetchReport"
+    @reset-filter="resetAllFilters"
   >
-    <!-- Slot Filter Tambahan -->
+    <!-- Slot Filter Utama Tambahan -->
     <template #extra-filters>
       <v-text-field
         v-model="searchQuery"
@@ -28,35 +32,332 @@
     <!-- Slot Header Tabel Berkelompok Custom -->
     <template #thead>
       <thead>
-        <!-- Row 1: Header Utama / Banded Groups -->
+        <!-- Row 1: Header Utama & Grouping Header -->
         <tr class="header-main">
+          <!-- 1. JENIS (Sticky Left 1) -->
           <th
-            v-for="(group, gIdx) in dynamicGroups"
-            :key="'group-' + gIdx"
-            :colspan="group.colspan"
-            :rowspan="group.rowspan"
-            class="text-center"
-            :class="[
-              group.class,
-              gIdx === 0 ? 'sticky-col-1' : '',
-              gIdx === 1 && group.rowspan === 2 ? 'sticky-col-2' : '',
-            ]"
+            rowspan="2"
+            class="text-center sticky-col-1 cursor-pointer select-none"
+            @click="toggleSort('jenis')"
           >
-            {{ group.label }}
+            <div class="d-flex align-center justify-space-between px-1">
+              <span class="font-weight-bold">
+                JENIS {{ getSortIcon("jenis") }}
+              </span>
+              <v-menu :close-on-content-click="false">
+                <template #activator="{ props }">
+                  <v-btn
+                    v-bind="props"
+                    icon
+                    variant="text"
+                    size="x-small"
+                    class="btn-filter-icon ml-1"
+                    @click.stop
+                  >
+                    <v-icon
+                      size="14"
+                      :color="
+                        columnFilters.jenis !== 'SEMUA'
+                          ? 'amber-accent-2'
+                          : 'white'
+                      "
+                    >
+                      mdi-filter-variant
+                    </v-icon>
+                  </v-btn>
+                </template>
+                <v-card min-width="180" class="pa-2 rounded-lg" @click.stop>
+                  <v-select
+                    v-model="columnFilters.jenis"
+                    :items="jenisOptions"
+                    label="Pilih Jenis"
+                    density="compact"
+                    hide-details
+                    variant="outlined"
+                  />
+                </v-card>
+              </v-menu>
+            </div>
+          </th>
+
+          <!-- 2. TGL MEMO -->
+          <th
+            rowspan="2"
+            class="text-center cursor-pointer select-none"
+            @click="toggleSort('mspk_tanggal')"
+          >
+            <span class="font-weight-bold">
+              TGL MEMO {{ getSortIcon("mspk_tanggal") }}
+            </span>
+          </th>
+
+          <!-- 3. DEADLINE -->
+          <th
+            rowspan="2"
+            class="text-center cursor-pointer select-none"
+            @click="toggleSort('deadline')"
+          >
+            <span class="font-weight-bold">
+              DEADLINE {{ getSortIcon("deadline") }}
+            </span>
+          </th>
+
+          <!-- 4. NAMA ORDER -->
+          <th
+            rowspan="2"
+            class="text-left cursor-pointer select-none"
+            @click="toggleSort('nama_order')"
+          >
+            <div class="d-flex align-center justify-space-between px-1">
+              <span class="font-weight-bold">
+                NAMA ORDER {{ getSortIcon("nama_order") }}
+              </span>
+              <v-menu :close-on-content-click="false">
+                <template #activator="{ props }">
+                  <v-btn
+                    v-bind="props"
+                    icon
+                    variant="text"
+                    size="x-small"
+                    class="btn-filter-icon ml-1"
+                    @click.stop
+                  >
+                    <v-icon
+                      size="14"
+                      :color="
+                        columnFilters.nama_order ? 'amber-accent-2' : 'white'
+                      "
+                    >
+                      mdi-filter-variant
+                    </v-icon>
+                  </v-btn>
+                </template>
+                <v-card min-width="220" class="pa-2 rounded-lg" @click.stop>
+                  <v-text-field
+                    v-model="columnFilters.nama_order"
+                    label="Filter Nama Order..."
+                    density="compact"
+                    hide-details
+                    variant="outlined"
+                    clearable
+                  />
+                </v-card>
+              </v-menu>
+            </div>
+          </th>
+
+          <!-- GROUP UKURAN -->
+          <th colspan="2" class="text-center header-group bg-cyan-header">
+            UKURAN
+          </th>
+
+          <!-- 5. NOMOR MEMO (Sticky Left 2) -->
+          <th
+            rowspan="2"
+            class="text-center sticky-col-2 cursor-pointer select-none"
+            @click="toggleSort('mspk_nomor')"
+          >
+            <div class="d-flex align-center justify-space-between px-1">
+              <span class="font-weight-bold">
+                NOMOR MEMO {{ getSortIcon("mspk_nomor") }}
+              </span>
+              <v-menu :close-on-content-click="false">
+                <template #activator="{ props }">
+                  <v-btn
+                    v-bind="props"
+                    icon
+                    variant="text"
+                    size="x-small"
+                    class="btn-filter-icon ml-1"
+                    @click.stop
+                  >
+                    <v-icon
+                      size="14"
+                      :color="
+                        columnFilters.mspk_nomor ? 'amber-accent-2' : 'white'
+                      "
+                    >
+                      mdi-filter-variant
+                    </v-icon>
+                  </v-btn>
+                </template>
+                <v-card min-width="180" class="pa-2 rounded-lg" @click.stop>
+                  <v-text-field
+                    v-model="columnFilters.mspk_nomor"
+                    label="Filter Nomor Memo..."
+                    density="compact"
+                    hide-details
+                    variant="outlined"
+                    clearable
+                  />
+                </v-card>
+              </v-menu>
+            </div>
+          </th>
+
+          <!-- GROUP ORDER SPK (DIPISAH: JML ORDER & RENCANA ORDER) -->
+          <th colspan="2" class="text-center header-group bg-blue-header">
+            ORDER SPK
+          </th>
+
+          <!-- GROUP AKTUAL PROOF -->
+          <th colspan="1" class="text-center header-group bg-teal-header">
+            AKTUAL PROOF
+          </th>
+
+          <!-- GROUP LAMA PROOFING -->
+          <th colspan="1" class="text-center header-group bg-blue-header">
+            LAMA PROOFING
+          </th>
+
+          <!-- DETIL DOKUMEN PROOFING -->
+          <th
+            rowspan="2"
+            class="text-center cursor-pointer select-none"
+            @click="toggleSort('lpr_tanggal')"
+          >
+            TGL PROOF {{ getSortIcon("lpr_tanggal") }}
+          </th>
+          <th
+            rowspan="2"
+            class="text-left cursor-pointer select-none"
+            @click="toggleSort('lokasi_proof')"
+          >
+            LOKASI PROOF {{ getSortIcon("lokasi_proof") }}
+          </th>
+          <th
+            rowspan="2"
+            class="text-center cursor-pointer select-none"
+            @click="toggleSort('mesin_proof')"
+          >
+            MESIN PROOF {{ getSortIcon("mesin_proof") }}
+          </th>
+          <th
+            rowspan="2"
+            class="text-left cursor-pointer select-none"
+            @click="toggleSort('jenis_bahan')"
+          >
+            <div class="d-flex align-center justify-space-between px-1 ga-1">
+              <span class="font-weight-bold">
+                JENIS BAHAN {{ getSortIcon("jenis_bahan") }}
+              </span>
+              <v-menu :close-on-content-click="false">
+                <template #activator="{ props }">
+                  <v-btn
+                    v-bind="props"
+                    icon
+                    variant="text"
+                    size="x-small"
+                    class="btn-filter-icon"
+                    @click.stop
+                  >
+                    <v-icon
+                      size="14"
+                      :color="
+                        columnFilters.jenis_bahan !== 'SEMUA'
+                          ? 'amber-accent-2'
+                          : 'white'
+                      "
+                    >
+                      mdi-filter-variant
+                    </v-icon>
+                  </v-btn>
+                </template>
+                <v-card min-width="200" class="pa-2 rounded-lg" @click.stop>
+                  <v-select
+                    v-model="columnFilters.jenis_bahan"
+                    :items="bahanOptions"
+                    label="Pilih Jenis Bahan"
+                    density="compact"
+                    hide-details
+                    variant="outlined"
+                  />
+                </v-card>
+              </v-menu>
+            </div>
+          </th>
+          <th
+            rowspan="2"
+            class="text-right cursor-pointer select-none"
+            @click="toggleSort('gramasi')"
+          >
+            GRAMASI {{ getSortIcon("gramasi") }}
+          </th>
+          <th
+            rowspan="2"
+            class="text-left cursor-pointer select-none"
+            @click="toggleSort('keterangan')"
+          >
+            KETERANGAN {{ getSortIcon("keterangan") }}
+          </th>
+          <th
+            rowspan="2"
+            class="text-center cursor-pointer select-none"
+            @click="toggleSort('statusmemo')"
+          >
+            STATUS {{ getSortIcon("statusmemo") }}
+          </th>
+          <th
+            rowspan="2"
+            class="text-center cursor-pointer select-none"
+            @click="toggleSort('spktanggal')"
+          >
+            TGL SPK {{ getSortIcon("spktanggal") }}
+          </th>
+          <th
+            rowspan="2"
+            class="text-center cursor-pointer select-none"
+            @click="toggleSort('nomorspk')"
+          >
+            NOMOR SPK {{ getSortIcon("nomorspk") }}
           </th>
         </tr>
 
         <!-- Row 2: Sub Header Detail -->
         <tr class="header-sub">
-          <template v-for="col in columns" :key="col.field">
-            <th
-              v-if="col.group !== 'NONE'"
-              class="text-center bg-blue-sub"
-              :class="col.class"
-            >
-              {{ col.label }}
-            </th>
-          </template>
+          <!-- Ukuran -->
+          <th
+            class="text-right bg-cyan-sub cursor-pointer select-none"
+            @click="toggleSort('mspk_panjang')"
+          >
+            PANJANG {{ getSortIcon("mspk_panjang") }}
+          </th>
+          <th
+            class="text-right bg-cyan-sub cursor-pointer select-none"
+            @click="toggleSort('mspk_lebar')"
+          >
+            LEBAR {{ getSortIcon("mspk_lebar") }}
+          </th>
+
+          <!-- Order SPK (Dua Kolom) -->
+          <th
+            class="text-right bg-blue-sub cursor-pointer select-none"
+            @click="toggleSort('jml_order')"
+          >
+            JML ORDER {{ getSortIcon("jml_order") }}
+          </th>
+          <th
+            class="text-right bg-blue-sub cursor-pointer select-none"
+            @click="toggleSort('rencana_order')"
+          >
+            RENCANA ORDER {{ getSortIcon("rencana_order") }}
+          </th>
+
+          <!-- Aktual Proof -->
+          <th
+            class="text-right bg-teal-sub cursor-pointer select-none"
+            @click="toggleSort('lprd_jproof')"
+          >
+            PCS PROOF {{ getSortIcon("lprd_jproof") }}
+          </th>
+
+          <!-- Lama Proofing -->
+          <th
+            class="text-center bg-blue-sub cursor-pointer select-none"
+            @click="toggleSort('lama_proof')"
+          >
+            HARI {{ getSortIcon("lama_proof") }}
+          </th>
         </tr>
       </thead>
     </template>
@@ -65,53 +366,137 @@
     <template #row="{ item, formatNumber }">
       <tr
         class="table-row-item"
-        :class="{ 'bg-warning-soft': parseFloat(item.lprd_jproof || 0) === 0 }"
+        :class="{
+          'bg-warning-soft': Number(item.lprd_jproof || 0) === 0,
+        }"
       >
-        <template v-for="(col, colIdx) in columns" :key="col.field">
-          <td
-            :class="[
-              col.class,
-              colIdx === 0 ? 'sticky-col-1 font-weight-bold' : '',
-              colIdx === 1 ? 'sticky-col-2' : '',
-              parseFloat(item.lprd_jproof || 0) === 0
-                ? 'bg-warning-soft-cell'
-                : '',
-            ]"
-          >
-            <template v-if="col.type === 'number'">
-              {{ formatNumber(getValueByField(item, col.field), col.dec || 0) }}
-            </template>
+        <!-- Sticky Left Col 1: Jenis -->
+        <td
+          class="text-center sticky-col-1 font-weight-bold"
+          :class="{
+            'bg-warning-soft-cell': Number(item.lprd_jproof || 0) === 0,
+          }"
+        >
+          {{ item.jenis || "-" }}
+        </td>
 
-            <template v-else-if="col.type === 'date'">
-              {{ formatOnlyDate(getValueByField(item, col.field)) }}
-            </template>
+        <!-- Tanggal Memo & Deadline -->
+        <td class="text-center">{{ formatDateDisplay(item.mspk_tanggal) }}</td>
+        <td class="text-center font-weight-bold text-error">
+          {{ formatDateDisplay(item.mspk_dateline) }}
+        </td>
 
-            <template v-else>
-              {{ getValueByField(item, col.field) || "-" }}
-            </template>
-          </td>
-        </template>
+        <!-- Nama Order -->
+        <td
+          class="text-left text-truncate"
+          style="max-width: 250px"
+          :title="item.nama_order"
+        >
+          {{ item.nama_order || "-" }}
+        </td>
+
+        <!-- Ukuran -->
+        <td class="text-right">{{ formatNumber(item.mspk_panjang, 2) }}</td>
+        <td class="text-right">{{ formatNumber(item.mspk_lebar, 2) }}</td>
+
+        <!-- Sticky Left Col 2: Nomor Memo -->
+        <td
+          class="text-center sticky-col-2 font-weight-bold text-primary"
+          :class="{
+            'bg-warning-soft-cell': Number(item.lprd_jproof || 0) === 0,
+          }"
+        >
+          {{ item.mspk_nomor || "-" }}
+        </td>
+
+        <!-- Jumlah Order -->
+        <td class="text-right font-weight-bold">
+          {{ formatNumber(item.jml_order, 0) }}
+        </td>
+
+        <!-- Rencana Order -->
+        <td class="text-right font-weight-bold text-indigo">
+          {{ formatNumber(item.rencana_order, 0) }}
+        </td>
+
+        <!-- Aktual Proof -->
+        <td
+          class="text-right font-weight-bold"
+          :class="
+            Number(item.lprd_jproof || 0) > 0 ? 'text-success' : 'text-error'
+          "
+        >
+          {{ formatNumber(item.lprd_jproof, 0) }}
+        </td>
+
+        <!-- Lama Proofing -->
+        <td class="text-center">{{ item.lama_proof ?? "-" }}</td>
+
+        <!-- Detil Dokumen Proofing -->
+        <td class="text-center">{{ formatDateDisplay(item.lpr_tanggal) }}</td>
+        <td
+          class="text-left text-truncate"
+          style="max-width: 150px"
+          :title="item.lokasi_proof"
+        >
+          {{ item.lokasi_proof || "-" }}
+        </td>
+        <td class="text-center">{{ item.mesin_proof || "-" }}</td>
+        <td
+          class="text-left text-truncate"
+          style="max-width: 180px"
+          :title="item.jenis_bahan"
+        >
+          {{ item.jenis_bahan || "-" }}
+        </td>
+        <td class="text-right">{{ item.gramasi || "-" }}</td>
+        <td
+          class="text-left text-truncate"
+          style="max-width: 200px"
+          :title="item.keterangan"
+        >
+          {{ item.keterangan || "-" }}
+        </td>
+        <td class="text-center font-weight-bold">
+          {{ item.statusmemo || "-" }}
+        </td>
+        <td class="text-center">{{ formatDateDisplay(item.spktanggal) }}</td>
+        <td class="text-center font-weight-bold text-primary">
+          {{ item.nomorspk || "-" }}
+        </td>
       </tr>
     </template>
 
     <!-- Slot Total Footer -->
     <template #tfoot="{ formatNumber }">
       <tr class="table-footer-row">
-        <template v-for="(col, colIdx) in columns" :key="col.field">
-          <td
-            :class="[
-              col.class,
-              'font-weight-black',
-              colIdx === 0 ? 'sticky-col-1 sticky-footer-title text-right' : '',
-              colIdx === 1 ? 'sticky-col-2' : '',
-            ]"
-          >
-            <span v-if="colIdx === 0">TOTAL ORDER:</span>
-            <span v-else-if="col.sum">
-              {{ formatNumber(sumField(col.field), col.dec || 0) }}
-            </span>
-          </td>
-        </template>
+        <td
+          colspan="6"
+          class="text-right font-weight-black text-uppercase sticky-footer-title"
+        >
+          TOTAL (FILTERED):
+        </td>
+
+        <!-- Alignment Sticky Col 2 (Nomor Memo) -->
+        <td class="sticky-col-2 bg-warning-footer"></td>
+
+        <!-- Total Jumlah Order -->
+        <td class="text-right font-weight-black">
+          {{ formatNumber(totals.jml_order, 0) }}
+        </td>
+
+        <!-- Total Rencana Order -->
+        <td class="text-right font-weight-black text-indigo">
+          {{ formatNumber(totals.rencana_order, 0) }}
+        </td>
+
+        <!-- Total Aktual Proof -->
+        <td class="text-right font-weight-black text-success">
+          {{ formatNumber(totals.lprd_jproof, 0) }}
+        </td>
+
+        <!-- Sisa Kolom Non-Aritmatika -->
+        <td colspan="10"></td>
       </tr>
     </template>
   </BaseReportLayout>
@@ -121,10 +506,9 @@
 import { ref, reactive, computed, onMounted } from "vue";
 import BaseReportLayout from "@/components/BaseReportLayout.vue";
 import api from "@/services/api";
-import XLSX from "xlsx-js-style";
 import { parseISO, isValid, format } from "date-fns";
 import { id } from "date-fns/locale";
-import { saveAs } from "file-saver";
+import * as XLSX from "xlsx-js-style";
 
 const formatDate = (date: Date) => {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
@@ -141,223 +525,220 @@ const searchQuery = ref("");
 const loading = reactive({ report: false });
 const allData = ref<any[]>([]);
 
-// --- SCHEMA KOLOM MONITORING PROOF ---
-const columns = ref([
-  {
-    label: "JENIS",
-    field: "jenis",
-    class: "text-center",
-    type: "string",
-    group: "NONE",
-    width: 85,
-  },
-  {
-    label: "TGL MEMO",
-    field: "mspk_tanggal",
-    class: "text-center",
-    type: "date",
-    group: "NONE",
-    width: 105,
-  },
-  {
-    label: "DEADLINE",
-    field: "deadline",
-    class: "text-center",
-    type: "date",
-    group: "NONE",
-    width: 105,
-  },
-  {
-    label: "NAMA ORDER",
-    field: "nama_order",
-    class: "text-left",
-    type: "string",
-    group: "NONE",
-    width: 280,
-  },
-
-  // Group UKURAN (PERBAIKAN: field disesuaikan dengan response API)
-  {
-    label: "PANJANG",
-    field: "mspk_panjang", // <-- Diubah dari "panjang" ke "mspk_panjang"
-    class: "text-right",
-    type: "number",
-    dec: 2,
-    group: "UKURAN",
-    width: 90,
-  },
-  {
-    label: "LEBAR",
-    field: "mspk_lebar", // <-- Diubah dari "lebar" ke "mspk_lebar"
-    class: "text-right",
-    type: "number",
-    dec: 2,
-    group: "UKURAN",
-    width: 90,
-  },
-
-  {
-    label: "NOMOR MEMO",
-    field: "mspk_nomor",
-    class: "text-center font-weight-bold",
-    type: "string",
-    group: "NONE",
-    width: 140,
-  },
-
-  // Group RENCANA SPK
-  {
-    label: "PCS",
-    field: "jml_order",
-    class: "text-right",
-    type: "number",
-    dec: 0,
-    sum: true,
-    group: "RENCANA SPK",
-    width: 95,
-  },
-
-  // Group AKTUAL PROOF
-  {
-    label: "PCS",
-    field: "lprd_jproof",
-    class: "text-right",
-    type: "number",
-    dec: 0,
-    sum: true,
-    group: "AKTUAL PROOF",
-    width: 95,
-  },
-
-  // Group LAMA PROOFING
-  {
-    label: "HARI",
-    field: "lama_proof",
-    class: "text-center",
-    type: "string",
-    group: "LAMA PROOFING",
-    width: 90,
-  },
-
-  // Kolom Detil Dokumen Proofing
-  {
-    label: "TANGGAL PROOF",
-    field: "lpr_tanggal",
-    class: "text-center",
-    type: "date",
-    group: "NONE",
-    width: 115,
-  },
-  {
-    label: "LOKASI PROOFING",
-    field: "lokasi_proof",
-    class: "text-left",
-    type: "string",
-    group: "NONE",
-    width: 150,
-  },
-  // PENAMBAHAN KOLOM MESIN PROOF
-  {
-    label: "MESIN PROOF",
-    field: "mesin_proof", // <-- Ditambahkan dari response API
-    class: "text-center",
-    type: "string",
-    group: "NONE",
-    width: 120,
-  },
-  {
-    label: "JENIS BAHAN",
-    field: "jenis_bahan",
-    class: "text-left",
-    type: "string",
-    group: "NONE",
-    width: 180,
-  },
-  {
-    label: "GRAMASI",
-    field: "gramasi",
-    class: "text-right",
-    type: "string",
-    group: "NONE",
-    width: 95,
-  },
-  {
-    label: "KETERANGAN",
-    field: "keterangan",
-    class: "text-left",
-    type: "string",
-    group: "NONE",
-    width: 220,
-  },
-  {
-    label: "STATUS",
-    field: "statusmemo",
-    class: "text-center",
-    type: "string",
-    group: "NONE",
-    width: 100,
-  },
-  {
-    label: "TANGGAL SPK",
-    field: "spktanggal",
-    class: "text-center",
-    type: "date",
-    group: "NONE",
-    width: 110,
-  },
-  {
-    label: "NOMOR SPK",
-    field: "nomorspk",
-    class: "text-center font-weight-bold",
-    type: "string",
-    group: "NONE",
-    width: 130,
-  },
-]);
-
-// --- BANDED HEADER GROUPS COMPUTED ---
-const dynamicGroups = computed(() => {
-  const groups: any[] = [];
-  let currentGroup: any = null;
-
-  columns.value.forEach((col) => {
-    if (col.group === "NONE") {
-      groups.push({
-        label: col.label,
-        width: col.width,
-        colspan: 1,
-        rowspan: 2,
-        class: "header-cell-main",
-      });
-      currentGroup = null;
-    } else {
-      if (currentGroup && currentGroup.label === col.group) {
-        currentGroup.width += col.width;
-        currentGroup.colspan += 1;
-      } else {
-        currentGroup = {
-          label: col.group,
-          width: col.width,
-          colspan: 1,
-          rowspan: 1,
-          class: "header-group bg-blue-header",
-        };
-        groups.push(currentGroup);
-      }
-    }
-  });
-  return groups;
+// --- COLUMN FILTERS & SORTING STATE ---
+const columnFilters = reactive({
+  jenis: "SEMUA",
+  mspk_nomor: "",
+  nama_order: "",
+  jenis_bahan: "SEMUA",
 });
 
-// --- UTILS FORMATTER ---
-const getValueByField = (item: any, field: string) => {
-  return item[field];
+const sortKey = ref("mspk_nomor"); // Default sorting awal
+const sortOrder = ref<"asc" | "desc">("asc");
+
+const toggleSort = (key: string) => {
+  if (sortKey.value === key) {
+    sortOrder.value = sortOrder.value === "asc" ? "desc" : "asc";
+  } else {
+    sortKey.value = key;
+    sortOrder.value = "asc";
+  }
 };
 
-const formatOnlyDate = (dateStr: string) => {
-  if (!dateStr || dateStr === "-") return "-";
+// HELPER IKON SORTING: Hanya tampil saat kolom di-klik/aktif
+const getSortIcon = (key: string) => {
+  if (sortKey.value !== key) return "";
+  return sortOrder.value === "asc" ? " ▲" : " ▼";
+};
+
+// State Active Filter
+const hasActiveFilter = computed(() => {
+  return (
+    Boolean(searchQuery.value) ||
+    Boolean(columnFilters.mspk_nomor) ||
+    Boolean(columnFilters.nama_order) ||
+    (columnFilters.jenis && columnFilters.jenis !== "SEMUA") ||
+    (columnFilters.jenis_bahan && columnFilters.jenis_bahan !== "SEMUA")
+  );
+});
+
+const resetAllFilters = () => {
+  searchQuery.value = "";
+  columnFilters.mspk_nomor = "";
+  columnFilters.nama_order = "";
+  columnFilters.jenis = "SEMUA";
+  columnFilters.jenis_bahan = "SEMUA";
+  sortKey.value = "mspk_nomor";
+  sortOrder.value = "asc";
+};
+
+// --- OPTIONS FOR DROPDOWN FILTER ---
+const jenisOptions = computed(() => {
+  const list = allData.value.map((x) => x.jenis).filter(Boolean);
+  return ["SEMUA", ...new Set(list)];
+});
+
+const bahanOptions = computed(() => {
+  const list = allData.value.map((x) => x.jenis_bahan).filter(Boolean);
+  return ["SEMUA", ...new Set(list)];
+});
+
+// --- FETCH REPORT ---
+const fetchReport = async () => {
+  loading.report = true;
+  try {
+    const res = await api.get("/mmt/monitoring-proof/monitoring", {
+      params: { startDate: startDate.value, endDate: endDate.value },
+    });
+
+    const rawList = res.data.data || [];
+    allData.value = rawList.map((row: any) => ({
+      ...row,
+      mspk_panjang: Number(row.mspk_panjang || 0),
+      mspk_lebar: Number(row.mspk_lebar || 0),
+      jml_order: Number(row.jml_order || 0),
+      rencana_order: Number(row.rencana_order || 0),
+      lprd_jproof: Number(row.lprd_jproof || 0),
+    }));
+  } catch (error) {
+    console.error("Gagal load data monitoring proof:", error);
+    allData.value = [];
+  } finally {
+    loading.report = false;
+  }
+};
+
+// --- HELPER PARSING TANGGAL UTK SORTING ---
+const getTimestamp = (val: any): number => {
+  if (!val) return 0;
+  const strVal = String(val).trim();
+  const parsedISO = parseISO(strVal);
+  if (isValid(parsedISO)) return parsedISO.getTime();
+
+  const fallbackDate = new Date(strVal).getTime();
+  return isNaN(fallbackDate) ? 0 : fallbackDate;
+};
+
+// --- KLASIFIKASI KUNCI KOLOM UNTUK SORTING ---
+const DATE_KEYS = ["mspk_tanggal", "deadline", "lpr_tanggal", "spktanggal"];
+const NUMERIC_KEYS = [
+  "mspk_panjang",
+  "mspk_lebar",
+  "jml_order",
+  "rencana_order",
+  "lprd_jproof",
+  "lama_proof",
+];
+
+// --- FILTERED & SORTED DATA ---
+const filteredData = computed(() => {
+  let result = [...allData.value];
+
+  // 1. Filter Global Search
+  if (searchQuery.value) {
+    const q = searchQuery.value.toLowerCase().trim();
+    result = result.filter((item: any) => {
+      return (
+        item.mspk_nomor?.toLowerCase().includes(q) ||
+        item.salesman?.toLowerCase().includes(q) ||
+        item.nama_order?.toLowerCase().includes(q) ||
+        item.jenis_bahan?.toLowerCase().includes(q) ||
+        item.nomorspk?.toLowerCase().includes(q)
+      );
+    });
+  }
+
+  // 2. Filter Per Kolom (JENIS)
+  if (columnFilters.jenis && columnFilters.jenis !== "SEMUA") {
+    result = result.filter((item: any) => item.jenis === columnFilters.jenis);
+  }
+
+  // 3. Filter Per Kolom (NOMOR MEMO)
+  if (columnFilters.mspk_nomor) {
+    const q = columnFilters.mspk_nomor.toLowerCase().trim();
+    result = result.filter((item: any) =>
+      item.mspk_nomor?.toLowerCase().includes(q),
+    );
+  }
+
+  // 4. Filter Per Kolom (NAMA ORDER)
+  if (columnFilters.nama_order) {
+    const q = columnFilters.nama_order.toLowerCase().trim();
+    result = result.filter((item: any) =>
+      item.nama_order?.toLowerCase().includes(q),
+    );
+  }
+
+  // 5. Filter Per Kolom (JENIS BAHAN)
+  if (columnFilters.jenis_bahan && columnFilters.jenis_bahan !== "SEMUA") {
+    result = result.filter(
+      (item: any) => item.jenis_bahan === columnFilters.jenis_bahan,
+    );
+  }
+
+  // 6. Logic Sorting Presisi
+  if (sortKey.value) {
+    const key = sortKey.value;
+    const isAsc = sortOrder.value === "asc";
+
+    result.sort((a, b) => {
+      const valA = a[key];
+      const valB = b[key];
+
+      // A. Sorting Kolom Tanggal
+      if (DATE_KEYS.includes(key)) {
+        const timeA = getTimestamp(valA);
+        const timeB = getTimestamp(valB);
+        return isAsc ? timeA - timeB : timeB - timeA;
+      }
+
+      // B. Sorting Kolom Angka
+      if (NUMERIC_KEYS.includes(key)) {
+        const numA =
+          valA !== null && valA !== undefined && valA !== "" ? Number(valA) : 0;
+        const numB =
+          valB !== null && valB !== undefined && valB !== "" ? Number(valB) : 0;
+        return isAsc ? numA - numB : numB - numA;
+      }
+
+      // C. Sorting Kolom Teks / Alfanumerik
+      const strA = valA !== null && valA !== undefined ? String(valA) : "";
+      const strB = valB !== null && valB !== undefined ? String(valB) : "";
+
+      const res = strA.localeCompare(strB, "id", {
+        numeric: true,
+        sensitivity: "base",
+      });
+
+      return isAsc ? res : -res;
+    });
+  }
+
+  return result;
+});
+
+// --- TOTAL CALCULATIONS ---
+const totals = computed(() => {
+  return filteredData.value.reduce(
+    (acc, item: any) => {
+      acc.jml_order += Number(item.jml_order || 0);
+      acc.rencana_order += Number(item.rencana_order || 0);
+      acc.lprd_jproof += Number(item.lprd_jproof || 0);
+      return acc;
+    },
+    {
+      jml_order: 0,
+      rencana_order: 0,
+      lprd_jproof: 0,
+    },
+  );
+});
+
+// --- HELPER FORMAT DISPLAY ---
+const formatDateDisplay = (dateStr: string) => {
+  if (!dateStr) return "-";
   const date = parseISO(dateStr);
-  return isValid(date) ? format(date, "dd/MM/yyyy") : dateStr.substring(0, 10);
+  return isValid(date) ? format(date, "dd/MM/yyyy") : dateStr;
 };
 
 const formatDateFull = (dateStr: string) => {
@@ -366,51 +747,15 @@ const formatDateFull = (dateStr: string) => {
   return isValid(date) ? format(date, "dd MMMM yyyy", { locale: id }) : dateStr;
 };
 
-// --- DATA FETCH & FILTER ---
-const fetchReport = async () => {
-  loading.report = true;
-  try {
-    const res = await api.get("/mmt/monitoring-proof/monitoring", {
-      params: { startDate: startDate.value, endDate: endDate.value },
-    });
-    allData.value = res.data.data || [];
-  } catch (error) {
-    console.error("Gagal mengambil data monitoring proof:", error);
-    allData.value = [];
-  } finally {
-    loading.report = false;
-  }
-};
-
-const filteredData = computed(() => {
-  if (!searchQuery.value) return allData.value;
-  const q = searchQuery.value.toLowerCase().trim();
-  return allData.value.filter((r: any) => {
-    return (
-      (r.mspk_nomor && r.mspk_nomor.toLowerCase().includes(q)) ||
-      (r.salesman && r.salesman.toLowerCase().includes(q)) ||
-      (r.nama_order && r.nama_order.toLowerCase().includes(q))
-    );
-  });
-});
-
-const sumField = (fieldName: string) => {
-  return filteredData.value.reduce((sum, item) => {
-    const val = parseFloat(item[fieldName]);
-    return sum + (isNaN(val) ? 0 : val);
-  }, 0);
-};
-
 // --- EXPORT TO EXCEL ---
 const exportToExcel = (dataToExport: any[]) => {
-  const exportList =
-    dataToExport && dataToExport.length > 0 ? dataToExport : filteredData.value;
-  if (!exportList || exportList.length === 0) {
+  if (!dataToExport || dataToExport.length === 0) {
     alert("Tidak ada data untuk diekspor");
     return;
   }
 
   const fileName = `Laporan_Monitoring_Proof_${startDate.value}_sd_${endDate.value}.xlsx`;
+  const num = (value: any) => (isNaN(Number(value)) ? 0 : Number(value));
 
   const borderThin = {
     top: { style: "thin", color: { rgb: "000000" } },
@@ -421,25 +766,27 @@ const exportToExcel = (dataToExport: any[]) => {
 
   const styleHeaderMain = {
     fill: { fgColor: { rgb: "1E3A8A" } },
-    font: { bold: true, color: { rgb: "FFFFFF" }, name: "Calibri", sz: 10 },
+    font: { bold: true, color: { rgb: "FFFFFF" }, sz: 10 },
     alignment: { horizontal: "center", vertical: "center", wrapText: true },
     border: borderThin,
   };
 
   const styleHeaderSub = {
-    ...styleHeaderMain,
     fill: { fgColor: { rgb: "2563EB" } },
+    font: { bold: true, color: { rgb: "FFFFFF" }, sz: 10 },
+    alignment: { horizontal: "center", vertical: "center", wrapText: true },
+    border: borderThin,
   };
 
   const styleDataCell = {
-    font: { name: "Calibri", sz: 9, color: { rgb: "0F172A" } },
+    font: { sz: 9, color: { rgb: "0F172A" } },
     alignment: { vertical: "center" },
     border: borderThin,
   };
 
-  const styleFooter = {
-    fill: { fgColor: { rgb: "FEF3C7" } },
-    font: { bold: true, name: "Calibri", sz: 10, color: { rgb: "000000" } },
+  const styleFooterCell = {
+    fill: { fgColor: { rgb: "C7ECFE" } },
+    font: { bold: true, sz: 10, color: { rgb: "000000" } },
     border: {
       top: { style: "double", color: { rgb: "000000" } },
       bottom: { style: "thick", color: { rgb: "000000" } },
@@ -448,167 +795,218 @@ const exportToExcel = (dataToExport: any[]) => {
     },
   };
 
+  const formattedStart = formatDateFull(startDate.value);
+  const formattedEnd = formatDateFull(endDate.value);
+
   const wsData: any[] = [
     [{ v: "LAPORAN MONITORING PROOF", s: { font: { bold: true, sz: 14 } } }],
-    [
-      {
-        v: `Periode : ${formatDateFull(startDate.value)} s/d ${formatDateFull(endDate.value)}`,
-      },
-    ],
-    [{ v: "Kategori: PROOF" }],
+    [{ v: `Periode : ${formattedStart} s/d ${formattedEnd}` }],
     [],
   ];
 
-  const excelHeaderRow1: any[] = [];
-  const excelHeaderRow2: any[] = [];
-  const excelMerges: any[] = [];
+  // Header Row 1
+  const headerRow1 = [
+    { v: "JENIS", s: styleHeaderMain },
+    { v: "TGL MEMO", s: styleHeaderMain },
+    { v: "DEADLINE", s: styleHeaderMain },
+    { v: "NAMA ORDER", s: styleHeaderMain },
+    { v: "UKURAN", s: styleHeaderMain },
+    "",
+    { v: "NOMOR MEMO", s: styleHeaderMain },
+    { v: "ORDER SPK", s: styleHeaderMain },
+    "",
+    { v: "AKTUAL PROOF", s: styleHeaderMain },
+    { v: "LAMA PROOFING", s: styleHeaderMain },
+    { v: "TGL PROOF", s: styleHeaderMain },
+    { v: "LOKASI PROOF", s: styleHeaderMain },
+    { v: "MESIN PROOF", s: styleHeaderMain },
+    { v: "JENIS BAHAN", s: styleHeaderMain },
+    { v: "GRAMASI", s: styleHeaderMain },
+    { v: "KETERANGAN", s: styleHeaderMain },
+    { v: "STATUS", s: styleHeaderMain },
+    { v: "TGL SPK", s: styleHeaderMain },
+    { v: "NOMOR SPK", s: styleHeaderMain },
+  ];
+  wsData.push(headerRow1);
 
-  dynamicGroups.value.forEach((group) => {
-    excelHeaderRow1.push({ v: group.label, s: styleHeaderMain });
-    for (let i = 1; i < group.colspan; i++) {
-      excelHeaderRow1.push({ v: "", s: styleHeaderMain });
-    }
-  });
+  // Header Row 2
+  const headerRow2 = [
+    "",
+    "",
+    "",
+    "",
+    { v: "PANJANG", s: styleHeaderSub },
+    { v: "LEBAR", s: styleHeaderSub },
+    "",
+    { v: "JML ORDER", s: styleHeaderSub },
+    { v: "RENCANA ORDER", s: styleHeaderSub },
+    { v: "PCS PROOF", s: styleHeaderSub },
+    { v: "HARI", s: styleHeaderSub },
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+  ];
+  wsData.push(headerRow2);
 
-  columns.value.forEach((col) => {
-    excelHeaderRow2.push({ v: col.label, s: styleHeaderSub });
-  });
-
-  wsData.push(excelHeaderRow1);
-  wsData.push(excelHeaderRow2);
-
-  let currentExcelCol = 0;
-  dynamicGroups.value.forEach((group) => {
-    if (group.rowspan === 2) {
-      excelMerges.push({
-        s: { r: 4, c: currentExcelCol },
-        e: { r: 5, c: currentExcelCol },
-      });
-      currentExcelCol += 1;
-    } else {
-      excelMerges.push({
-        s: { r: 4, c: currentExcelCol },
-        e: { r: 4, c: currentExcelCol + group.colspan - 1 },
-      });
-      currentExcelCol += group.colspan;
-    }
-  });
-
-  // Loop Data Baris
-  exportList.forEach((item) => {
-    const row: any[] = [];
-    const isNotYetProofed = parseFloat(item.lprd_jproof || 0) === 0;
-    const customCellStyle = isNotYetProofed
+  // Loop Data
+  dataToExport.forEach((item: any) => {
+    const isUnproofed = num(item.lprd_jproof) === 0;
+    const customCell = isUnproofed
       ? { ...styleDataCell, fill: { fgColor: { rgb: "FFF9C4" } } }
       : styleDataCell;
 
-    columns.value.forEach((col) => {
-      const value = getValueByField(item, col.field);
-
-      if (col.type === "number") {
-        const isDecimalCol = col.dec && col.dec > 0;
-        const finalNum = isDecimalCol
-          ? Number(parseFloat(value || 0).toFixed(col.dec))
-          : Number(value || 0);
-
-        row.push({
-          v: finalNum,
-          t: "n",
-          z: isDecimalCol ? "#,##0.00" : "#,##0",
-          s: {
-            ...customCellStyle,
-            alignment: { horizontal: "right", vertical: "center" },
-          },
-        });
-      } else if (col.type === "date") {
-        row.push({
-          v: formatOnlyDate(value),
-          s: {
-            ...customCellStyle,
-            alignment: { horizontal: "center", vertical: "center" },
-          },
-        });
-      } else {
-        row.push({
-          v: value || "-",
-          s: customCellStyle,
-        });
-      }
-    });
-    wsData.push(row);
-  });
-
-  // Footer Grand Total
-  const excelFooter: any[] = [];
-  columns.value.forEach((col, idx) => {
-    if (idx === 0) {
-      excelFooter.push({
-        v: "TOTAL ORDER:",
-        s: {
-          ...styleFooter,
-          alignment: { horizontal: "center", vertical: "center" },
-        },
-      });
-    } else if (col.sum) {
-      const sumVal = sumField(col.field);
-      const isDecimalCol = col.dec && col.dec > 0;
-      const finalSum = isDecimalCol
-        ? Number(parseFloat(sumVal.toString()).toFixed(col.dec))
-        : Number(sumVal);
-
-      excelFooter.push({
-        v: finalSum,
+    wsData.push([
+      {
+        v: item.jenis || "",
+        s: { ...customCell, alignment: { horizontal: "center" } },
+      },
+      {
+        v: formatDateDisplay(item.mspk_tanggal),
+        s: { ...customCell, alignment: { horizontal: "center" } },
+      },
+      {
+        v: formatDateDisplay(item.mspk_dateline),
+        s: { ...customCell, alignment: { horizontal: "center" } },
+      },
+      { v: item.nama_order || "", s: customCell },
+      {
+        v: num(item.mspk_panjang),
         t: "n",
-        z: isDecimalCol ? "#,##0.00" : "#,##0",
-        s: {
-          ...styleFooter,
-          alignment: { horizontal: "right", vertical: "center" },
-        },
-      });
-    } else {
-      excelFooter.push({
-        v: "",
-        s: {
-          ...styleFooter,
-          alignment: { horizontal: "center", vertical: "center" },
-        },
-      });
-    }
+        z: "#,##0.00",
+        s: { ...customCell, alignment: { horizontal: "right" } },
+      },
+      {
+        v: num(item.mspk_lebar),
+        t: "n",
+        z: "#,##0.00",
+        s: { ...customCell, alignment: { horizontal: "right" } },
+      },
+      {
+        v: item.mspk_nomor || "",
+        s: { ...customCell, alignment: { horizontal: "center" } },
+      },
+      {
+        v: num(item.jml_order),
+        t: "n",
+        z: "#,##0",
+        s: { ...customCell, alignment: { horizontal: "right" } },
+      },
+      {
+        v: num(item.rencana_order),
+        t: "n",
+        z: "#,##0",
+        s: { ...customCell, alignment: { horizontal: "right" } },
+      },
+      {
+        v: num(item.lprd_jproof),
+        t: "n",
+        z: "#,##0",
+        s: { ...customCell, alignment: { horizontal: "right" } },
+      },
+      {
+        v: item.lama_proof ?? "",
+        s: { ...customCell, alignment: { horizontal: "center" } },
+      },
+      {
+        v: formatDateDisplay(item.lpr_tanggal),
+        s: { ...customCell, alignment: { horizontal: "center" } },
+      },
+      { v: item.lokasi_proof || "", s: customCell },
+      {
+        v: item.mesin_proof || "",
+        s: { ...customCell, alignment: { horizontal: "center" } },
+      },
+      { v: item.jenis_bahan || "", s: customCell },
+      {
+        v: item.gramasi || "",
+        s: { ...customCell, alignment: { horizontal: "right" } },
+      },
+      { v: item.keterangan || "", s: customCell },
+      {
+        v: item.statusmemo || "",
+        s: { ...customCell, alignment: { horizontal: "center" } },
+      },
+      {
+        v: formatDateDisplay(item.spktanggal),
+        s: { ...customCell, alignment: { horizontal: "center" } },
+      },
+      {
+        v: item.nomorspk || "",
+        s: { ...customCell, alignment: { horizontal: "center" } },
+      },
+    ]);
   });
 
-  excelMerges.push({
-    s: { r: wsData.length, c: 0 },
-    e: { r: wsData.length, c: 3 },
-  });
+  // Footer Total
+  const footerRow = [
+    {
+      v: "TOTAL (FILTERED)",
+      s: { ...styleFooterCell, alignment: { horizontal: "center" } },
+    },
+    ...Array(6).fill({ v: "", s: styleFooterCell }),
+    {
+      v: num(totals.value.jml_order),
+      t: "n",
+      z: "#,##0",
+      s: { ...styleFooterCell, alignment: { horizontal: "right" } },
+    },
+    {
+      v: num(totals.value.rencana_order),
+      t: "n",
+      z: "#,##0",
+      s: { ...styleFooterCell, alignment: { horizontal: "right" } },
+    },
+    {
+      v: num(totals.value.lprd_jproof),
+      t: "n",
+      z: "#,##0",
+      s: { ...styleFooterCell, alignment: { horizontal: "right" } },
+    },
+    ...Array(10).fill({ v: "", s: styleFooterCell }),
+  ];
 
-  wsData.push(excelFooter);
+  wsData.push(footerRow);
 
   const ws = XLSX.utils.aoa_to_sheet(wsData);
-  ws["!merges"] = excelMerges;
-  ws["!cols"] = columns.value.map((c) => ({ wch: c.width / 7.2 }));
+
+  ws["!merges"] = [
+    { s: { r: 3, c: 0 }, e: { r: 4, c: 0 } }, // Jenis
+    { s: { r: 3, c: 1 }, e: { r: 4, c: 1 } }, // Tgl Memo
+    { s: { r: 3, c: 2 }, e: { r: 4, c: 2 } }, // Deadline
+    { s: { r: 3, c: 3 }, e: { r: 4, c: 3 } }, // Nama Order
+    { s: { r: 3, c: 4 }, e: { r: 3, c: 5 } }, // Ukuran (Panjang, Lebar)
+    { s: { r: 3, c: 6 }, e: { r: 4, c: 6 } }, // Nomor Memo
+    { s: { r: 3, c: 7 }, e: { r: 3, c: 8 } }, // Order SPK (Jml Order, Rencana Order)
+    { s: { r: 3, c: 9 }, e: { r: 4, c: 9 } }, // Aktual Proof
+    { s: { r: 3, c: 10 }, e: { r: 4, c: 10 } }, // Lama Proofing
+    { s: { r: 3, c: 11 }, e: { r: 4, c: 11 } }, // Tgl Proof
+    { s: { r: 3, c: 12 }, e: { r: 4, c: 12 } }, // Lokasi
+    { s: { r: 3, c: 13 }, e: { r: 4, c: 13 } }, // Mesin Proof
+    { s: { r: 3, c: 14 }, e: { r: 4, c: 14 } }, // Jenis Bahan
+    { s: { r: 3, c: 15 }, e: { r: 4, c: 15 } }, // Gramasi
+    { s: { r: 3, c: 16 }, e: { r: 4, c: 16 } }, // Keterangan
+    { s: { r: 3, c: 17 }, e: { r: 4, c: 17 } }, // Status
+    { s: { r: 3, c: 18 }, e: { r: 4, c: 18 } }, // Tgl SPK
+    { s: { r: 3, c: 19 }, e: { r: 4, c: 19 } }, // Nomor SPK
+    { s: { r: wsData.length - 1, c: 0 }, e: { r: wsData.length - 1, c: 6 } }, // Footer Merge Title
+  ];
 
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Proof_Monitoring");
-
-  const wbout = XLSX.write(wb, { bookType: "xlsx", type: "binary" });
-  const s2ab = (s: string) => {
-    const buf = new ArrayBuffer(s.length);
-    const view = new Uint8Array(buf);
-    for (let i = 0; i < s.length; i++) view[i] = s.charCodeAt(i) & 0xff;
-    return buf;
-  };
-
-  saveAs(
-    new Blob([s2ab(wbout)], { type: "application/octet-stream" }),
-    fileName,
-  );
+  XLSX.writeFile(wb, fileName);
 };
 
 onMounted(fetchReport);
 </script>
 
 <style scoped>
-/* 1. CONTAINER WRAPPER SCROLL */
+/* 1. CONTAINER WRAPPER UNTUK OVERFLOW SCROLL */
 :deep(.v-table__wrapper),
 :deep(.v-data-table__wrapper) {
   max-height: calc(100vh - 280px) !important;
@@ -616,7 +1014,7 @@ onMounted(fetchReport);
   overflow-x: auto !important;
 }
 
-/* 2. STANDARISASI TABEL & FONT SIZE KE 12PX */
+/* 2. STANDARISASI SELURUH TABEL & FONT SIZE KE 12PX */
 :deep(table) {
   border-collapse: separate !important;
   border-spacing: 0 !important;
@@ -638,27 +1036,20 @@ onMounted(fetchReport);
 }
 
 .header-main th {
-  background: linear-gradient(180deg, #1e3a8a 0%, #1e40af 100%) !important;
-  color: white !important;
+  background: linear-gradient(180deg, #142f7b 0%, #3b82f6 100%) !important;
   border-right: 1px solid #3b82f6 !important;
-  font-size: 12px !important;
+  color: #ffffff !important;
 }
 
 .header-sub th {
   background: #2563eb !important;
-  color: white !important;
-  font-size: 12px !important;
+  font-size: 11px !important;
   border-right: 1px solid #60a5fa !important;
 }
 
-.bg-blue-header {
-  background-color: #1d4ed8 !important;
-  color: white !important;
-}
-
-.bg-blue-sub {
-  background-color: #93c5fd !important;
-  color: #000 !important;
+.header-group {
+  border-left: 1px solid #60a5fa !important;
+  border-right: 1px solid #60a5fa !important;
 }
 
 /* 4. STICKY FOOTER */
@@ -669,7 +1060,7 @@ onMounted(fetchReport);
 }
 
 .table-footer-row td {
-  background-color: #fef3c7 !important;
+  background-color: #c7ecfe !important;
   border-top: 2px solid #000 !important;
   border-bottom: 2px solid #000 !important;
 }
@@ -680,14 +1071,15 @@ onMounted(fetchReport);
   left: 0px !important;
   width: 85px !important;
   min-width: 85px !important;
+  max-width: 85px !important;
 }
 
 :deep(.sticky-col-2) {
   position: sticky !important;
   left: 85px !important;
   box-shadow: 3px 0px 5px -2px rgba(0, 0, 0, 0.15);
-  width: 105px !important;
-  min-width: 105px !important;
+  width: 140px !important;
+  min-width: 140px !important;
 }
 
 :deep(tbody .sticky-col-1),
@@ -709,12 +1101,63 @@ onMounted(fetchReport);
   background-color: #fef3c7 !important;
 }
 
-/* 6. WARNING LIGHT STYLING UNTUK PROOF BERELUM PROSES (lprd_jproof == 0) */
+/* 6. BACKGROUND COLOR GROUP HEADER & SUB HEADER */
+.bg-blue-header {
+  background-color: #1d4ed8 !important;
+  color: white !important;
+}
+.bg-cyan-header {
+  background-color: #0891b2 !important;
+  color: white !important;
+}
+.bg-teal-header {
+  background-color: #0d9488 !important;
+  color: white !important;
+}
+
+.bg-blue-sub {
+  background-color: #93c5fd !important;
+  color: #000 !important;
+}
+.bg-cyan-sub {
+  background-color: #a5f3fc !important;
+  color: #000 !important;
+}
+.bg-teal-sub {
+  background-color: #99f6e4 !important;
+  color: #000 !important;
+}
+
+/* 7. HIGHLIGHT BARIS PROOF BELUM DIPROSES (lprd_jproof == 0) */
 .bg-warning-soft {
   background-color: #fff9c4 !important;
 }
 
 :deep(tbody .bg-warning-soft-cell) {
   background-color: #fff9c4 !important;
+}
+
+.bg-warning-footer {
+  background-color: #fef3c7 !important;
+}
+
+/* 8. UTILITY BORDERS & BUTTONS */
+.border-l {
+  border-left: 1px solid #cbd5e1 !important;
+}
+.border-r {
+  border-right: 1px solid #cbd5e1 !important;
+}
+.cursor-pointer {
+  cursor: pointer;
+}
+.select-none {
+  user-select: none;
+}
+.btn-filter-icon {
+  opacity: 0.85;
+}
+.btn-filter-icon:hover {
+  opacity: 1;
 }
 </style>

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, nextTick } from "vue";
+import { ref, computed, onMounted, onUnmounted, nextTick } from "vue";
 import { useRoute } from "vue-router";
 import { suratJalanService as svc } from "@/services/mmt/suratJalanService";
 
@@ -30,12 +30,15 @@ const nomorSJ = computed(() => {
 });
 
 /* =========================================================
- * STATE
+ * STATE & ORIENTASI
  * ======================================================= */
 const header = ref<any>({});
 const detail = ref<any[]>([]);
 const isReady = ref(false);
 const isLoading = ref(true);
+
+// 🛠️ Set default ke 'landscape' agar saat window print terbuka langsung ter-rotate 90°
+const printOrientation = ref<"portrait" | "landscape">("landscape");
 
 /*
  * Maksimal detail per halaman A5
@@ -46,6 +49,29 @@ const rowsPerPage = ref<number>(6);
  * Copy surat jalan
  */
 const copies = ref<{ label: string }[]>([{ label: "ASLI" }, { label: "COPY" }]);
+
+/* =========================================================
+ * INJEKSI STYLE PRINT (ROTASI 90 DERAJAT / LANDSCAPE)
+ * ======================================================= */
+const injectPrintStyle = () => {
+  const oldStyle = document.getElementById("sj-dynamic-print-style");
+  if (oldStyle) oldStyle.remove();
+
+  const isLandscape = printOrientation.value === "landscape";
+  const pageSize = isLandscape ? "297mm 210mm" : "210mm 297mm";
+
+  const styleEl = document.createElement("style");
+  styleEl.id = "sj-dynamic-print-style";
+  styleEl.innerHTML = `
+    @media print {
+      @page {
+        size: ${pageSize};
+        margin: 0 !important;
+      }
+    }
+  `;
+  document.head.appendChild(styleEl);
+};
 
 /* =========================================================
  * LOGO
@@ -110,14 +136,6 @@ const num = (val: any) => {
 
 /* =========================================================
  * PAGINATION DETAIL
- *
- * Contoh:
- * detail 14 baris
- * rowsPerPage = 6
- *
- * page 1 = 6
- * page 2 = 6
- * page 3 = 2
  * ======================================================= */
 const paginatedDetails = computed(() => {
   if (!detail.value || detail.value.length === 0) {
@@ -135,15 +153,6 @@ const paginatedDetails = computed(() => {
 
 /* =========================================================
  * SEMUA HALAMAN CETAK
- *
- * Struktur:
- *
- * ASLI - Page 1
- * ASLI - Page 2
- * ...
- * COPY - Page 1
- * COPY - Page 2
- * ...
  * ======================================================= */
 const printPages = computed(() => {
   const result: Array<{
@@ -169,20 +178,6 @@ const printPages = computed(() => {
 
 /* =========================================================
  * A4 SHEETS
- *
- * Setiap A4 berisi maksimal 2 A5.
- *
- * Contoh:
- *
- * A4 #1
- * ├── A5 ASLI Page 1
- * └── A5 ASLI Page 2
- *
- * A4 #2
- * ├── A5 ASLI Page 3
- * └── A5 COPY Page 1
- *
- * dst.
  * ======================================================= */
 const a4Sheets = computed(() => {
   const sheets: any[][] = [];
@@ -195,10 +190,13 @@ const a4Sheets = computed(() => {
 });
 
 /* =========================================================
- * PRINT
+ * PRINT & TRIGGER
  * ======================================================= */
 const doPrint = () => {
-  window.print();
+  injectPrintStyle();
+  nextTick(() => {
+    window.print();
+  });
 };
 
 /* =========================================================
@@ -232,13 +230,8 @@ const fetchData = async () => {
 
     isReady.value = true;
 
-    /*
-     * Tunggu Vue selesai render.
-     *
-     * Jangan langsung window.print()
-     * supaya gambar/logo dan DOM sudah tersedia.
-     */
     await nextTick();
+    injectPrintStyle();
 
     setTimeout(() => {
       window.print();
@@ -251,72 +244,81 @@ const fetchData = async () => {
 };
 
 /* =========================================================
- * ON MOUNTED
+ * LIFECYCLE
  * ======================================================= */
 onMounted(() => {
   document.title = `Surat Jalan - ${nomorSJ.value}`;
-
   fetchData();
+});
+
+onUnmounted(() => {
+  const oldStyle = document.getElementById("sj-dynamic-print-style");
+  if (oldStyle) oldStyle.remove();
 });
 </script>
 
 <template>
   <div class="print-root">
-    <!-- =====================================================
-         LOADING
-    ====================================================== -->
+    <!-- LOADING -->
     <div v-if="isLoading" class="loading-screen">
       <span> Menyiapkan dokumen Surat Jalan... </span>
     </div>
 
     <template v-else-if="isReady">
-      <!-- ===================================================
-           TOOLBAR
-      ==================================================== -->
+      <!-- TOOLBAR -->
       <div class="no-print toolbar">
         <span class="toolbar-title"> Cetak Surat Jalan — {{ nomorSJ }} </span>
 
-        <div class="toolbar-actions">
-          <button class="tbtn" @click="doPrint">🖨️ Cetak A4 — 2 A5</button>
+        <!-- Pilihan Orientasi -->
+        <div class="orientation-selector">
+          <span class="control-label">Orientasi:</span>
+          <label :class="{ active: printOrientation === 'portrait' }">
+            <input
+              type="radio"
+              value="portrait"
+              v-model="printOrientation"
+              @change="injectPrintStyle"
+            />
+            📄 Tegak (Portrait)
+          </label>
+          <label :class="{ active: printOrientation === 'landscape' }">
+            <input
+              type="radio"
+              value="landscape"
+              v-model="printOrientation"
+              @change="injectPrintStyle"
+            />
+            📑 Rotate 90° (Landscape)
+          </label>
+        </div>
 
+        <div class="toolbar-actions">
+          <button class="tbtn" @click="doPrint">🖨️ Cetak Dokumen</button>
           <button class="tbtn tbtn-grey" @click="doClose">✕ Tutup</button>
         </div>
       </div>
 
-      <!-- ===================================================
-           LOOP A4
-           
-           SATU .a4-sheet = SATU LEMBAR FISIK A4
-           
-           Di dalamnya maksimal 2 A5.
-      ==================================================== -->
+      <!-- LOOP A4 -->
       <div
         v-for="(sheet, sheetIndex) in a4Sheets"
         :key="'sheet-' + sheetIndex"
         class="a4-sheet"
+        :class="{ 'rotate-sheet': printOrientation === 'landscape' }"
       >
-        <!-- =================================================
-             SLOT A5
-        ================================================== -->
+        <!-- SLOT A5 -->
         <div
           v-for="(item, slotIndex) in sheet"
           :key="'a5-' + sheetIndex + '-' + slotIndex"
           class="a5-page"
         >
-          <!-- ===============================================
-               WATERMARK
-          ================================================ -->
+          <!-- WATERMARK -->
           <div class="watermark">
             {{ item.copyLabel }}
           </div>
 
-          <!-- ===============================================
-               CONTENT
-          ================================================ -->
+          <!-- CONTENT -->
           <div class="page-content">
-            <!-- =============================================
-                 HEADER
-            ============================================== -->
+            <!-- HEADER -->
             <div class="header-section">
               <div class="kop-left">
                 <div class="kop-nama">
@@ -345,30 +347,21 @@ onMounted(() => {
               </div>
             </div>
 
-            <!-- =============================================
-                 JUDUL
-            ============================================== -->
+            <!-- JUDUL -->
             <div class="doc-title">SURAT JALAN</div>
 
-            <!-- =============================================
-                 NOMOR / CUSTOMER
-            ============================================== -->
+            <!-- NOMOR / CUSTOMER -->
             <div class="title-row">
               <!-- LEFT -->
               <div class="meta-box">
                 <table class="info-tbl">
                   <tr>
                     <td class="lbl">Nomor</td>
-
-                    <td>
-                      :
-                      {{ header.Nomor || header.sj_nomor || nomorSJ }}
-                    </td>
+                    <td>: {{ header.Nomor || header.sj_nomor || nomorSJ }}</td>
                   </tr>
 
                   <tr>
                     <td class="lbl">Tanggal</td>
-
                     <td>
                       :
                       {{
@@ -384,7 +377,6 @@ onMounted(() => {
 
                   <tr>
                     <td class="lbl">Keterangan</td>
-
                     <td>
                       :
                       {{
@@ -404,9 +396,7 @@ onMounted(() => {
                 <table class="info-tbl">
                   <tr>
                     <td class="lbl" style="width: 75px">Customer</td>
-
                     <td style="width: 10px">:</td>
-
                     <td>
                       <strong class="cus-nama">
                         {{
@@ -425,9 +415,7 @@ onMounted(() => {
 
                   <tr>
                     <td></td>
-
                     <td></td>
-
                     <td class="cus-alamat">
                       {{
                         header.cust_alamat ||
@@ -442,24 +430,16 @@ onMounted(() => {
               </div>
             </div>
 
-            <!-- =============================================
-                 DETAIL
-            ============================================== -->
+            <!-- DETAIL -->
             <table class="dtbl">
               <thead>
                 <tr>
                   <th style="width: 32px; text-align: center">No</th>
-
                   <th style="width: 115px">Spk</th>
-
                   <th>Nama</th>
-
                   <th style="width: 80px">Ukuran</th>
-
                   <th style="width: 55px; text-align: right">Jumlah</th>
-
                   <th style="width: 40px; text-align: right">Koli</th>
-
                   <th style="width: 130px">Keterangan</th>
                 </tr>
               </thead>
@@ -469,36 +449,27 @@ onMounted(() => {
                   <td style="text-align: center">
                     {{ item.pageIndex * rowsPerPage + i + 1 }}
                   </td>
-
                   <td>
                     {{ r.SPK || r.sjd_spk_nomor || "-" }}
                   </td>
-
                   <td>
                     {{ r.Nama || r.spk_nama || "-" }}
                   </td>
-
                   <td>
                     {{ r.Ukuran || "-" }}
                   </td>
-
                   <td style="text-align: right">
                     {{ num(r.Jumlah) }}
                   </td>
-
                   <td style="text-align: right">
                     {{ num(r.Koli) }}
                   </td>
-
                   <td class="keterangan-cell">
                     {{ r.Keterangan || "" }}
                   </td>
                 </tr>
 
-                <!--
-                  Jika jumlah data kurang dari rowsPerPage,
-                  tetap buat baris kosong agar layout stabil.
-                -->
+                <!-- Baris Kosong untuk Menjaga Layout -->
                 <tr
                   v-for="emptyIndex in Math.max(
                     0,
@@ -519,17 +490,13 @@ onMounted(() => {
             </table>
           </div>
 
-          <!-- ===============================================
-               FOOTER
-          ================================================ -->
+          <!-- FOOTER -->
           <div class="page-footer">
             <div class="foot-row">
               <div class="foot-note">
                 Mohon Surat Jalan ini ditanda tangani, distempel, dan di fax ke
                 {{ header.perush_telp || "0271-722998" }}
-
                 <br />
-
                 atau email ke
                 {{ header.perush_email || "m.officer@jayaabadimulia.co.id" }}
               </div>
@@ -542,18 +509,12 @@ onMounted(() => {
               </div>
             </div>
 
-            <!-- =============================================
-                 TANDA TANGAN
-            ============================================== -->
+            <!-- TANDA TANGAN -->
             <div class="ttd-row">
               <span> Dibuat Oleh, </span>
-
               <span> Disiapkan Oleh, </span>
-
               <span> Kepala Gudang, </span>
-
               <span> Pengantar, </span>
-
               <span> Diterima Oleh, </span>
             </div>
 
@@ -561,36 +522,23 @@ onMounted(() => {
 
             <div class="ttd-row ttd-paren">
               <span> ( ....................... ) </span>
-
               <span> ( ....................... ) </span>
-
               <span> ( ....................... ) </span>
-
               <span> ( ....................... ) </span>
-
               <span> ( ....................... ) </span>
             </div>
 
-            <!-- =============================================
-                 NOTE
-            ============================================== -->
+            <!-- NOTE -->
             <div class="bottom-note">
               Note : Pengaduan konsumen maks. 14 hari dari tanggal penerimaan
               barang.
-
               <br />
-
               Melebihi batas waktu pengaduan, tidak diterima.
             </div>
           </div>
         </div>
 
-        <!-- =================================================
-             JIKA HANYA ADA 1 A5 DALAM A4,
-             BUAT SLOT KOSONG.
-             
-             Ini menjaga ukuran A4 tetap tepat.
-        ================================================== -->
+        <!-- SLOT KOSONG A5 -->
         <div v-if="sheet.length === 1" class="a5-page a5-empty"></div>
       </div>
     </template>
@@ -604,17 +552,11 @@ onMounted(() => {
 
 .loading-screen {
   display: flex;
-
   align-items: center;
-
   justify-content: center;
-
   height: 100vh;
-
   font-size: 14px;
-
   color: #555;
-
   font-family: Arial, Helvetica, sans-serif;
 }
 
@@ -624,57 +566,70 @@ onMounted(() => {
 
 .toolbar {
   display: flex;
-
   align-items: center;
-
   justify-content: space-between;
-
   padding: 8px 20px;
-
   background: #1565c0;
-
   color: white;
-
   position: fixed;
-
   top: 0;
-
   left: 0;
-
   right: 0;
-
   z-index: 999;
 }
 
 .toolbar-title {
   font-weight: 700;
-
   font-size: 14px;
+}
+
+.orientation-selector {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.control-label {
+  font-weight: bold;
+  font-size: 12px;
+  color: #e2e8f0;
+}
+
+.orientation-selector label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: background 0.2s;
+}
+
+.orientation-selector label.active {
+  background: #2563eb;
+  font-weight: bold;
+}
+
+.orientation-selector input {
+  cursor: pointer;
 }
 
 .toolbar-actions {
   display: flex;
-
   align-items: center;
 }
 
 .tbtn {
   padding: 6px 14px;
-
   border: 1px solid rgba(255, 255, 255, 0.4);
-
   border-radius: 4px;
-
   background: rgba(255, 255, 255, 0.2);
-
   color: white;
-
   font-size: 12px;
-
   font-weight: 600;
-
   cursor: pointer;
-
   margin-left: 8px;
 }
 
@@ -692,15 +647,10 @@ onMounted(() => {
 
 .print-root {
   background: #e0e0e0;
-
   min-height: 100vh;
-
   padding-top: 50px;
-
   padding-bottom: 20px;
-
   font-family: Arial, Helvetica, sans-serif;
-
   color: #000;
 }
 
@@ -710,72 +660,43 @@ onMounted(() => {
 
 .a4-sheet {
   width: 210mm;
-
   height: 297mm;
-
   background: white;
-
   margin: 12px auto;
-
   box-sizing: border-box;
-
   position: relative;
-
   display: flex;
-
   flex-direction: column;
 }
 
 /* =========================================================
-   A5 PAGE
-
-   A5 LANDSCAPE:
-   210mm x 148.5mm
+   A5 PAGE (210mm x 148.5mm)
 ========================================================= */
 
 .a5-page {
   width: 210mm;
-
   height: 148.5mm;
-
   box-sizing: border-box;
-
   background: white;
-
   position: relative;
-
   overflow: hidden;
-
   display: flex;
-
   flex-direction: column;
-
   justify-content: space-between;
-
   padding: 5mm 10mm 4mm 10mm;
-
   font-size: 8.5pt;
 }
-
-/* Garis pembatas antar A5 */
 
 .a5-page:not(:last-child) {
   border-bottom: 0.4mm dashed #aaa;
 }
 
-/* Slot kosong */
-
 .a5-empty {
   background: white;
 }
 
-/* =========================================================
-   CONTENT
-========================================================= */
-
 .page-content {
   flex: 1;
-
   min-height: 0;
 }
 
@@ -785,25 +706,15 @@ onMounted(() => {
 
 .watermark {
   position: absolute;
-
   top: 55%;
-
   left: 50%;
-
   transform: translate(-50%, -50%) rotate(-15deg);
-
   font-size: 65pt;
-
   font-weight: 900;
-
   color: rgba(0, 0, 0, 0.04);
-
   letter-spacing: 0.15em;
-
   pointer-events: none;
-
   white-space: nowrap;
-
   z-index: 0;
 }
 
@@ -813,21 +724,17 @@ onMounted(() => {
 
 .header-section {
   display: flex;
-
   justify-content: space-between;
-
   align-items: flex-start;
 }
 
 .kop-left {
   font-size: 8.5pt;
-
   line-height: 1.25;
 }
 
 .kop-nama {
   font-size: 10pt;
-
   font-weight: 800;
 }
 
@@ -837,17 +744,13 @@ onMounted(() => {
 
 .logo-container {
   display: flex;
-
   justify-content: flex-end;
-
   align-items: flex-start;
 }
 
 .logo-img {
   max-height: 40px;
-
   max-width: 170px;
-
   object-fit: contain;
 }
 
@@ -857,13 +760,9 @@ onMounted(() => {
 
 .doc-title {
   font-size: 13pt;
-
   font-weight: 900;
-
   letter-spacing: 0.05em;
-
   margin-top: 4px;
-
   margin-bottom: 6px;
 }
 
@@ -873,11 +772,8 @@ onMounted(() => {
 
 .title-row {
   display: flex;
-
   justify-content: space-between;
-
   align-items: flex-start;
-
   margin-bottom: 6px;
 }
 
@@ -891,15 +787,12 @@ onMounted(() => {
 
 .info-tbl {
   border-collapse: collapse;
-
   font-size: 8.5pt;
-
   width: 100%;
 }
 
 .info-tbl td {
   padding: 1px 0;
-
   vertical-align: top;
 }
 
@@ -909,13 +802,11 @@ onMounted(() => {
 
 .cus-nama {
   font-size: 9pt;
-
   font-weight: 800;
 }
 
 .cus-alamat {
   white-space: pre-line;
-
   line-height: 1.2;
 }
 
@@ -925,37 +816,25 @@ onMounted(() => {
 
 .dtbl {
   width: 100%;
-
   border-collapse: collapse;
-
   font-size: 8pt;
-
   margin-bottom: 6px;
-
   position: relative;
-
   z-index: 1;
-
   border: 1.5px solid #000;
 }
 
 .dtbl th {
   border: 1.5px solid #000;
-
   padding: 4px;
-
   font-weight: 800;
-
   text-align: left;
-
   background: transparent !important;
 }
 
 .dtbl td {
   border: 1.5px solid #000;
-
   padding: 3px 4px;
-
   vertical-align: middle;
 }
 
@@ -968,24 +847,19 @@ onMounted(() => {
 }
 
 /* =========================================================
-   FOOTER
+   FOOTER & SIGNATURE
 ========================================================= */
 
 .page-footer {
   flex-shrink: 0;
-
   margin-top: auto;
 }
 
 .foot-row {
   display: flex;
-
   justify-content: space-between;
-
   align-items: flex-start;
-
   font-size: 7.5pt;
-
   margin-bottom: 8px;
 }
 
@@ -995,25 +869,17 @@ onMounted(() => {
 
 .foot-page {
   font-size: 8pt;
-
   font-weight: 700;
 }
 
-/* =========================================================
-   SIGNATURE
-========================================================= */
-
 .ttd-row {
   display: flex;
-
   justify-content: space-between;
-
   font-size: 7.5pt;
 }
 
 .ttd-row span {
   flex: 1;
-
   text-align: center;
 }
 
@@ -1027,190 +893,102 @@ onMounted(() => {
 
 .bottom-note {
   font-size: 6.8pt;
-
   margin-top: 4px;
-
   line-height: 1.2;
 }
 
 /* =========================================================
-   PRINT
+   PRINT MEDIA RULES
 ========================================================= */
 
 @media print {
-  /*
-   * PENTING:
-   *
-   * Browser diarahkan mencetak A4 PORTRAIT.
-   *
-   * Jangan gunakan:
-   *
-   * size: A5 landscape;
-   *
-   * karena target kita adalah 2 A5
-   * dalam 1 lembar A4.
-   */
-  @page {
-    size: A4 portrait;
-
-    margin: 0;
-  }
-
-  html,
-  body {
-    width: 210mm !important;
-
-    height: auto !important;
-
-    margin: 0 !important;
-
-    padding: 0 !important;
-
-    background: #ffffff !important;
-
-    -webkit-print-color-adjust: exact !important;
-
-    print-color-adjust: exact !important;
-  }
-
-  /*
-   * Hilangkan toolbar
-   */
   .no-print {
     display: none !important;
   }
 
-  /*
-   * Root tidak boleh memberi
-   * margin/padding tambahan.
-   */
+  html,
+  body {
+    width: 100% !important;
+    height: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
   .print-root {
     display: block !important;
-
-    width: 210mm !important;
-
+    width: 100% !important;
     min-height: 0 !important;
-
     margin: 0 !important;
-
     padding: 0 !important;
-
     background: #ffffff !important;
   }
 
-  /*
-   * SATU .a4-sheet =
-   * SATU HALAMAN PRINT
-   */
   .a4-sheet {
     width: 210mm !important;
-
     height: 297mm !important;
-
     margin: 0 !important;
-
     padding: 0 !important;
-
     box-sizing: border-box !important;
-
     display: flex !important;
-
     flex-direction: column !important;
-
     background: #ffffff !important;
-
     position: relative !important;
-
     page-break-after: always !important;
-
     break-after: page !important;
-
     page-break-inside: avoid !important;
-
     break-inside: avoid !important;
   }
 
-  /*
-   * Jangan membuat A5 sendiri
-   * menjadi halaman print.
-   *
-   * Dia hanya menjadi slot
-   * di dalam A4.
-   */
+  /* 🛠️ ROTASI KHUSUS 90 DERAJAT SAAT PILIHAN ROTATE AKTIF */
+  .a4-sheet.rotate-sheet {
+    transform: rotate(90deg) translateY(-297mm) !important;
+    transform-origin: top left !important;
+    width: 210mm !important;
+    height: 297mm !important;
+    position: relative !important;
+    top: 0 !important;
+    left: 0 !important;
+    page-break-after: always !important;
+    break-after: page !important;
+  }
+
   .a5-page {
     width: 210mm !important;
-
     height: 148.5mm !important;
-
     min-height: 148.5mm !important;
-
     max-height: 148.5mm !important;
-
     margin: 0 !important;
-
     padding: 5mm 10mm 4mm 10mm !important;
-
     box-sizing: border-box !important;
-
     overflow: hidden !important;
-
     background: #ffffff !important;
-
     position: relative !important;
-
     display: flex !important;
-
     flex-direction: column !important;
-
     justify-content: space-between !important;
-
     page-break-after: auto !important;
-
     break-after: auto !important;
-
     page-break-inside: avoid !important;
-
     break-inside: avoid !important;
   }
 
-  /*
-   * Garis pemisah antara A5 atas
-   * dan A5 bawah.
-   *
-   * Bisa dihapus kalau tidak ingin
-   * garis pemisah.
-   */
   .a5-page:not(:last-child) {
     border-bottom: 0.25mm dashed #999 !important;
   }
 
-  /*
-   * Slot kosong tidak perlu terlihat.
-   */
   .a5-empty {
     border: none !important;
-
     background: #ffffff !important;
   }
 
-  /*
-   * Pastikan tabel tidak memaksa
-   * halaman baru.
-   */
-  .dtbl {
-    page-break-inside: avoid !important;
-
-    break-inside: avoid !important;
-  }
-
-  /*
-   * Header/footer jangan terpotong
-   */
+  .dtbl,
   .header-section,
   .title-row,
   .page-footer {
     page-break-inside: avoid !important;
-
     break-inside: avoid !important;
   }
 }
