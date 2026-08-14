@@ -26,7 +26,7 @@
       <v-btn
         size="x-small"
         color="success"
-        :disabled="masterData.length === 0"
+        :disabled="filteredMasterData.length === 0"
         @click="exportToExcel"
         :loading="loading.headers"
       >
@@ -94,6 +94,18 @@
               <v-icon start>mdi-refresh</v-icon> Refresh
             </v-btn>
 
+            <!-- TOMBOL RESET FILTER KOLOM -->
+            <v-btn
+              v-if="activeFiltersCount > 0"
+              color="warning"
+              variant="tonal"
+              size="small"
+              prepend-icon="mdi-filter-off"
+              @click="resetAllColumnFilters"
+            >
+              Reset Filter ({{ activeFiltersCount }})
+            </v-btn>
+
             <v-spacer />
 
             <div class="d-flex align-center ga-2 text-caption">
@@ -109,13 +121,13 @@
           v-model:selected="selected"
           v-model:expanded="expanded"
           :headers="masterHeaders"
-          :items="masterData"
-          :items-per-page="-1"
+          :items="filteredMasterData"
           :loading="loading.headers"
           item-value="Nomor"
           density="compact"
           class="desktop-table elevation-1 border"
           fixed-header
+          height="550px"
           show-select
           select-strategy="single"
           show-expand
@@ -123,6 +135,137 @@
           @update:expanded="loadDetails"
           :row-props="getRowProps"
         >
+          <!-- DYNAMIC EXCEL FILTER PER KOLOM HEADER -->
+          <template
+            v-for="header in filterableHeaders"
+            :key="header.key"
+            #[`header.${header.key}`]="{ column }"
+          >
+            <div class="d-flex align-center justify-space-between w-100">
+              <span class="font-weight-bold text-truncate mr-1">{{
+                column.title
+              }}</span>
+
+              <v-menu
+                v-model="menuStates[header.key]"
+                :close-on-content-click="false"
+                location="bottom start"
+              >
+                <template #activator="{ props }">
+                  <v-btn
+                    icon
+                    variant="text"
+                    density="compact"
+                    size="x-small"
+                    v-bind="props"
+                    :color="
+                      isColumnFilterActive(header.key)
+                        ? 'primary'
+                        : 'grey-darken-1'
+                    "
+                  >
+                    <v-icon size="16">
+                      {{
+                        isColumnFilterActive(header.key)
+                          ? "mdi-filter"
+                          : "mdi-filter-variant"
+                      }}
+                    </v-icon>
+                  </v-btn>
+                </template>
+
+                <v-card
+                  min-width="280"
+                  max-width="320"
+                  class="pa-2 border shadow-2 rounded-lg"
+                >
+                  <v-text-field
+                    v-model="columnSearch[header.key]"
+                    density="compact"
+                    variant="outlined"
+                    hide-details
+                    clearable
+                    autofocus
+                    placeholder="Cari..."
+                    class="mb-1"
+                  />
+
+                  <div class="text-caption text-grey-darken-1 my-1 px-1">
+                    {{ getFilteredPopupOptions(header.key).length }} dari
+                    {{ (uniqueValuesMap[header.key] || []).length }} nilai
+                    ditampilkan
+                  </div>
+
+                  <div
+                    class="d-flex ga-2 px-1 mb-2 text-caption font-weight-medium"
+                  >
+                    <a
+                      href="#"
+                      class="text-primary text-decoration-none"
+                      @click.prevent="selectAllFiltered(header.key)"
+                    >
+                      Tampilkan Semua
+                    </a>
+                    <span class="text-grey-lighten-1">|</span>
+                    <a
+                      href="#"
+                      class="text-error text-decoration-none"
+                      @click.prevent="deselectAllFiltered(header.key)"
+                    >
+                      Sembunyikan Semua
+                    </a>
+                  </div>
+
+                  <v-divider />
+
+                  <div
+                    style="max-height: 220px; overflow-y: auto"
+                    class="my-1 px-1"
+                  >
+                    <v-checkbox
+                      v-for="opt in getFilteredPopupOptions(header.key)"
+                      :key="opt"
+                      :label="opt"
+                      :model-value="isOptionSelected(header.key, opt)"
+                      density="compact"
+                      hide-details
+                      color="primary"
+                      @update:model-value="toggleOption(header.key, opt)"
+                    />
+                    <div
+                      v-if="getFilteredPopupOptions(header.key).length === 0"
+                      class="text-caption text-grey text-center py-4"
+                    >
+                      Tidak ada data
+                    </div>
+                  </div>
+
+                  <v-divider class="mb-2" />
+
+                  <div class="d-flex justify-space-between align-center">
+                    <v-btn
+                      size="x-small"
+                      variant="text"
+                      color="grey-darken-1"
+                      @click="resetColumnFilter(header.key)"
+                    >
+                      Reset
+                    </v-btn>
+                    <v-btn
+                      size="small"
+                      color="primary"
+                      variant="flat"
+                      class="px-4 font-weight-bold"
+                      @click="menuStates[header.key] = false"
+                    >
+                      OK
+                    </v-btn>
+                  </div>
+                </v-card>
+              </v-menu>
+            </div>
+          </template>
+
           <template #item.Nomor="{ item }">
             <span :class="getRowTextColor(item)">{{ item.Nomor }}</span>
           </template>
@@ -139,6 +282,10 @@
             >
               {{ item.Lengkap === "Y" ? "YA" : "TIDAK" }}
             </v-chip>
+          </template>
+
+          <template #item.cetak_meter="{ value }">
+            <span>{{ Number(value || 0).toFixed(2) }} m²</span>
           </template>
 
           <template #expanded-row="{ columns, item }">
@@ -211,6 +358,11 @@ const filters = reactive({
 
 const listMesin = ref(["MT01", "MT02", "MT03", "MT04", "MT05"]);
 
+// --- EXCEL FILTER STATES ---
+const columnSearch = ref<Record<string, string>>({});
+const selectedValues = ref<Record<string, string[]>>({});
+const menuStates = ref<Record<string, boolean>>({});
+
 // --- Headers ---
 const masterHeaders = [
   { title: "Nomor LHK", key: "Nomor", width: "160px" },
@@ -250,6 +402,141 @@ const detailHeaders = [
 // --- Computed ---
 const isSingleSelected = computed(() => selected.value.length === 1);
 const selectedNomor = computed(() => selected.value[0]?.Nomor || null);
+
+// --- EXCEL FILTER CORE LOGIC ---
+const filterableHeaders = computed(() => {
+  return masterHeaders.filter(
+    (h) => h.key !== "data-table-expand" && h.key !== "data-table-select",
+  );
+});
+
+const getCellValue = (item: any, key: string): string => {
+  let val = item[key];
+
+  if (key === "Tanggal" && val) {
+    return safeFormatDate(val);
+  }
+
+  if (key === "cetak_meter" && val !== undefined && val !== null) {
+    return Number(val).toFixed(2) + " m²";
+  }
+
+  if (val === null || val === undefined || val === "") {
+    return "(Blank)";
+  }
+
+  return String(val);
+};
+
+const uniqueValuesMap = computed(() => {
+  const map: Record<string, string[]> = {};
+  filterableHeaders.value.forEach((h) => {
+    const key = h.key;
+    const set = new Set<string>();
+    (masterData.value || []).forEach((item) => {
+      set.add(getCellValue(item, key));
+    });
+    map[key] = Array.from(set).sort((a, b) =>
+      a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" }),
+    );
+  });
+  return map;
+});
+
+const getFilteredPopupOptions = (key: string) => {
+  const options = uniqueValuesMap.value[key] || [];
+  const search = columnSearch.value[key]?.trim().toLowerCase();
+  if (!search) return options;
+  return options.filter((opt) => opt.toLowerCase().includes(search));
+};
+
+const isOptionSelected = (key: string, option: string) => {
+  const selectedOpts = selectedValues.value[key];
+  if (!selectedOpts) return true;
+  return selectedOpts.includes(option);
+};
+
+const toggleOption = (key: string, option: string) => {
+  if (!selectedValues.value[key]) {
+    selectedValues.value[key] = [...(uniqueValuesMap.value[key] || [])];
+  }
+  const index = selectedValues.value[key].indexOf(option);
+  if (index > -1) {
+    selectedValues.value[key].splice(index, 1);
+  } else {
+    selectedValues.value[key].push(option);
+  }
+};
+
+const selectAllFiltered = (key: string) => {
+  const visibleOptions = getFilteredPopupOptions(key);
+  const currentSelected = selectedValues.value[key] || [
+    ...(uniqueValuesMap.value[key] || []),
+  ];
+  const newSet = new Set([...currentSelected, ...visibleOptions]);
+  selectedValues.value[key] = Array.from(newSet);
+};
+
+const deselectAllFiltered = (key: string) => {
+  const visibleOptions = getFilteredPopupOptions(key);
+  const currentSelected = selectedValues.value[key] || [
+    ...(uniqueValuesMap.value[key] || []),
+  ];
+  selectedValues.value[key] = currentSelected.filter(
+    (opt) => !visibleOptions.includes(opt),
+  );
+};
+
+const isColumnFilterActive = (key: string) => {
+  const search = columnSearch.value[key]?.trim();
+  if (search) return true;
+
+  const selectedOpts = selectedValues.value[key];
+  if (!selectedOpts) return false;
+  const all = uniqueValuesMap.value[key] || [];
+  return selectedOpts.length < all.length;
+};
+
+const activeFiltersCount = computed(() => {
+  return (
+    Object.keys(columnSearch.value).filter(
+      (k) => !!columnSearch.value[k]?.trim(),
+    ).length +
+    Object.keys(selectedValues.value).filter((key) => isColumnFilterActive(key))
+      .length
+  );
+});
+
+const resetColumnFilter = (key: string) => {
+  delete selectedValues.value[key];
+  columnSearch.value[key] = "";
+};
+
+const resetAllColumnFilters = () => {
+  selectedValues.value = {};
+  columnSearch.value = {};
+};
+
+const filteredMasterData = computed(() => {
+  return (masterData.value || []).filter((item) => {
+    return filterableHeaders.value.every((h) => {
+      const key = h.key;
+      const cellValue = getCellValue(item, key);
+
+      const searchText = columnSearch.value[key]?.trim().toLowerCase();
+      if (searchText && !cellValue.toLowerCase().includes(searchText)) {
+        return false;
+      }
+
+      const selectedArr = selectedValues.value[key];
+      if (selectedArr) {
+        return selectedArr.includes(cellValue);
+      }
+
+      return true;
+    });
+  });
+});
 
 // --- Methods ---
 const fetchMasterData = async () => {
@@ -341,7 +628,7 @@ const getRowTextColor = (item: any) => {
 const safeFormatDate = (d: string) =>
   d ? format(parseISO(d), "dd/MM/yyyy") : "-";
 
-// --- Fungsi Perbaikan Utama Export Excel ---
+// --- Fungsi Export Excel dengan Tipe Data Numerik Murni ---
 const exportToExcel = async () => {
   loading.value.headers = true;
   try {
@@ -361,7 +648,13 @@ const exportToExcel = async () => {
 
     const fileName = `LHK_Approval_Cetak_MMT_${filters.startDate}_to_${filters.endDate}.xlsx`;
 
-    // Style Definition
+    // Helper Konversi ke Angka Murni
+    const parseNum = (val: any): number => {
+      if (val === null || val === undefined || val === "") return 0;
+      const parsed = Number(val);
+      return isNaN(parsed) ? 0 : parsed;
+    };
+
     const styleHeaderMain = {
       fill: { fgColor: { rgb: "B3E5FC" } },
       font: { bold: true, color: { rgb: "000000" }, sz: 10 },
@@ -395,25 +688,28 @@ const exportToExcel = async () => {
       alignment: { horizontal: "right", vertical: "center" },
     };
 
-    // Fungsi Format Tanggal Manual Lokal (Anti-Crash/Bebas dari Date-fns)
+    const styleFooter = {
+      ...styleDataCell,
+      fill: { fgColor: { rgb: "F0F4F8" } },
+      font: { bold: true, sz: 10 },
+    };
+
     const formatTglManual = (dateStr: string) => {
       if (!dateStr) return "-";
       try {
-        // Jika format yyyy-mm-dd (dari filter)
         if (dateStr.includes("-")) {
           const parts = dateStr.split("T")[0].split("-");
           if (parts.length === 3) {
             return `${parts[2]}/${parts[1]}/${parts[0]}`;
           }
         }
-        // Jika format ISO atau lainnya, gunakan safeFormatDate bawaan komponen Anda
         return safeFormatDate(dateStr) || dateStr;
       } catch {
         return dateStr;
       }
     };
 
-    const worksheetData = [];
+    const worksheetData: any[] = [];
     worksheetData.push([
       {
         v: "LAPORAN HASIL KERJA APPROVAL CETAK MMT",
@@ -443,8 +739,15 @@ const exportToExcel = async () => {
     ];
     worksheetData.push(headers);
 
-    // Grouping Data berdasarkan Nomor LHK alternatif
-    const grouped = rawData.reduce((acc: any, item: any) => {
+    // Filter raw export data agar sesuai dengan filter tabel yang sedang aktif
+    const filteredNomorSet = new Set(
+      filteredMasterData.value.map((item) => item.Nomor),
+    );
+    const filteredRawData = rawData.filter((item: any) =>
+      filteredNomorSet.has(item.Nomor_LHK || item.Nomor),
+    );
+
+    const grouped = filteredRawData.reduce((acc: any, item: any) => {
       const noLhk = item.Nomor_LHK || item.Nomor || "TANPA_NOMOR";
       if (!acc[noLhk]) {
         acc[noLhk] = {
@@ -455,9 +758,13 @@ const exportToExcel = async () => {
         };
       }
       acc[noLhk].items.push(item);
-      acc[noLhk].totalM2 += Number(item.m2_cetak || item.cetak_meter || 0);
+      acc[noLhk].totalM2 += parseNum(item.m2_cetak || item.cetak_meter);
       return acc;
     }, {});
+
+    let grandTotalM2 = 0;
+    let grandTotalQty = 0;
+    let grandTotalDetailM2 = 0;
 
     Object.keys(grouped).forEach((nomorLhk) => {
       const group = grouped[nomorLhk];
@@ -466,11 +773,38 @@ const exportToExcel = async () => {
         const isFirstRow = index === 0;
         const tglFormatted = isFirstRow ? formatTglManual(group.tanggal) : "";
 
+        const totalM2Val = parseNum(group.totalM2);
+        const panjangVal = parseNum(row.Panjang);
+        const lebarVal = parseNum(row.Lebar);
+        const qtyCetakVal = parseNum(
+          row.Qty_Cetak !== undefined
+            ? row.Qty_Cetak
+            : row.Jml_Cetak !== undefined
+              ? row.Jml_Cetak
+              : row.totalcetak,
+        );
+        const detailM2Val = parseNum(
+          row.m2_cetak !== undefined ? row.m2_cetak : row.cetak_meter,
+        );
+
+        if (isFirstRow) {
+          grandTotalM2 += totalM2Val;
+        }
+        grandTotalQty += qtyCetakVal;
+        grandTotalDetailM2 += detailM2Val;
+
         worksheetData.push([
           { v: isFirstRow ? nomorLhk : "", s: styleDataCellCenter },
           { v: tglFormatted, s: styleDataCellCenter },
           { v: isFirstRow ? group.shift || "-" : "", s: styleDataCellCenter },
-          { v: isFirstRow ? Number(group.totalM2) : "", s: styleDataCellRight },
+          isFirstRow
+            ? {
+                v: totalM2Val,
+                t: "n",
+                z: "#,##0.00",
+                s: styleDataCellRight,
+              }
+            : { v: "", s: styleDataCellCenter },
           { v: row.Mesin || "-", s: styleDataCellCenter },
           { v: row.Nomor_SPK || row.nomor_spk || "-", s: styleDataCellCenter },
           {
@@ -478,27 +812,87 @@ const exportToExcel = async () => {
             s: styleDataCell,
           },
           {
-            v: row.Panjang !== undefined ? Number(row.Panjang) : 0,
+            v: panjangVal,
+            t: "n",
+            z: "#,##0.00",
             s: styleDataCellRight,
           },
           {
-            v: row.Lebar !== undefined ? Number(row.Lebar) : 0,
+            v: lebarVal,
+            t: "n",
+            z: "#,##0.00",
             s: styleDataCellRight,
           },
           {
-            v: row.Qty_Cetak || row.Jml_Cetak || row.totalcetak || 0,
+            v: qtyCetakVal,
+            t: "n",
+            z: "#,##0",
             s: styleDataCellRight,
           },
           {
-            v: row.m2_cetak !== undefined ? Number(row.m2_cetak) : 0,
+            v: detailM2Val,
+            t: "n",
+            z: "#,##0.00",
             s: styleDataCellRight,
           },
         ]);
       });
     });
 
+    // Baris Grand Total dengan Tipe Sel Numerik
+    const footerRow = [
+      {
+        v: "GRAND TOTAL",
+        s: {
+          ...styleFooter,
+          alignment: { horizontal: "right", vertical: "center" },
+        },
+      },
+      { v: "", s: styleFooter },
+      { v: "", s: styleFooter },
+      {
+        v: grandTotalM2,
+        t: "n",
+        z: "#,##0.00",
+        s: {
+          ...styleFooter,
+          alignment: { horizontal: "right", vertical: "center" },
+        },
+      },
+      { v: "", s: styleFooter },
+      { v: "", s: styleFooter },
+      { v: "", s: styleFooter },
+      { v: "", s: styleFooter },
+      { v: "", s: styleFooter },
+      {
+        v: grandTotalQty,
+        t: "n",
+        z: "#,##0",
+        s: {
+          ...styleFooter,
+          alignment: { horizontal: "right", vertical: "center" },
+        },
+      },
+      {
+        v: grandTotalDetailM2,
+        t: "n",
+        z: "#,##0.00",
+        s: {
+          ...styleFooter,
+          alignment: { horizontal: "right", vertical: "center" },
+        },
+      },
+    ];
+    worksheetData.push(footerRow);
+
     const ws = XLSX.utils.aoa_to_sheet(worksheetData);
-    ws["!merges"] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 10 } }];
+    ws["!merges"] = [
+      { s: { r: 0, c: 0 }, e: { r: 0, c: 10 } },
+      {
+        s: { r: worksheetData.length - 1, c: 0 },
+        e: { r: worksheetData.length - 1, c: 2 },
+      },
+    ];
     ws["!cols"] = [
       { wch: 22 },
       { wch: 12 },
@@ -507,9 +901,9 @@ const exportToExcel = async () => {
       { wch: 10 },
       { wch: 18 },
       { wch: 40 },
-      { wch: 10 },
-      { wch: 10 },
       { wch: 12 },
+      { wch: 12 },
+      { wch: 14 },
       { wch: 18 },
     ];
 
@@ -556,6 +950,33 @@ onMounted(fetchMasterData);
 </script>
 
 <style scoped>
+/* 💡 MENYESUAIKAN TINGGI MAX & FIXED HEADER/FOOTER */
+:deep(.v-table) {
+  display: flex !important;
+  flex-direction: column !important;
+  height: 550px !important;
+}
+
+:deep(.v-table__wrapper) {
+  flex: 1 1 auto !important;
+  overflow-y: auto !important;
+  overflow-x: auto !important;
+  max-height: 550px !important;
+}
+
+:deep(.v-data-table__thead) {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 10 !important;
+  background-color: #ffffff !important;
+}
+
+:deep(.v-data-table-footer) {
+  flex: 0 0 auto !important;
+  border-top: 1px solid rgba(0, 0, 0, 0.12);
+  background-color: #ffffff !important;
+}
+
 .browse-content {
   background-color: #f0f4f8;
   padding: 8px;
@@ -574,47 +995,6 @@ onMounted(fetchMasterData);
   cursor: pointer;
 }
 
-.resizer {
-  position: absolute;
-  right: 0;
-  top: 0;
-  height: 100%;
-  width: 4px;
-  cursor: col-resize;
-  z-index: 10;
-}
-
-.custom-blue-table :deep(.v-data-table-header) {
-  background-color: #1976d2 !important;
-}
-
-.custom-blue-table :deep(.v-data-table-header th) {
-  color: white !important;
-  font-weight: 600 !important;
-  text-transform: uppercase;
-  font-size: 0.75rem;
-  letter-spacing: 0.5px;
-}
-
-.custom-blue-table :deep(tbody tr:hover) {
-  background-color: #e3f2fd !important;
-  cursor: pointer;
-}
-
-.custom-blue-table :deep(tr.v-data-table__selected) {
-  background-color: #bbdefb !important;
-}
-
-.detail-container {
-  background-color: #f8f9fa;
-  padding: 12px;
-  border-left: 4px solid #1976d2;
-}
-
-.detail-table :deep(.v-data-table-header) {
-  background-color: #455a64 !important;
-}
-
 .desktop-table {
   border: 1px solid #bbdefb;
   border-radius: 4px;
@@ -628,18 +1008,23 @@ onMounted(fetchMasterData);
   height: 100%;
   width: 4px;
   cursor: col-resize;
-  background-color: rgba(255, 255, 255, 0.1);
+  background-color: rgba(0, 0, 0, 0.1);
+  z-index: 10;
 }
 
 .resizer:hover {
-  background-color: #ffeb3b;
+  background-color: #1976d2;
+}
+
+.detail-table {
+  background-color: white !important;
 }
 
 .text-error {
   color: #d32f2f !important;
 }
 
-.v-card {
-  border-top: 3px solid #1976d2;
+.font-weight-bold {
+  font-weight: bold !important;
 }
 </style>

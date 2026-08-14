@@ -34,7 +34,7 @@
       <v-btn
         size="x-small"
         color="info"
-        :disabled="masterData.length === 0"
+        :disabled="filteredMasterData.length === 0"
         @click="exportToExcel"
       >
         <v-icon start>mdi-download</v-icon> Export Detail
@@ -81,6 +81,19 @@
             <v-btn variant="text" size="x-small" @click="fetchMasterData">
               <v-icon>mdi-refresh</v-icon> Refresh
             </v-btn>
+
+            <!-- TOMBOL RESET SEMUA FILTER KOLOM -->
+            <v-btn
+              v-if="activeFiltersCount > 0"
+              color="warning"
+              variant="tonal"
+              size="small"
+              prepend-icon="mdi-filter-off"
+              @click="resetAllColumnFilters"
+            >
+              Reset Filter ({{ activeFiltersCount }})
+            </v-btn>
+
             <v-spacer />
           </div>
         </v-card-text>
@@ -90,18 +103,150 @@
         <v-data-table
           v-model:selected="selected"
           :headers="masterHeaders"
-          :items="masterData || []"
+          :items="filteredMasterData"
           :loading="loading.headers"
           item-value="Nomor"
           density="compact"
           class="desktop-table elevation-1"
           fixed-header
+          height="550px"
           return-object
           show-expand
           @click:row="handleRowClick"
           @update:expanded="loadDetails"
           :row-props="getRowProps"
         >
+          <!-- DYNAMIC EXCEL FILTER PER KOLOM HEADER -->
+          <template
+            v-for="header in filterableHeaders"
+            :key="header.key"
+            #[`header.${header.key}`]="{ column }"
+          >
+            <div class="d-flex align-center justify-space-between w-100">
+              <span class="font-weight-bold text-truncate mr-1">{{
+                column.title
+              }}</span>
+
+              <v-menu
+                v-model="menuStates[header.key]"
+                :close-on-content-click="false"
+                location="bottom start"
+              >
+                <template #activator="{ props }">
+                  <v-btn
+                    icon
+                    variant="text"
+                    density="compact"
+                    size="x-small"
+                    v-bind="props"
+                    :color="
+                      isColumnFilterActive(header.key)
+                        ? 'primary'
+                        : 'grey-darken-1'
+                    "
+                  >
+                    <v-icon size="16">
+                      {{
+                        isColumnFilterActive(header.key)
+                          ? "mdi-filter"
+                          : "mdi-filter-variant"
+                      }}
+                    </v-icon>
+                  </v-btn>
+                </template>
+
+                <v-card
+                  min-width="280"
+                  max-width="320"
+                  class="pa-2 border shadow-2 rounded-lg"
+                >
+                  <v-text-field
+                    v-model="columnSearch[header.key]"
+                    density="compact"
+                    variant="outlined"
+                    hide-details
+                    clearable
+                    autofocus
+                    placeholder="Cari..."
+                    class="mb-1"
+                  />
+
+                  <div class="text-caption text-grey-darken-1 my-1 px-1">
+                    {{ getFilteredPopupOptions(header.key).length }} dari
+                    {{ (uniqueValuesMap[header.key] || []).length }} nilai
+                    ditampilkan
+                  </div>
+
+                  <div
+                    class="d-flex ga-2 px-1 mb-2 text-caption font-weight-medium"
+                  >
+                    <a
+                      href="#"
+                      class="text-primary text-decoration-none"
+                      @click.prevent="selectAllFiltered(header.key)"
+                    >
+                      Tampilkan Semua
+                    </a>
+                    <span class="text-grey-lighten-1">|</span>
+                    <a
+                      href="#"
+                      class="text-error text-decoration-none"
+                      @click.prevent="deselectAllFiltered(header.key)"
+                    >
+                      Sembunyikan Semua
+                    </a>
+                  </div>
+
+                  <v-divider />
+
+                  <div
+                    style="max-height: 220px; overflow-y: auto"
+                    class="my-1 px-1"
+                  >
+                    <v-checkbox
+                      v-for="opt in getFilteredPopupOptions(header.key)"
+                      :key="opt"
+                      :label="opt"
+                      :model-value="isOptionSelected(header.key, opt)"
+                      density="compact"
+                      hide-details
+                      color="primary"
+                      @update:model-value="toggleOption(header.key, opt)"
+                    />
+                    <div
+                      v-if="getFilteredPopupOptions(header.key).length === 0"
+                      class="text-caption text-grey text-center py-4"
+                    >
+                      Tidak ada data
+                    </div>
+                  </div>
+
+                  <v-divider class="mb-2" />
+
+                  <div class="d-flex justify-space-between align-center">
+                    <v-btn
+                      size="x-small"
+                      variant="text"
+                      color="grey-darken-1"
+                      @click="resetColumnFilter(header.key)"
+                    >
+                      Reset
+                    </v-btn>
+                    <v-btn
+                      size="small"
+                      color="primary"
+                      variant="flat"
+                      class="px-4 font-weight-bold"
+                      @click="menuStates[header.key] = false"
+                    >
+                      OK
+                    </v-btn>
+                  </div>
+                </v-card>
+              </v-menu>
+            </div>
+          </template>
+
           <template #item.Tanggal="{ item }">
             {{ safeFormatDate(item.Tanggal) }}
           </template>
@@ -242,7 +387,6 @@ const API_BASE_URL = "/mmt/lhk-cetak";
 const router = useRouter();
 const toast = useToast();
 const authStore = useAuthStore();
-const MENU_ID = "MMT_LHK_CETAK";
 
 // --- State ---
 const masterData = ref<LhkCetakHeader[]>([]);
@@ -251,7 +395,6 @@ const loading = ref({ headers: true, details: false });
 const loadingDetails = ref<Set<string>>(new Set());
 const selected = ref<LhkCetakHeader[]>([]);
 const expanded = ref<LhkCetakHeader[]>([]);
-const gudangList = ref<{ kode: string; nama: string }[]>([]);
 
 const filters = reactive({
   startDate: format(subDays(new Date(), 30), "yyyy-MM-dd"),
@@ -260,12 +403,196 @@ const filters = reactive({
   mesin: [],
 });
 
+// --- EXCEL FILTER STATES ---
+const columnSearch = ref<Record<string, string>>({});
+const selectedValues = ref<Record<string, string[]>>({});
+const menuStates = ref<Record<string, boolean>>({});
+
+// --- Headers ---
+const masterHeaders = [
+  {
+    title: "Nomor",
+    key: "Nomor",
+    minWidth: "250px",
+    width: "250px",
+    fixed: true,
+  },
+  { title: "Shift", key: "Shift", minWidth: "50px" },
+  { title: "Tanggal", key: "Tanggal" },
+  { title: "Mesin", key: "Mesin" },
+  { title: "Nomor SPK", key: "NomorSPK" },
+  { title: "Nama SPK", key: "NamaOrder" },
+  { title: "Panjang", key: "spk_panjang", align: "end" },
+  { title: "Lebar", key: "spk_lebar", align: "end" },
+  { title: "Jml Order", key: "JumlahOrder", align: "end" },
+  { title: "Jml Cetak", key: "TotalCetak", align: "end" },
+  { title: "Bahan Awal", key: "PanjangBahanAwal", align: "end" },
+  { title: "Sisa", key: "SisaMeterAkhir", align: "end" },
+  { title: "Status Bahan", key: "status_bahan", align: "center" },
+  { title: "Bahan", key: "Kode_bahan" },
+  { title: "Nama Bahan", key: "nama_Bahan" },
+] as any[];
+
+const detailHeaders = [
+  { title: "No", key: "urut", width: "50px" },
+  { title: "Nomor SPK", key: "nomor_spk", minWidth: "150px" },
+  { title: "Nama SPK", key: "nama_spk", minWidth: "250px" },
+  { title: "Cetak 1", key: "cetak1", align: "end" },
+  { title: "Cetak 2", key: "cetak2", align: "end" },
+  { title: "Cetak 3", key: "cetak3", align: "end" },
+  { title: "Cetak 4", key: "cetak4", align: "end" },
+  { title: "Cetak 5", key: "cetak5", align: "end" },
+  {
+    title: "Total Cetak",
+    key: "totalcetak",
+    align: "end",
+    class: "font-weight-bold",
+  },
+] as any[];
+
 // --- Computed ---
 const isSingleSelected = computed(() => selected.value.length === 1);
 const selectedRow = computed<LhkCetakItem | null>(() =>
   isSingleSelected.value ? (selected.value[0] as LhkCetakItem) : null,
 );
 
+// --- EXCEL FILTER CORE LOGIC ---
+const filterableHeaders = computed(() => {
+  return masterHeaders.filter((h) => h.key !== "data-table-expand");
+});
+
+const getCellValue = (item: any, key: string): string => {
+  let val = item[key];
+
+  if (key === "Tanggal" && val) {
+    return safeFormatDate(val);
+  }
+
+  if (key === "status_bahan") {
+    const sisa = Number(item.SisaMeterAkhir || 0);
+    if (sisa < 0) return `SURPLUS ${Math.abs(sisa).toFixed(1)}m`;
+    if (sisa > 0) return `SISA ${sisa.toFixed(1)}m`;
+    return "PAS";
+  }
+
+  if (val === null || val === undefined || val === "") {
+    return "(Blank)";
+  }
+
+  return String(val);
+};
+
+const uniqueValuesMap = computed(() => {
+  const map: Record<string, string[]> = {};
+  filterableHeaders.value.forEach((h) => {
+    const key = h.key;
+    const set = new Set<string>();
+    (masterData.value || []).forEach((item) => {
+      set.add(getCellValue(item, key));
+    });
+    map[key] = Array.from(set).sort((a, b) =>
+      a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" }),
+    );
+  });
+  return map;
+});
+
+const getFilteredPopupOptions = (key: string) => {
+  const options = uniqueValuesMap.value[key] || [];
+  const search = columnSearch.value[key]?.trim().toLowerCase();
+  if (!search) return options;
+  return options.filter((opt) => opt.toLowerCase().includes(search));
+};
+
+const isOptionSelected = (key: string, option: string) => {
+  const selected = selectedValues.value[key];
+  if (!selected) return true;
+  return selected.includes(option);
+};
+
+const toggleOption = (key: string, option: string) => {
+  if (!selectedValues.value[key]) {
+    selectedValues.value[key] = [...(uniqueValuesMap.value[key] || [])];
+  }
+  const index = selectedValues.value[key].indexOf(option);
+  if (index > -1) {
+    selectedValues.value[key].splice(index, 1);
+  } else {
+    selectedValues.value[key].push(option);
+  }
+};
+
+const selectAllFiltered = (key: string) => {
+  const visibleOptions = getFilteredPopupOptions(key);
+  const currentSelected = selectedValues.value[key] || [
+    ...(uniqueValuesMap.value[key] || []),
+  ];
+  const newSet = new Set([...currentSelected, ...visibleOptions]);
+  selectedValues.value[key] = Array.from(newSet);
+};
+
+const deselectAllFiltered = (key: string) => {
+  const visibleOptions = getFilteredPopupOptions(key);
+  const currentSelected = selectedValues.value[key] || [
+    ...(uniqueValuesMap.value[key] || []),
+  ];
+  selectedValues.value[key] = currentSelected.filter(
+    (opt) => !visibleOptions.includes(opt),
+  );
+};
+
+const isColumnFilterActive = (key: string) => {
+  const search = columnSearch.value[key]?.trim();
+  if (search) return true;
+
+  const selected = selectedValues.value[key];
+  if (!selected) return false;
+  const all = uniqueValuesMap.value[key] || [];
+  return selected.length < all.length;
+};
+
+const activeFiltersCount = computed(() => {
+  return (
+    Object.keys(columnSearch.value).filter(
+      (k) => !!columnSearch.value[k]?.trim(),
+    ).length +
+    Object.keys(selectedValues.value).filter((key) => isColumnFilterActive(key))
+      .length
+  );
+});
+
+const resetColumnFilter = (key: string) => {
+  delete selectedValues.value[key];
+  columnSearch.value[key] = "";
+};
+
+const resetAllColumnFilters = () => {
+  selectedValues.value = {};
+  columnSearch.value = {};
+};
+
+const filteredMasterData = computed(() => {
+  return (masterData.value || []).filter((item) => {
+    return filterableHeaders.value.every((h) => {
+      const key = h.key;
+      const cellValue = getCellValue(item, key);
+
+      const searchText = columnSearch.value[key]?.trim().toLowerCase();
+      if (searchText && !cellValue.toLowerCase().includes(searchText)) {
+        return false;
+      }
+
+      const selectedArr = selectedValues.value[key];
+      if (selectedArr) {
+        return selectedArr.includes(cellValue);
+      }
+
+      return true;
+    });
+  });
+});
+
+// --- Action Handlers ---
 const handleNewEdit = (mode: "new" | "edit") => {
   if (mode === "new") {
     router.push({ name: "LhkCetakCreate" });
@@ -322,48 +649,6 @@ const isLoadingDetails = (nomor: string) => loadingDetails.value.has(nomor);
 const getRowTextColor = (item: LhkCetakItem) => {
   return "";
 };
-
-// --- Headers ---
-const masterHeaders = [
-  {
-    title: "Nomor",
-    key: "Nomor",
-    minWidth: "250px",
-    width: "250px",
-    fixed: true,
-  },
-  { title: "Shift", key: "Shift", minWidth: "50px" },
-  { title: "Tanggal", key: "Tanggal" },
-  { title: "Mesin", key: "Mesin" },
-  { title: "Nomor SPK", key: "NomorSPK" },
-  { title: "Nama SPK", key: "NamaOrder" },
-  { title: "Panjang", key: "spk_panjang", align: "end" },
-  { title: "Lebar", key: "spk_lebar", align: "end" },
-  { title: "Jml Order", key: "JumlahOrder", align: "end" },
-  { title: "Jml Cetak", key: "TotalCetak", align: "end" },
-  { title: "Bahan Awal", key: "PanjangBahanAwal", align: "end" },
-  { title: "Sisa", key: "SisaMeterAkhir", align: "end" },
-  { title: "Status Bahan", key: "status_bahan", align: "center" },
-  { title: "Bahan", key: "Kode_bahan" },
-  { title: "Nama Bahan", key: "nama_Bahan" },
-] as any[];
-
-const detailHeaders = [
-  { title: "No", key: "urut", width: "50px" },
-  { title: "Nomor SPK", key: "nomor_spk", minWidth: "150px" },
-  { title: "Nama SPK", key: "nama_spk", minWidth: "250px" },
-  { title: "Cetak 1", key: "cetak1", align: "end" },
-  { title: "Cetak 2", key: "cetak2", align: "end" },
-  { title: "Cetak 3", key: "cetak3", align: "end" },
-  { title: "Cetak 4", key: "cetak4", align: "end" },
-  { title: "Cetak 5", key: "cetak5", align: "end" },
-  {
-    title: "Total Cetak",
-    key: "totalcetak",
-    align: "end",
-    class: "font-weight-bold",
-  },
-] as any[];
 
 const truncateString = (str: string, num: number) => {
   if (str?.length > num) {
@@ -437,8 +722,7 @@ const resizeTable = (tableSelector: string) => {
 const exportToExcel = async () => {
   loading.value.headers = true;
   try {
-    // 1. Sinkronisasi pre-fetch data detail dari API jika memori lokal komponen masih kosong
-    for (const header of masterData.value) {
+    for (const header of filteredMasterData.value) {
       if (
         !details.value[header.Nomor] ||
         details.value[header.Nomor].length === 0
@@ -461,14 +745,13 @@ const exportToExcel = async () => {
 
     const fileName = `LHK_Mesin_Cetak_MMT_${filters.startDate}_to_${filters.endDate}.xlsx`;
 
-    const num = (value) => {
+    const num = (value: any) => {
       const parsed = Number(value);
       return isNaN(parsed) ? 0 : parsed;
     };
 
-    // --- STRUKTUR FORMAT STYLING BORDER DAN BACKGROUND SESUAI CONTOH GAMBAR ---
     const styleHeaderMain = {
-      fill: { fgColor: { rgb: "B3E5FC" } }, // Background Biru Muda Sesuai Gambar Contoh
+      fill: { fgColor: { rgb: "B3E5FC" } },
       font: { bold: true, color: { rgb: "000000" }, sz: 10 },
       alignment: { horizontal: "center", vertical: "center", wrapText: true },
       border: {
@@ -482,7 +765,7 @@ const exportToExcel = async () => {
     const styleDataCell = {
       font: { sz: 10 },
       border: {
-        top: { style: "thin", color: { rgb: "000000" } }, // MEMBERIKAN GARIS DI SETIAP SISI TABEL
+        top: { style: "thin", color: { rgb: "000000" } },
         bottom: { style: "thin", color: { rgb: "000000" } },
         left: { style: "thin", color: { rgb: "000000" } },
         right: { style: "thin", color: { rgb: "000000" } },
@@ -501,12 +784,12 @@ const exportToExcel = async () => {
     };
 
     const styleFooter = {
-      ...styleDataCell, // Mengambil basis border garis penuh dari styleDataCell
-      fill: { fgColor: { rgb: "F0F4F8" } }, // Background abu-abu terang pemisah grand total
+      ...styleDataCell,
+      fill: { fgColor: { rgb: "F0F4F8" } },
       font: { bold: true, sz: 10 },
     };
 
-    const formatTglManual = (dateStr) => {
+    const formatTglManual = (dateStr: string) => {
       if (!dateStr) return "-";
       try {
         if (dateStr.includes("-")) {
@@ -521,7 +804,7 @@ const exportToExcel = async () => {
       }
     };
 
-    const worksheetData = [];
+    const worksheetData: any[] = [];
     worksheetData.push([
       {
         v: "BROWSE HASIL KERJA MESIN CETAK MMT",
@@ -536,7 +819,6 @@ const exportToExcel = async () => {
     ]);
     worksheetData.push([]);
 
-    // Definisikan Tepat 14 Kolom Header Utama Berurutan Dengan Style Biru Muda & Bergaris
     const headers = [
       { v: "NOMOR LHK", s: styleHeaderMain },
       { v: "TANGGAL", s: styleHeaderMain },
@@ -558,8 +840,7 @@ const exportToExcel = async () => {
     let grandTotalOrderSPK = 0;
     let grandTotalCetakLHK = 0;
 
-    // 2. Loop Data Master Dokumen LHK
-    masterData.value.forEach((header) => {
+    filteredMasterData.value.forEach((header) => {
       const targetDetails = details.value[header.Nomor] || [];
       const tglHeader = header.Tanggal ? safeFormatDate(header.Tanggal) : "-";
 
@@ -598,7 +879,6 @@ const exportToExcel = async () => {
           grandTotalOrderSPK += isFirstRow ? num(header.JumlahOrder) : 0;
           grandTotalCetakLHK += cetakQty;
 
-          // Push Tepat 14 Elemen Sesuai Lajur Kolom Bergaris Penuh
           worksheetData.push([
             { v: isFirstRow ? header.Nomor : "-", s: styleDataCellCenter },
             { v: isFirstRow ? tglHeader : "-", s: styleDataCellCenter },
@@ -619,8 +899,6 @@ const exportToExcel = async () => {
               ? { v: sisaMeter, t: "n", z: "#,##0.00", s: styleDataCellRight }
               : { v: "-", s: styleDataCellCenter },
             { v: isFirstRow ? statusBahanText : "-", s: styleDataCellCenter },
-
-            // Lajur Detail Spesifikasi SPK Individu 1 Baris 1 SPK Murni
             { v: dtl.mesin || header.Mesin || "-", s: styleDataCellCenter },
             { v: currentSpkNomor, s: styleDataCellCenter },
             { v: currentSpkNama, s: styleDataCell },
@@ -631,7 +909,6 @@ const exportToExcel = async () => {
           ]);
         });
       } else {
-        // Fallback jika tidak ada data detail sama sekali
         grandTotalOrderSPK += num(header.JumlahOrder);
         grandTotalCetakLHK += num(header.TotalCetak);
 
@@ -679,13 +956,12 @@ const exportToExcel = async () => {
       }
     });
 
-    // 3. Grand Total Bawah Laporan Dengan Kisi Kotak/Garis Penuh Sesuai Gambar
     const footerRow = [
       {
         v: "GRAND TOTAL",
         s: { ...styleFooter, alignment: { horizontal: "right" } },
       },
-      ...Array(11).fill({ v: "", s: styleFooter }), // Menghasilkan kotak bergaris kosong untuk kolom indeks 1 s/d 11
+      ...Array(11).fill({ v: "", s: styleFooter }),
       {
         v: grandTotalOrderSPK,
         t: "n",
@@ -703,7 +979,6 @@ const exportToExcel = async () => {
 
     const ws = XLSX.utils.aoa_to_sheet(worksheetData);
 
-    // Konfigurasi Merge (Judul atas & Text Grand Total dari kolom A s/d L)
     ws["!merges"] = [
       { s: { r: 0, c: 0 }, e: { r: 0, c: 13 } },
       {
@@ -712,7 +987,6 @@ const exportToExcel = async () => {
       },
     ];
 
-    // Penyesuaian Lebar Kolom Agar Tidak Terpotong (###)
     ws["!cols"] = [
       { wch: 22 },
       { wch: 12 },
@@ -740,26 +1014,6 @@ const exportToExcel = async () => {
   } finally {
     loading.value.headers = false;
   }
-};
-
-const calculateSelisih = (item: LhkCetakHeader) => {
-  const real = Number(item.TotalCetak || 0);
-  const target = Number(item.spk_panjang || 0);
-  return real - target;
-};
-
-const calculateSelisihText = (item: LhkCetakHeader) => {
-  const diff = calculateSelisih(item);
-  const absDiff = Math.abs(diff).toFixed(2);
-  if (diff > 0) return `Surplus ${absDiff} m`;
-  if (diff < 0) return `Minus ${absDiff} m`;
-  return "Pas";
-};
-
-const getSelisihClass = (diff: number) => {
-  if (diff > 0) return "text-success font-weight-bold";
-  if (diff < 0) return "text-error font-weight-bold";
-  return "text-grey";
 };
 
 const fetchMasterData = async () => {
@@ -816,17 +1070,6 @@ const loadDetails = async (newlyExpandedItems: LhkCetakItem[]) => {
   }
 };
 
-// --- Actions ---
-const handleNew = () => {
-  router.push({ name: "LhkCetakCreate" });
-};
-
-const handleEdit = () => {
-  if (!selectedRow.value) return;
-  const nomor = selectedRow.value.Nomor;
-  router.push({ name: "LhkCetakEdit", params: { nomor } });
-};
-
 const handleDelete = async () => {
   if (!selectedRow.value) return;
   if (
@@ -843,14 +1086,6 @@ const handleDelete = async () => {
   }
 };
 
-const handleBahan = () => {
-  if (!selectedRow.value) return;
-  router.push({
-    name: "LhkCetakBahan",
-    params: { nomor: selectedRow.value.Nomor },
-  });
-};
-
 const handlePrint = () => {
   if (!selectedRow.value) return;
   alert(`TODO: Mencetak LHK Cetak ${selectedRow.value.Nomor}`);
@@ -865,49 +1100,72 @@ watch(filters, fetchMasterData, { deep: true });
 </script>
 
 <style scoped>
-/* 1. Targetkan Header (th) dan Data Cell (td) yang sesuai */
+/* 💡 MENYESUAIKAN TINGGI & PENGUNCIAN HEADER & FOOTER */
+:deep(.v-table) {
+  display: flex !important;
+  flex-direction: column !important;
+  height: 550px !important; /* Batas tinggi maksimal ~15 baris data */
+}
+
+/* Area Isi Data (tbody) Ter-scroll Secara Vertikal dan Horizontal */
+:deep(.v-table__wrapper) {
+  flex: 1 1 auto !important;
+  overflow-y: auto !important;
+  overflow-x: auto !important;
+  max-height: 550px !important;
+}
+
+/* Header (thead) Sticky / Terkunci di Atas */
+:deep(.v-data-table__thead) {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 10 !important;
+  background-color: #ffffff !important;
+}
+
+/* Footer Pagination Tetap Diam di Bawah */
+:deep(.v-data-table-footer) {
+  flex: 0 0 auto !important;
+  border-top: 1px solid rgba(0, 0, 0, 0.12);
+  background-color: #ffffff !important;
+}
+
 .desktop-table :deep(.v-data-table__tr.row-selected) {
   background-color: rgb(216, 239, 255) !important;
 }
 
-/* Pastikan kolom di dalam baris yang dipilih juga transparan agar warna baris terlihat */
 .desktop-table :deep(.v-data-table__tr.row-selected td) {
   background-color: transparent !important;
-  color: #0d47a1 !important; /* Opsional: warna teks jadi biru tua agar kontras */
+  color: #0d47a1 !important;
 }
 
-/* Menghilangkan efek hover saat baris sedang terpilih agar warna biru tetap solid */
 .desktop-table :deep(.v-data-table__tr.row-selected:hover) {
   background-color: rgb(200, 230, 255) !important;
 }
 
-/* 2. Style untuk Resizer */
 .resizer {
   position: absolute;
-  right: 0; /* Letakkan resizer tepat di batas kanan TH */
+  right: 0;
   top: 0;
   height: 100%;
-  width: 8px; /* Tambahkan lebar area tangkap (8px lebih mudah diklik) */
-  transform: translateX(50%); /* Geser ke tengah garis batas */
+  width: 8px;
+  transform: translateX(50%);
   background-color: transparent;
   cursor: col-resize;
   z-index: 10;
   transition: background-color 0.1s;
 }
 
-/* Visualisasi saat hover/aktif */
 .resizer:hover,
 .col-resize-active .resizer {
   background-color: rgba(0, 0, 0, 0.2);
 }
 
-/* Kunci cursor pada body saat resizing aktif */
 body.col-resize-active {
   cursor: col-resize !important;
   user-select: none;
 }
 
-/* --- Style Lainnya --- */
 .text-red {
   color: #f44336 !important;
 }
@@ -919,37 +1177,32 @@ body.col-resize-active {
   height: 100%;
 }
 .detail-container {
-  padding: 8px 0; /* Mengurangi padding vertikal */
+  padding: 8px 0;
   background-color: #f7f7f7;
   border-top: 1px solid #ddd;
 }
 
 .detail-table-wrapper {
-  /* Ubah padding dari 40px ke 12px agar tabel detail melebar ke samping */
   padding: 0 12px;
   width: 100%;
-  overflow-x: auto; /* Memastikan jika layar sangat sempit, tabel bisa di-scroll secara internal */
+  overflow-x: auto;
 }
 
-/* Font tabel detail disamakan dengan modul lain (0.8rem) */
 .detail-table {
   background-color: white !important;
   font-size: 0.8rem;
-  width: 100% !important; /* Memaksa tabel detail selebar container */
+  width: 100% !important;
 }
 
-/* Menghilangkan whitespace berlebih di kolom detail */
 :deep(.detail-table .v-data-table__td) {
   white-space: nowrap;
-  padding: 0 8px !important; /* Mengecilkan padding antar kolom detail */
+  padding: 0 8px !important;
 }
 
-/* Warna biru saat baris master diklik */
 :deep(.row-selected) {
   background-color: rgb(216, 239, 255) !important;
 }
 
-/* Hover effect */
 :deep(.v-data-table tbody tr:hover) {
   background-color: #f1f8ff !important;
   cursor: pointer;
@@ -959,46 +1212,13 @@ body.col-resize-active {
   font-weight: 700;
   color: #1976d2;
 }
-/* Gaya Header dan Kolom Master */
+
 .desktop-table :deep(.v-data-table-header__th),
 .desktop-table :deep(tbody tr td) {
   position: relative;
   white-space: nowrap;
   overflow: hidden;
   min-width: 50px !important;
-}
-
-/* Hover effect pada baris */
-:deep(.v-data-table tbody tr:hover) {
-  background-color: #f1f8ff;
-  cursor: pointer;
-}
-
-.resizer {
-  position: absolute;
-  right: 0;
-  top: 0;
-  height: 100%;
-  width: 8px;
-  cursor: col-resize;
-  z-index: 10;
-}
-
-.text-red {
-  color: #f44336 !important;
-}
-
-.font-weight-bold {
-  font-weight: bold !important;
-}
-
-.total-bold {
-  font-weight: 700;
-  color: #1976d2;
-}
-
-.table-container {
-  height: 100%;
 }
 
 .text-success {
@@ -1009,8 +1229,5 @@ body.col-resize-active {
 }
 .text-grey {
   color: #757575 !important;
-}
-.font-weight-bold {
-  font-weight: bold !important;
 }
 </style>

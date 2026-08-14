@@ -1,40 +1,343 @@
+<template>
+  <div class="po-paper-browse-wrapper">
+    <BaseBrowse
+      title="PO Paper Print Browse"
+      icon="mdi-file-document-outline"
+      :headers="masterHeaders"
+      :items="filteredMasterData"
+      :loading="loading"
+      v-model:startDate="startDate"
+      v-model:endDate="endDate"
+      v-model:selected="selected"
+      v-model:expanded="expanded"
+      has-print
+      has-export
+      fixed-header
+      height="550px"
+      @refresh="fetchData"
+      @action:new="handleAdd"
+      @action:edit="handleEdit"
+      @action:delete="handleDelete"
+      @action:print="handlePrint"
+      @action:export="exportToExcel"
+      @row-click="handleRowClick"
+      :row-props="getRowProps"
+      @update:expanded="handleExpandUpdate"
+    >
+      <!-- HEADER ACTION BUTTONS (TOOLBAR KANAN ATAS) -->
+      <template #header-actions>
+        <v-btn size="x-small" color="success" @click="handleAdd" class="mr-1">
+          <v-icon start>mdi-plus</v-icon> Baru
+        </v-btn>
+        <v-btn
+          size="x-small"
+          color="warning"
+          :disabled="!isSingleSelected"
+          @click="handleEdit"
+          class="mr-1"
+        >
+          <v-icon start>mdi-pencil</v-icon> Ubah
+        </v-btn>
+        <v-btn
+          size="x-small"
+          color="error"
+          :disabled="!isSingleSelected"
+          @click="handleDelete"
+          class="mr-1"
+        >
+          <v-icon start>mdi-trash-can</v-icon> Hapus
+        </v-btn>
+        <v-btn
+          size="x-small"
+          color="info"
+          :disabled="!isSingleSelected"
+          @click="handlePrint"
+          class="mr-1"
+        >
+          <v-icon start>mdi-printer</v-icon> Cetak
+        </v-btn>
+        <v-btn
+          size="x-small"
+          color="success"
+          :disabled="filteredMasterData.length === 0"
+          @click="exportToExcel"
+          :loading="loadingExport"
+        >
+          <v-icon start>mdi-file-excel</v-icon> Export Excel
+        </v-btn>
+      </template>
+
+      <!-- EXTRA FILTER (PENCARIAN SPK & RESET FILTER PER KOLOM) -->
+      <template #extra-filters>
+        <div class="d-flex align-center ga-2 flex-wrap">
+          <v-text-field
+            v-model="edtspk"
+            placeholder="Cari No. SPK..."
+            density="compact"
+            variant="outlined"
+            hide-details
+            clearable
+            prepend-inner-icon="mdi-magnify"
+            style="min-width: 180px; max-width: 220px"
+            @keyup.enter="fetchData"
+          />
+
+          <v-btn
+            v-if="activeFiltersCount > 0"
+            color="warning"
+            variant="tonal"
+            size="small"
+            prepend-icon="mdi-filter-off"
+            @click="resetAllColumnFilters"
+          >
+            Reset Filter ({{ activeFiltersCount }})
+          </v-btn>
+        </div>
+      </template>
+
+      <!-- DYNAMIC EXCEL FILTER PER KOLOM HEADER -->
+      <template
+        v-for="header in filterableHeaders"
+        :key="header.key"
+        #[`header.${header.key}`]="{ column }"
+      >
+        <div class="d-flex align-center justify-space-between w-100">
+          <span class="font-weight-bold text-truncate mr-1">{{
+            column.title
+          }}</span>
+
+          <v-menu
+            v-model="menuStates[header.key]"
+            :close-on-content-click="false"
+            location="bottom start"
+          >
+            <template #activator="{ props }">
+              <v-btn
+                icon
+                variant="text"
+                density="compact"
+                size="x-small"
+                v-bind="props"
+                :color="
+                  isColumnFilterActive(header.key) ? 'primary' : 'grey-darken-1'
+                "
+              >
+                <v-icon size="16">
+                  {{
+                    isColumnFilterActive(header.key)
+                      ? "mdi-filter"
+                      : "mdi-filter-variant"
+                  }}
+                </v-icon>
+              </v-btn>
+            </template>
+
+            <v-card
+              min-width="280"
+              max-width="320"
+              class="pa-2 border shadow-2 rounded-lg"
+            >
+              <v-text-field
+                v-model="columnSearch[header.key]"
+                density="compact"
+                variant="outlined"
+                hide-details
+                clearable
+                autofocus
+                placeholder="Cari..."
+                class="mb-1"
+              />
+
+              <div class="text-caption text-grey-darken-1 my-1 px-1">
+                {{ getFilteredPopupOptions(header.key).length }} dari
+                {{ (uniqueValuesMap[header.key] || []).length }} nilai
+                ditampilkan
+              </div>
+
+              <div
+                class="d-flex ga-2 px-1 mb-2 text-caption font-weight-medium"
+              >
+                <a
+                  href="#"
+                  class="text-primary text-decoration-none"
+                  @click.prevent="selectAllFiltered(header.key)"
+                >
+                  Tampilkan Semua
+                </a>
+                <span class="text-grey-lighten-1">|</span>
+                <a
+                  href="#"
+                  class="text-error text-decoration-none"
+                  @click.prevent="deselectAllFiltered(header.key)"
+                >
+                  Sembunyikan Semua
+                </a>
+              </div>
+
+              <v-divider />
+
+              <div
+                style="max-height: 220px; overflow-y: auto"
+                class="my-1 px-1"
+              >
+                <v-checkbox
+                  v-for="opt in getFilteredPopupOptions(header.key)"
+                  :key="opt"
+                  :label="opt"
+                  :model-value="isOptionSelected(header.key, opt)"
+                  density="compact"
+                  hide-details
+                  color="primary"
+                  @update:model-value="toggleOption(header.key, opt)"
+                />
+                <div
+                  v-if="getFilteredPopupOptions(header.key).length === 0"
+                  class="text-caption text-grey text-center py-4"
+                >
+                  Tidak ada data
+                </div>
+              </div>
+
+              <v-divider class="mb-2" />
+
+              <div class="d-flex justify-space-between align-center">
+                <v-btn
+                  size="x-small"
+                  variant="text"
+                  color="grey-darken-1"
+                  @click="resetColumnFilter(header.key)"
+                >
+                  Reset
+                </v-btn>
+                <v-btn
+                  size="small"
+                  color="primary"
+                  variant="flat"
+                  class="px-4 font-weight-bold"
+                  @click="menuStates[header.key] = false"
+                >
+                  OK
+                </v-btn>
+              </div>
+            </v-card>
+          </v-menu>
+        </div>
+      </template>
+
+      <!-- FORMAT TANGGAL PADA DATA TABEL -->
+      <template #item.Tanggal="{ value }">
+        <span>{{ formatDateDisplay(value) }}</span>
+      </template>
+
+      <!-- TOMBOL AKSI PER BARIS TABEL -->
+      <template #item.actions="{ item }">
+        <div class="d-flex justify-center ga-1">
+          <v-btn
+            icon="mdi-pencil"
+            size="x-small"
+            color="warning"
+            variant="tonal"
+            title="Ubah PO"
+            @click.stop="handleEdit(item)"
+          />
+          <v-btn
+            icon="mdi-printer"
+            size="x-small"
+            color="info"
+            variant="tonal"
+            title="Cetak PO"
+            @click.stop="handlePrint(item)"
+          />
+          <v-btn
+            icon="mdi-delete"
+            size="x-small"
+            color="error"
+            variant="tonal"
+            title="Hapus PO"
+            @click.stop="handleDelete(item)"
+          />
+        </div>
+      </template>
+
+      <!-- EXPAND DETAIL CONTENT -->
+      <template #expanded-content="{ item }">
+        <div v-if="isLoadingDetails(item.Nomor)" class="text-center pa-4">
+          <v-progress-circular
+            indeterminate
+            size="20"
+            color="primary"
+            class="mr-2"
+          />
+          <span class="text-caption">Memuat detail item SPK Kertas...</span>
+        </div>
+
+        <div
+          v-else-if="!details[item.Nomor] || details[item.Nomor].length === 0"
+          class="text-center pa-4 text-caption text-grey"
+        >
+          Tidak ada data detail item untuk Nomor PO {{ item.Nomor }}
+        </div>
+
+        <v-card
+          v-else
+          variant="outlined"
+          density="compact"
+          class="ma-2 border rounded"
+        >
+          <v-data-table
+            :headers="detailHeaders"
+            :items="details[item.Nomor]"
+            density="compact"
+            class="bg-white"
+            :items-per-page="-1"
+            hide-default-footer
+          >
+            <template #[`item.Qty`]="{ item: d }">
+              <div class="text-right font-weight-bold">
+                {{ formatCurrency(d.Qty) }}
+              </div>
+            </template>
+            <template #[`item.Harga`]="{ item: d }">
+              <div class="text-right">Rp {{ formatCurrency(d.Harga) }}</div>
+            </template>
+          </v-data-table>
+        </v-card>
+      </template>
+    </BaseBrowse>
+  </div>
+</template>
+
 <script setup lang="ts">
 import { ref, onMounted, reactive, watch, computed } from "vue";
 import { useToast } from "vue-toastification";
 import { useRouter } from "vue-router";
 import api from "@/services/api";
 import { format, subDays, parseISO, isValid } from "date-fns";
+import * as XLSX from "xlsx-js-style";
 import BaseBrowse from "@/components/BaseBrowse.vue";
 
 const toast = useToast();
 const router = useRouter();
-const API_PO_PAPER = "mmt/po-paperprint"; // Endpoint Backend PO Paper
+const API_PO_PAPER = "mmt/po-paperprint";
 
 // --- State Management ---
 const masterData = ref<any[]>([]);
 const details = ref<Record<string, any[]>>({});
 const loading = ref(true);
+const loadingExport = ref(false);
 const loadingDetails = ref(new Set<string>());
 const selected = ref<any[]>([]);
 const expanded = ref<any[]>([]);
 
-// Filter Tanggal & SPK Tambahan dari Delphi (edtspk)
+// Filter Tanggal & SPK
 const startDate = ref(format(subDays(new Date(), 30), "yyyy-MM-dd"));
 const endDate = ref(format(new Date(), "yyyy-MM-dd"));
 const edtspk = ref<string>("");
 
-// --- EXCEL-STYLE FILTER STATE ---
-// 1. Filter Nomor PO
-const menuNomor = ref(false);
-const filterNomorInput = ref<string>("");
-
-// 2. Filter Supplier (Nama / Kode)
-const menuSupplier = ref(false);
-const filterSupplierInput = ref<string>("");
-
-// 3. Filter SPK
-const menuSpk = ref(false);
-const filterSpkInput = ref<string>("");
+// --- EXCEL FILTER STATES ---
+const columnSearch = ref<Record<string, string>>({});
+const selectedValues = ref<Record<string, string[]>>({});
+const menuStates = ref<Record<string, boolean>>({});
 
 // --- User Config & Session Storage ---
 const getSessionUser = () => {
@@ -52,52 +355,7 @@ const userConfig = reactive({
   cab: getSessionUser()?.cab || "",
 });
 
-const filteredMasterData = computed(() => {
-  return masterData.value.filter((item) => {
-    const nomor = item.Nomor || "";
-    const matchesNomor =
-      !filterNomorInput.value ||
-      nomor.toLowerCase().includes(filterNomorInput.value.trim().toLowerCase());
-
-    const supNama = item.Supplier || item.Nama || ""; // <-- Disesuaikan
-    const supKode = item.KodeSup || "";
-    const matchesSupplier =
-      !filterSupplierInput.value ||
-      supNama
-        .toLowerCase()
-        .includes(filterSupplierInput.value.trim().toLowerCase()) ||
-      supKode
-        .toLowerCase()
-        .includes(filterSupplierInput.value.trim().toLowerCase());
-
-    return matchesNomor && matchesSupplier;
-  });
-});
-
-// --- FILTER INDICATORS ---
-const isNomorFilterActive = computed(
-  () => filterNomorInput.value.trim().length > 0,
-);
-const isSupplierFilterActive = computed(
-  () => filterSupplierInput.value.trim().length > 0,
-);
-const isSpkFilterActive = computed(
-  () => filterSpkInput.value.trim().length > 0,
-);
-
-const resetNomorFilter = () => {
-  filterNomorInput.value = "";
-};
-
-const resetSupplierFilter = () => {
-  filterSupplierInput.value = "";
-};
-
-const resetSpkFilter = () => {
-  filterSpkInput.value = "";
-};
-
-// --- Grid Header Definition ---
+// --- Headers ---
 const masterHeaders = [
   {
     title: "Detail",
@@ -110,19 +368,19 @@ const masterHeaders = [
   { title: "Cab", key: "Cab", minWidth: "90px" },
   { title: "Tanggal", key: "Tanggal", minWidth: "120px" },
   { title: "Kode Sup", key: "KodeSup", minWidth: "120px" },
-  { title: "Nama Supplier", key: "Supplier", minWidth: "220px" }, // <-- Disesuaikan
+  { title: "Nama Supplier", key: "Supplier", minWidth: "220px" },
   { title: "Keterangan", key: "Keterangan", minWidth: "250px" },
   {
     title: "Aksi",
     key: "actions",
-    minWidth: "150px",
+    minWidth: "140px",
     align: "center" as const,
     fixed: true,
   },
 ];
 
 const detailHeaders = [
-  { title: "Nomor PO", key: "Nomor", minWidth: "140px", fixed: true },
+  { title: "Nomor PO", key: "Nomor", minWidth: "140px" },
   { title: "No. SPK", key: "Spk", minWidth: "150px" },
   { title: "Nama SPK", key: "NamaSpk", minWidth: "220px" },
   { title: "Ukuran", key: "Ukuran", minWidth: "120px" },
@@ -132,28 +390,167 @@ const detailHeaders = [
   { title: "Keterangan", key: "Keterangan", minWidth: "200px" },
 ];
 
-// --- Formatter Tanggal & Mata Uang ---
+const isSingleSelected = computed(() => selected.value.length === 1);
+
+// --- EXCEL FILTER CORE LOGIC ---
+const filterableHeaders = computed(() => {
+  return masterHeaders.filter(
+    (h) => h.key !== "data-table-expand" && h.key !== "actions",
+  );
+});
+
+const getCellValue = (item: any, key: string): string => {
+  let val = item[key];
+
+  if (key === "Tanggal" && val) {
+    return formatDateDisplay(val);
+  }
+  if (key === "Supplier" && (!val || val === "")) {
+    val = item.Nama;
+  }
+
+  if (val === null || val === undefined || val === "") {
+    return "(Blank)";
+  }
+
+  return String(val);
+};
+
+const uniqueValuesMap = computed(() => {
+  const map: Record<string, string[]> = {};
+  filterableHeaders.value.forEach((h) => {
+    const key = h.key;
+    const set = new Set<string>();
+    (masterData.value || []).forEach((item) => {
+      set.add(getCellValue(item, key));
+    });
+    map[key] = Array.from(set).sort((a, b) =>
+      a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" }),
+    );
+  });
+  return map;
+});
+
+const getFilteredPopupOptions = (key: string) => {
+  const options = uniqueValuesMap.value[key] || [];
+  const search = columnSearch.value[key]?.trim().toLowerCase();
+  if (!search) return options;
+  return options.filter((opt) => opt.toLowerCase().includes(search));
+};
+
+const isOptionSelected = (key: string, option: string) => {
+  const selectedOpts = selectedValues.value[key];
+  if (!selectedOpts) return true;
+  return selectedOpts.includes(option);
+};
+
+const toggleOption = (key: string, option: string) => {
+  if (!selectedValues.value[key]) {
+    selectedValues.value[key] = [...(uniqueValuesMap.value[key] || [])];
+  }
+  const index = selectedValues.value[key].indexOf(option);
+  if (index > -1) {
+    selectedValues.value[key].splice(index, 1);
+  } else {
+    selectedValues.value[key].push(option);
+  }
+};
+
+const selectAllFiltered = (key: string) => {
+  const visibleOptions = getFilteredPopupOptions(key);
+  const currentSelected = selectedValues.value[key] || [
+    ...(uniqueValuesMap.value[key] || []),
+  ];
+  const newSet = new Set([...currentSelected, ...visibleOptions]);
+  selectedValues.value[key] = Array.from(newSet);
+};
+
+const deselectAllFiltered = (key: string) => {
+  const visibleOptions = getFilteredPopupOptions(key);
+  const currentSelected = selectedValues.value[key] || [
+    ...(uniqueValuesMap.value[key] || []),
+  ];
+  selectedValues.value[key] = currentSelected.filter(
+    (opt) => !visibleOptions.includes(opt),
+  );
+};
+
+const isColumnFilterActive = (key: string) => {
+  const search = columnSearch.value[key]?.trim();
+  if (search) return true;
+
+  const selectedOpts = selectedValues.value[key];
+  if (!selectedOpts) return false;
+  const all = uniqueValuesMap.value[key] || [];
+  return selectedOpts.length < all.length;
+};
+
+const activeFiltersCount = computed(() => {
+  return (
+    Object.keys(columnSearch.value).filter(
+      (k) => !!columnSearch.value[k]?.trim(),
+    ).length +
+    Object.keys(selectedValues.value).filter((key) => isColumnFilterActive(key))
+      .length
+  );
+});
+
+const resetColumnFilter = (key: string) => {
+  delete selectedValues.value[key];
+  columnSearch.value[key] = "";
+};
+
+const resetAllColumnFilters = () => {
+  selectedValues.value = {};
+  columnSearch.value = {};
+};
+
+const filteredMasterData = computed(() => {
+  return (masterData.value || []).filter((item) => {
+    return filterableHeaders.value.every((h) => {
+      const key = h.key;
+      const cellValue = getCellValue(item, key);
+
+      const searchText = columnSearch.value[key]?.trim().toLowerCase();
+      if (searchText && !cellValue.toLowerCase().includes(searchText)) {
+        return false;
+      }
+
+      const selectedArr = selectedValues.value[key];
+      if (selectedArr) {
+        return selectedArr.includes(cellValue);
+      }
+
+      return true;
+    });
+  });
+});
+
+// --- Formatters ---
 const formatDateDisplay = (dateStr: string | null | undefined) => {
   if (!dateStr) return "-";
   try {
-    const d = new Date(dateStr);
-    return isValid(d) ? format(d, "dd/MM/yyyy") : dateStr;
+    const d =
+      typeof dateStr === "string" ? parseISO(dateStr) : new Date(dateStr);
+    return isValid(d) ? format(d, "dd/MM/yyyy") : String(dateStr);
   } catch (e) {
-    return dateStr;
+    return String(dateStr);
   }
 };
 
 const formatCurrency = (val: number | string | null) => {
-  if (val === null || val === undefined) return "0.00";
+  if (val === null || val === undefined || val === "") return "0.00";
   return Number(val).toLocaleString("id-ID", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
 };
 
-// --- Data Fetching (btnRefreshClick) ---
+// --- Data Fetching ---
 const fetchData = async () => {
   loading.value = true;
+  selected.value = [];
+  expanded.value = [];
   try {
     const res = await api.get(`${API_PO_PAPER}/`, {
       params: {
@@ -164,7 +561,6 @@ const fetchData = async () => {
       },
     });
 
-    // Tangani jika response backend langsung berupa Array [...]
     const rawData = res.data;
     masterData.value = Array.isArray(rawData) ? rawData : rawData.data || [];
   } catch (error) {
@@ -190,7 +586,8 @@ const handleExpandUpdate = async (expandedKeys: any[]) => {
     const response = await api.get(
       `${API_PO_PAPER}/detail/${encodeURIComponent(lastExpandedNomor)}`,
     );
-    details.value[lastExpandedNomor] = response.data?.data ?? [];
+    details.value[lastExpandedNomor] =
+      response.data?.data ?? response.data ?? [];
   } catch (error) {
     console.error("Gagal mengambil detail PO Paper:", error);
     details.value[lastExpandedNomor] = [];
@@ -201,7 +598,7 @@ const handleExpandUpdate = async (expandedKeys: any[]) => {
 
 const isLoadingDetails = (nomor: string) => loadingDetails.value.has(nomor);
 
-// --- Cek Hak Akses Utility ---
+// --- Permission Check ---
 const checkPermission = async (action: "insert" | "edit" | "delete") => {
   try {
     const res = await api.post(`${API_PO_PAPER}/check-permission`, {
@@ -211,25 +608,29 @@ const checkPermission = async (action: "insert" | "edit" | "delete") => {
     });
     return res.data?.allowed ?? true;
   } catch (e) {
-    return true; // Fallback jika tidak ada backend permission khusus
+    return true;
   }
 };
 
-// --- Aksi Handler (Tambah, Edit, Cetak, Hapus) ---
-
-// 1. Tambah (cxButton2Click)
+// --- Action Handlers (Baru, Ubah, Cetak, Hapus) ---
 const handleAdd = async () => {
   const isAllowed = await checkPermission("insert");
   if (!isAllowed) {
     toast.warning("Anda tidak berhak Menambah data di Modul ini");
     return;
   }
-  router.push({ name: "PoPaperForm", query: { mode: "add" } });
+  router.push({ name: "POPaperprintMMTNew" });
 };
 
-// 2. Edit (cxButton1Click)
-const handleEdit = async (row: any) => {
-  if (!row || !row.Nomor) return;
+const handleEdit = async (row?: any) => {
+  const targetRow = row && row.Nomor ? row : selected.value[0];
+
+  if (!targetRow || !targetRow.Nomor) {
+    toast.warning(
+      "Silakan pilih/centang satu data terlebih dahulu untuk diubah.",
+    );
+    return;
+  }
 
   const isAllowed = await checkPermission("edit");
   if (!isAllowed) {
@@ -238,23 +639,32 @@ const handleEdit = async (row: any) => {
   }
 
   router.push({
-    name: "PoPaperForm",
-    query: { mode: "edit", nomor: row.Nomor },
+    name: "POPaperprintMMTEdit",
+    params: { nomor: targetRow.Nomor },
   });
 };
 
-// 3. Cetak (cxButton3Click)
-const handlePrint = (row: any) => {
-  if (!row || !row.Nomor) return;
+const handlePrint = (row?: any) => {
+  const targetRow = row && row.Nomor ? row : selected.value[0];
+  if (!targetRow || !targetRow.Nomor) {
+    toast.warning("Silakan pilih/centang data yang ingin dicetak.");
+    return;
+  }
+
   router.push({
-    name: "PoPaperForm",
-    query: { mode: "print", nomor: row.Nomor, prn: "true" },
+    name: "POPaperprintMMTEdit",
+    params: { nomor: targetRow.Nomor },
+    query: { mode: "print", prn: "true" },
   });
 };
 
-// 4. Hapus (cxButton4Click)
-const handleDelete = async (row: any) => {
-  if (!row || !row.Nomor) return;
+const handleDelete = async (row?: any) => {
+  const targetRow = row && row.Nomor ? row : selected.value[0];
+
+  if (!targetRow || !targetRow.Nomor) {
+    toast.warning("Silakan pilih/centang data yang ingin dihapus.");
+    return;
+  }
 
   const isAllowed = await checkPermission("delete");
   if (!isAllowed) {
@@ -262,18 +672,19 @@ const handleDelete = async (row: any) => {
     return;
   }
 
-  if (!confirm(`Yakin ingin hapus PO Paper No: ${row.Nomor} ?`)) return;
+  if (!confirm(`Yakin ingin hapus PO Paper No: ${targetRow.Nomor} ?`)) return;
 
   loading.value = true;
   try {
-    await api.delete(`${API_PO_PAPER}/${encodeURIComponent(row.Nomor)}`);
+    await api.delete(`${API_PO_PAPER}/${encodeURIComponent(targetRow.Nomor)}`);
     toast.success("Sukses menghapus data");
 
-    // Hapus dari state lokal
     masterData.value = masterData.value.filter(
-      (item) => item.Nomor !== row.Nomor,
+      (item) => item.Nomor !== targetRow.Nomor,
     );
-    selected.value = selected.value.filter((item) => item.Nomor !== row.Nomor);
+    selected.value = selected.value.filter(
+      (item) => item.Nomor !== targetRow.Nomor,
+    );
   } catch (error: any) {
     console.error("Gagal Hapus PO Paper:", error);
     toast.error(error.response?.data?.message || "Gagal Hapus");
@@ -282,15 +693,249 @@ const handleDelete = async (row: any) => {
   }
 };
 
+// --- EXPORT TO EXCEL (HEADER & DETAIL NUMERIK MURNI) ---
+const exportToExcel = async () => {
+  const listToProcess = filteredMasterData.value;
+  if (listToProcess.length === 0) {
+    toast.warning("Tidak ada data untuk diekspor");
+    return;
+  }
+
+  loadingExport.value = true;
+  try {
+    // Parallel fetching detail yang belum terbuka
+    const fetchPromises = listToProcess.map(async (header) => {
+      if (
+        !details.value[header.Nomor] ||
+        details.value[header.Nomor].length === 0
+      ) {
+        try {
+          const res = await api.get(
+            `${API_PO_PAPER}/detail/${encodeURIComponent(header.Nomor)}`,
+          );
+          details.value[header.Nomor] = res.data?.data ?? res.data ?? [];
+        } catch (e) {
+          console.error(`Gagal sync detail PO ${header.Nomor}:`, e);
+          details.value[header.Nomor] = [];
+        }
+      }
+    });
+
+    await Promise.all(fetchPromises);
+
+    const fileName = `PO_Paper_Print_${startDate.value}_to_${endDate.value}.xlsx`;
+
+    const parseNum = (val: any): number => {
+      if (val === null || val === undefined || val === "") return 0;
+      const parsed = Number(val);
+      return isNaN(parsed) ? 0 : parsed;
+    };
+
+    const styleHeaderMain = {
+      fill: { fgColor: { rgb: "B3E5FC" } },
+      font: { bold: true, color: { rgb: "000000" }, sz: 10 },
+      alignment: { horizontal: "center", vertical: "center", wrapText: true },
+      border: {
+        top: { style: "thin", color: { rgb: "000000" } },
+        bottom: { style: "thin", color: { rgb: "000000" } },
+        left: { style: "thin", color: { rgb: "000000" } },
+        right: { style: "thin", color: { rgb: "000000" } },
+      },
+    };
+
+    const styleDataCell = {
+      font: { sz: 10 },
+      border: {
+        top: { style: "thin", color: { rgb: "000000" } },
+        bottom: { style: "thin", color: { rgb: "000000" } },
+        left: { style: "thin", color: { rgb: "000000" } },
+        right: { style: "thin", color: { rgb: "000000" } },
+      },
+      alignment: { vertical: "center" },
+    };
+
+    const styleDataCellCenter = {
+      ...styleDataCell,
+      alignment: { horizontal: "center", vertical: "center" },
+    };
+    const styleDataCellRight = {
+      ...styleDataCell,
+      alignment: { horizontal: "right", vertical: "center" },
+    };
+    const styleFooter = {
+      ...styleDataCell,
+      fill: { fgColor: { rgb: "F0F4F8" } },
+      font: { bold: true, sz: 10 },
+    };
+
+    const worksheetData: any[] = [];
+    worksheetData.push([
+      {
+        v: "LAPORAN PURCHASE ORDER (PO) PAPER PRINT",
+        s: { font: { bold: true, sz: 14 } },
+      },
+    ]);
+    worksheetData.push([
+      {
+        v: `Periode : ${formatDateDisplay(startDate.value)} s/d ${formatDateDisplay(endDate.value)}`,
+        s: { font: { sz: 10 } },
+      },
+    ]);
+    worksheetData.push([]);
+
+    const headers = [
+      { v: "NOMOR PO", s: styleHeaderMain },
+      { v: "CAB", s: styleHeaderMain },
+      { v: "TANGGAL", s: styleHeaderMain },
+      { v: "KODE SUP", s: styleHeaderMain },
+      { v: "NAMA SUPPLIER", s: styleHeaderMain },
+      { v: "KETERANGAN PO", s: styleHeaderMain },
+      { v: "NO. SPK", s: styleHeaderMain },
+      { v: "NAMA SPK", s: styleHeaderMain },
+      { v: "UKURAN", s: styleHeaderMain },
+      { v: "BAHAN", s: styleHeaderMain },
+      { v: "QTY", s: styleHeaderMain },
+      { v: "HARGA", s: styleHeaderMain },
+      { v: "TOTAL", s: styleHeaderMain },
+    ];
+    worksheetData.push(headers);
+
+    let grandTotalQty = 0;
+    let grandTotalSubtotal = 0;
+
+    listToProcess.forEach((header) => {
+      const targetDetails = details.value[header.Nomor] || [];
+      const tglHeader = formatDateDisplay(header.Tanggal);
+      const supplierName = header.Supplier || header.Nama || "-";
+
+      if (targetDetails.length > 0) {
+        targetDetails.forEach((dtl, index) => {
+          const isFirstRow = index === 0;
+          const qtyVal = parseNum(dtl.Qty);
+          const hargaVal = parseNum(dtl.Harga);
+          const totalVal = qtyVal * hargaVal;
+
+          grandTotalQty += qtyVal;
+          grandTotalSubtotal += totalVal;
+
+          worksheetData.push([
+            { v: isFirstRow ? header.Nomor : "-", s: styleDataCellCenter },
+            { v: isFirstRow ? header.Cab || "-" : "-", s: styleDataCellCenter },
+            { v: isFirstRow ? tglHeader : "-", s: styleDataCellCenter },
+            {
+              v: isFirstRow ? header.KodeSup || "-" : "-",
+              s: styleDataCellCenter,
+            },
+            { v: isFirstRow ? supplierName : "-", s: styleDataCell },
+            {
+              v: isFirstRow ? header.Keterangan || "-" : "-",
+              s: styleDataCell,
+            },
+            { v: dtl.Spk || dtl.Nomor_SPK || "-", s: styleDataCellCenter },
+            { v: dtl.NamaSpk || dtl.Nama_SPK || "-", s: styleDataCell },
+            { v: dtl.Ukuran || "-", s: styleDataCellCenter },
+            { v: dtl.Bahan || "-", s: styleDataCell },
+            { v: qtyVal, t: "n", z: "#,##0.00", s: styleDataCellRight },
+            { v: hargaVal, t: "n", z: "#,##0.00", s: styleDataCellRight },
+            { v: totalVal, t: "n", z: "#,##0.00", s: styleDataCellRight },
+          ]);
+        });
+      } else {
+        worksheetData.push([
+          { v: header.Nomor, s: styleDataCellCenter },
+          { v: header.Cab || "-", s: styleDataCellCenter },
+          { v: tglHeader, s: styleDataCellCenter },
+          { v: header.KodeSup || "-", s: styleDataCellCenter },
+          { v: supplierName, s: styleDataCell },
+          { v: header.Keterangan || "-", s: styleDataCell },
+          { v: "-", s: styleDataCellCenter },
+          { v: "Tidak ada detail item", s: styleDataCell },
+          { v: "-", s: styleDataCellCenter },
+          { v: "-", s: styleDataCell },
+          { v: 0, t: "n", z: "#,##0.00", s: styleDataCellRight },
+          { v: 0, t: "n", z: "#,##0.00", s: styleDataCellRight },
+          { v: 0, t: "n", z: "#,##0.00", s: styleDataCellRight },
+        ]);
+      }
+    });
+
+    // Grand Total Row
+    const footerRow = [
+      {
+        v: "GRAND TOTAL",
+        s: {
+          ...styleFooter,
+          alignment: { horizontal: "right", vertical: "center" },
+        },
+      },
+      ...Array(9).fill({ v: "", s: styleFooter }),
+      {
+        v: grandTotalQty,
+        t: "n",
+        z: "#,##0.00",
+        s: {
+          ...styleFooter,
+          alignment: { horizontal: "right", vertical: "center" },
+        },
+      },
+      { v: "", s: styleFooter },
+      {
+        v: grandTotalSubtotal,
+        t: "n",
+        z: "#,##0.00",
+        s: {
+          ...styleFooter,
+          alignment: { horizontal: "right", vertical: "center" },
+        },
+      },
+    ];
+    worksheetData.push(footerRow);
+
+    const ws = XLSX.utils.aoa_to_sheet(worksheetData);
+    ws["!merges"] = [
+      { s: { r: 0, c: 0 }, e: { r: 0, c: 12 } },
+      {
+        s: { r: worksheetData.length - 1, c: 0 },
+        e: { r: worksheetData.length - 1, c: 9 },
+      },
+    ];
+
+    ws["!cols"] = [
+      { wch: 18 },
+      { wch: 8 },
+      { wch: 12 },
+      { wch: 12 },
+      { wch: 25 },
+      { wch: 25 },
+      { wch: 18 },
+      { wch: 25 },
+      { wch: 12 },
+      { wch: 16 },
+      { wch: 12 },
+      { wch: 14 },
+      { wch: 16 },
+    ];
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "PO_Paper");
+    XLSX.writeFile(wb, fileName);
+    toast.success("Excel PO Paper Print berhasil diunduh!");
+  } catch (error) {
+    console.error("Export Error:", error);
+    toast.error("Gagal mengekspor data ke Excel.");
+  } finally {
+    loadingExport.value = false;
+  }
+};
+
 // --- Row Interaction ---
 const handleRowClick = (_event: any, row: any) => {
-  const index = selected.value.findIndex(
-    (s: any) => s.Nomor === row.item.Nomor,
-  );
-  if (index > -1) {
-    selected.value.splice(index, 1);
+  const item = row.item || row;
+  const isSelected = selected.value.some((s: any) => s.Nomor === item.Nomor);
+  if (isSelected) {
+    selected.value = [];
   } else {
-    selected.value.push(row.item);
+    selected.value = [item];
   }
 };
 
@@ -304,289 +949,34 @@ watch([startDate, endDate], fetchData);
 onMounted(fetchData);
 </script>
 
-<template>
-  <div class="po-paper-browse-wrapper">
-    <!-- Filter Bar Tambahan (Pencarian No. SPK) -->
-    <v-row class="px-4 pt-2 align-center bg-grey-lighten-4 rounded mb-2">
-      <v-col cols="12" sm="4" md="3">
-        <v-text-field
-          v-model="edtspk"
-          label="Cari No. SPK (edtspk)"
-          placeholder="Ketik Nomor SPK..."
-          density="compact"
-          variant="outlined"
-          hide-details
-          clearable
-          prepend-inner-icon="mdi-magnify"
-          @keyup.enter="fetchData"
-        />
-      </v-col>
-      <v-col cols="12" sm="2">
-        <v-btn
-          color="primary"
-          size="small"
-          class="text-none"
-          @click="fetchData"
-        >
-          <v-icon start>mdi-filter-outline</v-icon>
-          Filter SPK
-        </v-btn>
-      </v-col>
-    </v-row>
-
-    <BaseBrowse
-      title="PO Paper Print Browse"
-      icon="mdi-file-document-outline"
-      :headers="masterHeaders"
-      :items="filteredMasterData"
-      :loading="loading"
-      v-model:startDate="startDate"
-      v-model:endDate="endDate"
-      v-model:selected="selected"
-      v-model:expanded="expanded"
-      @refresh="fetchData"
-      @row-click="handleRowClick"
-      :row-props="getRowProps"
-      @update:expanded="handleExpandUpdate(expanded)"
-    >
-      <!-- Action Toolbar Tambahan (Tambah Data Baru) -->
-      <template #extra-actions>
-        <v-btn
-          size="small"
-          color="primary"
-          class="mr-2 text-none custom-action"
-          @click="handleAdd"
-        >
-          <v-icon start>mdi-plus-circle</v-icon>
-          Tambah PO Paper
-        </v-btn>
-      </template>
-
-      <!-- ======================================================== -->
-      <!-- EXCEL-STYLE FILTER HEADERS                               -->
-      <!-- ======================================================== -->
-
-      <!-- 1. FILTER NOMOR PO -->
-      <template #header.Nomor="{ column }">
-        <div class="d-flex align-center justify-space-between w-100">
-          <span class="font-weight-bold">{{ column.title }}</span>
-          <v-menu
-            v-model="menuNomor"
-            :close-on-content-click="false"
-            location="bottom start"
-          >
-            <template #activator="{ props }">
-              <v-btn
-                icon
-                variant="text"
-                density="compact"
-                size="small"
-                v-bind="props"
-                :color="isNomorFilterActive ? 'primary' : 'default'"
-              >
-                <v-icon size="18">
-                  {{
-                    isNomorFilterActive ? "mdi-filter" : "mdi-filter-variant"
-                  }}
-                </v-icon>
-              </v-btn>
-            </template>
-
-            <v-card min-width="240" class="pa-2 border shadow-2 rounded-lg">
-              <div
-                class="text-caption font-weight-bold px-1 py-1 text-grey-darken-1"
-              >
-                Cari Nomor PO
-              </div>
-              <v-divider class="mb-2" />
-              <v-text-field
-                v-model="filterNomorInput"
-                placeholder="Ketik Nomor PO..."
-                density="compact"
-                variant="outlined"
-                hide-details
-                clearable
-                autofocus
-                append-inner-icon="mdi-magnify"
-                @keyup.enter="menuNomor = false"
-              />
-              <v-divider class="mt-3 mb-2" />
-              <div class="d-flex justify-space-between align-center">
-                <v-btn
-                  size="x-small"
-                  variant="text"
-                  color="grey-darken-1"
-                  @click="resetNomorFilter"
-                >
-                  Reset
-                </v-btn>
-                <v-btn
-                  size="x-small"
-                  color="primary"
-                  variant="flat"
-                  @click="menuNomor = false"
-                >
-                  OK
-                </v-btn>
-              </div>
-            </v-card>
-          </v-menu>
-        </div>
-      </template>
-
-      <!-- 2. FILTER SUPPLIER -->
-      <template #header.Nama="{ column }">
-        <div class="d-flex align-center justify-space-between w-100">
-          <span class="font-weight-bold">{{ column.title }}</span>
-          <v-menu
-            v-model="menuSupplier"
-            :close-on-content-click="false"
-            location="bottom start"
-          >
-            <template #activator="{ props }">
-              <v-btn
-                icon
-                variant="text"
-                density="compact"
-                size="small"
-                v-bind="props"
-                :color="isSupplierFilterActive ? 'primary' : 'default'"
-              >
-                <v-icon size="18">
-                  {{
-                    isSupplierFilterActive ? "mdi-filter" : "mdi-filter-variant"
-                  }}
-                </v-icon>
-              </v-btn>
-            </template>
-
-            <v-card min-width="240" class="pa-2 border shadow-2 rounded-lg">
-              <div
-                class="text-caption font-weight-bold px-1 py-1 text-grey-darken-1"
-              >
-                Cari Supplier
-              </div>
-              <v-divider class="mb-2" />
-              <v-text-field
-                v-model="filterSupplierInput"
-                placeholder="Ketik Nama / Kode Sup..."
-                density="compact"
-                variant="outlined"
-                hide-details
-                clearable
-                autofocus
-                append-inner-icon="mdi-magnify"
-                @keyup.enter="menuSupplier = false"
-              />
-              <v-divider class="mt-3 mb-2" />
-              <div class="d-flex justify-space-between align-center">
-                <v-btn
-                  size="x-small"
-                  variant="text"
-                  color="grey-darken-1"
-                  @click="resetSupplierFilter"
-                >
-                  Reset
-                </v-btn>
-                <v-btn
-                  size="x-small"
-                  color="primary"
-                  variant="flat"
-                  @click="menuSupplier = false"
-                >
-                  OK
-                </v-btn>
-              </div>
-            </v-card>
-          </v-menu>
-        </div>
-      </template>
-
-      <!-- ======================================================== -->
-      <!-- SLOTS DATA BODY                                          -->
-      <!-- ======================================================== -->
-
-      <template #item.Tanggal="{ value }">
-        {{ formatDateDisplay(value) }}
-      </template>
-
-      <template #item.Dateline="{ value }">
-        {{ formatDateDisplay(value) }}
-      </template>
-
-      <!-- Action Column per Row -->
-      <template #item.actions="{ item }">
-        <div class="d-flex justify-center ga-1">
-          <v-btn
-            icon="mdi-pencil"
-            size="x-small"
-            color="warning"
-            variant="tonal"
-            title="Edit PO"
-            @click.stop="handleEdit(item)"
-          />
-          <v-btn
-            icon="mdi-printer"
-            size="x-small"
-            color="info"
-            variant="tonal"
-            title="Cetak PO"
-            @click.stop="handlePrint(item)"
-          />
-          <v-btn
-            icon="mdi-delete"
-            size="x-small"
-            color="error"
-            variant="tonal"
-            title="Hapus PO"
-            @click.stop="handleDelete(item)"
-          />
-        </div>
-      </template>
-
-      <!-- Expand Detail Content -->
-      <template #expanded-content="{ item }">
-        <div v-if="isLoadingDetails(item.Nomor)" class="text-center pa-2">
-          <v-progress-circular
-            indeterminate
-            size="20"
-            color="primary"
-            class="mr-2"
-          />
-          <span class="text-caption">Memuat detail item SPK Kertas...</span>
-        </div>
-
-        <div
-          v-else-if="!details[item.Nomor] || details[item.Nomor].length === 0"
-          class="text-center pa-2 text-caption text-grey"
-        >
-          Tidak ada data detail item untuk Nomor PO {{ item.Nomor }}
-        </div>
-
-        <v-data-table
-          v-else
-          :headers="detailHeaders"
-          :items="details[item.Nomor]"
-          density="compact"
-          class="bg-white border rounded"
-          :items-per-page="-1"
-          hide-default-footer
-        >
-          <template #[`item.Qty`]="{ item: d }">
-            <div class="text-right">
-              {{ formatCurrency(d.Qty) }}
-            </div>
-          </template>
-          <template #[`item.Harga`]="{ item: d }">
-            <div class="text-right">Rp {{ formatCurrency(d.Harga) }}</div>
-          </template>
-        </v-data-table>
-      </template>
-    </BaseBrowse>
-  </div>
-</template>
-
 <style scoped>
+/* 💡 STICKY HEADER & FIXED FOOTER DENGAN SCROLL TBODY */
+:deep(.v-table) {
+  display: flex !important;
+  flex-direction: column !important;
+  height: 550px !important;
+}
+
+:deep(.v-table__wrapper) {
+  flex: 1 1 auto !important;
+  overflow-y: auto !important;
+  overflow-x: auto !important;
+  max-height: 550px !important;
+}
+
+:deep(.v-data-table__thead) {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 10 !important;
+  background-color: #ffffff !important;
+}
+
+:deep(.v-data-table-footer) {
+  flex: 0 0 auto !important;
+  border-top: 1px solid rgba(0, 0, 0, 0.12);
+  background-color: #ffffff !important;
+}
+
 .row-selected {
   background-color: #d8efff !important;
 }

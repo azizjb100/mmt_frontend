@@ -1,230 +1,323 @@
 <template>
-  <PageLayout
-    title="Input Kerja Finishing (Pra-LHK)"
-    icon="mdi-ray-start-arrow"
+  <BaseForm
+    :title="(isEditMode ? 'Ubah' : 'Baru') + ' Input Kerja Finishing (Pra-LHK)'"
+    menu-id="129"
+    :icon="IconNeedle"
+    :is-loading="isLoading"
+    :is-saving="isSaving"
+    v-model:showSaveDialog="showSaveDialog"
+    v-model:showCancelDialog="showCancelDialog"
+    v-model:showCloseDialog="showCloseDialog"
+    @confirm-save="executeSave"
+    @confirm-cancel="executeCancel"
+    @confirm-close="executeClose"
   >
+    <!-- HEADER ACTIONS SLOT -->
     <template #header-actions>
       <v-btn
+        size="small"
         color="primary"
-        @click="handleSaveDraft"
+        variant="elevated"
+        class="mr-2"
         :loading="isSaving"
-        :disabled="detailData.length === 0"
+        :disabled="formData.details.length === 0"
+        @click="showSaveDialog = true"
       >
-        <v-icon start>mdi-content-save-edit</v-icon> Simpan ke Pra-LHK
+        <v-icon start size="16">mdi-content-save-edit-outline</v-icon>
+        Simpan Pra-LHK
+      </v-btn>
+
+      <v-btn
+        size="small"
+        variant="outlined"
+        class="mr-2"
+        @click="showCancelDialog = true"
+      >
+        Batal
+      </v-btn>
+
+      <v-btn
+        size="small"
+        variant="tonal"
+        color="error"
+        @click="showCloseDialog = true"
+      >
+        <template #prepend>
+          <span class="d-flex align-center">
+            <IconX :size="15" :stroke-width="2" />
+          </span>
+        </template>
+        Tutup
       </v-btn>
     </template>
 
-    <v-row>
-      <v-col cols="12" md="3">
-        <v-card variant="outlined" class="pa-4">
-          <v-select
-            label="Jenis Proses"
-            v-model="formData.proses"
-            :items="daftarProses"
-            item-title="title"
-            item-value="value"
-            variant="solo-filled"
-            class="mb-3"
-          />
-          <v-text-field
-            label="Tanggal Kerja"
-            type="date"
-            v-model="formData.tanggal"
-            variant="outlined"
-            density="compact"
-          />
-          <v-text-field
-            label="Shift"
-            type="number"
-            v-model.number="formData.shift"
-            variant="outlined"
-            density="compact"
-          />
+    <!-- KOLOM KIRI (INFORMASI UTAMA & PROSES) -->
+    <template #left-column>
+      <div class="desktop-form-section header-section pa-3">
+        <div class="text-caption font-weight-bold mb-3 text-primary">
+          INFORMASI UTAMA PRA-LHK
+        </div>
 
-          <v-divider class="my-3" />
-          <div class="text-caption font-weight-bold">Informasi:</div>
-          <div class="text-body-2 text-grey">
-            Operator: <strong>{{ userLogin }}</strong
-            ><br />
-            Data akan tersimpan di tabel <strong>Pra-LHK</strong> sebelum
-            dibundel admin.
+        <v-select
+          label="Jenis Proses Finishing"
+          v-model="formData.proses"
+          :items="daftarProses"
+          item-title="title"
+          item-value="value"
+          density="compact"
+          variant="outlined"
+          class="mb-3"
+          hide-details
+          color="primary"
+        />
+
+        <v-text-field
+          label="Tanggal Kerja"
+          v-model="formData.tanggal"
+          type="date"
+          density="compact"
+          variant="outlined"
+          class="mb-3"
+          hide-details
+        />
+
+        <v-text-field
+          label="Shift"
+          v-model.number="formData.shift"
+          type="number"
+          density="compact"
+          variant="outlined"
+          class="mb-3"
+          hide-details
+        />
+
+        <v-divider class="my-3" />
+
+        <div class="bg-grey-lighten-4 pa-3 rounded">
+          <div class="text-caption font-weight-bold mb-1 text-grey-darken-3">
+            Informasi Operator:
           </div>
-        </v-card>
-      </v-col>
+          <div class="text-body-2 text-grey-darken-2">
+            Operator: <strong>{{ currentUser }}</strong
+            ><br />
+            Data tersimpan di tabel <strong>Pra-LHK</strong> sebelum dibundel
+            admin.
+          </div>
+        </div>
+      </div>
+    </template>
 
-      <v-col cols="12" md="9">
-        <v-card variant="outlined">
-          <v-card-title class="d-flex align-center bg-grey-lighten-4 py-2 px-4">
-            <span class="text-subtitle-1 font-weight-bold"
-              >Rincian - {{ formData.proses }}</span
+    <!-- KOLOM KANAN (TABEL RINCIAN WORK ORDER / SPK) -->
+    <template #right-column>
+      <div class="d-flex flex-column fill-height pa-1">
+        <v-card border flat class="d-flex flex-column table-card">
+          <!-- BAR HEADER TABEL -->
+          <div
+            class="pa-2 bg-blue-grey-lighten-5 d-flex align-center flex-wrap gap-2"
+          >
+            <span
+              class="text-subtitle-2 font-weight-bold text-blue-grey-darken-4"
             >
+              Rincian Pekerjaan - {{ formData.proses }}
+            </span>
             <v-spacer />
 
+            <!-- SCAN BARCODE SPK -->
             <v-text-field
               v-model="barcodeInput"
-              label="Scan Barcode SPK"
-              prepend-inner-icon="mdi-barcode-scan"
-              variant="outlined"
+              placeholder="Scan Barcode SPK... (ex: 10*SPK)"
               density="compact"
+              variant="outlined"
               hide-details
-              class="mx-2"
-              style="max-width: 250px"
-              @keyup.enter="handleBarcodeScan"
-              placeholder="Contoh: 10*BARCODE"
+              style="max-width: 260px"
+              class="bg-white"
               :loading="isScanning"
-            />
+              @keyup.enter="handleBarcodeScan"
+            >
+              <template #prepend-inner>
+                <IconBarcode :size="16" class="text-grey" />
+              </template>
+            </v-text-field>
 
+            <!-- TOMBOL TARIK POTONG -->
             <v-btn
               v-if="formData.proses !== 'POTONG'"
               color="orange-darken-2"
               size="small"
               variant="tonal"
-              prepend-icon="mdi-history"
-              class="mx-1"
-              @click="fetchPendingPotong"
+              class="ml-1"
               :loading="isFetchingPotong"
+              @click="fetchPendingPotong"
             >
+              <template #prepend>
+                <IconRefresh :size="14" />
+              </template>
               Tarik Potong
             </v-btn>
 
+            <!-- TOMBOL CARI SPK -->
             <v-btn
-              color="success"
+              color="primary"
               size="small"
-              prepend-icon="mdi-plus"
-              class="mx-1"
-              @click="openSpkSearch"
+              variant="elevated"
+              class="ml-1"
+              @click="isSpkModalVisible = true"
             >
+              <template #prepend>
+                <IconSearch :size="14" />
+              </template>
               Pilih SPK
             </v-btn>
-          </v-card-title>
+          </div>
 
-          <v-data-table
-            :headers="dynamicHeaders"
-            :items="detailData"
-            density="compact"
-            no-data-text="Belum ada SPK yang dipilih"
-          >
-            <template #[`item.ukuran`]="{ item }">
-              {{ item.panjang }} x {{ item.lebar }}
-            </template>
+          <!-- TABEL RINCIAN SPK -->
+          <div class="table-container flex-grow-1">
+            <v-data-table
+              :headers="dynamicHeaders"
+              :items="formData.details"
+              density="compact"
+              no-data-text="Belum ada SPK yang dipilih"
+              class="elevation-0"
+            >
+              <!-- CUSTOM UKURAN (P x L) -->
+              <template #[`item.ukuran`]="{ item }">
+                <span class="text-caption font-weight-medium">
+                  {{ Number(item.panjang || 0).toFixed(2) }} x
+                  {{ Number(item.lebar || 0).toFixed(2) }} M
+                </span>
+              </template>
 
-            <template #[`item.qty_hasil`]="{ item }">
-              <div
-                :class="
-                  item.qty_hasil > item.qty_order
-                    ? 'bg-red-lighten-5 px-1 rounded error-qty-border'
-                    : ''
-                "
-              >
+              <!-- CUSTOM INPUT HASIL -->
+              <template #[`item.qty_hasil`]="{ item }">
+                <div
+                  :class="
+                    item.qty_hasil > item.qty_order
+                      ? 'bg-red-lighten-5 px-1 rounded error-qty-border'
+                      : ''
+                  "
+                >
+                  <v-text-field
+                    v-model.number="item.qty_hasil"
+                    type="number"
+                    density="compact"
+                    variant="underlined"
+                    hide-details
+                    :class="
+                      item.qty_hasil > item.qty_order
+                        ? 'text-red font-weight-black custom-input-qty'
+                        : 'text-end custom-input-qty font-weight-bold'
+                    "
+                    @input="handleInputCalculation(item)"
+                    @wheel="($event.target as HTMLInputElement)?.blur()"
+                  />
+
+                  <v-tooltip
+                    v-if="item.qty_hasil > item.qty_order"
+                    activator="parent"
+                    location="top"
+                  >
+                    Melebihi kuantitas order SPK (Order: {{ item.qty_order }})
+                  </v-tooltip>
+                </div>
+              </template>
+
+              <!-- CUSTOM PROSES MATA AYAM -->
+              <template #[`item.pengali_mata_ayam`]="{ item }">
                 <v-text-field
-                  v-model.number="item.qty_hasil"
+                  v-model.number="item.pengali_mata_ayam"
                   type="number"
                   density="compact"
                   variant="underlined"
                   hide-details
-                  :class="
-                    item.qty_hasil > item.qty_order
-                      ? 'text-red font-weight-black custom-input-qty'
-                      : 'text-end custom-input-qty'
-                  "
+                  suffix="pcs"
+                  class="text-center"
                   @input="handleInputCalculation(item)"
                 />
+              </template>
+              <template #[`item.jml_mata_ayam`]="{ item }">
+                <div class="text-end font-weight-bold text-success">
+                  {{ item.jml_mata_ayam }}
+                </div>
+              </template>
 
-                <!-- Tooltip Peringatan saat Hover mirip LHK Tekstil -->
-                <v-tooltip
-                  v-if="item.qty_hasil > item.qty_order"
-                  activator="parent"
-                  location="top"
+              <!-- CUSTOM PROSES KOLI -->
+              <template #[`item.pengali_koli`]="{ item }">
+                <v-text-field
+                  v-model.number="item.pengali_koli"
+                  type="number"
+                  density="compact"
+                  variant="underlined"
+                  hide-details
+                  suffix="pcs"
+                  @input="handleInputCalculation(item)"
+                />
+              </template>
+              <template #[`item.jml_koli`]="{ item }">
+                <div class="text-end font-weight-bold text-purple">
+                  {{ item.jml_koli }}
+                </div>
+              </template>
+
+              <!-- AKSI HAPUS ROW -->
+              <template #[`item.actions`]="{ index }">
+                <v-btn
+                  icon
+                  size="x-small"
+                  color="error"
+                  variant="text"
+                  @click="formData.details.splice(index, 1)"
                 >
-                  Melebihi kuantitas order SPK (Order: {{ item.qty_order }})
-                </v-tooltip>
-              </div>
-            </template>
-
-            <template #[`item.pengali_mata_ayam`]="{ item }">
-              <v-text-field
-                v-model.number="item.pengali_mata_ayam"
-                type="number"
-                density="compact"
-                variant="underlined"
-                hide-details
-                suffix="pcs"
-                class="text-center"
-                @input="handleInputCalculation(item)"
-              />
-            </template>
-            <template #[`item.jml_mata_ayam`]="{ item }">
-              <div class="text-end font-weight-bold text-success">
-                {{ item.jml_mata_ayam }}
-              </div>
-            </template>
-
-            <template #[`item.pengali_koli`]="{ item }">
-              <v-text-field
-                v-model.number="item.pengali_koli"
-                type="number"
-                density="compact"
-                variant="underlined"
-                hide-details
-                suffix="pcs"
-                @input="handleInputCalculation(item)"
-              />
-            </template>
-            <template #[`item.jml_koli`]="{ item }">
-              <div class="text-end font-weight-bold text-purple">
-                {{ item.jml_koli }}
-              </div>
-            </template>
-
-            <template #[`item.actions`]="{ index }">
-              <v-btn
-                icon="mdi-delete"
-                size="x-small"
-                color="error"
-                variant="text"
-                @click="detailData.splice(index, 1)"
-              />
-            </template>
-          </v-data-table>
+                  <IconTrash :size="15" />
+                </v-btn>
+              </template>
+            </v-data-table>
+          </div>
         </v-card>
-      </v-col>
-    </v-row>
+      </div>
+    </template>
+  </BaseForm>
 
-    <SpkLookupModal
-      :isVisible="isSpkModalVisible"
-      @select="addFirstTimeSpk"
-      @close="isSpkModalVisible = false"
-    />
-  </PageLayout>
+  <!-- MODAL LOOKUP SPK -->
+  <SpkLookupModal
+    :isVisible="isSpkModalVisible"
+    @select="addFirstTimeSpk"
+    @close="isSpkModalVisible = false"
+  />
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, computed, watch, onMounted } from "vue";
+import { format } from "date-fns";
+import { useRoute } from "vue-router";
 import { useToast } from "vue-toastification";
+import { useForm } from "@/composables/useForm";
 import api from "@/services/api";
-import PageLayout from "../components/PageLayout.vue";
+import BaseForm from "@/components/BaseForm.vue";
+import { useAuthStore } from "@/stores/authStore";
 import SpkLookupModal from "@/modal/SpkLookupModal.vue";
 
+import {
+  IconNeedle,
+  IconSearch,
+  IconTrash,
+  IconBarcode,
+  IconRefresh,
+  IconX,
+} from "@tabler/icons-vue";
+
 const toast = useToast();
-const isSaving = ref(false);
+const route = useRoute();
+const authStore = useAuthStore();
+
 const isScanning = ref(false);
 const isSpkModalVisible = ref(false);
-const barcodeInput = ref("");
 const isFetchingPotong = ref(false);
-const userLogin = ref("system");
+const barcodeInput = ref("");
 
-// --- 1. USER AUTH LOGIC ---
-const getCurrentUser = () => {
-  const savedUser =
-    localStorage.getItem("kdUser") ||
-    localStorage.getItem("user_kode") ||
-    localStorage.getItem("username");
-  if (savedUser) userLogin.value = savedUser;
-};
-
-// --- 2. CONFIG DATA ---
+// --- 1. DAFTAR PROSES FINISHING (TERMASUK JAHIT) ---
 const daftarProses = [
   { title: "POTONG", value: "POTONG" },
+  { title: "JAHIT", value: "JAHIT" }, // <-- Ditambahkan
   { title: "SEAMING", value: "SEAMING" },
   { title: "MATA AYAM", value: "MATA_AYAM" },
   { title: "KOLI", value: "KOLI" },
@@ -232,18 +325,76 @@ const daftarProses = [
   { title: "ROLL UP BANNER", value: "ROLLUP_BANNER" },
 ];
 
-const formData = reactive({
+// --- 2. INITIAL DATA FORM ---
+const initialData = {
   proses: "POTONG",
-  tanggal: new Date().toISOString().substr(0, 10),
+  tanggal: format(new Date(), "yyyy-MM-dd"),
   shift: 1,
+  details: [] as any[],
+};
+
+// --- 3. COMPOSABLE USEFORM INTEGRATION ---
+const {
+  formData,
+  isEditMode,
+  isLoading,
+  isSaving,
+  showSaveDialog,
+  showCancelDialog,
+  showCloseDialog,
+  executeSave,
+  executeCancel,
+  executeClose,
+  fetchData,
+} = useForm({
+  menuId: "129",
+  initialData,
+  fetchApi: async () => {
+    const idPra = route.params.id as string;
+    const res = await api.get(`/mmt/lhk-finishing/pra/${idPra}`);
+    const data = res.data.data;
+    return {
+      proses: data.proses_kategori || "POTONG",
+      tanggal: format(new Date(data.tgl_input || new Date()), "yyyy-MM-dd"),
+      shift: data.shift_input || 1,
+      details: (data.details || []).map((d: any) => ({
+        spk_nomor: d.spk_nomor,
+        spk_nama: d.spk_nama,
+        panjang: parseFloat(d.panjang || 0),
+        lebar: parseFloat(d.lebar || 0),
+        qty_order: parseInt(d.qty_order || 0),
+        qty_hasil: parseInt(d.qty_hasil || 0),
+        qty_bs: parseInt(d.qty_bs || 0),
+        pengali_mata_ayam: parseInt(d.pengali_mata_ayam || 4),
+        jml_mata_ayam: parseInt(d.jml_mata_ayam || 0),
+        pengali_koli: parseInt(d.pengali_koli || 50),
+        jml_koli: parseInt(d.jml_koli || 0),
+      })),
+    };
+  },
+  submitApi: async () => {
+    const user = currentUser.value;
+    const payload = {
+      details: formData.value.details.map((item) => ({
+        ...item,
+        proses_kategori: formData.value.proses,
+        tgl_input: formData.value.tanggal,
+        shift_input: formData.value.shift,
+        input_by: user,
+        is_bundled: false,
+      })),
+    };
+    return await api.post("/mmt/lhk-finishing/pra", payload);
+  },
 });
 
-const detailData = ref<any[]>([]);
+// User login dari authStore
+const currentUser = computed(
+  () => authStore.user?.kdUser || authStore.user?.kd_user || "SYSTEM",
+);
 
-// --- 3. CALCULATION LOGIC ---
-// --- 3. CALCULATION LOGIC ---
+// --- 4. CALCULATION LOGIC ---
 const handleInputCalculation = (item: any) => {
-  // Reset atau handle jika input kosong
   if (
     item.qty_hasil === "" ||
     item.qty_hasil === null ||
@@ -252,7 +403,6 @@ const handleInputCalculation = (item: any) => {
     item.qty_hasil = 0;
   }
 
-  // Pemicu Alert Toast jika melebihi SPK Order (Sama seperti logika LHK Tekstil)
   if (item.qty_hasil > item.qty_order) {
     toast.warning(
       `SPK ${item.spk_nomor} input (${item.qty_hasil}) melebihi kuantitas order (${item.qty_order})`,
@@ -261,34 +411,34 @@ const handleInputCalculation = (item: any) => {
 
   // Hitung Mata Ayam
   item.jml_mata_ayam =
-    formData.proses === "MATA_AYAM"
+    formData.value.proses === "MATA_AYAM"
       ? (item.qty_hasil || 0) * (item.pengali_mata_ayam || 0)
       : 0;
 
   // Hitung Koli
-  if (formData.proses === "KOLI" && item.pengali_koli > 0) {
+  if (formData.value.proses === "KOLI" && item.pengali_koli > 0) {
     item.jml_koli = Math.ceil((item.qty_hasil || 0) / item.pengali_koli);
   } else {
     item.jml_koli = 0;
   }
 };
 
-// --- 4. TABLE HEADERS ---
+// --- 5. DYNAMIC TABLE HEADERS (TERMASUK PROSES JAHIT) ---
 const dynamicHeaders = computed(() => {
-  const baseHeaders = [
-    { title: "No SPK", key: "spk_nomor", width: "150px" },
+  const baseHeaders: any[] = [
+    { title: "No SPK", key: "spk_nomor", width: "140px" },
     { title: "Nama Produk", key: "spk_nama" },
-    { title: "Ukuran", key: "ukuran", width: "120px" },
+    { title: "Ukuran (P x L)", key: "ukuran", width: "130px" },
     { title: "Order", key: "qty_order", width: "80px", align: "end" },
     {
-      title: `Hasil ${formData.proses}`,
+      title: `Hasil ${formData.value.proses}`,
       key: "qty_hasil",
       width: "120px",
       align: "end",
     },
   ];
 
-  if (formData.proses === "MATA_AYAM") {
+  if (formData.value.proses === "MATA_AYAM") {
     baseHeaders.push(
       {
         title: "Mata/Pcs",
@@ -298,8 +448,7 @@ const dynamicHeaders = computed(() => {
       },
       { title: "Total MA", key: "jml_mata_ayam", width: "100px", align: "end" },
     );
-  }
-  if (formData.proses === "KOLI") {
+  } else if (formData.value.proses === "KOLI") {
     baseHeaders.push(
       {
         title: "Isi/Koli",
@@ -316,11 +465,13 @@ const dynamicHeaders = computed(() => {
     key: "actions",
     width: "50px",
     sortable: false,
+    align: "center",
   });
+
   return baseHeaders;
 });
 
-// --- 5. BARCODE & SPK LOGIC ---
+// --- 6. BARCODE & SPK LOGIC ---
 const addFirstTimeSpk = (spk: any) => addSpkWithQty(spk, 0);
 
 const addSpkWithQty = (spk: any, initialQty: number) => {
@@ -349,7 +500,7 @@ const addSpkWithQty = (spk: any, initialQty: number) => {
   };
 
   handleInputCalculation(newItem);
-  detailData.value.push(newItem);
+  formData.value.details.push(newItem);
   isSpkModalVisible.value = false;
 };
 
@@ -361,7 +512,6 @@ const handleBarcodeScan = async () => {
     let quantityToAdd = 1;
     let finalBarcode = barcodeInput.value.trim();
 
-    // Support format: 10*BARCODE
     if (finalBarcode.includes("*")) {
       const parts = finalBarcode.split("*");
       if (parts.length === 2) {
@@ -370,60 +520,57 @@ const handleBarcodeScan = async () => {
       }
     }
 
-    const existingIndex = detailData.value.findIndex(
+    const existingIndex = formData.value.details.findIndex(
       (d) => d.spk_nomor === finalBarcode,
     );
 
     if (existingIndex !== -1) {
-      detailData.value[existingIndex].qty_hasil += quantityToAdd;
+      formData.value.details[existingIndex].qty_hasil += quantityToAdd;
+      handleInputCalculation(formData.value.details[existingIndex]);
 
-      // Pemicu kalkulasi & pengecekan limit alert
-      handleInputCalculation(detailData.value[existingIndex]);
-
-      // Jika tidak melebihi, tampilkan info normal
       if (
-        detailData.value[existingIndex].qty_hasil <=
-        detailData.value[existingIndex].qty_order
+        formData.value.details[existingIndex].qty_hasil <=
+        formData.value.details[existingIndex].qty_order
       ) {
         toast.info(`SPK ${finalBarcode} bertambah ${quantityToAdd}`);
       }
     } else {
       const response = await api.get(`/mmt/spk/${finalBarcode}`);
-      if (response.data.success && response.data.data) {
-        addSpkWithQty(response.data.data, quantityToAdd);
+      let spkData = response.data?.data || response.data;
+      if (Array.isArray(spkData)) spkData = spkData[0];
 
-        // Cek langsung setelah data diinject ke tabel
-        const lastIndex = detailData.value.length - 1;
+      if (spkData) {
+        addSpkWithQty(spkData, quantityToAdd);
+        const lastIdx = formData.value.details.length - 1;
         if (
-          detailData.value[lastIndex].qty_hasil >
-          detailData.value[lastIndex].qty_order
+          formData.value.details[lastIdx].qty_hasil >
+          formData.value.details[lastIdx].qty_order
         ) {
-          toast.warning(
-            `SPK ${finalBarcode} yang dimasukkan langsung melebihi order!`,
-          );
+          toast.warning(`SPK ${finalBarcode} yang dimasukkan melebihi order!`);
         }
       } else {
         toast.error("SPK tidak ditemukan");
       }
     }
   } catch (e) {
-    toast.error("Gagal memproses barcode");
+    toast.error("Gagal memproses barcode SPK");
   } finally {
     isScanning.value = false;
     barcodeInput.value = "";
   }
 };
 
-// --- 6. ACTIONS ---
 const fetchPendingPotong = async () => {
   isFetchingPotong.value = true;
   try {
     const res = await api.get("/mmt/lhk-finishing/pra/pending-potong", {
-      params: { targetProses: formData.proses },
+      params: { targetProses: formData.value.proses },
     });
     if (res.data.success && res.data.data.length > 0) {
       res.data.data.forEach((item: any) => {
-        if (!detailData.value.some((d) => d.spk_nomor === item.spk_nomor)) {
+        if (
+          !formData.value.details.some((d) => d.spk_nomor === item.spk_nomor)
+        ) {
           const newItem = {
             spk_nomor: item.spk_nomor,
             spk_nama: item.spk_nama,
@@ -438,56 +585,45 @@ const fetchPendingPotong = async () => {
             jml_koli: 0,
           };
           handleInputCalculation(newItem);
-          detailData.value.push(newItem);
+          formData.value.details.push(newItem);
         }
       });
-      toast.success(`${res.data.data.length} data ditarik.`);
+      toast.success(`${res.data.data.length} data berhasil ditarik.`);
+    } else {
+      toast.info("Tidak ada pending potong untuk proses ini.");
     }
+  } catch (e) {
+    toast.error("Gagal menarik data pending potong");
   } finally {
     isFetchingPotong.value = false;
   }
 };
 
-const handleSaveDraft = async () => {
-  if (detailData.value.length === 0) return;
-  isSaving.value = true;
-  try {
-    const payload = {
-      details: detailData.value.map((item) => ({
-        ...item,
-        proses_kategori: formData.proses,
-        tgl_input: formData.tanggal,
-        shift_input: formData.shift,
-        input_by: userLogin.value,
-        is_bundled: false,
-      })),
-    };
-    await api.post("/mmt/lhk-finishing/pra", payload);
-    toast.success("Berhasil simpan Pra-LHK");
-    detailData.value = [];
-  } catch (e: any) {
-    toast.error(e.response?.data?.message || "Gagal simpan");
-  } finally {
-    isSaving.value = false;
-  }
-};
-
-const openSpkSearch = () => (isSpkModalVisible.value = true);
-
-// Update kalkulasi jika proses berubah
+// Pemicu ulang kalkulasi saat proses diubah
 watch(
-  () => formData.proses,
+  () => formData.value.proses,
   () => {
-    detailData.value.forEach((d) => handleInputCalculation(d));
+    formData.value.details.forEach((d) => handleInputCalculation(d));
   },
 );
 
-onMounted(getCurrentUser);
+onMounted(async () => {
+  if (isEditMode.value) {
+    await fetchData();
+  }
+});
 </script>
 
 <style scoped>
+.table-container {
+  overflow-y: auto;
+  max-height: calc(100vh - 280px);
+}
 .custom-input-qty :deep(input) {
   font-weight: bold;
   color: #1976d2 !important;
+}
+.error-qty-border {
+  border: 1px solid #ff5252;
 }
 </style>

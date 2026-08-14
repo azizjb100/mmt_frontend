@@ -972,6 +972,11 @@ const routes: RouteRecordRaw[] = [
         component: FormPoPaperprintView,
       },
       {
+        path: "mmt/po-paperprint/edit/:nomor",
+        name: "POPaperprintMMTEdit",
+        component: FormPoPaperprintView,
+      },
+      {
         path: "mmt/penerimaan-po-external",
         name: "Penerimaan PO External MMT",
         component: PenerimaanPoExtMmtView,

@@ -214,7 +214,7 @@
             </span>
           </th>
 
-          <!-- 7. PANJANG (BARU) -->
+          <!-- 7. PANJANG -->
           <th
             rowspan="2"
             class="text-center cursor-pointer select-none"
@@ -225,7 +225,7 @@
             </span>
           </th>
 
-          <!-- 8. LEBAR (BARU) -->
+          <!-- 8. LEBAR -->
           <th
             rowspan="2"
             class="text-center cursor-pointer select-none"
@@ -236,7 +236,7 @@
             </span>
           </th>
 
-          <!-- 9. FINISHING (BARU) -->
+          <!-- 9. FINISHING -->
           <th
             rowspan="2"
             class="text-left cursor-pointer select-none"
@@ -277,7 +277,7 @@
 
         <!-- Row 2: Sub Header Detail Dengan Fitur Sorting -->
         <tr class="header-sub">
-          <!-- Produksi PCS -->
+          <!-- Produksi PCS (Urutan Disesuaikan) -->
           <th
             class="text-right bg-blue-sub cursor-pointer select-none"
             @click="toggleSort('spk_jumlah')"
@@ -286,15 +286,9 @@
           </th>
           <th
             class="text-right bg-blue-sub cursor-pointer select-none"
-            @click="toggleSort('spk_jumlah_kirim')"
+            @click="toggleSort('krg_Cetak')"
           >
-            Kirim {{ getSortIcon("spk_jumlah_kirim") }}
-          </th>
-          <th
-            class="text-right bg-blue-sub cursor-pointer select-none"
-            @click="toggleSort('krg_kirim')"
-          >
-            K-Kirim {{ getSortIcon("krg_kirim") }}
+            Cetak {{ getSortIcon("krg_Cetak") }}
           </th>
           <th
             class="text-right bg-blue-sub cursor-pointer select-none"
@@ -310,15 +304,21 @@
           </th>
           <th
             class="text-right bg-blue-sub cursor-pointer select-none"
-            @click="toggleSort('krg_Cetak')"
-          >
-            Cetak {{ getSortIcon("krg_Cetak") }}
-          </th>
-          <th
-            class="text-right bg-blue-sub cursor-pointer select-none"
             @click="toggleSort('krg_coly')"
           >
             Coly {{ getSortIcon("krg_coly") }}
+          </th>
+          <th
+            class="text-right bg-blue-sub cursor-pointer select-none"
+            @click="toggleSort('krg_kirim')"
+          >
+            K-Kirim {{ getSortIcon("krg_kirim") }}
+          </th>
+          <th
+            class="text-right bg-blue-sub cursor-pointer select-none"
+            @click="toggleSort('spk_jumlah_kirim')"
+          >
+            Kirim {{ getSortIcon("spk_jumlah_kirim") }}
           </th>
 
           <!-- DINAMIS SUB HEADER MESIN (MT / MX / SUBLIM) -->
@@ -383,7 +383,7 @@
         </td>
         <td class="text-center">{{ item.spk_gramasi || "-" }}</td>
 
-        <!-- Data Dimensi & Finishing Baru -->
+        <!-- Data Dimensi & Finishing -->
         <td class="text-center">{{ formatNumber(item.PANJANG, 2) }}</td>
         <td class="text-center">{{ formatNumber(item.LEBAR, 2) }}</td>
         <td
@@ -394,18 +394,18 @@
           {{ item.FINISHING || "-" }}
         </td>
 
-        <!-- Produksi PCS -->
+        <!-- Produksi PCS (Urutan Disesuaikan) -->
         <td class="text-right">{{ formatNumber(item.spk_jumlah, 0) }}</td>
-        <td class="text-right text-success font-weight-bold">
-          {{ formatNumber(item.spk_jumlah_kirim, 0) }}
-        </td>
-        <td class="text-right">{{ formatNumber(item.krg_kirim, 0) }}</td>
-        <td class="text-right">{{ formatNumber(item.krg_Seaming, 0) }}</td>
-        <td class="text-right">{{ formatNumber(item.krg_mataayam, 0) }}</td>
         <td class="text-right text-error font-weight-bold">
           {{ formatNumber(item.krg_Cetak, 0) }}
         </td>
+        <td class="text-right">{{ formatNumber(item.krg_Seaming, 0) }}</td>
+        <td class="text-right">{{ formatNumber(item.krg_mataayam, 0) }}</td>
         <td class="text-right">{{ formatNumber(item.krg_coly, 0) }}</td>
+        <td class="text-right">{{ formatNumber(item.krg_kirim, 0) }}</td>
+        <td class="text-right text-success font-weight-bold">
+          {{ formatNumber(item.spk_jumlah_kirim, 0) }}
+        </td>
 
         <!-- Cetak Luar -->
         <td class="text-right border-l border-r">
@@ -434,7 +434,6 @@
     <!-- Slot Total Footer -->
     <template #tfoot="{ formatNumber }">
       <tr class="table-footer-row">
-        <!-- Colspan Diubah dari 6 ke 9 Karena Ada Tambahan 3 Kolom Baru -->
         <td
           colspan="9"
           class="text-right font-weight-black text-uppercase sticky-footer-title"
@@ -442,15 +441,12 @@
           TOTAL (FILTERED):
         </td>
 
-        <!-- Produksi PCS -->
+        <!-- Produksi PCS Total (Urutan Disesuaikan) -->
         <td class="text-right font-weight-black">
           {{ formatNumber(totals.spk_jumlah, 0) }}
         </td>
-        <td class="text-right font-weight-black text-success">
-          {{ formatNumber(totals.spk_jumlah_kirim, 0) }}
-        </td>
-        <td class="text-right font-weight-black">
-          {{ formatNumber(totals.krg_kirim, 0) }}
+        <td class="text-right font-weight-black text-error">
+          {{ formatNumber(totals.krg_Cetak, 0) }}
         </td>
         <td class="text-right font-weight-black">
           {{ formatNumber(totals.krg_Seaming, 0) }}
@@ -458,11 +454,14 @@
         <td class="text-right font-weight-black">
           {{ formatNumber(totals.krg_mataayam, 0) }}
         </td>
-        <td class="text-right font-weight-black text-error">
-          {{ formatNumber(totals.krg_Cetak, 0) }}
-        </td>
         <td class="text-right font-weight-black">
           {{ formatNumber(totals.krg_coly, 0) }}
+        </td>
+        <td class="text-right font-weight-black">
+          {{ formatNumber(totals.krg_kirim, 0) }}
+        </td>
+        <td class="text-right font-weight-black text-success">
+          {{ formatNumber(totals.spk_jumlah_kirim, 0) }}
         </td>
 
         <!-- Cetak Luar -->
@@ -565,7 +564,7 @@ const columnFilters = reactive({
   KAIN: "SEMUA",
 });
 
-const sortKey = ref("NOMOR"); // Default sorting awal
+const sortKey = ref("NOMOR");
 const sortOrder = ref<"asc" | "desc">("asc");
 
 const toggleSort = (key: string) => {
@@ -676,9 +675,7 @@ const getTimestamp = (val: any): number => {
   return isNaN(fallbackDate) ? 0 : fallbackDate;
 };
 
-// --- KLASIFIKASI KUNCI KOLOM UNTUK SORTING EKSPLISIT ---
 const DATE_KEYS = ["spk_tanggal", "deadline"];
-// Menambahkan PANJANG dan LEBAR ke NUMERIC_KEYS
 const NUMERIC_KEYS = [
   "PANJANG",
   "LEBAR",
@@ -716,7 +713,6 @@ const NUMERIC_KEYS = [
 const filteredData = computed(() => {
   let result = [...allData.value];
 
-  // 1. Filter Global Search (Ditambahkan pencarian FINISHING)
   if (searchQuery.value) {
     const q = searchQuery.value.toLowerCase().trim();
     result = result.filter((item: any) => {
@@ -729,7 +725,6 @@ const filteredData = computed(() => {
     });
   }
 
-  // 2. Filter Per Kolom (NOMOR SPK)
   if (columnFilters.NOMOR) {
     const q = columnFilters.NOMOR.toLowerCase().trim();
     result = result.filter((item: any) =>
@@ -737,7 +732,6 @@ const filteredData = computed(() => {
     );
   }
 
-  // 3. Filter Per Kolom (NAMA ORDER)
   if (columnFilters.spk_nama) {
     const q = columnFilters.spk_nama.toLowerCase().trim();
     result = result.filter((item: any) =>
@@ -745,12 +739,10 @@ const filteredData = computed(() => {
     );
   }
 
-  // 4. Filter Per Kolom (BAHAN / KAIN)
   if (columnFilters.KAIN && columnFilters.KAIN !== "SEMUA") {
     result = result.filter((item: any) => item.KAIN === columnFilters.KAIN);
   }
 
-  // 5. Logic Sorting Presisi
   if (sortKey.value) {
     const key = sortKey.value;
     const isAsc = sortOrder.value === "asc";
@@ -759,14 +751,12 @@ const filteredData = computed(() => {
       const valA = a[key];
       const valB = b[key];
 
-      // A. Sorting Kolom Tanggal (spk_tanggal & deadline)
       if (DATE_KEYS.includes(key)) {
         const timeA = getTimestamp(valA);
         const timeB = getTimestamp(valB);
         return isAsc ? timeA - timeB : timeB - timeA;
       }
 
-      // B. Sorting Kolom Angka (Jumlah, Meter, Gramasi, Panjang, Lebar, Mesin, dll)
       if (NUMERIC_KEYS.includes(key)) {
         const numA =
           valA !== null && valA !== undefined && valA !== "" ? Number(valA) : 0;
@@ -775,7 +765,6 @@ const filteredData = computed(() => {
         return isAsc ? numA - numB : numB - numA;
       }
 
-      // C. Sorting Kolom Teks / Alfanumerik (NOMOR, spk_nama, KAIN, FINISHING)
       const strA = valA !== null && valA !== undefined ? String(valA) : "";
       const strB = valB !== null && valB !== undefined ? String(valB) : "";
 
@@ -953,7 +942,7 @@ const exportToExcel = (dataToExport: any[]) => {
     [],
   ];
 
-  // Header Row 1 (Ditambahkan PANJANG, LEBAR, FINISHING)
+  // Header Row 1
   const headerRow1 = [
     { v: "NOMOR SPK", s: styleHeaderMain },
     { v: "NAMA ORDER", s: styleHeaderMain },
@@ -982,15 +971,15 @@ const exportToExcel = (dataToExport: any[]) => {
   headerRow1.push({ v: "PRODUKSI (METER)", s: styleHeaderMain }, "", "");
   wsData.push(headerRow1);
 
-  // Header Row 2
+  // Header Row 2 - Urutan Sub-Header PCS Disesuaikan
   const subPcs = [
     "Order",
-    "Kirim",
-    "K-Kirim",
+    "Cetak",
     "Seam",
     "M.Ayam",
-    "Cetak",
     "Coly",
+    "K-Kirim",
+    "Kirim",
   ];
   const subMeter = ["K-KRM", "K-CTK", "K-CLY"];
 
@@ -1005,7 +994,7 @@ const exportToExcel = (dataToExport: any[]) => {
   subMeter.forEach((h) => headerRow2.push({ v: h, s: styleHeaderSub }));
   wsData.push(headerRow2);
 
-  // Loop Data (Ditambahkan PANJANG, LEBAR, FINISHING)
+  // Loop Data - Urutan Sel Disesuaikan
   dataToExport.forEach((item: any) => {
     const row = [
       {
@@ -1039,6 +1028,7 @@ const exportToExcel = (dataToExport: any[]) => {
         s: { ...styleDataCell, alignment: { horizontal: "center" } },
       },
       { v: item.FINISHING || "", s: styleDataCell },
+      // Urutan PCS
       {
         v: num(item.spk_jumlah),
         t: "n",
@@ -1046,13 +1036,7 @@ const exportToExcel = (dataToExport: any[]) => {
         s: { ...styleDataCell, alignment: { horizontal: "right" } },
       },
       {
-        v: num(item.spk_jumlah_kirim),
-        t: "n",
-        z: "#,##0",
-        s: { ...styleDataCell, alignment: { horizontal: "right" } },
-      },
-      {
-        v: num(item.krg_kirim),
+        v: num(item.krg_Cetak),
         t: "n",
         z: "#,##0",
         s: { ...styleDataCell, alignment: { horizontal: "right" } },
@@ -1070,13 +1054,19 @@ const exportToExcel = (dataToExport: any[]) => {
         s: { ...styleDataCell, alignment: { horizontal: "right" } },
       },
       {
-        v: num(item.krg_Cetak),
+        v: num(item.krg_coly),
         t: "n",
         z: "#,##0",
         s: { ...styleDataCell, alignment: { horizontal: "right" } },
       },
       {
-        v: num(item.krg_coly),
+        v: num(item.krg_kirim),
+        t: "n",
+        z: "#,##0",
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+      },
+      {
+        v: num(item.spk_jumlah_kirim),
         t: "n",
         z: "#,##0",
         s: { ...styleDataCell, alignment: { horizontal: "right" } },
@@ -1122,7 +1112,7 @@ const exportToExcel = (dataToExport: any[]) => {
     wsData.push(row);
   });
 
-  // Footer Total (Array padding disesuaikan)
+  // Footer Total Excel - Urutan Disesuaikan
   const footerRow = [
     {
       v: "TOTAL (FILTERED)",
@@ -1136,13 +1126,7 @@ const exportToExcel = (dataToExport: any[]) => {
       s: { ...styleFooterCell, alignment: { horizontal: "right" } },
     },
     {
-      v: num(totals.value.spk_jumlah_kirim),
-      t: "n",
-      z: "#,##0",
-      s: { ...styleFooterCell, alignment: { horizontal: "right" } },
-    },
-    {
-      v: num(totals.value.krg_kirim),
+      v: num(totals.value.krg_Cetak),
       t: "n",
       z: "#,##0",
       s: { ...styleFooterCell, alignment: { horizontal: "right" } },
@@ -1160,13 +1144,19 @@ const exportToExcel = (dataToExport: any[]) => {
       s: { ...styleFooterCell, alignment: { horizontal: "right" } },
     },
     {
-      v: num(totals.value.krg_Cetak),
+      v: num(totals.value.krg_coly),
       t: "n",
       z: "#,##0",
       s: { ...styleFooterCell, alignment: { horizontal: "right" } },
     },
     {
-      v: num(totals.value.krg_coly),
+      v: num(totals.value.krg_kirim),
+      t: "n",
+      z: "#,##0",
+      s: { ...styleFooterCell, alignment: { horizontal: "right" } },
+    },
+    {
+      v: num(totals.value.spk_jumlah_kirim),
       t: "n",
       z: "#,##0",
       s: { ...styleFooterCell, alignment: { horizontal: "right" } },
@@ -1223,11 +1213,11 @@ const exportToExcel = (dataToExport: any[]) => {
     { s: { r: 4, c: 3 }, e: { r: 5, c: 3 } },
     { s: { r: 4, c: 4 }, e: { r: 5, c: 4 } },
     { s: { r: 4, c: 5 }, e: { r: 5, c: 5 } },
-    { s: { r: 4, c: 6 }, e: { r: 5, c: 6 } }, // Merge Panjang
-    { s: { r: 4, c: 7 }, e: { r: 5, c: 7 } }, // Merge Lebar
-    { s: { r: 4, c: 8 }, e: { r: 5, c: 8 } }, // Merge Finishing
-    { s: { r: 4, c: 16 }, e: { r: 5, c: 16 } }, // Merge CTK L.
-    { s: { r: 4, c: 9 }, e: { r: 4, c: 15 } }, // Merge Group Produksi PCS
+    { s: { r: 4, c: 6 }, e: { r: 5, c: 6 } },
+    { s: { r: 4, c: 7 }, e: { r: 5, c: 7 } },
+    { s: { r: 4, c: 8 }, e: { r: 5, c: 8 } },
+    { s: { r: 4, c: 16 }, e: { r: 5, c: 16 } },
+    { s: { r: 4, c: 9 }, e: { r: 4, c: 15 } },
     { s: { r: 4, c: mesinStartCol }, e: { r: 4, c: mesinEndCol } },
     { s: { r: 4, c: mesinEndCol + 1 }, e: { r: 4, c: mesinEndCol + 3 } },
     { s: { r: wsData.length - 1, c: 0 }, e: { r: wsData.length - 1, c: 8 } },
