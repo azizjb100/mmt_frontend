@@ -195,7 +195,8 @@ const handleSPKSelect = (spk: any) => {
     formData.detail.forEach((d) => {
       d.size = formData.spkUkuran;
       d.maxQty = sisa;
-      if (!d.uraian) d.uraian = formData.spkNama;
+      // Dikosongkan, tidak lagi mengisi otomatis dari formData.spkNama
+      // if (!d.uraian) d.uraian = formData.spkNama; <-- DIHAPUS / DINONAKTIFKAN
     });
   }
 
@@ -300,6 +301,7 @@ const importExcel = (event: Event) => {
     }
 
     const startIdx = formData.detail.length;
+    const sisaBatasSpk = formData.spkSisaBelumJadwal;
 
     const excelSerialToTime = (serial: any) => {
       if (typeof serial !== "number") return serial || "15:00";
@@ -312,19 +314,40 @@ const importExcel = (event: Event) => {
     const importedDetails: DetailItem[] = jsonData.map(
       (row: any, index: number) => ({
         no_urut: startIdx + index + 1,
-        kota: row.ALOKASI || "",
-        uraian: row.URAIAN || formData.spkNama,
-        size: row.SIZE || formData.spkUkuran,
-        qty: Number(row.jumlah) || 0,
-        koli: Number(row.koli) || 0,
+        kota: row.ALOKASI || row.KOTA || row.Kota || "",
+        // Default uraian kosong string "" jika di Excel tidak diisi
+        uraian: row.URAIAN || row.Uraian || "",
+        size: row.SIZE || row.Size || formData.spkUkuran || "",
+        qty: Number(row.jumlah || row.JUMLAH || row.qty || row.Qty) || 0,
+        maxQty: sisaBatasSpk,
+        koli: Number(row.koli || row.KOLI) || 0,
         jamInput: format(new Date(), "HH:mm"),
-        jamReady: row.jam ? excelSerialToTime(row.jam) : "15:00",
-        expedisi: row.EXPEDISI || "",
-        keterangan: row.KETERANGAN || "",
+        jamReady:
+          row.jam || row.JAM ? excelSerialToTime(row.jam || row.JAM) : "15:00",
+        expedisi: row.EXPEDISI || row.Expedisi || "",
+        keterangan: row.KETERANGAN || row.Keterangan || "",
       }),
     );
 
+    // Masukkan data hasil import ke form detail
     formData.detail.push(...importedDetails);
+
+    // --- CEK VALIDASI TOTAL QTY VS ORDER SPK ---
+    const totalQtySetelahImport = formData.detail.reduce(
+      (sum, d) => sum + (Number(d.qty) || 0),
+      0,
+    );
+
+    if (
+      formData.spkNomor &&
+      totalQtySetelahImport > formData.spkSisaBelumJadwal
+    ) {
+      toast.warning(
+        `Peringatan: Total Qty setelah import (${totalQtySetelahImport}) MELEBIHI sisa order SPK (${formData.spkSisaBelumJadwal})!`,
+        { timeout: 5000 },
+      );
+    }
+
     toast.success(`${importedDetails.length} baris berhasil diimpor.`);
     target.value = "";
   };

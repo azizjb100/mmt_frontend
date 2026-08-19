@@ -3,6 +3,7 @@ import { ref, computed, onMounted, watch } from "vue";
 import { useRouter } from "vue-router";
 import { useToast } from "vue-toastification";
 import { format, isValid, parseISO } from "date-fns";
+import XLSX from "xlsx-js-style";
 import { soToSpkService } from "@/services/mmt/soToSpkService";
 import BaseBrowse from "@/components/BaseBrowse.vue";
 
@@ -79,6 +80,7 @@ const toast = useToast();
 const masterData = ref<SpkHeader[]>([]);
 const details = ref<Record<string, SpkDetailSize[]>>({});
 const loading = ref<boolean>(true);
+const isExporting = ref<boolean>(false);
 const loadingDetails = ref<Set<string>>(new Set());
 const selected = ref<SpkHeader[]>([]);
 const expanded = ref<any[]>([]);
@@ -86,6 +88,12 @@ const expanded = ref<any[]>([]);
 const startDate = ref<string>(format(new Date(), "yyyy-MM-dd"));
 const endDate = ref<string>(format(new Date(), "yyyy-MM-dd"));
 const keyword = ref<string>("");
+
+// --- PREVIEW MODAL STATE ---
+const showPreviewDialog = ref<boolean>(false);
+const previewUrl = ref<string>("");
+const previewSpkNomor = ref<string>("");
+const isIframeLoading = ref<boolean>(true);
 
 // --- EXCEL FILTER STATES ---
 const columnSearch = ref<Record<string, string>>({});
@@ -353,6 +361,335 @@ const selectedItem = computed(() =>
   isSingleSelected.value ? selected.value[0] : null,
 );
 
+// --- EXPORT TO EXCEL METHOD ---
+const exportToExcel = async () => {
+  if (filteredMasterData.value.length === 0) {
+    return toast.warning("Tidak ada data untuk diekspor.");
+  }
+
+  isExporting.value = true;
+  try {
+    // 1. Sync & Fetch Detail Size jika belum tersimpan di cache
+    for (const header of filteredMasterData.value) {
+      const spkNomor = header.SPK || (header as any).Nomor;
+      if (
+        spkNomor &&
+        (!details.value[spkNomor] || details.value[spkNomor].length === 0)
+      ) {
+        try {
+          const res = await soToSpkService.getSizes(spkNomor);
+          const resData = res.data?.data ?? res.data;
+          details.value[spkNomor] = Array.isArray(resData) ? resData : [];
+        } catch (e) {
+          console.error(`Gagal sync detail SPK ${spkNomor}:`, e);
+          details.value[spkNomor] = [];
+        }
+      }
+    }
+
+    const fileName = `Monitoring_SO_to_SPK_${startDate.value}_sd_${endDate.value}.xlsx`;
+
+    const num = (value: any) => {
+      const parsed = Number(value);
+      return isNaN(parsed) ? 0 : parsed;
+    };
+
+    const formatTglManual = (dateStr?: string | null) => {
+      if (!dateStr) return "-";
+      return formatDateDisplay(dateStr);
+    };
+
+    // 2. Style Definitions
+    const styleHeaderMain = {
+      fill: { fgColor: { rgb: "B3E5FC" } },
+      font: { bold: true, color: { rgb: "000000" }, sz: 10 },
+      alignment: { horizontal: "center", vertical: "center", wrapText: true },
+      border: {
+        top: { style: "thin", color: { rgb: "000000" } },
+        bottom: { style: "thin", color: { rgb: "000000" } },
+        left: { style: "thin", color: { rgb: "000000" } },
+        right: { style: "thin", color: { rgb: "000000" } },
+      },
+    };
+
+    const styleDataCell = {
+      font: { sz: 10 },
+      border: {
+        top: { style: "thin", color: { rgb: "000000" } },
+        bottom: { style: "thin", color: { rgb: "000000" } },
+        left: { style: "thin", color: { rgb: "000000" } },
+        right: { style: "thin", color: { rgb: "000000" } },
+      },
+      alignment: { vertical: "center" },
+    };
+
+    const styleDataCellCenter = {
+      ...styleDataCell,
+      alignment: { horizontal: "center", vertical: "center" },
+    };
+
+    const styleDataCellRight = {
+      ...styleDataCell,
+      alignment: { horizontal: "right", vertical: "center" },
+    };
+
+    const styleFooter = {
+      ...styleDataCell,
+      fill: { fgColor: { rgb: "F0F4F8" } },
+      font: { bold: true, sz: 10 },
+    };
+
+    // 3. Worksheet Data Structure
+    const worksheetData: any[] = [];
+    worksheetData.push([
+      {
+        v: "MONITORING SO TO SPK",
+        s: { font: { bold: true, sz: 14 } },
+      },
+    ]);
+    worksheetData.push([
+      {
+        v: `Tanggal : ${formatTglManual(startDate.value)} s.d ${formatTglManual(endDate.value)}`,
+        s: { font: { sz: 10 } },
+      },
+    ]);
+    worksheetData.push([]); // Baris kosong pemisah
+
+    const headers = [
+      { v: "NOMOR SO", s: styleHeaderMain },
+      { v: "NOMOR SPK", s: styleHeaderMain },
+      { v: "MO", s: styleHeaderMain },
+      { v: "CMO", s: styleHeaderMain },
+      { v: "TANGGAL", s: styleHeaderMain },
+      { v: "DATELINE", s: styleHeaderMain },
+      { v: "KEPENTINGAN", s: styleHeaderMain },
+      { v: "DIVISI", s: styleHeaderMain },
+      { v: "CABANG", s: styleHeaderMain },
+      { v: "NAMA PESANAN", s: styleHeaderMain },
+      { v: "BAHAN", s: styleHeaderMain },
+      { v: "FINISHING", s: styleHeaderMain },
+      { v: "STATUS", s: styleHeaderMain },
+      { v: "ACC PIN", s: styleHeaderMain },
+      { v: "UKURAN/SIZE", s: styleHeaderMain },
+      { v: "QTY SPK", s: styleHeaderMain },
+      { v: "REALISASI STBJ", s: styleHeaderMain },
+      { v: "SISA KURANG", s: styleHeaderMain },
+      { v: "PRASJ", s: styleHeaderMain },
+      { v: "KIRIM", s: styleHeaderMain },
+    ];
+    worksheetData.push(headers);
+
+    let grandTotalQtySPK = 0;
+    let grandTotalStbj = 0;
+    let grandTotalKurang = 0;
+    let grandTotalPraSJ = 0;
+    let grandTotalKirim = 0;
+
+    // 4. Populate Rows
+    filteredMasterData.value.forEach((header) => {
+      const spkNomor = header.SPK || (header as any).Nomor || "-";
+      const soNomor = header.SO || "-";
+      const targetSizes = details.value[spkNomor] || [];
+      const tglSpk = formatTglManual(header.Tanggal);
+      const datelineSpk = formatTglManual(header.Dateline || header.Deadline);
+      const cabText = header.Cab || (header as any).Cabang || "-";
+
+      grandTotalPraSJ += num(header.PraSJ);
+      grandTotalKirim += num(header.Kirim);
+
+      if (targetSizes.length > 0) {
+        targetSizes.forEach((dtl, index) => {
+          const isFirstRow = index === 0;
+          const qtySize = num(dtl.Qty);
+          const stbjSize = num(dtl.Stbj);
+          const kurangSize = num(dtl.Kurang);
+
+          grandTotalQtySPK += qtySize;
+          grandTotalStbj += stbjSize;
+          grandTotalKurang += kurangSize;
+
+          worksheetData.push([
+            { v: isFirstRow ? soNomor : "-", s: styleDataCellCenter },
+            { v: isFirstRow ? spkNomor : "-", s: styleDataCellCenter },
+            { v: isFirstRow ? header.MO || "-" : "-", s: styleDataCellCenter },
+            { v: isFirstRow ? header.CMO || "-" : "-", s: styleDataCellCenter },
+            { v: isFirstRow ? tglSpk : "-", s: styleDataCellCenter },
+            { v: isFirstRow ? datelineSpk : "-", s: styleDataCellCenter },
+            {
+              v: isFirstRow ? header.Kepentingan || "-" : "-",
+              s: styleDataCell,
+            },
+            {
+              v: isFirstRow ? header.Divisi || "-" : "-",
+              s: styleDataCellCenter,
+            },
+            { v: isFirstRow ? cabText : "-", s: styleDataCellCenter },
+            { v: isFirstRow ? header.Nama || "-" : "-", s: styleDataCell },
+            { v: isFirstRow ? header.Bahan || "-" : "-", s: styleDataCell },
+            { v: isFirstRow ? header.Finishing || "-" : "-", s: styleDataCell },
+            {
+              v: isFirstRow ? header.STATUS || "-" : "-",
+              s: styleDataCellCenter,
+            },
+            {
+              v: isFirstRow ? header.Ngedit || "-" : "-",
+              s: styleDataCellCenter,
+            },
+            { v: dtl.Size || "-", s: styleDataCellCenter },
+            { v: qtySize, t: "n", z: "#,##0", s: styleDataCellRight },
+            { v: stbjSize, t: "n", z: "#,##0", s: styleDataCellRight },
+            { v: kurangSize, t: "n", z: "#,##0", s: styleDataCellRight },
+            isFirstRow
+              ? {
+                  v: num(header.PraSJ),
+                  t: "n",
+                  z: "#,##0",
+                  s: styleDataCellRight,
+                }
+              : { v: "-", s: styleDataCellCenter },
+            isFirstRow
+              ? {
+                  v: num(header.Kirim),
+                  t: "n",
+                  z: "#,##0",
+                  s: styleDataCellRight,
+                }
+              : { v: "-", s: styleDataCellCenter },
+          ]);
+        });
+      } else {
+        // Fallback jika tidak ada data size per SPK
+        worksheetData.push([
+          { v: soNomor, s: styleDataCellCenter },
+          { v: spkNomor, s: styleDataCellCenter },
+          { v: header.MO || "-", s: styleDataCellCenter },
+          { v: header.CMO || "-", s: styleDataCellCenter },
+          { v: tglSpk, s: styleDataCellCenter },
+          { v: datelineSpk, s: styleDataCellCenter },
+          { v: header.Kepentingan || "-", s: styleDataCell },
+          { v: header.Divisi || "-", s: styleDataCellCenter },
+          { v: cabText, s: styleDataCellCenter },
+          { v: header.Nama || "-", s: styleDataCell },
+          { v: header.Bahan || "-", s: styleDataCell },
+          { v: header.Finishing || "-", s: styleDataCell },
+          { v: header.STATUS || "-", s: styleDataCellCenter },
+          { v: header.Ngedit || "-", s: styleDataCellCenter },
+          { v: "-", s: styleDataCellCenter },
+          { v: 0, t: "n", z: "#,##0", s: styleDataCellRight },
+          { v: 0, t: "n", z: "#,##0", s: styleDataCellRight },
+          { v: 0, t: "n", z: "#,##0", s: styleDataCellRight },
+          { v: num(header.PraSJ), t: "n", z: "#,##0", s: styleDataCellRight },
+          { v: num(header.Kirim), t: "n", z: "#,##0", s: styleDataCellRight },
+        ]);
+      }
+    });
+
+    // 5. Grand Total Row
+    const footerRow = [
+      {
+        v: "GRAND TOTAL",
+        s: {
+          ...styleFooter,
+          alignment: { horizontal: "right", vertical: "center" },
+        },
+      },
+      ...Array(14).fill({ v: "", s: styleFooter }),
+      {
+        v: grandTotalQtySPK,
+        t: "n",
+        z: "#,##0",
+        s: {
+          ...styleFooter,
+          alignment: { horizontal: "right", vertical: "center" },
+        },
+      },
+      {
+        v: grandTotalStbj,
+        t: "n",
+        z: "#,##0",
+        s: {
+          ...styleFooter,
+          alignment: { horizontal: "right", vertical: "center" },
+        },
+      },
+      {
+        v: grandTotalKurang,
+        t: "n",
+        z: "#,##0",
+        s: {
+          ...styleFooter,
+          alignment: { horizontal: "right", vertical: "center" },
+        },
+      },
+      {
+        v: grandTotalPraSJ,
+        t: "n",
+        z: "#,##0",
+        s: {
+          ...styleFooter,
+          alignment: { horizontal: "right", vertical: "center" },
+        },
+      },
+      {
+        v: grandTotalKirim,
+        t: "n",
+        z: "#,##0",
+        s: {
+          ...styleFooter,
+          alignment: { horizontal: "right", vertical: "center" },
+        },
+      },
+    ];
+    worksheetData.push(footerRow);
+
+    // 6. Build Sheet, Merges, and Column Widths
+    const ws = XLSX.utils.aoa_to_sheet(worksheetData);
+
+    ws["!merges"] = [
+      { s: { r: 0, c: 0 }, e: { r: 0, c: 19 } }, // Merge Judul
+      { s: { r: 1, c: 0 }, e: { r: 1, c: 19 } }, // Merge Tanggal
+      {
+        s: { r: worksheetData.length - 1, c: 0 },
+        e: { r: worksheetData.length - 1, c: 14 }, // Merge Grand Total Label
+      },
+    ];
+
+    ws["!cols"] = [
+      { wch: 18 }, // NOMOR SO
+      { wch: 18 }, // NOMOR SPK
+      { wch: 12 }, // MO
+      { wch: 12 }, // CMO
+      { wch: 12 }, // TANGGAL
+      { wch: 12 }, // DATELINE
+      { wch: 14 }, // KEPENTINGAN
+      { wch: 10 }, // DIVISI
+      { wch: 14 }, // CABANG
+      { wch: 35 }, // NAMA PESANAN
+      { wch: 18 }, // BAHAN
+      { wch: 15 }, // FINISHING
+      { wch: 12 }, // STATUS
+      { wch: 10 }, // ACC PIN
+      { wch: 14 }, // UKURAN/SIZE
+      { wch: 12 }, // QTY SPK
+      { wch: 14 }, // REALISASI STBJ
+      { wch: 14 }, // SISA KURANG
+      { wch: 10 }, // PRASJ
+      { wch: 10 }, // KIRIM
+    ];
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Monitoring_SPK");
+    XLSX.writeFile(wb, fileName);
+
+    toast.success("Excel Berhasil Diexport Sesuai Format!");
+  } catch (error) {
+    console.error("Export Error:", error);
+    toast.error("Gagal mengekspor data detail.");
+  } finally {
+    isExporting.value = false;
+  }
+};
+
 // --- API Methods ---
 const fetchData = async () => {
   loading.value = true;
@@ -427,6 +764,29 @@ const handleEdit = () => {
   router.push(`/mmt/so-spk/edit/${encodeURIComponent(nomorSpk)}`);
 };
 
+// --- PREVIEW ACTION ---
+const handlePreview = (itemToPreview?: SpkHeader) => {
+  const target = itemToPreview || selectedItem.value;
+  if (!target) {
+    toast.error("Pilih salah satu SPK terlebih dahulu.");
+    return;
+  }
+  const nomorSpk = target.SPK || (target as any).Nomor;
+  if (!nomorSpk) {
+    toast.error("Nomor SPK tidak valid.");
+    return;
+  }
+
+  previewSpkNomor.value = nomorSpk;
+  isIframeLoading.value = true;
+  previewUrl.value = `/mmt/so-spk/print/${encodeURIComponent(nomorSpk)}?preview=1`;
+  showPreviewDialog.value = true;
+};
+
+const handleIframeLoaded = () => {
+  isIframeLoading.value = false;
+};
+
 const handlePrint = async () => {
   if (!selectedItem.value) {
     toast.error("Pilih satu SPK terlebih dahulu.");
@@ -478,7 +838,35 @@ watch([startDate, endDate], fetchData);
     :row-props="getRowProps"
     @update:expanded="handleExpandUpdate(expanded)"
   >
-    <!-- Extra Filter Pencarian Umum & Reset -->
+    <template #extra-actions>
+      <v-btn
+        color="success"
+        variant="elevated"
+        class="text-white font-weight-bold"
+        rounded="pill"
+        size="small"
+        prepend-icon="mdi-file-excel"
+        :loading="isExporting"
+        :disabled="filteredMasterData.length === 0"
+        @click="exportToExcel"
+      >
+        Export Excel
+      </v-btn>
+
+      <v-btn
+        color="purple-darken-1"
+        class="text-white font-weight-bold"
+        rounded="pill"
+        size="small"
+        prepend-icon="mdi-eye"
+        :disabled="!selectedItem"
+        @click="handlePreview()"
+      >
+        Preview
+      </v-btn>
+    </template>
+
+    <!-- Extra Filter: Cari, Tombol Preview SPK, dan Reset Filter -->
     <template #extra-filters>
       <div class="d-flex align-center ga-2">
         <v-text-field
@@ -491,6 +879,18 @@ watch([startDate, endDate], fetchData);
           style="min-width: 200px"
           @keyup.enter="fetchData"
         />
+
+        <!-- TOMBOL PREVIEW SPK -->
+        <v-btn
+          color="teal-darken-1"
+          variant="flat"
+          size="small"
+          prepend-icon="mdi-eye-outline"
+          :disabled="!selectedItem"
+          @click="handlePreview()"
+        >
+          Preview SPK
+        </v-btn>
 
         <v-btn
           v-if="activeFiltersCount > 0"
@@ -635,15 +1035,17 @@ watch([startDate, endDate], fetchData);
       </span>
     </template>
 
-    <!-- Slot Custom Item untuk Nomor SPK -->
+    <!-- Slot Custom Item untuk Nomor SPK (Bisa di-click untuk quick preview) -->
     <template #item.SPK="{ item }">
       <v-chip
         v-if="item.SPK || (item as any).Nomor"
         :color="getStatusColor(item)"
         size="x-small"
         label
-        class="font-weight-bold"
+        class="font-weight-bold cursor-pointer"
+        @click.stop="handlePreview(item)"
       >
+        <v-icon start size="12" class="mr-1">mdi-eye</v-icon>
         {{ item.SPK || (item as any).Nomor }}
       </v-chip>
       <span v-else class="text-caption text-grey">-</span>
@@ -654,7 +1056,7 @@ watch([startDate, endDate], fetchData);
       {{ value || item.Cabang || "-" }}
     </template>
 
-    <!-- Format Tanggal Dateline & Tanggal Lainya -->
+    <!-- Format Tanggal Dateline & Tanggal Lainnya -->
     <template #item.Tanggal="{ value }">
       {{ formatDateDisplay(value) }}
     </template>
@@ -747,6 +1149,77 @@ watch([startDate, endDate], fetchData);
       </v-card>
     </template>
   </BaseBrowse>
+
+  <!-- MODAL DIALOG PREVIEW SPK -->
+  <v-dialog
+    v-model="showPreviewDialog"
+    max-width="1100px"
+    width="95vw"
+    scrollable
+    transition="dialog-bottom-transition"
+  >
+    <v-card class="d-flex flex-column" style="height: 90vh">
+      <v-toolbar color="grey-darken-4" density="compact">
+        <v-icon class="ml-3 mr-2" color="teal-lighten-2"
+          >mdi-file-eye-outline</v-icon
+        >
+        <v-toolbar-title class="text-subtitle-1 font-weight-bold">
+          Preview SPK — {{ previewSpkNomor }}
+        </v-toolbar-title>
+
+        <v-chip
+          color="error"
+          size="x-small"
+          label
+          class="mr-3 font-weight-bold"
+        >
+          PREVIEW MODE (DILARANG DICETAK)
+        </v-chip>
+
+        <v-spacer />
+
+        <v-btn icon variant="text" @click="showPreviewDialog = false">
+          <v-icon>mdi-close</v-icon>
+        </v-btn>
+      </v-toolbar>
+
+      <v-card-text class="pa-0 flex-grow-1 position-relative bg-grey-lighten-3">
+        <div
+          v-if="isIframeLoading"
+          class="preview-loading-overlay d-flex flex-column align-center justify-center"
+        >
+          <v-progress-circular indeterminate color="primary" size="48" />
+          <span class="text-caption text-grey-darken-2 mt-3 font-weight-medium">
+            Memuat dokumen preview SPK...
+          </span>
+        </div>
+
+        <iframe
+          v-if="previewUrl"
+          :src="previewUrl"
+          class="preview-iframe"
+          @load="handleIframeLoaded"
+        />
+      </v-card-text>
+
+      <v-divider />
+
+      <v-card-actions class="bg-white py-2 px-4 justify-space-between">
+        <span class="text-caption text-grey-darken-1">
+          * Mode preview untuk pengecekan data visual &amp; layout SPK.
+        </span>
+        <v-btn
+          color="grey-darken-1"
+          variant="tonal"
+          size="small"
+          class="px-4 font-weight-bold"
+          @click="showPreviewDialog = false"
+        >
+          Tutup
+        </v-btn>
+      </v-card-actions>
+    </v-card>
+  </v-dialog>
 </template>
 
 <style scoped>
@@ -760,30 +1233,24 @@ watch([startDate, endDate], fetchData);
   background-color: #c0e4ff !important;
 }
 
-/* 💡 MENYESUAIKAN TINGGI DAN PENGUNCIAN HEADER & FOOTER */
 :deep(.v-table) {
   display: flex !important;
   flex-direction: column !important;
-  height: calc(
-    100vh - 210px
-  ) !important; /* Sesuaikan angka ini dengan tinggi navbar/filter atas Anda */
+  height: calc(100vh - 210px) !important;
 }
 
-/* Area Isi Data (tbody) Mengisi Sisa Ruang dan Ter-scroll */
 :deep(.v-table__wrapper) {
   flex: 1 1 auto !important;
   overflow-y: auto !important;
   overflow-x: auto !important;
 }
 
-/* Footer (Pagination) Tetap Diam di Bawah */
 :deep(.v-data-table-footer) {
   flex: 0 0 auto !important;
   border-top: 1px solid rgba(0, 0, 0, 0.12);
   background-color: #ffffff !important;
 }
 
-/* Header (thead) Sticky / Terkunci di Atas */
 :deep(.v-data-table__thead) {
   position: sticky !important;
   top: 0 !important;
@@ -791,9 +1258,29 @@ watch([startDate, endDate], fetchData);
   background-color: #ffffff !important;
 }
 
-/* Mencegah Celah/Gap Antar Kolom Fixed */
 :deep(.v-data-table__th--fixed),
 :deep(.v-data-table__td--fixed) {
   box-sizing: border-box !important;
+}
+
+.cursor-pointer {
+  cursor: pointer;
+}
+
+.preview-iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+  display: block;
+}
+
+.preview-loading-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.85);
+  z-index: 10;
 }
 </style>

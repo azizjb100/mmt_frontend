@@ -795,131 +795,148 @@ const exportToExcel = (dataToExport: any[]) => {
     [],
   ];
 
-  // Header Row 1
+  // Header Row 1 (Index Row 3)
   const headerRow1 = [
-    { v: "PERUSAHAAN", s: styleHeaderMain },
-    { v: "TGL SPK", s: styleHeaderMain },
-    { v: "DEADLINE", s: styleHeaderMain },
-    { v: "NAMA ORDER", s: styleHeaderMain },
-    { v: "UKURAN", s: styleHeaderMain },
-    "",
-    { v: "NO SPK", s: styleHeaderMain },
-    { v: "JENIS KAIN", s: styleHeaderMain },
-    { v: "ORDER SPK", s: styleHeaderMain },
-    "",
-    { v: "HASIL FINISHING", s: styleHeaderMain },
-    "",
-    "",
-    { v: "SISA KEKURANGAN", s: styleHeaderMain },
-    "",
-    "",
-    { v: "CETAK LUAR", s: styleHeaderMain },
+    { v: "PERUSAHAAN", s: styleHeaderMain }, // Col 0
+    { v: "TGL SPK", s: styleHeaderMain }, // Col 1
+    { v: "DEADLINE", s: styleHeaderMain }, // Col 2
+    { v: "NAMA ORDER", s: styleHeaderMain }, // Col 3
+    { v: "UKURAN", s: styleHeaderMain }, // Col 4 (Group)
+    { v: "", s: styleHeaderMain }, // Col 5
+    { v: "NO SPK", s: styleHeaderMain }, // Col 6
+    { v: "JENIS KAIN", s: styleHeaderMain }, // Col 7
+    { v: "ORDER SPK", s: styleHeaderMain }, // Col 8 (Group)
+    { v: "", s: styleHeaderMain }, // Col 9
+    { v: "HASIL FINISHING", s: styleHeaderMain }, // Col 10 (Group)
+    { v: "", s: styleHeaderMain }, // Col 11
+    { v: "", s: styleHeaderMain }, // Col 12
+    { v: "SISA KEKURANGAN", s: styleHeaderMain }, // Col 13 (Group)
+    { v: "", s: styleHeaderMain }, // Col 14
+    { v: "", s: styleHeaderMain }, // Col 15
+    { v: "CETAK LUAR", s: styleHeaderMain }, // Col 16
   ];
   wsData.push(headerRow1);
 
-  // Header Row 2
+  // Header Row 2 (Index Row 4)
   const headerRow2 = [
-    "",
-    "",
-    "",
-    "",
-    { v: "PANJANG", s: styleHeaderSub },
-    { v: "LEBAR", s: styleHeaderSub },
-    "",
-    "",
-    { v: "QTY", s: styleHeaderSub },
-    { v: "MTR", s: styleHeaderSub },
-    { v: "SEAMING", s: styleHeaderSub },
-    { v: "M. AYAM", s: styleHeaderSub },
-    { v: "COLY", s: styleHeaderSub },
-    { v: "K. SEAM", s: styleHeaderSub },
-    { v: "K. AYAM", s: styleHeaderSub },
-    { v: "K. COLY", s: styleHeaderSub },
-    "",
+    { v: "", s: styleHeaderSub }, // Col 0
+    { v: "", s: styleHeaderSub }, // Col 1
+    { v: "", s: styleHeaderSub }, // Col 2
+    { v: "", s: styleHeaderSub }, // Col 3
+    { v: "PANJANG", s: styleHeaderSub }, // Col 4
+    { v: "LEBAR", s: styleHeaderSub }, // Col 5
+    { v: "", s: styleHeaderSub }, // Col 6
+    { v: "", s: styleHeaderSub }, // Col 7
+    { v: "QTY", s: styleHeaderSub }, // Col 8
+    { v: "MTR", s: styleHeaderSub }, // Col 9
+    { v: "SEAMING", s: styleHeaderSub }, // Col 10
+    { v: "M. AYAM", s: styleHeaderSub }, // Col 11
+    { v: "COLY", s: styleHeaderSub }, // Col 12
+    { v: "K. SEAM", s: styleHeaderSub }, // Col 13
+    { v: "K. AYAM", s: styleHeaderSub }, // Col 14
+    { v: "K. COLY", s: styleHeaderSub }, // Col 15
+    { v: "", s: styleHeaderSub }, // Col 16
   ];
   wsData.push(headerRow2);
 
-  // Loop Data
+  // Loop Data (Presisi 17 Kolom)
   dataToExport.forEach((item: any) => {
     wsData.push([
+      // 0. Perusahaan
       {
-        v: item.perush || "",
+        v: item.perush || "-",
         s: { ...styleDataCell, alignment: { horizontal: "center" } },
       },
+      // 1. Tgl SPK
       {
         v: formatDateDisplay(item.tglSpk),
         s: { ...styleDataCell, alignment: { horizontal: "center" } },
       },
+      // 2. Deadline
       {
         v: formatDateDisplay(item.deadline),
         s: { ...styleDataCell, alignment: { horizontal: "center" } },
       },
-      { v: item.namaOrder || "", s: styleDataCell },
+      // 3. Nama Order
+      { v: item.namaOrder || "-", s: styleDataCell },
+      // 4. Panjang
       {
         v: num(item.panjang),
         t: "n",
         z: "#,##0.00",
         s: { ...styleDataCell, alignment: { horizontal: "right" } },
       },
+      // 5. Lebar
       {
         v: num(item.lebar),
         t: "n",
         z: "#,##0.00",
         s: { ...styleDataCell, alignment: { horizontal: "right" } },
       },
+      // 6. No SPK
       {
-        v: item.noSpk || "",
+        v: item.noSpk || "-",
         s: { ...styleDataCell, alignment: { horizontal: "center" } },
       },
-      { v: item.jenisKain || "", s: styleDataCell },
+      // 7. Jenis Kain
+      { v: item.jenisKain || "-", s: styleDataCell },
+      // 8. Qty (Order SPK)
       {
         v: num(item.spkJumlah),
         t: "n",
         z: "#,##0",
         s: { ...styleDataCell, alignment: { horizontal: "right" } },
       },
+      // 9. Meter (Order SPK)
       {
         v: num(item.orderMeter),
         t: "n",
         z: "#,##0.00",
         s: { ...styleDataCell, alignment: { horizontal: "right" } },
       },
+      // 10. Seaming
       {
         v: num(item.jmlseaming),
         t: "n",
         z: "#,##0",
         s: { ...styleDataCell, alignment: { horizontal: "right" } },
       },
+      // 11. M. Ayam
       {
         v: num(item.jmlmataayam),
         t: "n",
         z: "#,##0",
         s: { ...styleDataCell, alignment: { horizontal: "right" } },
       },
+      // 12. Coly
       {
         v: num(item.jmlcoly),
         t: "n",
         z: "#,##0",
         s: { ...styleDataCell, alignment: { horizontal: "right" } },
       },
+      // 13. K. Seaming
       {
         v: num(item.kSeaming),
         t: "n",
         z: "#,##0",
         s: { ...styleDataCell, alignment: { horizontal: "right" } },
       },
+      // 14. K. Ayam
       {
         v: num(item.kMataayam),
         t: "n",
         z: "#,##0",
         s: { ...styleDataCell, alignment: { horizontal: "right" } },
       },
+      // 15. K. Coly
       {
         v: num(item.kColy),
         t: "n",
         z: "#,##0",
         s: { ...styleDataCell, alignment: { horizontal: "right" } },
       },
+      // 16. Cetak Luar
       {
         v: num(item.cetakLuar),
         t: "n",
@@ -929,13 +946,13 @@ const exportToExcel = (dataToExport: any[]) => {
     ]);
   });
 
-  // Footer Total
+  // Footer Total (Kolom 0 sampai 7 digabung menjadi label TOTAL)
   const footerRow = [
     {
       v: "TOTAL (FILTERED)",
       s: { ...styleFooterCell, alignment: { horizontal: "center" } },
     },
-    ...Array(7).fill({ v: "", s: styleFooterCell }),
+    ...Array(7).fill({ v: "", s: styleFooterCell }), // Placeholder untuk kolom 1 - 7
     {
       v: num(totals.value.spkJumlah),
       t: "n",
@@ -996,19 +1013,41 @@ const exportToExcel = (dataToExport: any[]) => {
 
   const ws = XLSX.utils.aoa_to_sheet(wsData);
 
+  // Atur lebar kolom (Auto fit / Fixed width)
+  ws["!cols"] = [
+    { wch: 14 }, // Perusahaan
+    { wch: 12 }, // Tgl Spk
+    { wch: 12 }, // Deadline
+    { wch: 28 }, // Nama Order
+    { wch: 10 }, // Panjang
+    { wch: 10 }, // Lebar
+    { wch: 16 }, // No SPK
+    { wch: 16 }, // Jenis Kain
+    { wch: 8 }, // Qty
+    { wch: 10 }, // Meter
+    { wch: 10 }, // Seaming
+    { wch: 10 }, // M. Ayam
+    { wch: 8 }, // Coly
+    { wch: 10 }, // K. Seam
+    { wch: 10 }, // K. Ayam
+    { wch: 8 }, // K. Coly
+    { wch: 12 }, // Cetak Luar
+  ];
+
+  // Merge Cells Sesuai Header Web
   ws["!merges"] = [
-    { s: { r: 3, c: 0 }, e: { r: 4, c: 0 } }, // Perusahaan
-    { s: { r: 3, c: 1 }, e: { r: 4, c: 1 } }, // Tgl Spk
-    { s: { r: 3, c: 2 }, e: { r: 4, c: 2 } }, // Deadline
-    { s: { r: 3, c: 3 }, e: { r: 4, c: 3 } }, // Nama Order
-    { s: { r: 3, c: 4 }, e: { r: 3, c: 5 } }, // Ukuran (Panjang, Lebar)
-    { s: { r: 3, c: 6 }, e: { r: 4, c: 6 } }, // No SPK
-    { s: { r: 3, c: 7 }, e: { r: 4, c: 7 } }, // Jenis Kain
-    { s: { r: 3, c: 8 }, e: { r: 3, c: 9 } }, // Order SPK (Qty, Meter)
-    { s: { r: 3, c: 10 }, e: { r: 3, c: 12 } }, // Hasil Finishing
-    { s: { r: 3, c: 13 }, e: { r: 3, c: 15 } }, // Sisa Kekurangan
-    { s: { r: 3, c: 16 }, e: { r: 4, c: 16 } }, // Cetak Luar
-    { s: { r: wsData.length - 1, c: 0 }, e: { r: wsData.length - 1, c: 7 } }, // Title Footer
+    { s: { r: 3, c: 0 }, e: { r: 4, c: 0 } }, // Perusahaan (Rowspan 2)
+    { s: { r: 3, c: 1 }, e: { r: 4, c: 1 } }, // Tgl Spk (Rowspan 2)
+    { s: { r: 3, c: 2 }, e: { r: 4, c: 2 } }, // Deadline (Rowspan 2)
+    { s: { r: 3, c: 3 }, e: { r: 4, c: 3 } }, // Nama Order (Rowspan 2)
+    { s: { r: 3, c: 4 }, e: { r: 3, c: 5 } }, // Group UKURAN (Colspan 2: Panjang, Lebar)
+    { s: { r: 3, c: 6 }, e: { r: 4, c: 6 } }, // No SPK (Rowspan 2)
+    { s: { r: 3, c: 7 }, e: { r: 4, c: 7 } }, // Jenis Kain (Rowspan 2)
+    { s: { r: 3, c: 8 }, e: { r: 3, c: 9 } }, // Group ORDER SPK (Colspan 2: Qty, Meter)
+    { s: { r: 3, c: 10 }, e: { r: 3, c: 12 } }, // Group HASIL FINISHING (Colspan 3)
+    { s: { r: 3, c: 13 }, e: { r: 3, c: 15 } }, // Group SISA KEKURANGAN (Colspan 3)
+    { s: { r: 3, c: 16 }, e: { r: 4, c: 16 } }, // Cetak Luar (Rowspan 2)
+    { s: { r: wsData.length - 1, c: 0 }, e: { r: wsData.length - 1, c: 7 } }, // Label Footer TOTAL
   ];
 
   const wb = XLSX.utils.book_new();

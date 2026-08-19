@@ -21,6 +21,7 @@ const layoutProof = ref<any[]>([]);
 const layoutSewing = ref<any[]>([]);
 const mkbDetail = ref<any[]>([]);
 const ketKomponenList = ref<any[]>([]);
+const alokasi = ref<any[]>([]);
 const mkaFromMap = ref<{
   aksesoris: {
     kode: string;
@@ -86,7 +87,6 @@ const watermarkTiles = computed(() =>
   Array(60).fill(previewWatermarkText.value),
 );
 
-// Pilihan lokasi file gambar desain
 const resolveDesignImage = () => {
   if (!spk.value.spk_nomor) {
     resolvedImageUrl.value = "";
@@ -224,16 +224,18 @@ const totalQty = computed(() =>
   sizes.value.reduce((s, r) => s + (Number(r.qty) || 0), 0),
 );
 
+const totalAlokasiQty = computed(() =>
+  alokasi.value.reduce((s, a) => s + (Number(a.jumlah) || 0), 0),
+);
+
 const prosesChips = computed(() => {
   const finishing = (spk.value.spk_finishing || "").toLowerCase();
-  const isPolos = finishing.includes("polos");
-  if (isPolos) return [];
+  if (finishing.includes("polos")) return [];
 
   const arr: string[] = [];
   if (spk.value.spk_sablon === "Y") arr.push("SABLON");
   if (spk.value.spk_bordir === "Y") arr.push("BORDIR");
   if (spk.value.spk_sublim === "Y") arr.push("SUBLIM");
-
   if (arr.length === 0) arr.push("DTF");
 
   return arr;
@@ -255,10 +257,6 @@ const isMoveSpecialProcess = computed(() => {
   return komponenPotong.value.length > 5 && keteranganKhusus.value.length > 0;
 });
 
-/* =========================================================
-   DETEKSI CABANG & ORIENTASI CETAK
-========================================================= */
-
 const normalizeCab = (cab: any) => {
   if (!cab) return "";
   const s = String(cab).toUpperCase().trim();
@@ -272,15 +270,12 @@ const normalizeCab = (cab: any) => {
 const currentCab = computed(() => normalizeCab(spk.value.spk_cab));
 const currentCab2 = computed(() => normalizeCab(spk.value.spk_cab2));
 
-// Pilihan Orientasi Manual oleh User: 'portrait' | 'landscape'
 const printOrientation = ref<"portrait" | "landscape">("portrait");
 
-// Deteksi Khusus Cabang P04 untuk Rotasi 90 Derajat
 const isP04Print = computed(
   () => currentCab.value === "P04" || currentCab2.value === "P04",
 );
 
-// Template Layout Cabang
 const isP01Print = computed(
   () => currentCab.value === "P01" || currentCab2.value === "P01",
 );
@@ -291,13 +286,10 @@ const isSpandukMmtPrint = computed(
     ["P02", "P05"].includes(currentCab2.value),
 );
 
-// Injeksi style @page sesuai pilihan orientasi user / P04
 const injectPrintStyle = () => {
   const oldStyle = document.getElementById("spk-dynamic-print-style");
   if (oldStyle) oldStyle.remove();
 
-  // Jika P04, kertas fisik tetap diatur Portrait (210mm 297mm) karena elemen diputar 90 deg via CSS.
-  // Jika cabang lain dan user memilih landscape, gunakan Landscape (297mm 210mm).
   let pageSize = "210mm 297mm";
   if (!isP04Print.value && printOrientation.value === "landscape") {
     pageSize = "297mm 210mm";
@@ -317,7 +309,6 @@ const injectPrintStyle = () => {
   document.head.appendChild(styleEl);
 };
 
-// Fungsi Trigger Cetak Manual
 const triggerPrint = () => {
   injectPrintStyle();
   nextTick(() => {
@@ -330,17 +321,6 @@ const spkKetKomponenText = computed(() =>
     .map((k) => `${k.kode}= ${k.nama}${k.ket ? ": " + k.ket : ""}`)
     .join("\n"),
 );
-
-const alokasi = ref<any[]>([]);
-
-const alokasiChunks = computed(() => {
-  const chunkSize = 24;
-  const chunks: any[][] = [];
-  for (let i = 0; i < alokasi.value.length; i += chunkSize) {
-    chunks.push(alokasi.value.slice(i, i + chunkSize));
-  }
-  return chunks;
-});
 
 const getSignatureUrl = (kodeUser: string) => {
   if (!kodeUser) return "";
@@ -478,11 +458,10 @@ onMounted(async () => {
       soToSpkService.getAlokasi(printNomor),
     ]);
 
-    const d = resDetail.data.data;
+    const d = resDetail.data?.data || {};
     spk.value = d.header || {};
     resolveDesignImage();
 
-    // Default orientasi berdasarkan cabang: P01, P02, P05 -> Landscape | Lainnya -> Portrait
     const autoLandscape =
       ["P01", "P02", "P05"].includes(currentCab.value) ||
       ["P01", "P02", "P05"].includes(currentCab2.value);
@@ -497,15 +476,21 @@ onMounted(async () => {
     ketKomponenList.value = (d.ketKomponenList || []).filter(
       (k: any) => k.checked,
     );
-    alokasi.value = resAlokasi.data.data || [];
 
-    layoutHeader.value = resLayout.data.data?.header || null;
-    layoutProof.value = resLayout.data.data?.proof || [];
-    layoutSewing.value = resLayout.data.data?.sewing || [];
+    // Parsing data alokasi
+    alokasi.value = Array.isArray(resAlokasi.data?.data)
+      ? resAlokasi.data.data
+      : Array.isArray(resAlokasi.data)
+        ? resAlokasi.data
+        : [];
+
+    layoutHeader.value = resLayout.data?.data?.header || null;
+    layoutProof.value = resLayout.data?.data?.proof || [];
+    layoutSewing.value = resLayout.data?.data?.sewing || [];
 
     if (spk.value.spk_so_ref) {
       const resMkb = await soToSpkService.getMkbDetail(spk.value.spk_so_ref);
-      mkbDetail.value = resMkb.data.data || [];
+      mkbDetail.value = resMkb.data?.data || [];
     }
 
     if (spk.value.spk_memo) {
@@ -513,7 +498,7 @@ onMounted(async () => {
         const resMka = await api.get(
           `/mmt/spk/form/mka-from-map/${encodeURIComponent(spk.value.spk_memo)}`,
         );
-        mkaFromMap.value = resMka.data.data || {
+        mkaFromMap.value = resMka.data?.data || {
           aksesoris: [],
           komponen: [],
           sizeBreakdown: [],
@@ -537,10 +522,10 @@ onMounted(async () => {
     }
 
     await nextTick();
-
     notifyParentReady();
     injectPrintStyle();
-  } catch {
+  } catch (err) {
+    console.error("Gagal memuat dokumen SPK:", err);
     isError.value = true;
   }
 });
@@ -553,7 +538,7 @@ onMounted(async () => {
   </div>
 
   <div v-else class="print-root" :class="{ 'preview-mode': isPreview }">
-    <!-- BAR OPTI CETAK CONTROL BAR (TIDAK TERIKUT DICETAK) -->
+    <!-- BAR KONTROL ORIENTASI CETAK -->
     <div v-if="!isPreview" class="print-control-bar no-print">
       <div class="orientation-selector">
         <span class="control-label">Pilih Orientasi Kertas:</span>
@@ -610,7 +595,6 @@ onMounted(async () => {
           </div>
 
           <div class="body-p01">
-            <!-- Kiri -->
             <div class="kiri-p01">
               <table class="info-table-p01">
                 <tbody>
@@ -676,6 +660,13 @@ onMounted(async () => {
                     <td class="w-colon-p01">:</td>
                     <td>{{ spk.spk_cab }} ({{ spk.spk_workshop }})</td>
                   </tr>
+                  <tr>
+                    <td class="w-label-p01">Alokasi</td>
+                    <td class="w-colon-p01">:</td>
+                    <td>
+                      <strong>{{ alokasi.length > 0 ? "YA" : "TIDAK" }}</strong>
+                    </td>
+                  </tr>
                 </tbody>
               </table>
 
@@ -707,7 +698,6 @@ onMounted(async () => {
               </div>
             </div>
 
-            <!-- Kanan: Ket. Produksi -->
             <div class="kanan-p01">
               <div class="ket-box-p01">
                 <div class="ket-title-p01">Ket. Produksi :</div>
@@ -752,33 +742,43 @@ onMounted(async () => {
           </div>
         </div>
 
-        <!-- Alokasi -->
-        <div v-if="alokasi.length > 0" class="print-page-p01 alokasi-page-p01">
-          <h2 class="alokasi-title-p01">ALOKASI PENGIRIMAN :</h2>
-          <table class="alokasi-table-p01 mt-2-p01">
+        <!-- Halaman Alokasi P01 -->
+        <div v-if="alokasi.length > 0" class="alokasi-print-page-so">
+          <div class="header-row-p01">
+            <div class="title-main-p01">
+              ALOKASI PENGIRIMAN — SPK: {{ spk.spk_nomor }}
+            </div>
+            <div class="title-po-p01">PO: {{ spk.spk_nomor_po || "-" }}</div>
+          </div>
+
+          <table class="alokasi-table-so">
             <thead>
               <tr>
-                <th class="text-left-p01 pl-2-p01">Alokasi</th>
-                <th width="80" class="text-center-p01">Jumlah</th>
+                <th style="width: 40px" class="text-center-so">No</th>
+                <th class="text-left-so">Alokasi Tujuan / Alamat</th>
+                <th class="text-center-so alokasi-jumlah-so">Jumlah (Pcs)</th>
               </tr>
             </thead>
             <tbody>
-              <tr v-for="(a, idx) in alokasi" :key="idx">
-                <td class="pl-2-p01">{{ a.kota || a.alamat }}</td>
-                <td class="text-center-p01">
-                  {{ Number(a.jumlah).toLocaleString("id-ID") }}
+              <tr v-for="(a, idx) in alokasi" :key="`alokasi-p01-${idx}`">
+                <td class="text-center-so">{{ idx + 1 }}</td>
+                <td>{{ a.kota || a.alamat || a.tujuan || "-" }}</td>
+                <td class="text-center-so">
+                  {{ Number(a.jumlah || 0).toLocaleString("id-ID") }}
                 </td>
               </tr>
             </tbody>
             <tfoot>
               <tr>
-                <td class="fw-p01 text-left-p01 pl-2-p01">Total</td>
-                <td class="fw-p01 text-center-p01">
-                  {{
-                    alokasi
-                      .reduce((s, a) => s + (Number(a.jumlah) || 0), 0)
-                      .toLocaleString("id-ID")
-                  }}
+                <td
+                  colspan="2"
+                  class="fw-so text-right"
+                  style="padding-right: 15px"
+                >
+                  Total Alokasi
+                </td>
+                <td class="fw-so text-center-so">
+                  {{ totalAlokasiQty.toLocaleString("id-ID") }}
                 </td>
               </tr>
             </tfoot>
@@ -792,6 +792,7 @@ onMounted(async () => {
     ══════════════════════════════════════════════ -->
     <template v-else-if="isSpandukMmtPrint">
       <div class="print-container-so">
+        <!-- Halaman Utama SPK -->
         <div class="print-wrapper-so">
           <div
             v-for="copy in 2"
@@ -883,7 +884,9 @@ onMounted(async () => {
                 <tr>
                   <td class="w-label-so">Alokasi</td>
                   <td class="w-colon-so">:</td>
-                  <td colspan="3">{{ alokasi.length > 0 ? "YA" : "TIDAK" }}</td>
+                  <td colspan="3">
+                    <strong>{{ alokasi.length > 0 ? "YA" : "TIDAK" }}</strong>
+                  </td>
                 </tr>
                 <tr>
                   <td class="w-label-so align-top-so">Keterangan</td>
@@ -891,8 +894,7 @@ onMounted(async () => {
                   <td colspan="3" class="val-desc-so">
                     <div v-if="spkKetKomponenText" style="margin-bottom: 5px">
                       <pre class="val-pre-so">
-Keterangan Komponen :
-{{ spkKetKomponenText }}</pre
+Keterangan Komponen :&#10;{{ spkKetKomponenText }}</pre
                       >
                     </div>
                     <pre class="val-pre-so">{{ spk.spk_keterangan }}</pre>
@@ -946,45 +948,49 @@ Keterangan Komponen :
               {{ formatWaktu(spk.date_create) }}
             </div>
           </div>
+        </div>
 
-          <!-- Alokasi -->
-          <div v-if="alokasi.length > 0" class="print-half-so alokasi-panel-so">
-            <h2 class="alokasi-title-so">ALOKASI PENGIRIMAN :</h2>
-            <div class="alokasi-cols-so mt-2-so">
-              <table
-                class="alokasi-table-so"
-                v-for="(chunk, idx) in alokasiChunks"
-                :key="idx"
-              >
-                <thead>
-                  <tr>
-                    <th class="text-left-so pl-2-so">Alokasi</th>
-                    <th width="60" class="text-center-so">Jumlah</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr v-for="(a, i2) in chunk" :key="i2">
-                    <td class="pl-2-so">{{ a.kota || a.alamat }}</td>
-                    <td class="text-center-so">
-                      {{ Number(a.jumlah).toLocaleString("id-ID") }}
-                    </td>
-                  </tr>
-                </tbody>
-                <tfoot v-if="idx === alokasiChunks.length - 1">
-                  <tr>
-                    <td class="fw-so text-left-so pl-2-so">Total</td>
-                    <td class="fw-so text-center-so">
-                      {{
-                        alokasi
-                          .reduce((s, a) => s + (Number(a.jumlah) || 0), 0)
-                          .toLocaleString("id-ID")
-                      }}
-                    </td>
-                  </tr>
-                </tfoot>
-              </table>
+        <!-- Halaman Alokasi Terpisah untuk P02/P05 -->
+        <div v-if="alokasi.length > 0" class="alokasi-print-page-so">
+          <div class="header-row-so mb-2-so">
+            <div class="title-main-so">
+              ALOKASI PENGIRIMAN — SPK: {{ spk.spk_nomor }}
             </div>
+            <div class="title-po-so">PO: {{ spk.spk_nomor_po || "-" }}</div>
           </div>
+
+          <table class="alokasi-table-so">
+            <thead>
+              <tr>
+                <th style="width: 40px" class="text-center-so">No</th>
+                <th class="text-left-so">Alokasi Tujuan / Alamat</th>
+                <th class="text-center-so alokasi-jumlah-so">Jumlah</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="(a, idx) in alokasi" :key="`alokasi-mmt-${idx}`">
+                <td class="text-center-so">{{ idx + 1 }}</td>
+                <td>{{ a.kota || a.alamat || a.tujuan || "-" }}</td>
+                <td class="text-center-so">
+                  {{ Number(a.jumlah || 0).toLocaleString("id-ID") }}
+                </td>
+              </tr>
+            </tbody>
+            <tfoot>
+              <tr>
+                <td
+                  colspan="2"
+                  class="fw-so text-right"
+                  style="padding-right: 15px"
+                >
+                  Total Alokasi
+                </td>
+                <td class="fw-so text-center-so">
+                  {{ totalAlokasiQty.toLocaleString("id-ID") }}
+                </td>
+              </tr>
+            </tfoot>
+          </table>
         </div>
       </div>
     </template>
@@ -993,6 +999,7 @@ Keterangan Komponen :
         FORMAT BARU — Workshop P04 & Lainnya
     ══════════════════════════════════════════════ -->
     <template v-else>
+      <!-- HALAMAN 1 — SPK UTAMA -->
       <div
         class="print-page page-1"
         :class="{ 'print-page--multi': p1MultiPage, 'rotate-p04': isP04Print }"
@@ -1115,6 +1122,15 @@ Keterangan Komponen :
                     <td class="fl">Dateline</td>
                     <td class="fc">:</td>
                     <td class="fv fw">{{ tglIndo(spk.spk_dateline) }}</td>
+                  </tr>
+                  <tr>
+                    <td class="fl">Alokasi</td>
+                    <td class="fc">:</td>
+                    <td class="fv">
+                      <strong>{{
+                        alokasi.length > 0 ? "ADA ALOKASI PENGIRIMAN" : "—"
+                      }}</strong>
+                    </td>
                   </tr>
                   <tr>
                     <td class="fl">Proses</td>
@@ -1739,14 +1755,109 @@ Keterangan Komponen :
           </div>
         </div>
       </div>
+
+      <!-- HALAMAN 3 — Alokasi Pengiriman untuk Format Baru -->
+      <div
+        v-if="alokasi.length > 0"
+        class="print-page page-alokasi-new"
+        :class="{ 'rotate-p04': isP04Print }"
+      >
+        <div class="ph">
+          <div class="ph-left">
+            <img src="@/assets/logo.png" class="ph-logo" />
+          </div>
+          <div class="ph-center">
+            <div class="ph-title">Alokasi Pengiriman</div>
+          </div>
+          <div class="ph-right">
+            <div class="ph-nomor">{{ spk.spk_nomor }}</div>
+            <div class="ph-meta">PO: {{ spk.spk_nomor_po || "—" }}</div>
+          </div>
+        </div>
+
+        <div class="box mb-6" style="margin-top: 10px">
+          <div class="box-title">Daftar Alokasi Tujuan Pengiriman</div>
+          <table class="dt" style="font-size: 8.5pt">
+            <thead>
+              <tr>
+                <th style="width: 35px" class="tc">No</th>
+                <th>Alokasi Tujuan / Alamat</th>
+                <th style="width: 100px" class="tc">Jumlah (Pcs)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="(a, idx) in alokasi" :key="`alokasi-new-${idx}`">
+                <td class="tc">{{ idx + 1 }}</td>
+                <td>{{ a.kota || a.alamat || a.tujuan || "-" }}</td>
+                <td class="tc">
+                  {{ Number(a.jumlah || 0).toLocaleString("id-ID") }}
+                </td>
+              </tr>
+            </tbody>
+            <tfoot>
+              <tr>
+                <td
+                  colspan="2"
+                  class="tc fw"
+                  style="text-align: right !important; padding-right: 15px"
+                >
+                  Total
+                </td>
+                <td class="tc fw">
+                  {{ totalAlokasiQty.toLocaleString("id-ID") }}
+                </td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+
+        <div class="pf" style="margin-top: 20px">
+          <span>
+            Dibuat: {{ spk.user_create }} — {{ formatWaktu(spk.date_create) }}
+          </span>
+          <div class="qr-wrap-footer">
+            <qrcode-vue :value="spk.spk_nomor" :size="40" level="L" />
+            <span>{{ spk.spk_nomor }}</span>
+          </div>
+        </div>
+      </div>
     </template>
   </div>
 </template>
 
 <style scoped>
-/* =========================================================
-   FLOATING PRINT CONTROL BAR
-========================================================= */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+.loading-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 14px;
+  color: #555;
+}
+
+.print-root {
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 8.5pt;
+  line-height: 1.2;
+  color: #000;
+  background: #fff;
+}
 
 .print-control-bar {
   position: sticky;
@@ -1810,51 +1921,6 @@ Keterangan Komponen :
   background: #15803d;
 }
 
-/* =========================================================
-   BASE / RESET
-========================================================= */
-
-*,
-*::before,
-*::after {
-  box-sizing: border-box;
-}
-
-html,
-body {
-  margin: 0;
-  padding: 0;
-}
-
-.loading-state {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 100vh;
-  font-family: Arial, Helvetica, sans-serif;
-  font-size: 14px;
-  color: #555;
-}
-
-/* =========================================================
-   ROOT
-========================================================= */
-
-.print-root {
-  width: 100%;
-  margin: 0;
-  padding: 0;
-  font-family: Arial, Helvetica, sans-serif;
-  font-size: 8.5pt;
-  line-height: 1.2;
-  color: #000;
-  background: #fff;
-}
-
-/* =========================================================
-   DEFAULT A4 PAGE
-========================================================= */
-
 .print-page {
   width: 210mm;
   min-height: 270mm;
@@ -1863,11 +1929,14 @@ body {
   box-sizing: border-box;
   background: #fff;
   overflow: visible;
+  page-break-after: always;
+  break-after: page;
 }
 
-/* =========================================================
-   HEADER FORMAT BARU
-========================================================= */
+.print-page:last-child {
+  page-break-after: auto;
+  break-after: auto;
+}
 
 .ph {
   width: 100%;
@@ -1933,10 +2002,6 @@ body {
   object-fit: contain;
 }
 
-/* =========================================================
-   PAGE 1
-========================================================= */
-
 .p1-body {
   width: 100%;
   flex: 1;
@@ -1980,19 +2045,6 @@ body {
   width: 100%;
 }
 
-.p1-row-ket {
-  width: 100%;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
-  gap: 6px;
-  min-width: 0;
-}
-
-.p1-row-komp .full-span,
-.p1-row-ket .full-span {
-  grid-column: 1 / -1;
-}
-
 .p1-row-potong-mka {
   width: 100%;
   display: grid;
@@ -2010,10 +2062,6 @@ body {
   min-width: 0;
   transform-origin: top center;
 }
-
-/* =========================================================
-   BOX
-========================================================= */
 
 .box {
   width: 100%;
@@ -2044,10 +2092,6 @@ body {
   font-size: 6.5pt;
   margin-left: 4px;
 }
-
-/* =========================================================
-   FIELD TABLE
-========================================================= */
 
 .ft {
   width: 100%;
@@ -2093,10 +2137,6 @@ body {
   min-width: 0;
 }
 
-/* =========================================================
-   PLANNING TABLE
-========================================================= */
-
 .planning-tbl {
   width: 100%;
   border-collapse: collapse;
@@ -2119,10 +2159,6 @@ body {
   border-top: none;
   height: 18px;
 }
-
-/* =========================================================
-   DESIGN IMAGE
-========================================================= */
 
 .img-box-wrap {
   width: 100%;
@@ -2151,10 +2187,6 @@ body {
   height: auto;
   object-fit: contain;
 }
-
-/* =========================================================
-   DATA TABLE
-========================================================= */
 
 .dt {
   width: 100%;
@@ -2198,10 +2230,6 @@ body {
   break-inside: avoid;
   page-break-inside: avoid;
 }
-
-/* =========================================================
-   COMPACT TABLE
-========================================================= */
 
 .lt {
   width: 100%;
@@ -2281,6 +2309,9 @@ body {
 }
 .text-left {
   text-align: left;
+}
+.text-right {
+  text-align: right;
 }
 .text-center {
   text-align: center;
@@ -2492,7 +2523,6 @@ body {
 /* =========================================================
    FORMAT LAMA P01
 ========================================================= */
-
 .print-container-p01 {
   width: 100%;
   margin: 0 auto;
@@ -2504,7 +2534,6 @@ body {
   width: 297mm;
   height: 210mm;
   min-height: 210mm;
-  max-height: 210mm;
   margin: 0 auto;
   padding: 4mm 6mm;
   box-sizing: border-box;
@@ -2512,14 +2541,6 @@ body {
   overflow: hidden;
   page-break-after: always;
   break-after: page;
-}
-.print-page-p01:last-child {
-  page-break-after: auto;
-  break-after: auto;
-}
-.alokasi-page-p01 {
-  page-break-before: always;
-  break-before: page;
 }
 
 .header-row-p01 {
@@ -2691,40 +2712,9 @@ body {
   flex-shrink: 0;
 }
 
-.alokasi-title-p01 {
-  font-size: 15pt;
-  font-weight: 700;
-  text-decoration: underline;
-  margin-bottom: 12px;
-}
-.alokasi-table-p01 {
-  width: 100%;
-  border-collapse: collapse;
-  table-layout: fixed;
-  font-size: 9pt;
-  color: #000;
-}
-.alokasi-table-p01 th,
-.alokasi-table-p01 td {
-  border: 1px solid #000;
-  padding: 4px 6px;
-  color: #000 !important;
-  overflow-wrap: anywhere;
-}
-.text-left-p01 {
-  text-align: left;
-}
-.text-center-p01 {
-  text-align: center;
-}
-.pl-2-p01 {
-  padding-left: 8px;
-}
-
 /* =========================================================
    SPANDUK / MMT FORMAT (P02, P05)
 ========================================================= */
-
 .print-container-so {
   width: 100%;
   margin: 0 auto;
@@ -2740,10 +2730,11 @@ body {
   min-height: 210mm;
   margin: 0 auto;
   display: flex;
-  flex-wrap: wrap;
   box-sizing: border-box;
   background: #fff;
   overflow: hidden;
+  page-break-after: always;
+  break-after: page;
 }
 .print-half-so {
   flex: 0 0 50%;
@@ -2759,15 +2750,6 @@ body {
 }
 .border-right-so {
   border-right: 1px dotted #999;
-}
-.alokasi-panel-so {
-  flex: 0 0 100%;
-  width: 100%;
-  height: 210mm;
-  min-height: 210mm;
-  padding: 7mm 10mm;
-  break-before: page;
-  page-break-before: always;
 }
 
 .header-row-so {
@@ -2915,77 +2897,84 @@ body {
   flex-shrink: 0;
 }
 
-.alokasi-title-so {
-  font-size: 15pt;
-  font-weight: 700;
-  text-decoration: underline;
-  margin-bottom: 12px;
+/* =========================================================
+   HALAMAN ALOKASI
+========================================================= */
+.alokasi-print-page-so {
+  width: 297mm;
+  min-width: 297mm;
+  height: 210mm;
+  min-height: 210mm;
+  box-sizing: border-box;
+  padding: 15mm 18mm;
+  margin: 0 auto;
+  background: #fff;
+  color: #000;
+  page-break-before: always;
+  break-before: page;
+  overflow: hidden;
+  display: block;
 }
+
 .alokasi-table-so {
   width: 100%;
   border-collapse: collapse;
-  font-size: 9pt;
-  color: #000;
   table-layout: fixed;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 11pt;
+  color: #000;
+  background: #fff;
+  margin-top: 10px;
 }
+
 .alokasi-table-so th,
 .alokasi-table-so td {
   border: 1px solid #000;
-  padding: 4px 6px;
-  color: #000 !important;
-  overflow-wrap: anywhere;
-}
-.alokasi-cols-so {
-  width: 100%;
-  display: flex;
-  gap: 8px;
-  align-items: flex-start;
-  min-width: 0;
-}
-.alokasi-cols-so .alokasi-table-so {
-  flex: 1;
-  min-width: 0;
+  padding: 8px 10px;
+  color: #000;
+  background: #fff;
+  box-sizing: border-box;
 }
 
-.fw-so {
+.alokasi-table-so th {
   font-weight: 700;
+  text-align: center;
+  background: #f5f5f5;
 }
+
+.alokasi-table-so .alokasi-jumlah-so {
+  width: 130px;
+}
+
 .text-left-so {
   text-align: left;
 }
 .text-center-so {
   text-align: center;
 }
-.pl-2-so {
-  padding-left: 8px;
-}
-.mt-2-so {
-  margin-top: 8px;
+.mb-2-so {
+  margin-bottom: 8px;
 }
 
 /* =========================================================
    PREVIEW SCREEN
 ========================================================= */
-
 @media screen {
-  html,
-  body {
-    margin: 0;
-    padding: 0;
-  }
   body {
     background: #555;
   }
   .print-root {
     min-height: 100vh;
     background: #555;
+    padding-bottom: 30px;
   }
   .print-page {
     background: #fff;
     margin: 20px auto;
     box-shadow: 0 0 12px rgba(0, 0, 0, 0.4);
   }
-  .print-page-p01 {
+  .print-page-p01,
+  .alokasi-print-page-so {
     background: #fff;
     margin: 20px auto;
     box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
@@ -2993,13 +2982,13 @@ body {
   .print-wrapper-so {
     background: #fff;
     box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+    margin: 20px auto;
   }
 }
 
 /* =========================================================
-   PRINT GLOBAL BAWAAN & ROTASI KHUSUS P04
+   PRINT MEDIA RULES
 ========================================================= */
-
 @media print {
   .no-print {
     display: none !important;
@@ -3012,15 +3001,6 @@ body {
     margin: 0 !important;
     padding: 0 !important;
     background: #fff !important;
-  }
-
-  body {
-    overflow: visible !important;
-  }
-  #app {
-    width: 100% !important;
-    margin: 0 !important;
-    padding: 0 !important;
   }
 
   *,
@@ -3036,33 +3016,26 @@ body {
     padding: 0 !important;
     background: #fff !important;
   }
-  .print-container-p01,
-  .print-container-so {
-    width: auto !important;
-    min-width: 0 !important;
-    margin: 0 !important;
-    padding: 0 !important;
-  }
 
-  /* PORTRAIT DYNAMIC PRINT STANDARD */
-  .print-page,
-  .print-page.page-1 {
+  .print-page {
     width: 210mm !important;
     height: auto !important;
     min-height: 0 !important;
-    max-height: none !important;
     margin: 0 !important;
     padding: 4mm 6mm !important;
     box-sizing: border-box !important;
     background: #fff !important;
     box-shadow: none !important;
     overflow: visible !important;
-    position: relative !important;
+    page-break-after: always !important;
+    break-after: page !important;
+  }
+
+  .print-page:last-child {
     page-break-after: auto !important;
     break-after: auto !important;
   }
 
-  /* 🛠️ ROTASI KHUSUS P04 SAAT WINDOW PRINT TERBUKA */
   .print-page.rotate-p04 {
     transform: rotate(90deg) translateY(-297mm) !important;
     transform-origin: top left !important;
@@ -3077,113 +3050,13 @@ body {
     break-after: page !important;
   }
 
-  .print-page:last-child {
-    page-break-after: auto !important;
-    break-after: auto !important;
-  }
-
-  .page1-scale-inner {
-    width: 100% !important;
-    height: auto !important;
-    min-height: 0 !important;
-    max-height: none !important;
-    transform-origin: top center !important;
-  }
-
-  .print-page *,
-  .page1-scale-inner * {
-    max-width: 100%;
-  }
-  table {
-    max-width: 100% !important;
-  }
-  img {
-    max-width: 100% !important;
-  }
-
-  .p1-body {
-    width: 100% !important;
-    min-width: 0 !important;
-    overflow: visible !important;
-  }
-  .p1-row-top,
-  .p1-row-komp,
-  .p1-row-ket,
-  .p1-row-potong-mka {
-    width: 100% !important;
-    min-width: 0 !important;
-  }
-  .p1-info,
-  .p1-img-col,
-  .box {
-    min-width: 0 !important;
-  }
-
-  .dt,
-  .ft,
-  .planning-tbl,
-  .lt,
-  .alokasi-table-p01,
-  .alokasi-table-so {
-    width: 100% !important;
-    max-width: 100% !important;
-    table-layout: fixed;
-  }
-
-  .dt tbody tr,
-  .box,
-  .ttd-row,
-  .pf,
-  .layout-section {
-    break-inside: avoid !important;
-    page-break-inside: avoid !important;
-  }
-
-  .print-page,
-  .print-page-p01,
-  .print-wrapper-so {
-    box-shadow: none !important;
-  }
-  .preview-banner,
-  .preview-watermark {
-    display: none !important;
-  }
-
+  .print-container-p01,
   .print-container-so {
     width: 297mm !important;
     margin: 0 !important;
     padding: 0 !important;
-    background: #fff !important;
-  }
-  .print-wrapper-so {
-    width: 297mm;
-    height: 210mm;
-    min-height: 210mm;
-    margin: 0 auto;
-    box-sizing: border-box;
-    background: #fff;
-    overflow: hidden;
-  }
-  .print-half-so {
-    width: 50% !important;
-    height: 210mm !important;
-    min-height: 210mm !important;
-    overflow: hidden !important;
-    box-sizing: border-box !important;
-  }
-  .alokasi-panel-so {
-    width: 100% !important;
-    height: 210mm !important;
-    min-height: 210mm !important;
-    page-break-before: always !important;
-    break-before: page !important;
   }
 
-  .print-container-p01 {
-    width: 297mm !important;
-    margin: 0 !important;
-    padding: 0 !important;
-  }
   .print-page-p01 {
     width: 297mm !important;
     height: 210mm !important;
@@ -3198,35 +3071,39 @@ body {
     page-break-after: always !important;
     break-after: page !important;
   }
-  .print-page-p01:last-child {
+
+  .print-wrapper-so {
+    width: 297mm !important;
+    height: 210mm !important;
+    min-height: 210mm !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    box-sizing: border-box !important;
+    page-break-after: always !important;
+    break-after: page !important;
+    box-shadow: none !important;
+  }
+
+  .alokasi-print-page-so {
+    width: 297mm !important;
+    min-width: 297mm !important;
+    height: 210mm !important;
+    min-height: 210mm !important;
+    margin: 0 !important;
+    padding: 15mm 18mm !important;
+    box-sizing: border-box !important;
+    page-break-before: always !important;
+    break-before: page !important;
+    box-shadow: none !important;
+    overflow: hidden !important;
+  }
+
+  .alokasi-print-page-so:last-child {
     page-break-after: auto !important;
     break-after: auto !important;
   }
-  .alokasi-page-p01 {
-    page-break-before: always !important;
-    break-before: page !important;
-  }
-
-  .body-p01 {
-    width: 100% !important;
-    min-width: 0 !important;
-    overflow: hidden !important;
-  }
-  .kiri-p01,
-  .kanan-p01 {
-    min-width: 0 !important;
-  }
-  .img-center-p01 {
-    min-width: 0 !important;
-    overflow: hidden !important;
-  }
-  .img-fit-p01 {
-    max-width: 100% !important;
-    max-height: 100% !important;
-  }
 
   .print-root.preview-mode .print-page,
-  .print-root.preview-mode .print-page-old,
   .print-root.preview-mode .print-container-p01,
   .print-root.preview-mode .print-container-so,
   .print-root.preview-mode .preview-banner,
@@ -3294,13 +3171,5 @@ body {
 
 .preview-print-blocked-msg {
   display: none;
-}
-
-@media screen and (max-width: 900px) {
-  .print-page,
-  .print-page-p01,
-  .print-wrapper-so {
-    transform-origin: top center;
-  }
 }
 </style>

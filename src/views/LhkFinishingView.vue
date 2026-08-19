@@ -138,14 +138,49 @@
                   :items-per-page="-1"
                   hide-default-footer
                 >
-                  <template #item.J_Order="{ value }">{{ value }}</template>
-                  <template #item.J_Seaming="{ value }">{{ value }}</template>
-                  <template #item.J_MataAyam="{ value }">{{ value }}</template>
-                  <template #item.J_Coly="{ value }">{{ value }}</template>
-                  <template #item.J_Bs="{ value }">{{ value }}</template>
-                  <template #item.Mata_Ayam="{ value }">{{ value }}</template>
-                  <template #item.XBanner="{ value }">{{ value }}</template>
-                  <template #item.Plastik="{ value }">{{ value }}</template>
+                  <template #item.Panjang="{ value }">
+                    {{
+                      Number(value ?? 0).toLocaleString("id-ID", {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })
+                    }}
+                  </template>
+                  <template #item.Lebar="{ value }">
+                    {{
+                      Number(value ?? 0).toLocaleString("id-ID", {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })
+                    }}
+                  </template>
+                  <template #item.J_Order="{ value }">{{
+                    Number(value ?? 0).toLocaleString("id-ID")
+                  }}</template>
+                  <template #item.J_Potong="{ value }">{{
+                    Number(value ?? 0).toLocaleString("id-ID")
+                  }}</template>
+                  <template #item.J_Seaming="{ value }">{{
+                    Number(value ?? 0).toLocaleString("id-ID")
+                  }}</template>
+                  <template #item.J_MataAyam="{ value }">{{
+                    Number(value ?? 0).toLocaleString("id-ID")
+                  }}</template>
+                  <template #item.J_Coly="{ value }">{{
+                    Number(value ?? 0).toLocaleString("id-ID")
+                  }}</template>
+                  <template #item.J_Bs="{ value }">{{
+                    Number(value ?? 0).toLocaleString("id-ID")
+                  }}</template>
+                  <template #item.Mata_Ayam="{ value }">{{
+                    Number(value ?? 0).toLocaleString("id-ID")
+                  }}</template>
+                  <template #item.XBanner="{ value }">{{
+                    Number(value ?? 0).toLocaleString("id-ID")
+                  }}</template>
+                  <template #item.Plastik="{ value }">{{
+                    Number(value ?? 0).toLocaleString("id-ID")
+                  }}</template>
                 </v-data-table>
 
                 <div v-else class="text-center pa-4 text-caption text-grey">
@@ -159,14 +194,14 @@
     </BaseBrowse>
 
     <!-- Dialog Hasil Pencarian Progres SPK -->
-    <v-dialog v-model="showSearchModal" max-width="1000px">
+    <v-dialog v-model="showSearchModal" max-width="1100px">
       <v-card>
         <v-card-title
           class="d-flex align-center justify-space-between bg-primary text-white pa-4"
         >
-          <span
-            ><v-icon start>mdi-file-find</v-icon> Progres Finishing SPK</span
-          >
+          <span>
+            <v-icon start>mdi-file-find</v-icon> Progres Finishing SPK
+          </span>
           <v-btn
             icon="mdi-close"
             variant="text"
@@ -183,7 +218,36 @@
             class="elevation-1"
             :loading="loadingSearch"
           >
-            <!-- Formatter Angka dengan penanganan aman -->
+            <template #item.Panjang="{ item }">
+              {{
+                Number(
+                  item.Panjang ??
+                    item.raw?.Panjang ??
+                    item.panjang ??
+                    item.raw?.panjang ??
+                    0,
+                ).toLocaleString("id-ID", {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                })
+              }}
+            </template>
+
+            <template #item.Lebar="{ item }">
+              {{
+                Number(
+                  item.Lebar ??
+                    item.raw?.Lebar ??
+                    item.lebar ??
+                    item.raw?.lebar ??
+                    0,
+                ).toLocaleString("id-ID", {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                })
+              }}
+            </template>
+
             <template #item.Qty_Order="{ item }">
               {{
                 Number(
@@ -232,7 +296,6 @@
               }}
             </template>
 
-            <!-- Status Sisa Kurang -->
             <template #item.Sisa_Kurang="{ item }">
               <v-chip
                 size="x-small"
@@ -265,7 +328,7 @@ import { useRouter } from "vue-router";
 import { useToast } from "vue-toastification";
 import { useAuthStore } from "../stores/authStore";
 import api from "@/services/api";
-import { format, subDays, parseISO, isValid } from "date-fns";
+import { format, subDays } from "date-fns";
 import BaseBrowse from "@/components/BaseBrowse.vue";
 import * as XLSX from "xlsx-js-style";
 
@@ -284,6 +347,12 @@ interface LhkFinishingHeader {
 interface LhkFinishingDetail {
   Nomor_SPK?: string;
   Nama_SPK?: string;
+  Panjang?: number;
+  Lebar?: number;
+  panjang?: number;
+  lebar?: number;
+  spk_panjang?: number;
+  spk_lebar?: number;
   J_Order?: number;
   J_Potong?: number;
   J_Seaming?: number;
@@ -299,6 +368,8 @@ interface LhkFinishingDetail {
 interface SpkSearchResult {
   Nomor_SPK: string;
   Nama_SPK: string;
+  Panjang?: number;
+  Lebar?: number;
   Qty_Order: number;
   Total_Potong: number;
   Total_Seaming: number;
@@ -364,17 +435,21 @@ const getRowProps = ({ item }: { item: any }) => {
   };
 };
 
-// --- Helpers ---
+// --- Helpers Format Tanggal (Bebas Masalah Timezone Offset) ---
 const safeFormatDate = (dateString: string | undefined): string => {
   if (!dateString) return "";
   try {
-    const parsedDate = parseISO(dateString);
-    if (isValid(parsedDate)) {
-      return format(parsedDate, "dd/MM/yyyy");
+    // Ambil string YYYY-MM-DD tanpa parsing UTC Date untuk mencegah tanggal mundur
+    const cleanDate = dateString.split("T")[0];
+    if (cleanDate.includes("-")) {
+      const parts = cleanDate.split("-");
+      if (parts.length === 3) {
+        return `${parts[2]}/${parts[1]}/${parts[0]}`;
+      }
     }
-    return "";
+    return cleanDate;
   } catch {
-    return "";
+    return dateString || "";
   }
 };
 
@@ -398,6 +473,8 @@ const masterHeaders = [
 const detailHeaders = [
   { title: "Nomor SPK", key: "Nomor_SPK", minWidth: "150px" },
   { title: "Nama SPK", key: "Nama_SPK", minWidth: "250px" },
+  { title: "Panjang", key: "Panjang", align: "end", minWidth: "90px" },
+  { title: "Lebar", key: "Lebar", align: "end", minWidth: "90px" },
   { title: "Jml Order", key: "J_Order", align: "end" },
   { title: "Jml Potong", key: "J_Potong", align: "end" },
   { title: "Jml Seaming", key: "J_Seaming", align: "end" },
@@ -412,6 +489,8 @@ const detailHeaders = [
 const spkSearchHeaders = [
   { title: "Nomor SPK", key: "Nomor_SPK", minWidth: "150px" },
   { title: "Nama SPK", key: "Nama_SPK", minWidth: "200px" },
+  { title: "Panjang", key: "Panjang", align: "end" },
+  { title: "Lebar", key: "Lebar", align: "end" },
   { title: "Qty Order", key: "Qty_Order", align: "end" },
   { title: "Potong", key: "Total_Potong", align: "end" },
   { title: "Seaming", key: "Total_Seaming", align: "end" },
@@ -486,7 +565,14 @@ const loadDetails = async (newlyExpandedItems: any[]) => {
       params: { nomor },
     });
     const result = res.data.data;
-    details.value[nomor] = result.Detail || result || [];
+    const rawDetails = result.Detail || result || [];
+
+    // Normalisasi properti Panjang dan Lebar dari berbagai kemungkinan field backend
+    details.value[nomor] = rawDetails.map((dtl: any) => ({
+      ...dtl,
+      Panjang: Number(dtl.Panjang ?? dtl.panjang ?? dtl.spk_panjang ?? 0),
+      Lebar: Number(dtl.Lebar ?? dtl.lebar ?? dtl.spk_lebar ?? 0),
+    }));
   } catch (err) {
     console.error(err);
     toast.error(`Gagal memuat detail untuk ${nomor}`);
@@ -515,7 +601,14 @@ const handleExportDetail = async () => {
               params: { nomor: header.Nomor },
             });
             const result = res.data.data;
-            details.value[header.Nomor] = result.Detail || result || [];
+            const rawDetails = result.Detail || result || [];
+            details.value[header.Nomor] = rawDetails.map((dtl: any) => ({
+              ...dtl,
+              Panjang: Number(
+                dtl.Panjang ?? dtl.panjang ?? dtl.spk_panjang ?? 0,
+              ),
+              Lebar: Number(dtl.Lebar ?? dtl.lebar ?? dtl.spk_lebar ?? 0),
+            }));
           } catch (e) {
             console.error(
               `Gagal pre-fetch detail finishing ${header.Nomor}:`,
@@ -562,20 +655,7 @@ const handleExportDetail = async () => {
       alignment: { horizontal: "right", vertical: "center" },
     };
 
-    const formatTglManual = (dateStr: string) => {
-      if (!dateStr) return "-";
-      try {
-        if (dateStr.includes("-")) {
-          const parts = dateStr.split("T")[0].split("-");
-          if (parts.length === 3) {
-            return `${parts[2]}/${parts[1]}/${parts[0]}`;
-          }
-        }
-        return safeFormatDate(dateStr) || dateStr;
-      } catch {
-        return dateStr;
-      }
-    };
+    const num = (v: any) => (isNaN(Number(v)) ? 0 : Number(v));
 
     const worksheetData: any[] = [];
     worksheetData.push([
@@ -586,12 +666,13 @@ const handleExportDetail = async () => {
     ]);
     worksheetData.push([
       {
-        v: `Periode : ${formatTglManual(filters.startDate)} s/d ${formatTglManual(filters.endDate)}`,
+        v: `Periode : ${safeFormatDate(filters.startDate)} s/d ${safeFormatDate(filters.endDate)}`,
         s: { font: { sz: 10 } },
       },
     ]);
     worksheetData.push([]);
 
+    // Kolom Header Table Excel
     const headersTable = [
       { v: "NOMOR LHK", s: styleHeaderMain },
       { v: "TANGGAL", s: styleHeaderMain },
@@ -601,6 +682,8 @@ const handleExportDetail = async () => {
       { v: "OPERATOR", s: styleHeaderMain },
       { v: "NOMOR SPK", s: styleHeaderMain },
       { v: "NAMA SPK", s: styleHeaderMain },
+      { v: "PANJANG", s: styleHeaderMain },
+      { v: "LEBAR", s: styleHeaderMain },
       { v: "JML ORDER", s: styleHeaderMain },
       { v: "JML POTONG", s: styleHeaderMain },
       { v: "JML SEAMING", s: styleHeaderMain },
@@ -615,7 +698,7 @@ const handleExportDetail = async () => {
 
     headers.value.forEach((header) => {
       const targetDetails = details.value[header.Nomor] || [];
-      const tglHeader = header.Tanggal ? formatTglManual(header.Tanggal) : "";
+      const tglHeader = header.Tanggal ? safeFormatDate(header.Tanggal) : "";
 
       if (targetDetails.length > 0) {
         targetDetails.forEach((dtl, index) => {
@@ -638,39 +721,69 @@ const handleExportDetail = async () => {
             { v: dtl.Nomor_SPK || "-", s: styleDataCellCenter },
             { v: dtl.Nama_SPK || "-", s: styleDataCell },
             {
-              v: dtl.J_Order !== undefined ? Number(dtl.J_Order) : 0,
+              v: num(dtl.Panjang ?? dtl.panjang ?? dtl.spk_panjang),
+              t: "n",
+              z: "#,##0.00",
               s: styleDataCellRight,
             },
             {
-              v: dtl.J_Potong !== undefined ? Number(dtl.J_Potong) : 0,
+              v: num(dtl.Lebar ?? dtl.lebar ?? dtl.spk_lebar),
+              t: "n",
+              z: "#,##0.00",
               s: styleDataCellRight,
             },
             {
-              v: dtl.J_Seaming !== undefined ? Number(dtl.J_Seaming) : 0,
+              v: num(dtl.J_Order),
+              t: "n",
+              z: "#,##0",
               s: styleDataCellRight,
             },
             {
-              v: dtl.J_MataAyam !== undefined ? Number(dtl.J_MataAyam) : 0,
+              v: num(dtl.J_Potong),
+              t: "n",
+              z: "#,##0",
               s: styleDataCellRight,
             },
             {
-              v: dtl.J_Coly !== undefined ? Number(dtl.J_Coly) : 0,
+              v: num(dtl.J_Seaming),
+              t: "n",
+              z: "#,##0",
               s: styleDataCellRight,
             },
             {
-              v: dtl.J_Bs !== undefined ? Number(dtl.J_Bs) : 0,
+              v: num(dtl.J_MataAyam),
+              t: "n",
+              z: "#,##0",
               s: styleDataCellRight,
             },
             {
-              v: dtl.Mata_Ayam !== undefined ? Number(dtl.Mata_Ayam) : 0,
+              v: num(dtl.J_Coly),
+              t: "n",
+              z: "#,##0",
               s: styleDataCellRight,
             },
             {
-              v: dtl.XBanner !== undefined ? Number(dtl.XBanner) : 0,
+              v: num(dtl.J_Bs),
+              t: "n",
+              z: "#,##0",
               s: styleDataCellRight,
             },
             {
-              v: dtl.Plastik !== undefined ? Number(dtl.Plastik) : 0,
+              v: num(dtl.Mata_Ayam),
+              t: "n",
+              z: "#,##0",
+              s: styleDataCellRight,
+            },
+            {
+              v: num(dtl.XBanner),
+              t: "n",
+              z: "#,##0",
+              s: styleDataCellRight,
+            },
+            {
+              v: num(dtl.Plastik),
+              t: "n",
+              z: "#,##0",
               s: styleDataCellRight,
             },
           ];
@@ -686,40 +799,44 @@ const handleExportDetail = async () => {
           { v: header.Operator || "-", s: styleDataCell },
           { v: "-", s: styleDataCellCenter },
           { v: "Tidak ada data detail pekerjaan", s: styleDataCell },
-          { v: 0, s: styleDataCellRight },
-          { v: 0, s: styleDataCellRight },
-          { v: 0, s: styleDataCellRight },
-          { v: 0, s: styleDataCellRight },
-          { v: 0, s: styleDataCellRight },
-          { v: 0, s: styleDataCellRight },
-          { v: 0, s: styleDataCellRight },
-          { v: 0, s: styleDataCellRight },
-          { v: 0, s: styleDataCellRight },
+          { v: 0, t: "n", z: "#,##0.00", s: styleDataCellRight },
+          { v: 0, t: "n", z: "#,##0.00", s: styleDataCellRight },
+          { v: 0, t: "n", z: "#,##0", s: styleDataCellRight },
+          { v: 0, t: "n", z: "#,##0", s: styleDataCellRight },
+          { v: 0, t: "n", z: "#,##0", s: styleDataCellRight },
+          { v: 0, t: "n", z: "#,##0", s: styleDataCellRight },
+          { v: 0, t: "n", z: "#,##0", s: styleDataCellRight },
+          { v: 0, t: "n", z: "#,##0", s: styleDataCellRight },
+          { v: 0, t: "n", z: "#,##0", s: styleDataCellRight },
+          { v: 0, t: "n", z: "#,##0", s: styleDataCellRight },
+          { v: 0, t: "n", z: "#,##0", s: styleDataCellRight },
         ];
         worksheetData.push(row);
       }
     });
 
     const ws = XLSX.utils.aoa_to_sheet(worksheetData);
-    ws["!merges"] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 16 } }];
+    ws["!merges"] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 18 } }];
     ws["!cols"] = [
-      { wch: 22 },
-      { wch: 12 },
-      { wch: 15 },
-      { wch: 20 },
-      { wch: 8 },
-      { wch: 18 },
-      { wch: 18 },
-      { wch: 35 },
-      { wch: 12 },
-      { wch: 12 },
-      { wch: 12 },
-      { wch: 15 },
-      { wch: 12 },
-      { wch: 12 },
-      { wch: 15 },
-      { wch: 15 },
-      { wch: 15 },
+      { wch: 22 }, // Nomor LHK
+      { wch: 14 }, // Tanggal
+      { wch: 15 }, // Kode Gudang
+      { wch: 20 }, // Nama Gudang
+      { wch: 8 }, // Shift
+      { wch: 18 }, // Operator
+      { wch: 18 }, // Nomor SPK
+      { wch: 35 }, // Nama SPK
+      { wch: 10 }, // Panjang
+      { wch: 10 }, // Lebar
+      { wch: 12 }, // Jml Order
+      { wch: 12 }, // Jml Potong
+      { wch: 12 }, // Jml Seaming
+      { wch: 15 }, // Jml Mata Ayam
+      { wch: 12 }, // Jml Coly
+      { wch: 12 }, // Jml BS
+      { wch: 15 }, // Qty Mata Ayam
+      { wch: 15 }, // Qty XBanner
+      { wch: 15 }, // Qty Plastik
     ];
 
     const wb = XLSX.utils.book_new();

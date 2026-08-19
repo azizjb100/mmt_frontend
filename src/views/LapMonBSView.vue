@@ -243,8 +243,8 @@
             </span>
           </th>
 
-          <!-- GROUP DIMENSI BS / AFAL -->
-          <th colspan="3" class="text-center header-group bg-blue-header">
+          <!-- GROUP DIMENSI BS / AFAL (Colspan 4) -->
+          <th colspan="4" class="text-center header-group bg-blue-header">
             DIMENSI BS / AFAL
           </th>
         </tr>
@@ -264,6 +264,12 @@
             L. BS (M) {{ getSortIcon("Lebar_BS") }}
           </th>
           <th
+            class="text-right bg-blue-sub cursor-pointer select-none"
+            @click="toggleSort('Jumlah_BS')"
+          >
+            QTY BS {{ getSortIcon("Jumlah_BS") }}
+          </th>
+          <th
             class="text-right bg-red-sub cursor-pointer select-none"
             @click="toggleSort('Luas_BS_M2')"
           >
@@ -280,7 +286,13 @@
         <td class="text-center">
           <v-chip
             size="x-small"
-            :color="item.Jenis_LHK === 'MMT' ? 'blue' : 'purple'"
+            :color="
+              item.Jenis_LHK === 'MMT'
+                ? 'blue'
+                : item.Jenis_LHK === 'FINISHING'
+                  ? 'orange-darken-2'
+                  : 'purple'
+            "
             variant="tonal"
             class="font-weight-bold"
           >
@@ -312,11 +324,14 @@
           {{ item.Barcode || "-" }}
         </td>
 
-        <!-- Angka Ukuran BS -->
+        <!-- Angka Ukuran & Jumlah BS -->
         <td class="text-right font-weight-bold">
           {{ formatNumber(item.Panjang_BS, 2) }}
         </td>
         <td class="text-right">{{ formatNumber(item.Lebar_BS, 2) }}</td>
+        <td class="text-right font-weight-medium">
+          {{ formatNumber(item.Jumlah_BS, 0) }}
+        </td>
         <td class="text-right text-error font-weight-bold bg-red-lighten-5">
           {{ formatNumber(item.Luas_BS_M2, 2) }}
         </td>
@@ -326,7 +341,6 @@
     <!-- Slot Total Footer -->
     <template #tfoot="{ formatNumber }">
       <tr class="table-footer-row">
-        <!-- Colspan diubah dari 9 menjadi 8 karena Operator dihilangkan -->
         <td
           colspan="8"
           class="text-right font-weight-black text-uppercase sticky-footer-title"
@@ -337,6 +351,9 @@
           {{ formatNumber(totals.panjang_bs, 2) }} M
         </td>
         <td class="bg-grey-lighten-4"></td>
+        <td class="text-right font-weight-black text-primary">
+          {{ formatNumber(totals.jumlah_bs, 0) }} Pcs
+        </td>
         <td class="text-right font-weight-black text-error bg-red-lighten-4">
           {{ formatNumber(totals.luas_bs_m2, 2) }} M²
         </td>
@@ -349,7 +366,7 @@
     <v-card
       flat
       class="border rounded-lg overflow-hidden"
-      style="min-width: 600px"
+      style="min-width: 650px"
     >
       <v-table density="compact" class="summary-table">
         <tbody>
@@ -358,9 +375,10 @@
             <td class="sum-value font-weight-bold">
               {{ formatNumber(summary.total_records, 0) }} Transaksi
             </td>
-            <td class="sum-label">Akumulasi Panjang BS:</td>
+            <td class="sum-label">Total Qty BS:</td>
             <td class="sum-value text-primary font-weight-bold">
-              {{ formatNumber(summary.total_panjang, 2) }} Meter
+              {{ formatNumber(summary.total_qty_bs || totals.jumlah_bs, 0) }}
+              Pcs
             </td>
             <td class="sum-label bg-red-lighten-5 text-error">
               Total Luas Afal (M²):
@@ -402,6 +420,7 @@ const allData = ref<any[]>([]);
 const summary = ref({
   total_records: 0,
   total_panjang: 0,
+  total_qty_bs: 0,
   total_luas_m2: 0,
 });
 
@@ -412,7 +431,7 @@ const columnFilters = reactive({
   Brg_Nama: "",
 });
 
-const sortKey = ref("Nomor_LHK"); // Default sorting awal
+const sortKey = ref("Nomor_LHK");
 const sortOrder = ref<"asc" | "desc">("asc");
 
 const toggleSort = (key: string) => {
@@ -424,13 +443,11 @@ const toggleSort = (key: string) => {
   }
 };
 
-// HELPER IKON SORTING: Hanya tampil saat kolom di-klik/aktif
 const getSortIcon = (key: string) => {
   if (sortKey.value !== key) return "";
   return sortOrder.value === "asc" ? " ▲" : " ▼";
 };
 
-// State Active Filter
 const hasActiveFilter = computed(() => {
   return (
     Boolean(searchQuery.value) ||
@@ -451,13 +468,12 @@ const resetAllFilters = () => {
   sortOrder.value = "asc";
 };
 
-// --- OPTIONS FOR DROPDOWN FILTER ---
 const jenisLhkOptions = computed(() => {
   const list = allData.value.map((x) => x.Jenis_LHK).filter(Boolean);
   return ["SEMUA", ...new Set(list)];
 });
 
-// --- AJAX FETCH DATA FROM EXPRESS BACKEND ---
+// --- AJAX FETCH DATA FROM BACKEND ---
 const fetchReport = async () => {
   loading.report = true;
   try {
@@ -470,16 +486,18 @@ const fetchReport = async () => {
     });
 
     if (res.data.success || res.data.status) {
-      const rawList = res.data.data || [];
+      const rawList = res.data.data || res.data.list || [];
       allData.value = rawList.map((row: any) => ({
         ...row,
         Panjang_BS: Number(row.Panjang_BS || 0),
         Lebar_BS: Number(row.Lebar_BS || 0),
+        Jumlah_BS: Number(row.Jumlah_BS || 0),
         Luas_BS_M2: Number(row.Luas_BS_M2 || 0),
       }));
       summary.value = res.data.summary || {
         total_records: 0,
         total_panjang: 0,
+        total_qty_bs: 0,
         total_luas_m2: 0,
       };
     }
@@ -491,7 +509,6 @@ const fetchReport = async () => {
   }
 };
 
-// --- HELPER PARSING TANGGAL UTK SORTING ---
 const getTimestamp = (val: any): number => {
   if (!val) return 0;
   const strVal = String(val).trim();
@@ -502,15 +519,13 @@ const getTimestamp = (val: any): number => {
   return isNaN(fallbackDate) ? 0 : fallbackDate;
 };
 
-// --- KLASIFIKASI KUNCI KOLOM UNTUK SORTING ---
 const DATE_KEYS = ["Tanggal"];
-const NUMERIC_KEYS = ["Panjang_BS", "Lebar_BS", "Luas_BS_M2"];
+const NUMERIC_KEYS = ["Panjang_BS", "Lebar_BS", "Jumlah_BS", "Luas_BS_M2"];
 
 // --- FILTERED & SORTED DATA ---
 const filteredData = computed(() => {
   let result = [...allData.value];
 
-  // 1. Global Search
   if (searchQuery.value) {
     const q = searchQuery.value.toLowerCase().trim();
     result = result.filter((item: any) => {
@@ -523,14 +538,12 @@ const filteredData = computed(() => {
     });
   }
 
-  // 2. Filter Per Kolom (JENIS LHK)
   if (columnFilters.Jenis_LHK && columnFilters.Jenis_LHK !== "SEMUA") {
     result = result.filter(
       (item: any) => item.Jenis_LHK === columnFilters.Jenis_LHK,
     );
   }
 
-  // 3. Filter Per Kolom (NOMOR LHK)
   if (columnFilters.Nomor_LHK) {
     const q = columnFilters.Nomor_LHK.toLowerCase().trim();
     result = result.filter((item: any) =>
@@ -538,7 +551,6 @@ const filteredData = computed(() => {
     );
   }
 
-  // 4. Filter Per Kolom (NAMA BARANG)
   if (columnFilters.Brg_Nama) {
     const q = columnFilters.Brg_Nama.toLowerCase().trim();
     result = result.filter((item: any) =>
@@ -546,7 +558,6 @@ const filteredData = computed(() => {
     );
   }
 
-  // 5. Logic Sorting Presisi
   if (sortKey.value) {
     const key = sortKey.value;
     const isAsc = sortOrder.value === "asc";
@@ -555,14 +566,12 @@ const filteredData = computed(() => {
       const valA = a[key];
       const valB = b[key];
 
-      // A. Sorting Kolom Tanggal
       if (DATE_KEYS.includes(key)) {
         const timeA = getTimestamp(valA);
         const timeB = getTimestamp(valB);
         return isAsc ? timeA - timeB : timeB - timeA;
       }
 
-      // B. Sorting Kolom Angka
       if (NUMERIC_KEYS.includes(key)) {
         const numA =
           valA !== null && valA !== undefined && valA !== "" ? Number(valA) : 0;
@@ -571,7 +580,6 @@ const filteredData = computed(() => {
         return isAsc ? numA - numB : numB - numA;
       }
 
-      // C. Sorting Kolom Teks / Alfanumerik
       const strA = valA !== null && valA !== undefined ? String(valA) : "";
       const strB = valB !== null && valB !== undefined ? String(valB) : "";
 
@@ -587,21 +595,22 @@ const filteredData = computed(() => {
   return result;
 });
 
-// --- REAL-TIME TOTALS (BERDASARKAN HASIL FILTER) ---
+// --- REAL-TIME TOTALS ---
 const totals = computed(() => {
   return filteredData.value.reduce(
     (acc, item: any) => {
       acc.panjang_bs += Number(item.Panjang_BS || 0);
+      acc.jumlah_bs += Number(item.Jumlah_BS || 0);
       acc.luas_bs_m2 += Number(item.Luas_BS_M2 || 0);
       return acc;
     },
-    { panjang_bs: 0, luas_bs_m2: 0 },
+    { panjang_bs: 0, jumlah_bs: 0, luas_bs_m2: 0 },
   );
 });
 
 // --- HELPER FORMAT ---
 const formatNumber = (val: any, dec = 2) => {
-  if (val === null || val === undefined || val === "") return "0,00";
+  if (val === null || val === undefined || val === "") return "0";
   const num = parseFloat(val);
   if (isNaN(num)) return val;
   return num.toLocaleString("id-ID", {
@@ -622,7 +631,7 @@ const formatDateFull = (dateStr: string) => {
   return isValid(date) ? format(date, "dd MMMM yyyy", { locale: id }) : dateStr;
 };
 
-// --- EXPORT TO EXCEL WITH STYLING ---
+// --- EXPORT TO EXCEL ---
 const exportToExcel = (dataToExport: any[]) => {
   if (!dataToExport || dataToExport.length === 0) {
     alert("Tidak ada data untuk diekspor");
@@ -702,6 +711,7 @@ const exportToExcel = (dataToExport: any[]) => {
     { v: "DIMENSI BS / AFAL", s: styleHeaderMain },
     "",
     "",
+    "",
   ];
   wsData.push(headerRow1);
 
@@ -717,6 +727,7 @@ const exportToExcel = (dataToExport: any[]) => {
     "",
     { v: "P. BS (METER)", s: styleHeaderSub },
     { v: "L. BS (METER)", s: styleHeaderSub },
+    { v: "QTY BS (PCS)", s: styleHeaderSub },
     { v: "LUAS BS (M2)", s: styleHeaderSub },
   ];
   wsData.push(headerRow2);
@@ -763,6 +774,12 @@ const exportToExcel = (dataToExport: any[]) => {
         s: { ...styleDataCell, alignment: { horizontal: "right" } },
       },
       {
+        v: num(item.Jumlah_BS),
+        t: "n",
+        z: "#,##0",
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+      },
+      {
         v: num(item.Luas_BS_M2),
         t: "n",
         z: "#,##0.00",
@@ -786,6 +803,12 @@ const exportToExcel = (dataToExport: any[]) => {
     },
     { v: "", s: styleFooterCell },
     {
+      v: num(totals.value.jumlah_bs),
+      t: "n",
+      z: "#,##0",
+      s: { ...styleFooterCell, alignment: { horizontal: "right" } },
+    },
+    {
       v: num(totals.value.luas_bs_m2),
       t: "n",
       z: "#,##0.00",
@@ -805,7 +828,7 @@ const exportToExcel = (dataToExport: any[]) => {
     { s: { r: 4, c: 5 }, e: { r: 5, c: 5 } }, // Kode Brg
     { s: { r: 4, c: 6 }, e: { r: 5, c: 6 } }, // Nama Barang
     { s: { r: 4, c: 7 }, e: { r: 5, c: 7 } }, // Barcode
-    { s: { r: 4, c: 8 }, e: { r: 4, c: 10 } }, // Dimensi BS (P, L, Luas)
+    { s: { r: 4, c: 8 }, e: { r: 4, c: 11 } }, // Dimensi BS (P, L, Qty, Luas)
     { s: { r: wsData.length - 1, c: 0 }, e: { r: wsData.length - 1, c: 7 } }, // Title Footer Merge
   ];
 
@@ -820,6 +843,7 @@ const exportToExcel = (dataToExport: any[]) => {
     { wch: 20 },
     { wch: 15 },
     { wch: 15 },
+    { wch: 12 },
     { wch: 15 },
   ];
 
@@ -832,7 +856,6 @@ onMounted(fetchReport);
 </script>
 
 <style scoped>
-/* 1. CONTAINER WRAPPER UNTUK OVERFLOW SCROLL */
 :deep(.v-table__wrapper),
 :deep(.v-data-table__wrapper) {
   max-height: calc(100vh - 280px) !important;
@@ -840,7 +863,6 @@ onMounted(fetchReport);
   overflow-x: auto !important;
 }
 
-/* 2. STANDARISASI SELURUH TABEL & FONT SIZE KE 12PX */
 :deep(table) {
   border-collapse: separate !important;
   border-spacing: 0 !important;
@@ -854,7 +876,6 @@ onMounted(fetchReport);
   padding: 6px 8px !important;
 }
 
-/* 3. STICKY HEADER */
 :deep(thead) {
   position: sticky !important;
   top: 0 !important;
@@ -878,7 +899,6 @@ onMounted(fetchReport);
   border-right: 1px solid #60a5fa !important;
 }
 
-/* 4. STICKY FOOTER */
 :deep(tfoot) {
   position: sticky !important;
   bottom: 0 !important;
@@ -891,7 +911,6 @@ onMounted(fetchReport);
   border-bottom: 2px solid #000 !important;
 }
 
-/* 5. STICKY LEFT COLUMNS */
 :deep(.sticky-col-1) {
   position: sticky !important;
   left: 0px !important;
@@ -927,7 +946,6 @@ onMounted(fetchReport);
   background-color: #fef3c7 !important;
 }
 
-/* 6. BACKGROUND COLOR GROUP HEADER & SUB HEADER */
 .bg-blue-header {
   background-color: #1d4ed8 !important;
   color: white !important;
@@ -942,7 +960,6 @@ onMounted(fetchReport);
   color: #000 !important;
 }
 
-/* 7. UTILITY BORDERS & BARCODE STYLING */
 .grey-barcode {
   color: #64748b;
   font-family: monospace;
@@ -961,7 +978,6 @@ onMounted(fetchReport);
   opacity: 1;
 }
 
-/* 8. SUMMARY TABLE STYLING */
 .summary-table td {
   padding: 6px 12px !important;
   font-size: 12px !important;
