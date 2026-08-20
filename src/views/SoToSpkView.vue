@@ -79,7 +79,7 @@ const toast = useToast();
 // --- State ---
 const masterData = ref<SpkHeader[]>([]);
 const details = ref<Record<string, SpkDetailSize[]>>({});
-const loading = ref<boolean>(true);
+const loading = ref<boolean>(false);
 const isExporting = ref<boolean>(false);
 const loadingDetails = ref<Set<string>>(new Set());
 const selected = ref<SpkHeader[]>([]);
@@ -94,6 +94,11 @@ const showPreviewDialog = ref<boolean>(false);
 const previewUrl = ref<string>("");
 const previewSpkNomor = ref<string>("");
 const isIframeLoading = ref<boolean>(true);
+
+// --- AUTO GENERATE SPK STATE ---
+const isGeneratingSpk = ref<boolean>(false);
+const showConfirmGenerateDialog = ref<boolean>(false);
+const targetSoToGenerate = ref<SpkHeader | null>(null);
 
 // --- EXCEL FILTER STATES ---
 const columnSearch = ref<Record<string, string>>({});
@@ -269,9 +274,9 @@ const getFilteredPopupOptions = (key: string) => {
 };
 
 const isOptionSelected = (key: string, option: string) => {
-  const selected = selectedValues.value[key];
-  if (!selected) return true;
-  return selected.includes(option);
+  const selectedArr = selectedValues.value[key];
+  if (!selectedArr) return true;
+  return selectedArr.includes(option);
 };
 
 const toggleOption = (key: string, option: string) => {
@@ -309,10 +314,10 @@ const isColumnFilterActive = (key: string) => {
   const search = columnSearch.value[key]?.trim();
   if (search) return true;
 
-  const selected = selectedValues.value[key];
-  if (!selected) return false;
+  const selectedArr = selectedValues.value[key];
+  if (!selectedArr) return false;
   const all = uniqueValuesMap.value[key] || [];
-  return selected.length < all.length;
+  return selectedArr.length < all.length;
 };
 
 const activeFiltersCount = computed(() => {
@@ -369,7 +374,6 @@ const exportToExcel = async () => {
 
   isExporting.value = true;
   try {
-    // 1. Sync & Fetch Detail Size jika belum tersimpan di cache
     for (const header of filteredMasterData.value) {
       const spkNomor = header.SPK || (header as any).Nomor;
       if (
@@ -399,7 +403,6 @@ const exportToExcel = async () => {
       return formatDateDisplay(dateStr);
     };
 
-    // 2. Style Definitions
     const styleHeaderMain = {
       fill: { fgColor: { rgb: "B3E5FC" } },
       font: { bold: true, color: { rgb: "000000" }, sz: 10 },
@@ -439,7 +442,6 @@ const exportToExcel = async () => {
       font: { bold: true, sz: 10 },
     };
 
-    // 3. Worksheet Data Structure
     const worksheetData: any[] = [];
     worksheetData.push([
       {
@@ -453,7 +455,7 @@ const exportToExcel = async () => {
         s: { font: { sz: 10 } },
       },
     ]);
-    worksheetData.push([]); // Baris kosong pemisah
+    worksheetData.push([]);
 
     const headers = [
       { v: "NOMOR SO", s: styleHeaderMain },
@@ -485,7 +487,6 @@ const exportToExcel = async () => {
     let grandTotalPraSJ = 0;
     let grandTotalKirim = 0;
 
-    // 4. Populate Rows
     filteredMasterData.value.forEach((header) => {
       const spkNomor = header.SPK || (header as any).Nomor || "-";
       const soNomor = header.SO || "-";
@@ -558,7 +559,6 @@ const exportToExcel = async () => {
           ]);
         });
       } else {
-        // Fallback jika tidak ada data size per SPK
         worksheetData.push([
           { v: soNomor, s: styleDataCellCenter },
           { v: spkNomor, s: styleDataCellCenter },
@@ -584,7 +584,6 @@ const exportToExcel = async () => {
       }
     });
 
-    // 5. Grand Total Row
     const footerRow = [
       {
         v: "GRAND TOTAL",
@@ -642,39 +641,37 @@ const exportToExcel = async () => {
     ];
     worksheetData.push(footerRow);
 
-    // 6. Build Sheet, Merges, and Column Widths
     const ws = XLSX.utils.aoa_to_sheet(worksheetData);
-
     ws["!merges"] = [
-      { s: { r: 0, c: 0 }, e: { r: 0, c: 19 } }, // Merge Judul
-      { s: { r: 1, c: 0 }, e: { r: 1, c: 19 } }, // Merge Tanggal
+      { s: { r: 0, c: 0 }, e: { r: 0, c: 19 } },
+      { s: { r: 1, c: 0 }, e: { r: 1, c: 19 } },
       {
         s: { r: worksheetData.length - 1, c: 0 },
-        e: { r: worksheetData.length - 1, c: 14 }, // Merge Grand Total Label
+        e: { r: worksheetData.length - 1, c: 14 },
       },
     ];
 
     ws["!cols"] = [
-      { wch: 18 }, // NOMOR SO
-      { wch: 18 }, // NOMOR SPK
-      { wch: 12 }, // MO
-      { wch: 12 }, // CMO
-      { wch: 12 }, // TANGGAL
-      { wch: 12 }, // DATELINE
-      { wch: 14 }, // KEPENTINGAN
-      { wch: 10 }, // DIVISI
-      { wch: 14 }, // CABANG
-      { wch: 35 }, // NAMA PESANAN
-      { wch: 18 }, // BAHAN
-      { wch: 15 }, // FINISHING
-      { wch: 12 }, // STATUS
-      { wch: 10 }, // ACC PIN
-      { wch: 14 }, // UKURAN/SIZE
-      { wch: 12 }, // QTY SPK
-      { wch: 14 }, // REALISASI STBJ
-      { wch: 14 }, // SISA KURANG
-      { wch: 10 }, // PRASJ
-      { wch: 10 }, // KIRIM
+      { wch: 18 },
+      { wch: 18 },
+      { wch: 12 },
+      { wch: 12 },
+      { wch: 12 },
+      { wch: 12 },
+      { wch: 14 },
+      { wch: 10 },
+      { wch: 14 },
+      { wch: 35 },
+      { wch: 18 },
+      { wch: 15 },
+      { wch: 12 },
+      { wch: 10 },
+      { wch: 14 },
+      { wch: 12 },
+      { wch: 14 },
+      { wch: 14 },
+      { wch: 10 },
+      { wch: 10 },
     ];
 
     const wb = XLSX.utils.book_new();
@@ -691,20 +688,38 @@ const exportToExcel = async () => {
 };
 
 // --- API Methods ---
+let abortController: AbortController | null = null;
+let fetchTimer: ReturnType<typeof setTimeout> | null = null;
+
 const fetchData = async () => {
+  if (!startDate.value || !endDate.value) return;
+
+  if (abortController) {
+    abortController.abort();
+  }
+  abortController = new AbortController();
+
   loading.value = true;
   selected.value = [];
   expanded.value = [];
+
   try {
-    const res = await soToSpkService.getBrowse({
-      startDate: startDate.value,
-      endDate: endDate.value,
-      keyword: keyword.value,
-    });
+    const res = await soToSpkService.getBrowse(
+      {
+        startDate: startDate.value,
+        endDate: endDate.value,
+        keyword: keyword.value,
+      },
+      { signal: abortController.signal },
+    );
+
     const result = res.data?.data ?? res.data;
     masterData.value = Array.isArray(result) ? result : [];
-  } catch (e) {
-    toast.error("Gagal mengambil data SO to SPK.");
+  } catch (e: any) {
+    if (e.name === "CanceledError" || e.code === "ERR_CANCELED") return;
+    console.error("Fetch Browse Error:", e);
+    toast.error(e.response?.data?.message || "Gagal mengambil data SO to SPK.");
+    masterData.value = [];
   } finally {
     loading.value = false;
   }
@@ -736,18 +751,20 @@ const isLoadingDetails = (spkNomor: string) =>
 
 // --- User Actions ---
 const handleRowClick = (_event: any, row: any) => {
-  const itemNomor = row.item?.SPK || row.item?.Nomor;
+  const itemNomor = row.item?.SPK || row.item?.Nomor || row.item?.SO;
   selected.value = selected.value.some(
-    (s) => (s.SPK || (s as any).Nomor) === itemNomor,
+    (s) => (s.SPK || (s as any).Nomor || s.SO) === itemNomor,
   )
     ? []
     : [row.item];
 };
 
 const getRowProps = ({ item }: any) => {
-  const itemNomor = item?.SPK || item?.Nomor;
+  const itemNomor = item?.SPK || item?.Nomor || item?.SO;
   return {
-    class: selected.value.some((s) => (s.SPK || (s as any).Nomor) === itemNomor)
+    class: selected.value.some(
+      (s) => (s.SPK || (s as any).Nomor || s.SO) === itemNomor,
+    )
       ? "row-selected"
       : "",
   };
@@ -761,6 +778,11 @@ const handleEdit = () => {
     return toast.warning("SPK yang sudah Closed tidak dapat diubah.");
   }
   const nomorSpk = selectedItem.value.SPK || (selectedItem.value as any).Nomor;
+  if (!nomorSpk || nomorSpk === "-") {
+    return toast.warning(
+      "Data ini belum memiliki SPK. Silakan buat SPK terlebih dahulu.",
+    );
+  }
   router.push(`/mmt/so-spk/edit/${encodeURIComponent(nomorSpk)}`);
 };
 
@@ -772,8 +794,8 @@ const handlePreview = (itemToPreview?: SpkHeader) => {
     return;
   }
   const nomorSpk = target.SPK || (target as any).Nomor;
-  if (!nomorSpk) {
-    toast.error("Nomor SPK tidak valid.");
+  if (!nomorSpk || nomorSpk === "-") {
+    toast.error("SPK belum dibuat untuk dokumen ini.");
     return;
   }
 
@@ -793,6 +815,10 @@ const handlePrint = async () => {
     return;
   }
   const nomorSpk = selectedItem.value.SPK || (selectedItem.value as any).Nomor;
+  if (!nomorSpk || nomorSpk === "-") {
+    toast.warning("Dokumen ini belum memiliki nomor SPK.");
+    return;
+  }
   const statusAcc = selectedItem.value.Ngedit;
 
   if (statusAcc !== "ACC" && statusAcc !== "") {
@@ -811,8 +837,78 @@ const handlePrint = async () => {
   }
 };
 
-onMounted(fetchData);
-watch([startDate, endDate], fetchData);
+const openCreateSpkDialog = (item?: SpkHeader) => {
+  const target = item || selectedItem.value;
+  if (!target) {
+    toast.error("Pilih salah satu Sales Order (SO) terlebih dahulu.");
+    return;
+  }
+
+  const soNomor = target.SO;
+  const spkNomor = target.SPK || (target as any).Nomor;
+
+  if (!soNomor || soNomor === "-") {
+    toast.error("Baris yang dipilih tidak memiliki nomor SO yang valid.");
+    return;
+  }
+
+  if (spkNomor && spkNomor !== "-" && (target as any).IsSO !== 1) {
+    toast.warning(`SO ${soNomor} sudah memiliki SPK: ${spkNomor}`);
+    return;
+  }
+
+  targetSoToGenerate.value = target;
+  showConfirmGenerateDialog.value = true;
+};
+
+const handleExecuteGenerateSpk = async () => {
+  if (!targetSoToGenerate.value) return;
+
+  const soNomor = targetSoToGenerate.value.SO!;
+  isGeneratingSpk.value = true;
+
+  try {
+    const payload = {
+      isEdit: false,
+      so_nomor: soNomor,
+      spk_ketbeli: "",
+      spk_keterangan: "",
+    };
+
+    let res: any;
+    if (typeof (soToSpkService as any).createSave === "function") {
+      res = await (soToSpkService as any).createSave(payload);
+    } else if (typeof soToSpkService.save === "function") {
+      res = await soToSpkService.save(payload);
+    }
+
+    const generatedNomor = res?.data?.data?.nomor || res?.data?.nomor;
+    toast.success(`SPK berhasil dibuat: ${generatedNomor}`);
+
+    showConfirmGenerateDialog.value = false;
+    await fetchData();
+  } catch (error: any) {
+    console.error("Gagal generate SPK:", error);
+    toast.error(
+      error.response?.data?.message || "Gagal membuat SPK dari SO terpilih.",
+    );
+  } finally {
+    isGeneratingSpk.value = false;
+  }
+};
+
+// --- Lifecycle & Watchers ---
+onMounted(() => {
+  fetchData();
+});
+
+watch([startDate, endDate], ([newStart, newEnd]) => {
+  if (!newStart || !newEnd) return;
+  if (fetchTimer) clearTimeout(fetchTimer);
+  fetchTimer = setTimeout(() => {
+    fetchData();
+  }, 200);
+});
 </script>
 
 <template>
@@ -839,6 +935,19 @@ watch([startDate, endDate], fetchData);
     @update:expanded="handleExpandUpdate(expanded)"
   >
     <template #extra-actions>
+      <v-btn
+        color="primary"
+        variant="elevated"
+        class="text-white font-weight-bold"
+        rounded="pill"
+        size="small"
+        prepend-icon="mdi-file-document-plus"
+        :disabled="!selectedItem || isGeneratingSpk"
+        :loading="isGeneratingSpk"
+        @click="openCreateSpkDialog()"
+      >
+        Buat SPK dari SO
+      </v-btn>
       <v-btn
         color="success"
         variant="elevated"
@@ -880,7 +989,6 @@ watch([startDate, endDate], fetchData);
           @keyup.enter="fetchData"
         />
 
-        <!-- TOMBOL PREVIEW SPK -->
         <v-btn
           color="teal-darken-1"
           variant="flat"
@@ -905,7 +1013,7 @@ watch([startDate, endDate], fetchData);
       </div>
     </template>
 
-    <!-- DYNAMIC EXCEL FILTER PER KOLOM HEADER -->
+    <!-- Dynamic Excel Filter per Kolom Header -->
     <template
       v-for="header in filterableHeaders"
       :key="header.key"
@@ -1035,7 +1143,7 @@ watch([startDate, endDate], fetchData);
       </span>
     </template>
 
-    <!-- Slot Custom Item untuk Nomor SPK (Bisa di-click untuk quick preview) -->
+    <!-- Slot Custom Item untuk Nomor SPK -->
     <template #item.SPK="{ item }">
       <v-chip
         v-if="item.SPK || (item as any).Nomor"
@@ -1150,16 +1258,66 @@ watch([startDate, endDate], fetchData);
     </template>
   </BaseBrowse>
 
-  <!-- MODAL DIALOG PREVIEW SPK -->
+  <!-- Modal Konfirmasi Generate SPK -->
+  <v-dialog v-model="showConfirmGenerateDialog" max-width="450px" persistent>
+    <v-card class="pa-2 rounded-lg">
+      <v-card-title
+        class="d-flex align-center font-weight-bold text-subtitle-1"
+      >
+        <v-icon color="primary" class="mr-2">mdi-help-circle-outline</v-icon>
+        Konfirmasi Pembuatan SPK
+      </v-card-title>
+      <v-card-text class="pt-2 text-body-2">
+        Apakah Anda yakin ingin langsung membuat SPK untuk nomor SO berikut?
+        <div
+          class="pa-3 my-2 bg-grey-lighten-4 rounded border font-weight-bold text-primary text-center text-subtitle-2"
+        >
+          {{ targetSoToGenerate?.SO }}
+        </div>
+        <div class="text-caption text-grey-darken-1 text-center">
+          Nomor SPK akan otomatis di-generate oleh sistem mengikuti aturan
+          penomoran backend.
+        </div>
+      </v-card-text>
+      <v-card-actions class="justify-end ga-2">
+        <v-btn
+          variant="tonal"
+          color="grey-darken-1"
+          size="small"
+          :disabled="isGeneratingSpk"
+          @click="showConfirmGenerateDialog = false"
+        >
+          Batal
+        </v-btn>
+        <v-btn
+          color="primary"
+          variant="flat"
+          size="small"
+          class="font-weight-bold"
+          :loading="isGeneratingSpk"
+          @click="handleExecuteGenerateSpk"
+        >
+          Ya, Buat SPK
+        </v-btn>
+      </v-card-actions>
+    </v-card>
+  </v-dialog>
+
+  <!-- Modal Dialog Preview SPK -->
   <v-dialog
     v-model="showPreviewDialog"
-    max-width="1100px"
+    max-width="1200px"
     width="95vw"
+    height="92vh"
     scrollable
     transition="dialog-bottom-transition"
   >
-    <v-card class="d-flex flex-column" style="height: 90vh">
-      <v-toolbar color="grey-darken-4" density="compact">
+    <v-card class="d-flex flex-column" style="height: 92vh; max-height: 92vh">
+      <v-toolbar
+        color="grey-darken-4"
+        density="compact"
+        class="flex-grow-0 flex-shrink-0"
+      >
         <v-icon class="ml-3 mr-2" color="teal-lighten-2"
           >mdi-file-eye-outline</v-icon
         >
@@ -1183,7 +1341,9 @@ watch([startDate, endDate], fetchData);
         </v-btn>
       </v-toolbar>
 
-      <v-card-text class="pa-0 flex-grow-1 position-relative bg-grey-lighten-3">
+      <v-card-text
+        class="pa-0 flex-grow-1 position-relative bg-grey-lighten-3 iframe-wrapper"
+      >
         <div
           v-if="isIframeLoading"
           class="preview-loading-overlay d-flex flex-column align-center justify-center"
@@ -1204,7 +1364,9 @@ watch([startDate, endDate], fetchData);
 
       <v-divider />
 
-      <v-card-actions class="bg-white py-2 px-4 justify-space-between">
+      <v-card-actions
+        class="bg-white py-2 px-4 justify-space-between flex-grow-0 flex-shrink-0"
+      >
         <span class="text-caption text-grey-darken-1">
           * Mode preview untuk pengecekan data visual &amp; layout SPK.
         </span>
@@ -1265,6 +1427,12 @@ watch([startDate, endDate], fetchData);
 
 .cursor-pointer {
   cursor: pointer;
+}
+
+.iframe-wrapper {
+  height: calc(92vh - 100px) !important;
+  min-height: 500px;
+  overflow: hidden;
 }
 
 .preview-iframe {

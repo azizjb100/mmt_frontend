@@ -153,6 +153,9 @@ const removeDetail = (index: number) => {
   if (formData.detail.length > 1) {
     formData.detail.splice(index, 1);
     formData.detail.forEach((d, i) => (d.no_urut = i + 1));
+  } else {
+    // Jika tinggal 1 baris, reset isinya saja
+    formData.detail = [createEmptyDetail(0)];
   }
 };
 
@@ -166,12 +169,13 @@ const handleGudangSelect = (gudang: any) => {
 const validateQty = (item: DetailItem) => {
   if (item.qty > item.maxQty) {
     toast.warning(
-      `Peringatan: Qty untuk ${item.kota || "Baris " + item.no_urut} (${item.qty}) melebihi batas order SPK (${item.maxQty})!`,
+      `Peringatan: Qty untuk ${item.kota || "Baris " + item.no_urut} (${item.qty}) melebihi batas (${item.maxQty})!`,
       { timeout: 3000 },
     );
   }
 };
 
+// 🔥 PEMBAHARUAN LOGIKA SELEKSI SPK & AUTO-FILL TABEL DETAIL ALOKASI
 const handleSPKSelect = (spk: any) => {
   if (!spk) return;
 
@@ -191,21 +195,73 @@ const handleSPKSelect = (spk: any) => {
   );
 
   const sisa = formData.spkSisaBelumJadwal;
-  if (formData.detail.length > 0) {
-    formData.detail.forEach((d) => {
-      d.size = formData.spkUkuran;
-      d.maxQty = sisa;
-      // Dikosongkan, tidak lagi mengisi otomatis dari formData.spkNama
-      // if (!d.uraian) d.uraian = formData.spkNama; <-- DIHAPUS / DINONAKTIFKAN
-    });
+
+  // Cek apakah data alokasi_list tersedia
+  let alokasiData = spk.alokasi_list;
+  if (typeof alokasiData === "string") {
+    try {
+      alokasiData = JSON.parse(alokasiData);
+    } catch {
+      alokasiData = [];
+    }
   }
 
-  if (formData.detail.length === 1 && !formData.detail[0].kota) {
-    formData.detail[0].qty = sisa > 0 ? sisa : 0;
+  // Filter list alokasi yang valid (ada nama kota)
+  const validAlokasi = Array.isArray(alokasiData)
+    ? alokasiData.filter(
+        (a: any) => (a.kota || a.spka_kota || "").trim() !== "",
+      )
+    : [];
+
+  if (validAlokasi.length > 0) {
+    // JIKA ADA DATA ALOKASI: Buat baris sebanyak alokasi yang ada
+    formData.detail = validAlokasi.map((alok: any, idx: number) => {
+      const qtyAlokasi = Number(alok.jumlah || alok.spka_jumlah || 0);
+      const namaKota = alok.kota || alok.spka_kota || "";
+      const pic = alok.person || alok.spka_person || "";
+      const alamat = alok.alamat || alok.spka_alamat || "";
+
+      let infoKet = "";
+      if (alamat) infoKet += alamat;
+      if (pic) infoKet += (infoKet ? " - PIC: " : "PIC: ") + pic;
+
+      return {
+        no_urut: idx + 1,
+        kota: namaKota,
+        uraian: "",
+        size: formData.spkUkuran,
+        qty: qtyAlokasi > 0 ? qtyAlokasi : sisa,
+        maxQty: qtyAlokasi > 0 ? qtyAlokasi : sisa,
+        koli: 0,
+        jamInput: format(new Date(), "HH:mm"),
+        jamReady: "15:00",
+        expedisi: "",
+        keterangan: infoKet,
+      };
+    });
+  } else {
+    // JIKA TIDAK ADA DATA ALOKASI: Buat 1 baris default
+    formData.detail = [
+      {
+        no_urut: 1,
+        kota: spk.Alokasi || "",
+        uraian: "",
+        size: formData.spkUkuran,
+        qty: sisa > 0 ? sisa : 0,
+        maxQty: sisa > 0 ? sisa : 999999,
+        koli: 0,
+        jamInput: format(new Date(), "HH:mm"),
+        jamReady: "15:00",
+        expedisi: "",
+        keterangan: "",
+      },
+    ];
   }
 
   lookup.spk = false;
-  toast.info(`SPK ${formData.spkNomor} terpilih. Sisa saldo: ${sisa}`);
+  toast.info(
+    `SPK ${formData.spkNomor} terpilih. (${formData.detail.length} baris tujuan disiapkan)`,
+  );
 };
 
 // Scan / Ketik manual SPK via Enter
@@ -255,16 +311,19 @@ const loaddataall = async (nomor: string) => {
     formData.spkUkuran = d.Ukuran;
     formData.spkKain = d.Kain;
 
-    if (d.Detail) {
-      formData.detail = d.Detail.map((item: any) => ({
-        no_urut: item.No_urut,
-        kota: item.kota,
-        uraian: item.uraian,
-        size: item.size,
-        qty: item.Jumlah,
-        koli: item.Koli,
-        jamReady: item.Jam,
-        expedisi: item.expedisi,
+    if (d.Detail && d.Detail.length > 0) {
+      formData.detail = d.Detail.map((item: any, idx: number) => ({
+        no_urut: item.No_urut || idx + 1,
+        kota: item.kota || "",
+        uraian: item.uraian || "",
+        size: item.size || "",
+        qty: Number(item.Jumlah) || 0,
+        maxQty: 999999,
+        koli: Number(item.Koli) || 0,
+        jamInput: format(new Date(), "HH:mm"),
+        jamReady: item.Jam || "15:00",
+        expedisi: item.expedisi || "",
+        keterangan: item.keterangan || "",
       }));
     }
   } catch (error) {
@@ -315,11 +374,10 @@ const importExcel = (event: Event) => {
       (row: any, index: number) => ({
         no_urut: startIdx + index + 1,
         kota: row.ALOKASI || row.KOTA || row.Kota || "",
-        // Default uraian kosong string "" jika di Excel tidak diisi
         uraian: row.URAIAN || row.Uraian || "",
         size: row.SIZE || row.Size || formData.spkUkuran || "",
         qty: Number(row.jumlah || row.JUMLAH || row.qty || row.Qty) || 0,
-        maxQty: sisaBatasSpk,
+        maxQty: sisaBatasSpk || 999999,
         koli: Number(row.koli || row.KOLI) || 0,
         jamInput: format(new Date(), "HH:mm"),
         jamReady:
@@ -329,10 +387,8 @@ const importExcel = (event: Event) => {
       }),
     );
 
-    // Masukkan data hasil import ke form detail
     formData.detail.push(...importedDetails);
 
-    // --- CEK VALIDASI TOTAL QTY VS ORDER SPK ---
     const totalQtySetelahImport = formData.detail.reduce(
       (sum, d) => sum + (Number(d.qty) || 0),
       0,
@@ -360,7 +416,7 @@ const handleValidateSave = (andNew = false) => {
 
   if (!isFormValid.value) {
     toast.warning(
-      "Lengkapi Gudang, SPK, dan minimal 1 baris detail yang valid.",
+      "Lengkapi Gudang, SPK, dan minimal 1 baris detail dengan kota dan jumlah valid.",
     );
     return;
   }
@@ -373,7 +429,7 @@ const handleValidateSave = (andNew = false) => {
       .map((i) => i.kota || "Baris " + i.no_urut)
       .join(", ");
     toast.error(
-      `Gagal Simpan! Qty pada tujuan [${listKota}] melebihi jumlah order SPK.`,
+      `Gagal Simpan! Qty pada tujuan [${listKota}] melebihi kuota alokasi / order SPK.`,
     );
     return;
   }
@@ -401,7 +457,6 @@ const handleConfirmSave = async () => {
     toast.success("Jadwal kirim berhasil disimpan!");
     showSaveDialog.value = false;
 
-    // 🔥 LOGIKA KONTROL NAVIGASI SETELAH SIMPAN
     if (isSaveAndNew.value) {
       Object.assign(formData, getInitialFormData());
       toast.info("Form disiapkan untuk input baru.");
@@ -457,9 +512,8 @@ onMounted(() => {
       @confirm-cancel="handleConfirmCancel"
       @confirm-close="handleConfirmClose"
     >
-      <!-- 🔥 MENYEDIAKAN CUSTOM ACTION HEADER: SIMPAN & BROWSE + SIMPAN & BARU -->
+      <!-- HEADER ACTIONS -->
       <template #header-actions>
-        <!-- 1. Tombol Simpan & Ke Browse (router.back) -->
         <v-btn
           size="small"
           color="primary"
@@ -474,7 +528,6 @@ onMounted(() => {
           Simpan
         </v-btn>
 
-        <!-- 2. Tombol Simpan & Baru (Reset Form di Halaman Ini) -->
         <v-btn
           v-if="!isEditMode"
           size="small"
@@ -491,7 +544,6 @@ onMounted(() => {
           Simpan & Baru
         </v-btn>
 
-        <!-- 3. Tombol Batal & Tutup -->
         <v-btn
           size="small"
           variant="outlined"
@@ -580,7 +632,7 @@ onMounted(() => {
 
               <v-divider class="my-3" />
 
-              <!-- INPUT / SCAN SPK (BISA DIKETIK / SCAN BARCODE + ENTER) -->
+              <!-- INPUT / SCAN SPK -->
               <v-col cols="12">
                 <v-text-field
                   label="Ketik / Scan SPK (Tekan Enter)"
@@ -846,7 +898,7 @@ onMounted(() => {
       </template>
     </BaseForm>
 
-    <!-- MODAL LOOKUP GUDANG & SPK (TERPISAH DI LUAR BASEFORM) -->
+    <!-- MODAL LOOKUP GUDANG & SPK -->
     <GudangLookupModal
       v-if="lookup.gudang"
       :is-visible="lookup.gudang"

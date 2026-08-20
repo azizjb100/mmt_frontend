@@ -2,7 +2,7 @@
   <v-dialog
     :model-value="dialogState"
     @update:model-value="handleDialogClose"
-    max-width="1100px"
+    max-width="1200px"
     persistent
   >
     <v-card class="dialog-card d-flex flex-column" style="height: 85vh">
@@ -24,7 +24,7 @@
           <v-col cols="12" md="7">
             <v-text-field
               v-model="searchKeyword"
-              label="Cari Nomor SPK atau Nama Item..."
+              label="Cari Nomor SPK, Nama Item, atau Alokasi..."
               prepend-inner-icon="mdi-magnify"
               variant="outlined"
               density="compact"
@@ -70,6 +70,12 @@
         >
           <template #item.Tanggal="{ item }">
             {{ formatTanggal(item.Tanggal) }}
+          </template>
+
+          <template #item.Alokasi="{ item }">
+            <span class="font-weight-medium text-blue-grey-darken-3">
+              {{ item.Alokasi || "-" }}
+            </span>
           </template>
 
           <template #item.Tipe_SPK="{ item }">
@@ -137,8 +143,16 @@ import { ref, computed, watch } from "vue";
 import api from "@/services/api";
 import { useToast } from "vue-toastification";
 
-// Interface sesuai mapping Backend lookup-jadwal
-interface SPKItem {
+export interface AlokasiDetail {
+  urut: number;
+  kota: string;
+  alamat: string;
+  person: string;
+  hp: string;
+  jumlah: number;
+}
+
+export interface SPKItem {
   SPK: string;
   Nama: string;
   Tanggal: string;
@@ -149,10 +163,11 @@ interface SPKItem {
   Belum_Kirim: number;
   Tipe_SPK: string;
   Ngedit: string;
+  Alokasi?: string;
+  alokasi_list?: AlokasiDetail[];
   [key: string]: any;
 }
 
-// 1. Dibuat Fleksibel untuk Menerima isVisible, show, maupun modelValue
 const props = withDefaults(
   defineProps<{
     isVisible?: boolean;
@@ -180,30 +195,31 @@ const searchKeyword = ref("");
 const filterSisa = ref(true);
 const SPKList = ref<SPKItem[]>([]);
 
-// Calculated state agar bisa mendeteksi prop manapun yang dikirim oleh parent
 const dialogState = computed(
   () => props.isVisible || props.show || props.modelValue,
 );
 
+// 2. Tambahkan kolom Alokasi / Kota Tujuan ke header
 const headers = [
   { title: "Nomor SPK", key: "SPK", width: "130px" },
-  { title: "Nama SPK / Item", key: "Nama", width: "300px" },
+  { title: "Nama SPK / Item", key: "Nama", width: "240px" },
+  { title: "Kota / Alokasi", key: "Alokasi", width: "150px" },
   { title: "Tgl SPK", key: "Tanggal", width: "100px" },
-  { title: "Material", key: "Bahan", width: "120px" },
-  { title: "Order", key: "Total_Order", width: "85px", align: "end" as const },
+  { title: "Material", key: "Bahan", width: "110px" },
+  { title: "Order", key: "Total_Order", width: "80px", align: "end" as const },
   {
     title: "Sdh Jdwl",
     key: "Sudah_Kirim",
-    width: "85px",
+    width: "80px",
     align: "end" as const,
   },
-  { title: "Sisa", key: "Belum_Kirim", width: "85px", align: "end" as const },
-  { title: "Tipe", key: "Tipe_SPK", width: "90px", align: "center" as const },
+  { title: "Sisa", key: "Belum_Kirim", width: "80px", align: "end" as const },
+  { title: "Tipe", key: "Tipe_SPK", width: "85px", align: "center" as const },
   {
     title: "Aksi",
     key: "actions",
     sortable: false,
-    width: "100px",
+    width: "90px",
     align: "center" as const,
   },
 ];
@@ -259,7 +275,6 @@ const handleDoubleClick = (_event: any, { item }: any) => {
   selectSPK(item);
 };
 
-// 🔥 WATCH DENGAN IMMEDIATE: TRUE SUPAYA DATA LANGSUNG DI-FETCH SAAT TERBUKA
 watch(
   dialogState,
   (val) => {
