@@ -286,6 +286,10 @@ const isSpandukMmtPrint = computed(
     ["P02", "P05"].includes(currentCab2.value),
 );
 
+const isP05Print = computed(
+  () => currentCab.value === "P05" || currentCab2.value === "P05",
+);
+
 const injectPrintStyle = () => {
   const oldStyle = document.getElementById("spk-dynamic-print-style");
   if (oldStyle) oldStyle.remove();
@@ -792,86 +796,97 @@ onMounted(async () => {
     ══════════════════════════════════════════════ -->
     <template v-else-if="isSpandukMmtPrint">
       <div class="print-container-so">
-        <!-- Halaman Utama SPK -->
         <div class="print-wrapper-so">
-          <div
-            v-for="copy in 2"
-            :key="'spk-so-' + copy"
-            class="print-half-so"
-            :class="{ 'border-right-so': copy === 1 }"
-          >
+          <!-- SISI KIRI: DATA SPK UTAMA -->
+          <div class="print-half-so border-right-so">
             <div class="header-row-so">
               <div class="title-main-so">SURAT PERINTAH KERJA</div>
               <div class="title-po-so">PO : {{ spk.spk_nomor_po || "-" }}</div>
             </div>
 
             <table class="info-table-so">
+              <colgroup>
+                <col style="width: 80px" />
+                <col style="width: 12px" />
+                <col style="width: auto" />
+                <col v-if="isP05Print" style="width: 65px" />
+              </colgroup>
               <tbody>
                 <tr>
                   <td class="w-label-so">Nomor SPK</td>
                   <td class="w-colon-so">:</td>
-                  <td colspan="3">{{ spk.spk_nomor }}</td>
+                  <td class="fw-so">{{ spk.spk_nomor }}</td>
+                  <!-- QR Code Atas Khusus Cabang P05 -->
+                  <td v-if="isP05Print" rowspan="3" class="qr-col-p05">
+                    <qrcode-vue :value="spk.spk_nomor" :size="48" level="L" />
+                  </td>
                 </tr>
                 <tr>
                   <td class="w-label-so">Tanggal SPK</td>
                   <td class="w-colon-so">:</td>
-                  <td colspan="3">{{ tglIndo(spk.spk_tanggal) }}</td>
+                  <td>{{ tglIndo(spk.spk_tanggal) }}</td>
                 </tr>
                 <tr>
                   <td class="w-label-so">Jenis Order</td>
                   <td class="w-colon-so">:</td>
-                  <td colspan="3">{{ spk.jo_nama }}</td>
+                  <td>{{ spk.jo_nama }}</td>
                 </tr>
                 <tr>
                   <td class="w-label-so">Nama Desain</td>
                   <td class="w-colon-so">:</td>
-                  <td colspan="3">{{ spk.spk_nama }}</td>
+                  <td :colspan="isP05Print ? 2 : 1" class="fw-so">
+                    {{ spk.spk_nama }}
+                  </td>
                 </tr>
                 <tr>
                   <td class="w-label-so">Jumlah</td>
                   <td class="w-colon-so">:</td>
-                  <td colspan="3">
+                  <td :colspan="isP05Print ? 2 : 1">
                     {{ Number(spk.spk_jumlah).toLocaleString("id-ID") }}
                   </td>
                 </tr>
                 <tr>
                   <td class="w-label-so">Ukuran</td>
                   <td class="w-colon-so">:</td>
-                  <td colspan="3">
+                  <td :colspan="isP05Print ? 2 : 1">
                     {{ spk.spk_panjang }} X {{ spk.spk_lebar }} M
                   </td>
                 </tr>
                 <tr>
                   <td class="w-label-so">Bahan</td>
                   <td class="w-colon-so">:</td>
-                  <td colspan="3">{{ spk.spk_kain }}</td>
+                  <td :colspan="isP05Print ? 2 : 1">{{ spk.spk_kain }}</td>
                 </tr>
                 <tr>
                   <td class="w-label-so">Gramasi</td>
                   <td class="w-colon-so">:</td>
-                  <td colspan="3">{{ spk.spk_gramasi || "-" }}</td>
+                  <td :colspan="isP05Print ? 2 : 1">
+                    {{ spk.spk_gramasi || "-" }}
+                  </td>
                 </tr>
                 <tr>
                   <td class="w-label-so">Finishing</td>
                   <td class="w-colon-so">:</td>
-                  <td colspan="3">{{ spk.spk_finishing }}</td>
+                  <td :colspan="isP05Print ? 2 : 1">{{ spk.spk_finishing }}</td>
                 </tr>
                 <tr>
                   <td class="w-label-so">Date Line</td>
                   <td class="w-colon-so">:</td>
-                  <td colspan="3">{{ tglIndo(spk.spk_dateline) }}</td>
+                  <td :colspan="isP05Print ? 2 : 1">
+                    {{ tglIndo(spk.spk_dateline) }}
+                  </td>
                 </tr>
                 <tr>
                   <td class="w-label-so">Workshop</td>
                   <td class="w-colon-so">:</td>
-                  <td colspan="3">
+                  <td :colspan="isP05Print ? 2 : 1">
                     {{ spk.spk_cab }} ({{ spk.spk_workshop }}).
                   </td>
                 </tr>
                 <tr>
                   <td class="w-label-so">Status Client</td>
                   <td class="w-colon-so">:</td>
-                  <td colspan="3">
+                  <td :colspan="isP05Print ? 2 : 1">
                     <span
                       :class="{
                         'highlight-yellow-so': spk.cus_perfect === 'Y',
@@ -884,14 +899,14 @@ onMounted(async () => {
                 <tr>
                   <td class="w-label-so">Alokasi</td>
                   <td class="w-colon-so">:</td>
-                  <td colspan="3">
+                  <td :colspan="isP05Print ? 2 : 1">
                     <strong>{{ alokasi.length > 0 ? "YA" : "TIDAK" }}</strong>
                   </td>
                 </tr>
                 <tr>
                   <td class="w-label-so align-top-so">Keterangan</td>
                   <td class="w-colon-so align-top-so">:</td>
-                  <td colspan="3" class="val-desc-so">
+                  <td :colspan="isP05Print ? 2 : 1" class="val-desc-so">
                     <div v-if="spkKetKomponenText" style="margin-bottom: 5px">
                       <pre class="val-pre-so">
 Keterangan Komponen :&#10;{{ spkKetKomponenText }}</pre
@@ -938,7 +953,7 @@ Keterangan Komponen :&#10;{{ spkKetKomponenText }}</pre
                   </td>
                 </tr>
               </table>
-              <div class="qr-box-so mt-auto-so">
+              <div v-if="!isP05Print" class="qr-box-so mt-auto-so">
                 <qrcode-vue :value="spk.spk_nomor" :size="65" level="L" />
               </div>
             </div>
@@ -948,49 +963,207 @@ Keterangan Komponen :&#10;{{ spkKetKomponenText }}</pre
               {{ formatWaktu(spk.date_create) }}
             </div>
           </div>
-        </div>
 
-        <!-- Halaman Alokasi Terpisah untuk P02/P05 -->
-        <div v-if="alokasi.length > 0" class="alokasi-print-page-so">
-          <div class="header-row-so mb-2-so">
-            <div class="title-main-so">
-              ALOKASI PENGIRIMAN — SPK: {{ spk.spk_nomor }}
+          <!-- SISI KANAN (KONDISIONAL): TABEL ALOKASI ATAU COPY SPK KE-2 -->
+
+          <!-- Opsi A: Jika ADA Alokasi (Tampil di sebelah kanan SPK) -->
+          <div v-if="alokasi.length > 0" class="print-half-so">
+            <div class="header-row-so mb-2-so">
+              <div class="title-main-so">ALOKASI PENGIRIMAN :</div>
             </div>
-            <div class="title-po-so">PO: {{ spk.spk_nomor_po || "-" }}</div>
+
+            <table class="alokasi-table-side">
+              <thead>
+                <tr>
+                  <th class="text-left-so">Alokasi</th>
+                  <th style="width: 70px" class="text-center-so">Jumlah</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="(a, idx) in alokasi" :key="`alokasi-side-${idx}`">
+                  <td>{{ a.kota || a.alamat || a.tujuan || "-" }}</td>
+                  <td class="text-center-so">
+                    {{ Number(a.jumlah || 0).toLocaleString("id-ID") }}
+                  </td>
+                </tr>
+              </tbody>
+              <tfoot>
+                <tr>
+                  <td class="fw-so text-left-so">Total</td>
+                  <td class="fw-so text-center-so">
+                    {{ totalAlokasiQty.toLocaleString("id-ID") }}
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
           </div>
 
-          <table class="alokasi-table-so">
-            <thead>
-              <tr>
-                <th style="width: 40px" class="text-center-so">No</th>
-                <th class="text-left-so">Alokasi Tujuan / Alamat</th>
-                <th class="text-center-so alokasi-jumlah-so">Jumlah</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="(a, idx) in alokasi" :key="`alokasi-mmt-${idx}`">
-                <td class="text-center-so">{{ idx + 1 }}</td>
-                <td>{{ a.kota || a.alamat || a.tujuan || "-" }}</td>
-                <td class="text-center-so">
-                  {{ Number(a.jumlah || 0).toLocaleString("id-ID") }}
-                </td>
-              </tr>
-            </tbody>
-            <tfoot>
-              <tr>
-                <td
-                  colspan="2"
-                  class="fw-so text-right"
-                  style="padding-right: 15px"
-                >
-                  Total Alokasi
-                </td>
-                <td class="fw-so text-center-so">
-                  {{ totalAlokasiQty.toLocaleString("id-ID") }}
-                </td>
-              </tr>
-            </tfoot>
-          </table>
+          <!-- Opsi B: Jika TIDAK ADA Alokasi (Cetak Copy SPK ke-2 seperti semula) -->
+          <div v-else class="print-half-so">
+            <div class="header-row-so">
+              <div class="title-main-so">SURAT PERINTAH KERJA</div>
+              <div class="title-po-so">PO : {{ spk.spk_nomor_po || "-" }}</div>
+            </div>
+
+            <table class="info-table-so">
+              <colgroup>
+                <col style="width: 80px" />
+                <col style="width: 12px" />
+                <col style="width: auto" />
+                <col v-if="isP05Print" style="width: 65px" />
+              </colgroup>
+              <tbody>
+                <tr>
+                  <td class="w-label-so">Nomor SPK</td>
+                  <td class="w-colon-so">:</td>
+                  <td class="fw-so">{{ spk.spk_nomor }}</td>
+                  <!-- QR Code Atas Khusus Cabang P05 -->
+                  <td v-if="isP05Print" rowspan="3" class="qr-col-p05">
+                    <qrcode-vue :value="spk.spk_nomor" :size="48" level="L" />
+                  </td>
+                </tr>
+                <tr>
+                  <td class="w-label-so">Tanggal SPK</td>
+                  <td class="w-colon-so">:</td>
+                  <td>{{ tglIndo(spk.spk_tanggal) }}</td>
+                </tr>
+                <tr>
+                  <td class="w-label-so">Jenis Order</td>
+                  <td class="w-colon-so">:</td>
+                  <td>{{ spk.jo_nama }}</td>
+                </tr>
+                <tr>
+                  <td class="w-label-so">Nama Desain</td>
+                  <td class="w-colon-so">:</td>
+                  <td :colspan="isP05Print ? 2 : 1" class="fw-so">
+                    {{ spk.spk_nama }}
+                  </td>
+                </tr>
+                <tr>
+                  <td class="w-label-so">Jumlah</td>
+                  <td class="w-colon-so">:</td>
+                  <td :colspan="isP05Print ? 2 : 1">
+                    {{ Number(spk.spk_jumlah).toLocaleString("id-ID") }}
+                  </td>
+                </tr>
+                <tr>
+                  <td class="w-label-so">Ukuran</td>
+                  <td class="w-colon-so">:</td>
+                  <td :colspan="isP05Print ? 2 : 1">
+                    {{ spk.spk_panjang }} X {{ spk.spk_lebar }} M
+                  </td>
+                </tr>
+                <tr>
+                  <td class="w-label-so">Bahan</td>
+                  <td class="w-colon-so">:</td>
+                  <td :colspan="isP05Print ? 2 : 1">{{ spk.spk_kain }}</td>
+                </tr>
+                <tr>
+                  <td class="w-label-so">Gramasi</td>
+                  <td class="w-colon-so">:</td>
+                  <td :colspan="isP05Print ? 2 : 1">
+                    {{ spk.spk_gramasi || "-" }}
+                  </td>
+                </tr>
+                <tr>
+                  <td class="w-label-so">Finishing</td>
+                  <td class="w-colon-so">:</td>
+                  <td :colspan="isP05Print ? 2 : 1">{{ spk.spk_finishing }}</td>
+                </tr>
+                <tr>
+                  <td class="w-label-so">Date Line</td>
+                  <td class="w-colon-so">:</td>
+                  <td :colspan="isP05Print ? 2 : 1">
+                    {{ tglIndo(spk.spk_dateline) }}
+                  </td>
+                </tr>
+                <tr>
+                  <td class="w-label-so">Workshop</td>
+                  <td class="w-colon-so">:</td>
+                  <td :colspan="isP05Print ? 2 : 1">
+                    {{ spk.spk_cab }} ({{ spk.spk_workshop }}).
+                  </td>
+                </tr>
+                <tr>
+                  <td class="w-label-so">Status Client</td>
+                  <td class="w-colon-so">:</td>
+                  <td :colspan="isP05Print ? 2 : 1">
+                    <span
+                      :class="{
+                        'highlight-yellow-so': spk.cus_perfect === 'Y',
+                      }"
+                    >
+                      {{ spk.cus_perfect === "Y" ? "PERFECT" : "REGULER" }}
+                    </span>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="w-label-so">Alokasi</td>
+                  <td class="w-colon-so">:</td>
+                  <td :colspan="isP05Print ? 2 : 1">
+                    <strong>TIDAK</strong>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="w-label-so align-top-so">Keterangan</td>
+                  <td class="w-colon-so align-top-so">:</td>
+                  <td :colspan="isP05Print ? 2 : 1" class="val-desc-so">
+                    <div v-if="spkKetKomponenText" style="margin-bottom: 5px">
+                      <pre class="val-pre-so">
+Keterangan Komponen :&#10;{{ spkKetKomponenText }}</pre
+                      >
+                    </div>
+                    <pre class="val-pre-so">{{ spk.spk_keterangan }}</pre>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+
+            <div class="layout-box-so">
+              <div class="img-box-so">
+                <div class="ukuran-header-so">
+                  {{ spk.jo_nama }} {{ spk.spk_panjang }} X
+                  {{ spk.spk_lebar }} M
+                </div>
+                <img v-if="resolvedImageUrl" :src="resolvedImageUrl" />
+              </div>
+            </div>
+
+            <div class="bottom-ttd-wrapper-so">
+              <table class="ttd-table-simple-so">
+                <tr>
+                  <td width="50%">MO</td>
+                  <td width="50%">CMO</td>
+                </tr>
+                <tr>
+                  <td class="sign-space-simple-so">
+                    <img
+                      :src="getSignatureUrl(spk.user_create)"
+                      class="ttd-img-simple-so"
+                      @error="handleSignatureError"
+                    />
+                    <div class="sign-name-so">{{ spk.user_create }}</div>
+                  </td>
+                  <td class="sign-space-simple-so">
+                    <img
+                      :src="getSignatureUrl(spk.spk_cmo)"
+                      class="ttd-img-simple-so"
+                      @error="handleSignatureError"
+                    />
+                    <div class="sign-name-so">{{ spk.spk_cmo || "-" }}</div>
+                  </td>
+                </tr>
+              </table>
+              <div v-if="!isP05Print" class="qr-box-so mt-auto-so">
+                <qrcode-vue :value="spk.spk_nomor" :size="65" level="L" />
+              </div>
+            </div>
+
+            <div class="footer-note-so">
+              Dibuat Oleh: {{ spk.user_create }}
+              {{ formatWaktu(spk.date_create) }}
+            </div>
+          </div>
         </div>
       </div>
     </template>
@@ -2499,6 +2672,21 @@ body {
   font-family: "Courier New", monospace;
 }
 
+.qr-col-p05 {
+  width: 65px;
+  vertical-align: top !important;
+  text-align: left !important;
+  padding-left: 10px !important;
+  padding-right: 0 !important;
+  padding-top: 0 !important;
+}
+
+.qr-col-p05 canvas,
+.qr-col-p05 svg {
+  display: block;
+  margin: 0;
+}
+
 .pf {
   width: 100%;
   display: flex;
@@ -3082,6 +3270,30 @@ body {
     page-break-after: always !important;
     break-after: page !important;
     box-shadow: none !important;
+  }
+
+  /* Tabel Alokasi Samping Khusus Cetak MMT */
+  .alokasi-table-side {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 8.5pt;
+    color: #000;
+    background: #fff;
+    margin-top: 6px;
+  }
+
+  .alokasi-table-side th,
+  .alokasi-table-side td {
+    border: 1px solid #000;
+    padding: 3.5px 6px;
+    box-sizing: border-box;
+  }
+
+  .alokasi-table-side th {
+    font-weight: 700;
+    background: #fff;
   }
 
   .alokasi-print-page-so {

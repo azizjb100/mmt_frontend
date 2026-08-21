@@ -241,12 +241,66 @@ onMounted(() => {
   </div>
 </template>
 
+<!-- STYLE GLOBAL: Memaksa ukuran fisik A4 Portrait & Isolasi Konten -->
+<style>
+@page {
+  /* KUNCI UTAMA: Dimensi eksplisit 210mm x 297mm (A4 Portrait) */
+  size: 210mm 297mm !important;
+  margin: 0mm !important;
+}
+
+@media print {
+  /* 1. Sembunyikan semua elemen di body yang bukan container PO */
+  body > *:not(.po-print-container):not(#app) {
+    display: none !important;
+  }
+
+  /* 2. Sembunyikan navbar, sidebar, header app, dan widget floating */
+  nav,
+  aside,
+  header:not(.po-header),
+  .navbar,
+  .sidebar,
+  .app-header,
+  button,
+  [class*="float"],
+  [class*="widget"] {
+    display: none !important;
+  }
+
+  /* 3. Reset total dimensi viewport agar tidak melebar */
+  html,
+  body {
+    width: 210mm !important;
+    max-width: 210mm !important;
+    height: 297mm !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+    overflow: hidden !important;
+  }
+
+  #app,
+  main,
+  .v-main,
+  .layout-wrapper,
+  .content-wrapper {
+    width: 210mm !important;
+    max-width: 210mm !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    background: transparent !important;
+    overflow: visible !important;
+  }
+}
+</style>
+
+<!-- STYLE SCOPED -->
 <style scoped>
-/* =================================================================
-   BASE & PAGE STYLES
-   ================================================================= */
 .po-print-container {
-  padding: 20px 0;
+  padding: 0;
+  margin: 0;
+  width: 210mm;
 }
 
 .po-page {
@@ -256,16 +310,11 @@ onMounted(() => {
   background: white;
   margin: 0 auto;
   width: 210mm;
-  min-height: 297mm;
-  padding: 10mm 15mm;
+  max-width: 210mm;
   box-sizing: border-box;
-  box-shadow: 0 0 8px rgba(0, 0, 0, 0.1);
-  overflow: hidden;
+  padding: 10mm 15mm;
 }
 
-/* =================================================================
-   WATERMARK BARU (KECIL & HORIZONTAL DI BAWAH NOTES)
-   ================================================================= */
 .notes-section-wrapper {
   width: 60%;
 }
@@ -277,26 +326,15 @@ onMounted(() => {
 .watermark {
   margin-top: 8px;
   font-size: 9pt;
-  color: #d32f2f; /* Warna merah tegas agar jelas terbaca */
+  color: #d32f2f;
   font-weight: bold;
   letter-spacing: 0.5px;
   text-transform: uppercase;
   font-style: italic;
-
-  /* Reset properti absolut dari versi sebelumnya */
-  position: static;
-  transform: none;
-  border: none;
-  padding: 0;
-  white-space: normal;
-  z-index: auto;
-  pointer-events: auto;
-
   -webkit-print-color-adjust: exact;
   print-color-adjust: exact;
 }
 
-/* Pastikan konten utama tetap di atas */
 .po-header,
 .vendor-section,
 .items-table-wrapper,
@@ -306,9 +344,6 @@ onMounted(() => {
   z-index: 1;
 }
 
-/* =================================================================
-   HEADER & VENDOR
-   ================================================================= */
 .po-header {
   display: flex;
   justify-content: space-between;
@@ -321,30 +356,36 @@ onMounted(() => {
   width: 50%;
   line-height: 1.3;
 }
+
 .company-name {
   font-size: 12pt;
   font-weight: 900;
   margin-top: 0;
   margin-bottom: 2px;
 }
+
 .company-section address {
   font-style: normal;
   font-size: 9pt;
 }
+
 .po-title-section {
   width: 45%;
   text-align: right;
 }
+
 .po-title-section h2 {
   color: #000080;
   font-size: 18pt;
   font-weight: 900;
   margin: 0 0 10px 0;
 }
+
 .po-meta {
   line-height: 1.5;
   font-size: 9pt;
 }
+
 .po-meta .meta-label {
   font-weight: bold;
   display: inline-block;
@@ -352,10 +393,11 @@ onMounted(() => {
 }
 
 .vendor-section {
-  margin: 15px 0;
+  margin: 12px 0;
   border: 1px solid #000080;
   line-height: 1.4;
 }
+
 .vendor-header {
   background-color: #000080;
   color: white;
@@ -363,23 +405,23 @@ onMounted(() => {
   padding: 3px 10px;
   font-size: 10pt;
 }
+
 .vendor-details {
   padding: 5px 10px;
 }
 
-/* =================================================================
-   ITEMS TABLE
-   ================================================================= */
 .items-table {
   width: 100%;
   border-collapse: collapse;
 }
+
 .items-table th,
 .items-table td {
   border: 1px solid black;
-  padding: 6px 8px;
+  padding: 5px 8px;
   vertical-align: top;
 }
+
 .items-table thead th {
   background-color: #000080;
   color: white;
@@ -387,16 +429,15 @@ onMounted(() => {
   font-size: 9.5pt;
   text-transform: uppercase;
 }
+
 .items-table td.text-right {
   text-align: right;
 }
+
 .items-table .empty-row td {
-  height: 20pt;
+  height: 18pt;
 }
 
-/* =================================================================
-   SUMMARY & NOTES
-   ================================================================= */
 .summary-area {
   display: flex;
   justify-content: space-between;
@@ -429,7 +470,7 @@ onMounted(() => {
 .total-row {
   display: flex;
   justify-content: space-between;
-  padding: 5px 10px;
+  padding: 4px 10px;
   border-top: 1px solid black;
 }
 
@@ -443,56 +484,47 @@ onMounted(() => {
   font-weight: bold;
 }
 
-/* =================================================================
-   SIGNATURE
-   ================================================================= */
 .signature-footer {
   display: flex;
   justify-content: flex-end;
-  margin-top: 40px;
-  margin-right: 50px;
+  margin-top: 25px;
+  margin-right: 40px;
   text-align: center;
 }
 
 .signature-box {
   width: 150px;
 }
+
 .signature-line {
   border-top: 1px solid black;
-  margin-top: 40px;
+  margin-top: 35px;
 }
 
 /* =================================================================
-   PRINT MEDIA QUERIES
+   PRINT RULES
    ================================================================= */
 @media print {
-  @page {
-    size: A4 portrait;
-    margin: 0;
-  }
-
-  :global(html),
-  :global(body) {
-    height: auto !important;
-    overflow: visible !important;
-    background-color: white !important;
-  }
-
   .po-print-container {
     padding: 0 !important;
     margin: 0 !important;
+    width: 210mm !important;
   }
 
   .po-page {
     margin: 0 !important;
     border: none !important;
     box-shadow: none !important;
+    box-sizing: border-box !important;
     width: 210mm !important;
-    padding: 15mm !important;
+    max-width: 210mm !important;
+    height: 100% !important;
+    padding: 10mm 15mm !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
   }
 
   .watermark {
-    /* Tetap berwarna merah saat dicetak agar draf teridentifikasi jelas */
     color: #d32f2f !important;
   }
 

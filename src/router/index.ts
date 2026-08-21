@@ -430,6 +430,9 @@ const routes: RouteRecordRaw[] = [
         name: "PoPrint", // <--- NAMA INI HARUS SAMA PERSIS
         component: PoPrintView,
         props: true,
+        meta: {
+          layout: "blank", // Atau 'empty' sesuai konfigurasi layout router project Anda
+        },
       },
       {
         path: "mmt/penerimaan-bahan",

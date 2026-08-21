@@ -453,7 +453,7 @@ body {
   box-shadow: var(--shadow-lg) !important;
 }
 
-/* Responsive Typography */
+/* Responsive Typography
 @media (max-width: 600px) {
   .text-display-1 {
     font-size: 2.5rem;
@@ -486,21 +486,20 @@ body {
   }
 }
 
-/* Print Styles */
+
 @media print {
-  /* Sembunyikan elemen UI Aplikasi secara global */
   .v-navigation-drawer, 
   .v-app-bar, 
   .v-footer, 
   .v-system-bar,
   .no-print,
-  #logout-button, /* Jika ada ID spesifik */
+  #logout-button,
   header, 
   nav {
     display: none !important;
   }
 
-  /* Pastikan container utama tidak memiliki margin/padding yang mengganggu */
+
   .v-main {
     padding: 0 !important;
     margin: 0 !important;
@@ -511,4 +510,4 @@ body {
     print-color-adjust: exact;
     background-color: white !important;
   }
-}
+} */

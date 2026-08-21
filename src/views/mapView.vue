@@ -139,6 +139,9 @@ const {
     if (Array.isArray(res)) return res;
     if (Array.isArray(res?.data)) return res.data;
     if (Array.isArray(res?.data?.data)) return res.data.data;
+    if (Array.isArray(res?.data?.result)) return res.data.result;
+    if (Array.isArray(res?.result)) return res.result;
+    if (Array.isArray(res?.data?.rows)) return res.data.rows;
     return [];
   },
   immediate: true,
@@ -158,7 +161,7 @@ const canLihatHarga = computed(
 );
 
 // Headers Datatable MAP
-const headers = computed(() => {
+const defaultHeaders = computed(() => {
   const h: any[] = [
     { title: "Nomor", key: "Nomor", width: "160px" },
     { title: "MO", key: "MO", width: "100px" },
@@ -237,6 +240,70 @@ const headers = computed(() => {
   return h;
 });
 
+const customHeaders = ref<any[]>([]);
+
+// Sinkronkan customHeaders dengan defaultHeaders
+watch(
+  defaultHeaders,
+  (newHeaders) => {
+    if (customHeaders.value.length === 0) {
+      customHeaders.value = [...newHeaders];
+    } else {
+      const currentKeys = new Set(newHeaders.map((h) => h.key));
+      const preserved = customHeaders.value.filter((h) =>
+        currentKeys.has(h.key),
+      );
+      const existingKeys = new Set(preserved.map((h) => h.key));
+      newHeaders.forEach((h) => {
+        if (!existingKeys.has(h.key)) preserved.push(h);
+      });
+      customHeaders.value = preserved;
+    }
+  },
+  { immediate: true },
+);
+
+const draggedKey = ref<string | null>(null);
+const dragOverKey = ref<string | null>(null);
+
+const onDragStart = (e: DragEvent, key: string) => {
+  draggedKey.value = key;
+  if (e.dataTransfer) {
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", key);
+  }
+};
+
+const onDragOver = (e: DragEvent) => {
+  e.preventDefault();
+  if (e.dataTransfer) {
+    e.dataTransfer.dropEffect = "move";
+  }
+};
+
+const onDragEnter = (key: string) => {
+  dragOverKey.value = key;
+};
+
+const onDragLeave = (_key: string) => {};
+
+const onDrop = (e: DragEvent, targetKey: string) => {
+  e.preventDefault();
+  const sourceKey = draggedKey.value;
+  draggedKey.value = null;
+  dragOverKey.value = null;
+
+  if (!sourceKey || sourceKey === targetKey) return;
+
+  const srcIdx = customHeaders.value.findIndex((h) => h.key === sourceKey);
+  const targetIdx = customHeaders.value.findIndex((h) => h.key === targetKey);
+
+  if (srcIdx !== -1 && targetIdx !== -1) {
+    const movedItem = customHeaders.value.splice(srcIdx, 1)[0];
+    customHeaders.value.splice(targetIdx, 0, movedItem);
+  }
+};
+
 const fmtNum = (val: number | string | null) => {
   if (val === null || val === undefined || val === "") return "0";
   return new Intl.NumberFormat("id-ID").format(Number(val));
@@ -289,7 +356,11 @@ const getCellValue = (item: any, key: string): string => {
 const uniqueValuesMap = computed(() => {
   const map: Record<string, string[]> = {};
   const currentItems = items.value ?? [];
-  headers.value.forEach((h: any) => {
+  const currentHeaders = customHeaders.value.length
+    ? customHeaders.value
+    : defaultHeaders.value;
+
+  currentHeaders.forEach((h: any) => {
     const key = h.key;
     const set = new Set<string>();
     currentItems.forEach((item: any) => {
@@ -378,8 +449,12 @@ const resetAllColumnFilters = () => {
 
 const filteredItems = computed(() => {
   const rawItems = items.value ?? [];
+  const currentHeaders = customHeaders.value.length
+    ? customHeaders.value
+    : defaultHeaders.value;
+
   return rawItems.filter((item: any) => {
-    return headers.value.every((h: any) => {
+    return currentHeaders.every((h: any) => {
       const key = h.key;
       const cellValue = getCellValue(item, key);
 
@@ -631,7 +706,7 @@ const confirmToggleClose = async () => {
     title="Memo Approval Produk (MAP)"
     :menu-id="menuId"
     :icon="IconClipboardText"
-    :headers="headers"
+    :headers="customHeaders"
     :items="filteredItems"
     item-value="Nomor"
     :is-loading="isLoading"
@@ -659,7 +734,6 @@ const confirmToggleClose = async () => {
   >
     <template #filter-left>
       <div class="d-flex align-center gap-2">
-        <!-- Tombol Reset Filter Kolom Excel -->
         <v-btn
           v-if="activeFiltersCount > 0"
           color="warning"
@@ -710,7 +784,6 @@ const confirmToggleClose = async () => {
         Update Status Design
       </v-btn>
 
-      <!-- TOMBOL CETAK EKSPLISIT -->
       <v-btn
         size="small"
         variant="flat"
@@ -776,16 +849,25 @@ const confirmToggleClose = async () => {
       </v-menu>
     </template>
 
-    <!-- EXCEL FILTER PER HEADER KOLOM -->
+    <!-- EXCEL FILTER & DRAGGABLE PER HEADER KOLOM -->
     <template
-      v-for="header in headers"
+      v-for="header in customHeaders"
       :key="header.key"
       #[`header.${header.key}`]="{ column }"
     >
-      <div class="d-flex align-center justify-space-between w-100">
-        <span class="font-weight-bold text-truncate mr-1">{{
-          column.title
-        }}</span>
+      <div
+        class="d-flex align-center justify-space-between w-100 draggable-header-cell"
+        :class="{ 'header-drop-target': dragOverKey === header.key }"
+        draggable="true"
+        @dragstart="onDragStart($event, header.key)"
+        @dragover="onDragOver"
+        @dragenter="onDragEnter(header.key)"
+        @dragleave="onDragLeave(header.key)"
+        @drop="onDrop($event, header.key)"
+      >
+        <span class="font-weight-bold text-truncate mr-1 header-drag-title">
+          {{ column.title }}
+        </span>
 
         <v-menu
           v-model="menuStates[header.key]"
@@ -800,6 +882,7 @@ const confirmToggleClose = async () => {
               size="x-small"
               v-bind="props"
               @click.stop
+              @mousedown.stop
               :color="
                 isColumnFilterActive(header.key) ? 'primary' : 'grey-darken-1'
               "
@@ -1475,5 +1558,28 @@ const confirmToggleClose = async () => {
   background: #e0e0e0;
   color: #424242;
   margin-left: auto;
+}
+
+.draggable-header-cell {
+  cursor: grab;
+  user-select: none;
+  transition:
+    background-color 0.2s ease,
+    border 0.2s ease;
+  padding: 2px 4px;
+  border-radius: 4px;
+}
+
+.draggable-header-cell:active {
+  cursor: grabbing;
+}
+
+.header-drag-title {
+  cursor: grab;
+}
+
+.header-drop-target {
+  background-color: rgba(25, 118, 210, 0.15) !important;
+  outline: 2px dashed #1976d2 !important;
 }
 </style>

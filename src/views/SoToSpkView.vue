@@ -100,6 +100,13 @@ const isGeneratingSpk = ref<boolean>(false);
 const showConfirmGenerateDialog = ref<boolean>(false);
 const targetSoToGenerate = ref<SpkHeader | null>(null);
 
+// --- STATE AKSI CLOSE / OPEN SPK ---
+const showCloseDialog = ref<boolean>(false);
+const closeAction = ref<"Y" | "N">("Y");
+const closeItem = ref<SpkHeader | null>(null);
+const closeAlasan = ref<string>("");
+const isProcessingClose = ref<boolean>(false);
+
 // --- EXCEL FILTER STATES ---
 const columnSearch = ref<Record<string, string>>({});
 const selectedValues = ref<Record<string, string[]>>({});
@@ -365,6 +372,67 @@ const isSingleSelected = computed(() => selected.value.length === 1);
 const selectedItem = computed(() =>
   isSingleSelected.value ? selected.value[0] : null,
 );
+
+// --- ACTION CLOSE / OPEN SPK METHODS ---
+const openCloseSpkDialog = (action: "Y" | "N") => {
+  if (!selectedItem.value) {
+    toast.error("Pilih salah satu SPK terlebih dahulu.");
+    return;
+  }
+  const nomorSpk = selectedItem.value.SPK || (selectedItem.value as any).Nomor;
+  if (!nomorSpk || nomorSpk === "-") {
+    toast.warning("Baris ini belum memiliki nomor SPK.");
+    return;
+  }
+
+  closeAction.value = action;
+  closeItem.value = selectedItem.value;
+  closeAlasan.value = selectedItem.value.Alasan_Close || "";
+  showCloseDialog.value = true;
+};
+
+const confirmToggleCloseSpk = async () => {
+  if (!closeItem.value) return;
+  const nomorSpk = closeItem.value.SPK || (closeItem.value as any).Nomor;
+
+  if (closeAction.value === "Y" && !closeAlasan.value.trim()) {
+    toast.warning("Alasan Close SPK harus diisi!");
+    return;
+  }
+
+  isProcessingClose.value = true;
+  try {
+    if (typeof (soToSpkService as any).toggleClose === "function") {
+      await (soToSpkService as any).toggleClose(
+        nomorSpk,
+        closeAction.value,
+        closeAlasan.value,
+      );
+    } else if (typeof (soToSpkService as any).closeSpk === "function") {
+      await (soToSpkService as any).closeSpk(
+        nomorSpk,
+        closeAction.value,
+        closeAlasan.value,
+      );
+    }
+
+    toast.success(
+      `SPK ${nomorSpk} berhasil ${
+        closeAction.value === "Y" ? "di-Close" : "di-Open"
+      }.`,
+    );
+    showCloseDialog.value = false;
+    await fetchData();
+  } catch (error: any) {
+    console.error("Gagal toggle status close SPK:", error);
+    toast.error(
+      error.response?.data?.message ||
+        `Gagal ${closeAction.value === "Y" ? "menutup" : "membuka"} SPK.`,
+    );
+  } finally {
+    isProcessingClose.value = false;
+  }
+};
 
 // --- EXPORT TO EXCEL METHOD ---
 const exportToExcel = async () => {
@@ -761,13 +829,15 @@ const handleRowClick = (_event: any, row: any) => {
 
 const getRowProps = ({ item }: any) => {
   const itemNomor = item?.SPK || item?.Nomor || item?.SO;
-  return {
-    class: selected.value.some(
-      (s) => (s.SPK || (s as any).Nomor || s.SO) === itemNomor,
-    )
-      ? "row-selected"
-      : "",
-  };
+  const isSelected = selected.value.some(
+    (s) => (s.SPK || (s as any).Nomor || s.SO) === itemNomor,
+  );
+  const classes: string[] = [];
+  if (isSelected) classes.push("row-selected");
+  if (item.STATUS === "Closed" || item.Aktif === "N") {
+    classes.push("row-passive");
+  }
+  return { class: classes.join(" ") };
 };
 
 const handleNew = () => router.push("/mmt/so-spk/new");
@@ -948,6 +1018,7 @@ watch([startDate, endDate], ([newStart, newEnd]) => {
       >
         Buat SPK dari SO
       </v-btn>
+
       <v-btn
         color="success"
         variant="elevated"
@@ -973,6 +1044,49 @@ watch([startDate, endDate], ([newStart, newEnd]) => {
       >
         Preview
       </v-btn>
+
+      <!-- MENU DROPDOWN AKSI SPK -->
+      <v-menu v-if="selectedItem">
+        <template v-slot:activator="{ props }">
+          <v-btn
+            color="indigo-darken-1"
+            class="text-white font-weight-bold"
+            rounded="pill"
+            size="small"
+            append-icon="mdi-chevron-down"
+            v-bind="props"
+          >
+            Aksi SPK
+          </v-btn>
+        </template>
+        <v-list density="compact" class="py-1">
+          <v-list-item
+            v-if="selectedItem.STATUS !== 'Closed'"
+            @click="openCloseSpkDialog('Y')"
+          >
+            <template #prepend>
+              <v-icon size="18" color="error" class="mr-2">mdi-lock</v-icon>
+            </template>
+            <v-list-item-title class="text-error font-weight-medium">
+              Close SPK
+            </v-list-item-title>
+          </v-list-item>
+
+          <v-list-item
+            v-if="selectedItem.STATUS === 'Closed'"
+            @click="openCloseSpkDialog('N')"
+          >
+            <template #prepend>
+              <v-icon size="18" color="success" class="mr-2"
+                >mdi-lock-open</v-icon
+              >
+            </template>
+            <v-list-item-title class="text-success font-weight-medium">
+              Open SPK
+            </v-list-item-title>
+          </v-list-item>
+        </v-list>
+      </v-menu>
     </template>
 
     <!-- Extra Filter: Cari, Tombol Preview SPK, dan Reset Filter -->
@@ -1258,6 +1372,76 @@ watch([startDate, endDate], ([newStart, newEnd]) => {
     </template>
   </BaseBrowse>
 
+  <!-- Dialog Konfirmasi Close / Open SPK -->
+  <v-dialog v-model="showCloseDialog" max-width="420px" persistent>
+    <v-card class="rounded-lg">
+      <v-card-title
+        class="text-white d-flex align-center pa-3 font-weight-bold text-subtitle-1"
+        :class="closeAction === 'Y' ? 'bg-error' : 'bg-success'"
+      >
+        <v-icon color="white" class="mr-2">
+          {{ closeAction === "Y" ? "mdi-lock" : "mdi-lock-open" }}
+        </v-icon>
+        {{
+          closeAction === "Y" ? "Konfirmasi Close SPK" : "Konfirmasi Open SPK"
+        }}
+      </v-card-title>
+      <v-card-text class="pa-4">
+        <div class="text-body-2 mb-2 font-weight-medium">
+          {{
+            closeAction === "Y"
+              ? "Apakah Anda yakin ingin meng-Close SPK berikut?"
+              : "Apakah Anda yakin ingin meng-Open SPK berikut?"
+          }}
+        </div>
+        <div class="pa-2 bg-grey-lighten-4 rounded border mb-3">
+          <div class="font-weight-bold text-primary">
+            No. SPK: {{ closeItem?.SPK || (closeItem as any)?.Nomor }}
+          </div>
+          <div class="text-caption text-grey-darken-2">
+            Nama: {{ closeItem?.Nama }}
+          </div>
+          <div class="text-caption text-grey-darken-2">
+            No. SO: {{ closeItem?.SO || "-" }}
+          </div>
+        </div>
+
+        <v-textarea
+          v-if="closeAction === 'Y'"
+          v-model="closeAlasan"
+          label="Alasan Close SPK *"
+          variant="outlined"
+          rows="3"
+          density="compact"
+          auto-grow
+          hide-details
+          placeholder="Tuliskan alasan penutupan SPK..."
+        />
+      </v-card-text>
+      <v-card-actions class="pa-3 bg-grey-lighten-4 justify-end ga-2">
+        <v-btn
+          variant="tonal"
+          color="grey-darken-1"
+          size="small"
+          :disabled="isProcessingClose"
+          @click="showCloseDialog = false"
+        >
+          Batal
+        </v-btn>
+        <v-btn
+          :color="closeAction === 'Y' ? 'error' : 'success'"
+          variant="flat"
+          size="small"
+          class="font-weight-bold"
+          :loading="isProcessingClose"
+          @click="confirmToggleCloseSpk"
+        >
+          {{ closeAction === "Y" ? "Ya, Close SPK" : "Ya, Open SPK" }}
+        </v-btn>
+      </v-card-actions>
+    </v-card>
+  </v-dialog>
+
   <!-- Modal Konfirmasi Generate SPK -->
   <v-dialog v-model="showConfirmGenerateDialog" max-width="450px" persistent>
     <v-card class="pa-2 rounded-lg">
@@ -1393,6 +1577,10 @@ watch([startDate, endDate], ([newStart, newEnd]) => {
 }
 :deep(.v-data-table__tr.row-selected:hover > td) {
   background-color: #c0e4ff !important;
+}
+
+.row-passive td {
+  color: #9e9e9e !important;
 }
 
 :deep(.v-table) {

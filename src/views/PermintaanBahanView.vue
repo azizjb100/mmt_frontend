@@ -269,13 +269,29 @@ const handleDelete = async () => {
 };
 
 const handlePrint = () => {
-  if (selectedNomor.value) {
-    const routePrefix = currentCabang.value === "P02" ? "Spanduk" : "Mmt";
-    const url = router.resolve({
-      name: `${routePrefix}PermintaanBahanPrint`,
+  if (!selectedNomor.value) {
+    toast.warning("Silakan pilih salah satu data terlebih dahulu.");
+    return;
+  }
+
+  try {
+    const routeData = router.resolve({
+      name: "PermintaanBahanPrint",
       params: { nomor: selectedNomor.value },
-    }).href;
-    window.open(url, "_blank");
+    });
+
+    if (!routeData.href || routeData.matched.length === 0) {
+      toast.error('Route "PermintaanBahanPrint" tidak ditemukan di router.');
+      return;
+    }
+
+    const printWindow = window.open(routeData.href, "_blank");
+    if (!printWindow) {
+      toast.error("Pop-up diblokir browser. Harap izinkan pop-up.");
+    }
+  } catch (error) {
+    console.error("Print error:", error);
+    toast.error("Gagal membuka halaman cetak.");
   }
 };
 
