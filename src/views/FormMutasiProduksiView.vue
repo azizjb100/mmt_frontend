@@ -363,6 +363,8 @@ const saveForm = async (saveAndNew: boolean) => {
         satuan: d.satuan,
         spk: d.spk || "0",
         keterangan: d.keterangan,
+        panjang: Number(d.Panjang) || 0, // <-- Tambahkan ini
+        lebar: Number(d.Lebar) || 0, // <-- Tambahkan ini
       })),
       isEditMode: isEditMode.value,
     };

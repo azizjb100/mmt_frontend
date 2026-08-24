@@ -16,7 +16,7 @@ const PAGE_SIZE = 50;
 const today = new Date().toISOString().substring(0, 10);
 
 // Diubah dari 90 hari (3 bulan) menjadi 14 hari (2 minggu)
-const twoWeeksAgo = new Date(Date.now() - 14 * 86400000)
+const twoWeeksAgo = new Date(Date.now() - 1 * 86400000)
   .toISOString()
   .substring(0, 10);
 
