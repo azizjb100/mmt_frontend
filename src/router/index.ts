@@ -155,11 +155,11 @@ const routes: RouteRecordRaw[] = [
       { path: "", name: "Home", component: Home },
 
       // Rute yang sudah dibuat (PATH DIBUAT RELATIF - TANPA '/')
-      {
-        path: "garmen/permintaan-material",
-        name: "Permintaan Material",
-        component: MaterialRequestForm,
-      },
+      // {
+      //   path: "garmen/permintaan-material",
+      //   name: "Permintaan Material",
+      //   component: MaterialRequestForm,
+      // },
       {
         path: "mmt/lhk/cetak-mmt",
         name: "LHKCetakMMT",
@@ -223,12 +223,12 @@ const routes: RouteRecordRaw[] = [
         props: true,
       },
       { path: "mmt/spk", name: "BrowseSpk", component: SpkView },
-      {
-        path: "mmt/spk/print/:nomor",
-        name: "SpkPrint",
-        component: SpkPrintView,
-        props: true,
-      },
+      // {
+      //   path: "mmt/spk/print/:nomor",
+      //   name: "SpkPrint",
+      //   component: SpkPrintView,
+      //   props: true,
+      // },
       { path: "mmt/so-spk", name: "BrowseSoToSpk", component: SoToSpkView },
       {
         path: "mmt/so-spk/new",
@@ -258,12 +258,12 @@ const routes: RouteRecordRaw[] = [
         component: FormJadwalKirimView,
         props: { isEditMode: true },
       },
-      {
-        path: "mmt/jadwal-kirim/print/:nomor",
-        name: "JadwalKirimPrint",
-        component: JadwalKirimPrintView,
-        props: true,
-      },
+      // {
+      //   path: "mmt/jadwal-kirim/print/:nomor",
+      //   name: "JadwalKirimPrint",
+      //   component: JadwalKirimPrintView,
+      //   props: true,
+      // },
       {
         path: "mmt/surat-jalan",
         name: "SuratJalanBrowse",
@@ -434,13 +434,13 @@ const routes: RouteRecordRaw[] = [
           layout: "blank", // Atau 'empty' sesuai konfigurasi layout router project Anda
         },
       },
-      {
-        path: "mmt/penerimaan-bahan",
-        name: "PenerimaanBahanBrowse",
-        component: penerimaanBahanView,
-      },
+      // {
+      //   path: "mmt/penerimaan-bahan",
+      //   name: "PenerimaanBahanBrowse",
+      //   component: penerimaanBahanView,
+      // },
 
-      // 2. Tambah Baru (New Entry)
+      // // 2. Tambah Baru (New Entry)
       {
         path: "mmt/penerimaan-bahan/new",
         name: "PenerimaanBahanNew",
@@ -471,19 +471,19 @@ const routes: RouteRecordRaw[] = [
         component: FormReturBeliView,
       },
 
-      { path: "mmt/invoice", name: "InvoiceBrowse", component: InvoiceView },
-      {
-        path: "mmt/invoice/new",
-        name: "InvoiceNew",
-        component: FormInvoiceView,
-        props: { isEditMode: false },
-      },
-      {
-        path: "mmt/invoice/print/:nomor",
-        name: "InvoicePrint",
-        component: InvoicePrintView,
-        props: true,
-      },
+      // { path: "mmt/invoice", name: "InvoiceBrowse", component: InvoiceView },
+      // {
+      //   path: "mmt/invoice/new",
+      //   name: "InvoiceNew",
+      //   component: FormInvoiceView,
+      //   props: { isEditMode: false },
+      // },
+      // {
+      //   path: "mmt/invoice/print/:nomor",
+      //   name: "InvoicePrint",
+      //   component: InvoicePrintView,
+      //   props: true,
+      // },
       {
         path: "mmt/create-barcode",
         name: "CreateBarcode",
@@ -598,7 +598,7 @@ const routes: RouteRecordRaw[] = [
         component: FormPlanningProduksiView,
       },
 
-      // --- GRUP COMING SOON / UMUM (PATH DIBUAT RELATIF) ---
+      // // --- GRUP COMING SOON / UMUM (PATH DIBUAT RELATIF) ---
       { path: "file/user", name: "User", component: ComingSoon },
       {
         path: "file/perusahaan",
@@ -940,7 +940,7 @@ const routes: RouteRecordRaw[] = [
         component: FormLhkSublimView,
       },
 
-      { path: "mmt/absensi", name: "absensiNew", component: FormAbsesnView },
+      // { path: "mmt/absensi", name: "absensiNew", component: FormAbsesnView },
       { path: "mmt/lhk/sublim", name: "LhkSublim", component: LhkRtrView },
       {
         path: "mmt/lhk/sublim/new",
@@ -1010,37 +1010,37 @@ const routes: RouteRecordRaw[] = [
         component: FormMutasiInternalView,
       },
 
-      // Rute untuk "Produksi MMT"
-      {
-        path: "produksi-mmt/mon/cetak",
-        name: "Monitoring Cetak MMT",
-        component: ComingSoon,
-      },
-      {
-        path: "produksi-mmt/mon/finishing",
-        name: "Monitoring Finishing MMT",
-        component: ComingSoon,
-      },
-      {
-        path: "produksi-mmt/mon/proof",
-        name: "Monitoring Proof MMT",
-        component: ComingSoon,
-      },
-      {
-        path: "produksi-mmt/mon/sublim",
-        name: "Monitoring Sublim MMT",
-        component: ComingSoon,
-      },
-      {
-        path: "produksi-mmt/mon/rtr",
-        name: "Monitoring RTR MMT",
-        component: ComingSoon,
-      },
-      {
-        path: "produksi-mmt/mon/tekstil",
-        name: "Monitoring Tekstil MMT",
-        component: ComingSoon,
-      },
+      // // Rute untuk "Produksi MMT"
+      // {
+      //   path: "produksi-mmt/mon/cetak",
+      //   name: "Monitoring Cetak MMT",
+      //   component: ComingSoon,
+      // },
+      // {
+      //   path: "produksi-mmt/mon/finishing",
+      //   name: "Monitoring Finishing MMT",
+      //   component: ComingSoon,
+      // },
+      // {
+      //   path: "produksi-mmt/mon/proof",
+      //   name: "Monitoring Proof MMT",
+      //   component: ComingSoon,
+      // },
+      // {
+      //   path: "produksi-mmt/mon/sublim",
+      //   name: "Monitoring Sublim MMT",
+      //   component: ComingSoon,
+      // },
+      // {
+      //   path: "produksi-mmt/mon/rtr",
+      //   name: "Monitoring RTR MMT",
+      //   component: ComingSoon,
+      // },
+      // {
+      //   path: "produksi-mmt/mon/tekstil",
+      //   name: "Monitoring Tekstil MMT",
+      //   component: ComingSoon,
+      // },
       {
         path: "laporan/mmt/ls-bahan-utama",
         name: "LS Bahan Utama",
