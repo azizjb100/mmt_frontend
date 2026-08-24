@@ -363,8 +363,8 @@ const saveForm = async (saveAndNew: boolean) => {
         satuan: d.satuan,
         spk: d.spk || "0",
         keterangan: d.keterangan,
-        panjang: Number(d.Panjang) || 0, // <-- Tambahkan ini
-        lebar: Number(d.Lebar) || 0, // <-- Tambahkan ini
+        panjang: Number(d.Panjang) || 0, // Mengambil d.Panjang (huruf besar dari state tabel)
+        lebar: Number(d.Lebar) || 0, // Mengambil d.Lebar (huruf besar dari state tabel)
       })),
       isEditMode: isEditMode.value,
     };

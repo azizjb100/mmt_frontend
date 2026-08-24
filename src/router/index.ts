@@ -434,11 +434,11 @@ const routes: RouteRecordRaw[] = [
           layout: "blank", // Atau 'empty' sesuai konfigurasi layout router project Anda
         },
       },
-      // {
-      //   path: "mmt/penerimaan-bahan",
-      //   name: "PenerimaanBahanBrowse",
-      //   component: penerimaanBahanView,
-      // },
+      {
+        path: "mmt/penerimaan-bahan",
+        name: "PenerimaanBahanBrowse",
+        component: penerimaanBahanView,
+      },
 
       // // 2. Tambah Baru (New Entry)
       {
