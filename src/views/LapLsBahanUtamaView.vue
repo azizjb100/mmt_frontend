@@ -11,10 +11,8 @@
     :excel-file-name="`Laporan_Stok_Bahan_Utama_${startDate}_sd_${endDate}.xlsx`"
     :custom-export-excel="exportToExcel"
     @refresh="fetchReport"
-    @row-expand="fetchDetail"
+    @row-expand="handleRowExpand"
   >
-    <!-- Slot Header Tabel dengan Dropdown Filter -->
-    <!-- Slot Header Tabel Custom -->
     <!-- Slot Header Tabel Custom -->
     <template
       #thead="{
@@ -238,7 +236,7 @@
             </div>
           </th>
 
-          <!-- Group Headers Spesifikasi & Mutasi... -->
+          <!-- Group Headers Spesifikasi & Mutasi -->
           <th colspan="3" class="text-center header-group">SPESIFIKASI</th>
           <th :colspan="canSeeNominal ? 3 : 2" class="text-center header-group">
             STOK AWAL
@@ -597,7 +595,6 @@
           TOTAL KESELURUHAN:
         </td>
 
-        <!-- Spesifikasi -->
         <td colspan="3"></td>
 
         <!-- Stok Awal -->
@@ -738,7 +735,6 @@ const canSeeNominal = computed(() => {
   return bagian === "FINANCE" || bagian === "AUDIT" || jabatan === "MANAGER";
 });
 
-// Helper 1: Mengubah "2026-07-01" -> "01 Juli 2026"
 const formatDateIndo = (dateStr) => {
   if (!dateStr) return "";
   const [year, month, day] = dateStr.split("-");
@@ -760,7 +756,6 @@ const formatDateIndo = (dateStr) => {
   return `${day} ${namaBulan[monthIdx]} ${year}`;
 };
 
-// Helper 2: Mengubah ISO String "2026-06-30T17:00:00.000Z" / Date string -> "30/06/2026"
 const formatDateShort = (dateStr) => {
   if (!dateStr) return "-";
   const d = new Date(dateStr);
@@ -794,7 +789,6 @@ const loading = reactive({ report: false });
 const expandedData = reactive({});
 const expandedLoading = reactive({});
 
-// Options Otomatis
 const jenisOptions = computed(() => {
   const list = allData.value.map((x) => x.jb_nama).filter(Boolean);
   return ["SEMUA", ...new Set(list)];
@@ -810,7 +804,6 @@ const statusOptions = computed(() => {
   return ["SEMUA", ...new Set(list)];
 });
 
-// State & Dialog Keterangan
 const dialogKeterangan = reactive({
   show: false,
   brgKode: "",
@@ -915,7 +908,7 @@ const fetchReport = async () => {
 };
 
 const fetchDetail = async (targetKode) => {
-  if (expandedData[targetKode]) return;
+  if (!targetKode || expandedData[targetKode]) return;
   expandedLoading[targetKode] = true;
   try {
     const res = await api.get(`${API_URL}/detail`, {
@@ -926,12 +919,30 @@ const fetchDetail = async (targetKode) => {
         brgKode: targetKode,
       },
     });
-    expandedData[targetKode] = res.data.success ? res.data.data : [];
+
+    let rawData = [];
+    if (res.data) {
+      if (Array.isArray(res.data)) {
+        rawData = res.data;
+      } else if (res.data.data && Array.isArray(res.data.data)) {
+        rawData = res.data.data;
+      } else if (res.data.success && Array.isArray(res.data.data)) {
+        rawData = res.data.data;
+      }
+    }
+    expandedData[targetKode] = rawData;
   } catch (error) {
     console.error("Gagal memuat log expanded detail:", error);
     expandedData[targetKode] = [];
   } finally {
     expandedLoading[targetKode] = false;
+  }
+};
+
+const handleRowExpand = (rowItem) => {
+  const kode = rowItem?.kode || rowItem;
+  if (kode) {
+    fetchDetail(kode);
   }
 };
 
@@ -944,7 +955,6 @@ const exportToExcel = (dataToExport) => {
   const fileName = `Laporan_Stok_Bahan_Utama_${startDate.value}.xlsx`;
   const num = (v) => (isNaN(Number(v)) ? 0 : Number(v));
 
-  // --- 1. DEFINISI BORDER STANDAR ---
   const thinBorder = {
     top: { style: "thin", color: { rgb: "000000" } },
     bottom: { style: "thin", color: { rgb: "000000" } },
@@ -952,7 +962,6 @@ const exportToExcel = (dataToExport) => {
     right: { style: "thin", color: { rgb: "000000" } },
   };
 
-  // --- 2. DEFINISI STYLES SEL ---
   const styleHeaderMain = {
     fill: { fgColor: { rgb: "1E3A8A" } },
     font: { bold: true, color: { rgb: "FFFFFF" }, sz: 10 },
@@ -988,7 +997,6 @@ const exportToExcel = (dataToExport) => {
     [],
   ];
 
-  // Header Baris 1
   const headerRow1 = [
     { v: "KODE", s: styleHeaderMain },
     { v: "NAMA BAHAN", s: styleHeaderMain },
@@ -1020,7 +1028,6 @@ const exportToExcel = (dataToExport) => {
   });
   wsData.push(headerRow1);
 
-  // Header Baris 2
   const headerRow2 = [
     { v: "", s: styleHeaderMain },
     { v: "", s: styleHeaderMain },
@@ -1048,7 +1055,6 @@ const exportToExcel = (dataToExport) => {
   ];
   wsData.push(headerRow2);
 
-  // --- 3. LOOP ISI DATA ---
   dataToExport.forEach((row) => {
     const dataRow = [
       { v: row.kode, s: styleDataCell },
@@ -1056,7 +1062,6 @@ const exportToExcel = (dataToExport) => {
       { v: row.jb_nama || "", s: styleDataCell },
       { v: row.type_barang || "-", s: styleDataCell },
       { v: row.status_barang || "-", s: styleDataCell },
-
       {
         v: num(row.Panjang),
         t: "n",
@@ -1075,7 +1080,6 @@ const exportToExcel = (dataToExport) => {
         z: "#,##0.00",
         s: { ...styleDataCell, alignment: { horizontal: "right" } },
       },
-
       {
         v: num(row.stok_awal_q),
         t: "n",
@@ -1187,7 +1191,6 @@ const exportToExcel = (dataToExport) => {
     wsData.push(dataRow);
   });
 
-  // --- 4. BARIS TOTAL FOOTER ---
   const totals = dataToExport.reduce(
     (acc, row) => {
       acc.stok_awal_q += num(row.stok_awal_q);
@@ -1346,7 +1349,6 @@ const exportToExcel = (dataToExport) => {
   footerRow.push({ v: "", s: styleFooterCell });
   wsData.push(footerRow);
 
-  // --- 5. SETUP MERGES BARS TOTAL & HEADER ---
   const ws = XLSX.utils.aoa_to_sheet(wsData);
   const totalRowIndex = wsData.length - 1;
 
@@ -1390,7 +1392,6 @@ onMounted(fetchReport);
 </script>
 
 <style scoped>
-/* 1. Reset & Standardisasi Font Size Seluruh Tabel ke 11px */
 :deep(table) {
   font-size: 11px !important;
 }
@@ -1402,9 +1403,7 @@ onMounted(fetchReport);
 }
 :deep(.v-table__wrapper),
 :deep(.v-data-table__wrapper) {
-  max-height: calc(
-    100vh - 280px
-  ) !important; /* Sesuaikan tinggi agar muat di layar */
+  max-height: calc(100vh - 280px) !important;
   overflow-y: auto !important;
   overflow-x: auto !important;
 }
@@ -1415,7 +1414,6 @@ onMounted(fetchReport);
   z-index: 10 !important;
 }
 
-/* 2. Styling Header Utama & Sub Header */
 .header-main th {
   background: linear-gradient(180deg, #142f7b 0%, #3b82f6 100%) !important;
   border-right: 1px solid #3b82f6 !important;
@@ -1423,7 +1421,7 @@ onMounted(fetchReport);
 
 .header-sub th {
   background: #2563eb !important;
-  font-size: 11px !important; /* Diubah dari 10px ke 11px */
+  font-size: 11px !important;
   border-right: 1px solid #60a5fa !important;
 }
 
@@ -1432,7 +1430,6 @@ onMounted(fetchReport);
   border-right: 1px solid #60a5fa !important;
 }
 
-/* 3. Sticky Columns Position Fix */
 :deep(.sticky-col-expand) {
   position: sticky;
   left: 0;
@@ -1442,7 +1439,7 @@ onMounted(fetchReport);
 
 :deep(.sticky-col-1) {
   position: sticky !important;
-  left: 40px !important; /* Pas di sebelah kanan tombol expand (0 + 40px) */
+  left: 40px !important;
   z-index: 6;
   background-color: #ffffff !important;
   width: 130px !important;
@@ -1452,20 +1449,19 @@ onMounted(fetchReport);
 
 :deep(.sticky-col-2) {
   position: sticky !important;
-  left: 170px !important; /* Pas di sebelah kanan kolom KODE (40px + 130px) */
+  left: 170px !important;
   z-index: 6;
   background-color: #ffffff !important;
   box-shadow: 3px 0px 5px -2px rgba(0, 0, 0, 0.15);
 }
 
-/* 4. Badges & Highlight */
 .badge-status {
   padding: 4px 10px;
   border-radius: 6px;
   font-size: 11px !important;
   font-weight: 700;
   display: inline-block;
-  white-space: nowrap !important; /* Mencegah badge seperti 'Slow Moving' pecah 2 baris */
+  white-space: nowrap !important;
 }
 
 .badge-fast {
@@ -1481,7 +1477,6 @@ onMounted(fetchReport);
   color: #0369a1 !important;
 }
 
-/* 5. Utility Borders */
 .border-l {
   border-left: 1px solid #cbd5e1 !important;
 }
@@ -1495,7 +1490,6 @@ onMounted(fetchReport);
   border-right: 1px solid #60a5fa !important;
 }
 
-/* 6. Penyesuaian Input Keterangan di Baris Tabel */
 :deep(.v-text-field.text-caption input) {
   font-size: 11px !important;
 }
