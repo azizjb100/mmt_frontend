@@ -1180,7 +1180,7 @@ onMounted(async () => {
   <div v-else class="error-screen">Data tidak ditemukan.</div>
 </template>
 
-<style>
+<style scoped>
 /* =========================================================
    RESET
 ========================================================= */

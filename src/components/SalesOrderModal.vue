@@ -14,11 +14,13 @@ const page = ref(1);
 const PAGE_SIZE = 50;
 
 const today = new Date().toISOString().substring(0, 10);
-const threeMonthsAgo = new Date(Date.now() - 90 * 86400000)
+
+// Diubah dari 90 hari (3 bulan) menjadi 14 hari (2 minggu)
+const twoWeeksAgo = new Date(Date.now() - 14 * 86400000)
   .toISOString()
   .substring(0, 10);
 
-const startDate = ref(threeMonthsAgo);
+const startDate = ref(twoWeeksAgo);
 const endDate = ref(today);
 
 const fetchData = async () => {

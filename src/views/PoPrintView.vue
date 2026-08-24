@@ -1,28 +1,24 @@
 <script setup lang="ts">
-import { ref, onMounted, nextTick, watch } from "vue";
+import { ref, onMounted, nextTick } from "vue";
 import { useRoute } from "vue-router";
-// Asumsi: api mengarah ke backend/src/controllers/poMmt.controller.js
 import api from "@/services/api";
-import { format, parseISO } from "date-fns";
 import { formatRupiah } from "@/utils/format-rupiah";
 
-// --- Interfaces disesuaikan dengan output getPoDataForPrint ---
-
 interface PrintHeader {
-  Nomor: string; // po_nomor
-  Tanggal: string; // po_tanggal (sudah diformat)
-  TglPengiriman: string; // po_dateline (sudah diformat)
-  KeteranganHeader: string; // po_memo / Alamat Kirim
-  Note: string; // po_note
-  IsPpn: number; // po_istax
-  PpnRate: number; // po_taxamount
-  SubTotal: number; // po_amount
+  Nomor: string;
+  Tanggal: string;
+  TglPengiriman: string;
+  KeteranganHeader: string;
+  Note: string;
+  IsPpn: number;
+  PpnRate: number;
+  SubTotal: number;
   TotalPpn: number;
   GrandTotal: number;
-  NamaSupplier: string; // sup_nama
-  AlamatSupplier: string; // sup_alamat
-  KotaSupplier: string; // sup_kota
-  NamaPerusahaan: string; // comp_name (CV. Kencana Print)
+  NamaSupplier: string;
+  AlamatSupplier: string;
+  KotaSupplier: string;
+  NamaPerusahaan: string;
   AlamatPerusahaan: string;
   NPWPPerusahaan: string;
   AlamatPabrik: string;
@@ -31,35 +27,57 @@ interface PrintHeader {
 
 interface PrintDetail {
   NoUrut: number;
-  Kode: string; // pod_brg_kode
-  Deskripsi: string; // pod_keterangan (Description)
-  Quantity: number; // pod_qty
+  Kode: string;
+  Deskripsi: string;
+  Quantity: number;
   Satuan: string;
-  UnitPrice: number; // pod_harga
+  UnitPrice: number;
   Total: number;
 }
 
 interface PrintData {
   Header: PrintHeader;
-  Detail: PrintDetail[]; // Diubah dari 'details' ke 'Detail'
+  Detail: PrintDetail[];
 }
 
 const route = useRoute();
 const printData = ref<PrintData | null>(null);
 const isLoading = ref(true);
 
-// Karena PO di gambar tidak menggunakan logo dan footer media sosial/invoice
-// kita tidak memerlukan Logo, InstagramLogo, FacebookLogo
+// State untuk orientasi cetak ('portrait' atau 'landscape')
+const orientation = ref<"portrait" | "landscape">("portrait");
+
+// Fungsi injeksi dinamis aturan @page agar browser memaksa orientasi yang dipilih
+const injectPrintStyle = () => {
+  const oldStyle = document.getElementById("po-dynamic-print-style");
+  if (oldStyle) oldStyle.remove();
+
+  const isLand = orientation.value === "landscape";
+  const styleEl = document.createElement("style");
+  styleEl.id = "po-dynamic-print-style";
+
+  styleEl.innerHTML = `
+    @page {
+      size: ${isLand ? "297mm 210mm" : "210mm 297mm"};
+      margin: 5mm;
+    }
+  `;
+  document.head.appendChild(styleEl);
+};
+
+// Fungsi untuk mengganti orientasi secara instan dari tombol kontrol
+const setOrientation = async (mode: "portrait" | "landscape") => {
+  orientation.value = mode;
+  injectPrintStyle();
+  await nextTick();
+};
 
 const fetchPrintData = async (nomor: string) => {
   try {
     const response = await api.get(`mmt/po-bahan-mmt/print/${nomor}`);
-
-    // Kita tetap simpan datanya agar bisa tampil di layar
     printData.value = response.data;
     document.title = `PO - ${response.data.Header?.Nomor || "PO"}`;
 
-    // Opsional: Beri peringatan di console/notifikasi tanpa menutup halaman
     if (response.data?.Header?.IsAcc !== "Y") {
       console.warn("PO ini belum di-ACC oleh Manager.");
     }
@@ -71,40 +89,54 @@ const fetchPrintData = async (nomor: string) => {
   }
 };
 
-watch(isLoading, (newValue) => {
-  if (newValue === false) {
-    nextTick(() => {
-      setTimeout(() => {
-        // Tambahkan class khusus PO
-        document.body.classList.add("is-printing-po");
-
-        window.print();
-
-        window.addEventListener(
-          "afterprint",
-          () => {
-            document.body.classList.remove("is-printing-po");
-          },
-          { once: true },
-        );
-      }, 800);
-    });
-  }
-});
+// Fungsi cetak manual berdasarkan state orientasi yang sedang aktif
+const triggerPrint = () => {
+  injectPrintStyle();
+  nextTick(() => {
+    setTimeout(() => {
+      window.print();
+    }, 200);
+  });
+};
 
 onMounted(() => {
   const nomor = route.params.nomor as string;
   if (nomor) fetchPrintData(nomor);
+  injectPrintStyle();
 });
 </script>
 
 <template>
   <div class="po-print-container">
+    <!-- BAR KONTROL ORIENTASI CETAK -->
+    <div v-if="!isLoading" class="no-print print-control-bar">
+      <div class="orientation-selector">
+        <span class="control-label">Format Kertas:</span>
+        <button
+          type="button"
+          :class="['btn-orientasi', { active: orientation === 'portrait' }]"
+          @click="setOrientation('portrait')"
+        >
+          📄 Portrait (Tegak)
+        </button>
+        <button
+          type="button"
+          :class="['btn-orientasi', { active: orientation === 'landscape' }]"
+          @click="setOrientation('landscape')"
+        >
+          📑 Landscape (Mendatar)
+        </button>
+      </div>
+
+      <button class="btn-print" @click="triggerPrint">🖨️ Cetak Dokumen</button>
+    </div>
+
     <div v-if="isLoading" class="text-center loading-message">
       Memuat data PO...
     </div>
 
-    <div v-if="printData" class="po-page">
+    <!-- AREA KERTAS / PREVIEW -->
+    <div v-if="printData" :class="['po-page', orientation]">
       <header class="po-header">
         <div class="company-section">
           <h1 class="company-name">CV. KENCANA PRINT</h1>
@@ -166,8 +198,9 @@ onMounted(() => {
               <td class="text-right">{{ formatRupiah(item.UnitPrice) }}</td>
               <td class="text-right">{{ formatRupiah(item.Total) }}</td>
             </tr>
+            <!-- Baris kosong dikurangi maksimal 6 agar aman tidak turun ke halaman 2 -->
             <tr
-              v-for="i in Math.max(0, 10 - printData.Detail.length)"
+              v-for="i in Math.max(0, 6 - printData.Detail.length)"
               :key="'empty-' + i"
               class="empty-row"
             >
@@ -182,7 +215,6 @@ onMounted(() => {
       </div>
 
       <div class="summary-area">
-        <!-- Menggunakan Wrapper agar Notes dan Watermark terjaga dalam satu kolom kiri -->
         <div class="notes-section-wrapper">
           <div class="notes-section">
             <div class="notes-header">Notes and Instructions</div>
@@ -200,7 +232,6 @@ onMounted(() => {
             </p>
           </div>
 
-          <!-- WATERMARK PINDAH KE SINI: Kecil, Horizontal, Merah Informatif -->
           <div v-if="printData.Header.IsAcc !== 'Y'" class="watermark">
             * DRAFT / BELUM DI-ACC OLEH MANAGER *
           </div>
@@ -241,78 +272,173 @@ onMounted(() => {
   </div>
 </template>
 
-<!-- STYLE GLOBAL: Memaksa ukuran fisik A4 Portrait & Isolasi Konten -->
+<!-- STYLE GLOBAL KHUSUS CETAK -->
 <style>
-@page {
-  /* KUNCI UTAMA: Dimensi eksplisit 210mm x 297mm (A4 Portrait) */
-  size: 210mm 297mm !important;
-  margin: 0mm !important;
-}
-
 @media print {
-  /* 1. Sembunyikan semua elemen di body yang bukan container PO */
-  body > *:not(.po-print-container):not(#app) {
-    display: none !important;
-  }
-
-  /* 2. Sembunyikan navbar, sidebar, header app, dan widget floating */
-  nav,
-  aside,
-  header:not(.po-header),
-  .navbar,
-  .sidebar,
-  .app-header,
+  /* 1. Sembunyikan elemen kontrol, tombol, dan sidebar aplikasi */
+  .no-print,
+  .print-control-bar,
   button,
-  [class*="float"],
-  [class*="widget"] {
+  .v-application__wrap > header,
+  .v-navigation-drawer,
+  nav,
+  aside {
     display: none !important;
   }
 
-  /* 3. Reset total dimensi viewport agar tidak melebar */
+  /* 2. Reset total struktur dokumen agar bersih saat dicetak */
+  body,
   html,
-  body {
-    width: 210mm !important;
-    max-width: 210mm !important;
-    height: 297mm !important;
+  #app,
+  .po-print-container {
+    background: white !important;
     margin: 0 !important;
     padding: 0 !important;
-    background: #ffffff !important;
-    overflow: hidden !important;
+    width: 100% !important;
+    height: auto !important;
+    overflow: visible !important;
   }
 
-  #app,
-  main,
-  .v-main,
-  .layout-wrapper,
-  .content-wrapper {
-    width: 210mm !important;
-    max-width: 210mm !important;
-    padding: 0 !important;
-    margin: 0 !important;
-    background: transparent !important;
-    overflow: visible !important;
+  .po-page {
+    position: relative !important;
+    margin: 0 auto !important;
+    border: none !important;
+    box-shadow: none !important;
+    background: white !important;
+    page-break-after: avoid !important;
+    break-after: avoid !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  /* Lebar halaman menyesuaikan orientasi */
+  .po-page.portrait {
+    width: 195mm !important;
+    max-height: 285mm !important;
+  }
+
+  .po-page.landscape {
+    width: 280mm !important;
+    max-height: 195mm !important;
+  }
+
+  /* 3. Memastikan warna latar belakang tabel/header tetap tercetak akurat */
+  .po-header,
+  .vendor-header,
+  .notes-header,
+  .items-table thead th {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
 }
 </style>
 
-<!-- STYLE SCOPED -->
+<!-- STYLE SCOPED UNTUK TAMPILAN DI LAYAR -->
 <style scoped>
+.print-control-bar {
+  background: #2d3748;
+  padding: 12px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+  margin-bottom: 20px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.orientation-selector {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.control-label {
+  color: #cbd5e1;
+  font-weight: bold;
+  font-size: 13px;
+}
+
+.btn-orientasi {
+  background: #334155;
+  color: #cbd5e1;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-weight: 600;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-orientasi:hover {
+  background: #475569;
+  color: #fff;
+}
+
+.btn-orientasi.active {
+  background: #2563eb;
+  color: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+.btn-print {
+  background-color: #059669;
+  padding: 8px 16px;
+  font-size: 14px;
+  font-weight: bold;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  color: white;
+  transition: background 0.2s;
+}
+
+.btn-print:hover {
+  background-color: #047857;
+}
+
+.loading-message {
+  padding: 40px;
+  font-size: 16px;
+  color: #666;
+  text-align: center;
+}
+
 .po-print-container {
   padding: 0;
   margin: 0;
-  width: 210mm;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background-color: #f0f2f5;
+  min-height: 100vh;
 }
 
+/* Pratinjau Kertas di Layar Komputer */
 .po-page {
   position: relative;
   font-family: Arial, sans-serif;
   font-size: 10pt;
   background: white;
-  margin: 0 auto;
-  width: 210mm;
-  max-width: 210mm;
+  margin-bottom: 30px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
   box-sizing: border-box;
-  padding: 10mm 15mm;
+  padding: 8mm 12mm;
+  transition: width 0.3s ease;
+}
+
+.po-page.portrait {
+  width: 210mm;
+  min-height: 297mm;
+}
+
+.po-page.landscape {
+  width: 297mm;
+  min-height: 210mm;
 }
 
 .notes-section-wrapper {
@@ -324,15 +450,13 @@ onMounted(() => {
 }
 
 .watermark {
-  margin-top: 8px;
+  margin-top: 6px;
   font-size: 9pt;
   color: #d32f2f;
   font-weight: bold;
   letter-spacing: 0.5px;
   text-transform: uppercase;
   font-style: italic;
-  -webkit-print-color-adjust: exact;
-  print-color-adjust: exact;
 }
 
 .po-header,
@@ -348,7 +472,7 @@ onMounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  padding-bottom: 5px;
+  padding-bottom: 4px;
   border-bottom: 2px solid #000080;
 }
 
@@ -366,7 +490,7 @@ onMounted(() => {
 
 .company-section address {
   font-style: normal;
-  font-size: 9pt;
+  font-size: 8.5pt;
 }
 
 .po-title-section {
@@ -376,14 +500,14 @@ onMounted(() => {
 
 .po-title-section h2 {
   color: #000080;
-  font-size: 18pt;
+  font-size: 16pt;
   font-weight: 900;
-  margin: 0 0 10px 0;
+  margin: 0 0 6px 0;
 }
 
 .po-meta {
-  line-height: 1.5;
-  font-size: 9pt;
+  line-height: 1.4;
+  font-size: 8.5pt;
 }
 
 .po-meta .meta-label {
@@ -393,21 +517,21 @@ onMounted(() => {
 }
 
 .vendor-section {
-  margin: 12px 0;
+  margin: 8px 0;
   border: 1px solid #000080;
-  line-height: 1.4;
+  line-height: 1.3;
 }
 
 .vendor-header {
   background-color: #000080;
   color: white;
   font-weight: bold;
-  padding: 3px 10px;
-  font-size: 10pt;
+  padding: 2px 8px;
+  font-size: 9.5pt;
 }
 
 .vendor-details {
-  padding: 5px 10px;
+  padding: 4px 8px;
 }
 
 .items-table {
@@ -418,7 +542,7 @@ onMounted(() => {
 .items-table th,
 .items-table td {
   border: 1px solid black;
-  padding: 5px 8px;
+  padding: 4px 6px;
   vertical-align: top;
 }
 
@@ -426,7 +550,7 @@ onMounted(() => {
   background-color: #000080;
   color: white;
   font-weight: bold;
-  font-size: 9.5pt;
+  font-size: 9pt;
   text-transform: uppercase;
 }
 
@@ -435,13 +559,13 @@ onMounted(() => {
 }
 
 .items-table .empty-row td {
-  height: 18pt;
+  height: 14pt;
 }
 
 .summary-area {
   display: flex;
   justify-content: space-between;
-  margin-top: 10px;
+  margin-top: 8px;
   align-items: flex-start;
 }
 
@@ -449,14 +573,14 @@ onMounted(() => {
   background-color: #000080;
   color: white;
   font-weight: bold;
-  padding: 3px 10px;
-  font-size: 10pt;
+  padding: 2px 8px;
+  font-size: 9.5pt;
 }
 
 .notes-section p {
-  padding: 5px 10px;
+  padding: 4px 8px;
   margin: 0;
-  font-size: 9pt;
+  font-size: 8.5pt;
 }
 
 .total-summary-wrapper {
@@ -470,7 +594,7 @@ onMounted(() => {
 .total-row {
   display: flex;
   justify-content: space-between;
-  padding: 4px 10px;
+  padding: 3px 8px;
   border-top: 1px solid black;
 }
 
@@ -487,54 +611,17 @@ onMounted(() => {
 .signature-footer {
   display: flex;
   justify-content: flex-end;
-  margin-top: 25px;
-  margin-right: 40px;
+  margin-top: 15mm;
+  margin-right: 30px;
   text-align: center;
 }
 
 .signature-box {
-  width: 150px;
+  width: 140px;
 }
 
 .signature-line {
   border-top: 1px solid black;
-  margin-top: 35px;
-}
-
-/* =================================================================
-   PRINT RULES
-   ================================================================= */
-@media print {
-  .po-print-container {
-    padding: 0 !important;
-    margin: 0 !important;
-    width: 210mm !important;
-  }
-
-  .po-page {
-    margin: 0 !important;
-    border: none !important;
-    box-shadow: none !important;
-    box-sizing: border-box !important;
-    width: 210mm !important;
-    max-width: 210mm !important;
-    height: 100% !important;
-    padding: 10mm 15mm !important;
-    page-break-inside: avoid !important;
-    break-inside: avoid !important;
-  }
-
-  .watermark {
-    color: #d32f2f !important;
-  }
-
-  .items-table thead th,
-  .notes-header,
-  .vendor-header {
-    background-color: #000080 !important;
-    color: white !important;
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
-  }
+  margin-top: 30px;
 }
 </style>

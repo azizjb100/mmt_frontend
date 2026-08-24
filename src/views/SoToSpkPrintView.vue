@@ -270,7 +270,7 @@ const normalizeCab = (cab: any) => {
 const currentCab = computed(() => normalizeCab(spk.value.spk_cab));
 const currentCab2 = computed(() => normalizeCab(spk.value.spk_cab2));
 
-const printOrientation = ref<"portrait" | "landscape">("portrait");
+const printOrientation = ref<"portrait" | "landscape">("landscape");
 
 const isP04Print = computed(
   () => currentCab.value === "P04" || currentCab2.value === "P04",
@@ -290,34 +290,34 @@ const isP05Print = computed(
   () => currentCab.value === "P05" || currentCab2.value === "P05",
 );
 
+// Injeksi style @page presisi yang dikenali semua browser modern
 const injectPrintStyle = () => {
   const oldStyle = document.getElementById("spk-dynamic-print-style");
   if (oldStyle) oldStyle.remove();
 
-  let pageSize = "210mm 297mm";
-  if (!isP04Print.value && printOrientation.value === "landscape") {
-    pageSize = "297mm 210mm";
-  }
-
+  const isLand = printOrientation.value === "landscape";
   const styleEl = document.createElement("style");
   styleEl.id = "spk-dynamic-print-style";
 
   styleEl.innerHTML = `
-    @media print {
-      @page {
-        size: ${pageSize};
-        margin: 0 !important;
-      }
+    @page {
+      size: ${isLand ? "297mm 210mm" : "210mm 297mm"};
+      margin: 0;
     }
   `;
   document.head.appendChild(styleEl);
 };
 
-const triggerPrint = () => {
+const triggerPrint = async () => {
   injectPrintStyle();
-  nextTick(() => {
+  if (printOrientation.value === "portrait") {
+    await fitPageToA4();
+  }
+  await nextTick();
+  // Memberikan waktu browser merefresh layout sebelum dialog print keluar
+  setTimeout(() => {
     window.print();
-  });
+  }, 100);
 };
 
 const spkKetKomponenText = computed(() =>
@@ -353,7 +353,7 @@ const p1Scale = ref(1);
 const p1ScaledHeightStyle = ref<string>("auto");
 const p1MultiPage = ref(false);
 
-const MIN_PRINT_SCALE = 0.72;
+const MIN_PRINT_SCALE = 0.65;
 
 const waitForImages = (el: HTMLElement) => {
   const imgs = Array.from(el.querySelectorAll("img"));
@@ -385,15 +385,18 @@ const fitPageToA4 = async () => {
     });
   });
 
-  const pageHeight = p1PageEl.value.clientHeight;
+  const pageHeight = p1PageEl.value.clientHeight || 1122;
   const contentHeight = p1InnerEl.value.scrollHeight;
 
   if (!pageHeight || !contentHeight) return;
 
   const computedStyle = window.getComputedStyle(p1PageEl.value);
-  const paddingTop = parseFloat(computedStyle.paddingTop) || 0;
-  const paddingBottom = parseFloat(computedStyle.paddingBottom) || 0;
-  const availableHeight = Math.max(0, pageHeight - paddingTop - paddingBottom);
+  const paddingTop = parseFloat(computedStyle.paddingTop) || 15;
+  const paddingBottom = parseFloat(computedStyle.paddingBottom) || 15;
+  const availableHeight = Math.max(
+    0,
+    pageHeight - paddingTop - paddingBottom - 25,
+  );
 
   if (contentHeight <= availableHeight) {
     p1Scale.value = 1;
@@ -466,10 +469,12 @@ onMounted(async () => {
     spk.value = d.header || {};
     resolveDesignImage();
 
-    const autoLandscape =
-      ["P01", "P02", "P05"].includes(currentCab.value) ||
-      ["P01", "P02", "P05"].includes(currentCab2.value);
-    printOrientation.value = autoLandscape ? "landscape" : "portrait";
+    // Default otomatis: P04 Portrait, selain itu (P05, P02, P01) Landscape
+    if (isP04Print.value) {
+      printOrientation.value = "portrait";
+    } else {
+      printOrientation.value = "landscape";
+    }
 
     sizes.value = (d.dtlSize || []).filter((s: any) => Number(s.qty) > 0);
     komponenPotong.value = d.komponenSpk?.ListPotong || [];
@@ -481,7 +486,6 @@ onMounted(async () => {
       (k: any) => k.checked,
     );
 
-    // Parsing data alokasi
     alokasi.value = Array.isArray(resAlokasi.data?.data)
       ? resAlokasi.data.data
       : Array.isArray(resAlokasi.data)
@@ -516,18 +520,18 @@ onMounted(async () => {
 
     await nextTick();
 
-    const printRoot = document.querySelector<HTMLElement>(".print-root");
+    const printRoot = document.querySelector<HTMLElement>("body");
     if (printRoot) {
       await waitForImages(printRoot);
     }
 
-    if (!autoLandscape) {
+    if (printOrientation.value === "portrait") {
       await fitPageToA4();
     }
 
+    injectPrintStyle();
     await nextTick();
     notifyParentReady();
-    injectPrintStyle();
   } catch (err) {
     console.error("Gagal memuat dokumen SPK:", err);
     isError.value = true;
@@ -551,7 +555,12 @@ onMounted(async () => {
             type="radio"
             value="portrait"
             v-model="printOrientation"
-            @change="injectPrintStyle"
+            @change="
+              () => {
+                injectPrintStyle();
+                fitPageToA4();
+              }
+            "
           />
           📄 Portrait (Tegak)
         </label>
@@ -755,12 +764,14 @@ onMounted(async () => {
             <div class="title-po-p01">PO: {{ spk.spk_nomor_po || "-" }}</div>
           </div>
 
-          <table class="alokasi-table-so">
+          <table class="alokasi-table-simple">
             <thead>
               <tr>
                 <th style="width: 40px" class="text-center-so">No</th>
                 <th class="text-left-so">Alokasi Tujuan / Alamat</th>
-                <th class="text-center-so alokasi-jumlah-so">Jumlah (Pcs)</th>
+                <th style="width: 120px" class="text-center-so">
+                  Jumlah (Pcs)
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -792,7 +803,7 @@ onMounted(async () => {
     </template>
 
     <!-- ══════════════════════════════════════════════
-        SPANDUK/MMT — Workshop P02/P05
+        SPANDUK/MMT — Workshop P02/P05 (Landscape 2 Kolom)
     ══════════════════════════════════════════════ -->
     <template v-else-if="isSpandukMmtPrint">
       <div class="print-container-so">
@@ -816,7 +827,6 @@ onMounted(async () => {
                   <td class="w-label-so">Nomor SPK</td>
                   <td class="w-colon-so">:</td>
                   <td class="fw-so">{{ spk.spk_nomor }}</td>
-                  <!-- QR Code Atas Khusus Cabang P05 -->
                   <td v-if="isP05Print" rowspan="3" class="qr-col-p05">
                     <qrcode-vue :value="spk.spk_nomor" :size="48" level="L" />
                   </td>
@@ -966,21 +976,24 @@ Keterangan Komponen :&#10;{{ spkKetKomponenText }}</pre
 
           <!-- SISI KANAN (KONDISIONAL): TABEL ALOKASI ATAU COPY SPK KE-2 -->
 
-          <!-- Opsi A: Jika ADA Alokasi (Tampil di sebelah kanan SPK) -->
+          <!-- Opsi A: Jika ADA Alokasi -->
           <div v-if="alokasi.length > 0" class="print-half-so">
             <div class="header-row-so mb-2-so">
-              <div class="title-main-so">ALOKASI PENGIRIMAN :</div>
+              <div class="title-main-so">ALOKASI PENGIRIMAN</div>
+              <div class="title-po-so">PO : {{ spk.spk_nomor_po || "-" }}</div>
             </div>
 
-            <table class="alokasi-table-side">
+            <table class="alokasi-table-side-simple">
               <thead>
                 <tr>
-                  <th class="text-left-so">Alokasi</th>
+                  <th style="width: 30px" class="text-center-so">No</th>
+                  <th class="text-left-so">Alokasi Tujuan / Alamat</th>
                   <th style="width: 70px" class="text-center-so">Jumlah</th>
                 </tr>
               </thead>
               <tbody>
                 <tr v-for="(a, idx) in alokasi" :key="`alokasi-side-${idx}`">
+                  <td class="text-center-so">{{ idx + 1 }}</td>
                   <td>{{ a.kota || a.alamat || a.tujuan || "-" }}</td>
                   <td class="text-center-so">
                     {{ Number(a.jumlah || 0).toLocaleString("id-ID") }}
@@ -989,7 +1002,13 @@ Keterangan Komponen :&#10;{{ spkKetKomponenText }}</pre
               </tbody>
               <tfoot>
                 <tr>
-                  <td class="fw-so text-left-so">Total</td>
+                  <td
+                    colspan="2"
+                    class="fw-so text-right"
+                    style="padding-right: 8px"
+                  >
+                    Total
+                  </td>
                   <td class="fw-so text-center-so">
                     {{ totalAlokasiQty.toLocaleString("id-ID") }}
                   </td>
@@ -998,7 +1017,7 @@ Keterangan Komponen :&#10;{{ spkKetKomponenText }}</pre
             </table>
           </div>
 
-          <!-- Opsi B: Jika TIDAK ADA Alokasi (Cetak Copy SPK ke-2 seperti semula) -->
+          <!-- Opsi B: Jika TIDAK ADA Alokasi -->
           <div v-else class="print-half-so">
             <div class="header-row-so">
               <div class="title-main-so">SURAT PERINTAH KERJA</div>
@@ -1017,7 +1036,6 @@ Keterangan Komponen :&#10;{{ spkKetKomponenText }}</pre
                   <td class="w-label-so">Nomor SPK</td>
                   <td class="w-colon-so">:</td>
                   <td class="fw-so">{{ spk.spk_nomor }}</td>
-                  <!-- QR Code Atas Khusus Cabang P05 -->
                   <td v-if="isP05Print" rowspan="3" class="qr-col-p05">
                     <qrcode-vue :value="spk.spk_nomor" :size="48" level="L" />
                   </td>
@@ -1175,7 +1193,10 @@ Keterangan Komponen :&#10;{{ spkKetKomponenText }}</pre
       <!-- HALAMAN 1 — SPK UTAMA -->
       <div
         class="print-page page-1"
-        :class="{ 'print-page--multi': p1MultiPage, 'rotate-p04': isP04Print }"
+        :class="{
+          'print-page--multi': p1MultiPage,
+          'page-landscape-mode': printOrientation === 'landscape',
+        }"
         ref="p1PageEl"
       >
         <div
@@ -1744,7 +1765,7 @@ Keterangan Komponen :&#10;{{ spkKetKomponenText }}</pre
       <div
         v-if="hasLayoutProses"
         class="print-page page-2"
-        :class="{ 'rotate-p04': isP04Print }"
+        :class="{ 'page-landscape-mode': printOrientation === 'landscape' }"
       >
         <div class="ph">
           <div class="ph-left">
@@ -1929,11 +1950,11 @@ Keterangan Komponen :&#10;{{ spkKetKomponenText }}</pre
         </div>
       </div>
 
-      <!-- HALAMAN 3 — Alokasi Pengiriman untuk Format Baru -->
+      <!-- HALAMAN 3 — Alokasi Pengiriman untuk Format Baru (Simple) -->
       <div
         v-if="alokasi.length > 0"
         class="print-page page-alokasi-new"
-        :class="{ 'rotate-p04': isP04Print }"
+        :class="{ 'page-landscape-mode': printOrientation === 'landscape' }"
       >
         <div class="ph">
           <div class="ph-left">
@@ -1948,41 +1969,38 @@ Keterangan Komponen :&#10;{{ spkKetKomponenText }}</pre
           </div>
         </div>
 
-        <div class="box mb-6" style="margin-top: 10px">
-          <div class="box-title">Daftar Alokasi Tujuan Pengiriman</div>
-          <table class="dt" style="font-size: 8.5pt">
-            <thead>
-              <tr>
-                <th style="width: 35px" class="tc">No</th>
-                <th>Alokasi Tujuan / Alamat</th>
-                <th style="width: 100px" class="tc">Jumlah (Pcs)</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="(a, idx) in alokasi" :key="`alokasi-new-${idx}`">
-                <td class="tc">{{ idx + 1 }}</td>
-                <td>{{ a.kota || a.alamat || a.tujuan || "-" }}</td>
-                <td class="tc">
-                  {{ Number(a.jumlah || 0).toLocaleString("id-ID") }}
-                </td>
-              </tr>
-            </tbody>
-            <tfoot>
-              <tr>
-                <td
-                  colspan="2"
-                  class="tc fw"
-                  style="text-align: right !important; padding-right: 15px"
-                >
-                  Total
-                </td>
-                <td class="tc fw">
-                  {{ totalAlokasiQty.toLocaleString("id-ID") }}
-                </td>
-              </tr>
-            </tfoot>
-          </table>
-        </div>
+        <table class="alokasi-table-simple" style="margin-top: 10px">
+          <thead>
+            <tr>
+              <th style="width: 40px" class="text-center-so">No</th>
+              <th class="text-left-so">Alokasi Tujuan / Alamat</th>
+              <th style="width: 120px" class="text-center-so">Jumlah (Pcs)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="(a, idx) in alokasi" :key="`alokasi-new-${idx}`">
+              <td class="text-center-so">{{ idx + 1 }}</td>
+              <td>{{ a.kota || a.alamat || a.tujuan || "-" }}</td>
+              <td class="text-center-so">
+                {{ Number(a.jumlah || 0).toLocaleString("id-ID") }}
+              </td>
+            </tr>
+          </tbody>
+          <tfoot>
+            <tr>
+              <td
+                colspan="2"
+                class="fw-so text-right"
+                style="padding-right: 15px"
+              >
+                Total
+              </td>
+              <td class="fw-so text-center-so">
+                {{ totalAlokasiQty.toLocaleString("id-ID") }}
+              </td>
+            </tr>
+          </tfoot>
+        </table>
 
         <div class="pf" style="margin-top: 20px">
           <span>
@@ -2104,6 +2122,12 @@ body {
   overflow: visible;
   page-break-after: always;
   break-after: page;
+}
+
+.print-page.page-landscape-mode {
+  width: 297mm;
+  min-height: 200mm;
+  padding: 4mm 6mm;
 }
 
 .print-page:last-child {
@@ -2713,6 +2737,7 @@ body {
 ========================================================= */
 .print-container-p01 {
   width: 100%;
+  max-width: 297mm;
   margin: 0 auto;
   font-family: Arial, Helvetica, sans-serif;
   font-size: 8.5pt;
@@ -2905,6 +2930,7 @@ body {
 ========================================================= */
 .print-container-so {
   width: 100%;
+  max-width: 297mm;
   margin: 0 auto;
   background: #fff;
   font-family: Arial, Helvetica, sans-serif;
@@ -2913,7 +2939,8 @@ body {
   box-sizing: border-box;
 }
 .print-wrapper-so {
-  width: 297mm;
+  width: 100%;
+  max-width: 297mm;
   height: 210mm;
   min-height: 210mm;
   margin: 0 auto;
@@ -2931,7 +2958,7 @@ body {
   min-height: 210mm;
   display: flex;
   flex-direction: column;
-  padding: 7mm 10mm 7mm 9mm;
+  padding: 6mm 8mm;
   box-sizing: border-box;
   min-width: 0;
   overflow: hidden;
@@ -3086,15 +3113,16 @@ body {
 }
 
 /* =========================================================
-   HALAMAN ALOKASI
+   TABEL ALOKASI SEDERHANA & CEPAT (FONT SAMA DENGAN SPK)
 ========================================================= */
 .alokasi-print-page-so {
-  width: 297mm;
+  width: 100%;
+  max-width: 297mm;
   min-width: 297mm;
   height: 210mm;
   min-height: 210mm;
   box-sizing: border-box;
-  padding: 15mm 18mm;
+  padding: 12mm 16mm;
   margin: 0 auto;
   background: #fff;
   color: #000;
@@ -3102,36 +3130,56 @@ body {
   break-before: page;
   overflow: hidden;
   display: block;
+  font-family: Arial, Helvetica, sans-serif;
 }
 
-.alokasi-table-so {
+.alokasi-table-simple {
   width: 100%;
   border-collapse: collapse;
   table-layout: fixed;
   font-family: Arial, Helvetica, sans-serif;
-  font-size: 11pt;
+  font-size: 9pt;
   color: #000;
   background: #fff;
-  margin-top: 10px;
 }
 
-.alokasi-table-so th,
-.alokasi-table-so td {
+.alokasi-table-simple th,
+.alokasi-table-simple td {
   border: 1px solid #000;
-  padding: 8px 10px;
+  padding: 4px 6px;
   color: #000;
   background: #fff;
   box-sizing: border-box;
+  vertical-align: top;
 }
 
-.alokasi-table-so th {
+.alokasi-table-simple th {
   font-weight: 700;
-  text-align: center;
   background: #f5f5f5;
 }
 
-.alokasi-table-so .alokasi-jumlah-so {
-  width: 130px;
+.alokasi-table-side-simple {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 8pt;
+  color: #000;
+  background: #fff;
+  margin-top: 4px;
+}
+
+.alokasi-table-side-simple th,
+.alokasi-table-side-simple td {
+  border: 1px solid #000;
+  padding: 3px 5px;
+  box-sizing: border-box;
+  vertical-align: top;
+}
+
+.alokasi-table-side-simple th {
+  font-weight: 700;
+  background: #f5f5f5;
 }
 
 .text-left-so {
@@ -3141,7 +3189,7 @@ body {
   text-align: center;
 }
 .mb-2-so {
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
 
 /* =========================================================
@@ -3184,8 +3232,6 @@ body {
 
   html,
   body {
-    width: 100% !important;
-    min-width: 0 !important;
     margin: 0 !important;
     padding: 0 !important;
     background: #fff !important;
@@ -3205,52 +3251,13 @@ body {
     background: #fff !important;
   }
 
+  /* Khusus SPK Format Baru (P04) */
   .print-page {
-    width: 210mm !important;
-    height: auto !important;
-    min-height: 0 !important;
-    margin: 0 !important;
-    padding: 4mm 6mm !important;
-    box-sizing: border-box !important;
-    background: #fff !important;
-    box-shadow: none !important;
-    overflow: visible !important;
-    page-break-after: always !important;
-    break-after: page !important;
-  }
-
-  .print-page:last-child {
-    page-break-after: auto !important;
-    break-after: auto !important;
-  }
-
-  .print-page.rotate-p04 {
-    transform: rotate(90deg) translateY(-297mm) !important;
-    transform-origin: top left !important;
-    width: 210mm !important;
+    width: 100% !important;
+    max-width: 210mm !important;
     height: 297mm !important;
-    position: relative !important;
-    top: 0 !important;
-    left: 0 !important;
-    padding: 4mm 6mm !important;
-    box-sizing: border-box !important;
-    page-break-after: always !important;
-    break-after: page !important;
-  }
-
-  .print-container-p01,
-  .print-container-so {
-    width: 297mm !important;
-    margin: 0 !important;
-    padding: 0 !important;
-  }
-
-  .print-page-p01 {
-    width: 297mm !important;
-    height: 210mm !important;
-    min-height: 210mm !important;
-    max-height: 210mm !important;
-    margin: 0 !important;
+    max-height: 297mm !important;
+    margin: 0 auto !important;
     padding: 4mm 6mm !important;
     box-sizing: border-box !important;
     background: #fff !important;
@@ -3260,49 +3267,54 @@ body {
     break-after: page !important;
   }
 
-  .print-wrapper-so {
-    width: 297mm !important;
+  .print-page.page-landscape-mode {
+    max-width: 297mm !important;
     height: 210mm !important;
-    min-height: 210mm !important;
-    margin: 0 !important;
+    max-height: 210mm !important;
+  }
+
+  .print-page:last-child {
+    page-break-after: auto !important;
+    break-after: auto !important;
+  }
+
+  /* Khusus SPK Format Lama P01 & Spanduk/MMT P05 */
+  .print-container-p01,
+  .print-container-so {
+    width: 100% !important;
+    max-width: 297mm !important;
+    margin: 0 auto !important;
     padding: 0 !important;
+  }
+
+  .print-page-p01,
+  .print-wrapper-so {
+    width: 100% !important;
+    max-width: 297mm !important;
+    height: 210mm !important;
+    max-height: 210mm !important;
+    margin: 0 auto !important;
     box-sizing: border-box !important;
     page-break-after: always !important;
     break-after: page !important;
     box-shadow: none !important;
+    overflow: hidden !important;
   }
 
-  /* Tabel Alokasi Samping Khusus Cetak MMT */
-  .alokasi-table-side {
-    width: 100%;
-    border-collapse: collapse;
-    table-layout: fixed;
-    font-family: Arial, Helvetica, sans-serif;
-    font-size: 8.5pt;
-    color: #000;
-    background: #fff;
-    margin-top: 6px;
-  }
-
-  .alokasi-table-side th,
-  .alokasi-table-side td {
-    border: 1px solid #000;
-    padding: 3.5px 6px;
-    box-sizing: border-box;
-  }
-
-  .alokasi-table-side th {
-    font-weight: 700;
-    background: #fff;
+  .print-half-so {
+    width: 50% !important;
+    height: 210mm !important;
+    padding: 6mm 8mm !important;
+    box-sizing: border-box !important;
   }
 
   .alokasi-print-page-so {
-    width: 297mm !important;
-    min-width: 297mm !important;
+    width: 100% !important;
+    max-width: 297mm !important;
     height: 210mm !important;
-    min-height: 210mm !important;
-    margin: 0 !important;
-    padding: 15mm 18mm !important;
+    max-height: 210mm !important;
+    margin: 0 auto !important;
+    padding: 12mm 16mm !important;
     box-sizing: border-box !important;
     page-break-before: always !important;
     break-before: page !important;

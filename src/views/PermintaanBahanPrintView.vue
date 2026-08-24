@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { ref, onMounted, nextTick, watch, computed } from 'vue'; // Perbaikan: Tambahkan computed
-import { useRoute } from 'vue-router';
-import api from '@/services/api'; 
+import { ref, onMounted, nextTick, watch, computed } from "vue"; // Perbaikan: Tambahkan computed
+import { useRoute } from "vue-router";
+import api from "@/services/api";
 
 // --- Interfaces ---
 interface MmtDetail {
@@ -37,12 +37,11 @@ const filteredDetails = computed(() => {
   if (!printData.value || !Array.isArray(printData.value.Details)) {
     return [];
   }
-  
-  return printData.value.Details
-    .filter(item => item.Is_Acc !== 'N') // Filter: Hilangkan baris yang tidak di-ACC (N)
+
+  return printData.value.Details.filter((item) => item.Is_Acc !== "N") // Filter: Hilangkan baris yang tidak di-ACC (N)
     .map((item, index) => ({
       ...item,
-      No: index + 1 // Penomoran ulang agar tetap urut (1, 2, 3...)
+      No: index + 1, // Penomoran ulang agar tetap urut (1, 2, 3...)
     }));
 });
 
@@ -50,7 +49,7 @@ const filteredDetails = computed(() => {
 const fetchPrintData = async (nomor: string) => {
   isLoading.value = true;
   try {
-    const response = await api.get(`mmt/permintaan-bahan/print/${nomor}`); 
+    const response = await api.get(`mmt/permintaan-bahan/print/${nomor}`);
     printData.value = response.data;
     document.title = `Print Permintaan - ${nomor}`;
   } catch (error) {
@@ -64,7 +63,11 @@ const fetchPrintData = async (nomor: string) => {
 // --- Watcher for Auto Print ---
 watch(isLoading, (newValue) => {
   // Hanya jalankan print jika loading selesai dan data berhasil didapat
-  if (newValue === false && printData.value && filteredDetails.value.length >= 0) {
+  if (
+    newValue === false &&
+    printData.value &&
+    filteredDetails.value.length >= 0
+  ) {
     nextTick(() => {
       // Delay sedikit untuk memastikan render DOM selesai sempurna
       setTimeout(() => {
@@ -76,7 +79,7 @@ watch(isLoading, (newValue) => {
 
 // --- Lifecycle ---
 onMounted(() => {
-  const nomor = route.params.nomor as string; 
+  const nomor = route.params.nomor as string;
   if (nomor) {
     fetchPrintData(nomor);
   }
@@ -88,7 +91,7 @@ onMounted(() => {
     <div v-if="isLoading" class="text-center loading-message pt-10">
       <p>Memuat data Form Permintaan...</p>
     </div>
-    
+
     <div v-else-if="printData" class="mmt-page">
       <h2 class="form-title">FORM PERMINTAAN BAHAN</h2>
 
@@ -124,12 +127,12 @@ onMounted(() => {
         <table class="items-table">
           <thead>
             <tr>
-              <th style="width: 5%;">NO</th>
-              <th style="width: 15%;">SPK</th>
-              <th style="width: 30%;">JENIS / BAHAN</th>
-              <th style="width: 10%;">SATUAN</th>
-              <th style="width: 10%;">QTY</th>
-              <th style="width: 30%;">KETERANGAN</th>
+              <th style="width: 5%">NO</th>
+              <th style="width: 15%">SPK</th>
+              <th style="width: 30%">JENIS / BAHAN</th>
+              <th style="width: 10%">SATUAN</th>
+              <th style="width: 10%">QTY</th>
+              <th style="width: 30%">KETERANGAN</th>
             </tr>
           </thead>
           <tbody>
@@ -141,8 +144,12 @@ onMounted(() => {
               <td class="text-right">{{ item.QTY }}</td>
               <td>{{ item.Keterangan }}</td>
             </tr>
-            
-            <tr v-for="i in Math.max(0, 8 - filteredDetails.length)" :key="'empty-' + i" class="empty-row">
+
+            <tr
+              v-for="i in Math.max(0, 8 - filteredDetails.length)"
+              :key="'empty-' + i"
+              class="empty-row"
+            >
               <td>&nbsp;</td>
               <td></td>
               <td></td>
@@ -168,7 +175,7 @@ onMounted(() => {
           <div class="signer-role">{{ printData.Diketahui }}</div>
           <div class="signature-label">SPV MMT</div>
         </div>
-    
+
         <div class="signature-box">
           <div class="signature-label">Disetujui Oleh,</div>
           <div class="spacer"></div>
@@ -178,119 +185,131 @@ onMounted(() => {
       </div>
     </div>
 
-    <div v-else class="text-center pt-10">
-      Data tidak ditemukan.
-    </div>
+    <div v-else class="text-center pt-10">Data tidak ditemukan.</div>
   </div>
 </template>
 
 <style scoped>
 .mmt-page {
-    font-family: 'Times New Roman', Times, serif;
-    font-size: 10pt;
-    background: white;
-    margin: 0 auto;
-    width: 210mm; 
-    padding: 5mm 10mm 10mm 10mm;
-    box-sizing: border-box;
+  font-family: "Times New Roman", Times, serif;
+  font-size: 10pt;
+  background: white;
+  margin: 0 auto;
+  width: 210mm;
+  padding: 5mm 10mm 10mm 10mm;
+  box-sizing: border-box;
 }
 
 .form-title {
-    text-align: center;
-    font-size: 14pt;
-    font-weight: bold;
-    text-decoration: underline;
-    margin-bottom: 20px;
+  text-align: center;
+  font-size: 14pt;
+  font-weight: bold;
+  text-decoration: underline;
+  margin-bottom: 20px;
 }
 
 /* LAYOUT KOLOM HEADER */
 .header-info {
-    display: flex;
-    justify-content: space-between;
-    margin-bottom: 0px;
-    line-height: 1.2;
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 0px;
+  line-height: 1.2;
 }
 
-.left-column, .right-column {
-    width: 50%; 
-    gap :0px;
-    display: flex;
-    flex-direction: column;
+.left-column,
+.right-column {
+  width: 50%;
+  gap: 0px;
+  display: flex;
+  flex-direction: column;
 }
 
-.info-row { 
-    display: flex; 
-    margin-bottom: 2px;
+.info-row {
+  display: flex;
+  margin-bottom: 2px;
 }
 
-.label { 
-    width: 100px; 
-    font-weight: normal; 
-    flex-shrink: 0;
+.label {
+  width: 100px;
+  font-weight: normal;
+  flex-shrink: 0;
 }
 
-.value { 
-    font-weight: normal; 
-    word-break: break-all;
+.value {
+  font-weight: normal;
+  word-break: break-all;
 }
 
 /* Tabel Styles */
-.items-table { 
-    width: 100%; 
-    border-collapse: collapse; 
-    margin-bottom: 30px; 
+.items-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 30px;
 }
-.items-table th, .items-table td { 
-    border: 1px solid black; 
-    padding: 6px; 
-    vertical-align: top; 
-    font-size: 10pt;
+.items-table th,
+.items-table td {
+  border: 1px solid black;
+  padding: 6px;
+  vertical-align: top;
+  font-size: 10pt;
 }
-.items-table thead th { 
-    background-color: #f2f2f2; 
-    font-weight: bold; 
-    text-align: center;
+.items-table thead th {
+  background-color: #f2f2f2;
+  font-weight: bold;
+  text-align: center;
 }
-.empty-row td { height: 15pt; }
+.empty-row td {
+  height: 15pt;
+}
 
-.text-center { text-align: center; }
-.text-right { text-align: right; }
+.text-center {
+  text-align: center;
+}
+.text-right {
+  text-align: right;
+}
 
 .signature-footer {
-    display: flex;
-    justify-content: space-between;
-    margin-top: 40px;
+  display: flex;
+  justify-content: space-between;
+  margin-top: 40px;
 }
 
-.signature-box { 
-    width: 30%; 
-    text-align: center;
+.signature-box {
+  width: 30%;
+  text-align: center;
 }
 
-.signature-label { font-weight: bold; margin-bottom: 10px; }
-.spacer { height: 60px; } /* Pengganti <br> yang banyak */
-.signer-role { 
-    font-weight: bold; 
-    border-top: 1px solid black; 
-    display: inline-block; 
-    min-width: 150px;
-    padding-top: 2px;
+.signature-label {
+  font-weight: bold;
+  margin-bottom: 10px;
+}
+.spacer {
+  height: 60px;
+} /* Pengganti <br> yang banyak */
+.signer-role {
+  font-weight: bold;
+  border-top: 1px solid black;
+  display: inline-block;
+  min-width: 150px;
+  padding-top: 2px;
 }
 
 .mmt-print-container {
-    width: 100%;
-    background: white;
+  width: 100%;
+  background: white;
 }
 
 @media print {
   /* Atur ukuran kertas di sini */
-  @page { 
-    size: A5 portrait; 
+  @page {
+    size: A5 portrait;
     margin: 0.5cm;
   }
 
   /* Sembunyikan elemen global aplikasi */
-  :global(#app), :global(.v-application) {
+  :global(#app),
+  :global(.v-application) {
     background: transparent !important;
   }
 

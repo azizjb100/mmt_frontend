@@ -1,7 +1,6 @@
 /* src/styles/global.css */
 
 /* Import Google Fonts */
-
 @import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Poppins:wght@300;400;500;600;700;800&display=swap");
 @import "tailwindcss";
 
@@ -213,7 +212,6 @@ body {
 .v-card {
   border-radius: var(--border-radius-lg) !important;
   box-shadow: var(--shadow-sm) !important;
-
   transition: all var(--transition-normal) !important;
 }
 
@@ -280,8 +278,6 @@ body {
 .v-data-table table {
   width: 100% !important;
   min-width: 100% !important;
-  /* UBAH table-layout dari fixed ke auto agar kolom fleksibel 
-     atau tetap fixed tapi dengan overflow control */
   table-layout: auto;
   border-collapse: collapse;
 }
@@ -291,7 +287,6 @@ body {
   padding-bottom: 4px !important;
   padding-left: 8px !important;
   padding-right: 8px !important;
-  /* TAMBAHKAN INI: Agar teks yang terlalu panjang tidak keluar jalur */
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -306,38 +301,19 @@ body {
 
 .v-data-table thead {
   background-color: #9ed3ff !important;
-  /* Biru Solid (Warna Primer) */
   color: white !important;
 }
 
 .v-data-table thead th {
   background-color: #83c6fc !important;
   color: white !important;
-  /* Memastikan teks header berwarna putih */
   font-weight: bold;
-  /* Opsional: untuk penekanan */
 }
 
 .v-data-table-header__content {
   font-family: var(--font-family-primary) !important;
   font-weight: var(--font-weight-semibold) !important;
   letter-spacing: var(--letter-spacing-normal) !important;
-}
-
-/* .v-data-table__td {
-  font-family: var(--font-family-primary) !important;
-  height: 10px;
-  font-weight: var(--font-weight-normal) !important;
-} */
-
-.v-data-table__td {
-  padding-top: 4px !important;
-  padding-bottom: 4px !important;
-  /* Jaga padding kiri/kanan agar tetap terlihat rapi, atau kurangi juga jika perlu */
-  padding-left: 8px !important;
-  padding-right: 8px !important;
-
-  /* Penting: Gunakan !important jika gaya default Vuetify lebih spesifik */
 }
 
 .v-btn--icon.v-btn--density-default {
@@ -453,52 +429,22 @@ body {
   box-shadow: var(--shadow-lg) !important;
 }
 
-/* Responsive Typography
-@media (max-width: 600px) {
-  .text-display-1 {
-    font-size: 2.5rem;
-  }
-
-  .text-display-2 {
-    font-size: 2rem;
-  }
-
-  .text-display-3 {
-    font-size: 1.75rem;
-  }
-
-  .text-h1 {
-    font-size: 2rem !important;
-  }
-
-  .text-h2 {
-    font-size: 1.75rem !important;
-  }
-
-  .text-h3 {
-    font-size: 1.5rem !important;
-  }
-}
-
-@media (max-width: 960px) {
-  html {
-    font-size: 14px;
-  }
-}
-
-
+/* =========================================================
+   🛡️ PENGAMAN HALAMAN CETAK (PRINT SAFETY / GLOBAL RESET)
+   Mencegah aturan global CSS di atas merusak hasil print (PDF/Kertas)
+========================================================= */
 @media print {
-  .v-navigation-drawer, 
-  .v-app-bar, 
-  .v-footer, 
+  /* Sembunyikan elemen navigasi utama jika tidak sengaja terbawa */
+  .v-navigation-drawer,
+  .v-app-bar,
+  .v-footer,
   .v-system-bar,
   .no-print,
   #logout-button,
-  header, 
+  header,
   nav {
     display: none !important;
   }
-
 
   .v-main {
     padding: 0 !important;
@@ -506,8 +452,37 @@ body {
   }
 
   body {
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
     background-color: white !important;
   }
-} */
+
+  /* Lepaskan paksaan lebar 100% dan ellipsis agar teks panjang di cetakan tidak terpotong */
+  .v-data-table,
+  .v-table,
+  .v-table__wrapper,
+  .v-data-table table {
+    width: auto !important;
+    min-width: 0 !important;
+    max-width: none !important;
+  }
+
+  .v-data-table__td {
+    white-space: normal !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+  }
+
+  /* Netralkan warna paksaan header tabel global saat print */
+  .v-data-table thead,
+  .v-data-table thead th {
+    background-color: transparent !important;
+    color: black !important;
+  }
+
+  /* Hilangkan bayangan kartu global pada halaman cetak */
+  .v-card {
+    box-shadow: none !important;
+    border-radius: 0 !important;
+  }
+}

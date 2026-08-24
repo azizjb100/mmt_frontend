@@ -155,4 +155,28 @@ body {
 .v-card {
   border-radius: 12px !important;
 }
+
+/* =========================================================
+   PENGAMAN HALAMAN CETAK (PRINT SAFETY)
+   Mencegah style global App.vue merusak halaman cetak
+========================================================= */
+@media print {
+  body {
+    background-color: #ffffff !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  #app {
+    height: auto !important;
+    width: 100% !important;
+    overflow: visible !important;
+  }
+
+  /* Jika ada v-card yang digunakan di halaman cetak, kembalikan ke normal */
+  .v-card {
+    border-radius: 0 !important;
+    box-shadow: none !important;
+  }
+}
 </style>
