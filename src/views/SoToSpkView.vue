@@ -289,11 +289,13 @@ const confirmToggleCloseSpk = async () => {
   }
 };
 
-// --- EXPORT TO EXCEL METHOD ---
-// --- EXPORT TO EXCEL METHOD ---
+// --- EXPORT TO EXCEL METHOD (Hanya Data Terfilter) ---
 const exportToExcel = async () => {
+  // Menggunakan filteredMasterData agar hanya data hasil filter/pencarian yang diekspor
   if (filteredMasterData.value.length === 0) {
-    return toast.warning("Tidak ada data untuk diekspor.");
+    return toast.warning(
+      "Tidak ada data yang sesuai dengan filter untuk diekspor.",
+    );
   }
 
   isExporting.value = true;
@@ -375,13 +377,12 @@ const exportToExcel = async () => {
     ]);
     worksheetData.push([
       {
-        v: `Tanggal : ${formatTglManual(startDate.value)} s.d ${formatTglManual(endDate.value)}`,
+        v: `Tanggal : ${formatTglManual(startDate.value)} s.d ${formatTglManual(endDate.value)} | Filter Keyword: ${keyword.value || "Semua"}`,
         s: { font: { sz: 10 } },
       },
     ]);
     worksheetData.push([]);
 
-    // Header tabel Excel mencakup Pesan, Panjang, Lebar, Gramasi, Bahan, dll.
     const headers = [
       { v: "NOMOR SO", s: styleHeaderMain },
       { v: "NOMOR SPK", s: styleHeaderMain },
@@ -416,6 +417,7 @@ const exportToExcel = async () => {
     let grandTotalPraSJ = 0;
     let grandTotalKirim = 0;
 
+    // Looping hanya pada data yang telah terfilter (filteredMasterData)
     filteredMasterData.value.forEach((header) => {
       const spkNomor = header.SPK || (header as any).Nomor || "-";
       const soNomor = header.SO || "-";
@@ -603,7 +605,6 @@ const exportToExcel = async () => {
 
     const ws = XLSX.utils.aoa_to_sheet(worksheetData);
 
-    // Sesuaikan merge row footer (total 24 kolom, index 0 sampai 23)
     ws["!merges"] = [
       { s: { r: 0, c: 0 }, e: { r: 0, c: 23 } },
       { s: { r: 1, c: 0 }, e: { r: 1, c: 23 } },
@@ -613,7 +614,6 @@ const exportToExcel = async () => {
       },
     ];
 
-    // Lebar kolom excel
     ws["!cols"] = [
       { wch: 18 },
       { wch: 18 },
@@ -645,10 +645,10 @@ const exportToExcel = async () => {
     XLSX.utils.book_append_sheet(wb, ws, "Monitoring_SPK");
     XLSX.writeFile(wb, fileName);
 
-    toast.success("Excel Berhasil Diexport Sesuai Format!");
+    toast.success("Excel Berhasil Diexport Sesuai Data Terfilter!");
   } catch (error) {
     console.error("Export Error:", error);
-    toast.error("Gagal mengekspor data detail.");
+    toast.error("Gagal mengekspor data terfilter.");
   } finally {
     isExporting.value = false;
   }

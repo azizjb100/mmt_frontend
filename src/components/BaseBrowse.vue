@@ -377,6 +377,7 @@ const props = defineProps({
 
   selected: { type: Array, default: () => [] },
   expanded: { type: Array, default: () => [] },
+  filteredItems: { type: Array, default: () => [] }, // Tambahan props pendukung
   search: { type: String, default: "" },
   itemValue: { type: String, default: "Nomor" },
   showExpand: { type: Boolean, default: false },
@@ -391,6 +392,7 @@ const emit = defineEmits([
   "update:filters",
   "update:selected",
   "update:expanded",
+  "update:filteredItems", // Event emit untuk meneruskan data terfilter ke parent
   "refresh",
   "action:new",
   "action:edit",
@@ -623,6 +625,15 @@ const filteredItems = computed(() => {
   });
 });
 
+// Watch dan kirim hasil data terfilter ke komponen parent secara otomatis
+watch(
+  filteredItems,
+  (newVal) => {
+    emit("update:filteredItems", newVal);
+  },
+  { immediate: true, deep: true },
+);
+
 // --- SUMMARY / GRAND TOTAL CALCULATIONS ---
 const calculateTotal = (key: string) => {
   return filteredItems.value.reduce((sum, item) => {
@@ -687,8 +698,6 @@ const isSingleSelected = computed(() => props.selected.length === 1);
   font-size: 11px !important;
   display: flex !important;
   flex-direction: column !important;
-  /* 1 baris tinggi data-table vsc density compact kira-kira 32px + header 36px + footer summary 36px. 
-     12 baris * 32px + 72px header/footer = ~456px */
   max-height: 456px !important;
 }
 
@@ -696,7 +705,7 @@ const isSingleSelected = computed(() => props.selected.length === 1);
   flex: 1 1 auto !important;
   overflow-y: auto !important;
   overflow-x: auto !important;
-  max-height: 384px !important; /* Batasan tinggi persis untuk 12 baris (12 x 32px) */
+  max-height: 384px !important;
 }
 
 :deep(.v-data-table-header th) {
@@ -727,7 +736,6 @@ const isSingleSelected = computed(() => props.selected.length === 1);
   padding: 4px 8px;
 }
 
-/* Styling Khusus Sub-Table/Detail di Dalam Expanded */
 :deep(.expanded-container .v-data-table-header th) {
   background-color: #eceff1 !important;
   color: #37474f !important;
@@ -764,7 +772,6 @@ const isSingleSelected = computed(() => props.selected.length === 1);
   outline: 2px dashed #1976d2 !important;
 }
 
-/* Column Resizer Handle */
 .column-resizer {
   position: absolute;
   top: 0;
@@ -782,7 +789,6 @@ const isSingleSelected = computed(() => props.selected.length === 1);
   background-color: rgba(0, 0, 0, 0.15);
 }
 
-/* Footer Summary Row - Terkunci di Bawah dan Tidak Ikut Ter-scroll */
 .summary-row td {
   position: sticky !important;
   bottom: 0 !important;
