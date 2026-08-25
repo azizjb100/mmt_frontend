@@ -1,40 +1,31 @@
 <template>
-  <PageLayout title="Hasil Kerja Tekstil MMT" icon="mdi-factory">
-    <template #header-actions>
-      <v-btn size="x-small" color="success" @click="handleCreate">
-        <v-icon start>mdi-plus</v-icon> Baru
-      </v-btn>
-      <v-btn
-        size="x-small"
-        color="warning"
-        :disabled="!isSingleSelected"
-        @click="handleEdit"
-      >
-        <v-icon start>mdi-pencil</v-icon> Ubah
-      </v-btn>
-      <v-btn
-        size="x-small"
-        color="error"
-        :disabled="!isSingleSelected"
-        @click="handleDelete"
-      >
-        <v-icon start>mdi-trash-can</v-icon> Hapus
-      </v-btn>
-
-      <v-divider vertical class="mx-2" />
-
-      <v-btn
-        size="x-small"
-        color="info"
-        :disabled="!isSingleSelected"
-        @click="handlePrint"
-      >
-        <v-icon start>mdi-printer</v-icon> Cetak Slip
-      </v-btn>
+  <BaseBrowse
+    title="Hasil Kerja Tekstil MMT"
+    icon="mdi-factory"
+    :headers="masterHeaders"
+    :items="masterData"
+    :loading="loading.master"
+    v-model:selected="selected"
+    v-model:expanded="expanded"
+    v-model:startDate="filters.startDate"
+    v-model:endDate="filters.endDate"
+    item-value="Nomor"
+    has-print
+    show-expand
+    :summary-fields="['JumlahOrder', 'jumlah_cetak']"
+    @refresh="fetchMasterData"
+    @action:new="handleCreate"
+    @action:edit="handleEdit"
+    @action:delete="handleDelete"
+    @action:print="handlePrint"
+    @row-click="handleRowClick"
+  >
+    <!-- Tombol Ekstra (Export Excel) -->
+    <template #extra-actions>
       <v-btn
         size="x-small"
         color="success"
-        :disabled="filteredMasterData.length === 0"
+        :disabled="masterData.length === 0"
         @click="exportToExcel"
         :loading="loading.master"
       >
@@ -42,385 +33,166 @@
       </v-btn>
     </template>
 
-    <div class="browse-content">
-      <v-card flat class="mb-4">
-        <v-card-text>
-          <div class="filter-section d-flex align-center flex-wrap ga-4">
-            <v-label class="filter-label">Periode Mulai:</v-label>
-            <v-text-field
-              v-model="filters.startDate"
-              type="date"
-              density="compact"
-              hide-details
-              variant="outlined"
-              style="max-width: 150px"
-            />
+    <!-- Filter Tambahan di Toolbar (Pencarian Nama SPK / Nomor) -->
+    <template #filter-fields>
+      <v-text-field
+        v-model="filters.search"
+        prepend-inner-icon="mdi-magnify"
+        label="Cari Nama SPK / Nomor"
+        density="compact"
+        hide-details
+        variant="outlined"
+        clearable
+        style="max-width: 300px"
+        @keyup.enter="fetchMasterData"
+      />
+    </template>
 
-            <v-label class="mx-2">s/d</v-label>
+    <!-- Custom Template Kolom Tabel Utama -->
+    <template #item.Tanggal="{ item }">
+      {{ safeFormatDate(item.Tanggal) }}
+    </template>
 
-            <v-text-field
-              v-model="filters.endDate"
-              type="date"
-              density="compact"
-              hide-details
-              variant="outlined"
-              style="max-width: 150px"
-            />
+    <template #item.Lengkap="{ item }">
+      <v-chip
+        size="x-small"
+        :color="item.Lengkap === 'Y' ? 'success' : 'error'"
+      >
+        {{ item.Lengkap === "Y" ? "YA" : "TIDAK" }}
+      </v-chip>
+    </template>
 
-            <v-text-field
-              v-model="filters.search"
-              prepend-inner-icon="mdi-magnify"
-              label="Cari Nama SPK / Nomor"
-              density="compact"
-              hide-details
-              variant="outlined"
-              clearable
-              style="max-width: 300px"
-              @keyup.enter="fetchMasterData"
-            />
+    <template #item.Nomor="{ item }">
+      <span :class="getRowTextColor(item)">{{ item.Nomor }}</span>
+    </template>
 
-            <v-btn
-              variant="text"
-              size="x-small"
-              @click="fetchMasterData"
-              :loading="loading.master"
-            >
-              <v-icon>mdi-refresh</v-icon> Refresh
-            </v-btn>
+    <template #item.NomorSPK="{ item }">
+      <span :title="item.NomorSPK" :class="getRowTextColor(item)">
+        {{ truncateString(item.NomorSPK || "", 20) }}
+      </span>
+    </template>
 
-            <!-- TOMBOL RESET FILTER HEADER -->
-            <v-btn
-              v-if="activeFiltersCount > 0"
-              color="warning"
-              variant="tonal"
-              size="small"
-              prepend-icon="mdi-filter-off"
-              @click="resetAllColumnFilters"
-            >
-              Reset Filter ({{ activeFiltersCount }})
-            </v-btn>
+    <template #item.jumlah_cetak="{ item }">
+      <span :class="getRowTextColor(item)">
+        {{ Math.round(Number(item.jumlah_cetak || 0)) }} pcs
+      </span>
+    </template>
 
-            <v-spacer />
+    <template #item.PanjangBahanAwal="{ item }">
+      <span>{{ formatMeter(Number(item.PanjangBahanAwal || 0) * 0.9) }} m</span>
+    </template>
+
+    <template #item.SisaMeterAkhir="{ item }">
+      <span>{{ (Number(item.SisaMeterAkhir || 0) * 0.9).toFixed(2) }}</span>
+    </template>
+
+    <template #item.status_bahan="{ item }">
+      <span
+        v-if="Number(item.SisaMeterAkhir || 0) * 0.9 < 0"
+        class="text-success font-weight-bold"
+      >
+        SURPLUS
+        {{ Math.abs(Number(item.SisaMeterAkhir || 0) * 0.9).toFixed(2) }}m
+      </span>
+      <span
+        v-else-if="Number(item.SisaMeterAkhir || 0) * 0.9 > 0"
+        class="text-orange font-weight-bold"
+      >
+        SISA {{ (Number(item.SisaMeterAkhir || 0) * 0.9).toFixed(2) }}m
+      </span>
+      <span v-else class="text-grey font-weight-bold"> PAS </span>
+    </template>
+
+    <!-- Slot Expanded Content untuk Menampilkan Detail -->
+    <template #expanded-content="{ item }">
+      <div class="detail-container">
+        <div class="detail-table-wrapper">
+          <div v-if="loadingDetails.has(item.Nomor)" class="text-center pa-4">
+            <v-progress-circular indeterminate size="20" color="primary" />
+            <span class="ml-2 text-caption">Memuat data...</span>
           </div>
-        </v-card-text>
-      </v-card>
 
-      <div class="table-container">
-        <v-data-table
-          v-model:selected="selected"
-          v-model:expanded="expanded"
-          :headers="masterHeaders"
-          :items="filteredMasterData"
-          :loading="loading.master"
-          item-value="Nomor"
-          density="compact"
-          class="desktop-table elevation-1"
-          fixed-header
-          height="550px"
-          return-object
-          show-expand
-          @click:row="handleRowClick"
-          :row-props="getRowProps"
-        >
-          <!-- DYNAMIC EXCEL FILTER PER KOLOM HEADER -->
-          <template
-            v-for="header in filterableHeaders"
-            :key="header.key"
-            #[`header.${header.key}`]="{ column }"
+          <v-data-table
+            v-else-if="details[item.Nomor] && details[item.Nomor].length"
+            :headers="detailHeaders"
+            :items="details[item.Nomor]"
+            density="compact"
+            hide-default-footer
+            class="detail-table border"
           >
-            <div class="d-flex align-center justify-space-between w-100">
-              <span class="font-weight-bold text-truncate mr-1">{{
-                column.title
-              }}</span>
+            <template #item.Ukuran="{ item: detailItem }">
+              {{ detailItem.Panjang }} x {{ detailItem.Lebar }}
+            </template>
 
-              <v-menu
-                v-model="menuStates[header.key]"
-                :close-on-content-click="false"
-                location="bottom start"
-              >
-                <template #activator="{ props }">
-                  <v-btn
-                    icon
-                    variant="text"
-                    density="compact"
-                    size="x-small"
-                    v-bind="props"
-                    :color="
-                      isColumnFilterActive(header.key)
-                        ? 'primary'
-                        : 'grey-darken-1'
-                    "
-                  >
-                    <v-icon size="16">
-                      {{
-                        isColumnFilterActive(header.key)
-                          ? "mdi-filter"
-                          : "mdi-filter-variant"
-                      }}
-                    </v-icon>
-                  </v-btn>
-                </template>
+            <template #item.Jml_Cetak="{ value }">
+              <strong class="total-bold">{{ value }}</strong>
+            </template>
 
-                <v-card
-                  min-width="280"
-                  max-width="320"
-                  class="pa-2 border shadow-2 rounded-lg"
-                >
-                  <v-text-field
-                    v-model="columnSearch[header.key]"
-                    density="compact"
-                    variant="outlined"
-                    hide-details
-                    clearable
-                    autofocus
-                    placeholder="Cari..."
-                    class="mb-1"
-                  />
+            <template #item.Warna>
+              <div class="d-flex ga-1 align-center py-1">
+                <v-chip
+                  size="x-small"
+                  color="cyan"
+                  variant="flat"
+                  text="C"
+                  style="
+                    font-size: 9px;
+                    min-width: 18px;
+                    justify-content: center;
+                  "
+                />
+                <v-chip
+                  size="x-small"
+                  color="magenta"
+                  variant="flat"
+                  text="M"
+                  style="
+                    font-size: 9px;
+                    min-width: 18px;
+                    justify-content: center;
+                  "
+                />
+                <v-chip
+                  size="x-small"
+                  color="yellow"
+                  variant="flat"
+                  text="Y"
+                  style="
+                    font-size: 9px;
+                    min-width: 18px;
+                    justify-content: center;
+                  "
+                />
+                <v-chip
+                  size="x-small"
+                  color="black"
+                  variant="flat"
+                  text="K"
+                  style="
+                    font-size: 9px;
+                    min-width: 18px;
+                    justify-content: center;
+                  "
+                />
+              </div>
+            </template>
+          </v-data-table>
 
-                  <div class="text-caption text-grey-darken-1 my-1 px-1">
-                    {{ getFilteredPopupOptions(header.key).length }} dari
-                    {{ (uniqueValuesMap[header.key] || []).length }} nilai
-                    ditampilkan
-                  </div>
-
-                  <div
-                    class="d-flex ga-2 px-1 mb-2 text-caption font-weight-medium"
-                  >
-                    <a
-                      href="#"
-                      class="text-primary text-decoration-none"
-                      @click.prevent="selectAllFiltered(header.key)"
-                    >
-                      Tampilkan Semua
-                    </a>
-                    <span class="text-grey-lighten-1">|</span>
-                    <a
-                      href="#"
-                      class="text-error text-decoration-none"
-                      @click.prevent="deselectAllFiltered(header.key)"
-                    >
-                      Sembunyikan Semua
-                    </a>
-                  </div>
-
-                  <v-divider />
-
-                  <div
-                    style="max-height: 220px; overflow-y: auto"
-                    class="my-1 px-1"
-                  >
-                    <v-checkbox
-                      v-for="opt in getFilteredPopupOptions(header.key)"
-                      :key="opt"
-                      :label="opt"
-                      :model-value="isOptionSelected(header.key, opt)"
-                      density="compact"
-                      hide-details
-                      color="primary"
-                      @update:model-value="toggleOption(header.key, opt)"
-                    />
-                    <div
-                      v-if="getFilteredPopupOptions(header.key).length === 0"
-                      class="text-caption text-grey text-center py-4"
-                    >
-                      Tidak ada data
-                    </div>
-                  </div>
-
-                  <v-divider class="mb-2" />
-
-                  <div class="d-flex justify-space-between align-center">
-                    <v-btn
-                      size="x-small"
-                      variant="text"
-                      color="grey-darken-1"
-                      @click="resetColumnFilter(header.key)"
-                    >
-                      Reset
-                    </v-btn>
-                    <v-btn
-                      size="small"
-                      color="primary"
-                      variant="flat"
-                      class="px-4 font-weight-bold"
-                      @click="menuStates[header.key] = false"
-                    >
-                      OK
-                    </v-btn>
-                  </div>
-                </v-card>
-              </v-menu>
-            </div>
-          </template>
-
-          <template #item.Tanggal="{ item }">
-            {{ safeFormatDate(item.Tanggal) }}
-          </template>
-
-          <template #item.Lengkap="{ item }">
-            <v-chip
-              size="x-x-small"
-              :color="item.Lengkap === 'Y' ? 'success' : 'error'"
-            >
-              {{ item.Lengkap === "Y" ? "YA" : "TIDAK" }}
-            </v-chip>
-          </template>
-
-          <template #item.Nomor="{ item }">
-            <span :class="getRowTextColor(item)">{{ item.Nomor }}</span>
-          </template>
-
-          <template #item.NomorSPK="{ item }">
-            <span :title="item.NomorSPK" :class="getRowTextColor(item)">
-              {{ truncateString(item.NomorSPK || "", 20) }}
-            </span>
-          </template>
-
-          <template #item.jumlah_cetak="{ item }">
-            <span :class="getRowTextColor(item)">
-              {{ Math.round(Number(item.jumlah_cetak || 0)) }} pcs
-            </span>
-          </template>
-
-          <template #item.PanjangBahanAwal="{ item }">
-            <span
-              >{{
-                formatMeter(Number(item.PanjangBahanAwal || 0) * 0.9)
-              }}
-              m</span
-            >
-          </template>
-
-          <template #item.SisaMeterAkhir="{ item }">
-            <span>{{
-              (Number(item.SisaMeterAkhir || 0) * 0.9).toFixed(2)
-            }}</span>
-          </template>
-
-          <template #item.status_bahan="{ item }">
-            <span
-              v-if="Number(item.SisaMeterAkhir || 0) * 0.9 < 0"
-              class="text-success font-weight-bold"
-            >
-              SURPLUS
-              {{ Math.abs(Number(item.SisaMeterAkhir || 0) * 0.9).toFixed(2) }}m
-            </span>
-
-            <span
-              v-else-if="Number(item.SisaMeterAkhir || 0) * 0.9 > 0"
-              class="text-orange font-weight-bold"
-            >
-              SISA {{ (Number(item.SisaMeterAkhir || 0) * 0.9).toFixed(2) }}m
-            </span>
-
-            <span v-else class="text-grey font-weight-bold"> PAS </span>
-          </template>
-
-          <template #expanded-row="{ columns, item }">
-            <tr>
-              <td :colspan="columns.length" class="pa-0">
-                <div class="detail-container">
-                  <div class="detail-table-wrapper">
-                    <div
-                      v-if="loadingDetails.has(item.Nomor)"
-                      class="text-center pa-4"
-                    >
-                      <v-progress-circular
-                        indeterminate
-                        size="20"
-                        color="primary"
-                      />
-                      <span class="ml-2 text-caption">Memuat data...</span>
-                    </div>
-
-                    <v-data-table
-                      v-else-if="
-                        details[item.Nomor] && details[item.Nomor].length
-                      "
-                      :headers="detailHeaders"
-                      :items="details[item.Nomor]"
-                      density="compact"
-                      hide-default-footer
-                      class="detail-table border"
-                    >
-                      <template #item.Ukuran="{ item: detailItem }">
-                        {{ detailItem.Panjang }} x {{ detailItem.Lebar }}
-                      </template>
-
-                      <template #item.Jml_Cetak="{ value }">
-                        <strong class="total-bold">{{ value }}</strong>
-                      </template>
-
-                      <template #item.Warna>
-                        <div class="d-flex ga-1 align-center py-1">
-                          <v-chip
-                            size="x-small"
-                            color="cyan"
-                            variant="flat"
-                            text="C"
-                            style="
-                              font-size: 9px;
-                              min-width: 18px;
-                              justify-content: center;
-                            "
-                          />
-                          <v-chip
-                            size="x-small"
-                            color="magenta"
-                            variant="flat"
-                            text="M"
-                            style="
-                              font-size: 9px;
-                              min-width: 18px;
-                              justify-content: center;
-                            "
-                          />
-                          <v-chip
-                            size="x-small"
-                            color="yellow"
-                            variant="flat"
-                            text="Y"
-                            style="
-                              font-size: 9px;
-                              min-width: 18px;
-                              justify-content: center;
-                            "
-                          />
-                          <v-chip
-                            size="x-small"
-                            color="black"
-                            variant="flat"
-                            text="K"
-                            style="
-                              font-size: 9px;
-                              min-width: 18px;
-                              justify-content: center;
-                            "
-                          />
-                        </div>
-                      </template>
-                    </v-data-table>
-
-                    <div v-else class="text-center pa-4 text-caption text-grey">
-                      Data detail tidak ditemukan atau gagal dimuat.
-                    </div>
-                  </div>
-                </div>
-              </td>
-            </tr>
-          </template>
-        </v-data-table>
+          <div v-else class="text-center pa-4 text-caption text-grey">
+            Data detail tidak ditemukan atau gagal dimuat.
+          </div>
+        </div>
       </div>
-    </div>
-  </PageLayout>
+    </template>
+  </BaseBrowse>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, computed, watch, nextTick } from "vue";
+import { ref, reactive, onMounted, computed, watch } from "vue";
 import { useRouter } from "vue-router";
 import { useToast } from "vue-toastification";
 import { format, subDays, parseISO, isValid } from "date-fns";
-import PageLayout from "../components/PageLayout.vue";
+import BaseBrowse from "@/components/BaseBrowse.vue";
 import api from "@/services/api";
 import * as XLSX from "xlsx-js-style";
 
@@ -441,21 +213,9 @@ const filters = reactive({
   search: "",
 });
 
-// --- EXCEL FILTER STATES ---
-const columnSearch = ref<Record<string, string>>({});
-const selectedValues = ref<Record<string, string[]>>({});
-const menuStates = ref<Record<string, boolean>>({});
-
 // --- Computed ---
 const isSingleSelected = computed(() => selected.value.length === 1);
 const selectedItem = computed(() => selected.value[0]);
-const selectedNomor = computed(() => selected.value[0]?.Nomor || null);
-
-const getRowProps = ({ item }: any) => {
-  return {
-    class: item?.Nomor === selectedNomor.value ? "row-selected" : "",
-  };
-};
 
 const getRowTextColor = (item: any) => {
   return item.Lengkap !== "Y" ? "text-red font-weight-bold" : "";
@@ -463,13 +223,7 @@ const getRowTextColor = (item: any) => {
 
 // --- Headers ---
 const masterHeaders = [
-  {
-    title: "Nomor",
-    key: "Nomor",
-    width: "250px",
-    minWidth: "250px",
-    fixed: true,
-  },
+  { title: "Nomor", key: "Nomor", width: "250px", minWidth: "250px" },
   { title: "Shift", key: "Shift", minWidth: "50px" },
   { title: "Tanggal", key: "Tanggal" },
   { title: "Mesin", key: "Mesin" },
@@ -486,7 +240,7 @@ const masterHeaders = [
   { title: "Nama Bahan", key: "nama_Bahan" },
   { title: "Gudang", key: "Nama_Gudang" },
   { title: "Lengkap", key: "Lengkap", align: "center" },
-] as any[];
+];
 
 const detailHeaders = [
   { title: "Mesin", key: "Mesin", minWidth: "120px" },
@@ -498,142 +252,6 @@ const detailHeaders = [
   { title: "Warna (CMYK)", key: "Warna", sortable: false, width: "120px" },
 ];
 
-// --- EXCEL FILTER CORE LOGIC ---
-const filterableHeaders = computed(() => {
-  return masterHeaders.filter((h) => h.key !== "data-table-expand");
-});
-
-const getCellValue = (item: any, key: string): string => {
-  let val = item[key];
-
-  if (key === "Tanggal" && val) {
-    return safeFormatDate(val);
-  }
-
-  if (key === "status_bahan") {
-    const sisa = Number(item.SisaMeterAkhir || 0) * 0.9;
-    if (sisa < 0) return `SURPLUS ${Math.abs(sisa).toFixed(2)}m`;
-    if (sisa > 0) return `SISA ${sisa.toFixed(2)}m`;
-    return "PAS";
-  }
-
-  if (val === null || val === undefined || val === "") {
-    return "(Blank)";
-  }
-
-  return String(val);
-};
-
-const uniqueValuesMap = computed(() => {
-  const map: Record<string, string[]> = {};
-  filterableHeaders.value.forEach((h) => {
-    const key = h.key;
-    const set = new Set<string>();
-    (masterData.value || []).forEach((item) => {
-      set.add(getCellValue(item, key));
-    });
-    map[key] = Array.from(set).sort((a, b) =>
-      a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" }),
-    );
-  });
-  return map;
-});
-
-const getFilteredPopupOptions = (key: string) => {
-  const options = uniqueValuesMap.value[key] || [];
-  const search = columnSearch.value[key]?.trim().toLowerCase();
-  if (!search) return options;
-  return options.filter((opt) => opt.toLowerCase().includes(search));
-};
-
-const isOptionSelected = (key: string, option: string) => {
-  const selectedOpts = selectedValues.value[key];
-  if (!selectedOpts) return true;
-  return selectedOpts.includes(option);
-};
-
-const toggleOption = (key: string, option: string) => {
-  if (!selectedValues.value[key]) {
-    selectedValues.value[key] = [...(uniqueValuesMap.value[key] || [])];
-  }
-  const index = selectedValues.value[key].indexOf(option);
-  if (index > -1) {
-    selectedValues.value[key].splice(index, 1);
-  } else {
-    selectedValues.value[key].push(option);
-  }
-};
-
-const selectAllFiltered = (key: string) => {
-  const visibleOptions = getFilteredPopupOptions(key);
-  const currentSelected = selectedValues.value[key] || [
-    ...(uniqueValuesMap.value[key] || []),
-  ];
-  const newSet = new Set([...currentSelected, ...visibleOptions]);
-  selectedValues.value[key] = Array.from(newSet);
-};
-
-const deselectAllFiltered = (key: string) => {
-  const visibleOptions = getFilteredPopupOptions(key);
-  const currentSelected = selectedValues.value[key] || [
-    ...(uniqueValuesMap.value[key] || []),
-  ];
-  selectedValues.value[key] = currentSelected.filter(
-    (opt) => !visibleOptions.includes(opt),
-  );
-};
-
-const isColumnFilterActive = (key: string) => {
-  const search = columnSearch.value[key]?.trim();
-  if (search) return true;
-
-  const selectedOpts = selectedValues.value[key];
-  if (!selectedOpts) return false;
-  const all = uniqueValuesMap.value[key] || [];
-  return selectedOpts.length < all.length;
-};
-
-const activeFiltersCount = computed(() => {
-  return (
-    Object.keys(columnSearch.value).filter(
-      (k) => !!columnSearch.value[k]?.trim(),
-    ).length +
-    Object.keys(selectedValues.value).filter((key) => isColumnFilterActive(key))
-      .length
-  );
-});
-
-const resetColumnFilter = (key: string) => {
-  delete selectedValues.value[key];
-  columnSearch.value[key] = "";
-};
-
-const resetAllColumnFilters = () => {
-  selectedValues.value = {};
-  columnSearch.value = {};
-};
-
-const filteredMasterData = computed(() => {
-  return (masterData.value || []).filter((item) => {
-    return filterableHeaders.value.every((h) => {
-      const key = h.key;
-      const cellValue = getCellValue(item, key);
-
-      const searchText = columnSearch.value[key]?.trim().toLowerCase();
-      if (searchText && !cellValue.toLowerCase().includes(searchText)) {
-        return false;
-      }
-
-      const selectedArr = selectedValues.value[key];
-      if (selectedArr) {
-        return selectedArr.includes(cellValue);
-      }
-
-      return true;
-    });
-  });
-});
-
 // --- API Calls ---
 const fetchMasterData = async () => {
   loading.master = true;
@@ -642,9 +260,6 @@ const fetchMasterData = async () => {
     masterData.value = response.data || [];
     selected.value = [];
     expanded.value = [];
-
-    await nextTick();
-    resizeTable(".desktop-table");
   } catch (err) {
     toast.error("Gagal mengambil data LHK Tekstil.");
   } finally {
@@ -681,13 +296,10 @@ watch(
   { deep: true },
 );
 
-const handleRowClick = (event: any, { item }: { item: any }) => {
+const handleRowClick = (_event: any, row: any) => {
+  const item = row.item;
   const isSelected = selected.value.some((s) => s.Nomor === item.Nomor);
-  if (isSelected) {
-    selected.value = [];
-  } else {
-    selected.value = [item];
-  }
+  selected.value = isSelected ? [] : [item];
 };
 
 // --- Helpers ---
@@ -748,11 +360,11 @@ const handlePrint = () => {
   window.open(`/api/report/lhk-slip/${selectedItem.value.Nomor}`, "_blank");
 };
 
-// --- Export Excel (Numerik Murni) ---
+// --- Export Excel ---
 const exportToExcel = async () => {
   loading.master = true;
   try {
-    for (const header of filteredMasterData.value) {
+    for (const header of masterData.value) {
       if (
         !details.value[header.Nomor] ||
         details.value[header.Nomor].length === 0
@@ -873,7 +485,7 @@ const exportToExcel = async () => {
     let grandTotalCetakPcsMaster = 0;
     let grandTotalQtyDetail = 0;
 
-    filteredMasterData.value.forEach((header) => {
+    masterData.value.forEach((header) => {
       const targetDetails = details.value[header.Nomor] || [];
       const tglHeader = header.Tanggal ? formatTglManual(header.Tanggal) : "-";
       const sisaMeter = parseNum(header.SisaMeterAkhir) * 0.9;
@@ -914,7 +526,6 @@ const exportToExcel = async () => {
               s: styleDataCellCenter,
             },
             { v: isFirstRow ? header.NamaOrder || "-" : "-", s: styleDataCell },
-
             isFirstRow
               ? {
                   v: parseNum(header.spk_panjang),
@@ -958,7 +569,6 @@ const exportToExcel = async () => {
             isFirstRow
               ? { v: sisaMeter, t: "n", z: "#,##0.00", s: styleDataCellRight }
               : { v: "-", s: styleDataCellCenter },
-
             { v: isFirstRow ? statusBahanText : "-", s: styleDataCellCenter },
             {
               v: isFirstRow ? header.Kode_bahan || "-" : "-",
@@ -972,7 +582,6 @@ const exportToExcel = async () => {
               v: isFirstRow ? header.Nama_Gudang || "-" : "-",
               s: styleDataCell,
             },
-
             { v: dtl.Nomor_SPK || dtl.spk || "-", s: styleDataCellCenter },
             { v: dtl.Nama_SPK || dtl.Nama || "-", s: styleDataCell },
             { v: detailUkuranText, s: styleDataCellCenter },
@@ -1062,7 +671,6 @@ const exportToExcel = async () => {
     worksheetData.push(footerRow);
 
     const ws = XLSX.utils.aoa_to_sheet(worksheetData);
-
     ws["!merges"] = [
       { s: { r: 0, c: 0 }, e: { r: 0, c: 19 } },
       {
@@ -1106,66 +714,6 @@ const exportToExcel = async () => {
   }
 };
 
-const resizeTable = (tableSelector: string) => {
-  const wrapper = document.querySelector(tableSelector);
-  if (!wrapper) return;
-
-  const thead = wrapper.querySelector("thead");
-  const tbody = wrapper.querySelector("tbody");
-  if (!thead || !tbody) return;
-
-  const headers = thead.querySelectorAll("th");
-
-  headers.forEach((header, index) => {
-    let resizer = header.querySelector(".resizer");
-    if (resizer) resizer.remove();
-
-    if (
-      header.classList.contains("v-data-table__th--select") ||
-      header.classList.contains("v-data-table__th--group")
-    ) {
-      return;
-    }
-
-    resizer = document.createElement("div");
-    resizer.className = "resizer";
-    header.style.position = "relative";
-
-    resizer.addEventListener("mousedown", (e: MouseEvent) => {
-      e.stopPropagation();
-      let startX = e.clientX;
-      let startWidth = header.offsetWidth;
-
-      const columnCells = Array.from(
-        tbody.querySelectorAll(`tr td:nth-child(${index + 1})`),
-      ) as HTMLElement[];
-
-      const handleMouseMove = (moveEvent: MouseEvent) => {
-        const newWidth = startWidth + (moveEvent.clientX - startX);
-        header.style.width = `${newWidth}px`;
-        header.style.minWidth = `${newWidth}px`;
-
-        columnCells.forEach((cell) => {
-          cell.style.width = `${newWidth}px`;
-          cell.style.minWidth = `${newWidth}px`;
-        });
-      };
-
-      const handleMouseUp = () => {
-        document.removeEventListener("mousemove", handleMouseMove);
-        document.removeEventListener("mouseup", handleMouseUp);
-        document.body.classList.remove("col-resize-active");
-      };
-
-      document.body.classList.add("col-resize-active");
-      document.addEventListener("mousemove", handleMouseMove);
-      document.addEventListener("mouseup", handleMouseUp);
-    });
-
-    header.appendChild(resizer);
-  });
-};
-
 onMounted(() => {
   fetchMasterData();
 });
@@ -1174,115 +722,21 @@ watch(filters, fetchMasterData, { deep: true });
 </script>
 
 <style scoped>
-/* 💡 PENGUNCIAN STICKY HEADER & FOOTER DENGAN scroll TBODY */
-:deep(.v-table) {
-  display: flex !important;
-  flex-direction: column !important;
-  height: 550px !important;
-}
-
-:deep(.v-table__wrapper) {
-  flex: 1 1 auto !important;
-  overflow-y: auto !important;
-  overflow-x: auto !important;
-  max-height: 550px !important;
-}
-
-:deep(.v-data-table__thead) {
-  position: sticky !important;
-  top: 0 !important;
-  z-index: 10 !important;
-  background-color: #ffffff !important;
-}
-
-:deep(.v-data-table-footer) {
-  flex: 0 0 auto !important;
-  border-top: 1px solid rgba(0, 0, 0, 0.12);
-  background-color: #ffffff !important;
-}
-
-.table-container {
-  height: 100%;
-}
-
-.desktop-table :deep(.v-data-table__tr.row-selected) {
-  background-color: rgb(216, 239, 255) !important;
-}
-
-.desktop-table :deep(.v-data-table__tr.row-selected td) {
-  background-color: transparent !important;
-  color: #0d47a1 !important;
-}
-
-.desktop-table :deep(.v-data-table__tr.row-selected:hover) {
-  background-color: rgb(200, 230, 255) !important;
-}
-
-.desktop-table :deep(.v-data-table-header__th),
-.desktop-table :deep(tbody tr td) {
-  position: relative;
-  white-space: nowrap;
-  overflow: hidden;
-  font-size: 11px;
-  min-width: 50px !important;
-}
-
-:deep(.v-data-table-header th) {
-  background-color: #f5f5f5 !important;
-  font-weight: bold !important;
-}
-
-:deep(.v-data-table tbody tr:hover) {
-  background-color: #f1f8ff !important;
-  cursor: pointer;
-}
-
-.resizer {
-  position: absolute;
-  right: 0;
-  top: 0;
-  height: 100%;
-  width: 8px;
-  cursor: col-resize;
-  z-index: 10;
-  transform: translateX(50%);
-  background-color: transparent;
-  transition: background-color 0.1s;
-}
-
-.resizer:hover,
-.col-resize-active .resizer {
-  background-color: rgba(0, 0, 0, 0.2);
-}
-
-:deep(body.col-resize-active) {
-  cursor: col-resize !important;
-  user-select: none;
-}
-
 .detail-container {
   padding: 8px 0;
   background-color: #f7f7f7;
   border-top: 1px solid #ddd;
 }
-
 .detail-table-wrapper {
   padding: 0 12px;
   width: 100%;
   overflow-x: auto;
 }
-
 .detail-table {
   background-color: white !important;
   font-size: 0.8rem;
   width: 100% !important;
 }
-
-:deep(.detail-table .v-data-table__td) {
-  white-space: nowrap;
-  padding: 0 8px !important;
-}
-
 .text-red {
   color: #f44336 !important;
 }

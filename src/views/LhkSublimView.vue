@@ -1,25 +1,32 @@
 <template>
-  <PageLayout
+  <BaseBrowse
     title="Hasil Kerja PaperPrint MMT"
     icon="mdi-printer-settings"
-    class="custom-font"
+    :headers="masterHeaders"
+    :items="masterData"
+    :loading="loading.master"
+    v-model:selected="selected"
+    v-model:expanded="expanded"
+    v-model:startDate="filters.startDate"
+    v-model:endDate="filters.endDate"
+    item-value="Nomor"
+    has-print
+    show-expand
+    :summary-fields="[
+      'Total_Item',
+      'Total_Qty',
+      'PanjangBahanAwal',
+      'total_meter',
+    ]"
+    @refresh="fetchMasterData"
+    @action:new="handleCreate"
+    @action:edit="handleEdit"
+    @action:delete="handleDelete"
+    @action:print="handlePrint"
+    @row-click="handleRowClick"
   >
-    <template #header-actions>
-      <!-- Tombol Buat Baru -->
-      <v-btn size="x-small" color="primary" @click="handleCreate">
-        <v-icon start size="14">mdi-plus</v-icon> Baru
-      </v-btn>
-
-      <!-- Tombol Ubah / Edit -->
-      <v-btn
-        size="x-small"
-        color="warning"
-        :disabled="!isSingleSelected"
-        @click="handleEdit"
-      >
-        <v-icon start size="14">mdi-pencil</v-icon> Ubah
-      </v-btn>
-
+    <!-- Tombol Ekstra (ACC, Bahan, Slip, Export Excel) -->
+    <template #extra-actions>
       <!-- Tombol ACC -->
       <v-btn
         size="x-small"
@@ -41,19 +48,7 @@
         <v-icon start size="14">mdi-package-variant</v-icon> Bahan
       </v-btn>
 
-      <v-divider vertical class="mx-2" />
-
-      <!-- Tombol Hapus -->
-      <v-btn
-        size="x-small"
-        color="error"
-        :disabled="!isSingleSelected"
-        @click="handleDelete"
-      >
-        <v-icon start size="14">mdi-delete</v-icon> Hapus
-      </v-btn>
-
-      <!-- Tombol Cetak Slip -->
+      <!-- Tombol Slip / Cetak -->
       <v-btn
         size="x-small"
         color="info"
@@ -75,139 +70,77 @@
       </v-btn>
     </template>
 
-    <div class="browse-content">
-      <!-- Filter Card -->
-      <v-card flat class="mb-4 border">
-        <v-card-text class="pa-3">
-          <div class="d-flex align-center flex-wrap ga-4">
-            <v-label class="font-weight-bold" style="font-size: 11px">
-              Periode Laporan:
-            </v-label>
+    <!-- Keterangan Teks Merah di sebelah Kanan Toolbar -->
+    <template #filter-fields>
+      <div class="d-flex align-center ga-2 italic ml-auto">
+        <v-icon color="error" size="14">mdi-alert-circle</v-icon>
+        <span class="text-error" style="font-size: 11px">
+          Teks Merah = Belum Lengkap
+        </span>
+      </div>
+    </template>
 
-            <v-text-field
-              v-model="filters.startDate"
-              type="date"
-              density="compact"
-              hide-details
-              variant="outlined"
-              style="max-width: 160px"
-              class="custom-field"
-            />
-            <v-label style="font-size: 11px">s/d</v-label>
-            <v-text-field
-              v-model="filters.endDate"
-              type="date"
-              density="compact"
-              hide-details
-              variant="outlined"
-              style="max-width: 160px"
-              class="custom-field"
-            />
-            <v-btn
-              variant="elevated"
-              size="small"
-              color="primary"
-              @click="fetchMasterData"
-              style="font-size: 11px"
-              :loading="loading.master"
-            >
-              <v-icon start size="14">mdi-magnify</v-icon> Refresh
-            </v-btn>
+    <!-- Custom Template Kolom Tabel Utama -->
+    <template #item.Nomor="{ item }">
+      <span :class="item.Lengkap !== 'Y' ? 'text-error font-weight-bold' : ''">
+        {{ item.Nomor }}
+      </span>
+    </template>
 
-            <v-spacer />
+    <template #item.Tanggal="{ item }">
+      {{ formatDate(item.Tanggal) }}
+    </template>
 
-            <div class="d-flex align-center ga-2 italic">
-              <v-icon color="error" size="14">mdi-alert-circle</v-icon>
-              <span class="text-error" style="font-size: 11px">
-                Teks Merah = Belum Lengkap
-              </span>
-            </div>
-          </div>
-        </v-card-text>
-      </v-card>
-
-      <!-- Master Data Table -->
-      <v-data-table
-        v-model:selected="selected"
-        v-model:expanded="expanded"
-        :headers="masterHeaders"
-        :items="masterData"
-        :loading="loading.master"
-        item-value="Nomor"
-        density="compact"
-        class="border elevation-1 main-grid custom-table"
-        show-select
-        select-strategy="single"
-        show-expand
-        fixed-header
-        :row-props="getRowProps"
-        @click:row="handleRowClick"
-        @update:expanded="loadDetails"
+    <template #item.Status_Acc="{ item }">
+      <v-chip
+        size="x-small"
+        :color="item.Status_Acc === 'ACC' ? 'success' : 'grey'"
+        variant="flat"
       >
-        <!-- Slot Kolom Nomor -->
-        <template #item.Nomor="{ item }">
-          <span
-            :class="item.Lengkap !== 'Y' ? 'text-error font-weight-bold' : ''"
+        {{ item.Status_Acc === "ACC" ? "ACC" : "DRAFT" }}
+      </v-chip>
+    </template>
+
+    <template #item.total_meter="{ item }">
+      {{ Number(item.total_meter || 0).toFixed(2) }}
+    </template>
+
+    <!-- Slot Expanded Content untuk Menampilkan Detail -->
+    <template #expanded-content="{ item }">
+      <div class="detail-container">
+        <div class="detail-table-wrapper">
+          <div v-if="loadingDetails.has(item.Nomor)" class="text-center pa-4">
+            <v-progress-circular indeterminate size="20" color="primary" />
+            <span class="ml-2 text-caption">Memuat data...</span>
+          </div>
+
+          <v-data-table
+            v-else-if="details[item.Nomor] && details[item.Nomor].length"
+            :headers="detailHeaders"
+            :items="details[item.Nomor]"
+            density="compact"
+            hide-default-footer
+            class="detail-table border"
+            :items-per-page="-1"
           >
-            {{ item.Nomor }}
-          </span>
-        </template>
+            <template #item.Ukuran="{ item: detailItem }">
+              {{ detailItem.Panjang }} x {{ detailItem.Lebar }}
+            </template>
 
-        <template #item.Tanggal="{ item }">
-          {{ formatDate(item.Tanggal) }}
-        </template>
+            <template #item.Jumlah_Meter="{ item: detailItem }">
+              <span class="font-weight-bold">
+                {{ Number(detailItem.Jumlah_Meter || 0).toFixed(2) }}
+              </span>
+            </template>
+          </v-data-table>
 
-        <!-- Slot Kolom Status ACC -->
-        <template #item.Status_Acc="{ item }">
-          <v-chip
-            size="x-small"
-            :color="item.Status_Acc === 'ACC' ? 'success' : 'grey'"
-            variant="flat"
-          >
-            {{ item.Status_Acc === "ACC" ? "ACC" : "DRAFT" }}
-          </v-chip>
-        </template>
-
-        <!-- Slot Format Total Meter -->
-        <template #item.total_meter="{ item }">
-          {{ Number(item.total_meter || 0).toFixed(2) }}
-        </template>
-
-        <!-- Slot Detail Expansion Row -->
-        <template #expanded-row="{ columns, item }">
-          <tr>
-            <td :colspan="columns.length" class="bg-grey-lighten-4 pa-4">
-              <v-card
-                variant="outlined"
-                title="Detail Pekerjaan Sublim"
-                class="custom-font"
-              >
-                <v-data-table
-                  :headers="detailHeaders"
-                  :items="details[item.Nomor] || []"
-                  :loading="loadingDetails.has(item.Nomor)"
-                  density="compact"
-                  hide-default-footer
-                  class="custom-table"
-                  :items-per-page="-1"
-                >
-                  <template #item.Ukuran="{ item: detailItem }">
-                    {{ detailItem.Panjang }} x {{ detailItem.Lebar }}
-                  </template>
-
-                  <template #item.Jumlah_Meter="{ item: detailItem }">
-                    <span class="font-weight-bold">
-                      {{ Number(detailItem.Jumlah_Meter || 0).toFixed(2) }}
-                    </span>
-                  </template>
-                </v-data-table>
-              </v-card>
-            </td>
-          </tr>
-        </template>
-      </v-data-table>
-    </div>
-  </PageLayout>
+          <div v-else class="text-center pa-4 text-caption text-grey">
+            Data detail tidak ditemukan atau gagal dimuat.
+          </div>
+        </div>
+      </div>
+    </template>
+  </BaseBrowse>
 </template>
 
 <script setup lang="ts">
@@ -215,7 +148,7 @@ import { ref, reactive, computed, onMounted, watch } from "vue";
 import { useRouter } from "vue-router";
 import { useToast } from "vue-toastification";
 import Swal from "sweetalert2";
-import PageLayout from "../components/PageLayout.vue";
+import BaseBrowse from "@/components/BaseBrowse.vue";
 import api from "@/services/api";
 import * as XLSX from "xlsx-js-style";
 
@@ -276,7 +209,12 @@ const masterHeaders = [
   },
   { title: "Shift", key: "Shift", width: "70px" },
   { title: "Barcode", key: "Barcode_Roll", width: "130px" },
-  { title: "Ambil Bahan (M)", key: "PanjangBahanAwal", width: "130px" },
+  {
+    title: "Ambil Bahan (M)",
+    key: "PanjangBahanAwal",
+    width: "130px",
+    align: "end" as const,
+  },
   {
     title: "Cetak (m²)",
     key: "total_meter",
@@ -314,6 +252,8 @@ const fetchMasterData = async () => {
   try {
     const response = await api.get("/mmt/lhk-paperprint", { params: filters });
     masterData.value = response.data || [];
+    selected.value = [];
+    expanded.value = [];
   } catch (error) {
     toast.error("Gagal mengambil data master");
   } finally {
@@ -348,18 +288,8 @@ watch(
   { deep: true },
 );
 
-const getRowProps = ({ item }: any) => {
-  const isContained = selected.value.some((sel: any) => {
-    const selNomor = typeof sel === "object" ? sel.Nomor : sel;
-    return selNomor === item.Nomor;
-  });
-
-  return {
-    class: isContained ? "bg-blue-lighten-5" : "",
-  };
-};
-
-const handleRowClick = (event: any, { item }: any) => {
+const handleRowClick = (_event: any, row: any) => {
+  const item = row.item;
   const targetNomor = item?.Nomor || item?.raw?.Nomor;
   if (!targetNomor) return;
 
@@ -371,7 +301,7 @@ const handleRowClick = (event: any, { item }: any) => {
   if (isAlreadySelected) {
     selected.value = [];
   } else {
-    selected.value = [targetNomor];
+    selected.value = [item];
   }
 };
 
@@ -393,10 +323,10 @@ const handleEdit = () => {
 const formatDate = (dateStr: string) => {
   if (!dateStr) return "-";
   try {
-    const cleanDate = dateStr.split("T")[0]; // Menghilangkan jam/menit jika ada
+    const cleanDate = dateStr.split("T")[0];
     const parts = cleanDate.split("-");
     if (parts.length === 3) {
-      return `${parts[2]}/${parts[1]}/${parts[0]}`; // Hasil: DD/MM/YYYY
+      return `${parts[2]}/${parts[1]}/${parts[0]}`;
     }
     return dateStr;
   } catch {
@@ -495,10 +425,6 @@ const exportToExcel = async () => {
           );
           details.value[header.Nomor] = res.data || [];
         } catch (e) {
-          console.error(
-            `Gagal pre-fetch detail sublim nomor ${header.Nomor}:`,
-            e,
-          );
           details.value[header.Nomor] = [];
         }
       }
@@ -708,39 +634,24 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.custom-font {
-  font-size: 11px !important;
+.detail-container {
+  padding: 8px 0;
+  background-color: #f7f7f7;
+  border-top: 1px solid #ddd;
 }
-
-:deep(.v-field__input),
-:deep(input) {
-  font-size: 11px !important;
-  min-height: 32px !important;
+.detail-table-wrapper {
+  padding: 0 12px;
+  width: 100%;
+  overflow-x: auto;
 }
-
-.custom-table :deep(th),
-.custom-table :deep(td) {
-  font-size: 11px !important;
+.detail-table {
+  background-color: white !important;
+  font-size: 0.8rem;
+  width: 100% !important;
 }
-
-:deep(.v-btn) {
-  font-size: 11px !important;
-  text-transform: none;
-}
-
-.main-grid {
-  height: calc(100vh - 250px);
-}
-
-:deep(.v-data-table-header th) {
-  background-color: #f5f5f5 !important;
-  font-weight: bold !important;
-}
-
 .text-error {
   color: #ff5252 !important;
 }
-
 .italic {
   font-style: italic;
 }

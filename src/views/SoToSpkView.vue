@@ -107,11 +107,6 @@ const closeItem = ref<SpkHeader | null>(null);
 const closeAlasan = ref<string>("");
 const isProcessingClose = ref<boolean>(false);
 
-// --- EXCEL FILTER STATES ---
-const columnSearch = ref<Record<string, string>>({});
-const selectedValues = ref<Record<string, string[]>>({});
-const menuStates = ref<Record<string, boolean>>({});
-
 // --- Table Headers ---
 const masterHeaders = [
   {
@@ -122,20 +117,8 @@ const masterHeaders = [
     fixed: true,
     align: "center",
   },
-  {
-    title: "Nomor SO",
-    key: "SO",
-    width: "160px",
-    minWidth: "160px",
-    fixed: true,
-  },
-  {
-    title: "Nomor SPK",
-    key: "SPK",
-    width: "160px",
-    minWidth: "160px",
-    fixed: true,
-  },
+  { title: "Nomor SO", key: "SO", width: "160px", minWidth: "160px" },
+  { title: "Nomor SPK", key: "SPK", width: "160px", minWidth: "160px" },
   { title: "MO", key: "MO", width: "100px" },
   { title: "CMO", key: "CMO", width: "120px" },
   { title: "Tanggal", key: "Tanggal", width: "110px" },
@@ -229,142 +212,14 @@ const getStatusColor = (item: SpkHeader) => {
   return "orange";
 };
 
-const getCellValue = (item: any, key: string): string => {
-  let val = item[key];
-
-  if (key === "SPK" && (val === undefined || val === null || val === "")) {
-    val = item.Nomor;
-  }
-  if (key === "Dateline" && (val === undefined || val === null || val === "")) {
-    val = item.Deadline;
-  }
-  if (key === "Cab" && (val === undefined || val === null || val === "")) {
-    val = item.Cabang;
-  }
-
-  if (["Tanggal", "Dateline", "Deadline", "Dateline_PO"].includes(key) && val) {
-    return formatDateDisplay(val);
-  }
-
-  if (val === null || val === undefined || val === "") {
-    return "(Blank)";
-  }
-
-  return String(val);
-};
-
-const filterableHeaders = computed(() => {
-  return masterHeaders.filter((h) => h.key !== "data-table-expand");
-});
-
-// --- EXCEL FILTER CORE LOGIC ---
-const uniqueValuesMap = computed(() => {
-  const map: Record<string, string[]> = {};
-  filterableHeaders.value.forEach((h) => {
-    const key = h.key;
-    const set = new Set<string>();
-    masterData.value.forEach((item) => {
-      set.add(getCellValue(item, key));
-    });
-    map[key] = Array.from(set).sort((a, b) =>
-      a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" }),
-    );
-  });
-  return map;
-});
-
-const getFilteredPopupOptions = (key: string) => {
-  const options = uniqueValuesMap.value[key] || [];
-  const search = columnSearch.value[key]?.trim().toLowerCase();
-  if (!search) return options;
-  return options.filter((opt) => opt.toLowerCase().includes(search));
-};
-
-const isOptionSelected = (key: string, option: string) => {
-  const selectedArr = selectedValues.value[key];
-  if (!selectedArr) return true;
-  return selectedArr.includes(option);
-};
-
-const toggleOption = (key: string, option: string) => {
-  if (!selectedValues.value[key]) {
-    selectedValues.value[key] = [...(uniqueValuesMap.value[key] || [])];
-  }
-  const index = selectedValues.value[key].indexOf(option);
-  if (index > -1) {
-    selectedValues.value[key].splice(index, 1);
-  } else {
-    selectedValues.value[key].push(option);
-  }
-};
-
-const selectAllFiltered = (key: string) => {
-  const visibleOptions = getFilteredPopupOptions(key);
-  const currentSelected = selectedValues.value[key] || [
-    ...(uniqueValuesMap.value[key] || []),
-  ];
-  const newSet = new Set([...currentSelected, ...visibleOptions]);
-  selectedValues.value[key] = Array.from(newSet);
-};
-
-const deselectAllFiltered = (key: string) => {
-  const visibleOptions = getFilteredPopupOptions(key);
-  const currentSelected = selectedValues.value[key] || [
-    ...(uniqueValuesMap.value[key] || []),
-  ];
-  selectedValues.value[key] = currentSelected.filter(
-    (opt) => !visibleOptions.includes(opt),
-  );
-};
-
-const isColumnFilterActive = (key: string) => {
-  const search = columnSearch.value[key]?.trim();
-  if (search) return true;
-
-  const selectedArr = selectedValues.value[key];
-  if (!selectedArr) return false;
-  const all = uniqueValuesMap.value[key] || [];
-  return selectedArr.length < all.length;
-};
-
-const activeFiltersCount = computed(() => {
-  return (
-    Object.keys(columnSearch.value).filter(
-      (k) => !!columnSearch.value[k]?.trim(),
-    ).length +
-    Object.keys(selectedValues.value).filter((key) => isColumnFilterActive(key))
-      .length
-  );
-});
-
-const resetColumnFilter = (key: string) => {
-  delete selectedValues.value[key];
-  columnSearch.value[key] = "";
-};
-
-const resetAllColumnFilters = () => {
-  selectedValues.value = {};
-  columnSearch.value = {};
-};
-
 const filteredMasterData = computed(() => {
+  if (!keyword.value.trim()) return masterData.value;
+  const kw = keyword.value.toLowerCase();
   return masterData.value.filter((item) => {
-    return filterableHeaders.value.every((h) => {
-      const key = h.key;
-      const cellValue = getCellValue(item, key);
-
-      const searchText = columnSearch.value[key]?.trim().toLowerCase();
-      if (searchText && !cellValue.toLowerCase().includes(searchText)) {
-        return false;
-      }
-
-      const selectedArr = selectedValues.value[key];
-      if (selectedArr) {
-        return selectedArr.includes(cellValue);
-      }
-
-      return true;
-    });
+    const spk = String(item.SPK || (item as any).Nomor || "").toLowerCase();
+    const so = String(item.SO || "").toLowerCase();
+    const nama = String(item.Nama || "").toLowerCase();
+    return spk.includes(kw) || so.includes(kw) || nama.includes(kw);
   });
 });
 
@@ -434,6 +289,7 @@ const confirmToggleCloseSpk = async () => {
   }
 };
 
+// --- EXPORT TO EXCEL METHOD ---
 // --- EXPORT TO EXCEL METHOD ---
 const exportToExcel = async () => {
   if (filteredMasterData.value.length === 0) {
@@ -525,6 +381,7 @@ const exportToExcel = async () => {
     ]);
     worksheetData.push([]);
 
+    // Header tabel Excel mencakup Pesan, Panjang, Lebar, Gramasi, Bahan, dll.
     const headers = [
       { v: "NOMOR SO", s: styleHeaderMain },
       { v: "NOMOR SPK", s: styleHeaderMain },
@@ -536,7 +393,11 @@ const exportToExcel = async () => {
       { v: "DIVISI", s: styleHeaderMain },
       { v: "CABANG", s: styleHeaderMain },
       { v: "NAMA PESANAN", s: styleHeaderMain },
-      { v: "BAHAN", s: styleHeaderMain },
+      { v: "PESAN", s: styleHeaderMain },
+      { v: "PANJANG", s: styleHeaderMain },
+      { v: "LEBAR", s: styleHeaderMain },
+      { v: "GRAMASI", s: styleHeaderMain },
+      { v: "KAIN/BAHAN", s: styleHeaderMain },
       { v: "FINISHING", s: styleHeaderMain },
       { v: "STATUS", s: styleHeaderMain },
       { v: "ACC PIN", s: styleHeaderMain },
@@ -594,6 +455,23 @@ const exportToExcel = async () => {
             },
             { v: isFirstRow ? cabText : "-", s: styleDataCellCenter },
             { v: isFirstRow ? header.Nama || "-" : "-", s: styleDataCell },
+            { v: isFirstRow ? header.Pesan || "-" : "-", s: styleDataCell },
+            {
+              v: isFirstRow ? num(header.Panjang) : 0,
+              t: "n",
+              z: "#,##0.##",
+              s: styleDataCellRight,
+            },
+            {
+              v: isFirstRow ? num(header.Lebar) : 0,
+              t: "n",
+              z: "#,##0.##",
+              s: styleDataCellRight,
+            },
+            {
+              v: isFirstRow ? header.Gramasi || "-" : "-",
+              s: styleDataCellCenter,
+            },
             { v: isFirstRow ? header.Bahan || "-" : "-", s: styleDataCell },
             { v: isFirstRow ? header.Finishing || "-" : "-", s: styleDataCell },
             {
@@ -638,6 +516,20 @@ const exportToExcel = async () => {
           { v: header.Divisi || "-", s: styleDataCellCenter },
           { v: cabText, s: styleDataCellCenter },
           { v: header.Nama || "-", s: styleDataCell },
+          { v: header.Pesan || "-", s: styleDataCell },
+          {
+            v: num(header.Panjang),
+            t: "n",
+            z: "#,##0.##",
+            s: styleDataCellRight,
+          },
+          {
+            v: num(header.Lebar),
+            t: "n",
+            z: "#,##0.##",
+            s: styleDataCellRight,
+          },
+          { v: header.Gramasi || "-", s: styleDataCellCenter },
           { v: header.Bahan || "-", s: styleDataCell },
           { v: header.Finishing || "-", s: styleDataCell },
           { v: header.STATUS || "-", s: styleDataCellCenter },
@@ -660,7 +552,7 @@ const exportToExcel = async () => {
           alignment: { horizontal: "right", vertical: "center" },
         },
       },
-      ...Array(14).fill({ v: "", s: styleFooter }),
+      ...Array(18).fill({ v: "", s: styleFooter }),
       {
         v: grandTotalQtySPK,
         t: "n",
@@ -710,15 +602,18 @@ const exportToExcel = async () => {
     worksheetData.push(footerRow);
 
     const ws = XLSX.utils.aoa_to_sheet(worksheetData);
+
+    // Sesuaikan merge row footer (total 24 kolom, index 0 sampai 23)
     ws["!merges"] = [
-      { s: { r: 0, c: 0 }, e: { r: 0, c: 19 } },
-      { s: { r: 1, c: 0 }, e: { r: 1, c: 19 } },
+      { s: { r: 0, c: 0 }, e: { r: 0, c: 23 } },
+      { s: { r: 1, c: 0 }, e: { r: 1, c: 23 } },
       {
         s: { r: worksheetData.length - 1, c: 0 },
-        e: { r: worksheetData.length - 1, c: 14 },
+        e: { r: worksheetData.length - 1, c: 18 },
       },
     ];
 
+    // Lebar kolom excel
     ws["!cols"] = [
       { wch: 18 },
       { wch: 18 },
@@ -729,7 +624,11 @@ const exportToExcel = async () => {
       { wch: 14 },
       { wch: 10 },
       { wch: 14 },
-      { wch: 35 },
+      { wch: 30 },
+      { wch: 18 },
+      { wch: 10 },
+      { wch: 10 },
+      { wch: 10 },
       { wch: 18 },
       { wch: 15 },
       { wch: 12 },
@@ -1089,8 +988,8 @@ watch([startDate, endDate], ([newStart, newEnd]) => {
       </v-menu>
     </template>
 
-    <!-- Extra Filter: Cari, Tombol Preview SPK, dan Reset Filter -->
-    <template #extra-filters>
+    <!-- Extra Filter: Cari dan Tombol Preview SPK -->
+    <template #filter-fields>
       <div class="d-flex align-center ga-2">
         <v-text-field
           v-model="keyword"
@@ -1113,140 +1012,6 @@ watch([startDate, endDate], ([newStart, newEnd]) => {
         >
           Preview SPK
         </v-btn>
-
-        <v-btn
-          v-if="activeFiltersCount > 0"
-          color="warning"
-          variant="tonal"
-          size="small"
-          prepend-icon="mdi-filter-off"
-          @click="resetAllColumnFilters"
-        >
-          Reset Filter ({{ activeFiltersCount }})
-        </v-btn>
-      </div>
-    </template>
-
-    <!-- Dynamic Excel Filter per Kolom Header -->
-    <template
-      v-for="header in filterableHeaders"
-      :key="header.key"
-      #[`header.${header.key}`]="{ column }"
-    >
-      <div class="d-flex align-center justify-space-between w-100">
-        <span class="font-weight-bold text-truncate mr-1">{{
-          column.title
-        }}</span>
-
-        <v-menu
-          v-model="menuStates[header.key]"
-          :close-on-content-click="false"
-          location="bottom start"
-        >
-          <template #activator="{ props }">
-            <v-btn
-              icon
-              variant="text"
-              density="compact"
-              size="x-small"
-              v-bind="props"
-              :color="
-                isColumnFilterActive(header.key) ? 'primary' : 'grey-darken-1'
-              "
-            >
-              <v-icon size="16">
-                {{
-                  isColumnFilterActive(header.key)
-                    ? "mdi-filter"
-                    : "mdi-filter-variant"
-                }}
-              </v-icon>
-            </v-btn>
-          </template>
-
-          <v-card
-            min-width="280"
-            max-width="320"
-            class="pa-2 border shadow-2 rounded-lg"
-          >
-            <v-text-field
-              v-model="columnSearch[header.key]"
-              density="compact"
-              variant="outlined"
-              hide-details
-              clearable
-              autofocus
-              placeholder="Cari..."
-              class="mb-1"
-            />
-
-            <div class="text-caption text-grey-darken-1 my-1 px-1">
-              {{ getFilteredPopupOptions(header.key).length }} dari
-              {{ (uniqueValuesMap[header.key] || []).length }} nilai ditampilkan
-            </div>
-
-            <div class="d-flex ga-2 px-1 mb-2 text-caption font-weight-medium">
-              <a
-                href="#"
-                class="text-primary text-decoration-none"
-                @click.prevent="selectAllFiltered(header.key)"
-              >
-                Tampilkan Semua
-              </a>
-              <span class="text-grey-lighten-1">|</span>
-              <a
-                href="#"
-                class="text-error text-decoration-none"
-                @click.prevent="deselectAllFiltered(header.key)"
-              >
-                Sembunyikan Semua
-              </a>
-            </div>
-
-            <v-divider />
-
-            <div style="max-height: 220px; overflow-y: auto" class="my-1 px-1">
-              <v-checkbox
-                v-for="opt in getFilteredPopupOptions(header.key)"
-                :key="opt"
-                :label="opt"
-                :model-value="isOptionSelected(header.key, opt)"
-                density="compact"
-                hide-details
-                color="primary"
-                @update:model-value="toggleOption(header.key, opt)"
-              />
-              <div
-                v-if="getFilteredPopupOptions(header.key).length === 0"
-                class="text-caption text-grey text-center py-4"
-              >
-                Tidak ada data
-              </div>
-            </div>
-
-            <v-divider class="mb-2" />
-
-            <div class="d-flex justify-space-between align-center">
-              <v-btn
-                size="x-small"
-                variant="text"
-                color="grey-darken-1"
-                @click="resetColumnFilter(header.key)"
-              >
-                Reset
-              </v-btn>
-              <v-btn
-                size="small"
-                color="primary"
-                variant="flat"
-                class="px-4 font-weight-bold"
-                @click="menuStates[header.key] = false"
-              >
-                OK
-              </v-btn>
-            </div>
-          </v-card>
-        </v-menu>
       </div>
     </template>
 

@@ -263,10 +263,51 @@ watch(
   { immediate: true },
 );
 
+// --- STATE UNTUK COLUMN RESIZING ---
+const resizingKey = ref<string | null>(null);
+const startX = ref(0);
+const startWidth = ref(0);
+
+const startResize = (e: MouseEvent, key: string) => {
+  resizingKey.value = key;
+  startX.value = e.clientX;
+
+  const targetHeader = customHeaders.value.find((h) => h.key === key);
+  let w = parseInt(targetHeader?.width || targetHeader?.minWidth || "120", 10);
+  if (isNaN(w)) w = 120;
+  startWidth.value = w;
+
+  window.addEventListener("mousemove", onMouseMove);
+  window.addEventListener("mouseup", onMouseUp);
+  e.stopPropagation();
+};
+
+const onMouseMove = (e: MouseEvent) => {
+  if (!resizingKey.value) return;
+  const diff = e.clientX - startX.value;
+  const newWidth = Math.max(50, startWidth.value + diff); // Minimal lebar 50px
+
+  const idx = customHeaders.value.findIndex((h) => h.key === resizingKey.value);
+  if (idx !== -1) {
+    customHeaders.value[idx] = {
+      ...customHeaders.value[idx],
+      width: `${newWidth}px`,
+      minWidth: `${newWidth}px`,
+    };
+  }
+};
+
+const onMouseUp = () => {
+  resizingKey.value = null;
+  window.removeEventListener("mousemove", onMouseMove);
+  window.removeEventListener("mouseup", onMouseUp);
+};
+
 const draggedKey = ref<string | null>(null);
 const dragOverKey = ref<string | null>(null);
 
 const onDragStart = (e: DragEvent, key: string) => {
+  resizingKey.value = null; // Batalkan resize jika sedang drag
   draggedKey.value = key;
   if (e.dataTransfer) {
     e.dataTransfer.effectAllowed = "move";
@@ -849,14 +890,14 @@ const confirmToggleClose = async () => {
       </v-menu>
     </template>
 
-    <!-- EXCEL FILTER & DRAGGABLE PER HEADER KOLOM -->
+    <!-- EXCEL FILTER, DRAGGABLE & RESIZABLE PER HEADER KOLOM -->
     <template
       v-for="header in customHeaders"
       :key="header.key"
       #[`header.${header.key}`]="{ column }"
     >
       <div
-        class="d-flex align-center justify-space-between w-100 draggable-header-cell"
+        class="d-flex align-center justify-space-between w-100 draggable-header-cell position-relative"
         :class="{ 'header-drop-target': dragOverKey === header.key }"
         draggable="true"
         @dragstart="onDragStart($event, header.key)"
@@ -869,117 +910,131 @@ const confirmToggleClose = async () => {
           {{ column.title }}
         </span>
 
-        <v-menu
-          v-model="menuStates[header.key]"
-          :close-on-content-click="false"
-          location="bottom start"
-        >
-          <template #activator="{ props }">
-            <v-btn
-              icon
-              variant="text"
-              density="compact"
-              size="x-small"
-              v-bind="props"
-              @click.stop
-              @mousedown.stop
-              :color="
-                isColumnFilterActive(header.key) ? 'primary' : 'grey-darken-1'
-              "
-            >
-              <v-icon size="16">
-                {{
-                  isColumnFilterActive(header.key)
-                    ? "mdi-filter"
-                    : "mdi-filter-variant"
-                }}
-              </v-icon>
-            </v-btn>
-          </template>
-
-          <v-card
-            min-width="280"
-            max-width="320"
-            class="pa-2 border shadow-2 rounded-lg"
+        <div class="d-flex align-center">
+          <v-menu
+            v-model="menuStates[header.key]"
+            :close-on-content-click="false"
+            location="bottom start"
           >
-            <v-text-field
-              v-model="columnSearch[header.key]"
-              density="compact"
-              variant="outlined"
-              hide-details
-              clearable
-              autofocus
-              placeholder="Cari..."
-              class="mb-1"
-            />
-
-            <div class="text-caption text-grey-darken-1 my-1 px-1">
-              {{ getFilteredPopupOptions(header.key).length }} dari
-              {{ (uniqueValuesMap[header.key] || []).length }} nilai ditampilkan
-            </div>
-
-            <div class="d-flex ga-2 px-1 mb-2 text-caption font-weight-medium">
-              <a
-                href="#"
-                class="text-primary text-decoration-none"
-                @click.prevent="selectAllFiltered(header.key)"
-              >
-                Tampilkan Semua
-              </a>
-              <span class="text-grey-lighten-1">|</span>
-              <a
-                href="#"
-                class="text-error text-decoration-none"
-                @click.prevent="deselectAllFiltered(header.key)"
-              >
-                Sembunyikan Semua
-              </a>
-            </div>
-
-            <v-divider />
-
-            <div style="max-height: 220px; overflow-y: auto" class="my-1 px-1">
-              <v-checkbox
-                v-for="opt in getFilteredPopupOptions(header.key)"
-                :key="opt"
-                :label="opt"
-                :model-value="isOptionSelected(header.key, opt)"
-                density="compact"
-                hide-details
-                color="primary"
-                @update:model-value="toggleOption(header.key, opt)"
-              />
-              <div
-                v-if="getFilteredPopupOptions(header.key).length === 0"
-                class="text-caption text-grey text-center py-4"
-              >
-                Tidak ada data
-              </div>
-            </div>
-
-            <v-divider class="mb-2" />
-
-            <div class="d-flex justify-space-between align-center">
+            <template #activator="{ props }">
               <v-btn
-                size="x-small"
+                icon
                 variant="text"
-                color="grey-darken-1"
-                @click="resetColumnFilter(header.key)"
+                density="compact"
+                size="x-small"
+                v-bind="props"
+                @click.stop
+                @mousedown.stop
+                :color="
+                  isColumnFilterActive(header.key) ? 'primary' : 'grey-darken-1'
+                "
               >
-                Reset
+                <v-icon size="16">
+                  {{
+                    isColumnFilterActive(header.key)
+                      ? "mdi-filter"
+                      : "mdi-filter-variant"
+                  }}
+                </v-icon>
               </v-btn>
-              <v-btn
-                size="small"
-                color="primary"
-                variant="flat"
-                class="px-4 font-weight-bold"
-                @click="menuStates[header.key] = false"
+            </template>
+
+            <v-card
+              min-width="280"
+              max-width="320"
+              class="pa-2 border shadow-2 rounded-lg"
+            >
+              <v-text-field
+                v-model="columnSearch[header.key]"
+                density="compact"
+                variant="outlined"
+                hide-details
+                clearable
+                autofocus
+                placeholder="Cari..."
+                class="mb-1"
+              />
+
+              <div class="text-caption text-grey-darken-1 my-1 px-1">
+                {{ getFilteredPopupOptions(header.key).length }} dari
+                {{ (uniqueValuesMap[header.key] || []).length }} nilai
+                ditampilkan
+              </div>
+
+              <div
+                class="d-flex ga-2 px-1 mb-2 text-caption font-weight-medium"
               >
-                OK
-              </v-btn>
-            </div>
-          </v-card>
-        </v-menu>
+                <a
+                  href="#"
+                  class="text-primary text-decoration-none"
+                  @click.prevent="selectAllFiltered(header.key)"
+                >
+                  Tampilkan Semua
+                </a>
+                <span class="text-grey-lighten-1">|</span>
+                <a
+                  href="#"
+                  class="text-error text-decoration-none"
+                  @click.prevent="deselectAllFiltered(header.key)"
+                >
+                  Sembunyikan Semua
+                </a>
+              </div>
+
+              <v-divider />
+
+              <div
+                style="max-height: 220px; overflow-y: auto"
+                class="my-1 px-1"
+              >
+                <v-checkbox
+                  v-for="opt in getFilteredPopupOptions(header.key)"
+                  :key="opt"
+                  :label="opt"
+                  :model-value="isOptionSelected(header.key, opt)"
+                  density="compact"
+                  hide-details
+                  color="primary"
+                  @update:model-value="toggleOption(header.key, opt)"
+                />
+                <div
+                  v-if="getFilteredPopupOptions(header.key).length === 0"
+                  class="text-caption text-grey text-center py-4"
+                >
+                  Tidak ada data
+                </div>
+              </div>
+
+              <v-divider class="mb-2" />
+
+              <div class="d-flex justify-space-between align-center">
+                <v-btn
+                  size="x-small"
+                  variant="text"
+                  color="grey-darken-1"
+                  @click="resetColumnFilter(header.key)"
+                >
+                  Reset
+                </v-btn>
+                <v-btn
+                  size="small"
+                  color="primary"
+                  variant="flat"
+                  class="px-4 font-weight-bold"
+                  @click="menuStates[header.key] = false"
+                >
+                  OK
+                </v-btn>
+              </div>
+            </v-card>
+          </v-menu>
+
+          <!-- Resizer Handle di kanan header -->
+          <div
+            class="column-resizer"
+            @mousedown.stop.prevent="startResize($event, header.key)"
+          ></div>
+        </div>
       </div>
     </template>
 
@@ -1568,6 +1623,7 @@ const confirmToggleClose = async () => {
     border 0.2s ease;
   padding: 2px 4px;
   border-radius: 4px;
+  position: relative;
 }
 
 .draggable-header-cell:active {
@@ -1581,5 +1637,23 @@ const confirmToggleClose = async () => {
 .header-drop-target {
   background-color: rgba(25, 118, 210, 0.15) !important;
   outline: 2px dashed #1976d2 !important;
+}
+
+/* Column Resizer Handle */
+.column-resizer {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 6px;
+  height: 100%;
+  cursor: col-resize;
+  background-color: transparent;
+  z-index: 3;
+  transition: background-color 0.2s;
+}
+
+.column-resizer:hover,
+.draggable-header-cell:hover .column-resizer {
+  background-color: rgba(0, 0, 0, 0.15);
 }
 </style>
