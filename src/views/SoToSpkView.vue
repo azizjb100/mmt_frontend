@@ -681,7 +681,15 @@ const fetchData = async () => {
     );
 
     const result = res.data?.data ?? res.data;
-    masterData.value = Array.isArray(result) ? result : [];
+
+    // Normalisasi data: pastikan field SPK terisi dari SPK atau Nomor
+    masterData.value = Array.isArray(result)
+      ? result.map((item: any) => ({
+          ...item,
+          SPK: item.SPK || item.Nomor || "-",
+          Nomor: item.Nomor || item.SPK || "-",
+        }))
+      : [];
   } catch (e: any) {
     if (e.name === "CanceledError" || e.code === "ERR_CANCELED") return;
     console.error("Fetch Browse Error:", e);
