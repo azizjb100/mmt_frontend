@@ -602,7 +602,6 @@ const handleExportExcel = async () => {
     console.error("Export Detail Error:", error);
     toast.error("Gagal melakukan export excel.");
   } finally {
-    worksheet = null; // Memory clearance
     loading.value = false;
   }
 };

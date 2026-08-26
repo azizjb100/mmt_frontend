@@ -258,12 +258,12 @@ const routes: RouteRecordRaw[] = [
         component: FormJadwalKirimView,
         props: { isEditMode: true },
       },
-      // {
-      //   path: "mmt/jadwal-kirim/print/:nomor",
-      //   name: "JadwalKirimPrint",
-      //   component: JadwalKirimPrintView,
-      //   props: true,
-      // },
+      {
+        path: "mmt/jadwal-kirim/print/:nomor",
+        name: "JadwalKirimPrint",
+        component: JadwalKirimPrintView,
+        props: true,
+      },
       {
         path: "mmt/surat-jalan",
         name: "SuratJalanBrowse",
