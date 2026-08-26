@@ -24,6 +24,23 @@
     @row-click="handleRowClick"
     @update:expanded="loadDetails"
   >
+    <!-- Keterangan Warna Status di atas tabel -->
+    <template #prepend-content>
+      <div
+        class="d-flex align-center px-4 py-2 bg-grey-lighten-4 mb-2 rounded text-caption"
+      >
+        <span class="font-weight-bold mr-4">Keterangan Status:</span>
+        <span class="d-flex align-center mr-4">
+          <span class="color-indicator bg-error rounded-circle mr-1"></span>
+          Merah = Draft
+        </span>
+        <span class="d-flex align-center">
+          <span class="color-indicator bg-black rounded-circle mr-1"></span>
+          Hitam = Posted
+        </span>
+      </div>
+    </template>
+
     <!-- Tombol Ekstra: Export Detail -->
     <template #extra-actions="{ isSingleSelected }">
       <v-btn
@@ -56,12 +73,12 @@
       {{ safeFormatDate(item.Tanggal) }}
     </template>
 
-    <template #item.Lengkap="{ item }">
+    <template #item.Status="{ item }">
       <v-chip
         size="x-small"
-        :color="item.Lengkap === 'Y' ? 'success' : 'error'"
+        :color="item.Status === 'POSTED' ? 'success' : 'warning'"
       >
-        {{ item.Lengkap === "Y" ? "YA" : "TIDAK" }}
+        {{ item.Status || "DRAFT" }}
       </v-chip>
     </template>
 
@@ -193,6 +210,13 @@ const filters = reactive({
 // --- Headers ---
 const masterHeaders = [
   { title: "Nomor", key: "Nomor", minWidth: "250px", width: "250px" },
+  {
+    title: "Status",
+    key: "Status",
+    minWidth: "90px",
+    width: "90px",
+    align: "center",
+  },
   { title: "Shift", key: "Shift", minWidth: "70px", width: "70px" },
   { title: "Tanggal", key: "Tanggal", minWidth: "110px", width: "110px" },
   { title: "Mesin", key: "Mesin", minWidth: "100px", width: "100px" },
@@ -250,6 +274,15 @@ const masterHeaders = [
   { title: "Bahan", key: "Kode_bahan", minWidth: "100px", width: "100px" },
   { title: "Nama Bahan", key: "nama_Bahan", minWidth: "180px", width: "180px" },
 ];
+
+// --- Fungsi Penentu Warna Baris ---
+const getRowTextColor = (item: LhkCetakHeader) => {
+  // Jika status bukan 'POSTED' (misal 'DRAFT' atau kosong), gunakan warna merah
+  if (!item.Status || item.Status.toUpperCase() !== "POSTED") {
+    return "text-error font-weight-medium";
+  }
+  return ""; // Default (Hitam)
+};
 
 const detailHeaders = [
   { title: "No", key: "urut", width: "50px" },
@@ -311,7 +344,6 @@ const formatMeter = (value: number) => {
 };
 
 const isLoadingDetails = (nomor: string) => loadingDetails.value.has(nomor);
-const getRowTextColor = (_item: LhkCetakItem) => "";
 const truncateString = (str: string, num: number) => {
   if (str?.length > num) return str.slice(0, num) + "...";
   return str;
@@ -430,5 +462,19 @@ watch(
 .total-bold {
   font-weight: 700;
   color: #1976d2;
+}
+.color-indicator {
+  width: 10px;
+  height: 10px;
+  display: inline-block;
+}
+.bg-error {
+  background-color: #ff5252 !important;
+}
+.bg-black {
+  background-color: #000000 !important;
+}
+.text-error {
+  color: #ff5252 !important;
 }
 </style>

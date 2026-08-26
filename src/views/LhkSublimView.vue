@@ -25,9 +25,28 @@
     @action:print="handlePrint"
     @row-click="handleRowClick"
   >
+    <!-- Keterangan Warna ditempatkan di Slot Filter Fields / Sebelah Filter Tanggal -->
+    <template #filter-fields>
+      <div
+        class="d-flex align-center ga-3 ml-2 flex-wrap text-caption text-grey-darken-2"
+      >
+        <div class="d-flex align-center">
+          <span class="color-indicator bg-error rounded-circle mr-1"></span>
+          <span class="text-error font-weight-bold">Merah = Draft</span>
+        </div>
+        <div class="d-flex align-center">
+          <span class="color-indicator bg-black rounded-circle mr-1"></span>
+          <span>Hitam = Posted / Approve</span>
+        </div>
+        <div class="d-flex align-center text-error">
+          <span class="color-indicator bg-error rounded-circle mr-1"></span>
+          <span>Teks Merah = Belum Lengkap</span>
+        </div>
+      </div>
+    </template>
+
     <!-- Tombol Ekstra (ACC, Bahan, Slip, Export Excel) -->
     <template #extra-actions>
-      <!-- Tombol ACC -->
       <v-btn
         size="x-small"
         color="teal-darken-1"
@@ -38,7 +57,6 @@
         <v-icon start size="14">mdi-check-decagram</v-icon> ACC
       </v-btn>
 
-      <!-- Tombol Kelola Bahan -->
       <v-btn
         size="x-small"
         color="secondary"
@@ -48,7 +66,6 @@
         <v-icon start size="14">mdi-package-variant</v-icon> Bahan
       </v-btn>
 
-      <!-- Tombol Slip / Cetak -->
       <v-btn
         size="x-small"
         color="info"
@@ -58,7 +75,6 @@
         <v-icon start size="14">mdi-printer</v-icon> Slip
       </v-btn>
 
-      <!-- Tombol Export Excel -->
       <v-btn
         size="x-small"
         color="success"
@@ -70,25 +86,41 @@
       </v-btn>
     </template>
 
-    <!-- Keterangan Teks Merah di sebelah Kanan Toolbar -->
-    <template #filter-fields>
-      <div class="d-flex align-center ga-2 italic ml-auto">
-        <v-icon color="error" size="14">mdi-alert-circle</v-icon>
-        <span class="text-error" style="font-size: 11px">
-          Teks Merah = Belum Lengkap
-        </span>
-      </div>
-    </template>
-
-    <!-- Custom Template Kolom Tabel Utama -->
+    <!-- Custom Template Kolom Tabel Utama (Terapkan getRowTextColor agar warna aktif) -->
     <template #item.Nomor="{ item }">
-      <span :class="item.Lengkap !== 'Y' ? 'text-error font-weight-bold' : ''">
+      <span :class="getRowTextColor(item)">
         {{ item.Nomor }}
       </span>
     </template>
 
+    <template #item.Status="{ item }">
+      <v-chip
+        size="x-small"
+        :color="
+          item.Status === 'APPROVE'
+            ? 'success'
+            : item.Status === 'POSTED'
+              ? 'info'
+              : 'warning'
+        "
+        class="font-weight-bold"
+      >
+        {{ item.Status || "DRAFT" }}
+      </v-chip>
+    </template>
+
     <template #item.Tanggal="{ item }">
-      {{ formatDate(item.Tanggal) }}
+      <span :class="getRowTextColor(item)">{{ formatDate(item.Tanggal) }}</span>
+    </template>
+
+    <template #item.NomorSPK="{ item }">
+      <span :class="getRowTextColor(item)">{{ item.NomorSPK }}</span>
+    </template>
+
+    <template #item.total_meter="{ item }">
+      <span :class="getRowTextColor(item)">{{
+        Number(item.total_meter || 0).toFixed(2)
+      }}</span>
     </template>
 
     <template #item.Status_Acc="{ item }">
@@ -99,10 +131,6 @@
       >
         {{ item.Status_Acc === "ACC" ? "ACC" : "DRAFT" }}
       </v-chip>
-    </template>
-
-    <template #item.total_meter="{ item }">
-      {{ Number(item.total_meter || 0).toFixed(2) }}
     </template>
 
     <!-- Slot Expanded Content untuk Menampilkan Detail -->
@@ -155,7 +183,6 @@ import * as XLSX from "xlsx-js-style";
 const router = useRouter();
 const toast = useToast();
 
-// --- State ---
 const selected = ref<any[]>([]);
 const expanded = ref<any[]>([]);
 const masterData = ref<any[]>([]);
@@ -168,7 +195,6 @@ const loading = reactive({
 
 const loadingDetails = ref<Set<string>>(new Set());
 
-// --- Helper Tanggal ---
 const getTodayString = () => {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -185,9 +211,21 @@ const filters = reactive({
   endDate: getTodayString(),
 });
 
+// --- Fungsi Aturan Warna Baris (Merah jika Draft / Belum Lengkap) ---
+const getRowTextColor = (item: any) => {
+  const status = (item.Status || "DRAFT").toUpperCase();
+  const isLengkap = item.Lengkap === "Y";
+
+  if (status === "DRAFT" || !isLengkap) {
+    return "text-error font-weight-bold";
+  }
+  return ""; // Hitam untuk POSTED / APPROVE & Lengkap == 'Y'
+};
+
 // --- Table Headers ---
 const masterHeaders = [
   { title: "Nomor", key: "Nomor", width: "150px" },
+  { title: "Status", key: "Status", width: "100px", align: "center" as const },
   { title: "Tanggal", key: "Tanggal", width: "110px" },
   { title: "ACC", key: "Status_Acc", width: "90px", align: "center" as const },
   { title: "Gudang", key: "Nama_Gudang", width: "130px" },
@@ -234,7 +272,6 @@ const detailHeaders = [
   { title: "Mtr²", key: "Jumlah_Meter", align: "end" as const, width: "90px" },
 ];
 
-// --- Computed ---
 const isSingleSelected = computed(() => selected.value.length === 1);
 
 const selectedItemNomor = computed(() => {
@@ -246,7 +283,6 @@ const selectedItemNomor = computed(() => {
   return item;
 });
 
-// --- Methods ---
 const fetchMasterData = async () => {
   loading.master = true;
   try {
@@ -405,7 +441,6 @@ const handlePrint = () => {
   );
 };
 
-// --- Export Logic ---
 const exportToExcel = async () => {
   if (masterData.value.length === 0) {
     toast.warning("Tidak ada data untuk diekspor");
@@ -634,6 +669,17 @@ onMounted(() => {
 </script>
 
 <style scoped>
+.color-indicator {
+  width: 10px;
+  height: 10px;
+  display: inline-block;
+}
+.bg-error {
+  background-color: #ff5252 !important;
+}
+.bg-black {
+  background-color: #000000 !important;
+}
 .detail-container {
   padding: 8px 0;
   background-color: #f7f7f7;

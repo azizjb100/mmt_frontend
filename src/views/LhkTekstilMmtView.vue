@@ -20,6 +20,27 @@
     @action:print="handlePrint"
     @row-click="handleRowClick"
   >
+    <!-- Keterangan Warna Status di atas tabel -->
+    <template #prepend-content>
+      <div
+        class="d-flex align-center px-4 py-2 bg-grey-lighten-4 mb-2 rounded text-caption border"
+      >
+        <span class="font-weight-bold mr-4">Keterangan Warna Status:</span>
+        <span class="d-flex align-center mr-4">
+          <span class="color-indicator bg-error rounded-circle mr-1"></span>
+          Merah = Draft
+        </span>
+        <span class="d-flex align-center mr-4">
+          <span class="color-indicator bg-black rounded-circle mr-1"></span>
+          Hitam = Posted / Approve
+        </span>
+        <span class="d-flex align-center text-red">
+          <span class="color-indicator bg-error rounded-circle mr-1"></span>
+          Merah (Garis/Teks) = Belum Lengkap (Lengkap !== 'Y')
+        </span>
+      </div>
+    </template>
+
     <!-- Tombol Ekstra (Export Excel) -->
     <template #extra-actions>
       <v-btn
@@ -50,7 +71,25 @@
 
     <!-- Custom Template Kolom Tabel Utama -->
     <template #item.Tanggal="{ item }">
-      {{ safeFormatDate(item.Tanggal) }}
+      <span :class="getRowTextColor(item)">{{
+        safeFormatDate(item.Tanggal)
+      }}</span>
+    </template>
+
+    <template #item.Status="{ item }">
+      <v-chip
+        size="x-small"
+        :color="
+          item.Status === 'APPROVE'
+            ? 'success'
+            : item.Status === 'POSTED'
+              ? 'info'
+              : 'warning'
+        "
+        class="font-weight-bold"
+      >
+        {{ item.Status || "DRAFT" }}
+      </v-chip>
     </template>
 
     <template #item.Lengkap="{ item }">
@@ -79,11 +118,15 @@
     </template>
 
     <template #item.PanjangBahanAwal="{ item }">
-      <span>{{ formatMeter(Number(item.PanjangBahanAwal || 0) * 0.9) }} m</span>
+      <span :class="getRowTextColor(item)"
+        >{{ formatMeter(Number(item.PanjangBahanAwal || 0) * 0.9) }} m</span
+      >
     </template>
 
     <template #item.SisaMeterAkhir="{ item }">
-      <span>{{ (Number(item.SisaMeterAkhir || 0) * 0.9).toFixed(2) }}</span>
+      <span :class="getRowTextColor(item)">{{
+        (Number(item.SisaMeterAkhir || 0) * 0.9).toFixed(2)
+      }}</span>
     </template>
 
     <template #item.status_bahan="{ item }">
@@ -135,44 +178,28 @@
                   color="cyan"
                   variant="flat"
                   text="C"
-                  style="
-                    font-size: 9px;
-                    min-width: 18px;
-                    justify-content: center;
-                  "
+                  class="color-badge"
                 />
                 <v-chip
                   size="x-small"
                   color="magenta"
                   variant="flat"
                   text="M"
-                  style="
-                    font-size: 9px;
-                    min-width: 18px;
-                    justify-content: center;
-                  "
+                  class="color-badge"
                 />
                 <v-chip
                   size="x-small"
                   color="yellow"
                   variant="flat"
                   text="Y"
-                  style="
-                    font-size: 9px;
-                    min-width: 18px;
-                    justify-content: center;
-                  "
+                  class="color-badge"
                 />
                 <v-chip
                   size="x-small"
                   color="black"
                   variant="flat"
                   text="K"
-                  style="
-                    font-size: 9px;
-                    min-width: 18px;
-                    justify-content: center;
-                  "
+                  class="color-badge"
                 />
               </div>
             </template>
@@ -218,12 +245,18 @@ const isSingleSelected = computed(() => selected.value.length === 1);
 const selectedItem = computed(() => selected.value[0]);
 
 const getRowTextColor = (item: any) => {
-  return item.Lengkap !== "Y" ? "text-red font-weight-bold" : "";
+  const status = (item.Status || "DRAFT").toUpperCase();
+  // Jika status DRAFT, berikan warna merah. Jika POSTED / APPROVE, gunakan warna hitam (default).
+  if (status === "DRAFT") {
+    return "text-red font-weight-bold";
+  }
+  return ""; // Hitam untuk POSTED / APPROVE
 };
 
 // --- Headers ---
 const masterHeaders = [
   { title: "Nomor", key: "Nomor", width: "250px", minWidth: "250px" },
+  { title: "Status", key: "Status", width: "100px", align: "center" },
   { title: "Shift", key: "Shift", minWidth: "50px" },
   { title: "Tanggal", key: "Tanggal" },
   { title: "Mesin", key: "Mesin" },
@@ -755,5 +788,22 @@ watch(filters, fetchMasterData, { deep: true });
 .total-bold {
   font-weight: 700;
   color: #1976d2;
+}
+
+.color-indicator {
+  width: 10px;
+  height: 10px;
+  display: inline-block;
+}
+.bg-error {
+  background-color: #f44336 !important;
+}
+.bg-black {
+  background-color: #000000 !important;
+}
+.color-badge {
+  font-size: 9px;
+  min-width: 18px;
+  justify-content: center;
 }
 </style>

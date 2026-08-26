@@ -1216,27 +1216,306 @@ watch([startDate, endDate], ([newStart, newEnd]) => {
   </v-dialog>
 
   <!-- Modal Konfirmasi Generate SPK -->
-  <v-dialog v-model="showConfirmGenerateDialog" max-width="450px" persistent>
-    <v-card class="pa-2 rounded-lg">
-      <v-card-title
-        class="d-flex align-center font-weight-bold text-subtitle-1"
-      >
-        <v-icon color="primary" class="mr-2">mdi-help-circle-outline</v-icon>
-        Konfirmasi Pembuatan SPK
-      </v-card-title>
-      <v-card-text class="pt-2 text-body-2">
-        Apakah Anda yakin ingin langsung membuat SPK untuk nomor SO berikut?
-        <div
-          class="pa-3 my-2 bg-grey-lighten-4 rounded border font-weight-bold text-primary text-center text-subtitle-2"
+  <!-- Modal Dialog Konfirmasi Detail Generate SPK dari SO (Menyerupai Form Asli) -->
+  <v-dialog v-model="showConfirmGenerateDialog" max-width="1100px" persistent>
+    <v-card class="rounded-lg">
+      <v-toolbar color="primary" density="compact" class="px-4">
+        <v-icon start color="white">mdi-file-document-plus</v-icon>
+        <v-toolbar-title class="text-subtitle-1 font-weight-bold text-white">
+          Referensi Sales Order — Konfirmasi Pembuatan SPK
+        </v-toolbar-title>
+        <v-spacer />
+        <v-btn
+          icon
+          variant="text"
+          size="small"
+          @click="showConfirmGenerateDialog = false"
         >
-          {{ targetSoToGenerate?.SO }}
-        </div>
-        <div class="text-caption text-grey-darken-1 text-center">
-          Nomor SPK akan otomatis di-generate oleh sistem mengikuti aturan
-          penomoran backend.
-        </div>
+          <v-icon color="white">mdi-close</v-icon>
+        </v-btn>
+      </v-toolbar>
+
+      <v-card-text class="pa-4 bg-grey-lighten-4">
+        <v-row>
+          <!-- Kolom Kiri: Detail Form Referensi Sales Order -->
+          <v-col cols="12" md="8">
+            <v-card variant="outlined" class="pa-3 bg-white border rounded">
+              <!-- No. SPK -->
+              <div class="d-flex align-center mb-2">
+                <span class="text-caption font-weight-bold" style="width: 140px"
+                  >No. SPK</span
+                >
+                <v-text-field
+                  model-value="(Otomatis)"
+                  density="compact"
+                  variant="outlined"
+                  hide-details
+                  readonly
+                  class="bg-grey-lighten-4"
+                />
+              </div>
+
+              <!-- No. Sales Order -->
+              <div class="d-flex align-center mb-2">
+                <span class="text-caption font-weight-bold" style="width: 140px"
+                  >No. Sales Order</span
+                >
+                <v-text-field
+                  :model-value="
+                    targetSoToGenerate?.SO ||
+                    targetSoToGenerate?.so_nomor ||
+                    '-'
+                  "
+                  density="compact"
+                  variant="outlined"
+                  hide-details
+                  readonly
+                  class="bg-blue-lighten-5"
+                />
+              </div>
+
+              <!-- Nama Pekerjaan -->
+              <div class="d-flex align-center mb-2">
+                <span class="text-caption font-weight-bold" style="width: 140px"
+                  >Nama Pekerjaan</span
+                >
+                <v-text-field
+                  :model-value="targetSoToGenerate?.Nama || '-'"
+                  density="compact"
+                  variant="outlined"
+                  hide-details
+                  readonly
+                />
+              </div>
+
+              <!-- No. MAP & Customer -->
+              <div class="d-flex align-center mb-2 ga-2">
+                <span class="text-caption font-weight-bold" style="width: 140px"
+                  >No. MAP</span
+                >
+                <v-text-field
+                  :model-value="
+                    targetSoToGenerate?.MAP || targetSoToGenerate?.so_map || '-'
+                  "
+                  density="compact"
+                  variant="outlined"
+                  hide-details
+                  readonly
+                  style="max-width: 180px"
+                />
+                <span class="text-caption font-weight-bold mx-2">Customer</span>
+                <v-text-field
+                  :model-value="targetSoToGenerate?.Customer || '-'"
+                  density="compact"
+                  variant="outlined"
+                  hide-details
+                  readonly
+                />
+              </div>
+
+              <!-- Ukuran (Panjang x Lebar) & Ket. Ukuran -->
+              <div class="d-flex align-center mb-2 ga-2">
+                <span class="text-caption font-weight-bold" style="width: 140px"
+                  >Ukuran</span
+                >
+                <v-text-field
+                  :model-value="targetSoToGenerate?.Panjang || 0"
+                  density="compact"
+                  variant="outlined"
+                  hide-details
+                  readonly
+                  style="max-width: 90px"
+                />
+                <span class="text-caption font-weight-bold">X</span>
+                <v-text-field
+                  :model-value="targetSoToGenerate?.Lebar || 0"
+                  density="compact"
+                  variant="outlined"
+                  hide-details
+                  readonly
+                  style="max-width: 90px"
+                />
+                <span class="text-caption font-weight-bold mr-1">Mtr</span>
+                <span class="text-caption font-weight-bold ml-2"
+                  >Ket. Ukuran</span
+                >
+                <v-text-field
+                  :model-value="
+                    targetSoToGenerate?.Ket_Ukuran ||
+                    targetSoToGenerate?.so_ket_ukuran ||
+                    '-'
+                  "
+                  density="compact"
+                  variant="outlined"
+                  hide-details
+                  readonly
+                />
+              </div>
+
+              <!-- Gramasi -->
+              <div class="d-flex align-center mb-2">
+                <span class="text-caption font-weight-bold" style="width: 140px"
+                  >Gramasi</span
+                >
+                <v-text-field
+                  :model-value="targetSoToGenerate?.Gramasi || '-'"
+                  density="compact"
+                  variant="outlined"
+                  hide-details
+                  readonly
+                />
+              </div>
+
+              <!-- Finishing -->
+              <div class="d-flex align-center mb-2">
+                <span class="text-caption font-weight-bold" style="width: 140px"
+                  >Finishing</span
+                >
+                <v-text-field
+                  :model-value="targetSoToGenerate?.Finishing || '-'"
+                  density="compact"
+                  variant="outlined"
+                  hide-details
+                  readonly
+                />
+              </div>
+
+              <!-- Jenis Order, Tipe, Qty -->
+              <div class="d-flex align-center mb-2 ga-2">
+                <span class="text-caption font-weight-bold" style="width: 140px"
+                  >Jenis Order</span
+                >
+                <v-text-field
+                  model-value="MT"
+                  density="compact"
+                  variant="outlined"
+                  hide-details
+                  readonly
+                  style="max-width: 90px"
+                />
+                <span class="text-caption font-weight-bold ml-2">Tipe</span>
+                <v-text-field
+                  :model-value="targetSoToGenerate?.Tipe_SPK || 'Medium'"
+                  density="compact"
+                  variant="outlined"
+                  hide-details
+                  readonly
+                  style="max-width: 120px"
+                />
+                <span class="text-caption font-weight-bold ml-2">Qty</span>
+                <v-text-field
+                  :model-value="targetSoToGenerate?.Qty || 1"
+                  density="compact"
+                  variant="outlined"
+                  hide-details
+                  readonly
+                  style="max-width: 90px"
+                />
+              </div>
+
+              <!-- Kepentingan -->
+              <div class="d-flex align-center mb-2">
+                <span class="text-caption font-weight-bold" style="width: 140px"
+                  >Kepentingan</span
+                >
+                <v-text-field
+                  :model-value="targetSoToGenerate?.Kepentingan || 'TOP URGENT'"
+                  density="compact"
+                  variant="outlined"
+                  hide-details
+                  readonly
+                />
+              </div>
+
+              <!-- Workshop & No. PO -->
+              <div class="d-flex align-center mb-2 ga-2">
+                <span class="text-caption font-weight-bold" style="width: 140px"
+                  >Workshop</span
+                >
+                <v-text-field
+                  :model-value="targetSoToGenerate?.Workshop || 'P05'"
+                  density="compact"
+                  variant="outlined"
+                  hide-details
+                  readonly
+                  style="max-width: 100px"
+                />
+                <span class="text-caption font-weight-bold ml-2">No. PO</span>
+                <v-text-field
+                  :model-value="
+                    targetSoToGenerate?.PO || targetSoToGenerate?.Ket_PO || '-'
+                  "
+                  density="compact"
+                  variant="outlined"
+                  hide-details
+                  readonly
+                />
+              </div>
+
+              <!-- Dateline SO -->
+              <div class="d-flex align-center mb-2">
+                <span class="text-caption font-weight-bold" style="width: 140px"
+                  >Dateline SO</span
+                >
+                <v-text-field
+                  :model-value="
+                    targetSoToGenerate?.Dateline ||
+                    targetSoToGenerate?.Deadline ||
+                    '-'
+                  "
+                  density="compact"
+                  variant="outlined"
+                  hide-details
+                  readonly
+                  style="max-width: 180px"
+                />
+              </div>
+            </v-card>
+          </v-col>
+
+          <!-- Kolom Kanan: Gambar Desain -->
+          <v-col cols="12" md="4">
+            <v-card
+              variant="outlined"
+              class="pa-2 bg-white border rounded h-100 d-flex flex-column"
+            >
+              <div class="text-caption font-weight-bold text-primary mb-2">
+                GAMBAR DESAIN
+              </div>
+              <div
+                class="flex-grow-1 d-flex align-center justify-center bg-grey-lighten-4 border rounded"
+                style="min-height: 350px"
+              >
+                <img
+                  v-if="
+                    targetSoToGenerate?.GambarUrl || targetSoToGenerate?.gambar
+                  "
+                  :src="
+                    targetSoToGenerate?.GambarUrl || targetSoToGenerate?.gambar
+                  "
+                  alt="Gambar Desain"
+                  style="
+                    max-width: 100%;
+                    max-height: 400px;
+                    object-fit: contain;
+                  "
+                />
+                <div v-else class="text-caption text-grey text-center pa-4">
+                  <v-icon size="40" color="grey-lighten-1"
+                    >mdi-image-off</v-icon
+                  >
+                  <div>Tidak ada gambar desain</div>
+                </div>
+              </div>
+            </v-card>
+          </v-col>
+        </v-row>
       </v-card-text>
-      <v-card-actions class="justify-end ga-2">
+
+      <v-divider />
+
+      <!-- Aksi Tombol Dialog -->
+      <v-card-actions class="pa-3 bg-white justify-end ga-2">
         <v-btn
           variant="tonal"
           color="grey-darken-1"
@@ -1250,11 +1529,11 @@ watch([startDate, endDate], ([newStart, newEnd]) => {
           color="primary"
           variant="flat"
           size="small"
-          class="font-weight-bold"
+          class="font-weight-bold px-4"
           :loading="isGeneratingSpk"
           @click="handleExecuteGenerateSpk"
         >
-          Ya, Buat SPK
+          Ya, Buat SPK Sekarang
         </v-btn>
       </v-card-actions>
     </v-card>
