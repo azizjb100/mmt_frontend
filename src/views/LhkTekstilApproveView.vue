@@ -107,6 +107,12 @@
                   }}
                 </template>
 
+                <template #item.Jumlah_SPK="{ value }">
+                  <div class="text-right">
+                    {{ Number(value || 0).toLocaleString("id-ID") }}
+                  </div>
+                </template>
+
                 <template #item.Warna>
                   <div class="d-flex ga-1">
                     <v-chip
@@ -195,6 +201,7 @@ const detailHeaders = [
   { title: "Mesin", key: "Mesin", minWidth: "120px" },
   { title: "SPK", key: "Nomor_SPK", minWidth: "150px" },
   { title: "Nama SPK", key: "Nama_SPK", minWidth: "250px" },
+  { title: "Jumlah SPK", key: "Jumlah_SPK", align: "end", minWidth: "110px" },
   { title: "Panjang", key: "Panjang", align: "end", minWidth: "90px" },
   { title: "Lebar", key: "Lebar", align: "end", minWidth: "90px" },
   { title: "Jml Cetak", key: "Jml_Cetak", align: "end", minWidth: "120px" },
@@ -216,24 +223,19 @@ const filteredMasterData = computed(() => {
   );
 });
 
-// --- Helper Format Tanggal dd/MM/yyyy (Aman dari Timezone Offset & Support DD-MM-YYYY) ---
+// --- Helper Format Tanggal dd/MM/yyyy ---
 const safeFormatDate = (dateString: string | undefined): string => {
   if (!dateString) return "-";
   try {
-    // Jika dari API sudah berformat "DD-MM-YYYY" (contoh: "20-08-2026")
     if (dateString.includes("-") && dateString.length === 10) {
       const parts = dateString.split("-");
-      // Jika bagian pertama adalah hari (panjang 2)
       if (parts.length === 3 && parts[0].length === 2) {
-        return `${parts[0]}/${parts[1]}/${parts[2]}`; // Ubah "-" jadi "/"
+        return `${parts[0]}/${parts[1]}/${parts[2]}`;
       }
-      // Jika formatnya "YYYY-MM-DD" dari database/ISO
       if (parts.length === 3 && parts[0].length === 4) {
-        return `${parts[2]}/${parts[1]}/${parts[0]}`; // Balik jadi dd/MM/yyyy
+        return `${parts[2]}/${parts[1]}/${parts[0]}`;
       }
     }
-
-    // Fallback jika berupa ISO string
     const cleanDate = dateString.split("T")[0];
     if (cleanDate.includes("-")) {
       const parts = cleanDate.split("-");
@@ -256,7 +258,6 @@ const fetchMasterData = async () => {
       params: filters,
     });
 
-    // Map data agar format tanggal langsung diproses ke dd/MM/yyyy untuk filter & tabel
     const rawData = response.data || [];
     masterData.value = rawData.map((item: any) => ({
       ...item,
@@ -466,6 +467,7 @@ const exportToExcel = async () => {
       { v: "MESIN", s: styleHeaderMain },
       { v: "NOMOR SPK", s: styleHeaderMain },
       { v: "NAMA SPK / ORDER", s: styleHeaderMain },
+      { v: "JUMLAH SPK", s: styleHeaderMain },
       { v: "PANJANG", s: styleHeaderMain },
       { v: "LEBAR", s: styleHeaderMain },
       { v: "QTY CETAK DETAIL", s: styleHeaderMain },
@@ -474,6 +476,7 @@ const exportToExcel = async () => {
     worksheetData.push(headers);
 
     let grandTotalMeterMaster = 0;
+    let grandTotalJmlSpkDetail = 0;
     let grandTotalQtyDetail = 0;
 
     listToProcess.forEach((header) => {
@@ -486,6 +489,7 @@ const exportToExcel = async () => {
       if (targetDetails.length > 0) {
         targetDetails.forEach((dtl, index) => {
           const isFirstRow = index === 0;
+          const jumlahSpkVal = parseNum(dtl.Jumlah_SPK ?? dtl.jumlah_spk);
           const panjangVal = parseNum(dtl.Panjang ?? dtl.panjang);
           const lebarVal = parseNum(dtl.Lebar ?? dtl.lebar);
           const detailCetakQty = parseNum(
@@ -495,6 +499,7 @@ const exportToExcel = async () => {
           if (isFirstRow) {
             grandTotalMeterMaster += totalMeterVal;
           }
+          grandTotalJmlSpkDetail += jumlahSpkVal;
           grandTotalQtyDetail += detailCetakQty;
 
           worksheetData.push([
@@ -519,6 +524,7 @@ const exportToExcel = async () => {
             { v: dtl.Mesin || "-", s: styleDataCellCenter },
             { v: dtl.Nomor_SPK || dtl.spk || "-", s: styleDataCellCenter },
             { v: dtl.Nama_SPK || dtl.Nama || "-", s: styleDataCell },
+            { v: jumlahSpkVal, t: "n", z: "#,##0", s: styleDataCellRight },
             { v: panjangVal, t: "n", z: "#,##0.00", s: styleDataCellRight },
             { v: lebarVal, t: "n", z: "#,##0.00", s: styleDataCellRight },
             { v: detailCetakQty, t: "n", z: "#,##0", s: styleDataCellRight },
@@ -536,6 +542,7 @@ const exportToExcel = async () => {
           { v: "-", s: styleDataCellCenter },
           { v: "-", s: styleDataCellCenter },
           { v: "Tidak ada data detail pengerjaan", s: styleDataCell },
+          { v: 0, t: "n", z: "#,##0", s: styleDataCellRight },
           { v: 0, t: "n", z: "#,##0.00", s: styleDataCellRight },
           { v: 0, t: "n", z: "#,##0.00", s: styleDataCellRight },
           { v: 0, t: "n", z: "#,##0", s: styleDataCellRight },
@@ -567,6 +574,15 @@ const exportToExcel = async () => {
       { v: "", s: styleFooter },
       { v: "", s: styleFooter },
       { v: "", s: styleFooter },
+      {
+        v: grandTotalJmlSpkDetail,
+        t: "n",
+        z: "#,##0",
+        s: {
+          ...styleFooter,
+          alignment: { horizontal: "right", vertical: "center" },
+        },
+      },
       { v: "", s: styleFooter },
       { v: "", s: styleFooter },
       {
@@ -584,7 +600,7 @@ const exportToExcel = async () => {
 
     const ws = XLSX.utils.aoa_to_sheet(worksheetData);
     ws["!merges"] = [
-      { s: { r: 0, c: 0 }, e: { r: 0, c: 11 } },
+      { s: { r: 0, c: 0 }, e: { r: 0, c: 12 } },
       {
         s: { r: worksheetData.length - 1, c: 0 },
         e: { r: worksheetData.length - 1, c: 3 },
@@ -600,6 +616,7 @@ const exportToExcel = async () => {
       { wch: 10 },
       { wch: 18 },
       { wch: 35 },
+      { wch: 14 },
       { wch: 12 },
       { wch: 12 },
       { wch: 15 },

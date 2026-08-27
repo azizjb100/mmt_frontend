@@ -92,7 +92,7 @@
       <span>{{ Number(value || 0).toFixed(2) }} m²</span>
     </template>
 
-    <!-- Slot Expanded Content untuk Menampilkan Detail -->
+    <!-- Slot Expanded Content untuk Menampilkan Detail (Panjang, Lebar, Jml Order Dipisah) -->
     <template #expanded-content="{ item }">
       <v-card variant="outlined" density="compact" class="pa-2">
         <v-data-table
@@ -108,6 +108,22 @@
             <span :title="value">
               {{ value?.length > 20 ? value.substring(0, 20) + "..." : value }}
             </span>
+          </template>
+
+          <template #[`item.Panjang`]="{ value }">
+            <span>{{ Number(value || 0).toFixed(2) }}</span>
+          </template>
+
+          <template #[`item.Lebar`]="{ value }">
+            <span>{{ Number(value || 0).toFixed(2) }}</span>
+          </template>
+
+          <template #[`item.Jml_Order`]="{ value }">
+            <span>{{ Number(value || 0).toLocaleString() }}</span>
+          </template>
+
+          <template #[`item.Jml_Cetak`]="{ value }">
+            <span>{{ Number(value || 0).toLocaleString() }}</span>
           </template>
 
           <template #[`item.m2_cetak`]="{ value }">
@@ -166,17 +182,14 @@ const masterHeaders = [
   },
 ];
 
-// --- Headers Detail ---
+// --- Headers Detail (Panjang, Lebar, dan Jml Order Dipisah) ---
 const detailHeaders = [
   { title: "Mesin", key: "Mesin" },
   { title: "Nomor SPK", key: "Nomor_SPK" },
   { title: "Nama Order", key: "Nama_SPK" },
-  {
-    title: "Ukuran",
-    key: "Ukuran",
-    value: (item: any) =>
-      item.Panjang && item.Lebar ? `${item.Panjang}x${item.Lebar}` : "-",
-  },
+  { title: "Panjang", key: "Panjang", align: "end" as const },
+  { title: "Lebar", key: "Lebar", align: "end" as const },
+  { title: "Jml Order", key: "Jml_Order", align: "end" as const },
   { title: "Qty Cetak", key: "Jml_Cetak", align: "end" as const },
   {
     title: "Total (m²)",
@@ -280,7 +293,7 @@ const safeFormatDate = (d: string) => {
   }
 };
 
-// --- Export Excel Logic ---
+// --- Export Excel Logic (Sesuai Gambar Referensi: Urutan Kolom & Style Rapi) ---
 const exportToExcel = async () => {
   loading.value.headers = true;
   try {
@@ -298,8 +311,227 @@ const exportToExcel = async () => {
       return;
     }
 
-    const fileName = `LHK_Approval_Cetak_MMT_${filters.startDate}_to_${filters.endDate}.xlsx`;
-    // ... set up style & export logic mapping sesuai kebutuhan data Anda ...
+    const fileName = `Laporan_Hasil_Kerja_Cetak_MMT_${filters.startDate}_to_${filters.endDate}.xlsx`;
+
+    const parseNum = (val: any): number => {
+      if (val === null || val === undefined || val === "") return 0;
+      const parsed = Number(val);
+      return isNaN(parsed) ? 0 : parsed;
+    };
+
+    // Style Header: Background Biru Muda (D9E1F2), Bold, Center, Border Tipis
+    const styleHeaderMain = {
+      fill: { fgColor: { rgb: "D9E1F2" } },
+      font: { bold: true, color: { rgb: "000000" }, sz: 11, name: "Calibri" },
+      alignment: { horizontal: "center", vertical: "center", wrapText: true },
+      border: {
+        top: { style: "thin", color: { rgb: "BFBFBF" } },
+        bottom: { style: "thin", color: { rgb: "BFBFBF" } },
+        left: { style: "thin", color: { rgb: "BFBFBF" } },
+        right: { style: "thin", color: { rgb: "BFBFBF" } },
+      },
+    };
+
+    // Style Sel Data dengan Border Tipis yang Rapi
+    const styleDataCell = {
+      font: { sz: 11, name: "Calibri" },
+      border: {
+        top: { style: "thin", color: { rgb: "BFBFBF" } },
+        bottom: { style: "thin", color: { rgb: "BFBFBF" } },
+        left: { style: "thin", color: { rgb: "BFBFBF" } },
+        right: { style: "thin", color: { rgb: "BFBFBF" } },
+      },
+      alignment: { vertical: "center" },
+    };
+
+    const styleDataCellCenter = {
+      ...styleDataCell,
+      alignment: { horizontal: "center", vertical: "center" },
+    };
+
+    const styleDataCellRight = {
+      ...styleDataCell,
+      alignment: { horizontal: "right", vertical: "center" },
+    };
+
+    const formatTglManual = (dateStr: string) => {
+      if (!dateStr) return "-";
+      try {
+        if (dateStr.includes("-")) {
+          const parts = dateStr.split("T")[0].split("-");
+          if (parts.length === 3) {
+            return `${parts[2]}/${parts[1]}/${parts[0]}`;
+          }
+        }
+        return safeFormatDate(dateStr) || dateStr;
+      } catch {
+        return dateStr;
+      }
+    };
+
+    const worksheetData: any[] = [];
+    worksheetData.push([
+      {
+        v: "LAPORAN HASIL KERJA APPROVAL CETAK MMT",
+        s: { font: { bold: true, sz: 14, name: "Calibri" } },
+      },
+    ]);
+    worksheetData.push([
+      {
+        v: `Tanggal : ${formatTglManual(filters.startDate)} s.d ${formatTglManual(filters.endDate)}`,
+        s: { font: { italic: true, sz: 11, name: "Calibri" } },
+      },
+    ]);
+    worksheetData.push([]);
+
+    // Urutan Header Persis Seperti Gambar Referensi
+    const headers = [
+      { v: "NOMOR LHK", s: styleHeaderMain },
+      { v: "TANGGAL", s: styleHeaderMain },
+      { v: "SHIFT", s: styleHeaderMain },
+      { v: "TOTAL (M²)", s: styleHeaderMain },
+      { v: "MESIN", s: styleHeaderMain },
+      { v: "NOMOR SPK", s: styleHeaderMain },
+      { v: "NAMA ORDER", s: styleHeaderMain },
+      { v: "PANJANG", s: styleHeaderMain },
+      { v: "LEBAR", s: styleHeaderMain },
+      { v: "JML ORDER", s: styleHeaderMain },
+      { v: "QTY CETAK", s: styleHeaderMain },
+      { v: "TOTAL DETAIL (M²)", s: styleHeaderMain },
+    ];
+    worksheetData.push(headers);
+
+    const filteredNomorSet = new Set(
+      filteredMasterData.value.map((item) => item.Nomor),
+    );
+    const filteredRawData = rawData.filter((item: any) =>
+      filteredNomorSet.has(item.Nomor_LHK || item.Nomor),
+    );
+
+    const grouped = filteredRawData.reduce((acc: any, item: any) => {
+      const noLhk = item.Nomor_LHK || item.Nomor || "TANPA_NOMOR";
+      if (!acc[noLhk]) {
+        acc[noLhk] = {
+          items: [],
+          totalM2: 0,
+          tanggal: item.Tanggal,
+          shift: item.Shift_LHK || item.Shift,
+        };
+      }
+      acc[noLhk].items.push(item);
+      acc[noLhk].totalM2 += parseNum(item.m2_cetak || item.cetak_meter);
+      return acc;
+    }, {});
+
+    Object.keys(grouped).forEach((nomorLhk) => {
+      const group = grouped[nomorLhk];
+
+      group.items.forEach((row: any, index: number) => {
+        const isFirstRow = index === 0;
+        const tglFormatted = isFirstRow ? formatTglManual(group.tanggal) : "";
+
+        const totalM2Val = parseNum(group.totalM2);
+        const panjangVal = parseNum(row.Panjang || row.panjang);
+        const lebarVal = parseNum(row.Lebar || row.lebar);
+
+        const jmlOrderVal = parseNum(
+          row.Jml_Order !== undefined
+            ? row.Jml_Order
+            : row.jml_order !== undefined
+              ? row.jml_order
+              : row.jumlah_order !== undefined
+                ? row.jumlah_order
+                : 0,
+        );
+
+        const qtyCetakVal = parseNum(
+          row.Qty_Cetak !== undefined
+            ? row.Qty_Cetak
+            : row.Jml_Cetak !== undefined
+              ? row.Jml_Cetak
+              : row.jml_cetak,
+        );
+
+        const detailM2Val = parseNum(
+          row.m2_cetak !== undefined ? row.m2_cetak : row.cetak_meter,
+        );
+
+        worksheetData.push([
+          { v: isFirstRow ? nomorLhk : "", s: styleDataCellCenter },
+          { v: tglFormatted, s: styleDataCellCenter },
+          { v: isFirstRow ? group.shift || "-" : "", s: styleDataCellCenter },
+          isFirstRow
+            ? {
+                v: totalM2Val,
+                t: "n",
+                z: "#,##0.00",
+                s: styleDataCellRight,
+              }
+            : { v: "", s: styleDataCellCenter },
+          { v: row.Mesin || row.mesin || "-", s: styleDataCellCenter },
+          { v: row.Nomor_SPK || row.nomor_spk || "-", s: styleDataCellCenter },
+          {
+            v: row.Nama_Order || row.Nama_SPK || row.nama_spk || "-",
+            s: styleDataCell,
+          },
+          {
+            v: panjangVal,
+            t: "n",
+            z: "#,##0.00",
+            s: styleDataCellRight,
+          },
+          {
+            v: lebarVal,
+            t: "n",
+            z: "#,##0.00",
+            s: styleDataCellRight,
+          },
+          {
+            v: jmlOrderVal,
+            t: "n",
+            z: "#,##0",
+            s: styleDataCellRight,
+          },
+          {
+            v: qtyCetakVal,
+            t: "n",
+            z: "#,##0",
+            s: styleDataCellRight,
+          },
+          {
+            v: detailM2Val,
+            t: "n",
+            z: "#,##0.00",
+            s: styleDataCellRight,
+          },
+        ]);
+      });
+    });
+
+    const ws = XLSX.utils.aoa_to_sheet(worksheetData);
+
+    // Pastikan Grid Lines (Garis Kotak-Kotak Excel) aktif
+    ws["!views"] = [{ showGridLines: true }];
+
+    // Pengaturan lebar kolom proporsional
+    ws["!cols"] = [
+      { wch: 22 }, // NOMOR LHK
+      { wch: 14 }, // TANGGAL
+      { wch: 8 }, // SHIFT
+      { wch: 15 }, // TOTAL (M2)
+      { wch: 10 }, // MESIN
+      { wch: 20 }, // NOMOR SPK
+      { wch: 42 }, // NAMA ORDER
+      { wch: 12 }, // PANJANG
+      { wch: 10 }, // LEBAR
+      { wch: 14 }, // JML ORDER
+      { wch: 14 }, // QTY CETAK
+      { wch: 18 }, // TOTAL DETAIL (M2)
+    ];
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "LHK_Cetak");
+    XLSX.writeFile(wb, fileName);
     toast.success("Excel berhasil diunduh");
   } catch (error) {
     console.error("Export Error:", error);
