@@ -151,8 +151,14 @@
             class="detail-table border"
             :items-per-page="-1"
           >
-            <template #item.Ukuran="{ item: detailItem }">
-              {{ detailItem.Panjang }} x {{ detailItem.Lebar }}
+            <!-- Slot untuk Kolom Panjang -->
+            <template #item.Panjang="{ item: detailItem }">
+              {{ detailItem.Panjang ?? "-" }}
+            </template>
+
+            <!-- Slot untuk Kolom Lebar -->
+            <template #item.Lebar="{ item: detailItem }">
+              {{ detailItem.Lebar ?? "-" }}
             </template>
 
             <template #item.Jumlah_Meter="{ item: detailItem }">
@@ -265,7 +271,8 @@ const detailHeaders = [
   { title: "No. Urut", key: "lmsd_no_urut", width: "70px" },
   { title: "No. SPK", key: "Nomor_SPK", width: "130px" },
   { title: "Nama SPK", key: "Nama_SPK" },
-  { title: "Ukuran", key: "Ukuran", width: "110px" },
+  { title: "Panjang", key: "Panjang", align: "end" as const, width: "90px" },
+  { title: "Lebar", key: "Lebar", align: "end" as const, width: "90px" },
   { title: "Bahan", key: "Bahan" },
   { title: "J. Order", key: "J_Order", align: "end" as const, width: "80px" },
   { title: "J. Hasil", key: "Jumlah", align: "end" as const, width: "80px" },
@@ -465,7 +472,7 @@ const exportToExcel = async () => {
       }
     }
 
-    const fileName = `LHK_Sublim_MMT_${filters.startDate}_to_${filters.endDate}.xlsx`;
+    const fileName = `LHK_Paperprint_MMT_${filters.startDate}_to_${filters.endDate}.xlsx`;
 
     const styleHeaderMain = {
       fill: { fgColor: { rgb: "B3E5FC" } },
@@ -521,7 +528,7 @@ const exportToExcel = async () => {
     const worksheetData: any[] = [];
     worksheetData.push([
       {
-        v: "LAPORAN HASIL KERJA SUBLIM MMT",
+        v: "LAPORAN HASIL KERJA PAPERPRINT MMT",
         s: { font: { bold: true, sz: 14 } },
       },
     ]);
@@ -543,7 +550,8 @@ const exportToExcel = async () => {
       { v: "NO URUT", s: styleHeaderMain },
       { v: "NOMOR SPK", s: styleHeaderMain },
       { v: "NAMA SPK / ORDER", s: styleHeaderMain },
-      { v: "UKURAN (PxL)", s: styleHeaderMain },
+      { v: "PANJANG", s: styleHeaderMain },
+      { v: "LEBAR", s: styleHeaderMain },
       { v: "BAHAN", s: styleHeaderMain },
       { v: "JML ORDER", s: styleHeaderMain },
       { v: "JML HASIL", s: styleHeaderMain },
@@ -559,8 +567,6 @@ const exportToExcel = async () => {
       if (targetDetails.length > 0) {
         targetDetails.forEach((dtl: any, index: number) => {
           const isFirstRow = index === 0;
-          const ukuranText =
-            dtl.Panjang && dtl.Lebar ? `${dtl.Panjang} x ${dtl.Lebar}` : "-";
 
           const row = [
             { v: isFirstRow ? header.Nomor : "", s: styleDataCellCenter },
@@ -583,7 +589,24 @@ const exportToExcel = async () => {
             { v: dtl.lmsd_no_urut || index + 1, s: styleDataCellCenter },
             { v: dtl.Nomor_SPK || "-", s: styleDataCellCenter },
             { v: dtl.Nama_SPK || "-", s: styleDataCell },
-            { v: ukuranText, s: styleDataCellCenter },
+            {
+              v:
+                dtl.Panjang !== undefined && dtl.Panjang !== null
+                  ? Number(dtl.Panjang)
+                  : 0,
+              t: "n",
+              z: "#,##0.00",
+              s: styleDataCellRight,
+            },
+            {
+              v:
+                dtl.Lebar !== undefined && dtl.Lebar !== null
+                  ? Number(dtl.Lebar)
+                  : 0,
+              t: "n",
+              z: "#,##0.00",
+              s: styleDataCellRight,
+            },
             { v: dtl.Bahan || "-", s: styleDataCell },
             {
               v: dtl.J_Order !== undefined ? Number(dtl.J_Order) : 0,
@@ -622,7 +645,8 @@ const exportToExcel = async () => {
           { v: "-", s: styleDataCellCenter },
           { v: "-", s: styleDataCellCenter },
           { v: "Tidak ada data detail pekerjaan sublim", s: styleDataCell },
-          { v: "-", s: styleDataCellCenter },
+          { v: 0, t: "n", z: "#,##0.00", s: styleDataCellRight },
+          { v: 0, t: "n", z: "#,##0.00", s: styleDataCellRight },
           { v: "-", s: styleDataCell },
           { v: 0, t: "n", z: "#,##0", s: styleDataCellRight },
           { v: 0, t: "n", z: "#,##0", s: styleDataCellRight },
@@ -633,7 +657,7 @@ const exportToExcel = async () => {
     });
 
     const ws = XLSX.utils.aoa_to_sheet(worksheetData);
-    ws["!merges"] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 13 } }];
+    ws["!merges"] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 14 } }];
     ws["!cols"] = [
       { wch: 22 },
       { wch: 12 },
@@ -644,7 +668,8 @@ const exportToExcel = async () => {
       { wch: 8 },
       { wch: 18 },
       { wch: 35 },
-      { wch: 15 },
+      { wch: 12 },
+      { wch: 12 },
       { wch: 20 },
       { wch: 12 },
       { wch: 12 },

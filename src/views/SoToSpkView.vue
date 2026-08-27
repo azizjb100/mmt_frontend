@@ -682,12 +682,49 @@ const fetchData = async () => {
 
     const result = res.data?.data ?? res.data;
 
-    // Normalisasi data: pastikan field SPK terisi dari SPK atau Nomor
+    // Helper untuk mengubah string tanggal apa pun menjadi format dd/MM/yyyy untuk tabel dan filter header
+    const cleanDateToDMY = (dateVal: any) => {
+      if (!dateVal || dateVal === "-" || String(dateVal).startsWith("0000"))
+        return "-";
+
+      const strVal = String(dateVal).trim();
+
+      // Jika format YYYY-MM-DD (mengabaikan jam di belakang jika ada)
+      if (/^\d{4}-\d{2}-\d{2}/.test(strVal)) {
+        const parts = strVal.substring(0, 10).split("-");
+        if (parts.length === 3) {
+          return `${parts[2]}/${parts[1]}/${parts[0]}`;
+        }
+      }
+
+      // Parse menggunakan date-fns atau native Date
+      const parsed = parseISO(strVal);
+      if (isValid(parsed)) {
+        return format(parsed, "dd/MM/yyyy");
+      }
+
+      const fallbackDate = new Date(strVal);
+      if (isValid(fallbackDate)) {
+        return format(fallbackDate, "dd/MM/yyyy");
+      }
+
+      return strVal;
+    };
+
+    // Normalisasi data dengan memformat tanggal ke dd/MM/yyyy agar filter header ikut berubah
     masterData.value = Array.isArray(result)
       ? result.map((item: any) => ({
           ...item,
           SPK: item.SPK || item.Nomor || "-",
           Nomor: item.Nomor || item.SPK || "-",
+          Tanggal: cleanDateToDMY(item.Tanggal || item.tanggal || item.Tgl),
+          Dateline: cleanDateToDMY(
+            item.Dateline || item.Deadline || item.dateline || item.deadline,
+          ),
+          Deadline: cleanDateToDMY(
+            item.Deadline || item.Dateline || item.deadline || item.dateline,
+          ),
+          Dateline_PO: cleanDateToDMY(item.Dateline_PO || item.dateline_po),
         }))
       : [];
   } catch (e: any) {
@@ -1052,16 +1089,19 @@ watch([startDate, endDate], ([newStart, newEnd]) => {
     </template>
 
     <!-- Format Tanggal Dateline & Tanggal Lainnya -->
+    <!-- Slot Tanggal -->
     <template #item.Tanggal="{ value }">
-      {{ formatDateDisplay(value) }}
+      {{ value || "-" }}
     </template>
 
+    <!-- Slot Dateline -->
     <template #item.Dateline="{ item }">
-      {{ formatDateDisplay(item.Dateline || item.Deadline) }}
+      {{ item.Dateline || "-" }}
     </template>
 
+    <!-- Slot Dateline PO -->
     <template #item.Dateline_PO="{ value }">
-      {{ formatDateDisplay(value) }}
+      {{ value || "-" }}
     </template>
 
     <template #item.Nama="{ item }">

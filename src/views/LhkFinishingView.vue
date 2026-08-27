@@ -6,13 +6,16 @@
       menu-id="MMT_LHK_FINISHING"
       :headers="masterHeaders"
       :items="headers"
+      v-model:filtered-items="filteredHeaders"
       :loading="loading.headers"
       :search="searchKeyword"
       item-value="Nomor"
       v-model:selected="selected"
       v-model:expanded="expanded"
-      v-model:filters="filters"
+      :filters="filters"
+      @update:filters="Object.assign(filters, $event)"
       show-expand
+      :summary-fields="[]"
       @refresh="fetchHeaders"
       @action:new="handleNewEdit('new')"
       @action:edit="handleNewEdit('edit')"
@@ -51,7 +54,7 @@
         <v-btn
           size="small"
           color="success"
-          :disabled="headers.length === 0"
+          :disabled="filteredHeaders.length === 0"
           @click="handleExportDetail"
           :loading="loading.headers"
         >
@@ -110,86 +113,80 @@
         <span :class="getRowTextColor(item)">{{ item.Nomor }}</span>
       </template>
 
-      <!-- Sub-Tabel Detail (Expansion Row) -->
-      <template #expanded-row="{ columns, item }">
-        <tr>
-          <td :colspan="columns.length" class="pa-0">
-            <div class="detail-container pa-4 bg-grey-lighten-4">
-              <div class="detail-table-wrapper">
-                <div
-                  v-if="isLoadingDetails(item.Nomor)"
-                  class="text-center pa-4 text-caption text-grey"
-                >
-                  <v-progress-circular
-                    indeterminate
-                    size="20"
-                    color="primary"
-                    class="mr-2"
-                  />
-                  Memuat detail...
-                </div>
+      <!-- Sub-Tabel Detail (Expansion Row) menggunakan format BaseBrowse -->
+      <template #expanded-content="{ item }">
+        <div class="detail-container">
+          <div
+            v-if="isLoadingDetails(item.Nomor)"
+            class="text-center pa-4 text-caption text-grey"
+          >
+            <v-progress-circular
+              indeterminate
+              size="20"
+              color="primary"
+              class="mr-2"
+            />
+            Memuat detail...
+          </div>
 
-                <v-data-table
-                  v-else-if="details[item.Nomor] && details[item.Nomor].length"
-                  :headers="detailHeaders"
-                  :items="details[item.Nomor]"
-                  density="compact"
-                  class="detail-table elevation-1 rounded bg-white"
-                  :items-per-page="-1"
-                  hide-default-footer
-                >
-                  <template #item.Panjang="{ value }">
-                    {{
-                      Number(value ?? 0).toLocaleString("id-ID", {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2,
-                      })
-                    }}
-                  </template>
-                  <template #item.Lebar="{ value }">
-                    {{
-                      Number(value ?? 0).toLocaleString("id-ID", {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2,
-                      })
-                    }}
-                  </template>
-                  <template #item.J_Order="{ value }">{{
-                    Number(value ?? 0).toLocaleString("id-ID")
-                  }}</template>
-                  <template #item.J_Potong="{ value }">{{
-                    Number(value ?? 0).toLocaleString("id-ID")
-                  }}</template>
-                  <template #item.J_Seaming="{ value }">{{
-                    Number(value ?? 0).toLocaleString("id-ID")
-                  }}</template>
-                  <template #item.J_MataAyam="{ value }">{{
-                    Number(value ?? 0).toLocaleString("id-ID")
-                  }}</template>
-                  <template #item.J_Coly="{ value }">{{
-                    Number(value ?? 0).toLocaleString("id-ID")
-                  }}</template>
-                  <template #item.J_Bs="{ value }">{{
-                    Number(value ?? 0).toLocaleString("id-ID")
-                  }}</template>
-                  <template #item.Mata_Ayam="{ value }">{{
-                    Number(value ?? 0).toLocaleString("id-ID")
-                  }}</template>
-                  <template #item.XBanner="{ value }">{{
-                    Number(value ?? 0).toLocaleString("id-ID")
-                  }}</template>
-                  <template #item.Plastik="{ value }">{{
-                    Number(value ?? 0).toLocaleString("id-ID")
-                  }}</template>
-                </v-data-table>
+          <v-data-table
+            v-else-if="details[item.Nomor] && details[item.Nomor].length"
+            :headers="detailHeaders"
+            :items="details[item.Nomor]"
+            density="compact"
+            class="detail-table elevation-1 rounded bg-white"
+            :items-per-page="-1"
+            hide-default-footer
+          >
+            <template #item.Panjang="{ value }">
+              {{
+                Number(value ?? 0).toLocaleString("id-ID", {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                })
+              }}
+            </template>
+            <template #item.Lebar="{ value }">
+              {{
+                Number(value ?? 0).toLocaleString("id-ID", {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                })
+              }}
+            </template>
+            <template #item.J_Order="{ value }">{{
+              Number(value ?? 0).toLocaleString("id-ID")
+            }}</template>
+            <template #item.J_Potong="{ value }">{{
+              Number(value ?? 0).toLocaleString("id-ID")
+            }}</template>
+            <template #item.J_Seaming="{ value }">{{
+              Number(value ?? 0).toLocaleString("id-ID")
+            }}</template>
+            <template #item.J_MataAyam="{ value }">{{
+              Number(value ?? 0).toLocaleString("id-ID")
+            }}</template>
+            <template #item.J_Coly="{ value }">{{
+              Number(value ?? 0).toLocaleString("id-ID")
+            }}</template>
+            <template #item.J_Bs="{ value }">{{
+              Number(value ?? 0).toLocaleString("id-ID")
+            }}</template>
+            <template #item.Mata_Ayam="{ value }">{{
+              Number(value ?? 0).toLocaleString("id-ID")
+            }}</template>
+            <template #item.XBanner="{ value }">{{
+              Number(value ?? 0).toLocaleString("id-ID")
+            }}</template>
+            <template #item.Plastik="{ value }">{{
+              Number(value ?? 0).toLocaleString("id-ID")
+            }}</template>
+          </v-data-table>
 
-                <div v-else class="text-center pa-4 text-caption text-grey">
-                  Tidak ada data detail untuk nomor {{ item.Nomor }}.
-                </div>
-              </div>
-            </div>
-          </td>
-        </tr>
+          <div v-else class="text-center pa-4 text-caption text-grey">
+            Tidak ada data detail untuk nomor {{ item.Nomor }}.
+          </div>
+        </div>
       </template>
     </BaseBrowse>
 
@@ -332,7 +329,6 @@ import { format, subDays } from "date-fns";
 import BaseBrowse from "@/components/BaseBrowse.vue";
 import * as XLSX from "xlsx-js-style";
 
-// --- Interfaces ---
 interface LhkFinishingHeader {
   Nomor: string;
   Tanggal?: string;
@@ -384,20 +380,18 @@ type LhkFinishingItem = LhkFinishingHeader;
 
 const API_BASE_URL = "/mmt/lhk-finishing";
 
-// --- Store & utils ---
 const router = useRouter();
 const toast = useToast();
 const authStore = useAuthStore();
 const MENU_ID = "MMT_LHK_FINISHING";
 
-// --- State Pencarian SPK ---
 const searchKeyword = ref("");
 const loadingSearch = ref(false);
 const showSearchModal = ref(false);
 const searchResults = ref<SpkSearchResult[]>([]);
 
-// --- State BaseBrowse ---
 const headers = ref<LhkFinishingHeader[]>([]);
+const filteredHeaders = ref<LhkFinishingHeader[]>([]);
 const details = ref<Record<string, LhkFinishingDetail[]>>({});
 const loading = ref({ headers: true, details: false });
 const loadingDetails = ref<Set<string>>(new Set());
@@ -409,14 +403,12 @@ const filters = reactive({
   endDate: format(new Date(), "yyyy-MM-dd"),
 });
 
-// --- Computed ---
 const isSingleSelected = computed(() => selected.value.length === 1);
 const selectedRow = computed<LhkFinishingItem | null>(() =>
   isSingleSelected.value ? selected.value[0] : null,
 );
 const selectedNomor = computed(() => selectedRow.value?.Nomor || null);
 
-// --- Handler Klik Baris ---
 const handleRowClick = (_event: Event, row: any) => {
   const item = row?.item?.raw || row?.item || row;
   if (!item || !item.Nomor) return;
@@ -435,11 +427,9 @@ const getRowProps = ({ item }: { item: any }) => {
   };
 };
 
-// --- Helpers Format Tanggal (Bebas Masalah Timezone Offset) ---
 const safeFormatDate = (dateString: string | undefined): string => {
   if (!dateString) return "";
   try {
-    // Ambil string YYYY-MM-DD tanpa parsing UTC Date untuk mencegah tanggal mundur
     const cleanDate = dateString.split("T")[0];
     if (cleanDate.includes("-")) {
       const parts = cleanDate.split("-");
@@ -459,7 +449,6 @@ const getRowTextColor = (item: LhkFinishingItem) => {
   return item.Lengkap !== "Y" ? "text-red font-weight-bold" : "";
 };
 
-// --- Headers Config ---
 const masterHeaders = [
   { title: "Nomor", key: "Nomor", minWidth: "180px", fixed: true },
   { title: "Tanggal", key: "Tanggal", minWidth: "120px" },
@@ -467,7 +456,6 @@ const masterHeaders = [
   { title: "Nama Gudang", key: "Nama_Gudang", minWidth: "150px" },
   { title: "Shift", key: "Shift", minWidth: "80px" },
   { title: "Operator", key: "Operator", minWidth: "150px" },
-  { title: "", key: "data-table-expand", minWidth: "40px" },
 ];
 
 const detailHeaders = [
@@ -500,7 +488,6 @@ const spkSearchHeaders = [
   { title: "Sisa Kurang", key: "Sisa_Kurang", align: "end" },
 ];
 
-// --- Function Handler Pencarian SPK ---
 const handleSearchSpk = async () => {
   if (!searchKeyword.value || !searchKeyword.value.trim()) {
     toast.warning("Masukkan nomor atau nama SPK yang ingin dicari.");
@@ -527,7 +514,6 @@ const handleSearchSpk = async () => {
   }
 };
 
-// --- API calls ---
 const fetchHeaders = async () => {
   loading.value.headers = true;
   try {
@@ -567,7 +553,6 @@ const loadDetails = async (newlyExpandedItems: any[]) => {
     const result = res.data.data;
     const rawDetails = result.Detail || result || [];
 
-    // Normalisasi properti Panjang dan Lebar dari berbagai kemungkinan field backend
     details.value[nomor] = rawDetails.map((dtl: any) => ({
       ...dtl,
       Panjang: Number(dtl.Panjang ?? dtl.panjang ?? dtl.spk_panjang ?? 0),
@@ -582,11 +567,9 @@ const loadDetails = async (newlyExpandedItems: any[]) => {
   }
 };
 
-// --- Export Detail Finishing ---
 const handleExportDetail = async () => {
   loading.value.headers = true;
   try {
-    // Pre-fetch detail data secara paralel
     const missingHeaders = headers.value.filter(
       (header) =>
         !details.value[header.Nomor] ||
@@ -672,7 +655,6 @@ const handleExportDetail = async () => {
     ]);
     worksheetData.push([]);
 
-    // Kolom Header Table Excel
     const headersTable = [
       { v: "NOMOR LHK", s: styleHeaderMain },
       { v: "TANGGAL", s: styleHeaderMain },
@@ -818,25 +800,25 @@ const handleExportDetail = async () => {
     const ws = XLSX.utils.aoa_to_sheet(worksheetData);
     ws["!merges"] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 18 } }];
     ws["!cols"] = [
-      { wch: 22 }, // Nomor LHK
-      { wch: 14 }, // Tanggal
-      { wch: 15 }, // Kode Gudang
-      { wch: 20 }, // Nama Gudang
-      { wch: 8 }, // Shift
-      { wch: 18 }, // Operator
-      { wch: 18 }, // Nomor SPK
-      { wch: 35 }, // Nama SPK
-      { wch: 10 }, // Panjang
-      { wch: 10 }, // Lebar
-      { wch: 12 }, // Jml Order
-      { wch: 12 }, // Jml Potong
-      { wch: 12 }, // Jml Seaming
-      { wch: 15 }, // Jml Mata Ayam
-      { wch: 12 }, // Jml Coly
-      { wch: 12 }, // Jml BS
-      { wch: 15 }, // Qty Mata Ayam
-      { wch: 15 }, // Qty XBanner
-      { wch: 15 }, // Qty Plastik
+      { wch: 22 },
+      { wch: 14 },
+      { wch: 15 },
+      { wch: 20 },
+      { wch: 8 },
+      { wch: 18 },
+      { wch: 18 },
+      { wch: 35 },
+      { wch: 10 },
+      { wch: 10 },
+      { wch: 12 },
+      { wch: 12 },
+      { wch: 12 },
+      { wch: 15 },
+      { wch: 12 },
+      { wch: 12 },
+      { wch: 15 },
+      { wch: 15 },
+      { wch: 15 },
     ];
 
     const wb = XLSX.utils.book_new();
@@ -851,7 +833,6 @@ const handleExportDetail = async () => {
   }
 };
 
-// --- Navigation Handlers ---
 const handleNewEdit = (mode: "new" | "edit" | "rekap") => {
   if (mode === "new") {
     router.push({ name: "LhkFinishingNew" });
@@ -901,7 +882,6 @@ const handlePrint = () => {
   alert(`TODO: Cetak LHK ${selectedNomor.value}`);
 };
 
-// --- Lifecycle ---
 onMounted(() => {
   fetchHeaders();
 });
@@ -917,7 +897,6 @@ watch(filters, fetchHeaders, { deep: true });
   font-weight: bold !important;
 }
 
-/* Highlight biru pada baris yang dipilih */
 .row-selected {
   background-color: #d8efff !important;
 }

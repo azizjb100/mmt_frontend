@@ -251,8 +251,9 @@
                   <th>Nama Produk</th>
                   <th width="55">P (M)</th>
                   <th width="55">L (M)</th>
-                  <th width="120">Orientasi</th>
-                  <th width="55">Pad(cm)</th>
+                  <th width="110">Orientasi</th>
+                  <th width="55">Pad Atas</th>
+                  <th width="55">Pad Smp</th>
                   <th width="45">Tile</th>
                   <th width="50">Order</th>
                   <th width="55">Sdh Ctk</th>
@@ -293,10 +294,20 @@
                   </td>
                   <td class="bg-blue-lighten-5">
                     <input
-                      type="text"
-                      :value="item.padding"
+                      type="number"
+                      v-model.number="item.padding_atas"
                       class="cell-input tr font-weight-bold"
-                      @input="handlePaddingTableInput($event, item)"
+                      @input="recalculateCombine"
+                      @wheel="$event.target.blur()"
+                    />
+                  </td>
+                  <td class="bg-teal-lighten-5">
+                    <input
+                      type="number"
+                      v-model.number="item.padding_samping"
+                      class="cell-input tr font-weight-bold"
+                      @input="recalculateCombine"
+                      @wheel="$event.target.blur()"
                     />
                   </td>
                   <td class="bg-yellow-lighten-5">
@@ -690,7 +701,6 @@ const {
     const h = res.data.data?.header || res.data.header;
     const details = res.data.data?.details || res.data.details || [];
 
-    // 1. Ambil Panjang Bahan Awal (Stok saat dipasang ke mesin)
     const ambilBahanFromDtl =
       details.length > 0
         ? parseFloat(
@@ -721,13 +731,10 @@ const {
             ? h.lth_lebar_bs.toString()
             : "",
 
-      // Stok awal diambil dari ld_ambilbahan
       Panjang_bahan: ambilBahanFromDtl || parseFloat(h.Panjang_Awal || 0),
       Lebar_bahan:
         details.length > 0 ? parseFloat(details[0].AmbilBahanLebar || 0) : 0,
 
-      // KUNCI PERBAIKAN: sisa_panjang_manual DIBIARKAN NULL / KOSONG!
-      // Agar sistem menghitung sisa & pemakaian bahan secara otomatis sesuai Qty cetak
       sisa_panjang_manual: null,
       sisa_lebar_manual: null,
       lstatus: h.lth_status || "DRAFT",
@@ -747,7 +754,14 @@ const {
           kurangcetak_asli: parseFloat(
             d.kurangcetak_asli || qtyOrder - sdhCetak + currentTotalInput,
           ),
-          padding: d.Padding !== undefined ? d.Padding : 3,
+          padding_atas:
+            d.padding_atas !== undefined
+              ? d.padding_atas
+              : d.Padding !== undefined
+                ? d.Padding
+                : 3,
+          padding_samping:
+            d.padding_samping !== undefined ? d.padding_samping : 3,
           tile: d.Tile || 1,
           orientasi: d.Orientasi || "lebar",
           totalcetak: currentTotalInput,
@@ -770,7 +784,6 @@ const {
 
     const currentUser = authStore.user?.kdUser || "SYSTEM";
 
-    // Hitung Sisa Final Meter & Lebar
     const sisaFinalM =
       formData.value.sisa_panjang_manual !== null &&
       formData.value.sisa_panjang_manual !== ""
@@ -786,13 +799,9 @@ const {
         ? parseFloat(Number(formData.value.sisa_lebar_manual).toFixed(2))
         : lebarAwal;
 
-    // =========================================================================
-    // 🔥 KALKULASI & VALIDASI AFAL (Paling Kanan & Min P >= 3M & L >= 1M)
-    // =========================================================================
     let finalPanjangAfal = 0;
     let finalLebarAfal = 0;
 
-    // Prioritaskan manual input jika diisi user
     const pManual = parseFloat(
       (formData.value.panjang_nyempil_manual as any) || 0,
     );
@@ -804,25 +813,22 @@ const {
       finalPanjangAfal = pManual;
       finalLebarAfal = lManual;
     } else {
-      // Cari dari layout/sisa samping SPK paling kanan (diiterasi dari urutan SPK paling akhir/kanan)
-      // Jika layout sistem mendeteksi sisa layout ganjil
       const pSistem = panjangSisaLayoutGanjil.value || 0;
       const lSistem = lebarSisaLayoutGanjil.value || 0;
 
-      // Cek kelayakan minimal: Panjang >= 3 METER dan Lebar >= 1 METER
       if (pSistem >= 3 && lSistem >= 1) {
         finalPanjangAfal = parseFloat(pSistem.toFixed(2));
         finalLebarAfal = parseFloat(lSistem.toFixed(2));
       }
     }
-    // =========================================================================
 
     const formattedDetails = formData.value.details.map((d) => ({
       nomor_spk: d.nomor_spk,
       tile: d.tile,
       jumlah: d.jumlah,
       luasm2: d.total_luas,
-      padding: d.padding,
+      padding_atas: d.padding_atas,
+      padding_samping: d.padding_samping,
       ld_ambilbahan: parseFloat((formData.value.Panjang_bahan as any) || 0),
       ambilBahanPanjang: parseFloat((formData.value.Panjang_bahan as any) || 0),
       ambilBahanLebar: lebarAwal,
@@ -857,11 +863,8 @@ const {
           formData.value.lebar_bs !== ""
             ? parseFloat(formData.value.lebar_bs)
             : 0,
-
-        // Kirim hasil afal yang sudah lolos seleksi
         lpanjang_afal: finalPanjangAfal,
         llebar_afal: finalLebarAfal,
-
         sisa_panjang_manual: formData.value.sisa_panjang_manual,
         sisa_lebar_manual: formData.value.sisa_lebar_manual,
       },
@@ -874,7 +877,6 @@ const {
 
     const afalInfo = resBody.afalData || resBody.data?.afalData;
 
-    // JIKA STATUS POSTED DAN BERHASIL MEMBUAT AFAL BARU: BUKA MODAL
     if (formData.value.lstatus === "POSTED" && afalInfo) {
       afalModal.data = {
         barcode: afalInfo.barcode,
@@ -930,22 +932,12 @@ const displayPanjangTerpakai = computed(() => {
   return totalPanjangTerpakai.value;
 });
 
-const isFormValid = computed(() => {
-  return (
-    formData.value.details.length > 0 &&
-    formData.value.mesin !== "" &&
-    formData.value.operator !== "" &&
-    formData.value.details.every((d) => d.totalcetak > 0)
-  );
-});
-
 const handleMesinSelect = (mesin: any) => {
   formData.value.mesin = mesin.Kode || mesin.id || mesin.kode_mesin || "";
   lookup.mesin = false;
   toast.success(`Mesin ${formData.value.mesin} dipilih`);
 };
 
-// MODAL AFAL STATE
 const afalModal = reactive({
   show: false,
   data: {
@@ -1001,15 +993,17 @@ const recalculateCombine = () => {
     const panjang = parseFloat(d.panjang_spk) || 0;
     const lebar = parseFloat(d.lebar_spk) || 0;
     const tile = parseFloat(d.tile) || 0;
-    const padding = parseFloat(d.padding) || 0;
-    const padM = (padding * 2) / 100;
+
+    // Konversi padding cm ke meter (dikalikan 2 karena sisi kiri-kanan / atas-bawah)
+    const padAtasM = ((parseFloat(d.padding_atas) || 0) * 2) / 100;
+    const padSampingM = ((parseFloat(d.padding_samping) || 0) * 2) / 100;
 
     const dimMenyamping =
-      d.orientasi === "lebar" ? lebar + padM : panjang + padM;
+      d.orientasi === "lebar" ? lebar + padAtasM : panjang + padSampingM;
     const dimMemanjang =
-      d.orientasi === "lebar" ? panjang + padM : lebar + padM;
+      d.orientasi === "lebar" ? panjang + padSampingM : lebar + padAtasM;
 
-    const luasSatuan = (panjang + padM) * (lebar + padM);
+    const luasSatuan = (panjang + padSampingM) * (lebar + padAtasM);
     d.luas_satuan = Number(luasSatuan.toFixed(3));
     d.total_luas = Number((luasSatuan * totalCetakInput).toFixed(2));
 
@@ -1070,11 +1064,17 @@ const autoFillLayout = (isSilent = false) => {
     const tile = Number(spk.tile) || 1;
     if (totalCetak <= 0) return;
 
-    const padM = ((parseFloat(spk.padding as any) || 0) * 2) / 100;
+    const padAtasM = ((parseFloat(spk.padding_atas) || 0) * 2) / 100;
+    const padSampingM = ((parseFloat(spk.padding_samping) || 0) * 2) / 100;
+
     const w =
-      spk.orientasi === "lebar" ? spk.panjang_spk + padM : spk.lebar_spk + padM;
+      spk.orientasi === "lebar"
+        ? spk.panjang_spk + padSampingM
+        : spk.lebar_spk + padAtasM;
     const h =
-      spk.orientasi === "lebar" ? spk.lebar_spk + padM : spk.panjang_spk + padM;
+      spk.orientasi === "lebar"
+        ? spk.lebar_spk + padAtasM
+        : spk.panjang_spk + padSampingM;
 
     const totalKolomSPK = Math.ceil(totalCetak / tile);
     let unitsPlaced = 0;
@@ -1173,11 +1173,17 @@ const layoutRows = computed(() => {
     const totalCetak = spk.totalcetak || 0;
     if (totalCetak <= 0 || spk.tile <= 0) return;
 
-    const padM = ((parseFloat(spk.padding as any) || 0) * 2) / 100;
+    const padAtasM = ((parseFloat(spk.padding_atas) || 0) * 2) / 100;
+    const padSampingM = ((parseFloat(spk.padding_samping) || 0) * 2) / 100;
+
     const visualW =
-      spk.orientasi === "lebar" ? spk.panjang_spk + padM : spk.lebar_spk + padM;
+      spk.orientasi === "lebar"
+        ? spk.panjang_spk + padSampingM
+        : spk.lebar_spk + padAtasM;
     const visualH =
-      spk.orientasi === "lebar" ? spk.lebar_spk + padM : spk.panjang_spk + padM;
+      spk.orientasi === "lebar"
+        ? spk.lebar_spk + padAtasM
+        : spk.panjang_spk + padSampingM;
 
     for (let i = 0; i < totalCetak; i++) {
       blocks.push({
@@ -1218,25 +1224,11 @@ const handleBsLebarInput = (event: any) => {
   formData.value.lebar_bs = val;
 };
 
-const handlePaddingTableInput = (event: any, item: any) => {
-  let val = event.target.value;
-  if (val.includes(",")) val = val.replace(",", ".");
-  item.padding = val;
-  recalculateCombine();
-};
-
-// SCAN BARCODE DENGAN DETEKSI KUALIFIKASI GUDANG & KARAKTER
 const handleBarcodeScan = async () => {
-  // 1. Ambil input MURNI tanpa .trim() agar spasi/karakter tersembunyi terdeteksi
   const rawCode = formData.value.barcode_input;
   if (!rawCode) return;
 
-  // =========================================================================
-  // 1. VALIDASI KARAKTER ANEH / TERLARANG (Spasi, /, ], [, \, dll)
-  // =========================================================================
-  // Regex mengecek spasi (\s), slash (/), kurung siku ([]), backslash (\), dll
   const invalidCharRegex = /[/\s[\]\\{}()<>="'`]/;
-
   if (invalidCharRegex.test(rawCode)) {
     toast.error(
       "Barcode mengandung karakter aneh / tidak valid (spasi, slash, simbol)!",
@@ -1244,7 +1236,6 @@ const handleBarcodeScan = async () => {
     return;
   }
 
-  // Setelah dipastikan TIDAK ADA karakter aneh/spasi, baru di-trim untuk diproses ke API
   const code = rawCode.trim();
 
   try {
@@ -1265,9 +1256,6 @@ const handleBarcodeScan = async () => {
       return;
     }
 
-    // =========================================================================
-    // 2. VALIDASI LOKASI GUDANG (Pencegahan jika masih di Gudang Utama)
-    // =========================================================================
     const isGudangUtama =
       statusGudang.toString().toUpperCase().includes("UTAMA") ||
       statusGudang.toString().toUpperCase() === "GDU" ||
@@ -1278,9 +1266,6 @@ const handleBarcodeScan = async () => {
       return;
     }
 
-    // =========================================================================
-    // 3. ALERT WARNING HANYA UNTUK MODE EDIT LHK LAMA
-    // =========================================================================
     const lhkTerakhir = info.Lhk_Terakhir;
 
     if (
@@ -1298,21 +1283,15 @@ const handleBarcodeScan = async () => {
       );
     }
 
-    // Assign data bahan jika lolos validasi
     formData.value.sku_aktif = info.Barcode || code;
     formData.value.kode_bahan_aktif = info.Kode || "";
     formData.value.Lebar_bahan = parseFloat(info.Lebar) || 0;
 
-    // Jika mode edit, amankan Panjang_bahan dari ld_ambilbahan DB
     if (!isEditMode.value || !formData.value.Panjang_bahan) {
       formData.value.Panjang_bahan = parseFloat(info.Sisa_Panjang) || 0;
     }
 
     recalculateCombine();
-
-    // =========================================================================
-    // 4. PESAN SUKSES
-    // =========================================================================
     toast.success(`Barcode Roll ${code} berhasil dimuat Oke!`);
   } catch (e: any) {
     console.error("Error scan barcode:", e);
@@ -1320,7 +1299,6 @@ const handleBarcodeScan = async () => {
   }
 };
 
-// Fungsi Tombol Penyesuaian Bahan (Sync Stok Terbaru dari LHK A/Sebelumnya)
 const isSyncingStok = ref(false);
 
 const handleSyncStokBahan = async () => {
@@ -1330,7 +1308,6 @@ const handleSyncStokBahan = async () => {
 
   isSyncingStok.value = true;
   try {
-    // Panggil API getStokByBarcode yang sudah diperbaiki
     const res = await api.get(
       `/mmt/stok-gudang/${formData.value.barcode_input}`,
     );
@@ -1345,10 +1322,7 @@ const handleSyncStokBahan = async () => {
         return;
       }
 
-      // Update Bahan Awal LHK B menjadi 19.34
       formData.value.Panjang_bahan = stokTerbaru;
-
-      // Reset Sisa Manual agar kalkulasi pemakaian otomatis dihitung dari 19.34
       formData.value.sisa_panjang_manual = null;
 
       recalculateCombine();
@@ -1371,7 +1345,6 @@ const handleSpkScan = async () => {
   const code = formData.value.barcode_spk?.trim();
   if (!code) return;
 
-  // Cek jika SPK sudah ada di tabel
   if (
     formData.value.details.some(
       (d) =>
@@ -1386,15 +1359,12 @@ const handleSpkScan = async () => {
 
   try {
     const res = await api.get(`/mmt/SPK/${code}`);
-
-    // Ekstraksi response dari backend (mendukung nested .data)
     let spkData = res.data?.data?.data || res.data?.data || res.data;
     if (Array.isArray(spkData)) {
       spkData = spkData[0];
     }
 
     if (spkData) {
-      // 💡 PASSING `code` SEBAGAI FALLBACK JIKA BACKEND TIDAK MENGIRIM FIELD NOMOR SPK
       injectSpkObject(spkData, code);
       formData.value.barcode_spk = "";
     } else {
@@ -1409,11 +1379,8 @@ const handleSpkScan = async () => {
 const injectSpkObject = (spk: any, fallbackCode: string = "") => {
   if (!spk) return;
 
-  // Tangani jika spk terbungkus .data
   const item = Array.isArray(spk) ? spk[0] : spk.data || spk;
 
-  // 1. Ekstraksi Nomor SPK dari berbagai variasi key backend,
-  //    dan fallback ke fallbackCode (teks barcode scan) jika semua key falsy/kosong.
   const nomorSpk =
     item.spk_nomor ||
     item.ltd_spk_nomor ||
@@ -1432,7 +1399,6 @@ const injectSpkObject = (spk: any, fallbackCode: string = "") => {
     item.id ||
     fallbackCode;
 
-  // 2. Ekstraksi Nama SPK / Produk
   const namaSpk =
     item.nama_spk ||
     item.spk_nama ||
@@ -1442,7 +1408,6 @@ const injectSpkObject = (spk: any, fallbackCode: string = "") => {
     item.nama ||
     "No Name";
 
-  // 3. Ekstraksi Dimensi & Qty
   const panjangSpk = parseFloat(
     item.spk_panjang || item.Panjang || item.panjang || 0,
   );
@@ -1468,7 +1433,14 @@ const injectSpkObject = (spk: any, fallbackCode: string = "") => {
     jumlah: qtyJumlah,
     sudahcetak: sudahCetak,
     kurangcetak_asli: kurangCetak > 0 ? kurangCetak : qtyJumlah,
-    padding: item.padding !== undefined ? item.padding : 3,
+    padding_atas:
+      item.padding_atas !== undefined
+        ? item.padding_atas
+        : item.padding !== undefined
+          ? item.padding
+          : 3,
+    padding_samping:
+      item.padding_samping !== undefined ? item.padding_samping : 1,
     tile: item.tile || 1,
     orientasi: item.orientasi || "lebar",
     totalcetak: 0,
@@ -1565,7 +1537,8 @@ const handleApprove = async () => {
         tile: d.tile,
         jumlah: d.jumlah,
         luasm2: d.total_luas,
-        padding: d.padding,
+        padding_atas: d.padding_atas,
+        padding_samping: d.padding_samping,
         ld_ambilbahan: parseFloat((formData.value.Panjang_bahan as any) || 0),
         ambilBahanPanjang: parseFloat(
           (formData.value.Panjang_bahan as any) || 0,

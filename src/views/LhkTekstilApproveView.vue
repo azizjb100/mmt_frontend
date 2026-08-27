@@ -1,46 +1,40 @@
 <template>
-  <PageLayout title="Hasil Kerja Tekstil MMT" icon="mdi-factory">
-    <template #header-actions>
-      <v-btn size="x-small" color="success" @click="handleCreate">
-        <v-icon start>mdi-plus</v-icon> Baru
-      </v-btn>
+  <BaseBrowse
+    title="Hasil Kerja Tekstil MMT"
+    icon="mdi-factory"
+    menu-id="MMT_TEKSTIL_APPROVAL"
+    :headers="masterHeaders"
+    :items="filteredMasterData"
+    :loading="loading.master"
+    :search="filters.search"
+    item-value="Nomor"
+    v-model:selected="selected"
+    v-model:expanded="expanded"
+    :filters="filters"
+    @update:filters="Object.assign(filters, $event)"
+    show-expand
+    @refresh="fetchMasterData"
+    @action:new="handleCreate"
+    @action:edit="handleEdit"
+    @action:delete="handleDelete"
+    @action:print="handlePrint"
+    @update:expanded="handleExpandUpdate"
+    @row-click="handleRowClick"
+    :row-props="getRowProps"
+  >
+    <!-- Action Buttons Tambahan di Header Toolbar -->
+    <template #extra-actions>
       <v-btn
-        size="x-small"
-        color="warning"
-        :disabled="!isSingleSelected"
-        @click="handleEdit"
-      >
-        <v-icon start>mdi-pencil</v-icon> Ubah
-      </v-btn>
-      <v-btn
-        size="x-small"
-        color="error"
-        :disabled="!isSingleSelected"
-        @click="handleDelete"
-      >
-        <v-icon start>mdi-trash-can</v-icon> Hapus
-      </v-btn>
-
-      <v-divider vertical class="mx-2" />
-
-      <v-btn
-        size="x-small"
+        size="small"
         color="secondary"
         :disabled="!isSingleSelected"
         @click="handleBahan"
       >
         <v-icon start size="14">mdi-package-variant</v-icon> Bahan
       </v-btn>
+
       <v-btn
-        size="x-small"
-        color="info"
-        :disabled="!isSingleSelected"
-        @click="handlePrint"
-      >
-        <v-icon start size="14">mdi-printer</v-icon> Cetak Slip
-      </v-btn>
-      <v-btn
-        size="x-small"
+        size="small"
         color="success"
         :disabled="filteredMasterData.length === 0"
         @click="exportToExcel"
@@ -50,338 +44,118 @@
       </v-btn>
     </template>
 
-    <div class="browse-content">
-      <v-card flat class="mb-4 border">
-        <v-card-text>
-          <div class="filter-section d-flex align-center flex-wrap ga-4">
-            <v-label class="text-caption font-weight-bold">Periode:</v-label>
-            <v-text-field
-              v-model="filters.startDate"
-              type="date"
-              density="compact"
-              hide-details
-              variant="outlined"
-              style="max-width: 160px"
-            />
-            <v-label>s/d</v-label>
-            <v-text-field
-              v-model="filters.endDate"
-              type="date"
-              density="compact"
-              hide-details
-              variant="outlined"
-              style="max-width: 160px"
-            />
+    <!-- Custom Formatter Tanggal dd/MM/yyyy -->
+    <template #item.Tanggal="{ item }">
+      <span>{{ safeFormatDate(item.Tanggal) }}</span>
+    </template>
 
-            <v-text-field
-              v-model="filters.search"
-              prepend-inner-icon="mdi-magnify"
-              label="Cari Gudang / Shift / Nomor"
-              density="compact"
-              hide-details
-              variant="outlined"
-              clearable
-              style="max-width: 250px"
-            />
+    <!-- Hapus class teks merah, biarkan warna default -->
+    <template #item.Nomor="{ item }">
+      <span>
+        {{ item.Nomor }}
+      </span>
+    </template>
 
-            <v-btn
-              variant="tonal"
-              size="small"
-              color="primary"
-              @click="fetchMasterData"
-              :loading="loading.master"
-            >
-              <v-icon start>mdi-refresh</v-icon> Refresh
-            </v-btn>
+    <template #item.Total_Meter="{ value }">
+      <span class="font-weight-bold">
+        {{ Number(value || 0).toFixed(2) }} m
+      </span>
+    </template>
 
-            <!-- TOMBOL RESET FILTER HEADER -->
-            <v-btn
-              v-if="activeFiltersCount > 0"
-              color="warning"
-              variant="tonal"
-              size="small"
-              prepend-icon="mdi-filter-off"
-              @click="resetAllColumnFilters"
-            >
-              Reset Filter ({{ activeFiltersCount }})
-            </v-btn>
-
-            <v-spacer />
-
-            <div class="d-flex align-center ga-2 italic">
-              <v-icon color="error" size="14">mdi-alert-circle</v-icon>
-              <span class="text-error" style="font-size: 11px">
-                Teks Merah = Belum Lengkap
-              </span>
-            </div>
-          </div>
-        </v-card-text>
-      </v-card>
-
-      <div class="table-container">
-        <v-data-table
-          v-model:selected="selected"
-          v-model:expanded="expanded"
-          :headers="masterHeaders"
-          :items="filteredMasterData"
-          :loading="loading.master"
-          item-value="Nomor"
-          density="compact"
-          class="desktop-table elevation-1 border"
-          fixed-header
-          height="550px"
-          return-object
-          show-expand
-          @click:row="handleRowClick"
-          :row-props="getRowProps"
-          @update:expanded="handleExpandUpdate"
-        >
-          <!-- DYNAMIC EXCEL FILTER PER KOLOM HEADER -->
-          <template
-            v-for="header in filterableHeaders"
-            :key="header.key"
-            #[`header.${header.key}`]="{ column }"
-          >
-            <div class="d-flex align-center justify-space-between w-100">
-              <span class="font-weight-bold text-truncate mr-1">{{
-                column.title
-              }}</span>
-
-              <v-menu
-                v-model="menuStates[header.key]"
-                :close-on-content-click="false"
-                location="bottom start"
+    <!-- Sub-Tabel Detail (Expansion Row) -->
+    <template #expanded-row="{ columns, item }">
+      <tr>
+        <td :colspan="columns.length" class="pa-0">
+          <div class="detail-container pa-4 bg-grey-lighten-4">
+            <div class="detail-table-wrapper">
+              <div
+                v-if="loadingDetails.has(item.Nomor)"
+                class="text-center pa-4 text-caption text-grey"
               >
-                <template #activator="{ props }">
-                  <v-btn
-                    icon
-                    variant="text"
-                    density="compact"
-                    size="x-small"
-                    v-bind="props"
-                    :color="
-                      isColumnFilterActive(header.key)
-                        ? 'primary'
-                        : 'grey-darken-1'
-                    "
-                  >
-                    <v-icon size="16">
-                      {{
-                        isColumnFilterActive(header.key)
-                          ? "mdi-filter"
-                          : "mdi-filter-variant"
-                      }}
-                    </v-icon>
-                  </v-btn>
+                <v-progress-circular
+                  indeterminate
+                  size="20"
+                  color="primary"
+                  class="mr-2"
+                />
+                Memuat detail pekerjaan...
+              </div>
+
+              <v-data-table
+                v-else-if="details[item.Nomor] && details[item.Nomor].length"
+                :headers="detailHeaders"
+                :items="details[item.Nomor]"
+                density="compact"
+                class="detail-table elevation-1 rounded bg-white"
+                :items-per-page="-1"
+                hide-default-footer
+              >
+                <template #item.Panjang="{ value }">
+                  {{
+                    Number(value ?? 0).toLocaleString("id-ID", {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    })
+                  }}
+                </template>
+                <template #item.Lebar="{ value }">
+                  {{
+                    Number(value ?? 0).toLocaleString("id-ID", {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    })
+                  }}
                 </template>
 
-                <v-card
-                  min-width="280"
-                  max-width="320"
-                  class="pa-2 border shadow-2 rounded-lg"
-                >
-                  <v-text-field
-                    v-model="columnSearch[header.key]"
-                    density="compact"
-                    variant="outlined"
-                    hide-details
-                    clearable
-                    autofocus
-                    placeholder="Cari..."
-                    class="mb-1"
-                  />
-
-                  <div class="text-caption text-grey-darken-1 my-1 px-1">
-                    {{ getFilteredPopupOptions(header.key).length }} dari
-                    {{ (uniqueValuesMap[header.key] || []).length }} nilai
-                    ditampilkan
-                  </div>
-
-                  <div
-                    class="d-flex ga-2 px-1 mb-2 text-caption font-weight-medium"
-                  >
-                    <a
-                      href="#"
-                      class="text-primary text-decoration-none"
-                      @click.prevent="selectAllFiltered(header.key)"
-                    >
-                      Tampilkan Semua
-                    </a>
-                    <span class="text-grey-lighten-1">|</span>
-                    <a
-                      href="#"
-                      class="text-error text-decoration-none"
-                      @click.prevent="deselectAllFiltered(header.key)"
-                    >
-                      Sembunyikan Semua
-                    </a>
-                  </div>
-
-                  <v-divider />
-
-                  <div
-                    style="max-height: 220px; overflow-y: auto"
-                    class="my-1 px-1"
-                  >
-                    <v-checkbox
-                      v-for="opt in getFilteredPopupOptions(header.key)"
-                      :key="opt"
-                      :label="opt"
-                      :model-value="isOptionSelected(header.key, opt)"
-                      density="compact"
-                      hide-details
-                      color="primary"
-                      @update:model-value="toggleOption(header.key, opt)"
-                    />
-                    <div
-                      v-if="getFilteredPopupOptions(header.key).length === 0"
-                      class="text-caption text-grey text-center py-4"
-                    >
-                      Tidak ada data
-                    </div>
-                  </div>
-
-                  <v-divider class="mb-2" />
-
-                  <div class="d-flex justify-space-between align-center">
-                    <v-btn
+                <template #item.Warna>
+                  <div class="d-flex ga-1">
+                    <v-chip
                       size="x-small"
-                      variant="text"
-                      color="grey-darken-1"
-                      @click="resetColumnFilter(header.key)"
-                    >
-                      Reset
-                    </v-btn>
-                    <v-btn
-                      size="small"
-                      color="primary"
+                      color="cyan"
                       variant="flat"
-                      class="px-4 font-weight-bold"
-                      @click="menuStates[header.key] = false"
-                    >
-                      OK
-                    </v-btn>
+                      text="C"
+                      style="font-size: 9px"
+                    />
+                    <v-chip
+                      size="x-small"
+                      color="magenta"
+                      variant="flat"
+                      text="M"
+                      style="font-size: 9px"
+                    />
+                    <v-chip
+                      size="x-small"
+                      color="yellow"
+                      variant="flat"
+                      text="Y"
+                      style="font-size: 9px"
+                    />
+                    <v-chip
+                      size="x-small"
+                      color="black"
+                      variant="flat"
+                      text="K"
+                      style="font-size: 9px"
+                    />
                   </div>
-                </v-card>
-              </v-menu>
+                </template>
+
+                <template #item.Jml_Cetak="{ value }">
+                  <div class="text-right">
+                    {{ Number(value || 0).toLocaleString("id-ID") }}
+                  </div>
+                </template>
+              </v-data-table>
+
+              <div v-else class="text-center pa-4 text-caption text-grey">
+                Tidak ada data detail pekerjaan untuk nomor {{ item.Nomor }}.
+              </div>
             </div>
-          </template>
-
-          <template #item.Tanggal="{ item }">
-            <span>{{ safeFormatDate(item.Tanggal) }}</span>
-          </template>
-
-          <template #item.Nomor="{ item }">
-            <span
-              :class="item.Lengkap !== 'Y' ? 'text-error font-weight-bold' : ''"
-            >
-              {{ item.Nomor }}
-            </span>
-          </template>
-
-          <template #item.Total_Meter="{ value }">
-            <span class="font-weight-bold">
-              {{ Number(value || 0).toFixed(2) }} m
-            </span>
-          </template>
-
-          <template #expanded-row="{ columns, item }">
-            <tr>
-              <td :colspan="columns.length" class="pa-0">
-                <div class="detail-container">
-                  <div class="detail-table-wrapper">
-                    <div
-                      v-if="loadingDetails.has(item.Nomor)"
-                      class="text-center pa-4"
-                    >
-                      <v-progress-circular
-                        indeterminate
-                        size="20"
-                        color="primary"
-                        class="mr-2"
-                      />
-                      <span class="text-caption"
-                        >Memuat detail pekerjaan...</span
-                      >
-                    </div>
-
-                    <div
-                      v-else-if="
-                        !details[item.Nomor] || details[item.Nomor].length === 0
-                      "
-                      class="text-center pa-4 text-caption text-grey"
-                    >
-                      Tidak ada data detail pekerjaan untuk nomor
-                      {{ item.Nomor }}
-                    </div>
-
-                    <v-card
-                      v-else
-                      variant="outlined"
-                      title="Detail Pekerjaan"
-                      class="ma-2 custom-font"
-                    >
-                      <v-data-table
-                        :headers="detailHeaders"
-                        :items="details[item.Nomor]"
-                        density="compact"
-                        hide-default-footer
-                        class="custom-table"
-                        :items-per-page="-1"
-                      >
-                        <template #item.Ukuran="{ item: dtl }">
-                          {{ dtl.Panjang }} x {{ dtl.Lebar }}
-                        </template>
-
-                        <template #item.Warna>
-                          <div class="d-flex ga-1">
-                            <v-chip
-                              size="x-small"
-                              color="cyan"
-                              variant="flat"
-                              text="C"
-                              style="font-size: 9px"
-                            />
-                            <v-chip
-                              size="x-small"
-                              color="magenta"
-                              variant="flat"
-                              text="M"
-                              style="font-size: 9px"
-                            />
-                            <v-chip
-                              size="x-small"
-                              color="yellow"
-                              variant="flat"
-                              text="Y"
-                              style="font-size: 9px"
-                            />
-                            <v-chip
-                              size="x-small"
-                              color="black"
-                              variant="flat"
-                              text="K"
-                              style="font-size: 9px"
-                            />
-                          </div>
-                        </template>
-
-                        <template #item.Jml_Cetak="{ value }">
-                          <div class="text-right">
-                            {{ Number(value || 0).toLocaleString() }}
-                          </div>
-                        </template>
-                      </v-data-table>
-                    </v-card>
-                  </div>
-                </div>
-              </td>
-            </tr>
-          </template>
-        </v-data-table>
-      </div>
-    </div>
-  </PageLayout>
+          </div>
+        </td>
+      </tr>
+    </template>
+  </BaseBrowse>
 </template>
 
 <script setup lang="ts">
@@ -391,7 +165,7 @@ import { useToast } from "vue-toastification";
 import api from "@/services/api";
 import { format, subDays, parseISO } from "date-fns";
 import * as XLSX from "xlsx-js-style";
-import PageLayout from "../components/PageLayout.vue";
+import BaseBrowse from "@/components/BaseBrowse.vue";
 
 const router = useRouter();
 const toast = useToast();
@@ -409,203 +183,67 @@ const filters = reactive({
   search: "",
 });
 
-// --- EXCEL FILTER STATES ---
-const columnSearch = ref<Record<string, string>>({});
-const selectedValues = ref<Record<string, string[]>>({});
-const menuStates = ref<Record<string, boolean>>({});
-
 const masterHeaders = [
-  {
-    title: "Nomor",
-    key: "Nomor",
-    width: "180px",
-    minWidth: "180px",
-    fixed: true,
-  },
-  { title: "Tanggal", key: "Tanggal", width: "120px" },
+  { title: "Nomor", key: "Nomor", minWidth: "180px", fixed: true },
+  { title: "Tanggal", key: "Tanggal", minWidth: "120px" },
   { title: "Gudang", key: "Nama_Gudang", minWidth: "180px" },
-  { title: "Shift", key: "Shift", width: "80px" },
-  {
-    title: "Cetak (m)",
-    key: "Total_Meter",
-    align: "end" as const,
-    width: "120px",
-  },
-] as any[];
+  { title: "Shift", key: "Shift", minWidth: "80px" },
+  { title: "Cetak (m)", key: "Total_Meter", align: "end", minWidth: "120px" },
+];
 
 const detailHeaders = [
   { title: "Mesin", key: "Mesin", minWidth: "120px" },
   { title: "SPK", key: "Nomor_SPK", minWidth: "150px" },
   { title: "Nama SPK", key: "Nama_SPK", minWidth: "250px" },
-  { title: "Ukuran", key: "Ukuran", width: "120px" },
-  {
-    title: "Jml Cetak",
-    key: "Jml_Cetak",
-    align: "end" as const,
-    width: "120px",
-  },
+  { title: "Panjang", key: "Panjang", align: "end", minWidth: "90px" },
+  { title: "Lebar", key: "Lebar", align: "end", minWidth: "90px" },
+  { title: "Jml Cetak", key: "Jml_Cetak", align: "end", minWidth: "120px" },
   { title: "Bahan", key: "Nama", minWidth: "150px" },
-  { title: "Warna (CMYK)", key: "Warna", sortable: false, width: "120px" },
+  { title: "Warna (CMYK)", key: "Warna", sortable: false, minWidth: "120px" },
 ];
 
 const isSingleSelected = computed(() => selected.value.length === 1);
 const selectedItem = computed(() => selected.value[0]);
 
-// --- EXCEL FILTER CORE LOGIC ---
-const filterableHeaders = computed(() => {
-  return masterHeaders.filter((h) => h.key !== "data-table-expand");
-});
-
-const getCellValue = (item: any, key: string): string => {
-  let val = item[key];
-
-  if (key === "Tanggal" && val) {
-    return safeFormatDate(val);
-  }
-
-  if (key === "Total_Meter" && val !== undefined && val !== null) {
-    return Number(val).toFixed(2) + " m";
-  }
-
-  if (val === null || val === undefined || val === "") {
-    return "(Blank)";
-  }
-
-  return String(val);
-};
-
-const uniqueValuesMap = computed(() => {
-  const map: Record<string, string[]> = {};
-  filterableHeaders.value.forEach((h) => {
-    const key = h.key;
-    const set = new Set<string>();
-    (masterData.value || []).forEach((item) => {
-      set.add(getCellValue(item, key));
-    });
-    map[key] = Array.from(set).sort((a, b) =>
-      a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" }),
-    );
-  });
-  return map;
-});
-
-const getFilteredPopupOptions = (key: string) => {
-  const options = uniqueValuesMap.value[key] || [];
-  const search = columnSearch.value[key]?.trim().toLowerCase();
-  if (!search) return options;
-  return options.filter((opt) => opt.toLowerCase().includes(search));
-};
-
-const isOptionSelected = (key: string, option: string) => {
-  const selectedOpts = selectedValues.value[key];
-  if (!selectedOpts) return true;
-  return selectedOpts.includes(option);
-};
-
-const toggleOption = (key: string, option: string) => {
-  if (!selectedValues.value[key]) {
-    selectedValues.value[key] = [...(uniqueValuesMap.value[key] || [])];
-  }
-  const index = selectedValues.value[key].indexOf(option);
-  if (index > -1) {
-    selectedValues.value[key].splice(index, 1);
-  } else {
-    selectedValues.value[key].push(option);
-  }
-};
-
-const selectAllFiltered = (key: string) => {
-  const visibleOptions = getFilteredPopupOptions(key);
-  const currentSelected = selectedValues.value[key] || [
-    ...(uniqueValuesMap.value[key] || []),
-  ];
-  const newSet = new Set([...currentSelected, ...visibleOptions]);
-  selectedValues.value[key] = Array.from(newSet);
-};
-
-const deselectAllFiltered = (key: string) => {
-  const visibleOptions = getFilteredPopupOptions(key);
-  const currentSelected = selectedValues.value[key] || [
-    ...(uniqueValuesMap.value[key] || []),
-  ];
-  selectedValues.value[key] = currentSelected.filter(
-    (opt) => !visibleOptions.includes(opt),
-  );
-};
-
-const isColumnFilterActive = (key: string) => {
-  const search = columnSearch.value[key]?.trim();
-  if (search) return true;
-
-  const selectedOpts = selectedValues.value[key];
-  if (!selectedOpts) return false;
-  const all = uniqueValuesMap.value[key] || [];
-  return selectedOpts.length < all.length;
-};
-
-const activeFiltersCount = computed(() => {
-  return (
-    Object.keys(columnSearch.value).filter(
-      (k) => !!columnSearch.value[k]?.trim(),
-    ).length +
-    Object.keys(selectedValues.value).filter((key) => isColumnFilterActive(key))
-      .length
-  );
-});
-
-const resetColumnFilter = (key: string) => {
-  delete selectedValues.value[key];
-  columnSearch.value[key] = "";
-};
-
-const resetAllColumnFilters = () => {
-  selectedValues.value = {};
-  columnSearch.value = {};
-};
-
 const filteredMasterData = computed(() => {
-  return (masterData.value || []).filter((item) => {
-    // Pencarian Umum
-    if (filters.search) {
-      const kw = filters.search.toLowerCase();
-      const matchSearch =
-        (item.Nomor && item.Nomor.toLowerCase().includes(kw)) ||
-        (item.Nama_Gudang && item.Nama_Gudang.toLowerCase().includes(kw)) ||
-        (item.Shift && String(item.Shift).toLowerCase().includes(kw));
-      if (!matchSearch) return false;
-    }
-
-    // Filter Per Kolom Header
-    return filterableHeaders.value.every((h) => {
-      const key = h.key;
-      const cellValue = getCellValue(item, key);
-
-      const searchText = columnSearch.value[key]?.trim().toLowerCase();
-      if (searchText && !cellValue.toLowerCase().includes(searchText)) {
-        return false;
-      }
-
-      const selectedArr = selectedValues.value[key];
-      if (selectedArr) {
-        return selectedArr.includes(cellValue);
-      }
-
-      return true;
-    });
-  });
+  if (!filters.search) return masterData.value;
+  const kw = filters.search.toLowerCase();
+  return (masterData.value || []).filter(
+    (item) =>
+      (item.Nomor && item.Nomor.toLowerCase().includes(kw)) ||
+      (item.Nama_Gudang && item.Nama_Gudang.toLowerCase().includes(kw)) ||
+      (item.Shift && String(item.Shift).toLowerCase().includes(kw)),
+  );
 });
 
-// --- Helpers ---
-const safeFormatDate = (d: string) => {
-  if (!d) return "-";
+// --- Helper Format Tanggal dd/MM/yyyy (Aman dari Timezone Offset & Support DD-MM-YYYY) ---
+const safeFormatDate = (dateString: string | undefined): string => {
+  if (!dateString) return "-";
   try {
-    return format(parseISO(d), "dd/MM/yyyy");
-  } catch {
-    if (d.includes("-")) {
-      const parts = d.split("T")[0].split("-");
-      if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
+    // Jika dari API sudah berformat "DD-MM-YYYY" (contoh: "20-08-2026")
+    if (dateString.includes("-") && dateString.length === 10) {
+      const parts = dateString.split("-");
+      // Jika bagian pertama adalah hari (panjang 2)
+      if (parts.length === 3 && parts[0].length === 2) {
+        return `${parts[0]}/${parts[1]}/${parts[2]}`; // Ubah "-" jadi "/"
+      }
+      // Jika formatnya "YYYY-MM-DD" dari database/ISO
+      if (parts.length === 3 && parts[0].length === 4) {
+        return `${parts[2]}/${parts[1]}/${parts[0]}`; // Balik jadi dd/MM/yyyy
+      }
     }
-    return d;
+
+    // Fallback jika berupa ISO string
+    const cleanDate = dateString.split("T")[0];
+    if (cleanDate.includes("-")) {
+      const parts = cleanDate.split("-");
+      if (parts.length === 3) {
+        return `${parts[2]}/${parts[1]}/${parts[0]}`;
+      }
+    }
+    return format(parseISO(dateString), "dd/MM/yyyy");
+  } catch {
+    return dateString || "-";
   }
 };
 
@@ -617,7 +255,13 @@ const fetchMasterData = async () => {
     const response = await api.get("/mmt/lhk-tekstil-mmt/approval-list", {
       params: filters,
     });
-    masterData.value = response.data || [];
+
+    // Map data agar format tanggal langsung diproses ke dd/MM/yyyy untuk filter & tabel
+    const rawData = response.data || [];
+    masterData.value = rawData.map((item: any) => ({
+      ...item,
+      Tanggal: safeFormatDate(item.Tanggal),
+    }));
   } catch (error) {
     toast.error("Gagal mengambil data master");
   } finally {
@@ -713,7 +357,7 @@ const handlePrint = () => {
   window.open(`/api/report/lhk-slip/${nomor}`, "_blank");
 };
 
-// --- EXPORT EXCEL APPROVAL (HEADER + DETAIL NUMERIK MURNI) ---
+// --- EXPORT EXCEL ---
 const exportToExcel = async () => {
   loading.master = true;
   try {
@@ -723,7 +367,6 @@ const exportToExcel = async () => {
       return;
     }
 
-    // Parallel fetch untuk mengambil semua detail pengerjaan
     const fetchPromises = listToProcess.map(async (header) => {
       if (
         !details.value[header.Nomor] ||
@@ -747,7 +390,6 @@ const exportToExcel = async () => {
               : [];
           }
         } catch (e) {
-          console.error(`Gagal memuat detail nomor ${header.Nomor}:`, e);
           details.value[header.Nomor] = [];
         }
       }
@@ -824,7 +466,8 @@ const exportToExcel = async () => {
       { v: "MESIN", s: styleHeaderMain },
       { v: "NOMOR SPK", s: styleHeaderMain },
       { v: "NAMA SPK / ORDER", s: styleHeaderMain },
-      { v: "UKURAN (PxL)", s: styleHeaderMain },
+      { v: "PANJANG", s: styleHeaderMain },
+      { v: "LEBAR", s: styleHeaderMain },
       { v: "QTY CETAK DETAIL", s: styleHeaderMain },
       { v: "NAMA BAHAN", s: styleHeaderMain },
     ];
@@ -837,22 +480,16 @@ const exportToExcel = async () => {
       const targetDetails = details.value[header.Nomor] || [];
       const tglHeader = safeFormatDate(header.Tanggal || "");
       const totalMeterVal = parseNum(
-        header.Total_Meter !== undefined
-          ? header.Total_Meter
-          : header.Cetak || header.jumlah_meter,
+        header.Total_Meter ?? header.Cetak ?? header.jumlah_meter,
       );
 
       if (targetDetails.length > 0) {
         targetDetails.forEach((dtl, index) => {
           const isFirstRow = index === 0;
-          const ukuranText =
-            dtl.Panjang && dtl.Lebar
-              ? `${dtl.Panjang} x ${dtl.Lebar}`
-              : dtl.Ukuran || "-";
+          const panjangVal = parseNum(dtl.Panjang ?? dtl.panjang);
+          const lebarVal = parseNum(dtl.Lebar ?? dtl.lebar);
           const detailCetakQty = parseNum(
-            dtl.Jml_Cetak !== undefined
-              ? dtl.Jml_Cetak
-              : dtl.jumlah_cetak || dtl.Qty,
+            dtl.Jml_Cetak ?? dtl.jumlah_cetak ?? dtl.Qty,
           );
 
           if (isFirstRow) {
@@ -882,7 +519,8 @@ const exportToExcel = async () => {
             { v: dtl.Mesin || "-", s: styleDataCellCenter },
             { v: dtl.Nomor_SPK || dtl.spk || "-", s: styleDataCellCenter },
             { v: dtl.Nama_SPK || dtl.Nama || "-", s: styleDataCell },
-            { v: ukuranText, s: styleDataCellCenter },
+            { v: panjangVal, t: "n", z: "#,##0.00", s: styleDataCellRight },
+            { v: lebarVal, t: "n", z: "#,##0.00", s: styleDataCellRight },
             { v: detailCetakQty, t: "n", z: "#,##0", s: styleDataCellRight },
             { v: dtl.Nama || dtl.Bahan || "-", s: styleDataCell },
           ]);
@@ -894,16 +532,12 @@ const exportToExcel = async () => {
           { v: tglHeader, s: styleDataCellCenter },
           { v: header.Nama_Gudang || "-", s: styleDataCell },
           { v: header.Shift || "-", s: styleDataCellCenter },
-          {
-            v: totalMeterVal,
-            t: "n",
-            z: "#,##0.00",
-            s: styleDataCellRight,
-          },
+          { v: totalMeterVal, t: "n", z: "#,##0.00", s: styleDataCellRight },
           { v: "-", s: styleDataCellCenter },
           { v: "-", s: styleDataCellCenter },
           { v: "Tidak ada data detail pengerjaan", s: styleDataCell },
-          { v: "-", s: styleDataCellCenter },
+          { v: 0, t: "n", z: "#,##0.00", s: styleDataCellRight },
+          { v: 0, t: "n", z: "#,##0.00", s: styleDataCellRight },
           { v: 0, t: "n", z: "#,##0", s: styleDataCellRight },
           { v: "-", s: styleDataCell },
         ]);
@@ -934,6 +568,7 @@ const exportToExcel = async () => {
       { v: "", s: styleFooter },
       { v: "", s: styleFooter },
       { v: "", s: styleFooter },
+      { v: "", s: styleFooter },
       {
         v: grandTotalQtyDetail,
         t: "n",
@@ -949,7 +584,7 @@ const exportToExcel = async () => {
 
     const ws = XLSX.utils.aoa_to_sheet(worksheetData);
     ws["!merges"] = [
-      { s: { r: 0, c: 0 }, e: { r: 0, c: 10 } },
+      { s: { r: 0, c: 0 }, e: { r: 0, c: 11 } },
       {
         s: { r: worksheetData.length - 1, c: 0 },
         e: { r: worksheetData.length - 1, c: 3 },
@@ -965,7 +600,8 @@ const exportToExcel = async () => {
       { wch: 10 },
       { wch: 18 },
       { wch: 35 },
-      { wch: 15 },
+      { wch: 12 },
+      { wch: 12 },
       { wch: 15 },
       { wch: 20 },
     ];
@@ -990,58 +626,13 @@ onMounted(() => {
 </script>
 
 <style scoped>
-/* 💡 STICKY HEADER & FIXED FOOTER PAGINATION DENGAN TBODY SCROLL */
-:deep(.v-table) {
-  display: flex !important;
-  flex-direction: column !important;
-  height: 550px !important;
+.font-weight-bold {
+  font-weight: bold !important;
 }
-
-:deep(.v-table__wrapper) {
-  flex: 1 1 auto !important;
-  overflow-y: auto !important;
-  overflow-x: auto !important;
-  max-height: 550px !important;
+.row-selected {
+  background-color: #d8efff !important;
 }
-
-:deep(.v-data-table__thead) {
-  position: sticky !important;
-  top: 0 !important;
-  z-index: 10 !important;
-  background-color: #ffffff !important;
-}
-
-:deep(.v-data-table-footer) {
-  flex: 0 0 auto !important;
-  border-top: 1px solid rgba(0, 0, 0, 0.12);
-  background-color: #ffffff !important;
-}
-
-.browse-content {
-  background-color: #f0f4f8;
-  padding: 8px;
-}
-
-.desktop-table :deep(.v-data-table__tr.row-selected) {
-  background-color: rgb(216, 239, 255) !important;
-}
-
-.desktop-table :deep(.v-data-table__tr.row-selected td) {
-  background-color: transparent !important;
-}
-
-.desktop-table :deep(tbody tr:hover:not(.row-selected)) {
-  background-color: #f1f8ff !important;
-  cursor: pointer;
-}
-
-.custom-font {
-  font-size: 11px !important;
-}
-.text-error {
-  color: #ff5252 !important;
-}
-.italic {
-  font-style: italic;
+:deep(.row-selected td) {
+  background-color: #d8efff !important;
 }
 </style>

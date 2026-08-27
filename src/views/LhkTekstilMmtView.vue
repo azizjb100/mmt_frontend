@@ -12,7 +12,12 @@
     item-value="Nomor"
     has-print
     show-expand
-    :summary-fields="['JumlahOrder', 'jumlah_cetak']"
+    :summary-fields="[
+      'JumlahOrder',
+      'jumlah_cetak',
+      'PanjangBahanAwal',
+      'SisaMeterAkhir',
+    ]"
     @refresh="fetchMasterData"
     @action:new="handleCreate"
     @action:edit="handleEdit"

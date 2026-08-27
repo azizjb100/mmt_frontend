@@ -1,24 +1,34 @@
 <template>
-  <PageLayout
+  <BaseBrowse
     title="Browse Hasil Kerja Proof MMT"
     icon="mdi-printer-check"
-    class="custom-font"
+    :headers="masterHeaders"
+    :items="masterData"
+    v-model:filtered-items="filteredMasterData"
+    :loading="loading.master"
+    v-model:selected="selected"
+    v-model:expanded="expanded"
+    :filters="filters"
+    @update:filters="Object.assign(filters, $event)"
+    item-value="nomor"
+    show-expand
+    :summary-fields="[
+      'Panjang_Awal',
+      'Panjang_Terpakai',
+      'Sisa_Bahan',
+      'Total_J_Meter',
+    ]"
+    @refresh="fetchMasterData"
+    @action:new="handleCreate"
+    @action:edit="handleEdit"
+    @action:delete="handleDelete"
+    @action:print="handlePrint"
+    @update:expanded="loadDetails"
+    @row-click="handleRowClick"
+    :row-props="getRowProps"
   >
-    <template #header-actions>
-      <v-btn size="x-small" color="primary" @click="handleCreate">
-        <v-icon start size="14">mdi-plus</v-icon> Baru
-      </v-btn>
-
-      <v-btn
-        size="x-small"
-        color="warning"
-        :disabled="!isSingleSelected"
-        @click="handleEdit"
-      >
-        <v-icon start size="14">mdi-pencil</v-icon> Ubah
-      </v-btn>
-
-      <!-- TAMBAHAN TOMBOL ACC -->
+    <!-- Header Action Tombol Ekstra (ACC & Export) -->
+    <template #extra-actions="{ isSingleSelected }">
       <v-btn
         size="x-small"
         color="teal-darken-1"
@@ -33,26 +43,8 @@
 
       <v-btn
         size="x-small"
-        color="error"
-        :disabled="!isSingleSelected"
-        @click="handleDelete"
-      >
-        <v-icon start size="14">mdi-delete</v-icon> Hapus
-      </v-btn>
-
-      <v-btn
-        size="x-small"
-        color="info"
-        :disabled="!isSingleSelected"
-        @click="handlePrint"
-      >
-        <v-icon start size="14">mdi-printer</v-icon> Slip
-      </v-btn>
-
-      <v-btn
-        size="x-small"
         color="success"
-        :disabled="masterData.length === 0"
+        :disabled="filteredMasterData.length === 0"
         @click="exportToExcel"
         :loading="loading.master"
       >
@@ -60,108 +52,47 @@
       </v-btn>
     </template>
 
-    <div class="browse-content">
-      <v-card flat class="mb-4 border">
-        <v-card-text class="pa-3">
-          <div class="d-flex align-center flex-wrap ga-4">
-            <v-label class="font-weight-bold" style="font-size: 11px"
-              >Periode Laporan:</v-label
-            >
+    <!-- Custom Formatter Kolom Tabel Master -->
+    <template #item.Jenis="{ item }">
+      <v-chip size="x-small" :color="getJenisColor(item.Jenis)" variant="tonal">
+        {{ item.Jenis }}
+      </v-chip>
+    </template>
 
-            <v-text-field
-              v-model="filters.startDate"
-              type="date"
-              density="compact"
-              hide-details
-              variant="outlined"
-              style="max-width: 160px"
-              class="custom-field"
-            />
-            <v-label style="font-size: 11px">s/d</v-label>
-            <v-text-field
-              v-model="filters.endDate"
-              type="date"
-              density="compact"
-              hide-details
-              variant="outlined"
-              style="max-width: 160px"
-              class="custom-field"
-            />
-            <v-btn
-              variant="elevated"
-              size="small"
-              color="primary"
-              @click="fetchMasterData"
-              style="font-size: 11px"
-              :loading="loading.master"
-            >
-              <v-icon start size="14">mdi-magnify</v-icon> Refresh
-            </v-btn>
-          </div>
-        </v-card-text>
-      </v-card>
-
-      <v-data-table
-        v-model:selected="selected"
-        v-model:expanded="expanded"
-        :headers="masterHeaders"
-        :items="masterData"
-        :loading="loading.master"
-        item-value="nomor"
-        density="compact"
-        class="border elevation-1 main-grid custom-table"
-        show-select
-        select-strategy="single"
-        show-expand
-        fixed-header
-        @click:row="handleRowClick"
+    <template #item.Status_Acc="{ item }">
+      <v-chip
+        size="x-small"
+        :color="item.Status_Acc === 'ACC' ? 'success' : 'grey'"
+        variant="flat"
       >
-        <template #item.Jenis="{ item }">
-          <v-chip
-            size="x-small"
-            :color="getJenisColor(item.Jenis)"
-            variant="tonal"
-          >
-            {{ item.Jenis }}
-          </v-chip>
-        </template>
-        <template #item.Status_Acc="{ item }">
-          <v-chip
-            size="x-small"
-            :color="item.Status_Acc === 'ACC' ? 'success' : 'grey'"
-            variant="flat"
-          >
-            {{ item.Status_Acc === "ACC" ? "ACC" : "DRAFT" }}
-          </v-chip>
-        </template>
+        {{ item.Status_Acc === "ACC" ? "ACC" : "DRAFT" }}
+      </v-chip>
+    </template>
 
-        <template #expanded-row="{ columns, item }">
-          <tr>
-            <td :colspan="columns.length" class="bg-grey-lighten-4 pa-4">
-              <v-card
-                variant="outlined"
-                title="Detail Item Proofing"
-                class="custom-font"
-              >
-                <v-data-table
-                  :headers="detailHeaders"
-                  :items="details[item.nomor] || []"
-                  :loading="loadingDetails.has(item.nomor)"
-                  density="compact"
-                  hide-default-footer
-                  class="custom-table"
-                >
-                  <template #item.Ukuran="{ item }">
-                    {{ item.Panjang }} x {{ item.Lebar }}
-                  </template>
-                </v-data-table>
-              </v-card>
-            </td>
-          </tr>
-        </template>
-      </v-data-table>
-    </div>
-  </PageLayout>
+    <!-- Sub-Tabel Detail (Expansion Row) -->
+    <template #expanded-content="{ item }">
+      <div class="pa-2">
+        <v-card
+          variant="outlined"
+          title="Detail Item Proofing"
+          class="custom-font"
+        >
+          <v-data-table
+            :headers="detailHeaders"
+            :items="details[item.nomor] || []"
+            :loading="loadingDetails.has(item.nomor)"
+            density="compact"
+            hide-default-footer
+            class="custom-table"
+          >
+            <template #item.Ukuran="{ item: detailItem }">
+              {{ detailItem.Panjang }} x {{ detailItem.Lebar }}
+            </template>
+          </v-data-table>
+        </v-card>
+      </div>
+    </template>
+  </BaseBrowse>
 </template>
 
 <script setup lang="ts">
@@ -169,7 +100,7 @@ import { ref, reactive, computed, onMounted, watch } from "vue";
 import { useRouter } from "vue-router";
 import { useToast } from "vue-toastification";
 import Swal from "sweetalert2";
-import PageLayout from "../components/PageLayout.vue";
+import BaseBrowse from "@/components/BaseBrowse.vue";
 import api from "@/services/api";
 import { format, subDays } from "date-fns";
 import * as XLSX from "xlsx-js-style";
@@ -181,9 +112,9 @@ const toast = useToast();
 const selected = ref<any[]>([]);
 const expanded = ref<any[]>([]);
 const masterData = ref<any[]>([]);
+const filteredMasterData = ref<any[]>([]);
 const details = ref<Record<string, any[]>>({});
 
-// DIUBAH: Penambahan state loading untuk ACC
 const loading = reactive({
   master: false,
   acc: false,
@@ -230,6 +161,14 @@ const detailHeaders = [
 // --- Computed ---
 const isSingleSelected = computed(() => selected.value.length === 1);
 const selectedItem = computed(() => selected.value[0]);
+const selectedObject = computed(() => {
+  if (!selectedItem.value) return null;
+  const nomor =
+    typeof selectedItem.value === "object"
+      ? selectedItem.value.nomor
+      : selectedItem.value;
+  return masterData.value.find((m) => m.nomor === nomor);
+});
 
 // --- Methods ---
 const getJenisColor = (jenis: string) => {
@@ -244,6 +183,8 @@ const fetchMasterData = async () => {
   try {
     const response = await api.get("/mmt/lhk-proof", { params: filters });
     masterData.value = response.data || [];
+    selected.value = [];
+    expanded.value = [];
   } catch (error) {
     toast.error("Gagal mengambil data master");
   } finally {
@@ -251,9 +192,10 @@ const fetchMasterData = async () => {
   }
 };
 
-watch(expanded, async (newVal) => {
-  if (newVal.length === 0) return;
-  const lastExpanded: any = newVal[newVal.length - 1];
+const loadDetails = async (newlyExpandedItems: any[]) => {
+  if (!newlyExpandedItems || newlyExpandedItems.length === 0) return;
+
+  const lastExpanded: any = newlyExpandedItems[newlyExpandedItems.length - 1];
   const noKey =
     typeof lastExpanded === "object" ? lastExpanded.nomor : lastExpanded;
 
@@ -268,15 +210,24 @@ watch(expanded, async (newVal) => {
       loadingDetails.value.delete(noKey);
     }
   }
-});
+};
 
-const handleRowClick = (event: any, { item }: any) => {
-  const isAlreadySelected = selected.value.some((s: any) => s === item.nomor);
-  if (isAlreadySelected) {
-    selected.value = [];
-  } else {
-    selected.value = [item.nomor];
-  }
+const handleRowClick = (_event: any, row: any) => {
+  const item = row?.item;
+  if (!item) return;
+  const isAlreadySelected = selected.value.some(
+    (s: any) => (s.nomor || s) === (item.nomor || item),
+  );
+  selected.value = isAlreadySelected ? [] : [item];
+};
+
+const getRowProps = ({ item }: { item: any }) => {
+  const isSelected = selected.value.some(
+    (s: any) => (s.nomor || s) === item.nomor,
+  );
+  return {
+    class: isSelected ? "row-selected" : "",
+  };
 };
 
 const handleCreate = () => {
@@ -284,20 +235,21 @@ const handleCreate = () => {
 };
 
 const handleEdit = () => {
-  if (!selectedItem.value) return;
+  const nomor = selectedItem.value?.nomor || selectedItem.value;
+  if (!nomor) return;
   router.push({
     name: "LHKProofMMTEdit",
-    params: { nomor: selectedItem.value },
+    params: { nomor },
   });
 };
 
-// --- TAMBAHAN HANDLER BARU UNTUK PROSES ACC ---
 const handleAcc = async () => {
-  if (!selectedItem.value) return;
+  const nomor = selectedItem.value?.nomor || selectedItem.value;
+  if (!nomor) return;
 
   const result = await Swal.fire({
     title: "Konfirmasi ACC LHK",
-    text: `Apakah Anda yakin ingin menyetujui (ACC) LHK Proof Nomor: ${selectedItem.value}?`,
+    text: `Apakah Anda yakin ingin menyetujui (ACC) LHK Proof Nomor: ${nomor}?`,
     icon: "question",
     showCancelButton: true,
     confirmButtonColor: "#00897B",
@@ -308,10 +260,9 @@ const handleAcc = async () => {
   if (result.isConfirmed) {
     loading.acc = true;
     try {
-      await api.post(`/mmt/lhk-proof/acc/${selectedItem.value}`);
-      toast.success(`LHK ${selectedItem.value} berhasil di-ACC.`);
+      await api.post(`/mmt/lhk-proof/acc/${nomor}`);
+      toast.success(`LHK ${nomor} berhasil di-ACC.`);
       fetchMasterData();
-      selected.value = [];
     } catch (e: any) {
       toast.error(e?.response?.data?.message || "Gagal memproses ACC LHK.");
     } finally {
@@ -321,11 +272,12 @@ const handleAcc = async () => {
 };
 
 const handleDelete = async () => {
-  if (!selectedItem.value) return;
+  const nomor = selectedItem.value?.nomor || selectedItem.value;
+  if (!nomor) return;
 
   const result = await Swal.fire({
     title: "Yakin ingin hapus?",
-    text: `Data LHK Proof Nomor: ${selectedItem.value} akan dihapus permanen.`,
+    text: `Data LHK Proof Nomor: ${nomor} akan dihapus permanen.`,
     icon: "warning",
     showCancelButton: true,
     confirmButtonColor: "#d33",
@@ -335,10 +287,9 @@ const handleDelete = async () => {
 
   if (result.isConfirmed) {
     try {
-      await api.delete(`/mmt/lhk-proof/${selectedItem.value}`);
+      await api.delete(`/mmt/lhk-proof/${nomor}`);
       toast.success("Berhasil dihapus.");
       fetchMasterData();
-      selected.value = [];
     } catch (e) {
       toast.error("Gagal menghapus data.");
     }
@@ -346,20 +297,26 @@ const handleDelete = async () => {
 };
 
 const handlePrint = () => {
-  if (!selectedItem.value) return;
-  toast.info(`Mencetak slip ${selectedItem.value}...`);
-  window.open(`/api/report/lhk-proof-slip/${selectedItem.value}`, "_blank");
+  const nomor = selectedItem.value?.nomor || selectedItem.value;
+  if (!nomor) return;
+  toast.info(`Mencetak slip ${nomor}...`);
+  window.open(`/api/report/lhk-proof-slip/${nomor}`, "_blank");
 };
 
 onMounted(() => {
   fetchMasterData();
 });
 
-// --- EXPORT LOGIC FIXED (LHK PROOF MMT WITH GRAND TOTAL & BORDERS) ---
+watch(
+  () => [filters.startDate, filters.endDate],
+  () => fetchMasterData(),
+);
+
+// --- EXPORT LOGIC ---
 const exportToExcel = async () => {
   loading.master = true;
   try {
-    for (const header of masterData.value) {
+    for (const header of filteredMasterData.value) {
       if (
         !details.value[header.nomor] ||
         details.value[header.nomor].length === 0
@@ -472,7 +429,7 @@ const exportToExcel = async () => {
     let grandTotalOrder = 0;
     let grandTotalProof = 0;
 
-    masterData.value.forEach((header) => {
+    filteredMasterData.value.forEach((header) => {
       const targetDetails = details.value[header.nomor] || [];
       const tglHeader = formatTglManual(header.Tanggal || "");
 
@@ -595,28 +552,15 @@ const exportToExcel = async () => {
   font-size: 11px !important;
 }
 
-:deep(.v-field__input),
-:deep(input) {
-  font-size: 11px !important;
-  min-height: 32px !important;
-}
-
 .custom-table :deep(th),
 .custom-table :deep(td) {
   font-size: 11px !important;
 }
 
-:deep(.v-btn) {
-  font-size: 11px !important;
-  text-transform: none;
+.row-selected {
+  background-color: #d8efff !important;
 }
-
-.main-grid {
-  height: calc(100vh - 220px);
-}
-
-:deep(.v-data-table-header th) {
-  background-color: #f5f5f5 !important;
-  font-weight: bold !important;
+:deep(.row-selected td) {
+  background-color: #d8efff !important;
 }
 </style>
