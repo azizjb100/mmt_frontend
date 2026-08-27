@@ -139,14 +139,26 @@
               </td>
             </tr>
           </template>
-          <template #[`item.StatusAmbil`]="{ item }">
+          <template #[`item.Status`]="{ item }">
             <v-chip
               size="x-small"
-              :color="item.StatusAmbil === 'BARU' ? 'success' : 'grey-darken-1'"
-              :variant="item.StatusAmbil === 'BARU' ? 'flat' : 'tonal'"
+              :color="item.Status === 'POSTED' ? 'primary' : 'grey-darken-1'"
+              :variant="item.Status === 'POSTED' ? 'flat' : 'tonal'"
               class="font-weight-bold"
             >
-              {{ item.StatusAmbil === "BARU" ? "OPEN" : "CLOSE" }}
+              {{ item.Status }}
+            </v-chip>
+          </template>
+
+          <!-- Template untuk Kolom Status Close (OPEN / CLOSED) -->
+          <template #[`item.StatusClose`]="{ item }">
+            <v-chip
+              size="x-small"
+              :color="item.StatusClose === 'OPEN' ? 'success' : 'grey-darken-1'"
+              :variant="item.StatusClose === 'OPEN' ? 'flat' : 'tonal'"
+              class="font-weight-bold"
+            >
+              {{ item.StatusClose }}
             </v-chip>
           </template>
 
@@ -254,7 +266,8 @@ const filters = reactive({
 const headers = [
   { title: "", key: "data-table-expand", width: "40px" },
   { title: "Nomor LHK", key: "Nomor", width: "130px" },
-  { title: "Status", key: "StatusAmbil", width: "90px" },
+  { title: "Status", key: "Status", width: "90px" }, // <-- Kolom Status (POSTED / DRAFT)
+  { title: "Status Close", key: "StatusClose", width: "90px" }, // <-- Kolom Status Close (OPEN / CLOSED)
   { title: "Shift", key: "Shift", width: "70px" },
   { title: "Mesin", key: "Mesin", width: "80px" },
   { title: "Nomor SPK", key: "NomorSPK", width: "150px" },
@@ -315,27 +328,38 @@ const fetchLhkData = async () => {
 const submitSelection = () => {
   if (selectedItems.value.length === 0) return;
 
-  // 1. Cek apakah ada item terpilih yang statusnya CLOSED
-  // Catatan: Karena v-model data-table mengikat "item-value="Nomor"",
-  // kita cari object lengkapnya dari lhkList berdasarkan Nomor tersebut.
+  // 1. Cek apakah ada item terpilih yang statusnya masih DRAFT (belum POSTED)
+  const hasDraftItem = selectedItems.value.some((nomorLhk) => {
+    const originalItem = lhkList.value.find(
+      (lhk: any) => lhk.Nomor === nomorLhk,
+    );
+    return originalItem?.Status !== "POSTED";
+  });
+
+  // Jika ada yang masih DRAFT, hentikan proses dan tampilkan peringatan
+  if (hasDraftItem) {
+    toast.error(
+      "Peringatan: Ada LHK yang dipilih belum berstatus POSTED dan tidak dapat diambil!",
+    );
+    return; // Proses dibatalkan, data tidak dikirim
+  }
+
+  // 2. (Opsional) Cek peringatan untuk yang status close-nya CLOSED
   const hasClosedItem = selectedItems.value.some((nomorLhk) => {
     const originalItem = lhkList.value.find(
       (lhk: any) => lhk.Nomor === nomorLhk,
     );
-    return originalItem?.StatusAmbil === "CLOSED";
+    return originalItem?.StatusClose === "CLOSED";
   });
 
-  // 2. Jika ada yang CLOSED, tampilkan warning / alert konfirmasi
   if (hasClosedItem) {
     const konfirmasi = window.confirm(
-      "Peringatan: Ada Nomor LHK yang sudah pernah diambil (CLOSED).\nApakah Anda yakin ingin tetap mengambil data ini?",
+      "Peringatan: Ada Nomor LHK yang status close-nya sudah CLOSED.\nApakah Anda yakin ingin tetap mengambil data ini?",
     );
-
-    // Jika user menekan tombol 'Cancel' pada alert, batalkan proses ambil data
     if (!konfirmasi) return;
   }
 
-  // 3. Jika aman atau user menyetujui warning, kirim data ke komponen utama
+  // 3. Jika lolos semua validasi, kirim data ke komponen utama
   emit("select", selectedItems.value);
   emit("close");
 };

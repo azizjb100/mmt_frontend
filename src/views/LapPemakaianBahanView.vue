@@ -5,11 +5,15 @@
     :items="filteredData"
     :loading="loading.report"
     :show-gudang-filter="false"
+    :disable-sort="true"
+    :disable-filter="true"
+    :has-active-filter="hasActiveFilter"
     item-key="noSpk"
     title="Laporan Pemakaian Bahan & Konsumsi Tinta"
     :excel-file-name="`Laporan_Pemakaian_Bahan_${startDate}_sd_${endDate}.xlsx`"
     :custom-export-excel="exportToExcel"
     @refresh="fetchReport"
+    @reset-filter="resetAllFilters"
   >
     <!-- FILTER TAMBAHAN: TIPE LHK & PENCARIAN -->
     <template #extra-filters>
@@ -38,25 +42,225 @@
       </div>
     </template>
 
+    <!-- SLOT THEAD SESUAI STRUKTUR BASE REPORT LAYOUT -->
     <template #thead>
       <thead>
-        <!-- Row 1: Group Header (A s/d AZ) -->
+        <!-- Row 1: Group Header & Filter Utama -->
         <tr class="header-main">
-          <th rowspan="2" class="text-center sticky-col-1">TANGGAL</th>
-          <th rowspan="2" class="text-center sticky-col-2">SHIFT</th>
-          <th rowspan="2" class="text-center">TIPE LHK</th>
+          <!-- TANGGAL -->
+          <th
+            rowspan="2"
+            class="text-center sticky-col-1 cursor-pointer select-none"
+            @click="toggleSort('tgl')"
+          >
+            <div class="d-flex align-center justify-space-between px-1">
+              <span class="font-weight-bold"
+                >TANGGAL {{ getSortIcon("tgl") }}</span
+              >
+              <v-menu :close-on-content-click="false">
+                <template #activator="{ props }">
+                  <v-btn
+                    v-bind="props"
+                    icon
+                    variant="text"
+                    size="x-small"
+                    class="btn-filter-icon ml-1"
+                    @click.stop
+                  >
+                    <v-icon
+                      size="14"
+                      :color="columnFilters.tgl ? 'amber-accent-2' : 'white'"
+                      >mdi-filter-variant</v-icon
+                    >
+                  </v-btn>
+                </template>
+                <v-card min-width="180" class="pa-2 rounded-lg" @click.stop>
+                  <v-text-field
+                    v-model="columnFilters.tgl"
+                    label="Filter Tanggal..."
+                    density="compact"
+                    hide-details
+                    variant="outlined"
+                    clearable
+                  />
+                </v-card>
+              </v-menu>
+            </div>
+          </th>
+
+          <!-- SHIFT -->
+          <th
+            rowspan="2"
+            class="text-center sticky-col-2 cursor-pointer select-none"
+            @click="toggleSort('shift')"
+          >
+            <div class="d-flex align-center justify-space-between px-1">
+              <span class="font-weight-bold"
+                >SHIFT {{ getSortIcon("shift") }}</span
+              >
+              <v-menu :close-on-content-click="false">
+                <template #activator="{ props }">
+                  <v-btn
+                    v-bind="props"
+                    icon
+                    variant="text"
+                    size="x-small"
+                    class="btn-filter-icon ml-1"
+                    @click.stop
+                  >
+                    <v-icon
+                      size="14"
+                      :color="columnFilters.shift ? 'amber-accent-2' : 'white'"
+                      >mdi-filter-variant</v-icon
+                    >
+                  </v-btn>
+                </template>
+                <v-card min-width="180" class="pa-2 rounded-lg" @click.stop>
+                  <v-text-field
+                    v-model="columnFilters.shift"
+                    label="Filter Shift..."
+                    density="compact"
+                    hide-details
+                    variant="outlined"
+                    clearable
+                  />
+                </v-card>
+              </v-menu>
+            </div>
+          </th>
+
+          <!-- TIPE LHK -->
+          <th
+            rowspan="2"
+            class="text-center cursor-pointer select-none"
+            @click="toggleSort('tipeLhk')"
+          >
+            <div class="d-flex align-center justify-space-between px-1">
+              <span class="font-weight-bold"
+                >TIPE LHK {{ getSortIcon("tipeLhk") }}</span
+              >
+              <v-menu :close-on-content-click="false">
+                <template #activator="{ props }">
+                  <v-btn
+                    v-bind="props"
+                    icon
+                    variant="text"
+                    size="x-small"
+                    class="btn-filter-icon ml-1"
+                    @click.stop
+                  >
+                    <v-icon
+                      size="14"
+                      :color="
+                        columnFilters.tipeLhk ? 'amber-accent-2' : 'white'
+                      "
+                      >mdi-filter-variant</v-icon
+                    >
+                  </v-btn>
+                </template>
+                <v-card min-width="180" class="pa-2 rounded-lg" @click.stop>
+                  <v-text-field
+                    v-model="columnFilters.tipeLhk"
+                    label="Filter Tipe LHK..."
+                    density="compact"
+                    hide-details
+                    variant="outlined"
+                    clearable
+                  />
+                </v-card>
+              </v-menu>
+            </div>
+          </th>
 
           <!-- Toleransi Bahan -->
           <th colspan="5" class="text-center bg-orange-header">
             TOLERANSI BAHAN
           </th>
 
-          <!-- Info SPK -->
-          <th rowspan="2" class="text-left" style="min-width: 200px">
-            NAMA ORDER SPK
+          <!-- NAMA ORDER SPK -->
+          <th
+            rowspan="2"
+            class="text-left cursor-pointer select-none"
+            style="min-width: 200px"
+            @click="toggleSort('namaOrder')"
+          >
+            <div class="d-flex align-center justify-space-between px-1">
+              <span class="font-weight-bold"
+                >NAMA ORDER SPK {{ getSortIcon("namaOrder") }}</span
+              >
+              <v-menu :close-on-content-click="false">
+                <template #activator="{ props }">
+                  <v-btn
+                    v-bind="props"
+                    icon
+                    variant="text"
+                    size="x-small"
+                    class="btn-filter-icon ml-1"
+                    @click.stop
+                  >
+                    <v-icon
+                      size="14"
+                      :color="
+                        columnFilters.namaOrder ? 'amber-accent-2' : 'white'
+                      "
+                      >mdi-filter-variant</v-icon
+                    >
+                  </v-btn>
+                </template>
+                <v-card min-width="200" class="pa-2 rounded-lg" @click.stop>
+                  <v-text-field
+                    v-model="columnFilters.namaOrder"
+                    label="Filter Nama Order..."
+                    density="compact"
+                    hide-details
+                    variant="outlined"
+                    clearable
+                  />
+                </v-card>
+              </v-menu>
+            </div>
           </th>
-          <th rowspan="2" class="text-center" style="min-width: 120px">
-            NO. SPK
+
+          <!-- NO. SPK -->
+          <th
+            rowspan="2"
+            class="text-center cursor-pointer select-none"
+            style="min-width: 120px"
+            @click="toggleSort('noSpk')"
+          >
+            <div class="d-flex align-center justify-space-between px-1">
+              <span class="font-weight-bold"
+                >NO. SPK {{ getSortIcon("noSpk") }}</span
+              >
+              <v-menu :close-on-content-click="false">
+                <template #activator="{ props }">
+                  <v-btn
+                    v-bind="props"
+                    icon
+                    variant="text"
+                    size="x-small"
+                    class="btn-filter-icon ml-1"
+                    @click.stop
+                  >
+                    <v-icon
+                      size="14"
+                      :color="columnFilters.noSpk ? 'amber-accent-2' : 'white'"
+                      >mdi-filter-variant</v-icon
+                    >
+                  </v-btn>
+                </template>
+                <v-card min-width="180" class="pa-2 rounded-lg" @click.stop>
+                  <v-text-field
+                    v-model="columnFilters.noSpk"
+                    label="Filter No SPK..."
+                    density="compact"
+                    hide-details
+                    variant="outlined"
+                    clearable
+                  />
+                </v-card>
+              </v-menu>
+            </div>
           </th>
 
           <!-- Ukuran & Jenis Bahan -->
@@ -167,20 +371,20 @@
       </thead>
     </template>
 
+    <!-- SLOT ROW -->
     <template #row="{ item, formatNumber }">
       <tr class="table-row-item" :class="{ 'row-lo-highlight': item.isLO }">
-        <!-- TGL, SHIFT, TIPE LHK -->
         <td class="text-center sticky-col-1 font-weight-bold">
-          {{ item.showTgl ? formatDMY(item.tgl) : "" }}
+          {{ formatDMY(item.tgl) }}
         </td>
         <td class="text-center sticky-col-2 font-weight-bold">
-          {{ item.showShift ? item.shift || "-" : "" }}
+          {{ item.shift || "-" }}
         </td>
         <td class="text-center font-weight-bold text-primary">
           {{ item.tipeLhk || "MMT" }}
         </td>
 
-        <!-- TOLERANSI BAHAN -->
+        <!-- Toleransi Bahan -->
         <td class="text-right" :class="{ 'text-red-bold': item.isLO }">
           {{ formatVal(item.s12, formatNumber, 2) }}
         </td>
@@ -197,7 +401,7 @@
           {{ formatPercent(item.toleransiPersen, formatNumber, 2) }}
         </td>
 
-        <!-- INFO SPK -->
+        <!-- Info SPK -->
         <td
           class="text-left text-truncate"
           style="max-width: 220px"
@@ -208,7 +412,7 @@
         </td>
         <td class="text-center font-weight-bold">{{ item.noSpk || "" }}</td>
 
-        <!-- UKURAN & JENIS BAHAN -->
+        <!-- Ukuran & Jenis Bahan -->
         <td class="text-right" :class="{ 'text-red-bold': item.isLO }">
           {{ formatVal(item.p, formatNumber, 2) }}
         </td>
@@ -225,7 +429,7 @@
           {{ formatVal(item.ambilP, formatNumber, 2) }}
         </td>
 
-        <!-- JUMLAH ORDER SPK -->
+        <!-- Jumlah Order SPK -->
         <td
           class="text-right bg-green-light"
           :class="{ 'text-red-bold': item.isLO }"
@@ -247,7 +451,7 @@
           }}
         </td>
 
-        <!-- HASIL CETAK -->
+        <!-- Hasil Cetak -->
         <td
           class="text-right bg-yellow-light"
           :class="{ 'text-red-bold': item.isLO }"
@@ -267,7 +471,7 @@
           {{ item.isLO ? "-" : formatVal(item.hasilLuas, formatNumber, 2) }}
         </td>
 
-        <!-- AMBIL BAHAN -->
+        <!-- Ambil Bahan -->
         <td class="text-right" :class="{ 'text-red-bold': item.isLO }">
           {{ formatVal(item.ambilP, formatNumber, 2) }}
         </td>
@@ -281,7 +485,7 @@
           {{ formatVal(item.ambilLuas, formatNumber, 2) }}
         </td>
 
-        <!-- KEMBALIAN BISA PAKAI -->
+        <!-- Kembalian Bisa Pakai -->
         <td class="text-right" :class="{ 'text-red-bold': item.isLO }">
           {{ formatVal(item.sisaBisaPakaiP, formatNumber, 2) }}
         </td>
@@ -295,7 +499,7 @@
           {{ formatVal(item.sisaBisaPakaiLuas, formatNumber, 2) }}
         </td>
 
-        <!-- KEMBALIAN TIDAK BISA PAKAI -->
+        <!-- Kembalian Tidak Bisa Pakai -->
         <td class="text-right" :class="{ 'text-red-bold': item.isLO }">
           {{ formatVal(item.sisaRongsokP, formatNumber, 2) }}
         </td>
@@ -309,7 +513,7 @@
           {{ formatVal(item.sisaRongsokLuas, formatNumber, 2) }}
         </td>
 
-        <!-- AKTUAL LUAS PAKAI -->
+        <!-- Aktual Luas Pakai -->
         <td
           class="text-right font-weight-bold bg-blue-light"
           :class="{ 'text-red-bold': item.isLO }"
@@ -317,7 +521,7 @@
           {{ formatVal(item.aktualLuasPakai, formatNumber, 2) }}
         </td>
 
-        <!-- TOTAL WASTE -->
+        <!-- Total Waste -->
         <td class="text-right" :class="{ 'text-red-bold': item.isLO }">
           {{ formatVal(item.wasteM2, formatNumber, 2) }}
         </td>
@@ -343,7 +547,7 @@
           {{ formatPercent(item.totalWastePersen, formatNumber, 2) }}
         </td>
 
-        <!-- PENGGUNAAN TINTA -->
+        <!-- Penggunaan Tinta -->
         <td class="text-right ink-c">
           {{ formatVal(item.inkC_MT02, formatNumber, 2) }}
         </td>
@@ -395,10 +599,9 @@
       </tr>
     </template>
 
-    <!-- BARIS GRAND TOTAL PADA TABEL UI -->
+    <!-- SLOT TFOOT / GRAND TOTAL -->
     <template #tfoot="{ formatNumber }">
       <tr class="grand-total-row font-weight-bold bg-grey-lighten-3">
-        <!-- Kolom digabung menjadi 3 karena ada tambahan TIPE LHK -->
         <td
           colspan="3"
           class="text-center sticky-col-1 font-weight-bold bg-grey-lighten-2"
@@ -565,6 +768,54 @@ const selectedTipeLhk = ref("ALL");
 const loading = reactive({ report: false });
 const productionData = ref([]);
 
+// Kolom Filter & Sorting State
+const columnFilters = reactive({
+  tgl: "",
+  shift: "",
+  tipeLhk: "",
+  namaOrder: "",
+  noSpk: "",
+});
+
+const sortKey = ref("tgl");
+const sortOrder = ref("asc");
+
+const toggleSort = (key) => {
+  if (sortKey.value === key) {
+    sortOrder.value = sortOrder.value === "asc" ? "desc" : "asc";
+  } else {
+    sortKey.value = key;
+    sortOrder.value = "asc";
+  }
+};
+
+const getSortIcon = (key) => {
+  if (sortKey.value !== key) return "";
+  return sortOrder.value === "asc" ? " ▲" : " ▼";
+};
+
+const hasActiveFilter = computed(() => {
+  return (
+    Boolean(searchQuery.value) ||
+    Boolean(columnFilters.tgl) ||
+    Boolean(columnFilters.shift) ||
+    Boolean(columnFilters.tipeLhk) ||
+    Boolean(columnFilters.namaOrder) ||
+    Boolean(columnFilters.noSpk)
+  );
+});
+
+const resetAllFilters = () => {
+  searchQuery.value = "";
+  columnFilters.tgl = "";
+  columnFilters.shift = "";
+  columnFilters.tipeLhk = "";
+  columnFilters.namaOrder = "";
+  columnFilters.noSpk = "";
+  sortKey.value = "tgl";
+  sortOrder.value = "asc";
+};
+
 // Opsi Tipe LHK
 const tipeLhkOptions = [
   { title: "Semua LHK", value: "ALL" },
@@ -582,7 +833,7 @@ const fetchReport = async () => {
       params: {
         startDate: startDate.value,
         endDate: endDate.value,
-        tipeLhk: selectedTipeLhk.value, // Param Tipe LHK
+        tipeLhk: selectedTipeLhk.value,
       },
     });
     productionData.value = Array.isArray(res.data)
@@ -597,16 +848,76 @@ const fetchReport = async () => {
 };
 
 const filteredData = computed(() => {
-  const q = searchQuery.value ? searchQuery.value.toLowerCase().trim() : "";
-  if (!q) return productionData.value;
-  return productionData.value.filter(
-    (row) =>
-      (row.namaOrder && row.namaOrder.toLowerCase().includes(q)) ||
-      (row.noSpk && row.noSpk.toLowerCase().includes(q)),
-  );
+  let result = [...productionData.value];
+  const qGlobal = searchQuery.value
+    ? searchQuery.value.toLowerCase().trim()
+    : "";
+
+  if (qGlobal) {
+    result = result.filter(
+      (row) =>
+        (row.namaOrder && row.namaOrder.toLowerCase().includes(qGlobal)) ||
+        (row.noSpk && row.noSpk.toLowerCase().includes(qGlobal)),
+    );
+  }
+
+  if (columnFilters.tgl) {
+    const q = columnFilters.tgl.toLowerCase();
+    result = result.filter((row) =>
+      formatDMY(row.tgl).toLowerCase().includes(q),
+    );
+  }
+  if (columnFilters.shift) {
+    const q = columnFilters.shift.toLowerCase();
+    result = result.filter((row) =>
+      String(row.shift || "")
+        .toLowerCase()
+        .includes(q),
+    );
+  }
+  if (columnFilters.tipeLhk) {
+    const q = columnFilters.tipeLhk.toLowerCase();
+    result = result.filter((row) =>
+      String(row.tipeLhk || "MMT")
+        .toLowerCase()
+        .includes(q),
+    );
+  }
+  if (columnFilters.namaOrder) {
+    const q = columnFilters.namaOrder.toLowerCase();
+    result = result.filter((row) =>
+      String(row.namaOrder || "")
+        .toLowerCase()
+        .includes(q),
+    );
+  }
+  if (columnFilters.noSpk) {
+    const q = columnFilters.noSpk.toLowerCase();
+    result = result.filter((row) =>
+      String(row.noSpk || "")
+        .toLowerCase()
+        .includes(q),
+    );
+  }
+
+  // Sorting
+  if (sortKey.value) {
+    const key = sortKey.value;
+    const isAsc = sortOrder.value === "asc";
+    result.sort((a, b) => {
+      let valA = a[key] ?? "";
+      let valB = b[key] ?? "";
+      let comp = String(valA).localeCompare(String(valB), "id", {
+        numeric: true,
+        sensitivity: "base",
+      });
+      return isAsc ? comp : -comp;
+    });
+  }
+
+  return result;
 });
 
-// Helper Pengecekan SPK Gabungan Child
 const checkIsGabunganChild = (r) => {
   return (
     Boolean(r.isGabunganChild) ||
@@ -617,7 +928,6 @@ const checkIsGabunganChild = (r) => {
   );
 };
 
-// Computed Grand Total untuk Tampilan UI Tabel
 const totals = computed(() => {
   const data = filteredData.value;
   const res = {
@@ -721,7 +1031,6 @@ const totals = computed(() => {
   return res;
 });
 
-// Format Tanggal
 const formatDMY = (dateStr) => {
   if (!dateStr || dateStr === "-") return "-";
   const cleanStr = String(dateStr).substring(0, 10);
@@ -867,11 +1176,10 @@ const exportToExcel = (dataToExport) => {
     [],
   ];
 
-  // Header Utama (Ditambah Kolom TIPE LHK)
   wsData.push([
     { v: "TGL", s: styleHeaderMain },
     { v: "SHIFT", s: styleHeaderMain },
-    { v: "TIPE LHK", s: styleHeaderMain }, // 🌟 BARU
+    { v: "TIPE LHK", s: styleHeaderMain },
     { v: "TOLERANSI BAHAN", s: styleHeaderMain },
     { v: "", s: styleHeaderMain },
     { v: "", s: styleHeaderMain },
@@ -923,11 +1231,10 @@ const exportToExcel = (dataToExport) => {
     { v: "", s: styleHeaderMain },
   ]);
 
-  // Sub Header
   wsData.push([
     { v: "", s: styleHeaderMain },
     { v: "", s: styleHeaderMain },
-    { v: "", s: styleHeaderMain }, // 🌟 BARU
+    { v: "", s: styleHeaderMain },
     { v: "S 1,2", s: styleHeaderMain },
     { v: "S 3,4", s: styleHeaderMain },
     { v: "% TOLERANSI", s: styleHeaderMain },
@@ -988,18 +1295,17 @@ const exportToExcel = (dataToExport) => {
 
     wsData.push([
       {
-        v: row.showTgl ? formatDMY(row.tgl) : "",
+        v: formatDMY(row.tgl),
         s: { ...styleDataCell, alignment: { horizontal: "center" } },
       },
       {
-        v: row.showShift ? row.shift || "" : "",
+        v: row.shift || "",
         s: { ...styleDataCell, alignment: { horizontal: "center" } },
       },
       {
         v: row.tipeLhk || "MMT",
         s: { ...styleDataCell, alignment: { horizontal: "center" } },
-      }, // 🌟 BARU
-
+      },
       cellNum(row.s12, "#,##0.00"),
       cellNum(row.s34, "#,##0.00"),
       cellPct(row.persenToleransi),
@@ -1018,18 +1324,14 @@ const exportToExcel = (dataToExport) => {
       },
       cellNum(row.lebarBahan, "#,##0.00"),
       cellNum(row.pRoll, "#,##0.00"),
-
       cellNum(isChild ? 0 : row.orderPcs, "#,##0"),
       cellNum(isChild ? 0 : row.orderLuas, "#,##0.00"),
-
       cellNum(isLO ? 0 : row.hasilPRoll, "#,##0.00"),
       cellNum(isLO ? 0 : row.hasilQty, "#,##0"),
       cellNum(isLO ? 0 : row.hasilLuas, "#,##0.00"),
-
       cellNum(row.ambilP, "#,##0.00"),
       cellNum(row.ambilL, "#,##0.00"),
       cellNum(row.ambilLuas, "#,##0.00"),
-
       cellNum(row.sisaBisaPakaiP, "#,##0.00"),
       cellNum(row.sisaBisaPakaiL, "#,##0.00"),
       cellNum(row.sisaBisaPakaiLuas, "#,##0.00"),
@@ -1043,7 +1345,6 @@ const exportToExcel = (dataToExport) => {
       cellPct(row.lostPersen),
       cellNum(row.totalWasteM2, "#,##0.00"),
       cellPct(row.totalWastePersen),
-
       cellNum(row.inkC_MT02, "#,##0.00"),
       cellNum(row.inkM_MT02, "#,##0.00"),
       cellNum(row.inkY_MT02, "#,##0.00"),
@@ -1065,10 +1366,8 @@ const exportToExcel = (dataToExport) => {
 
   const grandTotalRowIndex = wsData.length + 1;
   const colLetter = (colIdx) => XLSX.utils.encode_col(colIdx);
-
   const getSumFormula = (colIdx) =>
     `SUM(${colLetter(colIdx)}${startRowExcel}:${colLetter(colIdx)}${endRowExcel})`;
-
   const getRatioFormula = (numColIdx, denColIdx) =>
     `IF(${colLetter(denColIdx)}${grandTotalRowIndex}>0, ${colLetter(numColIdx)}${grandTotalRowIndex}/${colLetter(denColIdx)}${grandTotalRowIndex}, 0)`;
 
@@ -1080,7 +1379,7 @@ const exportToExcel = (dataToExport) => {
     cellFormula(getSumFormula(4), "#,##0.00"),
     { v: "-", s: styleGrandTotalCellRight },
     cellFormula(getSumFormula(6), "#,##0.00"),
-    cellFormula(getRatioFormula(6, 16), "0.00%"), // Shift ratio denominator to new Order Luas index
+    cellFormula(getRatioFormula(6, 16), "0.00%"),
     { v: "-", s: styleGrandTotalCell },
     { v: "-", s: styleGrandTotalCell },
     { v: "-", s: styleGrandTotalCellRight },
@@ -1109,7 +1408,6 @@ const exportToExcel = (dataToExport) => {
     cellFormula(getRatioFormula(32, 16), "0.00%"),
     cellFormula(getSumFormula(34), "#,##0.00"),
     cellFormula(getRatioFormula(34, 16), "0.00%"),
-
     ...Array.from({ length: 16 }, (_, i) =>
       cellFormula(getSumFormula(36 + i), "#,##0.00"),
     ),
@@ -1120,11 +1418,10 @@ const exportToExcel = (dataToExport) => {
   ws["!merges"] = [
     { s: { r: 3, c: 0 }, e: { r: 4, c: 0 } },
     { s: { r: 3, c: 1 }, e: { r: 4, c: 1 } },
-    { s: { r: 3, c: 2 }, e: { r: 4, c: 2 } }, // 🌟 Merge Kolom TIPE LHK
+    { s: { r: 3, c: 2 }, e: { r: 4, c: 2 } },
     { s: { r: 3, c: 8 }, e: { r: 4, c: 8 } },
     { s: { r: 3, c: 9 }, e: { r: 4, c: 9 } },
-    { s: { r: 3, c: 29 }, e: { r: 4, c: 29 } }, // Geser ke kanan
-
+    { s: { r: 3, c: 29 }, e: { r: 4, c: 29 } },
     { s: { r: 3, c: 3 }, e: { r: 3, c: 7 } },
     { s: { r: 3, c: 10 }, e: { r: 3, c: 11 } },
     { s: { r: 3, c: 12 }, e: { r: 3, c: 14 } },
@@ -1138,11 +1435,9 @@ const exportToExcel = (dataToExport) => {
     { s: { r: 3, c: 40 }, e: { r: 3, c: 43 } },
     { s: { r: 3, c: 44 }, e: { r: 3, c: 47 } },
     { s: { r: 3, c: 48 }, e: { r: 3, c: 51 } },
-
-    // Grand Total Merge
     {
       s: { r: grandTotalRowIndex - 1, c: 0 },
-      e: { r: grandTotalRowIndex - 1, c: 2 }, // Merging TGL, SHIFT & TIPE LHK
+      e: { r: grandTotalRowIndex - 1, c: 2 },
     },
     {
       s: { r: grandTotalRowIndex - 1, c: 8 },
@@ -1159,7 +1454,6 @@ onMounted(fetchReport);
 </script>
 
 <style scoped>
-/* Base Table Styles */
 :deep(table) {
   border-collapse: separate !important;
   border-spacing: 0 !important;
@@ -1219,19 +1513,23 @@ onMounted(fetchReport);
   background-color: #f1f5f9 !important;
 }
 
+/* STICKY LEFT COLUMNS DENGAN LEBAR PAS */
 :deep(.sticky-col-1) {
   position: sticky !important;
   left: 0px !important;
-  width: 130px !important;
-  min-width: 130px !important;
-  max-width: 130px !important;
+  width: 95px !important;
+  min-width: 95px !important;
+  max-width: 95px !important;
   z-index: 6 !important;
   background-color: #ffffff !important;
 }
 
 :deep(.sticky-col-2) {
   position: sticky !important;
-  left: 120px !important;
+  left: 95px !important;
+  width: 75px !important;
+  min-width: 75px !important;
+  max-width: 75px !important;
   z-index: 6 !important;
   background-color: #ffffff !important;
   box-shadow: 3px 0px 5px -2px rgba(0, 0, 0, 0.15) !important;
@@ -1240,10 +1538,25 @@ onMounted(fetchReport);
 :deep(thead th.sticky-col-1),
 :deep(thead th.sticky-col-2) {
   z-index: 15 !important;
+  background: #1e3a8a !important;
 }
 
 :deep(tfoot td.sticky-col-1),
 :deep(tfoot td.sticky-col-2) {
   z-index: 9 !important;
+  background-color: #cbd5e1 !important;
+}
+
+.cursor-pointer {
+  cursor: pointer;
+}
+.select-none {
+  user-select: none;
+}
+.btn-filter-icon {
+  opacity: 0.85;
+}
+.btn-filter-icon:hover {
+  opacity: 1;
 }
 </style>

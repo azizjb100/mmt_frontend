@@ -86,64 +86,62 @@
 
     <!-- 2. TABEL DATA UTAMA -->
     <v-card class="table-card rounded-xl elevation-2 border-0">
-      <v-data-table
-        :items="processedData"
-        :loading="loading"
-        :headers="[]"
-        :item-value="itemKey"
-        density="compact"
-        class="custom-modern-table"
-        v-model:items-per-page="itemsPerPage"
-        :items-per-page-options="[
-          10,
-          25,
-          50,
-          100,
-          { title: 'Semua', value: -1 },
-        ]"
-        show-expand
-        v-model:expanded="expandedRows"
-        @update:expanded="onRowExpand"
-      >
-        <!-- Custom Header Slot -->
-        <!-- Props ini TETAP dikirim untuk laporan lama yang masih pakai
-             sistem filter/sort generik bawaan BaseReportLayout.
-             Laporan custom (mis. LMKP) boleh mengabaikannya karena
-             templatenya sendiri sudah punya toggleSort/getSortIcon lokal. -->
-        <template #thead>
-          <slot
-            name="thead"
-            :toggle-sort="toggleSort"
-            :get-sort-icon="getSortIcon"
-            :column-filters="columnFilters"
-            :kategori-options="kategoriOptions"
-            :jenis-options="jenisOptions"
-            :satuan-options="satuanOptions"
-            :status-options="statusOptions"
-          ></slot>
-        </template>
+      <div class="table-responsive-wrapper">
+        <v-data-table
+          :items="processedData"
+          :loading="loading"
+          :headers="[]"
+          :item-value="itemKey"
+          density="compact"
+          class="custom-modern-table resizable-table"
+          v-model:items-per-page="itemsPerPage"
+          :items-per-page-options="[
+            10,
+            25,
+            50,
+            100,
+            { title: 'Semua', value: -1 },
+          ]"
+          show-expand
+          v-model:expanded="expandedRows"
+          @update:expanded="onRowExpand"
+        >
+          <!-- Custom Header Slot -->
+          <template #thead>
+            <slot
+              name="thead"
+              :toggle-sort="toggleSort"
+              :get-sort-icon="getSortIcon"
+              :column-filters="columnFilters"
+              :kategori-options="kategoriOptions"
+              :jenis-options="jenisOptions"
+              :satuan-options="satuanOptions"
+              :status-options="statusOptions"
+            ></slot>
+          </template>
 
-        <!-- Custom Row Slot -->
-        <template #item="{ item, internalItem, isExpanded, toggleExpand }">
-          <slot
-            name="row"
-            :item="item"
-            :internalItem="internalItem"
-            :isExpanded="isExpanded"
-            :toggleExpand="toggleExpand"
-            :formatNumber="formatNumber"
-          ></slot>
-        </template>
+          <!-- Custom Row Slot -->
+          <template #item="{ item, internalItem, isExpanded, toggleExpand }">
+            <slot
+              name="row"
+              :item="item"
+              :internalItem="internalItem"
+              :isExpanded="isExpanded"
+              :toggleExpand="toggleExpand"
+              :formatNumber="formatNumber"
+            ></slot>
+          </template>
 
-        <!-- Custom Footer Slot -->
-        <template #tfoot>
-          <slot
-            name="tfoot"
-            :totals="reportTotals"
-            :formatNumber="formatNumber"
-          ></slot>
-        </template>
-      </v-data-table>
+          <!-- Custom Footer Slot -->
+          <template #tfoot>
+            <slot
+              name="tfoot"
+              :totals="reportTotals"
+              :formatNumber="formatNumber"
+            ></slot>
+          </template>
+        </v-data-table>
+      </div>
     </v-card>
 
     <!-- Modal Gudang Lookup -->
@@ -157,7 +155,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed } from "vue";
+import { ref, reactive, computed, onMounted } from "vue";
 import GudangLookupView from "@/modal/GudangLookupView.vue";
 import * as XLSX from "xlsx-js-style";
 
@@ -183,15 +181,8 @@ const props = defineProps({
     type: Object as () => Record<string, string>,
     default: () => ({}),
   },
-
-  // --- MODE CUSTOM (dipakai laporan yang punya filter/sort sendiri, mis. LMKP) ---
-  // Set true kalau komponen anak sudah handle filter & sort SENDIRI lewat `items`.
-  // Kalau true, BaseReportLayout tidak akan memfilter/mensort ulang `items`.
   disableSort: { type: Boolean, default: false },
   disableFilter: { type: Boolean, default: false },
-  // Kalau disableFilter = true, status tombol "Reset Filter" tidak bisa
-  // dihitung otomatis dari state internal (karena state-nya ada di anak).
-  // Anak bisa override lewat prop ini. undefined = pakai perhitungan internal.
   activeFilterOverride: { type: Boolean, default: undefined },
 });
 
@@ -205,7 +196,6 @@ const emit = defineEmits([
   "row-expand",
 ]);
 
-// Helper Format Angka Global
 const formatNumber = (val: any, decimalPlaces = 0) => {
   if (val === null || val === undefined || val === "") return "0";
   const num = parseFloat(val);
@@ -216,7 +206,6 @@ const formatNumber = (val: any, decimalPlaces = 0) => {
   });
 };
 
-// Internal Binding Date
 const internalStartDate = computed({
   get: () => props.startDate,
   set: (val) => emit("update:startDate", val),
@@ -227,7 +216,6 @@ const internalEndDate = computed({
   set: (val) => emit("update:endDate", val),
 });
 
-// Modal Gudang
 const showGudangLookup = ref(false);
 
 const selectedGudangDisplay = computed(() =>
@@ -245,10 +233,8 @@ const onSelectGudang = (gudang: any) => {
 
 const emitRefresh = () => emit("refresh");
 
-// Helper Ekstraksi Nilai Baris yang Aman & Luas (dipakai mode generik)
 const getRowValue = (row: any, fieldType: string) => {
   if (!row) return "";
-
   if (props.fieldMap && props.fieldMap[fieldType]) {
     const key = props.fieldMap[fieldType];
     if (row[key] !== undefined && row[key] !== null) {
@@ -282,7 +268,6 @@ const getRowValue = (row: any, fieldType: string) => {
   }
 };
 
-// Auto Options Generator (mode generik)
 const kategoriOptions = computed(() => {
   const list = props.items
     .map((x) => getRowValue(x, "KATEGORI"))
@@ -331,12 +316,9 @@ const getSortIcon = (columnKey: string) => {
   return currentSortDir.value === "ASC" ? "▲" : "▼";
 };
 
-// hasActiveFilter: kalau anak kirim activeFilterOverride, pakai itu.
-// Kalau tidak, hitung dari state filter internal (mode generik).
 const hasActiveFilter = computed(() => {
   if (props.activeFilterOverride !== undefined)
     return props.activeFilterOverride;
-
   if (props.disableFilter) return false;
 
   return (
@@ -349,8 +331,6 @@ const hasActiveFilter = computed(() => {
   );
 });
 
-// Reset internal (mode generik) + selalu emit ke parent supaya
-// laporan custom (mode disableFilter/disableSort) juga bisa reset state-nya sendiri.
 const handleResetFilter = () => {
   columnFilters.KODE = "";
   columnFilters.NAMA = "";
@@ -363,9 +343,6 @@ const handleResetFilter = () => {
   emit("reset-filter");
 };
 
-// Data yang benar-benar dikirim ke v-data-table.
-// Mode custom (disableSort & disableFilter true): pakai props.items apa adanya.
-// Mode generik: filter & sort di sini seperti biasa.
 const processedData = computed(() => {
   if (props.disableSort && props.disableFilter) {
     return props.items;
@@ -446,7 +423,6 @@ const processedData = computed(() => {
   return filtered;
 });
 
-// Totals generik (tersedia untuk laporan yang menggunakan scope #tfoot="{ totals }")
 const reportTotals = computed(() => {
   return processedData.value.reduce(
     (acc: any, row: any) => {
@@ -458,43 +434,6 @@ const reportTotals = computed(() => {
       acc.produksi += parseFloat(row.PRODUKSI || 0);
       acc.ret_produksi += parseFloat(row.RET_PRODUKSI || 0);
       acc.stok_akhir += parseFloat(row.STOK_AKHIR || 0);
-
-      acc.stok_awal_q += parseFloat(row.stok_awal_q || 0);
-      acc.stok_awal_m += parseFloat(row.stok_awal_m || 0);
-      acc.stok_awal_nominal += parseFloat(row.stok_awal_nominal || 0);
-      acc.terima_q += parseFloat(row.terima_q || 0);
-      acc.terima_m += parseFloat(row.terima_m || 0);
-      acc.terima_nominal += parseFloat(row.terima_nominal || 0);
-      acc.keluar_q += parseFloat(row.keluar_q || 0);
-      acc.keluar_m += parseFloat(row.keluar_m || 0);
-      acc.keluar_nominal += parseFloat(row.keluar_nominal || 0);
-      acc.retur_q += parseFloat(row.retur_q || 0);
-      acc.retur_m += parseFloat(row.retur_m || 0);
-      acc.stok_akhir_q += parseFloat(row.stok_akhir_q || 0);
-      acc.stok_akhir_m += parseFloat(row.stok_akhir_m || 0);
-      acc.stok_akhir_nominal += parseFloat(row.stok_akhir_nominal || 0);
-
-      acc.spk_jumlah += parseFloat(row.spk_jumlah || 0);
-      acc.mt01 += parseFloat(row.mt01 || 0);
-      acc.mt02 += parseFloat(row.mt02 || 0);
-      acc.mt03 += parseFloat(row.mt03 || 0);
-      acc.mt04 += parseFloat(row.mt04 || 0);
-      acc.mt05 += parseFloat(row.mt05 || 0);
-      acc.JML_CETAK += parseFloat(row.JML_CETAK || 0);
-      acc.JML_seaming += parseFloat(row.JML_seaming || 0);
-      acc.JML_mataayam += parseFloat(row.JML_mataayam || 0);
-      acc.JML_coly += parseFloat(row.JML_coly || 0);
-      acc.JML_JADI += parseFloat(row.JML_JADI || 0);
-      acc.JML_KIRIM += parseFloat(row.JML_KIRIM || 0);
-      acc.mt01_m += parseFloat(row.mt01_m || 0);
-      acc.mt02_m += parseFloat(row.mt02_m || 0);
-      acc.mt03_m += parseFloat(row.mt03_m || 0);
-      acc.mt04_m += parseFloat(row.mt04_m || 0);
-      acc.mt05_m += parseFloat(row.mt05_m || 0);
-      acc.M_CETAK += parseFloat(row.M_CETAK || 0);
-      acc.m_seaming += parseFloat(row.m_seaming || 0);
-      acc.JML_meter_KIRIM += parseFloat(row.JML_meter_KIRIM || 0);
-
       return acc;
     },
     {
@@ -506,40 +445,6 @@ const reportTotals = computed(() => {
       produksi: 0,
       ret_produksi: 0,
       stok_akhir: 0,
-      stok_awal_q: 0,
-      stok_awal_m: 0,
-      stok_awal_nominal: 0,
-      terima_q: 0,
-      terima_m: 0,
-      terima_nominal: 0,
-      keluar_q: 0,
-      keluar_m: 0,
-      keluar_nominal: 0,
-      retur_q: 0,
-      retur_m: 0,
-      stok_akhir_q: 0,
-      stok_akhir_m: 0,
-      stok_akhir_nominal: 0,
-      spk_jumlah: 0,
-      mt01: 0,
-      mt02: 0,
-      mt03: 0,
-      mt04: 0,
-      mt05: 0,
-      JML_CETAK: 0,
-      JML_seaming: 0,
-      JML_mataayam: 0,
-      JML_coly: 0,
-      JML_JADI: 0,
-      JML_KIRIM: 0,
-      mt01_m: 0,
-      mt02_m: 0,
-      mt03_m: 0,
-      mt04_m: 0,
-      mt05_m: 0,
-      M_CETAK: 0,
-      m_seaming: 0,
-      JML_meter_KIRIM: 0,
     },
   );
 });
@@ -551,22 +456,120 @@ const onRowExpand = (newExpanded: any[]) => {
   }
 };
 
-// Handle Export Excel dengan Fallback Auto-generate
 const handleExportExcel = () => {
   if (props.customExportExcel) {
     props.customExportExcel(processedData.value);
     return;
   }
-
   if (!processedData.value || processedData.value.length === 0) {
     alert("Tidak ada data untuk diekspor");
     return;
   }
-
   const ws = XLSX.utils.json_to_sheet(processedData.value);
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Report");
   XLSX.writeFile(wb, props.excelFileName || "Laporan.xlsx");
+};
+
+// --- OTOMATISASI FITUR RESIZING & DRAG-AND-DROP HEADER (ALA BASE BROWSE) ---
+onMounted(() => {
+  setupHeaderInteractions();
+});
+
+const setupHeaderInteractions = () => {
+  setTimeout(() => {
+    const table = document.querySelector(".custom-modern-table table");
+    if (!table) return;
+
+    // Ambil seluruh header kolom di baris pertama `thead th`
+    const headers = table.querySelectorAll("thead tr:first-child th");
+
+    headers.forEach((th: any) => {
+      // 1. Pasang Resizer line jika belum ada
+      if (!th.querySelector(".column-resizer")) {
+        th.style.position = "relative";
+        const resizer = document.createElement("div");
+        resizer.classList.add("column-resizer");
+        th.appendChild(resizer);
+
+        let x = 0;
+        let w = 0;
+
+        resizer.addEventListener("mousedown", (e: MouseEvent) => {
+          x = e.clientX;
+          w = th.offsetWidth;
+          document.addEventListener("mousemove", mouseMoveHandler);
+          document.addEventListener("mouseup", mouseUpHandler);
+          e.stopPropagation();
+        });
+
+        const mouseMoveHandler = (e: MouseEvent) => {
+          const dx = e.clientX - x;
+          const newW = Math.max(50, w + dx);
+          th.style.width = `${newW}px`;
+          th.style.minWidth = `${newW}px`;
+          th.style.maxWidth = `${newW}px`;
+        };
+
+        const mouseUpHandler = () => {
+          document.removeEventListener("mousemove", mouseMoveHandler);
+          document.removeEventListener("mouseup", mouseUpHandler);
+        };
+      }
+
+      // 2. Aktifkan Drag & Drop Reorder Kolom
+      th.setAttribute("draggable", "true");
+      th.classList.add("draggable-header-cell");
+
+      th.addEventListener("dragstart", (e: DragEvent) => {
+        th.classList.add("dragging");
+        if (e.dataTransfer) e.dataTransfer.effectAllowed = "move";
+      });
+
+      th.addEventListener("dragend", () => {
+        th.classList.remove("dragging");
+        table
+          .querySelectorAll("th, td")
+          .forEach((el) => el.classList.remove("drag-over"));
+      });
+
+      th.addEventListener("dragover", (e: DragEvent) => {
+        e.preventDefault();
+        if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
+      });
+
+      th.addEventListener("dragenter", () => {
+        th.classList.add("drag-over");
+      });
+
+      th.addEventListener("dragleave", () => {
+        th.classList.remove("drag-over");
+      });
+
+      th.addEventListener("drop", (e: DragEvent) => {
+        e.preventDefault();
+        const draggingTh = table.querySelector("th.dragging");
+        if (!draggingTh || draggingTh === th) return;
+
+        const allThs = Array.from(headers);
+        const srcIdx = allThs.indexOf(draggingTh as HTMLElement);
+        const targetIdx = allThs.indexOf(th);
+
+        // Pindahkan posisi kolom (sel) secara serentak di setiap baris tabel (header & body)
+        const rows = table.querySelectorAll("tr");
+        rows.forEach((row) => {
+          const cells = row.children;
+          if (cells[srcIdx] && cells[targetIdx]) {
+            if (srcIdx < targetIdx) {
+              row.insertBefore(cells[srcIdx], cells[targetIdx].nextSibling);
+            } else {
+              row.insertBefore(cells[srcIdx], cells[targetIdx]);
+            }
+          }
+        });
+      });
+    });
+  }, 500);
 };
 </script>
 
@@ -592,6 +595,11 @@ const handleExportExcel = () => {
   border: 1px solid #cbd5e1;
 }
 
+.table-responsive-wrapper {
+  overflow-x: auto;
+  position: relative;
+}
+
 .custom-modern-table :deep(table) {
   border-collapse: separate;
   border-spacing: 0;
@@ -603,10 +611,39 @@ const handleExportExcel = () => {
   font-weight: 700 !important;
   letter-spacing: 0.3px;
   padding: 4px 8px !important;
-  height: 26px !important;
+  height: 32px !important;
   color: #ffffff !important;
   white-space: nowrap;
   vertical-align: middle !important;
+  user-select: none;
+}
+
+/* Gaya Elemen Drag & Resizer ala BaseBrowse */
+:deep(.draggable-header-cell) {
+  cursor: grab;
+  position: relative;
+}
+:deep(.draggable-header-cell:active) {
+  cursor: grabbing;
+}
+:deep(.drag-over) {
+  background-color: rgba(25, 118, 210, 0.3) !important;
+  outline: 2px dashed #ffffff !important;
+}
+
+:deep(.column-resizer) {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 6px;
+  height: 100%;
+  cursor: col-resize;
+  background-color: transparent;
+  z-index: 25;
+}
+:deep(.column-resizer:hover),
+:deep(.draggable-header-cell:hover .column-resizer) {
+  background-color: rgba(255, 255, 255, 0.4);
 }
 
 /* Sticky Column Styling */
