@@ -545,6 +545,7 @@ const exportToExcel = async () => {
       { v: "TANGGAL", s: styleHeaderMain },
       { v: "STATUS ACC", s: styleHeaderMain },
       { v: "GUDANG", s: styleHeaderMain },
+      { v: "MESIN", s: styleHeaderMain },
       { v: "SHIFT", s: styleHeaderMain },
       { v: "TOTAL (M²)", s: styleHeaderMain },
       { v: "NO URUT", s: styleHeaderMain },
@@ -563,6 +564,7 @@ const exportToExcel = async () => {
       const targetDetails = details.value[header.Nomor] || [];
       const tglHeader = header.Tanggal ? formatTglManual(header.Tanggal) : "";
       const statusAcc = header.Status_Acc === "ACC" ? "ACC" : "DRAFT";
+      const namaMesin = header.Mesin || "-";
 
       if (targetDetails.length > 0) {
         targetDetails.forEach((dtl: any, index: number) => {
@@ -575,6 +577,10 @@ const exportToExcel = async () => {
             {
               v: isFirstRow ? header.Nama_Gudang || "-" : "",
               s: styleDataCell,
+            },
+            {
+              v: isFirstRow ? namaMesin : "",
+              s: styleDataCellCenter,
             },
             {
               v: isFirstRow ? header.Shift || "-" : "",
@@ -635,6 +641,7 @@ const exportToExcel = async () => {
           { v: tglHeader, s: styleDataCellCenter },
           { v: statusAcc, s: styleDataCellCenter },
           { v: header.Nama_Gudang || "-", s: styleDataCell },
+          { v: namaMesin, s: styleDataCellCenter },
           { v: header.Shift || "-", s: styleDataCellCenter },
           {
             v: Number(header.total_meter || 0),
@@ -657,12 +664,13 @@ const exportToExcel = async () => {
     });
 
     const ws = XLSX.utils.aoa_to_sheet(worksheetData);
-    ws["!merges"] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 14 } }];
+    ws["!merges"] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 15 } }];
     ws["!cols"] = [
       { wch: 22 },
       { wch: 12 },
       { wch: 10 },
       { wch: 20 },
+      { wch: 15 },
       { wch: 8 },
       { wch: 15 },
       { wch: 8 },
