@@ -924,7 +924,7 @@ const validateBeforeSave = (status: string) => {
   showSaveDialog.value = true;
 };
 
-// 7. HITUNG ULANG KOMBINASI TERPAKAI
+// 7. HITUNG ULANG KOMBINASI TERPAKAI (DISESUAIKAN DENGAN ENGINE MESIN CETAK)
 const recalculateCombine = () => {
   let subtotalSistemSemuaBaris = 0;
 
@@ -932,7 +932,7 @@ const recalculateCombine = () => {
     const pSpk = parseFloat(d.spk_panjang) || 0;
     const lSpk = parseFloat(d.spk_lebar) || 0;
     const qty = parseFloat(d.jumlah_sublim) || 0;
-    const padM = parseFloat(d.padding) || 0;
+    const padM = parseFloat(d.padding) || 0; // Ambil nilai padding
 
     const order = parseFloat(d.spk_jmlorder) || 0;
     const sdhCetak = parseFloat(d.spk_sudah_cetak) || 0;
@@ -948,8 +948,17 @@ const recalculateCombine = () => {
     }
 
     d.spk_kurang_cetak = d.kurangcetak_asli - qty;
-    d.spk_jmlmeter = pSpk * lSpk * qty;
 
+    // 🛠️ RUMUS TOTAL M² TERMASUK PADDING & QTY
+    if (d.orientasi === "panjang") {
+      // Jika orientasi diputar (panjang & lebar bertukar posisi)
+      d.spk_jmlmeter = (lSpk + padM) * pSpk * qty;
+    } else {
+      // Jika orientasi normal: (Panjang + Padding) * Lebar * QTY
+      d.spk_jmlmeter = (pSpk + padM) * lSpk * qty;
+    }
+
+    // Akumulasi total panjang terpakai untuk sistem roll
     if (d.orientasi === "panjang") {
       subtotalSistemSemuaBaris += (lSpk + padM) * qty;
     } else {
@@ -962,6 +971,73 @@ const recalculateCombine = () => {
   nextTick(() => {
     autoFillLayout(true);
   });
+};
+
+// 9. ENGINE LAYOUT CANVAS & AUTO-OPTIMIZE (SINKRON DENGAN MESIN CETAK)
+const autoFillLayout = (isSilent = false) => {
+  Object.keys(manualOffsets).forEach(
+    (key) => delete manualOffsets[Number(key)],
+  );
+
+  if (
+    !formData.value.details ||
+    formData.value.details.length === 0 ||
+    formData.value.Lebar_bahan <= 0
+  ) {
+    totalLebarGabungan.value = 0;
+    totalPanjangTerpakai.value = 0;
+    return;
+  }
+
+  const maxBahanLebar = Number(formData.value.Lebar_bahan);
+  let unitGlobalIdx = 0;
+  let currentStartX = 0;
+  let currentY = 0;
+  let maxOverallX = 0;
+  let maxOverallY = 0;
+
+  formData.value.details.forEach((spk: any) => {
+    const qty = Number(spk.jumlah_sublim) || 0;
+    if (qty <= 0) return;
+
+    const padM = parseFloat(spk.padding) || 0;
+    const pSpk = parseFloat(spk.spk_panjang) || 0;
+    const lSpk = parseFloat(spk.spk_lebar) || 0;
+
+    // Ukuran lebar dan tinggi blok visual di canvas
+    const w = spk.orientasi === "panjang" ? lSpk : pSpk + padM;
+    const h = spk.orientasi === "panjang" ? pSpk + padM : lSpk;
+
+    for (let i = 0; i < qty; i++) {
+      // Jika posisi Y melampaui lebar roll bahan, geser ke kanan (kolom baru)
+      if (currentY + h > maxBahanLebar + 0.01) {
+        currentStartX = maxOverallX;
+        currentY = 0;
+      }
+
+      if (!manualOffsets[unitGlobalIdx]) {
+        manualOffsets[unitGlobalIdx] = {
+          x: currentStartX,
+          y: currentY,
+          rotation: spk.orientasi === "panjang" ? 90 : 0,
+        };
+      }
+
+      const edgeRight = manualOffsets[unitGlobalIdx].x + w;
+      const edgeBottom = manualOffsets[unitGlobalIdx].y + h;
+
+      if (edgeRight > maxOverallX) maxOverallX = edgeRight;
+      if (edgeBottom > maxOverallY) maxOverallY = edgeBottom;
+
+      currentY += h;
+      unitGlobalIdx++;
+    }
+  });
+
+  totalPanjangTerpakai.value = Number(maxOverallX.toFixed(2));
+  totalLebarGabungan.value = Number(maxOverallY.toFixed(2));
+
+  if (!isSilent) toast.success("Layout otomatis berhasil dioptimasi.");
 };
 
 // 8. KONTROL INPUT METER & BS
@@ -981,59 +1057,6 @@ const handlePaddingTableInput = (event: any, item: any) => {
 };
 
 // 9. ENGINE LAYOUT CANVAS
-const autoFillLayout = (isSilent = false) => {
-  if (formData.value.details.length === 0 || formData.value.Lebar_bahan <= 0) {
-    totalLebarGabungan.value = 0;
-    return;
-  }
-  Object.keys(manualOffsets).forEach(
-    (key) => delete manualOffsets[Number(key)],
-  );
-
-  let unitGlobalIdx = 0;
-  let currentStartX = 0;
-  let currentY = 0;
-  let maxOverallX = 0;
-  let tempTotalLebar = 0;
-
-  formData.value.details.forEach((spk: any) => {
-    const qty = spk.jumlah_sublim || 0;
-    if (qty <= 0) return;
-
-    const padM = parseFloat(spk.padding) || 0;
-    const w =
-      spk.orientasi === "panjang" ? spk.spk_lebar : spk.spk_panjang + padM;
-    const h =
-      spk.orientasi === "panjang" ? spk.spk_panjang + padM : spk.spk_lebar;
-
-    for (let col = 0; col < qty; col++) {
-      if (currentY > 0 && currentY + h > formData.value.Lebar_bahan + 0.01) {
-        currentStartX = maxOverallX;
-        currentY = 0;
-      }
-
-      if (!manualOffsets[unitGlobalIdx]) {
-        manualOffsets[unitGlobalIdx] = {
-          x: currentStartX,
-          y: currentY,
-          rotation: spk.orientasi === "panjang" ? 90 : 0,
-        };
-      }
-
-      const edgeRight = manualOffsets[unitGlobalIdx].x + w;
-      const edgeBottom = manualOffsets[unitGlobalIdx].y + h;
-
-      if (edgeRight > maxOverallX) maxOverallX = edgeRight;
-      if (edgeBottom > tempTotalLebar) tempTotalLebar = edgeBottom;
-
-      currentY += h;
-      unitGlobalIdx++;
-    }
-  });
-
-  totalLebarGabungan.value = tempTotalLebar;
-  if (!isSilent) toast.success("Layout otomatis berhasil dioptimasi.");
-};
 
 const startDrag = (event: MouseEvent, idx: number) => {
   const startX = event.clientX;
@@ -1044,23 +1067,43 @@ const startDrag = (event: MouseEvent, idx: number) => {
   const onMouseMove = (e: MouseEvent) => {
     const dx = (e.clientX - startX) / SCALE;
     const dy = (e.clientY - startY) / SCALE;
+
     manualOffsets[idx] = {
       x: initialX + dx,
       y: initialY + dy,
       rotation: manualOffsets[idx]?.rotation ?? 0,
     };
-    let maxY = 0;
-    layoutRows.value.forEach((block, bIndex) => {
-      const posY = manualOffsets[bIndex]?.y ?? block.y;
-      if (posY + block.h > maxY) maxY = posY + block.h;
+
+    // 🛠️ TAMBAHKAN LOGIKA INI SUPAYA PANJANG TERPAKAI IKUT BERUBAH SAAT DIGESER
+    let maxRight = 0;
+    let maxBottom = 0;
+
+    layoutRows.value.forEach((block: any, bIndex: number) => {
+      const posX =
+        manualOffsets[bIndex]?.x !== undefined
+          ? manualOffsets[bIndex].x
+          : block.x;
+      const posY =
+        manualOffsets[bIndex]?.y !== undefined
+          ? manualOffsets[bIndex].y
+          : block.y;
+
+      const edgeRight = posX + block.w;
+      const edgeBottom = posY + block.h;
+
+      if (edgeRight > maxRight) maxRight = edgeRight;
+      if (edgeBottom > maxBottom) maxBottom = edgeBottom;
     });
-    totalLebarGabungan.value = maxY;
+
+    totalPanjangTerpakai.value = Number(maxRight.toFixed(2));
+    totalLebarGabungan.value = Number(maxBottom.toFixed(2));
   };
 
   const onMouseUp = () => {
     document.removeEventListener("mousemove", onMouseMove);
     document.removeEventListener("mouseup", onMouseUp);
   };
+
   document.addEventListener("mousemove", onMouseMove);
   document.addEventListener("mouseup", onMouseUp);
 };

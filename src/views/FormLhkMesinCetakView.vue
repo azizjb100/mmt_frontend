@@ -809,14 +809,14 @@ const {
       (formData.value.lebar_nyempil_manual as any) || 0,
     );
 
-    if (pManual >= 3 && lManual >= 1) {
+    if (pManual >= 3 && lManual >= 0.4) {
       finalPanjangAfal = pManual;
       finalLebarAfal = lManual;
     } else {
       const pSistem = panjangSisaLayoutGanjil.value || 0;
       const lSistem = lebarSisaLayoutGanjil.value || 0;
 
-      if (pSistem >= 3 && lSistem >= 1) {
+      if (pSistem >= 3 && lSistem >= 0.4) {
         finalPanjangAfal = parseFloat(pSistem.toFixed(2));
         finalLebarAfal = parseFloat(lSistem.toFixed(2));
       }
@@ -950,6 +950,42 @@ const afalModal = reactive({
 const closeAfalModal = () => {
   afalModal.show = false;
   router.push("/mmt/lhk/cetak");
+};
+
+const validateStokBahan = () => {
+  const diambil = Number(formData.value.Panjang_bahan || 0);
+
+  // Hitung sisa final yang akan disimpan (mengutamakan manual jika diisi, jika tidak pakai otomatis)
+  const rawBs = formData.value.panjang_bs;
+  const bsPanjang =
+    rawBs && !isNaN(parseFloat(rawBs as string))
+      ? parseFloat(rawBs as string)
+      : 0;
+  const otomatis = diambil - totalPanjangTerpakai.value - bsPanjang;
+
+  const sisaFinal =
+    formData.value.sisa_panjang_manual !== null &&
+    formData.value.sisa_panjang_manual !== ""
+      ? Number(formData.value.sisa_panjang_manual)
+      : otomatis;
+
+  // Validasi 1: Bahan sisa lebih banyak dari bahan yang diambil
+  if (sisaFinal > diambil) {
+    toast.error(
+      "Validasi Gagal: Bahan sisa tidak boleh lebih banyak daripada bahan yang diambil!",
+    );
+    return false;
+  }
+
+  // Validasi 2: Bahan yang diambil lebih sedikit dari bahan sisa (secara logika redundan dengan di atas, tapi untuk memastikan kedua arah kondisi tertangkap)
+  if (diambil < sisaFinal) {
+    toast.error(
+      "Validasi Gagal: Bahan yang diambil lebih sedikit dari sisa bahan!",
+    );
+    return false;
+  }
+
+  return true;
 };
 
 const recalculateCombine = () => {
@@ -1472,6 +1508,11 @@ const validateBeforeSave = (status: string) => {
     );
   }
 
+  // Panggil validasi sisa bahan di sini
+  if (!validateStokBahan()) {
+    return;
+  }
+
   formData.value.lstatus = status;
   showSaveDialog.value = true;
 };
@@ -1479,6 +1520,11 @@ const validateBeforeSave = (status: string) => {
 const handleApprove = async () => {
   if (!formData.value.nomor || formData.value.nomor === "AUTO") {
     toast.error("Data belum tersimpan. Simpan sebagai Draft terlebih dahulu.");
+    return;
+  }
+
+  // Panggil validasi sisa bahan di sini juga sebelum ACC Admin
+  if (!validateStokBahan()) {
     return;
   }
 

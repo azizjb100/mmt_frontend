@@ -260,6 +260,45 @@ const handleMesinSelect = (mesin: any) => {
   toast.success(`Mesin ${formData.value.mesin_nama} dipilih`);
 };
 
+const validateStokBahan = () => {
+  // Bahan diambil dalam Yard, dikonversi ke Meter (1 Yard = 0.9 M)
+  const diambilMeter = Number(formData.value.panjang_bahan || 0) * 0.9;
+
+  const rawBs = formData.value.panjang_bs;
+  const bsPanjang =
+    rawBs && !isNaN(parseFloat(rawBs as string))
+      ? parseFloat(rawBs as string)
+      : 0;
+
+  // Hitung sisa otomatis dalam meter
+  const otomatisMeter = diambilMeter - totalPanjangTerpakai.value - bsPanjang;
+
+  // Ambil sisa final (mengutamakan manual meter jika diisi, jika tidak pakai otomatis)
+  const sisaFinalMeter =
+    formData.value.sisa_panjang_manual !== null &&
+    formData.value.sisa_panjang_manual !== ""
+      ? Number(formData.value.sisa_panjang_manual)
+      : otomatisMeter;
+
+  // Validasi 1: Sisa bahan lebih banyak daripada bahan yang diambil
+  if (sisaFinalMeter > diambilMeter) {
+    toast.error(
+      "Validasi Gagal: Bahan sisa tidak boleh lebih banyak daripada bahan yang diambil!",
+    );
+    return false;
+  }
+
+  // Validasi 2: Bahan yang diambil lebih sedikit dari sisa bahan
+  if (diambilMeter < sisaFinalMeter) {
+    toast.error(
+      "Validasi Gagal: Bahan yang diambil lebih sedikit dari sisa bahan!",
+    );
+    return false;
+  }
+
+  return true;
+};
+
 const recalculateCombine = () => {
   let subtotalSistemSemuaBaris = 0;
 
@@ -648,6 +687,11 @@ const validateBeforeSave = (status: string) => {
     return toast.error(
       "Gagal Simpan: Ukuran BS (Panjang & Lebar) tidak boleh kosong! Wajib diisi manual (Isi 0 jika tidak ada BS).",
     );
+  }
+
+  // Panggil validasi sisa bahan
+  if (!validateStokBahan()) {
+    return;
   }
 
   if (status === "POSTED" && !isFormValid.value) {

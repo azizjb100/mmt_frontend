@@ -1,355 +1,351 @@
 <template>
-  <PageLayout :title="formTitle" icon="mdi-table-clock">
+  <BaseForm
+    :title="formTitle"
+    menu-id="130"
+    :icon="IconBuildingFactory"
+    :is-loading="isSaving"
+    :is-saving="isSaving"
+    v-model:showSaveDialog="showSaveDialog"
+    v-model:showCancelDialog="showCancelDialog"
+    v-model:showCloseDialog="showCloseDialog"
+    @confirm-save="executeSave"
+    @confirm-cancel="executeCancel"
+    @confirm-close="executeClose"
+  >
+    <!-- HEADER ACTIONS -->
     <template #header-actions>
       <v-btn
         size="small"
         color="primary"
-        @click="handleSave"
+        variant="elevated"
+        class="mr-2"
         :loading="isSaving"
-        :disabled="isSaving || !isFormValid"
+        :disabled="!isFormValid"
+        @click="showSaveDialog = true"
       >
-        <v-icon start size="18">mdi-content-save-check</v-icon> Simpan Data
+        <v-icon start size="16">mdi-content-save-check</v-icon>
+        Simpan Data
       </v-btn>
       <v-btn
         size="small"
         variant="outlined"
-        @click="handleCancel"
-        :disabled="isSaving"
-        class="ml-2"
+        class="mr-2"
+        @click="showCancelDialog = true"
       >
-        <v-icon start size="18">mdi-close</v-icon> Batal
+        Batal
+      </v-btn>
+      <v-btn
+        size="small"
+        variant="tonal"
+        color="error"
+        @click="showCloseDialog = true"
+      >
+        <v-icon start size="16">mdi-close</v-icon>
+        Tutup
       </v-btn>
     </template>
 
-    <div class="form-grid-container">
-      <div class="left-column">
-        <v-card class="mb-3" flat border>
-          <v-card-title
-            class="text-subtitle-2 pa-2 custom-header-blue text-white"
-          >
-            Informasi Header RTR Sublim
-          </v-card-title>
-          <v-card-text class="pa-4">
-            <v-row dense>
-              <v-col cols="12">
-                <v-text-field
-                  label="Nomor Transaksi"
-                  v-model="formData.nomor"
-                  readonly
-                  variant="outlined"
-                  density="compact"
-                  hide-details
-                  class="mb-4 bg-grey-lighten-3 custom-label-blue"
-                />
-              </v-col>
-              <v-col cols="12">
-                <v-text-field
-                  label="Tanggal"
-                  v-model="formData.tanggal"
-                  type="date"
-                  variant="outlined"
-                  density="compact"
-                  hide-details
-                  class="mb-4 custom-label-blue"
-                />
-              </v-col>
-              <v-col cols="12">
-                <v-text-field
-                  label="Gudang"
-                  v-model="formData.gdgKode"
-                  readonly
-                  placeholder="Klik untuk pilih gudang"
-                  append-inner-icon="mdi-magnify"
-                  @click:append-inner="lookup.gudang = true"
-                  variant="outlined"
-                  density="compact"
-                  hide-details
-                  class="mb-4 custom-label-blue"
-                />
-              </v-col>
-              <v-col cols="12">
-                <v-text-field
-                  label="Nama Gudang"
-                  v-model="formData.gdgNama"
-                  readonly
-                  variant="outlined"
-                  density="compact"
-                  hide-details
-                  class="bg-grey-lighten-3 custom-label-blue"
-                />
-              </v-col>
-            </v-row>
-          </v-card-text>
-        </v-card>
-      </div>
+    <!-- LEFT COLUMN: INFORMASI HEADER RTR SUBLIM -->
+    <template #left-column>
+      <div class="desktop-form-section header-section">
+        <div class="text-caption font-weight-bold mb-3 text-primary">
+          INFORMASI HEADER RTR SUBLIM
+        </div>
 
-      <div class="right-column">
-        <v-card flat border class="d-flex flex-column h-100 rounded-0">
-          <v-card-title
-            class="text-subtitle-1 d-flex align-center pa-2 custom-header-blue text-white"
-          >
-            Detail Hasil Kerja Sublimasi
+        <v-text-field
+          label="Nomor Transaksi"
+          v-model="formData.nomor"
+          readonly
+          density="compact"
+          variant="outlined"
+          class="mb-3 bg-grey-lighten-3"
+          hide-details
+        />
+        <v-text-field
+          label="Tanggal"
+          v-model="formData.tanggal"
+          type="date"
+          density="compact"
+          variant="outlined"
+          class="mb-3"
+          hide-details
+        />
+        <v-text-field
+          label="Gudang"
+          v-model="formData.gdgKode"
+          readonly
+          placeholder="Klik untuk pilih gudang"
+          density="compact"
+          variant="outlined"
+          append-inner-icon="mdi-magnify"
+          class="mb-3"
+          hide-details
+          style="cursor: pointer"
+          @click="lookup.gudang = true"
+          @click:append-inner="lookup.gudang = true"
+        />
+        <v-text-field
+          label="Nama Gudang"
+          v-model="formData.gdgNama"
+          readonly
+          density="compact"
+          variant="filled"
+          class="mb-3"
+          hide-details
+        />
+      </div>
+    </template>
+
+    <!-- RIGHT COLUMN: DETAIL HASIL KERJA SUBLIMASI -->
+    <template #right-column>
+      <div class="d-flex flex-column fill-height">
+        <v-card border flat class="d-flex flex-column table-card mb-4">
+          <div class="pa-2 bg-blue-grey-lighten-5 d-flex align-center">
+            <span
+              class="text-subtitle-2 font-weight-bold text-blue-grey-darken-4"
+            >
+              Detail Hasil Kerja Sublimasi
+            </span>
             <v-spacer />
-            <v-btn
-              size="x-small"
-              color="blue-darken-3"
-              prepend-icon="mdi-package-variant"
-              @click="openPoiSearch"
-              class="mr-2"
-            >
-              Lookup PO Internal
-            </v-btn>
-            <v-btn
-              size="x-small"
-              color="success"
-              prepend-icon="mdi-plus"
-              @click="openSpkSearch"
-            >
-              Tambah SPK Sublim
-            </v-btn>
-          </v-card-title>
-
-          <v-data-table
-            :headers="detailHeaders"
-            :items="detailData"
-            :items-per-page="-1"
-            density="compact"
-            hide-default-footer
-            class="delphi-grid custom-font"
-            fixed-header
-          >
-            <template #[`item.no`]="{ index }">{{ index + 1 }}</template>
-
-            <template #[`item.poi_nomor`]="{ item, index }">
-              <div class="cell-yellow h-100 d-flex align-center">
-                <v-text-field
-                  v-model="item.poi_nomor"
-                  readonly
-                  variant="plain"
-                  density="compact"
-                  hide-details
-                  append-inner-icon="mdi-magnify"
-                  @click:append-inner="openPoiSearchRow(index)"
-                  class="table-input-inline font-weight-bold"
-                />
-              </div>
-            </template>
-
-            <template #[`item.poi_size`]="{ item }">
-              <v-text-field
-                v-model="item.poi_size"
-                variant="plain"
-                density="compact"
-                hide-details
-                class="table-input-inline"
-              />
-            </template>
-
-            <template #[`item.nama_komponen`]="{ item }">
-              <v-text-field
-                v-model="item.nama_komponen"
-                placeholder="All Set / Badan / Lengan..."
-                variant="plain"
-                density="compact"
-                hide-details
-                class="table-input-inline"
-              />
-            </template>
-
-            <template #[`item.spk_nomor`]="{ item, index }">
-              <div class="cell-yellow h-100 d-flex align-center">
-                <v-text-field
-                  v-model="item.spk_nomor"
-                  readonly
-                  variant="plain"
-                  density="compact"
-                  hide-details
-                  append-inner-icon="mdi-magnify"
-                  @click:append-inner="openSpkSearchRow(index)"
-                  class="table-input-inline font-weight-bold"
-                />
-              </div>
-            </template>
-
-            <template #[`item.jenis_bahan`]="{ item }">
-              <div class="px-1 text-truncate" style="max-width: 140px">
-                <div
-                  v-if="item.barang_id"
-                  class="text-caption text-grey-darken-3 font-weight-bold"
-                  style="font-size: 11px !important"
-                >
-                  [{{ item.barang_id }}]
-                </div>
-
-                <span class="font-weight-medium text-indigo-darken-3">
-                  {{ item.jenis_bahan || "-" }}
-                </span>
-
-                <div
-                  v-if="item.no_realisasi"
-                  class="text-caption text-grey-darken-1"
-                  style="font-size: 10px !important"
-                >
-                  {{ item.no_realisasi }}
-                </div>
-              </div>
-            </template>
-
-            <template #[`item.bahan_awal`]="{ item }">
-              <div class="px-2 text-end font-weight-bold text-teal-darken-2">
-                {{
-                  item.bahan_awal ? Number(item.bahan_awal).toFixed(2) : "0.00"
-                }}
-                M
-              </div>
-            </template>
-
-            <template #[`item.panjang`]="{ item }">
-              <v-text-field
-                v-model.number="item.panjang"
-                type="number"
-                variant="plain"
-                density="compact"
-                hide-details
-                class="table-input-inline text-end"
-                @input="calculateSublimMeter(item)"
-              />
-            </template>
-
-            <template #[`item.lebar`]="{ item }">
-              <v-text-field
-                v-model.number="item.lebar"
-                type="number"
-                variant="plain"
-                density="compact"
-                hide-details
-                class="table-input-inline text-end"
-                @input="calculateSublimMeter(item)"
-              />
-            </template>
-
-            <template #[`item.qty_order`]="{ item }">
-              <div class="px-2 text-end font-weight-medium">
-                {{ item.qty_order }}
-              </div>
-            </template>
-
-            <template #[`item.jumlah_rtr`]="{ item }">
-              <div
-                :class="
-                  item.jumlah_rtr > item.qty_order
-                    ? 'bg-red-lighten-5 px-1 rounded error-qty-border h-100 d-flex align-center'
-                    : 'h-100 d-flex align-center'
-                "
-              >
-                <v-text-field
-                  v-model.number="item.jumlah_rtr"
-                  type="number"
-                  variant="plain"
-                  density="compact"
-                  hide-details
-                  :class="
-                    item.jumlah_rtr > item.qty_order
-                      ? 'text-red font-weight-black table-input-inline text-end'
-                      : 'table-input-inline text-end font-weight-bold'
-                  "
-                  @input="calculateSublimMeter(item)"
-                />
-                <v-tooltip
-                  v-if="item.jumlah_rtr > item.qty_order"
-                  activator="parent"
-                  location="top"
-                >
-                  Jumlah RTR melebihi batas target order (Maksimal Order:
-                  {{ item.qty_order }})
-                </v-tooltip>
-              </div>
-            </template>
-
-            <template #[`item.jumlah_bs`]="{ item }">
-              <div class="cell-yellow h-100 d-flex align-center">
-                <v-text-field
-                  v-model.number="item.jumlah_bs"
-                  type="number"
-                  variant="plain"
-                  density="compact"
-                  hide-details
-                  class="table-input-inline text-end font-weight-bold text-red-darken-2"
-                  @input="calculateSublimMeter(item)"
-                />
-              </div>
-            </template>
-
-            <template #[`item.jumlah_meter`]="{ item }">
-              <div class="px-2 text-end text-blue-darken-2 font-weight-bold">
-                {{ Number(item.jumlah_meter || 0).toFixed(2) }}
-              </div>
-            </template>
-
-            <template #[`item.lokasi`]="{ item, index }">
-              <div class="cell-yellow h-100">
-                <v-text-field
-                  v-model="item.lokasi"
-                  readonly
-                  variant="plain"
-                  density="compact"
-                  hide-details
-                  append-inner-icon="mdi-magnify"
-                  @click:append-inner="openMesinLookup(index)"
-                  class="table-input-inline"
-                />
-              </div>
-            </template>
-
-            <template #[`item.keterangan`]="{ item }">
-              <div class="cell-yellow h-100">
-                <v-text-field
-                  v-model="item.keterangan"
-                  placeholder="Catatan..."
-                  variant="plain"
-                  density="compact"
-                  hide-details
-                  class="table-input-inline"
-                />
-              </div>
-            </template>
-
-            <template #[`item.actions`]="{ index }">
+            <div class="d-flex align-center ga-2">
               <v-btn
-                icon="mdi-delete"
-                size="x-small"
-                color="error"
-                variant="text"
-                @click="removeRow(index)"
-              />
-            </template>
-          </v-data-table>
+                color="blue-darken-3"
+                size="small"
+                prepend-icon="mdi-package-variant"
+                style="height: 30px !important; text-transform: none"
+                @click="openPoiSearch"
+              >
+                Lookup PO Internal
+              </v-btn>
+              <v-btn
+                color="success"
+                size="small"
+                prepend-icon="mdi-plus"
+                style="height: 30px !important; text-transform: none"
+                @click="openSpkSearch"
+              >
+                Tambah SPK Sublim
+              </v-btn>
+            </div>
+          </div>
+
+          <div class="table-container flex-grow-1">
+            <table class="manksi-table">
+              <thead>
+                <tr>
+                  <th width="35">No</th>
+                  <th width="110">PO Internal</th>
+                  <th width="60">Size</th>
+                  <th width="110">Komponen</th>
+                  <th width="110">No. SPK</th>
+                  <th>Nama Order</th>
+                  <th width="130">Bahan Keluar</th>
+                  <th width="90">Bahan Awal</th>
+                  <th width="70">Panjang</th>
+                  <th width="70">Lebar</th>
+                  <th width="60">Target</th>
+                  <th width="80">Jml RTR</th>
+                  <th width="80">Jml BS</th>
+                  <th width="90">Total m²</th>
+                  <th width="90">Mesin</th>
+                  <th width="130">Keterangan</th>
+                  <th width="45"></th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="(item, index) in detailData" :key="index">
+                  <td class="text-center">{{ index + 1 }}</td>
+
+                  <td class="cell-yellow px-1">
+                    <input
+                      type="text"
+                      v-model="item.poi_nomor"
+                      readonly
+                      placeholder="Pilih PO..."
+                      class="cell-input cursor-pointer fw-bold text-amber-darken-4"
+                      @click="openPoiSearchRow(index)"
+                    />
+                  </td>
+
+                  <td class="text-center bg-grey-lighten-4">
+                    <input
+                      type="text"
+                      v-model="item.poi_size"
+                      class="cell-input text-center"
+                    />
+                  </td>
+
+                  <td>
+                    <input
+                      type="text"
+                      v-model="item.nama_komponen"
+                      placeholder="All Set / Badan..."
+                      class="cell-input"
+                    />
+                  </td>
+
+                  <td class="cell-yellow px-1">
+                    <input
+                      type="text"
+                      v-model="item.spk_nomor"
+                      readonly
+                      placeholder="Pilih SPK..."
+                      class="cell-input cursor-pointer fw-bold text-blue-darken-4"
+                      @click="openSpkSearchRow(index)"
+                    />
+                  </td>
+
+                  <td class="px-2 text-truncate" :title="item.spk_nama">
+                    {{ item.spk_nama }}
+                  </td>
+
+                  <td class="px-1">
+                    <div
+                      v-if="item.barang_id"
+                      class="text-xxs text-grey-darken-3 font-weight-bold"
+                    >
+                      [{{ item.barang_id }}]
+                    </div>
+                    <span class="font-weight-medium text-indigo-darken-3">
+                      {{ item.jenis_bahan || "-" }}
+                    </span>
+                    <div v-if="item.no_realisasi" class="text-xxs text-grey">
+                      {{ item.no_realisasi }}
+                    </div>
+                  </td>
+
+                  <td
+                    class="text-right px-2 font-weight-bold text-teal-darken-2"
+                  >
+                    {{
+                      item.bahan_awal
+                        ? Number(item.bahan_awal).toFixed(2)
+                        : "0.00"
+                    }}
+                    M
+                  </td>
+
+                  <td>
+                    <input
+                      type="number"
+                      v-model.number="item.panjang"
+                      class="cell-input tr font-weight-bold"
+                      @input="calculateSublimMeter(item)"
+                      @wheel="$event.target.blur()"
+                    />
+                  </td>
+
+                  <td>
+                    <input
+                      type="number"
+                      v-model.number="item.lebar"
+                      class="cell-input tr font-weight-bold"
+                      @input="calculateSublimMeter(item)"
+                      @wheel="$event.target.blur()"
+                    />
+                  </td>
+
+                  <td class="text-right px-2 font-weight-medium">
+                    {{ item.qty_order || 0 }}
+                  </td>
+
+                  <td
+                    :class="
+                      item.jumlah_rtr > item.qty_order
+                        ? 'bg-red-lighten-5'
+                        : 'bg-yellow-lighten-5'
+                    "
+                  >
+                    <input
+                      type="number"
+                      v-model.number="item.jumlah_rtr"
+                      class="cell-input tr font-weight-bold"
+                      :class="
+                        item.jumlah_rtr > item.qty_order
+                          ? 'text-red font-weight-black'
+                          : ''
+                      "
+                      @input="calculateSublimMeter(item)"
+                      @wheel="$event.target.blur()"
+                    />
+                  </td>
+
+                  <td class="cell-yellow">
+                    <input
+                      type="number"
+                      v-model.number="item.jumlah_bs"
+                      class="cell-input tr font-weight-bold text-red-darken-2"
+                      @input="calculateSublimMeter(item)"
+                      @wheel="$event.target.blur()"
+                    />
+                  </td>
+
+                  <td
+                    class="text-right font-weight-bold px-2 text-blue-darken-2"
+                  >
+                    {{ Number(item.jumlah_meter || 0).toFixed(2) }}
+                  </td>
+
+                  <td class="cell-yellow">
+                    <input
+                      type="text"
+                      v-model="item.lokasi"
+                      readonly
+                      placeholder="Mesin..."
+                      class="cell-input cursor-pointer"
+                      @click="openMesinLookup(index)"
+                    />
+                  </td>
+
+                  <td class="cell-yellow">
+                    <input
+                      type="text"
+                      v-model="item.keterangan"
+                      placeholder="Catatan..."
+                      class="cell-input"
+                    />
+                  </td>
+
+                  <td class="text-center">
+                    <v-btn
+                      icon="mdi-delete"
+                      size="x-small"
+                      color="error"
+                      variant="text"
+                      @click="removeRow(index)"
+                    />
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </v-card>
       </div>
-    </div>
+    </template>
+  </BaseForm>
 
-    <PoiLookupModal
-      :is-visible="lookup.poi"
-      @close="lookup.poi = false"
-      @select="handlePoiSelect"
-    />
-    <SpkLookupModal
-      :is-visible="lookup.spk"
-      @close="lookup.spk = false"
-      @select="handleSpkSelect"
-    />
-    <GudangLookupModal
-      :is-visible="lookup.gudang"
-      @close="lookup.gudang = false"
-      @select="handleGudangSelect"
-    />
-    <MesinLookupModal
-      :is-visible="lookup.mesin"
-      type="R"
-      @close="lookup.mesin = false"
-      @select="handleMesinSelect"
-    />
-  </PageLayout>
+  <!-- MODAL LOOKUP -->
+  <PoiLookupModal
+    :is-visible="lookup.poi"
+    @close="lookup.poi = false"
+    @select="handlePoiSelect"
+  />
+  <SpkLookupModal
+    :is-visible="lookup.spk"
+    @close="lookup.spk = false"
+    @select="handleSpkSelect"
+  />
+  <GudangLookupModal
+    :is-visible="lookup.gudang"
+    @close="lookup.gudang = false"
+    @select="handleGudangSelect"
+  />
+  <MesinLookupModal
+    :is-visible="lookup.mesin"
+    type="R"
+    @close="lookup.mesin = false"
+    @select="handleMesinSelect"
+  />
 </template>
 
 <script setup lang="ts">
@@ -358,8 +354,10 @@ import { useRoute, useRouter } from "vue-router";
 import { format } from "date-fns";
 import api from "@/services/api";
 import { useToast } from "vue-toastification";
-import PageLayout from "../components/PageLayout.vue";
+import { IconBuildingFactory } from "@tabler/icons-vue";
 
+import BaseForm from "@/components/BaseForm.vue";
+import { useForm } from "@/composables/useForm";
 import PoiLookupModal from "@/modal/PoInternalLookupView.vue";
 import SpkLookupModal from "@/modal/SpkSublimLookupModal.vue";
 import GudangLookupModal from "@/modal/GudangLookupView.vue";
@@ -369,7 +367,6 @@ const route = useRoute();
 const router = useRouter();
 const toast = useToast();
 
-const isSaving = ref(false);
 const activeRowIdx = ref(-1);
 const detailData = ref<any[]>([]);
 
@@ -380,42 +377,122 @@ const lookup = reactive({
   mesin: false,
 });
 
-const formData = reactive({
+const initialData = {
   nomor: "AUTO",
   tanggal: format(new Date(), "yyyy-MM-dd"),
   gdgKode: "GPM",
   gdgNama: "GUDANG PRODUKSI SUBLIM",
+};
+
+const ensureMeter = (val: any) => {
+  const num = parseFloat(val) || 0;
+  return num > 10 ? parseFloat((num / 100).toFixed(2)) : num;
+};
+
+// --- FETCH API UNTUK MODE EDIT ---
+const fetchApi = async () => {
+  const nomorParams = route.params.nomor as string;
+  if (!nomorParams) return initialData;
+
+  const response = await api.get(`/mmt/lhk-sublim/detail/${nomorParams}`);
+  const rawDetails = response.data.data || response.data || [];
+
+  if (!Array.isArray(rawDetails) || rawDetails.length === 0) {
+    toast.error("Data LHK Sublim tidak ditemukan.");
+    return initialData;
+  }
+
+  const firstRow = rawDetails[0];
+  let tanggalTerformat = format(new Date(), "yyyy-MM-dd");
+  if (firstRow.Tanggal || firstRow.tanggal) {
+    const parsed = new Date(firstRow.Tanggal || firstRow.tanggal);
+    if (!isNaN(parsed.getTime())) {
+      tanggalTerformat = format(parsed, "yyyy-MM-dd");
+    }
+  }
+
+  detailData.value = rawDetails.map((d: any) => ({
+    spk_nomor: d.Nomor_SPK || d.spk_nomor || "",
+    spk_nama: d.Nama_SPK || d.spk_nama || "",
+    panjang: ensureMeter(parseFloat(d.Panjang || d.panjang) || 0),
+    lebar: ensureMeter(parseFloat(d.Lebar || d.lebar) || 0),
+    qty_order: parseFloat(d.J_Order || d.qty_order) || 0,
+    jumlah_rtr: parseFloat(d.Jumlah || d.jumlah_rtr) || 0,
+    jumlah_bs: parseFloat(d.Jumlah_bs || d.jumlah_bs) || 0,
+    jumlah_meter: parseFloat(d.Jumlah_meter || d.jumlah_meter) || 0,
+    poi_nomor: d.No_PO_Internal || d.poi_nomor || "",
+    poi_size: d.Size || d.poi_size || "",
+    lokasi: d.Lokasi || d.lokasi || "",
+    jenis_bahan: d.Jenis_Bahan || d.jenis_bahan || "",
+    no_realisasi: d.No_Realisasi || d.no_realisasi || "",
+    bahan_awal: parseFloat(d.Bahan_Awal || d.bahan_awal) || 0,
+    nama_komponen: d.Nama_Komponen || d.nama_komponen || "ALL SET",
+    keterangan: d.Keterangan || d.keterangan || "",
+  }));
+
+  return {
+    nomor: firstRow.Nomor || firstRow.nomor || nomorParams,
+    tanggal: tanggalTerformat,
+    gdgKode: firstRow.Kode_Gudang || firstRow.gdgKode || "GPM",
+    gdgNama:
+      firstRow.Nama_Gudang || firstRow.gdgNama || "GUDANG PRODUKSI SUBLIM",
+  };
+};
+
+// --- SUBMIT API PENYIMPANAN DATA ---
+const submitApi = async () => {
+  const payload = {
+    header: formData.value,
+    details: detailData.value.map((item) => ({
+      nomor_spk: item.spk_nomor,
+      nama_spk: item.spk_nama,
+      panjang: item.panjang,
+      lebar: item.lebar,
+      j_order: item.qty_order,
+      jumlah_rtr: item.jumlah_rtr,
+      jumlah_bs: item.jumlah_bs,
+      lokasi: item.lokasi,
+      jenis_bahan: item.jenis_bahan,
+      no_realisasi: item.no_realisasi,
+      bahan_awal: item.bahan_awal,
+      poi_nomor: item.poi_nomor,
+      poi_size: item.poi_size,
+      nama_komponen: item.nama_komponen,
+      keterangan: item.keterangan,
+    })),
+    existingNomor: isEditMode.value ? formData.value.nomor : null,
+  };
+
+  return await api.post("/mmt/lhk-sublim", payload);
+};
+
+const {
+  formData,
+  isEditMode,
+  isLoading,
+  isSaving,
+  showSaveDialog,
+  showCancelDialog,
+  showCloseDialog,
+  executeSave,
+  executeCancel,
+  executeClose,
+} = useForm({
+  menuId: "130",
+  initialData,
+  fetchApi,
+  submitApi,
+  successRouteName: "LhkSublim",
 });
 
-// 🌟 STRUKTUR DATA HEADERS BARU (Menambahkan Komponen & Keterangan) 🌟
-const detailHeaders = [
-  { title: "No", key: "no", width: "40px", align: "center" },
-  { title: "PO Internal", key: "poi_nomor", width: "110px" },
-  { title: "Size", key: "poi_size", width: "60px" },
-  { title: "Komponen", key: "nama_komponen", width: "110px" }, // <-- Ditambahkan
-  { title: "No. SPK", key: "spk_nomor", width: "110px" },
-  { title: "Nama Order", key: "spk_nama", width: "150px" },
-  { title: "Bahan Keluar", key: "jenis_bahan", width: "130px" },
-  { title: "Bahan Awal", key: "bahan_awal", width: "90px", align: "end" },
-  { title: "Panjang", key: "panjang", width: "70px", align: "end" },
-  { title: "Lebar", key: "lebar", width: "70px", align: "end" },
-  { title: "Target", key: "qty_order", width: "60px", align: "end" },
-  { title: "Jml RTR", key: "jumlah_rtr", width: "80px", align: "end" },
-  { title: "Jml BS", key: "jumlah_bs", width: "80px", align: "end" },
-  { title: "Total m²", key: "jumlah_meter", width: "90px", align: "end" },
-  { title: "Mesin", key: "lokasi", width: "90px" },
-  { title: "Keterangan", key: "keterangan", width: "130px" }, // <-- Ditambahkan
-  { title: "", key: "actions", width: "45px" },
-];
-
 const formTitle = computed(() =>
-  route.params.nomor
-    ? `Edit LHK Sublim: ${route.params.nomor}`
-    : "Input LHK Sublim Baru",
+  isEditMode.value
+    ? `Ubah LHK Sublim: ${formData.value.nomor}`
+    : "Baru LHK Sublim",
 );
 
 const isFormValid = computed(
-  () => detailData.value.length > 0 && formData.gdgKode,
+  () => detailData.value.length > 0 && formData.value.gdgKode !== "",
 );
 
 const calculateSublimMeter = (item: any) => {
@@ -446,40 +523,112 @@ const calculateSublimMeter = (item: any) => {
   }
 };
 
-// 🌟 LOGIKA UNTUK MENANGANI MULTI-BAHAN PADA SPK DENGAN DUKUNGAN KETERANGAN 🌟
-const handleSpkSelect = (spkData: any) => {
-  const itemsToInsert = Array.isArray(spkData) ? spkData : [spkData];
+const handleSpkSelect = (payload: any) => {
+  if (!payload) return;
 
-  itemsToInsert.forEach((spk, index) => {
+  const items: any[] = Array.isArray(payload)
+    ? payload
+    : Array.isArray(payload?.data)
+      ? payload.data
+      : [payload?.data || payload];
+
+  items.forEach((spkItem: any, index: number) => {
+    if (!spkItem) return;
+
+    const nomorSpk =
+      spkItem.spk_nomor ||
+      spkItem.SPK ||
+      spkItem.Spk ||
+      spkItem.poi_spk_nomor ||
+      spkItem.Nomor_SPK ||
+      spkItem.No_SPK ||
+      spkItem.Id ||
+      "";
+
+    const namaSpk =
+      spkItem.spk_nama ||
+      spkItem.Nama ||
+      spkItem.nama_pekerjaan ||
+      spkItem.Nama_SPK ||
+      "No Name";
+
+    const namaKomponen =
+      spkItem.spk_komponen ||
+      spkItem.Nama_Komponen ||
+      spkItem.nama_komponen ||
+      spkItem.Bhn_Name ||
+      spkItem.bhn_name ||
+      "ALL SET";
+
+    const qtyOrderSpk = parseInt(
+      spkItem.spk_jmlorder ||
+        spkItem.Jumlah ||
+        spkItem.Qty_Order ||
+        spkItem.J_Order ||
+        spkItem.spk_qty ||
+        spkItem.jumlah ||
+        0,
+    );
+
+    const sdhCetak = parseFloat(
+      spkItem.Sudah_Cetak || spkItem.spk_sudah_cetak || spkItem.sudahcetak || 0,
+    );
+
+    const kurangAsli = parseFloat(
+      spkItem.spk_kurang_cetak ||
+        spkItem.Kurang_Cetak ||
+        spkItem.kurang_cetak ||
+        qtyOrderSpk - sdhCetak,
+    );
+
+    const rawP = parseFloat(
+      spkItem.spk_panjang || spkItem.Panjang || spkItem.lsbd_panjang || 0,
+    );
+    const rawL = parseFloat(
+      spkItem.spk_lebar || spkItem.Lebar || spkItem.lsbd_lebar || 0,
+    );
+
     const mappedData = {
-      spk_nomor: spk.spk_nomor || spk.Spk || spk.SPK,
-      spk_nama: spk.Nama || spk.spk_nama,
-
-      // === PERBAIKAN UTAMA: Ambil data Panjang & Lebar dari backend lookup ===
-      panjang: parseFloat(spk.Panjang) || parseFloat(spk.panjang) || 0,
-      lebar: parseFloat(spk.Lebar) || parseFloat(spk.lebar) || 0,
-      // ======================================================================
-
-      qty_order: parseFloat(spk.Jumlah || spk.Qty_Order) || 0,
-      jumlah_rtr: 0,
-      jumlah_bs: 0,
-
-      barang_id: spk.Barang_ID || spk.barang_id || "",
-      jenis_bahan: spk.Nama_Bahan_Realisasi || spk.Bahan || "",
-      no_realisasi: spk.Nomor_Realisasi !== "-" ? spk.Nomor_Realisasi : "",
-      bahan_awal: parseFloat(spk.Bahan_Awal) || 0,
-
-      nama_komponen: spk.nama_komponen || "",
-      poi_nomor: spk.poi_nomor || "",
-      poi_size: spk.poi_size || "",
-      lokasi: "",
+      poi_nomor:
+        spkItem.poi_nomor || spkItem.Poi_Nomor || spkItem.lsbd_poi_nomor || "",
+      poi_size:
+        spkItem.poi_size ||
+        spkItem.poid_size ||
+        spkItem.Poi_Size ||
+        spkItem.Size ||
+        spkItem.lsbd_poid_size ||
+        "",
+      spk_nomor: nomorSpk,
+      spk_nama: namaSpk,
+      nama_komponen: namaKomponen,
+      panjang: ensureMeter(rawP),
+      lebar: ensureMeter(rawL),
+      qty_order: qtyOrderSpk,
+      jumlah_rtr: kurangAsli > 0 ? kurangAsli : qtyOrderSpk,
+      jumlah_bs: parseFloat(spkItem.jumlah_bs || 0),
+      barang_id: spkItem.Barang_ID || spkItem.barang_id || "",
+      jenis_bahan:
+        spkItem.Nama_Bahan_Realisasi ||
+        spkItem.Bahan ||
+        spkItem.jenis_bahan ||
+        "",
+      no_realisasi:
+        spkItem.Nomor_Realisasi && spkItem.Nomor_Realisasi !== "-"
+          ? spkItem.Nomor_Realisasi
+          : spkItem.no_realisasi || "",
+      bahan_awal: parseFloat(spkItem.Bahan_Awal || spkItem.bahan_awal || 0),
+      lokasi: spkItem.lokasi || spkItem.Lokasi || "",
       jumlah_meter: 0,
-      keterangan: index > 0 ? `Bahan Alternatif ${index + 1}` : "",
+      keterangan:
+        index > 0 ? `Bahan Alternatif ${index + 1}` : spkItem.keterangan || "",
       is_child_bahan: index > 0,
     };
 
     if (activeRowIdx.value !== -1 && index === 0) {
-      detailData.value[activeRowIdx.value] = { ...mappedData };
+      detailData.value[activeRowIdx.value] = {
+        ...detailData.value[activeRowIdx.value],
+        ...mappedData,
+      };
       calculateSublimMeter(detailData.value[activeRowIdx.value]);
     } else {
       detailData.value.push(mappedData);
@@ -491,111 +640,39 @@ const handleSpkSelect = (spkData: any) => {
   lookup.spk = false;
 };
 
-// 🌟 PROSES SAVING PAYLOAD KE BACKEND 🌟
-const handleSave = async () => {
-  if (!confirm("Lanjutkan simpan laporan hasil kerja Sublim?")) return;
-  isSaving.value = true;
-  try {
-    const payload = {
-      header: formData,
-      details: detailData.value.map((item) => ({
-        nomor_spk: item.spk_nomor,
-        nama_spk: item.spk_nama,
-        panjang: item.panjang,
-        lebar: item.lebar,
-        j_order: item.qty_order,
-        jumlah_rtr: item.jumlah_rtr,
-        jumlah_bs: item.jumlah_bs,
-        lokasi: item.lokasi,
-        jenis_bahan: item.jenis_bahan,
-        no_realisasi: item.no_realisasi,
-        bahan_awal: item.bahan_awal,
-        poi_nomor: item.poi_nomor,
-        poi_size: item.poi_size,
-        nama_komponen: item.nama_komponen, // Dikirim ke DB
-        keterangan: item.keterangan, // Dikirim ke DB
-      })),
-    };
-
-    await api.post("/mmt/lhk-sublim", payload);
-    toast.success("Simpan data LHK Sublim sukses.");
-    router.push({ name: "LhkSublim" });
-  } catch (e: any) {
-    toast.error("Gagal Simpan: " + (e.response?.data?.message || e.message));
-  } finally {
-    isSaving.value = false;
-  }
-};
-
-const loadDataAll = async (nomor: string) => {
-  isSaving.value = true;
-  try {
-    const response = await api.get(`/mmt/lhk-sublim/detail/${nomor}`);
-    const rawDetails = response.data.data || [];
-
-    if (rawDetails.length > 0) {
-      formData.nomor = rawDetails[0].Nomor;
-      detailData.value = rawDetails.map((d: any) => ({
-        spk_nomor: d.Nomor_SPK,
-        spk_nama: d.Nama_SPK,
-        panjang: parseFloat(d.Panjang) || 0,
-        lebar: parseFloat(d.Lebar) || 0,
-        qty_order: parseFloat(d.J_Order) || 0,
-        jumlah_rtr: parseFloat(d.Jumlah) || 0,
-        jumlah_bs: parseFloat(d.Jumlah_bs) || 0,
-        jumlah_meter: parseFloat(d.Jumlah_meter) || 0,
-        poi_nomor: d.No_PO_Internal,
-        poi_size: d.Size,
-        lokasi: d.Lokasi || "",
-        jenis_bahan: d.Jenis_Bahan || "",
-        no_realisasi: d.No_Realisasi || "",
-        bahan_awal: parseFloat(d.Bahan_Awal) || 0,
-        nama_komponen: d.Nama_Komponen || "", // Dimuat dari DB saat edit
-        keterangan: d.Keterangan || "", // Dimuat dari DB saat edit
-      }));
-    }
-  } catch (error: any) {
-    toast.error("Gagal memuat data detail LHK.");
-  } finally {
-    isSaving.value = false;
-  }
-};
-
 const handlePoiSelect = async (payload: any) => {
-  const { data } = payload;
-  if (!data || data.length === 0) return;
-  const poi = data[0];
+  const dataPoi = payload?.data || payload;
+  const poi = Array.isArray(dataPoi) ? dataPoi[0] : dataPoi;
+  if (!poi) return;
+
+  const rawP = parseFloat(poi.spk_panjang || poi.Panjang || 0);
+  const rawL = parseFloat(poi.spk_lebar || poi.Lebar || 0);
 
   const newRow = {
-    poi_nomor: poi.poi_nomor,
-    poi_size: poi.poid_size || poi.poi_size || "", // Mengakomodasi poid_size atau poi_size
-    nama_komponen: poi.nama_komponen || "ALL SET",
-    spk_nomor: poi.poi_spk_nomor,
-    spk_nama: poi.spk_nama || "",
-    panjang: parseFloat(poi.spk_panjang) || 0,
-    lebar: parseFloat(poi.spk_lebar) || 0,
-    qty_order: parseFloat(poi.sisa_qty ?? poi.poid_jumlah) || 0,
+    poi_nomor: poi.poi_nomor || poi.Nomor_POI || "",
+    poi_size: poi.poid_size || poi.poi_size || poi.Size || "",
+    nama_komponen: poi.nama_komponen || poi.Nama_Komponen || "ALL SET",
+    spk_nomor: poi.poi_spk_nomor || poi.spk_nomor || "",
+    spk_nama: poi.spk_nama || poi.Nama_SPK || "",
+    panjang: ensureMeter(rawP),
+    lebar: ensureMeter(rawL),
+    qty_order: parseFloat(poi.sisa_qty ?? poi.poid_jumlah ?? poi.Jumlah) || 0,
     jumlah_rtr: 0,
     jumlah_bs: 0,
     jumlah_meter: 0,
     lokasi: "",
-    jenis_bahan: poi.nama_komponen || poi.poid_bhn_kode || "", // Menampilkan nama/kode bahan komponen
-
-    // === PERBAIKAN: Ambil data Realisasi & Barang_ID dari Backend ===
+    jenis_bahan: poi.nama_komponen || poi.poid_bhn_kode || "",
     barang_id: poi.barang_id || "",
     no_realisasi: poi.no_realisasi !== "-" ? poi.no_realisasi : "",
     bahan_awal: parseFloat(poi.bahan_awal) || 0,
-    // ===============================================================
-
     keterangan: "",
   };
 
-  // Tentukan baris mana yang akan dihitung kalkulasinya nanti
   let targetIdx = activeRowIdx.value;
 
   if (activeRowIdx.value === -1) {
     detailData.value.push(newRow);
-    targetIdx = detailData.value.length - 1; // Baris terakhir jika push baru
+    targetIdx = detailData.value.length - 1;
   } else {
     detailData.value[activeRowIdx.value] = {
       ...detailData.value[activeRowIdx.value],
@@ -603,7 +680,6 @@ const handlePoiSelect = async (payload: any) => {
     };
   }
 
-  // PERBAIKAN: Menghitung baris yang tepat sesuai indeks aktifnya
   if (targetIdx !== -1 && detailData.value[targetIdx]) {
     calculateSublimMeter(detailData.value[targetIdx]);
   }
@@ -613,8 +689,8 @@ const handlePoiSelect = async (payload: any) => {
 };
 
 const handleGudangSelect = (g: any) => {
-  formData.gdgKode = g.Kode;
-  formData.gdgNama = g.Nama;
+  formData.value.gdgKode = g.Kode || g.Kode_Gudang;
+  formData.value.gdgNama = g.Nama || g.Nama_Gudang;
   lookup.gudang = false;
 };
 
@@ -625,7 +701,7 @@ const openMesinLookup = (idx: number) => {
 
 const handleMesinSelect = (m: any) => {
   if (activeRowIdx.value !== -1) {
-    detailData.value[activeRowIdx.value].lokasi = m.Kode;
+    detailData.value[activeRowIdx.value].lokasi = m.Kode || m.kode_mesin;
   }
   lookup.mesin = false;
 };
@@ -647,70 +723,61 @@ const openSpkSearch = () => {
   lookup.spk = true;
 };
 const removeRow = (idx: number) => detailData.value.splice(idx, 1);
-const handleCancel = () => router.back();
 
 onMounted(async () => {
-  const nomorParams = route.params.nomor as string;
-  if (nomorParams) {
-    await loadDataAll(nomorParams);
+  if (isEditMode.value) {
+    await fetchApi();
   }
 });
 </script>
 
 <style scoped>
-.form-grid-container {
-  display: flex;
-  gap: 16px;
-  height: calc(100vh - 140px);
-}
-.left-column {
-  width: 300px;
-  flex-shrink: 0;
-}
-.right-column {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-}
-.delphi-grid :deep(.v-table__wrapper) {
-  flex: 1;
-  overflow-y: auto !important;
-  overflow-x: auto !important;
-}
-.custom-header-blue {
-  background-color: #eeeeee !important;
-  color: #000000 !important;
-  font-weight: bold !important;
-  border-bottom: 1px solid #ccc !important;
-}
-.custom-label-blue :deep(.v-label) {
+.manksi-table {
+  width: 100%;
+  border-collapse: collapse;
   font-size: 11px;
-  font-weight: 700;
-  color: #000000 !important;
 }
-.delphi-grid :deep(thead th) {
-  background-color: #3f51b5 !important;
-  color: #ffffff !important;
-  font-size: 11px !important;
-  font-weight: bold !important;
-  height: 32px !important;
-  border: 0.5px solid #ccc !important;
+.manksi-table th {
+  background: #1565c0;
+  color: white;
+  padding: 6px;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  text-transform: uppercase;
+  font-weight: bold;
 }
-.delphi-grid :deep(td) {
-  border: 0.5px solid #eee !important;
-  height: 32px !important;
+.manksi-table td {
+  border: 1px solid #e0e0e0;
+  padding: 0;
+  height: 28px;
+}
+.cell-input {
+  width: 100%;
+  height: 100%;
+  border: none;
+  padding: 0 4px;
+  outline: none;
+  background: transparent;
+}
+.cell-input:focus {
+  background: #e3f2fd;
+}
+.table-container {
+  overflow: auto;
+  max-height: calc(100vh - 220px);
+}
+.tr {
+  text-align: right;
+}
+.fw-bold {
+  font-weight: bold;
 }
 .cell-yellow {
   background-color: #fcf8e3 !important;
 }
-.table-input-inline :deep(input) {
-  padding: 4px 8px !important;
-  font-size: 12px !important;
-  color: #000000 !important;
-}
-.custom-font {
-  font-size: 12px !important;
+.text-xxs {
+  font-size: 9px !important;
 }
 </style>

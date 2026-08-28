@@ -291,7 +291,6 @@ const confirmToggleCloseSpk = async () => {
 
 // --- EXPORT TO EXCEL METHOD (Hanya Data Terfilter) ---
 const exportToExcel = async () => {
-  // Menggunakan filteredMasterData agar hanya data hasil filter/pencarian yang diekspor
   if (filteredMasterData.value.length === 0) {
     return toast.warning(
       "Tidak ada data yang sesuai dengan filter untuk diekspor.",
@@ -417,7 +416,6 @@ const exportToExcel = async () => {
     let grandTotalPraSJ = 0;
     let grandTotalKirim = 0;
 
-    // Looping hanya pada data yang telah terfilter (filteredMasterData)
     filteredMasterData.value.forEach((header) => {
       const spkNomor = header.SPK || (header as any).Nomor || "-";
       const soNomor = header.SO || "-";
@@ -682,14 +680,12 @@ const fetchData = async () => {
 
     const result = res.data?.data ?? res.data;
 
-    // Helper untuk mengubah string tanggal apa pun menjadi format dd/MM/yyyy untuk tabel dan filter header
     const cleanDateToDMY = (dateVal: any) => {
       if (!dateVal || dateVal === "-" || String(dateVal).startsWith("0000"))
         return "-";
 
       const strVal = String(dateVal).trim();
 
-      // Jika format YYYY-MM-DD (mengabaikan jam di belakang jika ada)
       if (/^\d{4}-\d{2}-\d{2}/.test(strVal)) {
         const parts = strVal.substring(0, 10).split("-");
         if (parts.length === 3) {
@@ -697,7 +693,6 @@ const fetchData = async () => {
         }
       }
 
-      // Parse menggunakan date-fns atau native Date
       const parsed = parseISO(strVal);
       if (isValid(parsed)) {
         return format(parsed, "dd/MM/yyyy");
@@ -711,7 +706,6 @@ const fetchData = async () => {
       return strVal;
     };
 
-    // Normalisasi data dengan memformat tanggal ke dd/MM/yyyy agar filter header ikut berubah
     masterData.value = Array.isArray(result)
       ? result.map((item: any) => ({
           ...item,
@@ -763,19 +757,26 @@ const isLoadingDetails = (spkNomor: string) =>
 
 // --- User Actions ---
 const handleRowClick = (_event: any, row: any) => {
-  const itemNomor = row.item?.SPK || row.item?.Nomor || row.item?.SO;
-  selected.value = selected.value.some(
-    (s) => (s.SPK || (s as any).Nomor || s.SO) === itemNomor,
-  )
-    ? []
-    : [row.item];
+  const item = row?.item ?? row;
+  const currentKey = item?.SO || item?.SPK || item?.Nomor;
+
+  const isAlreadySelected = selected.value.some((s: any) => {
+    const sKey = s?.SO || s?.SPK || s?.Nomor;
+    return sKey === currentKey;
+  });
+
+  selected.value = isAlreadySelected ? [] : [item];
 };
 
 const getRowProps = ({ item }: any) => {
-  const itemNomor = item?.SPK || item?.Nomor || item?.SO;
-  const isSelected = selected.value.some(
-    (s) => (s.SPK || (s as any).Nomor || s.SO) === itemNomor,
-  );
+  const itemKey = item?.SO || item?.SPK || item?.Nomor;
+  const isSelected =
+    itemKey &&
+    selected.value.some((s: any) => {
+      const sKey = s?.SO || s?.SPK || s?.Nomor;
+      return sKey === itemKey;
+    });
+
   const classes: string[] = [];
   if (isSelected) classes.push("row-selected");
   if (item.STATUS === "Closed" || item.Aktif === "N") {
@@ -783,8 +784,6 @@ const getRowProps = ({ item }: any) => {
   }
   return { class: classes.join(" ") };
 };
-
-const handleNew = () => router.push("/mmt/so-spk/new");
 
 const handleEdit = () => {
   if (!selectedItem.value) return;
@@ -914,6 +913,21 @@ const handleExecuteGenerateSpk = async () => {
 // --- Lifecycle & Watchers ---
 onMounted(() => {
   fetchData();
+
+  // Mengubah teks tombol 'Baru' bawaan menjadi 'Buat SPK' secara otomatis
+  setTimeout(() => {
+    const buttons = document.querySelectorAll("button, .v-btn");
+    buttons.forEach((btn) => {
+      if (btn.textContent?.includes("Baru")) {
+        const span = btn.querySelector(".v-btn__content");
+        if (span) {
+          span.innerHTML = span.innerHTML.replace("Baru", "Buat SPK");
+        } else if (btn.innerHTML.includes("Baru")) {
+          btn.innerHTML = btn.innerHTML.replace("Baru", "Buat SPK");
+        }
+      }
+    });
+  }, 120);
 });
 
 watch([startDate, endDate], ([newStart, newEnd]) => {
@@ -934,35 +948,43 @@ watch([startDate, endDate], ([newStart, newEnd]) => {
     :loading="loading"
     v-model:startDate="startDate"
     v-model:endDate="endDate"
-    v-model:selected="selected"
     v-model:expanded="expanded"
     has-print
     fixed-header
     height="calc(100vh - 210px)"
     class="browse-table-container"
     @refresh="fetchData"
-    @action:new="handleNew"
+    @action:new="openCreateSpkDialog()"
     @action:edit="handleEdit"
     @action:print="handlePrint"
     @row-click="handleRowClick"
     :row-props="getRowProps"
     @update:expanded="handleExpandUpdate(expanded)"
   >
-    <template #extra-actions>
+    <template #header-actions="{ isSingleSelected }">
       <v-btn
+        size="x-small"
         color="primary"
-        variant="elevated"
         class="text-white font-weight-bold"
-        rounded="pill"
-        size="small"
         prepend-icon="mdi-file-document-plus"
-        :disabled="!selectedItem || isGeneratingSpk"
+        :disabled="!isSingleSelected || isGeneratingSpk"
         :loading="isGeneratingSpk"
         @click="openCreateSpkDialog()"
       >
-        Buat SPK dari SO
+        Buat SPK
       </v-btn>
 
+      <v-btn
+        size="x-small"
+        color="warning"
+        :disabled="!isSingleSelected"
+        @click="handleEdit"
+      >
+        <v-icon start>mdi-pencil</v-icon> Ubah
+      </v-btn>
+    </template>
+
+    <template #extra-actions>
       <v-btn
         color="success"
         variant="elevated"
@@ -1256,7 +1278,6 @@ watch([startDate, endDate], ([newStart, newEnd]) => {
   </v-dialog>
 
   <!-- Modal Konfirmasi Generate SPK -->
-  <!-- Modal Dialog Konfirmasi Detail Generate SPK dari SO (Menyerupai Form Asli) -->
   <v-dialog v-model="showConfirmGenerateDialog" max-width="1100px" persistent>
     <v-card class="rounded-lg">
       <v-toolbar color="primary" density="compact" class="px-4">
@@ -1277,10 +1298,8 @@ watch([startDate, endDate], ([newStart, newEnd]) => {
 
       <v-card-text class="pa-4 bg-grey-lighten-4">
         <v-row>
-          <!-- Kolom Kiri: Detail Form Referensi Sales Order -->
           <v-col cols="12" md="8">
             <v-card variant="outlined" class="pa-3 bg-white border rounded">
-              <!-- No. SPK -->
               <div class="d-flex align-center mb-2">
                 <span class="text-caption font-weight-bold" style="width: 140px"
                   >No. SPK</span
@@ -1295,7 +1314,6 @@ watch([startDate, endDate], ([newStart, newEnd]) => {
                 />
               </div>
 
-              <!-- No. Sales Order -->
               <div class="d-flex align-center mb-2">
                 <span class="text-caption font-weight-bold" style="width: 140px"
                   >No. Sales Order</span
@@ -1314,7 +1332,6 @@ watch([startDate, endDate], ([newStart, newEnd]) => {
                 />
               </div>
 
-              <!-- Nama Pekerjaan -->
               <div class="d-flex align-center mb-2">
                 <span class="text-caption font-weight-bold" style="width: 140px"
                   >Nama Pekerjaan</span
@@ -1328,7 +1345,6 @@ watch([startDate, endDate], ([newStart, newEnd]) => {
                 />
               </div>
 
-              <!-- No. MAP & Customer -->
               <div class="d-flex align-center mb-2 ga-2">
                 <span class="text-caption font-weight-bold" style="width: 140px"
                   >No. MAP</span
@@ -1353,7 +1369,6 @@ watch([startDate, endDate], ([newStart, newEnd]) => {
                 />
               </div>
 
-              <!-- Ukuran (Panjang x Lebar) & Ket. Ukuran -->
               <div class="d-flex align-center mb-2 ga-2">
                 <span class="text-caption font-weight-bold" style="width: 140px"
                   >Ukuran</span
@@ -1392,7 +1407,6 @@ watch([startDate, endDate], ([newStart, newEnd]) => {
                 />
               </div>
 
-              <!-- Gramasi -->
               <div class="d-flex align-center mb-2">
                 <span class="text-caption font-weight-bold" style="width: 140px"
                   >Gramasi</span
@@ -1406,7 +1420,6 @@ watch([startDate, endDate], ([newStart, newEnd]) => {
                 />
               </div>
 
-              <!-- Finishing -->
               <div class="d-flex align-center mb-2">
                 <span class="text-caption font-weight-bold" style="width: 140px"
                   >Finishing</span
@@ -1420,7 +1433,6 @@ watch([startDate, endDate], ([newStart, newEnd]) => {
                 />
               </div>
 
-              <!-- Jenis Order, Tipe, Qty -->
               <div class="d-flex align-center mb-2 ga-2">
                 <span class="text-caption font-weight-bold" style="width: 140px"
                   >Jenis Order</span
@@ -1453,7 +1465,6 @@ watch([startDate, endDate], ([newStart, newEnd]) => {
                 />
               </div>
 
-              <!-- Kepentingan -->
               <div class="d-flex align-center mb-2">
                 <span class="text-caption font-weight-bold" style="width: 140px"
                   >Kepentingan</span
@@ -1467,7 +1478,6 @@ watch([startDate, endDate], ([newStart, newEnd]) => {
                 />
               </div>
 
-              <!-- Workshop & No. PO -->
               <div class="d-flex align-center mb-2 ga-2">
                 <span class="text-caption font-weight-bold" style="width: 140px"
                   >Workshop</span
@@ -1492,7 +1502,6 @@ watch([startDate, endDate], ([newStart, newEnd]) => {
                 />
               </div>
 
-              <!-- Dateline SO -->
               <div class="d-flex align-center mb-2">
                 <span class="text-caption font-weight-bold" style="width: 140px"
                   >Dateline SO</span
@@ -1513,7 +1522,6 @@ watch([startDate, endDate], ([newStart, newEnd]) => {
             </v-card>
           </v-col>
 
-          <!-- Kolom Kanan: Gambar Desain -->
           <v-col cols="12" md="4">
             <v-card
               variant="outlined"
@@ -1554,7 +1562,6 @@ watch([startDate, endDate], ([newStart, newEnd]) => {
 
       <v-divider />
 
-      <!-- Aksi Tombol Dialog -->
       <v-card-actions class="pa-3 bg-white justify-end ga-2">
         <v-btn
           variant="tonal"
@@ -1661,12 +1668,21 @@ watch([startDate, endDate], ([newStart, newEnd]) => {
 </template>
 
 <style scoped>
-.row-selected {
+/* Mematikan background warna seleksi bawaan dari v-data-table Vuetify */
+:deep(.v-data-table__tr),
+:deep(.v-data-table__tr.v-data-table__tr--selected),
+:deep(.v-data-table__tr.v-data-table__tr--selected:hover),
+:deep(.v-data-table__tr > td) {
+  background-color: #ffffff !important;
+}
+
+/* Hanya baris yang memiliki class row-selected yang menampilkan warna latar biru */
+.row-selected,
+:deep(.v-data-table__tr.row-selected),
+:deep(.v-data-table__tr.row-selected > td) {
   background-color: #d8efff !important;
 }
-:deep(.row-selected td) {
-  background-color: #d8efff !important;
-}
+
 :deep(.v-data-table__tr.row-selected:hover > td) {
   background-color: #c0e4ff !important;
 }

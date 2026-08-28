@@ -294,6 +294,8 @@ const listKategori = [
   { title: "Semua Kategori", value: "ALL" },
   { title: "Cetak (MMT)", value: "MMT" },
   { title: "Mesin Tekstil", value: "TEKSTIL" },
+  { title: "Finishing", value: "FINISHING" },
+  { title: "Paperprint", value: "PAPERPRINT" },
   { title: "Sublim", value: "SUBLIM" },
 ];
 
@@ -343,6 +345,10 @@ const getKategoriColor = (kat: string) => {
       return "blue-darken-1";
     case "TEKSTIL":
       return "purple-darken-1";
+    case "FINISHING":
+      return "green-darken-1";
+    case "PAPERPRINT":
+      return "indigo-darken-1";
     case "SUBLIM":
       return "orange-darken-2";
     default:

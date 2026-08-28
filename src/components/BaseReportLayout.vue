@@ -155,7 +155,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from "vue";
+import { ref, reactive, computed, onMounted, nextTick } from "vue";
 import GudangLookupView from "@/modal/GudangLookupView.vue";
 import * as XLSX from "xlsx-js-style";
 
@@ -471,105 +471,120 @@ const handleExportExcel = () => {
   XLSX.writeFile(wb, props.excelFileName || "Laporan.xlsx");
 };
 
-// --- OTOMATISASI FITUR RESIZING & DRAG-AND-DROP HEADER (ALA BASE BROWSE) ---
+// --- OTOMATISASI FITUR RESIZING & DRAG-AND-DROP PADA SUB-KOLOM LAPORAN ---
 onMounted(() => {
   setupHeaderInteractions();
 });
 
 const setupHeaderInteractions = () => {
-  setTimeout(() => {
-    const table = document.querySelector(".custom-modern-table table");
-    if (!table) return;
+  nextTick(() => {
+    setTimeout(() => {
+      const table = document.querySelector(".custom-modern-table table");
+      if (!table) return;
 
-    // Ambil seluruh header kolom di baris pertama `thead th`
-    const headers = table.querySelectorAll("thead tr:first-child th");
+      const thead = table.querySelector("thead");
+      if (!thead) return;
+      const headerRows = thead.querySelectorAll("tr");
+      if (headerRows.length < 2) return;
 
-    headers.forEach((th: any) => {
-      // 1. Pasang Resizer line jika belum ada
-      if (!th.querySelector(".column-resizer")) {
-        th.style.position = "relative";
-        const resizer = document.createElement("div");
-        resizer.classList.add("column-resizer");
-        th.appendChild(resizer);
+      // Ambil baris sub-header terakhir (tempat sub-kolom berada)
+      const subHeaderRow = headerRows[headerRows.length - 1];
+      const subThs = subHeaderRow.querySelectorAll("th");
 
-        let x = 0;
-        let w = 0;
+      subThs.forEach((th: any, subIndex: number) => {
+        // Pasang Resizer line
+        if (!th.querySelector(".column-resizer")) {
+          th.style.position = "relative";
+          const resizer = document.createElement("div");
+          resizer.classList.add("column-resizer");
+          th.appendChild(resizer);
 
-        resizer.addEventListener("mousedown", (e: MouseEvent) => {
-          x = e.clientX;
-          w = th.offsetWidth;
-          document.addEventListener("mousemove", mouseMoveHandler);
-          document.addEventListener("mouseup", mouseUpHandler);
+          let x = 0;
+          let w = 0;
+
+          resizer.addEventListener("mousedown", (e: MouseEvent) => {
+            x = e.clientX;
+            w = th.offsetWidth;
+            document.addEventListener("mousemove", mouseMoveHandler);
+            document.addEventListener("mouseup", mouseUpHandler);
+            e.stopPropagation();
+          });
+
+          const mouseMoveHandler = (e: MouseEvent) => {
+            const dx = e.clientX - x;
+            const newW = Math.max(50, w + dx);
+            th.style.width = `${newW}px`;
+            th.style.minWidth = `${newW}px`;
+            th.style.maxWidth = `${newW}px`;
+          };
+
+          const mouseUpHandler = () => {
+            document.removeEventListener("mousemove", mouseMoveHandler);
+            document.removeEventListener("mouseup", mouseUpHandler);
+          };
+        }
+
+        // Aktifkan Drag & Drop Reorder pada Sub-Kolom
+        th.setAttribute("draggable", "true");
+        th.classList.add("draggable-header-cell");
+
+        th.addEventListener("dragstart", (e: DragEvent) => {
+          th.classList.add("dragging");
+          if (e.dataTransfer) {
+            e.dataTransfer.effectAllowed = "move";
+            e.dataTransfer.setData("text/plain", String(subIndex));
+          }
           e.stopPropagation();
         });
 
-        const mouseMoveHandler = (e: MouseEvent) => {
-          const dx = e.clientX - x;
-          const newW = Math.max(50, w + dx);
-          th.style.width = `${newW}px`;
-          th.style.minWidth = `${newW}px`;
-          th.style.maxWidth = `${newW}px`;
-        };
+        th.addEventListener("dragend", () => {
+          th.classList.remove("dragging");
+          table
+            .querySelectorAll("th, td")
+            .forEach((el) => el.classList.remove("drag-over"));
+        });
 
-        const mouseUpHandler = () => {
-          document.removeEventListener("mousemove", mouseMoveHandler);
-          document.removeEventListener("mouseup", mouseUpHandler);
-        };
-      }
+        th.addEventListener("dragover", (e: DragEvent) => {
+          e.preventDefault();
+          if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
+        });
 
-      // 2. Aktifkan Drag & Drop Reorder Kolom
-      th.setAttribute("draggable", "true");
-      th.classList.add("draggable-header-cell");
+        th.addEventListener("dragenter", () => {
+          th.classList.add("drag-over");
+        });
 
-      th.addEventListener("dragstart", (e: DragEvent) => {
-        th.classList.add("dragging");
-        if (e.dataTransfer) e.dataTransfer.effectAllowed = "move";
-      });
+        th.addEventListener("dragleave", () => {
+          th.classList.remove("drag-over");
+        });
 
-      th.addEventListener("dragend", () => {
-        th.classList.remove("dragging");
-        table
-          .querySelectorAll("th, td")
-          .forEach((el) => el.classList.remove("drag-over"));
-      });
+        th.addEventListener("drop", (e: DragEvent) => {
+          e.preventDefault();
+          e.stopPropagation();
+          const srcIdxStr = e.dataTransfer?.getData("text/plain");
+          if (srcIdxStr === undefined) return;
+          const srcIdx = parseInt(srcIdxStr, 10);
+          const targetIdx = subIndex;
 
-      th.addEventListener("dragover", (e: DragEvent) => {
-        e.preventDefault();
-        if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
-      });
+          if (isNaN(srcIdx) || srcIdx === targetIdx) return;
 
-      th.addEventListener("dragenter", () => {
-        th.classList.add("drag-over");
-      });
-
-      th.addEventListener("dragleave", () => {
-        th.classList.remove("drag-over");
-      });
-
-      th.addEventListener("drop", (e: DragEvent) => {
-        e.preventDefault();
-        const draggingTh = table.querySelector("th.dragging");
-        if (!draggingTh || draggingTh === th) return;
-
-        const allThs = Array.from(headers);
-        const srcIdx = allThs.indexOf(draggingTh as HTMLElement);
-        const targetIdx = allThs.indexOf(th);
-
-        // Pindahkan posisi kolom (sel) secara serentak di setiap baris tabel (header & body)
-        const rows = table.querySelectorAll("tr");
-        rows.forEach((row) => {
-          const cells = row.children;
-          if (cells[srcIdx] && cells[targetIdx]) {
-            if (srcIdx < targetIdx) {
-              row.insertBefore(cells[srcIdx], cells[targetIdx].nextSibling);
-            } else {
-              row.insertBefore(cells[srcIdx], cells[targetIdx]);
+          // Pindahkan sel secara serentak di baris sub-header, baris isi data (tbody), dan footer (tfoot)
+          const allRows = table.querySelectorAll("tr");
+          allRows.forEach((row, rIdx) => {
+            const cells = row.children;
+            if (rIdx === headerRows.length - 1 || rIdx >= headerRows.length) {
+              if (cells[srcIdx] && cells[targetIdx]) {
+                if (srcIdx < targetIdx) {
+                  row.insertBefore(cells[srcIdx], cells[targetIdx].nextSibling);
+                } else {
+                  row.insertBefore(cells[srcIdx], cells[targetIdx]);
+                }
+              }
             }
-          }
+          });
         });
       });
-    });
-  }, 500);
+    }, 600);
+  });
 };
 </script>
 
@@ -618,7 +633,6 @@ const setupHeaderInteractions = () => {
   user-select: none;
 }
 
-/* Gaya Elemen Drag & Resizer ala BaseBrowse */
 :deep(.draggable-header-cell) {
   cursor: grab;
   position: relative;
@@ -646,7 +660,6 @@ const setupHeaderInteractions = () => {
   background-color: rgba(255, 255, 255, 0.4);
 }
 
-/* Sticky Column Styling */
 :deep(.sticky-col-1) {
   position: sticky;
   left: 0;
@@ -671,7 +684,6 @@ const setupHeaderInteractions = () => {
   background-color: #f1f5f9 !important;
 }
 
-/* Table Footer Styling */
 :deep(.table-footer-row td) {
   position: sticky;
   bottom: 0;

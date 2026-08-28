@@ -1,7 +1,7 @@
 <template>
   <div class="po-paper-browse-wrapper">
     <BaseBrowse
-      title="PO Paper Print Browse"
+      title="PO Internal Out Browse"
       icon="mdi-file-document-outline"
       :headers="masterHeaders"
       :items="filteredMasterData"
