@@ -289,7 +289,7 @@ const confirmToggleCloseSpk = async () => {
   }
 };
 
-// --- EXPORT TO EXCEL METHOD (Hanya Data Terfilter) ---
+// --- EXPORT TO EXCEL METHOD ---
 const exportToExcel = async () => {
   if (filteredMasterData.value.length === 0) {
     return toast.warning(
@@ -832,14 +832,6 @@ const handlePrint = async () => {
     toast.warning("Dokumen ini belum memiliki nomor SPK.");
     return;
   }
-  const statusAcc = selectedItem.value.Ngedit;
-
-  if (statusAcc !== "ACC" && statusAcc !== "") {
-    toast.warning(
-      `SPK ${nomorSpk} belum di-ACC atau masih status ${statusAcc}, tidak bisa cetak.`,
-    );
-    return;
-  }
 
   try {
     await soToSpkService.checkPrintPermission(nomorSpk);
@@ -914,7 +906,6 @@ const handleExecuteGenerateSpk = async () => {
 onMounted(() => {
   fetchData();
 
-  // Mengubah teks tombol 'Baru' bawaan menjadi 'Buat SPK' secara otomatis
   setTimeout(() => {
     const buttons = document.querySelectorAll("button, .v-btn");
     buttons.forEach((btn) => {
@@ -949,14 +940,12 @@ watch([startDate, endDate], ([newStart, newEnd]) => {
     v-model:startDate="startDate"
     v-model:endDate="endDate"
     v-model:expanded="expanded"
-    has-print
     fixed-header
     height="calc(100vh - 210px)"
     class="browse-table-container"
     @refresh="fetchData"
     @action:new="openCreateSpkDialog()"
     @action:edit="handleEdit"
-    @action:print="handlePrint"
     @row-click="handleRowClick"
     :row-props="getRowProps"
     @update:expanded="handleExpandUpdate(expanded)"
@@ -1009,6 +998,18 @@ watch([startDate, endDate], ([newStart, newEnd]) => {
         @click="handlePreview()"
       >
         Preview
+      </v-btn>
+
+      <v-btn
+        color="light-blue-darken-1"
+        class="text-white font-weight-bold"
+        rounded="pill"
+        size="small"
+        prepend-icon="mdi-printer"
+        :disabled="!selectedItem"
+        @click="handlePrint"
+      >
+        Cetak
       </v-btn>
 
       <!-- MENU DROPDOWN AKSI SPK -->
@@ -1110,7 +1111,6 @@ watch([startDate, endDate], ([newStart, newEnd]) => {
       {{ value || item.Cabang || "-" }}
     </template>
 
-    <!-- Format Tanggal Dateline & Tanggal Lainnya -->
     <!-- Slot Tanggal -->
     <template #item.Tanggal="{ value }">
       {{ value || "-" }}
@@ -1668,7 +1668,6 @@ watch([startDate, endDate], ([newStart, newEnd]) => {
 </template>
 
 <style scoped>
-/* Mematikan background warna seleksi bawaan dari v-data-table Vuetify */
 :deep(.v-data-table__tr),
 :deep(.v-data-table__tr.v-data-table__tr--selected),
 :deep(.v-data-table__tr.v-data-table__tr--selected:hover),
@@ -1676,7 +1675,6 @@ watch([startDate, endDate], ([newStart, newEnd]) => {
   background-color: #ffffff !important;
 }
 
-/* Hanya baris yang memiliki class row-selected yang menampilkan warna latar biru */
 .row-selected,
 :deep(.v-data-table__tr.row-selected),
 :deep(.v-data-table__tr.row-selected > td) {
