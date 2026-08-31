@@ -257,19 +257,11 @@ const confirmToggleCloseSpk = async () => {
 
   isProcessingClose.value = true;
   try {
-    if (typeof (soToSpkService as any).toggleClose === "function") {
-      await (soToSpkService as any).toggleClose(
-        nomorSpk,
-        closeAction.value,
-        closeAlasan.value,
-      );
-    } else if (typeof (soToSpkService as any).closeSpk === "function") {
-      await (soToSpkService as any).closeSpk(
-        nomorSpk,
-        closeAction.value,
-        closeAlasan.value,
-      );
-    }
+    // 🟢 Perbaiki pemanggilan dengan membungkusnya ke dalam objek payload yang benar
+    await soToSpkService.toggleClose(nomorSpk, {
+      isClose: closeAction.value === "Y",
+      alasan: closeAlasan.value,
+    });
 
     toast.success(
       `SPK ${nomorSpk} berhasil ${
@@ -870,6 +862,12 @@ const handleExecuteGenerateSpk = async () => {
   if (!targetSoToGenerate.value) return;
 
   const soNomor = targetSoToGenerate.value.SO!;
+  // Ambil keterangan dari item SO yang sedang dipilih
+  const ketSo =
+    (targetSoToGenerate.value as any).so_keterangan ||
+    (targetSoToGenerate.value as any).Keterangan ||
+    "";
+
   isGeneratingSpk.value = true;
 
   try {
@@ -877,7 +875,7 @@ const handleExecuteGenerateSpk = async () => {
       isEdit: false,
       so_nomor: soNomor,
       spk_ketbeli: "",
-      spk_keterangan: "",
+      spk_keterangan: ketSo, // 🟢 Kirimkan data keterangan SO ke backend
     };
 
     let res: any;
