@@ -85,6 +85,8 @@ const loadingDetails = ref<Set<string>>(new Set());
 const selected = ref<SpkHeader[]>([]);
 const expanded = ref<any[]>([]);
 
+const currentFilteredItems = ref([]);
+
 const startDate = ref<string>(format(new Date(), "yyyy-MM-dd"));
 const endDate = ref<string>(format(new Date(), "yyyy-MM-dd"));
 const keyword = ref<string>("");
@@ -282,17 +284,23 @@ const confirmToggleCloseSpk = async () => {
 };
 
 // --- EXPORT TO EXCEL METHOD ---
+
 const exportToExcel = async () => {
-  if (filteredMasterData.value.length === 0) {
+  if (currentFilteredItems.value.length === 0) {
     return toast.warning(
       "Tidak ada data yang sesuai dengan filter untuk diekspor.",
     );
   }
 
   isExporting.value = true;
+
   try {
-    for (const header of filteredMasterData.value) {
+    // =========================================================
+    // 1. SYNC DETAIL SPK
+    // =========================================================
+    for (const header of currentFilteredItems.value) {
       const spkNomor = header.SPK || (header as any).Nomor;
+
       if (
         spkNomor &&
         (!details.value[spkNomor] || details.value[spkNomor].length === 0)
@@ -300,80 +308,247 @@ const exportToExcel = async () => {
         try {
           const res = await soToSpkService.getSizes(spkNomor);
           const resData = res.data?.data ?? res.data;
+
           details.value[spkNomor] = Array.isArray(resData) ? resData : [];
         } catch (e) {
           console.error(`Gagal sync detail SPK ${spkNomor}:`, e);
+
           details.value[spkNomor] = [];
         }
       }
     }
 
+    // =========================================================
+    // 2. NAMA FILE
+    // =========================================================
     const fileName = `Monitoring_SO_to_SPK_${startDate.value}_sd_${endDate.value}.xlsx`;
 
-    const num = (value: any) => {
+    // =========================================================
+    // 3. HELPER NUMBER
+    // =========================================================
+    const num = (value: any): number => {
       const parsed = Number(value);
-      return isNaN(parsed) ? 0 : parsed;
+
+      return Number.isNaN(parsed) ? 0 : parsed;
     };
 
-    const formatTglManual = (dateStr?: string | null) => {
-      if (!dateStr) return "-";
-      return formatDateDisplay(dateStr);
+    // =========================================================
+    // 4. HELPER FORMAT TANGGAL
+    //
+    // Input:
+    // 2026-08-26 00:00:00
+    //
+    // Output:
+    // 26/08/2026
+    //
+    // Tidak menggunakan new Date() untuk MySQL DATETIME
+    // sehingga aman dari masalah timezone.
+    // =========================================================
+    const formatTglManual = (dateValue?: string | Date | null): string => {
+      if (!dateValue) return "-";
+
+      try {
+        // Jika Date object
+        if (dateValue instanceof Date) {
+          if (Number.isNaN(dateValue.getTime())) {
+            return "-";
+          }
+
+          return [
+            String(dateValue.getDate()).padStart(2, "0"),
+            String(dateValue.getMonth() + 1).padStart(2, "0"),
+            dateValue.getFullYear(),
+          ].join("/");
+        }
+
+        const value = String(dateValue).trim();
+
+        if (!value) return "-";
+
+        // =====================================================
+        // MySQL DATETIME
+        // 2026-08-26 00:00:00
+        //
+        // Ambil YYYY-MM-DD saja.
+        // Jangan menggunakan new Date() karena timezone.
+        // =====================================================
+        const mysqlMatch = value.match(/^(\d{4})-(\d{2})-(\d{2})/);
+
+        if (mysqlMatch) {
+          const [, year, month, day] = mysqlMatch;
+
+          return `${day}/${month}/${year}`;
+        }
+
+        // =====================================================
+        // Format DD-MM-YYYY
+        // 26-08-2026
+        // =====================================================
+        const dmyMatch = value.match(/^(\d{2})-(\d{2})-(\d{4})/);
+
+        if (dmyMatch) {
+          const [, day, month, year] = dmyMatch;
+
+          return `${day}/${month}/${year}`;
+        }
+
+        // =====================================================
+        // Format DD/MM/YYYY
+        // 26/08/2026
+        // =====================================================
+        const slashMatch = value.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+
+        if (slashMatch) {
+          const [, day, month, year] = slashMatch;
+
+          return `${day}/${month}/${year}`;
+        }
+
+        // =====================================================
+        // ISO datetime
+        // Contoh:
+        // 2026-08-26T00:00:00.000Z
+        // =====================================================
+        const isoDate = new Date(value);
+
+        if (!Number.isNaN(isoDate.getTime())) {
+          return [
+            String(isoDate.getDate()).padStart(2, "0"),
+            String(isoDate.getMonth() + 1).padStart(2, "0"),
+            isoDate.getFullYear(),
+          ].join("/");
+        }
+
+        return "-";
+      } catch (error) {
+        console.error("Gagal format tanggal:", error);
+        return "-";
+      }
     };
 
+    // =========================================================
+    // 5. STYLE
+    // =========================================================
     const styleHeaderMain = {
       fill: { fgColor: { rgb: "B3E5FC" } },
-      font: { bold: true, color: { rgb: "000000" }, sz: 10 },
-      alignment: { horizontal: "center", vertical: "center", wrapText: true },
+      font: {
+        bold: true,
+        color: { rgb: "000000" },
+        sz: 10,
+      },
+      alignment: {
+        horizontal: "center",
+        vertical: "center",
+        wrapText: true,
+      },
       border: {
-        top: { style: "thin", color: { rgb: "000000" } },
-        bottom: { style: "thin", color: { rgb: "000000" } },
-        left: { style: "thin", color: { rgb: "000000" } },
-        right: { style: "thin", color: { rgb: "000000" } },
+        top: {
+          style: "thin",
+          color: { rgb: "000000" },
+        },
+        bottom: {
+          style: "thin",
+          color: { rgb: "000000" },
+        },
+        left: {
+          style: "thin",
+          color: { rgb: "000000" },
+        },
+        right: {
+          style: "thin",
+          color: { rgb: "000000" },
+        },
       },
     };
 
     const styleDataCell = {
       font: { sz: 10 },
       border: {
-        top: { style: "thin", color: { rgb: "000000" } },
-        bottom: { style: "thin", color: { rgb: "000000" } },
-        left: { style: "thin", color: { rgb: "000000" } },
-        right: { style: "thin", color: { rgb: "000000" } },
+        top: {
+          style: "thin",
+          color: { rgb: "000000" },
+        },
+        bottom: {
+          style: "thin",
+          color: { rgb: "000000" },
+        },
+        left: {
+          style: "thin",
+          color: { rgb: "000000" },
+        },
+        right: {
+          style: "thin",
+          color: { rgb: "000000" },
+        },
       },
-      alignment: { vertical: "center" },
+      alignment: {
+        vertical: "center",
+      },
     };
 
     const styleDataCellCenter = {
       ...styleDataCell,
-      alignment: { horizontal: "center", vertical: "center" },
+      alignment: {
+        horizontal: "center",
+        vertical: "center",
+      },
     };
 
     const styleDataCellRight = {
       ...styleDataCell,
-      alignment: { horizontal: "right", vertical: "center" },
+      alignment: {
+        horizontal: "right",
+        vertical: "center",
+      },
     };
 
     const styleFooter = {
       ...styleDataCell,
-      fill: { fgColor: { rgb: "F0F4F8" } },
-      font: { bold: true, sz: 10 },
+      fill: {
+        fgColor: { rgb: "F0F4F8" },
+      },
+      font: {
+        bold: true,
+        sz: 10,
+      },
     };
 
+    // =========================================================
+    // 6. DATA EXCEL
+    // =========================================================
     const worksheetData: any[] = [];
+
     worksheetData.push([
       {
         v: "MONITORING SO TO SPK",
-        s: { font: { bold: true, sz: 14 } },
+        s: {
+          font: {
+            bold: true,
+            sz: 14,
+          },
+        },
       },
     ]);
+
     worksheetData.push([
       {
-        v: `Tanggal : ${formatTglManual(startDate.value)} s.d ${formatTglManual(endDate.value)} | Filter Keyword: ${keyword.value || "Semua"}`,
-        s: { font: { sz: 10 } },
+        v:
+          `Tanggal : ${formatTglManual(startDate.value)} ` +
+          `s.d ${formatTglManual(endDate.value)} ` +
+          `| Filter Keyword: ${keyword.value || "Semua"}`,
+        s: {
+          font: {
+            sz: 10,
+          },
+        },
       },
     ]);
+
     worksheetData.push([]);
 
+    // =========================================================
+    // 7. HEADER
+    // =========================================================
     const headers = [
       { v: "NOMOR SO", s: styleHeaderMain },
       { v: "NOMOR SPK", s: styleHeaderMain },
@@ -400,30 +575,54 @@ const exportToExcel = async () => {
       { v: "PRASJ", s: styleHeaderMain },
       { v: "KIRIM", s: styleHeaderMain },
     ];
+
     worksheetData.push(headers);
 
+    // =========================================================
+    // 8. GRAND TOTAL
+    // =========================================================
     let grandTotalQtySPK = 0;
     let grandTotalStbj = 0;
     let grandTotalKurang = 0;
     let grandTotalPraSJ = 0;
     let grandTotalKirim = 0;
 
-    filteredMasterData.value.forEach((header) => {
+    // =========================================================
+    // 9. DATA ROW
+    // =========================================================
+    currentFilteredItems.value.forEach((header) => {
       const spkNomor = header.SPK || (header as any).Nomor || "-";
+
       const soNomor = header.SO || "-";
+
       const targetSizes = details.value[spkNomor] || [];
+
+      // =======================================================
+      // FORMAT TANGGAL
+      // =======================================================
       const tglSpk = formatTglManual(header.Tanggal);
-      const datelineSpk = formatTglManual(header.Dateline || header.Deadline);
+
+      const datelineSpk = formatTglManual(header.Dateline);
+
       const cabText = header.Cab || (header as any).Cabang || "-";
 
+      // =======================================================
+      // TOTAL
+      // =======================================================
       grandTotalPraSJ += num(header.PraSJ);
       grandTotalKirim += num(header.Kirim);
 
+      // =======================================================
+      // JIKA ADA DETAIL SIZE
+      // =======================================================
       if (targetSizes.length > 0) {
         targetSizes.forEach((dtl, index) => {
           const isFirstRow = index === 0;
+
           const qtySize = num(dtl.Qty);
+
           const stbjSize = num(dtl.Stbj);
+
           const kurangSize = num(dtl.Kurang);
 
           grandTotalQtySPK += qtySize;
@@ -431,12 +630,30 @@ const exportToExcel = async () => {
           grandTotalKurang += kurangSize;
 
           worksheetData.push([
-            { v: isFirstRow ? soNomor : "-", s: styleDataCellCenter },
-            { v: isFirstRow ? spkNomor : "-", s: styleDataCellCenter },
-            { v: isFirstRow ? header.MO || "-" : "-", s: styleDataCellCenter },
-            { v: isFirstRow ? header.CMO || "-" : "-", s: styleDataCellCenter },
-            { v: isFirstRow ? tglSpk : "-", s: styleDataCellCenter },
-            { v: isFirstRow ? datelineSpk : "-", s: styleDataCellCenter },
+            {
+              v: isFirstRow ? soNomor : "-",
+              s: styleDataCellCenter,
+            },
+            {
+              v: isFirstRow ? spkNomor : "-",
+              s: styleDataCellCenter,
+            },
+            {
+              v: isFirstRow ? header.MO || "-" : "-",
+              s: styleDataCellCenter,
+            },
+            {
+              v: isFirstRow ? header.CMO || "-" : "-",
+              s: styleDataCellCenter,
+            },
+            {
+              v: isFirstRow ? tglSpk : "-",
+              s: styleDataCellCenter,
+            },
+            {
+              v: isFirstRow ? datelineSpk : "-",
+              s: styleDataCellCenter,
+            },
             {
               v: isFirstRow ? header.Kepentingan || "-" : "-",
               s: styleDataCell,
@@ -445,9 +662,18 @@ const exportToExcel = async () => {
               v: isFirstRow ? header.Divisi || "-" : "-",
               s: styleDataCellCenter,
             },
-            { v: isFirstRow ? cabText : "-", s: styleDataCellCenter },
-            { v: isFirstRow ? header.Nama || "-" : "-", s: styleDataCell },
-            { v: isFirstRow ? header.Pesan || "-" : "-", s: styleDataCell },
+            {
+              v: isFirstRow ? cabText : "-",
+              s: styleDataCellCenter,
+            },
+            {
+              v: isFirstRow ? header.Nama || "-" : "-",
+              s: styleDataCell,
+            },
+            {
+              v: isFirstRow ? header.Pesan || "-" : "-",
+              s: styleDataCell,
+            },
             {
               v: isFirstRow ? num(header.Panjang) : 0,
               t: "n",
@@ -464,8 +690,14 @@ const exportToExcel = async () => {
               v: isFirstRow ? header.Gramasi || "-" : "-",
               s: styleDataCellCenter,
             },
-            { v: isFirstRow ? header.Bahan || "-" : "-", s: styleDataCell },
-            { v: isFirstRow ? header.Finishing || "-" : "-", s: styleDataCell },
+            {
+              v: isFirstRow ? header.Bahan || "-" : "-",
+              s: styleDataCell,
+            },
+            {
+              v: isFirstRow ? header.Finishing || "-" : "-",
+              s: styleDataCell,
+            },
             {
               v: isFirstRow ? header.STATUS || "-" : "-",
               s: styleDataCellCenter,
@@ -474,10 +706,28 @@ const exportToExcel = async () => {
               v: isFirstRow ? header.Ngedit || "-" : "-",
               s: styleDataCellCenter,
             },
-            { v: dtl.Size || "-", s: styleDataCellCenter },
-            { v: qtySize, t: "n", z: "#,##0", s: styleDataCellRight },
-            { v: stbjSize, t: "n", z: "#,##0", s: styleDataCellRight },
-            { v: kurangSize, t: "n", z: "#,##0", s: styleDataCellRight },
+            {
+              v: dtl.Size || "-",
+              s: styleDataCellCenter,
+            },
+            {
+              v: qtySize,
+              t: "n",
+              z: "#,##0",
+              s: styleDataCellRight,
+            },
+            {
+              v: stbjSize,
+              t: "n",
+              z: "#,##0",
+              s: styleDataCellRight,
+            },
+            {
+              v: kurangSize,
+              t: "n",
+              z: "#,##0",
+              s: styleDataCellRight,
+            },
             isFirstRow
               ? {
                   v: num(header.PraSJ),
@@ -485,7 +735,10 @@ const exportToExcel = async () => {
                   z: "#,##0",
                   s: styleDataCellRight,
                 }
-              : { v: "-", s: styleDataCellCenter },
+              : {
+                  v: "-",
+                  s: styleDataCellCenter,
+                },
             isFirstRow
               ? {
                   v: num(header.Kirim),
@@ -493,22 +746,61 @@ const exportToExcel = async () => {
                   z: "#,##0",
                   s: styleDataCellRight,
                 }
-              : { v: "-", s: styleDataCellCenter },
+              : {
+                  v: "-",
+                  s: styleDataCellCenter,
+                },
           ]);
         });
       } else {
+        // =====================================================
+        // JIKA TIDAK ADA DETAIL SIZE
+        // =====================================================
         worksheetData.push([
-          { v: soNomor, s: styleDataCellCenter },
-          { v: spkNomor, s: styleDataCellCenter },
-          { v: header.MO || "-", s: styleDataCellCenter },
-          { v: header.CMO || "-", s: styleDataCellCenter },
-          { v: tglSpk, s: styleDataCellCenter },
-          { v: datelineSpk, s: styleDataCellCenter },
-          { v: header.Kepentingan || "-", s: styleDataCell },
-          { v: header.Divisi || "-", s: styleDataCellCenter },
-          { v: cabText, s: styleDataCellCenter },
-          { v: header.Nama || "-", s: styleDataCell },
-          { v: header.Pesan || "-", s: styleDataCell },
+          {
+            v: soNomor,
+            s: styleDataCellCenter,
+          },
+          {
+            v: spkNomor,
+            s: styleDataCellCenter,
+          },
+          {
+            v: header.MO || "-",
+            s: styleDataCellCenter,
+          },
+          {
+            v: header.CMO || "-",
+            s: styleDataCellCenter,
+          },
+          {
+            v: tglSpk,
+            s: styleDataCellCenter,
+          },
+          {
+            v: datelineSpk,
+            s: styleDataCellCenter,
+          },
+          {
+            v: header.Kepentingan || "-",
+            s: styleDataCell,
+          },
+          {
+            v: header.Divisi || "-",
+            s: styleDataCellCenter,
+          },
+          {
+            v: cabText,
+            s: styleDataCellCenter,
+          },
+          {
+            v: header.Nama || "-",
+            s: styleDataCell,
+          },
+          {
+            v: header.Pesan || "-",
+            s: styleDataCell,
+          },
           {
             v: num(header.Panjang),
             t: "n",
@@ -521,89 +813,184 @@ const exportToExcel = async () => {
             z: "#,##0.##",
             s: styleDataCellRight,
           },
-          { v: header.Gramasi || "-", s: styleDataCellCenter },
-          { v: header.Bahan || "-", s: styleDataCell },
-          { v: header.Finishing || "-", s: styleDataCell },
-          { v: header.STATUS || "-", s: styleDataCellCenter },
-          { v: header.Ngedit || "-", s: styleDataCellCenter },
-          { v: "-", s: styleDataCellCenter },
-          { v: 0, t: "n", z: "#,##0", s: styleDataCellRight },
-          { v: 0, t: "n", z: "#,##0", s: styleDataCellRight },
-          { v: 0, t: "n", z: "#,##0", s: styleDataCellRight },
-          { v: num(header.PraSJ), t: "n", z: "#,##0", s: styleDataCellRight },
-          { v: num(header.Kirim), t: "n", z: "#,##0", s: styleDataCellRight },
+          {
+            v: header.Gramasi || "-",
+            s: styleDataCellCenter,
+          },
+          {
+            v: header.Bahan || "-",
+            s: styleDataCell,
+          },
+          {
+            v: header.Finishing || "-",
+            s: styleDataCell,
+          },
+          {
+            v: header.STATUS || "-",
+            s: styleDataCellCenter,
+          },
+          {
+            v: header.Ngedit || "-",
+            s: styleDataCellCenter,
+          },
+          {
+            v: "-",
+            s: styleDataCellCenter,
+          },
+          {
+            v: 0,
+            t: "n",
+            z: "#,##0",
+            s: styleDataCellRight,
+          },
+          {
+            v: 0,
+            t: "n",
+            z: "#,##0",
+            s: styleDataCellRight,
+          },
+          {
+            v: 0,
+            t: "n",
+            z: "#,##0",
+            s: styleDataCellRight,
+          },
+          {
+            v: num(header.PraSJ),
+            t: "n",
+            z: "#,##0",
+            s: styleDataCellRight,
+          },
+          {
+            v: num(header.Kirim),
+            t: "n",
+            z: "#,##0",
+            s: styleDataCellRight,
+          },
         ]);
       }
     });
 
+    // =========================================================
+    // 10. FOOTER GRAND TOTAL
+    // =========================================================
     const footerRow = [
       {
         v: "GRAND TOTAL",
         s: {
           ...styleFooter,
-          alignment: { horizontal: "right", vertical: "center" },
+          alignment: {
+            horizontal: "right",
+            vertical: "center",
+          },
         },
       },
-      ...Array(18).fill({ v: "", s: styleFooter }),
+
+      ...Array(18).fill({
+        v: "",
+        s: styleFooter,
+      }),
+
       {
         v: grandTotalQtySPK,
         t: "n",
         z: "#,##0",
         s: {
           ...styleFooter,
-          alignment: { horizontal: "right", vertical: "center" },
+          alignment: {
+            horizontal: "right",
+            vertical: "center",
+          },
         },
       },
+
       {
         v: grandTotalStbj,
         t: "n",
         z: "#,##0",
         s: {
           ...styleFooter,
-          alignment: { horizontal: "right", vertical: "center" },
+          alignment: {
+            horizontal: "right",
+            vertical: "center",
+          },
         },
       },
+
       {
         v: grandTotalKurang,
         t: "n",
         z: "#,##0",
         s: {
           ...styleFooter,
-          alignment: { horizontal: "right", vertical: "center" },
+          alignment: {
+            horizontal: "right",
+            vertical: "center",
+          },
         },
       },
+
       {
         v: grandTotalPraSJ,
         t: "n",
         z: "#,##0",
         s: {
           ...styleFooter,
-          alignment: { horizontal: "right", vertical: "center" },
+          alignment: {
+            horizontal: "right",
+            vertical: "center",
+          },
         },
       },
+
       {
         v: grandTotalKirim,
         t: "n",
         z: "#,##0",
         s: {
           ...styleFooter,
-          alignment: { horizontal: "right", vertical: "center" },
+          alignment: {
+            horizontal: "right",
+            vertical: "center",
+          },
         },
       },
     ];
+
     worksheetData.push(footerRow);
 
+    // =========================================================
+    // 11. CREATE WORKSHEET
+    // =========================================================
     const ws = XLSX.utils.aoa_to_sheet(worksheetData);
 
+    // =========================================================
+    // 12. MERGE
+    // =========================================================
     ws["!merges"] = [
-      { s: { r: 0, c: 0 }, e: { r: 0, c: 23 } },
-      { s: { r: 1, c: 0 }, e: { r: 1, c: 23 } },
       {
-        s: { r: worksheetData.length - 1, c: 0 },
-        e: { r: worksheetData.length - 1, c: 18 },
+        s: { r: 0, c: 0 },
+        e: { r: 0, c: 23 },
+      },
+      {
+        s: { r: 1, c: 0 },
+        e: { r: 1, c: 23 },
+      },
+      {
+        s: {
+          r: worksheetData.length - 1,
+          c: 0,
+        },
+        e: {
+          r: worksheetData.length - 1,
+          c: 18,
+        },
       },
     ];
 
+    // =========================================================
+    // 13. COLUMN WIDTH
+    // =========================================================
     ws["!cols"] = [
       { wch: 18 },
       { wch: 18 },
@@ -631,13 +1018,19 @@ const exportToExcel = async () => {
       { wch: 10 },
     ];
 
+    // =========================================================
+    // 14. CREATE WORKBOOK
+    // =========================================================
     const wb = XLSX.utils.book_new();
+
     XLSX.utils.book_append_sheet(wb, ws, "Monitoring_SPK");
+
     XLSX.writeFile(wb, fileName);
 
     toast.success("Excel Berhasil Diexport Sesuai Data Terfilter!");
   } catch (error) {
     console.error("Export Error:", error);
+
     toast.error("Gagal mengekspor data terfilter.");
   } finally {
     isExporting.value = false;
@@ -936,6 +1329,7 @@ watch([startDate, endDate], ([newStart, newEnd]) => {
     :items="filteredMasterData"
     :loading="loading"
     v-model:startDate="startDate"
+    v-model:filteredItems="currentFilteredItems"
     v-model:endDate="endDate"
     v-model:expanded="expanded"
     fixed-header
@@ -972,18 +1366,8 @@ watch([startDate, endDate], ([newStart, newEnd]) => {
     </template>
 
     <template #extra-actions>
-      <v-btn
-        color="success"
-        variant="elevated"
-        class="text-white font-weight-bold"
-        rounded="pill"
-        size="small"
-        prepend-icon="mdi-file-excel"
-        :loading="isExporting"
-        :disabled="filteredMasterData.length === 0"
-        @click="exportToExcel"
-      >
-        Export Excel
+      <v-btn color="success" size="x-small" @click="exportToExcel">
+        <v-icon start>mdi-file-excel</v-icon> Export
       </v-btn>
 
       <v-btn

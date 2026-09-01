@@ -299,40 +299,46 @@ const validateStokBahan = () => {
   return true;
 };
 
-const recalculateCombine = () => {
-  let subtotalSistemSemuaBaris = 0;
+const confirmSelection = () => {
+  if (!activeRowItem.value) return;
 
-  formData.value.details.forEach((d) => {
-    const newTotalCetak =
-      (parseInt(d.cetak1) || 0) +
-      (parseInt(d.cetak2) || 0) +
-      (parseInt(d.cetak3) || 0) +
-      (parseInt(d.cetak4) || 0) +
-      (parseInt(d.cetak5) || 0) +
-      (parseInt(d.cetak6) || 0) +
-      (parseInt(d.cetak7) || 0);
+  if (extractMode.value === "SET") {
+    const baseItem =
+      filteredComponents.value.length > 0
+        ? filteredComponents.value[0]
+        : activeRowItem.value;
+    const rowPerSet = createMappedPayload(baseItem, true);
+    rowPerSet.multiplier = 1; // 1 Set utuh
 
-    if (newTotalCetak > Number(d.kurangcetak_asli || 0)) {
-      toast.warning(
-        `SPK ${d.nomor_spk} (Input: ${newTotalCetak} melebihi sisa order: ${d.kurangcetak_asli})`,
-      );
+    emit("select", { mode: "SET", data: [rowPerSet] });
+    componentDialog.value = false;
+    emit("close");
+  } else {
+    // Mode Komponen (Multi-select)
+    if (selectedComponentKeys.value.length === 0) {
+      toast.warning("Pilih minimal satu komponen terlebih dahulu.");
+      return;
     }
 
-    d.totalcetak = newTotalCetak;
-    d.total_pernah_cetak = (d.sudahcetak || 0) + d.totalcetak;
-    d.kurangcetak = Math.max(0, (d.jumlah || 0) - d.total_pernah_cetak);
+    // Ambil semua komponen yang dicentang oleh user di modal
+    const selectedItemsData = filteredComponents.value.filter((comp, idx) => {
+      const uniqueKey =
+        getKomponenKode(comp) + "_" + getKomponenName(comp, idx);
+      return selectedComponentKeys.value.includes(uniqueKey);
+    });
 
-    const pSpk = parseFloat(d.panjang_spk as any) || 0;
-    const padM = parseFloat(d.padding as any) || 0;
+    // 🌟 PETAKAN MENJADI ARRAY BARIS TERPISAH (Bukan digabung dengan tanda "+")
+    const mappedItems = selectedItemsData.map((comp) => {
+      const mapped = createMappedPayload(activeRowItem.value!, false, comp);
+      mapped.multiplier = 1; // Default porsi/pcs awal per komponen
+      return mapped;
+    });
 
-    subtotalSistemSemuaBaris += (pSpk + padM) * d.totalcetak;
-  });
-
-  totalPanjangTerpakai.value = Number(subtotalSistemSemuaBaris.toFixed(2));
-
-  nextTick(() => {
-    autoFillLayout(true);
-  });
+    // Kirim array berisi rincian baris terpisah ke form utama
+    emit("select", { mode: "KOMPONEN", data: mappedItems });
+    componentDialog.value = false;
+    emit("close");
+  }
 };
 
 const autoFillLayout = (isSilent = false) => {
@@ -499,7 +505,6 @@ const handleBarcodeScan = async () => {
   const rawCode = formData.value.barcode_input;
   if (!rawCode) return;
 
-  // 1. Validasi karakter aneh (termasuk spasi tersembunyi/ekstra di awal/akhir/tengah)
   const invalidCharRegex = /[/\s[\]\\{}()<>="'`]/;
   if (invalidCharRegex.test(rawCode)) {
     toast.error("Format Barcode tidak valid! (Ada spasi atau karakter ilegal)");
@@ -519,10 +524,9 @@ const handleBarcodeScan = async () => {
       return;
     }
 
-    const wrapperData = responsePayload.data;
-    const info = wrapperData.data;
-    const statusGudang =
-      wrapperData.status || info?.Status_Gudang || info?.Gudang || "";
+    // Ambil object data di dalam wrapper (responsePayload.data adalah { status: "READY", data: { ... } })
+    const statusGudang = responsePayload.data.status || "";
+    const info = responsePayload.data.data;
 
     if (!info) {
       toast.error("Detail data material kosong atau stok habis!");
@@ -530,37 +534,35 @@ const handleBarcodeScan = async () => {
       return;
     }
 
-    // 2. CEK: Apakah roll ini sedang digunakan di LHK lain?
+    // Cek status penggunaan LHK jika ada
     const lhkPengguna = info.lth_nomor || info.nomor_lhk || info.Lhk_Dipakai;
     if (lhkPengguna && lhkPengguna !== formData.value.nomor) {
       toast.error(
         `⛔ PERINGATAN: Bahan/Roll ini sudah dipakai oleh LHK lain (${lhkPengguna})!`,
-        {
-          timeout: 8000,
-          closeOnClick: true,
-          pauseOnHover: true,
-        },
+        { timeout: 8000, closeOnClick: true, pauseOnHover: true },
       );
     }
 
-    // 3. CEK: Jika barang masih di Gudang Utama
+    // Cek apakah status gudang masih utama / perlu mutasi
     const isGudangUtama =
-      statusGudang.toString().toUpperCase().includes("UTAMA") ||
-      statusGudang.toString().toUpperCase() === "WH-16" ||
-      statusGudang === "NEED_MUTATION";
+      statusGudang.toUpperCase().includes("UTAMA") ||
+      statusGudang.toUpperCase() === "WH-16" ||
+      statusGudang === "NEED_MUTATION" ||
+      info.Kode_Gudang === "WH-16";
+
+    formData.value.brg_nama = info.Nama_Bahan || "";
+    formData.value.brg_kode = info.Kode || "";
+    formData.value.lebar_bahan = parseFloat(info.Lebar) || 0;
+
+    if (!isEditMode.value || !formData.value.panjang_bahan) {
+      formData.value.panjang_bahan =
+        parseFloat(info.Sisa_Panjang || info.Sisa_Panjang_Stok) || 0;
+    }
+    formData.value.gdgKode = info.Kode_Gudang || "GPM";
+
+    recalculateCombine();
 
     if (isGudangUtama) {
-      formData.value.brg_nama = info.Nama_Bahan || "";
-      formData.value.brg_kode = info.Kode || "";
-      formData.value.lebar_bahan = parseFloat(info.Lebar) || 0;
-
-      if (!isEditMode.value || !formData.value.panjang_bahan) {
-        formData.value.panjang_bahan = parseFloat(info.Sisa_Panjang) || 0;
-      }
-      formData.value.gdgKode = info.Kode_Gudang || "WH-16";
-
-      recalculateCombine();
-
       toast.error("Masih di gudang Utama, Silahkan Mutasi Dulu!", {
         timeout: 8000,
         closeOnClick: true,
@@ -569,18 +571,6 @@ const handleBarcodeScan = async () => {
       return;
     }
 
-    // KONDISI SIAP: Gudang Produksi (GPM)
-    formData.value.brg_nama = info.Nama_Bahan || "";
-    formData.value.brg_kode = info.Kode || "";
-    formData.value.lebar_bahan = parseFloat(info.Lebar) || 0;
-
-    if (!isEditMode.value || !formData.value.panjang_bahan) {
-      formData.value.panjang_bahan = parseFloat(info.Sisa_Panjang) || 0;
-    }
-
-    formData.value.gdgKode = info.Kode_Gudang || "GPM";
-
-    recalculateCombine();
     toast.success(`Barcode Roll ${code} berhasil dimuat Oke!`);
   } catch (e) {
     toast.error("Gagal memuat atau membaca data barcode");
@@ -700,6 +690,41 @@ const validateBeforeSave = (status: string) => {
 
   formData.value.lstatus = status;
   showSaveDialog.value = true;
+};
+const recalculateCombine = () => {
+  let subtotalSistemSemuaBaris = 0;
+
+  formData.value.details.forEach((d) => {
+    const newTotalCetak =
+      (parseInt(d.cetak1) || 0) +
+      (parseInt(d.cetak2) || 0) +
+      (parseInt(d.cetak3) || 0) +
+      (parseInt(d.cetak4) || 0) +
+      (parseInt(d.cetak5) || 0) +
+      (parseInt(d.cetak6) || 0) +
+      (parseInt(d.cetak7) || 0);
+
+    if (newTotalCetak > Number(d.kurangcetak_asli || 0)) {
+      toast.warning(
+        `SPK ${d.nomor_spk} (Input: ${newTotalCetak} melebihi sisa order: ${d.kurangcetak_asli})`,
+      );
+    }
+
+    d.totalcetak = newTotalCetak;
+    d.total_pernah_cetak = (d.sudahcetak || 0) + d.totalcetak;
+    d.kurangcetak = Math.max(0, (d.jumlah || 0) - d.total_pernah_cetak);
+
+    const pSpk = parseFloat(d.panjang_spk as any) || 0;
+    const padM = parseFloat(d.padding as any) || 0;
+
+    subtotalSistemSemuaBaris += (pSpk + padM) * d.totalcetak;
+  });
+
+  totalPanjangTerpakai.value = Number(subtotalSistemSemuaBaris.toFixed(2));
+
+  nextTick(() => {
+    autoFillLayout(true);
+  });
 };
 
 onMounted(async () => {

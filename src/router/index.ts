@@ -137,6 +137,7 @@ import SoToSpkPrintView from "@/views/SoToSpkPrintView.vue";
 import FormPoPaperprintView from "@/views/FormPoPaperprintView.vue";
 import mapView from "@/views/mapView.vue";
 import MapPrintView from "@/views/MapPrintView.vue";
+import FormBastMmtView from "@/views/FormBastMmtView.vue";
 
 const routes: RouteRecordRaw[] = [
   {
@@ -691,6 +692,12 @@ const routes: RouteRecordRaw[] = [
         path: "mmt/map/print/:nomor",
         name: "MapPrint",
         component: MapPrintView,
+      },
+
+      {
+        path: "mmt/bast-map/new",
+        name: "BastMmtNew",
+        component: FormBastMmtView,
       },
       {
         path: "mmt/search-barcode",

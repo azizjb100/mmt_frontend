@@ -14,7 +14,6 @@
   >
     <!-- 1. SLOT HEADER ACTIONS: Tombol Aksi di Bagian Atas Form -->
     <template #header-actions>
-      <!-- Tombol Simpan Draft -->
       <v-btn
         size="small"
         color="orange-darken-3"
@@ -27,7 +26,6 @@
         Simpan Draft
       </v-btn>
 
-      <!-- Tombol Simpan Posted -->
       <v-btn
         size="small"
         color="primary"
@@ -40,7 +38,6 @@
         Simpan Posted
       </v-btn>
 
-      <!-- Tombol Batal -->
       <v-btn
         size="small"
         variant="outlined"
@@ -50,7 +47,6 @@
         Batal
       </v-btn>
 
-      <!-- Tombol Tutup -->
       <v-btn
         size="small"
         variant="tonal"
@@ -260,8 +256,7 @@
                   <th width="60">Size PO</th>
                   <th width="120">Nomor SPK</th>
                   <th>Nama Pekerjaan</th>
-                  <!-- 🆕 KOLOM KOMPONEN BARU -->
-                  <th width="120">Komponen</th>
+                  <th width="110">Komponen</th>
                   <th width="55">P (M)</th>
                   <th width="55">L (M)</th>
                   <th width="110">Orientasi</th>
@@ -269,7 +264,16 @@
                   <th width="50">Order</th>
                   <th width="55">Sdh Ctk</th>
                   <th width="55">Kurang</th>
+                  <th
+                    width="45"
+                    title="Faktor Pengali / Porsi Komponen dalam Set"
+                  >
+                    Porsi
+                  </th>
                   <th width="55">Cetak</th>
+                  <th width="65" title="Total Fisik (Cetak x Porsi)">
+                    Hasil Fisik
+                  </th>
                   <th width="80">Total M²</th>
                   <th width="35"></th>
                 </tr>
@@ -308,7 +312,6 @@
                     {{ item.spk_nama }}
                   </td>
 
-                  <!-- 🆕 TAMPILAN KOMPONEN / ALL SET -->
                   <td
                     class="px-2 text-truncate font-weight-bold"
                     style="max-width: 120px"
@@ -378,7 +381,20 @@
                     {{ item.spk_kurang_cetak || 0 }}
                   </td>
 
-                  <!-- Input Qty Cetak Sekarang -->
+                  <!-- 🆕 KOLOM MULTIPLIER / PORSI KOMPONEN -->
+                  <!-- Kolom Porsi (Multiplier) -->
+                  <td class="bg-amber-lighten-5">
+                    <input
+                      type="number"
+                      v-model.number="item.multiplier"
+                      class="cell-input text-center font-weight-bold"
+                      min="1"
+                      @input="recalculateCombine"
+                      @wheel="$event.target.blur()"
+                    />
+                  </td>
+
+                  <!-- Kolom Cetak (Lembar Layout) -->
                   <td class="bg-yellow-lighten-5">
                     <input
                       type="number"
@@ -389,6 +405,12 @@
                     />
                   </td>
 
+                  <!-- 🆕 KOLOM HASIL CETAK FISIK (Cetak x Porsi) -->
+                  <td
+                    class="text-center font-weight-bold bg-grey-lighten-4 text-blue-darken-3"
+                  >
+                    {{ (item.jumlah_sublim || 0) * (item.multiplier || 1) }} Pcs
+                  </td>
                   <!-- Total Luas Meter -->
                   <td class="text-right font-weight-bold px-2 text-deep-purple">
                     {{ (item.spk_jmlmeter || 0).toFixed(2).replace(".", ",") }}
@@ -616,7 +638,7 @@ const toast = useToast();
 const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
-const SCALE = 60; // Skala rendering visual canvas
+const SCALE = 60;
 
 const manualOffsets = reactive<
   Record<number, { x: number; y: number; rotation: number }>
@@ -635,7 +657,6 @@ const lookup = reactive({
   poi: false,
 });
 
-// 1. INITIAL DATA STATE
 const initialData = {
   lsb_nomor: "AUTO",
   lsb_tanggal: format(new Date(), "yyyy-MM-dd"),
@@ -662,7 +683,6 @@ const ensureMeter = (val: any) => {
   return num > 10 ? parseFloat((num / 100).toFixed(2)) : num;
 };
 
-// 2. FETCH API UNTUK MODE EDIT
 const fetchApi = async () => {
   const nomorLhk = route.params.nomor as string;
   if (!nomorLhk) return initialData;
@@ -737,11 +757,14 @@ const fetchApi = async () => {
       const inputCetak = parseInt(
         item.Jumlah || item.jumlah_sublim || item.lsbd_jumlah || 0,
       );
+      const multiplierVal = parseInt(
+        item.multiplier || item.lsbd_multiplier || 1,
+      );
 
       const kurangAsli =
         item.kurangcetak_asli !== undefined
           ? parseFloat(item.kurangcetak_asli)
-          : order - sdhCetak + inputCetak;
+          : order - sdhCetak + inputCetak * multiplierVal;
 
       return {
         poi_nomor:
@@ -758,8 +781,6 @@ const fetchApi = async () => {
           "",
         spk_nomor: item.Nomor_SPK || item.spk_nomor || item.lsbd_spk_nomor,
         spk_nama: item.Nama_SPK || item.spk_nama || item.lsbd_spk_nama,
-
-        // 🛠️ PERBAIKAN 1: LOAD NAMA KOMPONEN DARI DATABASE DENGAN BENAR
         spk_komponen:
           item.lsbd_komponen ||
           item.spk_komponen ||
@@ -767,20 +788,18 @@ const fetchApi = async () => {
           item.Nama_Komponen ||
           item.nama_komponen ||
           "ALL SET",
-
-        // 🛠️ PERBAIKAN 2: PASTIKAN PANJANG & LEBAR DALAM SATUAN METER
         spk_panjang: ensureMeter(
           item.Panjang || item.spk_panjang || item.lsbd_panjang || 0,
         ),
         spk_lebar: ensureMeter(
           item.Lebar || item.spk_lebar || item.lsbd_lebar || 0,
         ),
-
         spk_jmlorder: order,
         spk_sudah_cetak: sdhCetak,
         kurangcetak_asli: kurangAsli,
+        multiplier: multiplierVal,
         jumlah_sublim: inputCetak,
-        spk_kurang_cetak: kurangAsli - inputCetak,
+        spk_kurang_cetak: kurangAsli - inputCetak * multiplierVal,
         padding: item.Padding || item.padding || "0.03",
         orientasi: item.Orientasi || item.orientasi || "lebar",
         spk_jmlmeter: parseFloat(
@@ -791,7 +810,6 @@ const fetchApi = async () => {
   };
 };
 
-// 3. SUBMIT API PENYIMPANAN DATA
 const submitApi = async (): Promise<unknown> => {
   recalculateCombine();
 
@@ -812,19 +830,16 @@ const submitApi = async (): Promise<unknown> => {
     lsbd_poid_size: d.poi_size || "",
     spk_nomor: d.spk_nomor || d.Nomor_SPK || "",
     spk_nama: d.spk_nama || d.Nama_SPK || "",
-
-    // 🌟 Kirim Nama Komponen
     spk_komponen: d.spk_komponen || "ALL SET",
     lsbd_komponen: d.spk_komponen || "ALL SET",
-
     spk_jmlorder: parseInt(d.spk_jmlorder || 0),
     jumlah_sublim: parseInt(d.jumlah_sublim || 0),
+    multiplier: parseInt(d.multiplier || 1),
     spk_panjang: parseFloat(d.spk_panjang || 0),
     spk_lebar: parseFloat(d.spk_lebar || 0),
     spk_jmlmeter: parseFloat(d.spk_jmlmeter || 0),
     lokasi: formData.value.mesin_kode,
     jenis_bahan: d.jenis_bahan || formData.value.brg_kode,
-
     lsbd_ambilbahan: parseFloat((formData.value.Panjang_bahan as any) || 0),
     lsbd_panjang_pakai: parseFloat((totalPanjangTerpakai.value as any) || 0),
     lsbd_sisameter: sisaFinalM,
@@ -857,7 +872,6 @@ const submitApi = async (): Promise<unknown> => {
   return await api.post("/mmt/lhk-paperprint", payload);
 };
 
-// 4. INTEGRASI USEFORM COMPOSABLE
 const {
   formData,
   isEditMode,
@@ -877,7 +891,6 @@ const {
   submitApi,
 });
 
-// 5. KALKULASI SISA STOK BAHAN
 const sisaStokOtomatisM = computed(() => {
   const rawBs = formData.value.panjang_bs;
   const bsPanjang = rawBs && !isNaN(parseFloat(rawBs)) ? parseFloat(rawBs) : 0;
@@ -895,7 +908,6 @@ const isFormValid = computed(() => {
   );
 });
 
-// 6. VALIDASI PRA-PENYIMPANAN
 const validateBeforeSave = (status: string) => {
   if (!formData.value.mesin_kode) {
     return toast.error("Silakan pilih mesin terlebih dahulu!");
@@ -924,15 +936,15 @@ const validateBeforeSave = (status: string) => {
   showSaveDialog.value = true;
 };
 
-// 7. HITUNG ULANG KOMBINASI TERPAKAI (DISESUAIKAN DENGAN ENGINE MESIN CETAK)
 const recalculateCombine = () => {
   let subtotalSistemSemuaBaris = 0;
 
   formData.value.details.forEach((d: any) => {
     const pSpk = parseFloat(d.spk_panjang) || 0;
     const lSpk = parseFloat(d.spk_lebar) || 0;
-    const qty = parseFloat(d.jumlah_sublim) || 0;
-    const padM = parseFloat(d.padding) || 0; // Ambil nilai padding
+    const cetakLayout = parseFloat(d.jumlah_sublim) || 0; // Input Lembar Cetak
+    const porsiPcs = parseFloat(d.multiplier) || 1; // Input Porsi/Pcs per set
+    const padM = parseFloat(d.padding) || 0;
 
     const order = parseFloat(d.spk_jmlorder) || 0;
     const sdhCetak = parseFloat(d.spk_sudah_cetak) || 0;
@@ -941,28 +953,29 @@ const recalculateCombine = () => {
       d.kurangcetak_asli = order - sdhCetak;
     }
 
-    if (qty > d.kurangcetak_asli && d.kurangcetak_asli > 0) {
+    // 🌟 1. HITUNG HASIL CETAK FISIK TOTAL (Contoh: 5 cetak x 3 porsi = 15 pcs)
+    const totalFisikRiil = cetakLayout * porsiPcs;
+
+    if (totalFisikRiil > d.kurangcetak_asli && d.kurangcetak_asli > 0) {
       toast.warning(
-        `SPK ${d.spk_nomor} (Input: ${qty} melebihi sisa order: ${d.kurangcetak_asli})`,
+        `SPK ${d.spk_nomor} (Total Fisik: ${totalFisilRiil} melebihi sisa order: ${d.kurangcetak_asli})`,
       );
     }
 
-    d.spk_kurang_cetak = d.kurangcetak_asli - qty;
+    d.spk_kurang_cetak = d.kurangcetak_asli - totalFisikRiil;
 
-    // 🛠️ RUMUS TOTAL M² TERMASUK PADDING & QTY
+    // 🌟 2. HITUNG M² BERDASARKAN TOTAL FISIK RIIL
     if (d.orientasi === "panjang") {
-      // Jika orientasi diputar (panjang & lebar bertukar posisi)
-      d.spk_jmlmeter = (lSpk + padM) * pSpk * qty;
+      d.spk_jmlmeter = (lSpk + padM) * pSpk * totalFisikRiil;
     } else {
-      // Jika orientasi normal: (Panjang + Padding) * Lebar * QTY
-      d.spk_jmlmeter = (pSpk + padM) * lSpk * qty;
+      d.spk_jmlmeter = (pSpk + padM) * lSpk * totalFisikRiil;
     }
 
-    // Akumulasi total panjang terpakai untuk sistem roll
+    // 🌟 3. HITUNG PANJANG ROL BAHAN (Berdasarkan seberapa banyak lembar layout 'cetak' yang jalan)
     if (d.orientasi === "panjang") {
-      subtotalSistemSemuaBaris += (lSpk + padM) * qty;
+      subtotalSistemSemuaBaris += (lSpk + padM) * cetakLayout;
     } else {
-      subtotalSistemSemuaBaris += (pSpk + padM) * qty;
+      subtotalSistemSemuaBaris += (pSpk + padM) * cetakLayout;
     }
   });
 
@@ -973,7 +986,6 @@ const recalculateCombine = () => {
   });
 };
 
-// 9. ENGINE LAYOUT CANVAS & AUTO-OPTIMIZE (SINKRON DENGAN MESIN CETAK)
 const autoFillLayout = (isSilent = false) => {
   Object.keys(manualOffsets).forEach(
     (key) => delete manualOffsets[Number(key)],
@@ -1004,12 +1016,10 @@ const autoFillLayout = (isSilent = false) => {
     const pSpk = parseFloat(spk.spk_panjang) || 0;
     const lSpk = parseFloat(spk.spk_lebar) || 0;
 
-    // Ukuran lebar dan tinggi blok visual di canvas
     const w = spk.orientasi === "panjang" ? lSpk : pSpk + padM;
     const h = spk.orientasi === "panjang" ? pSpk + padM : lSpk;
 
     for (let i = 0; i < qty; i++) {
-      // Jika posisi Y melampaui lebar roll bahan, geser ke kanan (kolom baru)
       if (currentY + h > maxBahanLebar + 0.01) {
         currentStartX = maxOverallX;
         currentY = 0;
@@ -1040,7 +1050,6 @@ const autoFillLayout = (isSilent = false) => {
   if (!isSilent) toast.success("Layout otomatis berhasil dioptimasi.");
 };
 
-// 8. KONTROL INPUT METER & BS
 const handleBsInput = (event: any) => {
   let val = event.target.value.replace(",", ".");
   formData.value.panjang_bs = val;
@@ -1055,8 +1064,6 @@ const handlePaddingTableInput = (event: any, item: any) => {
   item.padding = event.target.value.replace(",", ".");
   recalculateCombine();
 };
-
-// 9. ENGINE LAYOUT CANVAS
 
 const startDrag = (event: MouseEvent, idx: number) => {
   const startX = event.clientX;
@@ -1074,7 +1081,6 @@ const startDrag = (event: MouseEvent, idx: number) => {
       rotation: manualOffsets[idx]?.rotation ?? 0,
     };
 
-    // 🛠️ TAMBAHKAN LOGIKA INI SUPAYA PANJANG TERPAKAI IKUT BERUBAH SAAT DIGESER
     let maxRight = 0;
     let maxBottom = 0;
 
@@ -1154,7 +1160,6 @@ const rollStyle = computed(() => ({
   backgroundSize: `${SCALE}px 100%`,
 }));
 
-// 10. SCAN & LOOKUP ACTIONS
 const handleBarcodeScan = async () => {
   const code = formData.value.barcode_input?.trim();
   if (!code) return;
@@ -1282,6 +1287,7 @@ const handlePoiSelect = (poiData: any) => {
     spk_sudah_cetak: sdhCetak,
     kurangcetak_asli: sisaQty > 0 ? sisaQty : qtyOrder,
     spk_kurang_cetak: 0,
+    multiplier: 1,
     jumlah_sublim: sisaQty > 0 ? sisaQty : qtyOrder,
     padding: "0.03",
     orientasi: "lebar",
@@ -1289,7 +1295,9 @@ const handlePoiSelect = (poiData: any) => {
   };
 
   newRow.spk_jmlmeter =
-    newRow.spk_panjang * newRow.spk_lebar * newRow.jumlah_sublim;
+    newRow.spk_panjang *
+    newRow.spk_lebar *
+    (newRow.jumlah_sublim * newRow.multiplier);
 
   if (
     activePoiRowIdx.value !== -1 &&
@@ -1337,11 +1345,9 @@ const handleSpkScan = async () => {
   }
 };
 
-// --- Handle Pilihan SPK dari Modal Sublim Lookup ---
 const handleSpkSelect = (payload: any) => {
   if (!payload) return;
 
-  // Ekstrak Array Item Data dari Payload Modal Lookup
   const items: any[] = Array.isArray(payload)
     ? payload
     : Array.isArray(payload?.data)
@@ -1361,7 +1367,6 @@ const handleSpkSelect = (payload: any) => {
 
     const currentDetails = formData.value.details || [];
 
-    // Cek duplikasi jika memilih komponen yang sama pada SPK yang sama
     const targetKomponen =
       spkItem.spk_komponen ||
       spkItem.Nama_Komponen ||
@@ -1383,14 +1388,12 @@ const handleSpkSelect = (payload: any) => {
       return;
     }
 
-    // Inject data SPK per item
     injectSpkObject(spkItem);
   });
 
   isSpkLookupVisible.value = false;
 };
 
-// --- Fungsi Inject Data Row SPK ke Tabel Details ---
 const injectSpkObject = (spk: any, fallbackCode: string = "") => {
   if (!formData.value.details) {
     formData.value.details = [];
@@ -1449,7 +1452,6 @@ const injectSpkObject = (spk: any, fallbackCode: string = "") => {
       qtyOrderSpk - sdhCetak,
   );
 
-  // 🛠️ KONVERSI PANJANG & LEBAR KE METER JIKA TERSIMPAN DALAM CM (> 10)
   const rawP = parseFloat(item.spk_panjang || item.Panjang || 0);
   const rawL = parseFloat(item.spk_lebar || item.Lebar || 0);
 
@@ -1466,14 +1468,15 @@ const injectSpkObject = (spk: any, fallbackCode: string = "") => {
     spk_sudah_cetak: sdhCetak,
     kurangcetak_asli: kurangAsli > 0 ? kurangAsli : qtyOrderSpk,
     spk_kurang_cetak: 0,
+    multiplier: item.multiplier || 1,
     jumlah_sublim: kurangAsli > 0 ? kurangAsli : qtyOrderSpk,
     padding: item.padding || "0.03",
     orientasi: item.orientasi || "lebar",
     spk_jmlmeter: 0,
   };
 
-  newRow.spk_jmlmeter =
-    newRow.spk_panjang * newRow.spk_lebar * newRow.jumlah_sublim;
+  const effectiveQty = newRow.jumlah_sublim * newRow.multiplier;
+  newRow.spk_jmlmeter = newRow.spk_panjang * newRow.spk_lebar * effectiveQty;
 
   formData.value.details.push(newRow);
   recalculateCombine();

@@ -1,6 +1,6 @@
 <template>
   <div>
-    <!-- Dialog Utama Lookup SPK Sublim -->
+    <!-- Dialog Utama Lookup SPK Sublim (Bersih dari pilihan mode di atas) -->
     <v-dialog
       :model-value="isVisible"
       @update:modelValue="emit('close')"
@@ -8,33 +8,12 @@
       persistent
     >
       <v-card class="dialog-card d-flex flex-column" style="height: 85vh">
-        <!-- Header Toolbar dengan Radio Mode Extract -->
+        <!-- Header Toolbar -->
         <v-toolbar color="indigo-darken-2" density="compact">
           <v-toolbar-title class="text-subtitle-1 font-weight-bold">
             🔥 Pencarian SPK & Realisasi Bahan (Khusus Sublimasi)
           </v-toolbar-title>
           <v-spacer></v-spacer>
-
-          <!-- Choice Mode: SET vs KOMPONEN -->
-          <v-radio-group
-            v-model="extractMode"
-            inline
-            hide-details
-            density="compact"
-            class="spk-modal-mode text-body-2 mr-4"
-          >
-            <v-radio
-              label="Ambil Per Set (Semua Komponen)"
-              value="SET"
-              color="white"
-            ></v-radio>
-            <v-radio
-              label="Ambil Per Komponen"
-              value="KOMPONEN"
-              color="white"
-            ></v-radio>
-          </v-radio-group>
-
           <v-btn
             icon="mdi-close"
             @click="emit('close')"
@@ -118,7 +97,7 @@
                 <v-btn
                   color="indigo"
                   size="x-small"
-                  @click.stop="selectSPK(item as SPKSublimItem)"
+                  @click.stop="openComponentDialog(item as SPKSublimItem)"
                   variant="flat"
                 >
                   Pilih
@@ -154,41 +133,102 @@
       </v-card>
     </v-dialog>
 
-    <!-- Sub-Dialog Sublim untuk Pemilihan Per Komponen -->
-    <v-dialog v-model="componentDialog" max-width="500px" scrollable>
+    <!-- Sub-Dialog Pemilihan Mode & Ceklist Komponen (Muncul Setelah Klik SPK) -->
+    <v-dialog v-model="componentDialog" max-width="550px" scrollable>
       <v-card border>
         <v-card-title
-          class="bg-indigo-darken-3 text-white text-subtitle-1 pa-2"
+          class="bg-indigo-darken-3 text-white text-subtitle-1 pa-3 d-flex justify-space-between align-center"
         >
-          Pilih Komponen untuk SPK [{{ selectedSPKNo }}]
-          <span v-if="selectedSize"> Size ({{ selectedSize }})</span>
-        </v-card-title>
-        <v-card-text class="pa-0">
-          <v-list density="compact" nav>
-            <v-list-item
-              v-for="(comp, idx) in filteredComponents"
-              :key="idx"
-              @click="confirmComponentSelect(comp)"
-              class="border-bottom text-body-2 pa-2"
+          <div>
+            Pilih Komponen SPK [{{ selectedSPKNo }}]
+            <span v-if="selectedSize" class="text-caption">
+              | Size: ({{ selectedSize }})</span
             >
-              <template v-slot:prepend>
-                <v-icon color="indigo-darken-4">mdi-package-variant</v-icon>
-              </template>
-              <v-list-item-title class="font-weight-bold">
-                {{ getKomponenName(comp, idx) }}
-              </v-list-item-title>
-              <v-list-item-subtitle>
-                Kode: {{ getKomponenKode(comp) }} | Qty:
-                {{ comp.Qty_Order || comp.poid_jumlah || 0 }}
-              </v-list-item-subtitle>
-            </v-list-item>
-          </v-list>
+          </div>
+        </v-card-title>
+
+        <v-card-text class="pa-4">
+          <!-- Pilihan Mode Pengambilan -->
+          <v-radio-group
+            v-model="extractMode"
+            inline
+            density="compact"
+            class="mb-3"
+            hide-details
+          >
+            <v-radio
+              label="Ambil Semua Set (Semua Komponen)"
+              value="SET"
+              color="indigo-darken-3"
+            ></v-radio>
+            <v-radio
+              label="Pilih Komponen Tertentu (Multi-Select)"
+              value="KOMPONEN"
+              color="indigo-darken-3"
+            ></v-radio>
+          </v-radio-group>
+
+          <v-divider class="mb-3"></v-divider>
+
+          <!-- Daftar Checkbox Komponen (Aktif jika mode KOMPONEN dipilih) -->
+          <div v-if="extractMode === 'KOMPONEN'">
+            <div class="text-caption text-grey-darken-1 mb-2">
+              Centang komponen (misal: badan depan, badan belakang, lengan)
+              untuk digabung jadi 1 sub set:
+            </div>
+            <v-list
+              density="compact"
+              class="border rounded bg-grey-lighten-5"
+              style="max-height: 250px; overflow-y: auto"
+            >
+              <v-list-item
+                v-for="(comp, idx) in filteredComponents"
+                :key="idx"
+                class="border-bottom"
+              >
+                <template v-slot:prepend>
+                  <v-checkbox-btn
+                    v-model="selectedComponentKeys"
+                    :value="
+                      getKomponenKode(comp) + '_' + getKomponenName(comp, idx)
+                    "
+                    color="indigo-darken-3"
+                    class="mr-2"
+                  ></v-checkbox-btn>
+                </template>
+                <v-list-item-title class="font-weight-bold text-body-2">
+                  {{ getKomponenName(comp, idx) }}
+                </v-list-item-title>
+                <v-list-item-subtitle class="text-caption">
+                  Kode: {{ getKomponenKode(comp) }} | Qty:
+                  {{ comp.Qty_Order || comp.poid_jumlah || 0 }}
+                </v-list-item-subtitle>
+              </v-list-item>
+            </v-list>
+          </div>
+
+          <div
+            v-else
+            class="text-body-2 text-grey-darken-2 pa-4 bg-grey-lighten-4 rounded text-center"
+          >
+            Semua komponen dalam SPK ini akan diambil secara utuh sebagai satu
+            kesatuan set.
+          </div>
         </v-card-text>
-        <v-card-actions class="bg-grey-lighten-4 pa-2">
-          <v-spacer />
+
+        <v-card-actions class="bg-grey-lighten-4 pa-3">
           <v-btn size="small" variant="text" @click="componentDialog = false"
             >Batal</v-btn
           >
+          <v-spacer />
+          <v-btn
+            size="small"
+            color="indigo-darken-3"
+            variant="flat"
+            @click="confirmSelection"
+          >
+            Konfirmasi & Pilih
+          </v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>
@@ -238,12 +278,15 @@ const API_URL = "/mmt/SPK/lookup-sublim";
 const SPKList = ref<SPKSublimItem[]>([]);
 const searchKeyword = ref("");
 const loading = ref(false);
-const extractMode = ref<"SET" | "KOMPONEN">("SET");
 
+// State Sub-Dialog
 const componentDialog = ref(false);
+const extractMode = ref<"SET" | "KOMPONEN">("SET");
 const filteredComponents = ref<SPKSublimItem[]>([]);
+const selectedComponentKeys = ref<string[]>([]);
 const selectedSPKNo = ref("");
 const selectedSize = ref("");
+const activeRowItem = ref<SPKSublimItem | null>(null);
 
 const headers = [
   { title: "Nomor SPK", key: "SPK", width: "150px" },
@@ -286,29 +329,17 @@ const groupedItems = computed(() => {
   });
 });
 
-// --- Helper Tampilan Label Sub-Dialog Komponen ---
-// --- Helper Tampilan Label Sub-Dialog Komponen ---
 const getKomponenName = (comp: SPKSublimItem, idx: number) => {
-  // 1. Prioritas Utama: Nama Bahan dari tabel tbahan (Bhn_Name / bhn_name)
   if (comp.Bhn_Name && comp.Bhn_Name.trim() !== "") return comp.Bhn_Name;
   if (comp.bhn_name && comp.bhn_name.trim() !== "") return comp.bhn_name;
-
-  // 2. Prioritas Kedua: Alias Nama_Komponen / nama_komponen
   if (comp.Nama_Komponen && comp.Nama_Komponen.trim() !== "")
     return comp.Nama_Komponen;
   if (comp.nama_komponen && comp.nama_komponen.trim() !== "")
     return comp.nama_komponen;
-
-  // 3. Prioritas Ketiga: sk_nama atau Nama Bahan SPK
   if (comp.sk_nama && comp.sk_nama.trim() !== "") return comp.sk_nama;
-  if (comp.Nama_Bahan && comp.Nama_Bahan.trim() !== "") return comp.Nama_Bahan;
-
-  // 4. Fallback ke Kode jika Nama tidak ditemukan
   if (comp.Kode_Komponen && comp.Kode_Komponen.trim() !== "")
     return comp.Kode_Komponen;
   if (comp.sk_kode && comp.sk_kode.trim() !== "") return comp.sk_kode;
-
-  // 5. Fallback Terakhir
   return `Komponen Bagian ${idx + 1}`;
 };
 
@@ -322,7 +353,6 @@ const getKomponenKode = (comp: SPKSublimItem) => {
   );
 };
 
-// --- Helper Pemeta Payload Komplit untuk Form Utama Parent ---
 const createMappedPayload = (
   item: SPKSublimItem,
   isSetMode = false,
@@ -333,37 +363,26 @@ const createMappedPayload = (
   const spkNama = item.Nama || item.spk_nama || "";
 
   const compName = isSetMode ? "ALL SET" : getKomponenName(targetComp, 0);
-
   const compKode = isSetMode ? "ALL SET" : getKomponenKode(targetComp);
 
   return {
     ...item,
     ...targetComp,
-
-    // Aliasing Lengkap Nomor SPK & PO Internal
     SPK: spkNo,
     Spk: spkNo,
     spk_nomor: spkNo,
     poi_spk_nomor: spkNo,
     poi_nomor: item.PO || item.poi_nomor || spkNo,
-
-    // Aliasing Lengkap Nama SPK / Pekerjaan
     Nama: spkNama,
     spk_nama: spkNama,
     nama_pekerjaan: spkNama,
-
-    // Aliasing Size
     Size: item.Size || item.poid_size || "-",
     poi_size: item.Size || item.poid_size || "-",
     poid_size: item.Size || item.poid_size || "-",
-
-    // Aliasing Komponen
     Nama_Komponen: compName,
     nama_komponen: compName,
     Kode_Komponen: compKode,
     poid_bhn_kode: compKode,
-
-    // Data Realisasi Bahan Gudang
     Nama_Bahan: item.Nama_Bahan_Realisasi || item.Nama_Bahan_Rencana || "-",
     Barang_ID: item.Barang_ID || "-",
     Nomor_Realisasi: item.Nomor_Realisasi || "-",
@@ -380,7 +399,6 @@ const fetchSPKData = async () => {
         params: { keyword: searchKeyword.value },
       },
     );
-
     SPKList.value = response.data.data || [];
   } catch (error) {
     const err = error as AxiosError;
@@ -398,10 +416,17 @@ const handleRowClick = (
   _event: MouseEvent,
   { item }: { item: SPKSublimItem },
 ) => {
-  selectSPK(item);
+  openComponentDialog(item);
 };
 
-const selectSPK = (item: SPKSublimItem) => {
+const handleDoubleClick = (
+  _event: MouseEvent,
+  { item }: { item: SPKSublimItem },
+) => {
+  openComponentDialog(item);
+};
+
+const openComponentDialog = (item: SPKSublimItem) => {
   if (!item.SPK) {
     toast.error("Error: Struktur data nomor SPK rusak.");
     return;
@@ -414,45 +439,85 @@ const selectSPK = (item: SPKSublimItem) => {
   }
 
   const currentSize = item.Size || item.poid_size || "";
-
   const komponenTerkait = SPKList.value.filter(
     (data) =>
       data.SPK === item.SPK &&
       (data.Size || data.poid_size || "") === currentSize,
   );
 
+  activeRowItem.value = item;
+  selectedSPKNo.value = item.SPK;
+  selectedSize.value = currentSize;
+  filteredComponents.value =
+    komponenTerkait.length > 0 ? komponenTerkait : [item];
+
+  // Default reset ke SET dan kosongkan ceklist
+  extractMode.value = "SET";
+  selectedComponentKeys.value = [];
+
+  componentDialog.value = true;
+};
+
+const confirmSelection = () => {
+  if (!activeRowItem.value) return;
+
   if (extractMode.value === "SET") {
-    const baseItem = komponenTerkait.length > 0 ? komponenTerkait[0] : item;
+    const baseItem =
+      filteredComponents.value.length > 0
+        ? filteredComponents.value[0]
+        : activeRowItem.value;
     const rowPerSet = createMappedPayload(baseItem, true);
+    rowPerSet.multiplier = 1;
 
     emit("select", { mode: "SET", data: [rowPerSet] });
+    componentDialog.value = false;
     emit("close");
   } else {
-    selectedSPKNo.value = item.SPK;
-    selectedSize.value = currentSize;
-    filteredComponents.value =
-      komponenTerkait.length > 0 ? komponenTerkait : [item];
-    componentDialog.value = true;
+    // Mode Komponen (Multi-select)
+    if (selectedComponentKeys.value.length === 0) {
+      toast.warning("Pilih minimal satu komponen terlebih dahulu.");
+      return;
+    }
+
+    // Ambil semua komponen yang dicentang
+    const selectedItemsData = filteredComponents.value.filter((comp, idx) => {
+      const uniqueKey =
+        getKomponenKode(comp) + "_" + getKomponenName(comp, idx);
+      return selectedComponentKeys.value.includes(uniqueKey);
+    });
+
+    // 🌟 1. GABUNGKAN NAMA KOMPONEN MENJADI SATU STRING (Contoh: "BADAN DEPAN + BADAN BELAKANG")
+    const gabungNamaKomponen = selectedItemsData
+      .map((comp, idx) => getKomponenName(comp, idx))
+      .join(" + ");
+
+    // 🌟 2. GABUNGKAN KODE KOMPONEN
+    const gabungKodeKomponen = selectedItemsData
+      .map((comp) => getKomponenKode(comp))
+      .join(",");
+
+    // Ambil referensi dari item pertama
+    const baseItem = selectedItemsData[0];
+    const mappedPayload = createMappedPayload(
+      activeRowItem.value!,
+      false,
+      baseItem,
+    );
+
+    // Timpa dengan data gabungan agar hanya menjadi 1 baris di tabel utama
+    mappedPayload.Nama_Komponen = gabungNamaKomponen;
+    mappedPayload.nama_komponen = gabungNamaKomponen;
+    mappedPayload.Kode_Komponen = gabungKodeKomponen;
+    mappedPayload.poid_bhn_kode = gabungKodeKomponen;
+
+    // Set default multiplier/porsi awal (bisa diubah fleksibel di form utama)
+    mappedPayload.multiplier = 1;
+
+    // 🌟 3. EMIT SEBAGAI ARRAY BERISI 1 ITEM SAJA (1 Baris)
+    emit("select", { mode: "KOMPONEN", data: [mappedPayload] });
+    componentDialog.value = false;
+    emit("close");
   }
-};
-
-const confirmComponentSelect = (componentItem: SPKSublimItem) => {
-  const mappedComponent = createMappedPayload(
-    componentItem,
-    false,
-    componentItem,
-  );
-
-  emit("select", { mode: "KOMPONEN", data: [mappedComponent] });
-  componentDialog.value = false;
-  emit("close");
-};
-
-const handleDoubleClick = (
-  _event: MouseEvent,
-  { item }: { item: SPKSublimItem },
-) => {
-  selectSPK(item);
 };
 
 watch(
@@ -492,14 +557,6 @@ watch(
 .color-spk {
   color: #1a237e;
 }
-
-.spk-modal-mode :deep(.v-label) {
-  color: #ffffff !important;
-  font-size: 13px !important;
-  font-weight: bold !important;
-  opacity: 1 !important;
-}
-
 .clickable-row :deep(tbody tr):hover {
   cursor: pointer !important;
   background-color: #edf2f7 !important;
