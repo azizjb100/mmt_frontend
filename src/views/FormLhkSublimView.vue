@@ -811,65 +811,91 @@ const fetchApi = async () => {
 };
 
 const submitApi = async (): Promise<unknown> => {
-  recalculateCombine();
+  try {
+    recalculateCombine();
 
-  const currentUser =
-    authStore.user?.kdUser || authStore.user?.username || "SYSTEM";
+    // Beri jeda/pastikan reaktifitas selesai jika recalculateCombine bersifat asinkron/nextTick
+    await nextTick();
 
-  const sisaInput = formData.value.sisa_panjang_manual;
-  const sisaFinalM =
-    sisaInput !== null &&
-    sisaInput !== undefined &&
-    String(sisaInput).trim() !== ""
-      ? parseFloat(Number(sisaInput).toFixed(2))
-      : parseFloat(Number(sisaStokOtomatisM.value || 0).toFixed(2));
+    const currentUser =
+      authStore.user?.kdUser || authStore.user?.username || "SYSTEM";
 
-  const formattedDetails = formData.value.details.map((d: any) => ({
-    ...d,
-    lsbd_poi_nomor: d.poi_nomor || "",
-    lsbd_poid_size: d.poi_size || "",
-    spk_nomor: d.spk_nomor || d.Nomor_SPK || "",
-    spk_nama: d.spk_nama || d.Nama_SPK || "",
-    spk_komponen: d.spk_komponen || "ALL SET",
-    lsbd_komponen: d.spk_komponen || "ALL SET",
-    spk_jmlorder: parseInt(d.spk_jmlorder || 0),
-    jumlah_sublim: parseInt(d.jumlah_sublim || 0),
-    multiplier: parseInt(d.multiplier || 1),
-    spk_panjang: parseFloat(d.spk_panjang || 0),
-    spk_lebar: parseFloat(d.spk_lebar || 0),
-    spk_jmlmeter: parseFloat(d.spk_jmlmeter || 0),
-    lokasi: formData.value.mesin_kode,
-    jenis_bahan: d.jenis_bahan || formData.value.brg_kode,
-    lsbd_ambilbahan: parseFloat((formData.value.Panjang_bahan as any) || 0),
-    lsbd_panjang_pakai: parseFloat((totalPanjangTerpakai.value as any) || 0),
-    lsbd_sisameter: sisaFinalM,
-  }));
+    const sisaInput = formData.value.sisa_panjang_manual;
 
-  const payload = {
-    header: {
-      ...formData.value,
-      kdUser: currentUser,
-      barcode_input: (formData.value.barcode_input || "").trim(),
-      brg_kode: (formData.value.brg_kode || "").trim(),
-      lmesin: formData.value.mesin_kode,
-      lstatus: formData.value.lstatus,
-      panjang_bs: formData.value.panjang_bs
-        ? parseFloat(formData.value.panjang_bs)
-        : 0,
-      lebar_bs: formData.value.lebar_bs
-        ? parseFloat(formData.value.lebar_bs)
-        : 0,
-      sisa_panjang_manual: formData.value.sisa_panjang_manual,
-      sisabahan: sisaFinalM,
-      total_panjang_terpakai: parseFloat(
-        (totalPanjangTerpakai.value as any) || 0,
-      ),
-    },
-    details: formattedDetails,
-    existingNomor: isEditMode.value ? formData.value.lsb_nomor : null,
-  };
+    // Debugging nilai yang tertangkap saat tombol simpan diklik
+    console.log("DEBUG - Sisa Otomatis Ref:", sisaStokOtomatisM.value);
+    console.log(
+      "DEBUG - Total Panjang Terpakai Ref:",
+      totalPanjangTerpakai.value,
+    );
 
-  return await api.post("/mmt/lhk-paperprint", payload);
+    const sisaOtomatisVal = parseFloat(
+      Number(sisaStokOtomatisM.value || 0).toFixed(2),
+    );
+
+    const pPakaiSistemVal = parseFloat(
+      Number(totalPanjangTerpakai.value || 0).toFixed(2),
+    );
+
+    const sisaFinalM =
+      sisaInput !== null &&
+      sisaInput !== undefined &&
+      String(sisaInput).trim() !== ""
+        ? parseFloat(Number(sisaInput).toFixed(2))
+        : sisaOtomatisVal;
+
+    const formattedDetails = formData.value.details.map((d: any) => ({
+      ...d,
+      lsbd_poi_nomor: d.poi_nomor || "",
+      lsbd_poid_size: d.poi_size || "",
+      spk_nomor: d.spk_nomor || d.Nomor_SPK || "",
+      spk_nama: d.spk_nama || d.Nama_SPK || "",
+      spk_komponen: d.spk_komponen || "ALL SET",
+      lsbd_komponen: d.spk_komponen || "ALL SET",
+      spk_jmlorder: parseInt(d.spk_jmlorder || 0),
+      jumlah_sublim: parseInt(d.jumlah_sublim || 0),
+      multiplier: parseInt(d.multiplier || 1),
+      spk_panjang: parseFloat(d.spk_panjang || 0),
+      spk_lebar: parseFloat(d.spk_lebar || 0),
+      spk_jmlmeter: parseFloat(d.spk_jmlmeter || 0),
+      lokasi: formData.value.mesin_kode,
+      jenis_bahan: d.jenis_bahan || formData.value.brg_kode,
+      lsbd_ambilbahan: parseFloat((formData.value.Panjang_bahan as any) || 0),
+
+      // Dipaksa mengambil nilai global terbaru
+      lsbd_panjang_pakai: pPakaiSistemVal,
+      lsbd_sisameter: sisaFinalM,
+    }));
+
+    const payload = {
+      header: {
+        ...formData.value,
+        kdUser: currentUser,
+        barcode_input: (formData.value.barcode_input || "").trim(),
+        brg_kode: (formData.value.brg_kode || "").trim(),
+        lmesin: formData.value.mesin_kode,
+        lstatus: formData.value.lstatus,
+        panjang_bs: formData.value.panjang_bs
+          ? parseFloat(formData.value.panjang_bs)
+          : 0,
+        lebar_bs: formData.value.lebar_bs
+          ? parseFloat(formData.value.lebar_bs)
+          : 0,
+        sisa_panjang_manual: formData.value.sisa_panjang_manual,
+        sisabahan: sisaFinalM,
+        total_panjang_terpakai: pPakaiSistemVal,
+      },
+      details: formattedDetails,
+      existingNomor: isEditMode.value ? formData.value.lsb_nomor : null,
+    };
+
+    console.log("FINAL PAYLOAD DIKIRIM:", payload);
+
+    return await api.post("/mmt/lhk-paperprint", payload);
+  } catch (error: any) {
+    console.error("ERROR API:", error.response?.data || error.message);
+    throw error;
+  }
 };
 
 const {

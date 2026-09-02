@@ -439,17 +439,32 @@ const openComponentDialog = (item: SPKSublimItem) => {
   }
 
   const currentSize = item.Size || item.poid_size || "";
+
+  // 1. Ambil data yang sesuai SPK dan Size-nya
   const komponenTerkait = SPKList.value.filter(
     (data) =>
       data.SPK === item.SPK &&
       (data.Size || data.poid_size || "") === currentSize,
   );
 
+  // 2. Filter agar tidak ada komponen yang double berdasarkan Kode & Nama Komponen
+  const uniqueComponents = komponenTerkait.filter((comp, index, self) => {
+    const kKode = getKomponenKode(comp);
+    const kName = getKomponenName(comp, index);
+    return (
+      index ===
+      self.findIndex(
+        (c) =>
+          getKomponenKode(c) === kKode && getKomponenName(c, index) === kName,
+      )
+    );
+  });
+
   activeRowItem.value = item;
   selectedSPKNo.value = item.SPK;
   selectedSize.value = currentSize;
   filteredComponents.value =
-    komponenTerkait.length > 0 ? komponenTerkait : [item];
+    uniqueComponents.length > 0 ? uniqueComponents : [item];
 
   // Default reset ke SET dan kosongkan ceklist
   extractMode.value = "SET";
@@ -486,35 +501,19 @@ const confirmSelection = () => {
       return selectedComponentKeys.value.includes(uniqueKey);
     });
 
-    // 🌟 1. GABUNGKAN NAMA KOMPONEN MENJADI SATU STRING (Contoh: "BADAN DEPAN + BADAN BELAKANG")
-    const gabungNamaKomponen = selectedItemsData
-      .map((comp, idx) => getKomponenName(comp, idx))
-      .join(" + ");
+    // Buat payload terpisah untuk setiap komponen yang dicentang (masing-masing 1 baris)
+    const payloadArray = selectedItemsData.map((comp) => {
+      const mappedPayload = createMappedPayload(
+        activeRowItem.value!,
+        false,
+        comp,
+      );
+      mappedPayload.multiplier = 1;
+      return mappedPayload;
+    });
 
-    // 🌟 2. GABUNGKAN KODE KOMPONEN
-    const gabungKodeKomponen = selectedItemsData
-      .map((comp) => getKomponenKode(comp))
-      .join(",");
-
-    // Ambil referensi dari item pertama
-    const baseItem = selectedItemsData[0];
-    const mappedPayload = createMappedPayload(
-      activeRowItem.value!,
-      false,
-      baseItem,
-    );
-
-    // Timpa dengan data gabungan agar hanya menjadi 1 baris di tabel utama
-    mappedPayload.Nama_Komponen = gabungNamaKomponen;
-    mappedPayload.nama_komponen = gabungNamaKomponen;
-    mappedPayload.Kode_Komponen = gabungKodeKomponen;
-    mappedPayload.poid_bhn_kode = gabungKodeKomponen;
-
-    // Set default multiplier/porsi awal (bisa diubah fleksibel di form utama)
-    mappedPayload.multiplier = 1;
-
-    // 🌟 3. EMIT SEBAGAI ARRAY BERISI 1 ITEM SAJA (1 Baris)
-    emit("select", { mode: "KOMPONEN", data: [mappedPayload] });
+    // Emit sebagai array berisi beberapa baris sesuai jumlah komponen yang dipilih
+    emit("select", { mode: "KOMPONEN", data: payloadArray });
     componentDialog.value = false;
     emit("close");
   }
