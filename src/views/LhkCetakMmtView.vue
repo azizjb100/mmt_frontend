@@ -207,8 +207,8 @@ const fetchMasterData = async () => {
 
   try {
     const payload = {
-      startDate: filters.startDate,
-      endDate: filters.endDate,
+      startDate: filters.startDate, // Pastikan mengambil dari state filters saat ini
+      endDate: filters.endDate, // Bukan dari hardcode tanggal awal
       mesin: filters.mesin.length > 0 ? filters.mesin.join(",") : undefined,
     };
     const res = await api.get(API_BASE_URL, { params: payload });
@@ -543,6 +543,7 @@ const exportToExcel = async () => {
 
 onMounted(fetchMasterData);
 
+// Ganti watch yang lama dengan ini:
 watch(
   () => [filters.startDate, filters.endDate],
   ([newStart, newEnd], [oldStart, oldEnd]) => {
@@ -550,7 +551,6 @@ watch(
       fetchMasterData();
     }
   },
-  { deep: true },
 );
 </script>
 
