@@ -269,7 +269,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from "vue";
+import { ref, reactive, computed, onMounted, watch } from "vue";
 import { useToast } from "vue-toastification";
 import { format, subDays, differenceInCalendarDays } from "date-fns";
 import api from "@/services/api";
@@ -379,15 +379,41 @@ const calculatePercent = (total: number, kapasitas: number) => {
 };
 
 // --- API METHODS ---
-const loadDetailSpk = async (expandedKeys: any[]) => {
-  if (expandedKeys.length === 0) return;
+// const loadDetailSpk = async (expandedKeys: any[]) => {
+//   if (expandedKeys.length === 0) return;
 
-  const mesin = expandedKeys[expandedKeys.length - 1];
+//   const mesin = expandedKeys[expandedKeys.length - 1];
+//   if (detailSpkPerMesin.value[mesin]) return;
+
+//   loadingDetail.value = true;
+//   try {
+//     // ENDPOINT TERHUBUNG KE LAPLHK SERVICE BARU
+//     const res = await api.get("/mmt/laporan-lhk/detail-mesin", {
+//       params: {
+//         startDate: filters.start,
+//         endDate: filters.end,
+//         mesin: mesin,
+//       },
+//     });
+//     detailSpkPerMesin.value[mesin] = res.data.data;
+//   } catch (err) {
+//     toast.error("Gagal memuat detail SPK");
+//   } finally {
+//     loadingDetail.value = false;
+//   }
+// };
+
+watch(expanded, async (newExpanded) => {
+  if (newExpanded.length === 0) return;
+
+  // Ambil mesin terakhir yang dibuka
+  const mesin = newExpanded[newExpanded.length - 1];
+
+  // Jika data sudah ada di state, tidak perlu fetch ulang
   if (detailSpkPerMesin.value[mesin]) return;
 
   loadingDetail.value = true;
   try {
-    // ENDPOINT TERHUBUNG KE LAPLHK SERVICE BARU
     const res = await api.get("/mmt/laporan-lhk/detail-mesin", {
       params: {
         startDate: filters.start,
@@ -395,13 +421,15 @@ const loadDetailSpk = async (expandedKeys: any[]) => {
         mesin: mesin,
       },
     });
-    detailSpkPerMesin.value[mesin] = res.data.data;
+
+    // Simpan data detail berdasarkan nama/kode mesin
+    detailSpkPerMesin.value[mesin] = res.data.data || [];
   } catch (err) {
-    toast.error("Gagal memuat detail SPK");
+    toast.error(`Gagal memuat detail SPK untuk mesin ${mesin}`);
   } finally {
     loadingDetail.value = false;
   }
-};
+});
 
 const loadRekap = async () => {
   loading.value = true;
