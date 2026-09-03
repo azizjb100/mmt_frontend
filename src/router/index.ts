@@ -28,6 +28,7 @@ import FormPermintaanProduksiView from "../views/FormPermintaanProduksiView.vue"
 import ReturBeliView from "@/views/ReturBeliView.vue";
 import KoreksiStokMMTView from "@/views/KoreksiStokMMTView.vue";
 import POPaperprintView from "@/views/POPaperprintView.vue";
+import PoIntenalPrintView from "@/views/PoInternalPrintView.vue";
 import OperatorView from "@/views/OperatorView.vue";
 import MasterBahanView from "@/views/MasterBahanView.vue";
 import FormPoBahanMmtView from "@/views/FormPoBahanMmtView.vue";
@@ -985,6 +986,11 @@ const routes: RouteRecordRaw[] = [
         path: "mmt/po-paperprint/edit/:nomor",
         name: "POPaperprintMMTEdit",
         component: FormPoPaperprintView,
+      },
+      {
+        path: "mmt/po-internal/print",
+        name: "POInternalPrintMMT",
+        component: PoIntenalPrintView,
       },
       {
         path: "mmt/penerimaan-po-external",

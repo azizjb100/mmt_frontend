@@ -652,9 +652,8 @@ const handlePrint = (row?: any) => {
   }
 
   router.push({
-    name: "POPaperprintMMTEdit",
-    params: { nomor: targetRow.Nomor },
-    query: { mode: "print", prn: "true" },
+    name: "POInternalPrintMMT",
+    query: { nomor: targetRow.Nomor },
   });
 };
 

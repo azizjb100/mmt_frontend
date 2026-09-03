@@ -894,6 +894,36 @@ const exportToExcel = (dataToExport: any[]) => {
   const fileName = `Laporan_LMKP_${jenisLabel.value}_${startDate.value}_sd_${endDate.value}.xlsx`;
   const num = (value: any) => (isNaN(Number(value)) ? 0 : Number(value));
 
+  // Helper yang memastikan string tanggal diubah menjadi objek Date JavaScript yang valid
+  const excelDate = (dateStr: any) => {
+    if (!dateStr) return null;
+    if (dateStr instanceof Date) return isValid(dateStr) ? dateStr : null;
+
+    const str = String(dateStr).trim();
+
+    // Cek jika format YYYY-MM-DD
+    if (/^\d{4}-\d{2}-\d{2}/.test(str)) {
+      const parsed = parseISO(str);
+      if (isValid(parsed)) return parsed;
+    }
+
+    // Cek jika format DD/MM/YYYY
+    if (str.includes("/")) {
+      const parts = str.split("/");
+      if (parts.length === 3) {
+        const d = new Date(
+          Number(parts[2]),
+          Number(parts[1]) - 1,
+          Number(parts[0]),
+        );
+        if (isValid(d)) return d;
+      }
+    }
+
+    const fallback = new Date(str);
+    return isValid(fallback) ? fallback : null;
+  };
+
   const borderThin = {
     top: { style: "thin", color: { rgb: "000000" } },
     bottom: { style: "thin", color: { rgb: "000000" } },
@@ -971,7 +1001,7 @@ const exportToExcel = (dataToExport: any[]) => {
   headerRow1.push({ v: "PRODUKSI (METER)", s: styleHeaderMain }, "", "");
   wsData.push(headerRow1);
 
-  // Header Row 2 - Urutan Sub-Header PCS Disesuaikan
+  // Header Row 2
   const subPcs = [
     "Order",
     "Cetak",
@@ -994,20 +1024,29 @@ const exportToExcel = (dataToExport: any[]) => {
   subMeter.forEach((h) => headerRow2.push({ v: h, s: styleHeaderSub }));
   wsData.push(headerRow2);
 
-  // Loop Data - Urutan Sel Disesuaikan
+  // Loop Data
   dataToExport.forEach((item: any) => {
+    const tglDate = excelDate(item.spk_tanggal);
+    const deadlineDate = excelDate(item.deadline);
+
     const row = [
       {
         v: item.NOMOR || "",
         s: { ...styleDataCell, alignment: { horizontal: "center" } },
       },
       { v: item.spk_nama || "", s: styleDataCell },
+      // Tanggal: Wajib menggunakan tipe 'd' dengan objek Date agar dibaca sebagai tanggal Excel
       {
-        v: formatDateDisplay(item.spk_tanggal),
+        v: tglDate || "",
+        t: "d",
+        z: "dd/mm/yyyy",
         s: { ...styleDataCell, alignment: { horizontal: "center" } },
       },
+      // Deadline: Wajib menggunakan tipe 'd' dengan objek Date agar dibaca sebagai tanggal Excel
       {
-        v: formatDateDisplay(item.deadline),
+        v: deadlineDate || "",
+        t: "d",
+        z: "dd/mm/yyyy",
         s: { ...styleDataCell, alignment: { horizontal: "center" } },
       },
       { v: item.KAIN || "", s: styleDataCell },
@@ -1028,7 +1067,6 @@ const exportToExcel = (dataToExport: any[]) => {
         s: { ...styleDataCell, alignment: { horizontal: "center" } },
       },
       { v: item.FINISHING || "", s: styleDataCell },
-      // Urutan PCS
       {
         v: num(item.spk_jumlah),
         t: "n",
@@ -1112,7 +1150,7 @@ const exportToExcel = (dataToExport: any[]) => {
     wsData.push(row);
   });
 
-  // Footer Total Excel - Urutan Disesuaikan
+  // Footer Total Excel
   const footerRow = [
     {
       v: "TOTAL (FILTERED)",
@@ -1220,7 +1258,6 @@ const exportToExcel = (dataToExport: any[]) => {
     { s: { r: 4, c: 9 }, e: { r: 4, c: 15 } },
     { s: { r: 4, c: mesinStartCol }, e: { r: 4, c: mesinEndCol } },
     { s: { r: 4, c: mesinEndCol + 1 }, e: { r: 4, c: mesinEndCol + 3 } },
-    { s: { r: wsData.length - 1, c: 0 }, e: { r: wsData.length - 1, c: 8 } },
   ];
 
   const wb = XLSX.utils.book_new();
