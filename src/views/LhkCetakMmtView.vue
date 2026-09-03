@@ -8,7 +8,8 @@
     :loading="loading.headers"
     v-model:selected="selected"
     v-model:expanded="expanded"
-    v-model:filters="filters"
+    v-model:startDate="filters.startDate"
+    v-model:endDate="filters.endDate"
     item-value="Nomor"
     :summary-fields="['cetak_meter']"
     @refresh="fetchMasterData"
@@ -544,14 +545,7 @@ const exportToExcel = async () => {
 onMounted(fetchMasterData);
 
 // Ganti watch yang lama dengan ini:
-watch(
-  () => [filters.startDate, filters.endDate],
-  ([newStart, newEnd], [oldStart, oldEnd]) => {
-    if (newStart !== oldStart || newEnd !== oldEnd) {
-      fetchMasterData();
-    }
-  },
-);
+watch(filters, fetchMasterData, { deep: true });
 </script>
 
 <style scoped>

@@ -200,7 +200,7 @@ const loadingDetails = ref<Set<string>>(new Set());
 const selected = ref<LhkCetakHeader[]>([]);
 const expanded = ref<LhkCetakHeader[]>([]);
 
-const filters = reactive({
+let filters = reactive({
   startDate: format(subDays(new Date(), 30), "yyyy-MM-dd"),
   endDate: format(new Date(), "yyyy-MM-dd"),
   search: "",
@@ -366,8 +366,8 @@ const fetchMasterData = async () => {
   try {
     const response = await api.get<LhkCetakHeader[]>(API_BASE_URL, {
       params: {
-        startDate: filters.startDate,
-        endDate: filters.endDate,
+        startDate: filters.startDate, // Memastikan tanggal terbaru yang dikirim
+        endDate: filters.endDate, // Memastikan tanggal terbaru yang dikirim
         search: filters.search,
       },
     });
@@ -380,6 +380,8 @@ const fetchMasterData = async () => {
     loading.value.headers = false;
   }
 };
+
+onMounted(() => fetchMasterData());
 
 const loadDetails = async (newlyExpandedItems: LhkCetakItem[]) => {
   const itemToLoad = newlyExpandedItems?.find(
@@ -430,7 +432,11 @@ onMounted(() => fetchMasterData());
 
 watch(
   () => [filters.startDate, filters.endDate],
-  () => fetchMasterData(),
+  ([newStart, newEnd], [oldStart, oldEnd]) => {
+    if (newStart !== oldStart || newEnd !== oldEnd) {
+      fetchMasterData();
+    }
+  },
 );
 </script>
 
