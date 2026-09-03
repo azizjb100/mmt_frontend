@@ -158,7 +158,7 @@ const loadingDetails = ref<Set<string>>(new Set());
 const selected = ref<any[]>([]);
 const expanded = ref<any[]>([]);
 
-const filters = reactive({
+let filters = reactive({
   startDate: format(subDays(new Date(), 7), "yyyy-MM-dd"),
   endDate: format(new Date(), "yyyy-MM-dd"),
   mesin: [] as string[],
