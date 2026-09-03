@@ -181,17 +181,22 @@ onMounted(() => {
         <table class="items-table">
           <thead>
             <tr>
-              <th style="width: 5%">Code</th>
+              <th style="width: 15%">Code</th>
               <th style="width: 45%">Product Name/Description</th>
               <th style="width: 15%">Quantity</th>
-              <th style="width: 15%">Unit Price</th>
-              <th style="width: 20%">Total</th>
+              <th style="width: 10%">Unit Price</th>
+              <th style="width: 15%">Total</th>
             </tr>
           </thead>
           <tbody>
             <tr v-for="(item, index) in printData.Detail" :key="index">
               <td>{{ item.Kode }}</td>
-              <td>{{ item.Deskripsi }}</td>
+              <td>
+                {{ item.Deskripsi }}
+                <span v-if="item.Panjang && item.Lebar">
+                  ({{ item.Panjang }} * {{ item.Lebar }})
+                </span>
+              </td>
               <td class="text-right">
                 {{ formatRupiah(item.Quantity, 2) }} {{ item.Satuan }}
               </td>
@@ -218,7 +223,9 @@ onMounted(() => {
         <div class="notes-section-wrapper">
           <div class="notes-section">
             <div class="notes-header">Notes and Instructions</div>
+
             <p>
+              Maksimal Pengiriman Jam 14.00 WIB <br />
               Harga Include PPN {{ printData.Header.PpnRate || "11" }}% <br />
               Include Pengiriman ke CV. Kencana Print Jeron <br />
               Pengiriman tgl {{ printData.Header.TglPengiriman || "N/A" }}
