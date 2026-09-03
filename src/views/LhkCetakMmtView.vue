@@ -545,7 +545,12 @@ onMounted(fetchMasterData);
 
 watch(
   () => [filters.startDate, filters.endDate],
-  () => fetchMasterData(),
+  ([newStart, newEnd], [oldStart, oldEnd]) => {
+    if (newStart !== oldStart || newEnd !== oldEnd) {
+      fetchMasterData();
+    }
+  },
+  { deep: true },
 );
 </script>
 

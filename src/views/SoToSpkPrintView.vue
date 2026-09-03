@@ -205,6 +205,16 @@ const formatWaktu = (isoStr: string) => {
   return `${pad(d.getDate())}-${pad(d.getMonth() + 1)}-${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 };
 
+const formattedKeterangan = computed(() => {
+  const ket = spk.value.spk_keterangan || "";
+  const memo = spk.value.spk_memo || "";
+  if (memo) {
+    const prefix = `Acc seperti Memo : ${memo}`;
+    return ket ? `${prefix}\n${ket}` : prefix;
+  }
+  return ket;
+});
+
 const hasAtasan = computed(() =>
   sizes.value.some(
     (s) => Number(s.ld) > 0 || Number(s.pb) > 0 || Number(s.p_bahu) > 0,
@@ -714,7 +724,7 @@ onMounted(async () => {
             <div class="kanan-p01">
               <div class="ket-box-p01">
                 <div class="ket-title-p01">Ket. Produksi :</div>
-                <pre class="ket-pre-p01">{{ spk.spk_keterangan }}</pre>
+                <pre class="ket-pre-p01">{{ formattedKeterangan }}</pre>
               </div>
             </div>
           </div>
@@ -919,10 +929,10 @@ onMounted(async () => {
                   <td :colspan="isP05Print ? 2 : 1" class="val-desc-so">
                     <div v-if="spkKetKomponenText" style="margin-bottom: 5px">
                       <pre class="val-pre-so">
-Keterangan Komponen :&#10;{{ spkKetKomponenText }}</pre
+Keterangan Komponen :&#10;{{ formattedKeterangan }}</pre
                       >
                     </div>
-                    <pre class="val-pre-so">{{ spk.spk_keterangan }}</pre>
+                    <pre class="val-pre-so">{{ formattedKeterangan }}</pre>
                   </td>
                 </tr>
               </tbody>
@@ -1128,10 +1138,10 @@ Keterangan Komponen :&#10;{{ spkKetKomponenText }}</pre
                   <td :colspan="isP05Print ? 2 : 1" class="val-desc-so">
                     <div v-if="spkKetKomponenText" style="margin-bottom: 5px">
                       <pre class="val-pre-so">
-Keterangan Komponen :&#10;{{ spkKetKomponenText }}</pre
+Keterangan Komponen :&#10;{{ formattedKeterangan }}</pre
                       >
                     </div>
-                    <pre class="val-pre-so">{{ spk.spk_keterangan }}</pre>
+                    <pre class="val-pre-so">{{ formattedKeterangan }}</pre>
                   </td>
                 </tr>
               </tbody>
@@ -1698,7 +1708,7 @@ Keterangan Komponen :&#10;{{ spkKetKomponenText }}</pre
             <div class="box mb-6">
               <div class="box-title">Keterangan produksi</div>
               <pre class="ket-pre ket-produksi">{{
-                spk.spk_keterangan || "—"
+                formattedKeterangan || "—"
               }}</pre>
             </div>
 
