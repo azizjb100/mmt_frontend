@@ -15,7 +15,22 @@
     @refresh="fetchReport"
     @reset-filter="resetAllFilters"
   >
-    <!-- Slot Filter Utama Tambahan -->
+    <!-- Slot Catatan Tepat di Bawah Tanggal -->
+    <template #date-note>
+      <div
+        class="text-caption text-grey-darken-1 font-italic d-flex align-center mt-1"
+      >
+        <v-icon
+          icon="mdi-information-outline"
+          size="x-small"
+          class="me-1 text-info"
+        ></v-icon>
+        Pastikan data terinput dengan benar di LHK Mesin Cetak dan status
+        Posted.
+      </div>
+    </template>
+
+    <!-- Slot Filter Utama Tambahan (Hanya untuk Search / Filter lain) -->
     <template #extra-filters>
       <v-text-field
         v-model="searchQuery"

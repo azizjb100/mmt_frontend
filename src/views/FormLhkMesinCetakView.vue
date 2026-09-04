@@ -212,34 +212,40 @@
     <template #right-column>
       <div class="d-flex flex-column fill-height">
         <v-card border flat class="d-flex flex-column table-card mb-4">
-          <div class="pa-2 bg-blue-grey-lighten-5 d-flex align-center">
-            <span
-              class="text-subtitle-2 font-weight-bold text-blue-grey-darken-4"
-            >
-              Daftar Produksi (Combine SPK)
-            </span>
-            <v-spacer />
-            <div class="d-flex align-center ga-2">
-              <v-btn
-                size="small"
-                color="success"
-                prepend-icon="mdi-plus"
-                style="height: 30px !important; text-transform: none"
-                @click="lookup.spk = true"
+          <div class="pa-2 bg-blue-grey-lighten-5 d-flex flex-column">
+            <div class="d-flex align-center w-100">
+              <span
+                class="text-subtitle-2 font-weight-bold text-blue-grey-darken-4"
               >
-                Tambah SPK
-              </v-btn>
-              <v-text-field
-                v-model="formData.barcode_spk"
-                placeholder="Scan Barcode SPK..."
-                density="compact"
-                variant="outlined"
-                hide-details
-                style="max-width: 200px"
-                @keyup.enter="handleSpkScan"
-                :disabled="!formData.kode_bahan_aktif"
-              />
+                Daftar Produksi (Combine SPK)
+              </span>
+              <v-spacer />
+              <div class="d-flex align-center ga-2">
+                <v-btn
+                  size="small"
+                  color="success"
+                  prepend-icon="mdi-plus"
+                  style="height: 30px !important; text-transform: none"
+                  @click="lookup.spk = true"
+                >
+                  Tambah SPK
+                </v-btn>
+                <v-text-field
+                  v-model="formData.barcode_spk"
+                  placeholder="Scan Barcode SPK..."
+                  density="compact"
+                  variant="outlined"
+                  hide-details
+                  style="max-width: 200px"
+                  @keyup.enter="handleSpkScan"
+                  :disabled="!formData.kode_bahan_aktif"
+                />
+              </div>
             </div>
+            <!-- NOTE TAMBAHAN -->
+            <span class="text-caption text-orange-darken-3 font-italic mt-1">
+              * Mohon padding dan BS di isi valuenya
+            </span>
           </div>
 
           <div class="table-container flex-grow-1">
@@ -755,15 +761,19 @@ const {
             d.kurangcetak_asli || qtyOrder - sdhCetak + currentTotalInput,
           ),
 
-          // 🔥 PERBAIKAN DI SINI: Ambil padding_atas & padding_samping dari backend
+          // Ambil padding_atas & padding_samping dari backend (jika kosong/null di set null)
           padding_atas:
-            d.padding_atas !== undefined && d.padding_atas !== null
+            d.padding_atas !== undefined &&
+            d.padding_atas !== null &&
+            d.padding_atas !== ""
               ? Number(d.padding_atas)
-              : 3,
+              : null,
           padding_samping:
-            d.padding_samping !== undefined && d.padding_samping !== null
+            d.padding_samping !== undefined &&
+            d.padding_samping !== null &&
+            d.padding_samping !== ""
               ? Number(d.padding_samping)
-              : 1,
+              : null,
 
           tile: d.Tile || 1,
           orientasi: d.Orientasi || "lebar",
@@ -830,8 +840,8 @@ const {
       tile: d.tile,
       jumlah: d.jumlah,
       luasm2: d.total_luas,
-      padding_atas: d.padding_atas, // Kirim padding atas
-      padding_samping: d.padding_samping, // Kirim padding samping
+      padding_atas: d.padding_atas,
+      padding_samping: d.padding_samping,
       ld_ambilbahan: parseFloat((formData.value.Panjang_bahan as any) || 0),
       ambilBahanPanjang: parseFloat((formData.value.Panjang_bahan as any) || 0),
       ambilBahanLebar: lebarAwal,
@@ -958,7 +968,6 @@ const closeAfalModal = () => {
 const validateStokBahan = () => {
   const diambil = Number(formData.value.Panjang_bahan || 0);
 
-  // Hitung sisa final yang akan disimpan (mengutamakan manual jika diisi, jika tidak pakai otomatis)
   const rawBs = formData.value.panjang_bs;
   const bsPanjang =
     rawBs && !isNaN(parseFloat(rawBs as string))
@@ -972,7 +981,6 @@ const validateStokBahan = () => {
       ? Number(formData.value.sisa_panjang_manual)
       : otomatis;
 
-  // Validasi 1: Bahan sisa lebih banyak dari bahan yang diambil
   if (sisaFinal > diambil) {
     toast.error(
       "Validasi Gagal: Bahan sisa tidak boleh lebih banyak daripada bahan yang diambil!",
@@ -980,7 +988,6 @@ const validateStokBahan = () => {
     return false;
   }
 
-  // Validasi 2: Bahan yang diambil lebih sedikit dari bahan sisa (secara logika redundan dengan di atas, tapi untuk memastikan kedua arah kondisi tertangkap)
   if (diambil < sisaFinal) {
     toast.error(
       "Validasi Gagal: Bahan yang diambil lebih sedikit dari sisa bahan!",
@@ -1033,7 +1040,6 @@ const recalculateCombine = () => {
     const lebar = parseFloat(d.lebar_spk) || 0;
     const tile = parseFloat(d.tile) || 0;
 
-    // Konversi padding cm ke meter (dikalikan 2 karena sisi kiri-kanan / atas-bawah)
     const padAtasM = ((parseFloat(d.padding_atas) || 0) * 2) / 100;
     const padSampingM = ((parseFloat(d.padding_samping) || 0) * 2) / 100;
 
@@ -1472,14 +1478,11 @@ const injectSpkObject = (spk: any, fallbackCode: string = "") => {
     jumlah: qtyJumlah,
     sudahcetak: sudahCetak,
     kurangcetak_asli: kurangCetak > 0 ? kurangCetak : qtyJumlah,
-    padding_atas:
-      item.padding_atas !== undefined
-        ? item.padding_atas
-        : item.padding !== undefined
-          ? item.padding
-          : 3,
-    padding_samping:
-      item.padding_samping !== undefined ? item.padding_samping : 1,
+
+    // Set kosong (null) saat penambahan SPK baru
+    padding_atas: null,
+    padding_samping: null,
+
     tile: item.tile || 1,
     orientasi: item.orientasi || "lebar",
     totalcetak: 0,
@@ -1493,6 +1496,32 @@ const injectSpkObject = (spk: any, fallbackCode: string = "") => {
 
   formData.value.details.push(newEntry);
   recalculateCombine();
+};
+
+// Fungsi validasi padding yang dimasukkan ke tombol simpan & ACC
+const validatePaddingDetails = () => {
+  if (formData.value.details.length === 0) {
+    toast.error("Daftar produksi (Combine SPK) masih kosong!");
+    return false;
+  }
+
+  for (let i = 0; i < formData.value.details.length; i++) {
+    const d = formData.value.details[i];
+    if (
+      d.padding_atas === null ||
+      d.padding_atas === undefined ||
+      d.padding_atas === "" ||
+      d.padding_samping === null ||
+      d.padding_samping === undefined ||
+      d.padding_samping === ""
+    ) {
+      toast.error(
+        `Mohon padding (Toleransi) di isi sesuai dengan SPK (Baris ke-${i + 1} - SPK: ${d.nomor_spk})`,
+      );
+      return false;
+    }
+  }
+  return true;
 };
 
 const validateBeforeSave = (status: string) => {
@@ -1511,7 +1540,12 @@ const validateBeforeSave = (status: string) => {
     );
   }
 
-  // Panggil validasi sisa bahan di sini
+  // Validasi Padding
+  if (!validatePaddingDetails()) {
+    return;
+  }
+
+  // Validasi sisa bahan
   if (!validateStokBahan()) {
     return;
   }
@@ -1526,7 +1560,12 @@ const handleApprove = async () => {
     return;
   }
 
-  // Panggil validasi sisa bahan di sini juga sebelum ACC Admin
+  // Validasi Padding
+  if (!validatePaddingDetails()) {
+    return;
+  }
+
+  // Validasi sisa bahan
   if (!validateStokBahan()) {
     return;
   }

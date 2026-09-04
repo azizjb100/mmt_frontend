@@ -6,27 +6,30 @@
       color="white"
     >
       <div class="d-flex align-center flex-wrap ga-3">
-        <!-- Picker Periode -->
-        <div
-          v-if="showDateFilter"
-          class="d-flex align-center border rounded-lg px-3 py-1 bg-grey-lighten-5 ga-2"
-        >
-          <v-icon size="small" color="primary">mdi-calendar-range</v-icon>
-          <input
-            v-model="internalStartDate"
-            type="date"
-            class="date-input text-caption"
-            @change="emitRefresh"
-          />
-          <span class="text-caption text-grey font-weight-bold">s/d</span>
-          <input
-            v-model="internalEndDate"
-            type="date"
-            class="date-input text-caption"
-            @change="emitRefresh"
-          />
+        <!-- Picker Periode + Slot Note Tanggal -->
+        <div class="d-flex flex-column">
+          <div
+            v-if="showDateFilter"
+            class="d-flex align-center border rounded-lg px-3 py-1 bg-grey-lighten-5 ga-2"
+          >
+            <v-icon size="small" color="primary">mdi-calendar-range</v-icon>
+            <input
+              v-model="internalStartDate"
+              type="date"
+              class="date-input text-caption"
+              @change="emitRefresh"
+            />
+            <span class="text-caption text-grey font-weight-bold">s/d</span>
+            <input
+              v-model="internalEndDate"
+              type="date"
+              class="date-input text-caption"
+              @change="emitRefresh"
+            />
+          </div>
+          <!-- Slot khusus catatan di bawah tanggal -->
+          <slot name="date-note"></slot>
         </div>
-
         <!-- Select Gudang -->
         <div
           v-if="showGudangFilter"
