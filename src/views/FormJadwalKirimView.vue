@@ -737,163 +737,168 @@ onMounted(() => {
       </template>
 
       <!-- KOLOM KANAN (TABEL DETAIL) -->
+      <!-- KOLOM KANAN (TABEL DETAIL) -->
       <template #right-column>
         <v-card border flat class="h-100 d-flex flex-column">
-          <v-data-table
-            :headers="detailHeaders"
-            :items="formData.detail"
-            :items-per-page="-1"
-            density="compact"
-            hide-default-footer
-            fixed-header
-            class="flex-grow-1"
-          >
-            <template #[`item.no_urut`]="{ item }">
-              <span class="text-grey text-caption">{{ item.no_urut }}</span>
-            </template>
+          <!-- Tambahkan wrapper div dengan class scrollable-table-container -->
+          <div class="scrollable-table-container flex-grow-1">
+            <v-data-table
+              :headers="detailHeaders"
+              :items="formData.detail"
+              :items-per-page="-1"
+              density="compact"
+              hide-default-footer
+              fixed-header
+            >
+              <!-- Isi slot item tetap sama seperti sebelumnya -->
+              <template #[`item.no_urut`]="{ item }">
+                <span class="text-grey text-caption">{{ item.no_urut }}</span>
+              </template>
 
-            <template #[`item.kota`]="{ item }">
-              <v-text-field
-                v-model="item.kota"
-                density="compact"
-                variant="plain"
-                hide-details
-                placeholder="Input Kota..."
-              />
-            </template>
-
-            <template #[`item.uraian`]="{ item }">
-              <v-text-field
-                v-model="item.uraian"
-                density="compact"
-                variant="plain"
-                hide-details
-                placeholder="Nama Item/Uraian..."
-              />
-            </template>
-
-            <template #[`item.size`]="{ item }">
-              <v-text-field
-                v-model="item.size"
-                density="compact"
-                variant="plain"
-                hide-details
-                placeholder="Size..."
-              />
-            </template>
-
-            <template #[`item.qty`]="{ item }">
-              <v-text-field
-                v-model.number="item.qty"
-                type="number"
-                density="compact"
-                variant="plain"
-                hide-details
-                class="text-right-input"
-                @update:model-value="validateQty(item)"
-                :class="{
-                  'text-error font-weight-bold': item.qty > item.maxQty,
-                }"
-              />
-              <div
-                v-if="item.qty > item.maxQty"
-                class="text-caption text-error"
-                style="font-size: 9px !important"
-              >
-                Max: {{ item.maxQty }}
-              </div>
-            </template>
-
-            <template #[`item.koli`]="{ item }">
-              <v-text-field
-                v-model.number="item.koli"
-                type="number"
-                density="compact"
-                variant="plain"
-                hide-details
-                class="text-right-input"
-              />
-            </template>
-
-            <template #[`item.jamReady`]="{ item }">
-              <v-text-field
-                v-model="item.jamReady"
-                type="time"
-                density="compact"
-                variant="plain"
-                hide-details
-              />
-            </template>
-
-            <template #[`item.expedisi`]="{ item }">
-              <v-text-field
-                v-model="item.expedisi"
-                density="compact"
-                variant="plain"
-                hide-details
-                placeholder="Nama Travel/Exp..."
-              />
-            </template>
-
-            <template #[`item.keterangan`]="{ item }">
-              <v-text-field
-                v-model="item.keterangan"
-                density="compact"
-                variant="plain"
-                hide-details
-                placeholder="Catatan..."
-              />
-            </template>
-
-            <template #[`item.actions`]="{ index }">
-              <v-btn
-                icon="mdi-delete"
-                size="x-small"
-                color="error"
-                variant="text"
-                @click="removeDetail(index)"
-              />
-            </template>
-
-            <template #bottom>
-              <div class="pa-2 border-t d-flex align-center bg-white">
-                <v-btn
-                  size="x-small"
-                  color="primary"
-                  variant="tonal"
-                  prepend-icon="mdi-plus"
-                  @click="addDetail"
-                >
-                  Tambah Baris
-                </v-btn>
-
-                <v-divider vertical class="mx-3" />
-
-                <input
-                  type="file"
-                  ref="fileInput"
-                  accept=".xlsx, .xls"
-                  style="display: none"
-                  @change="importExcel"
+              <template #[`item.kota`]="{ item }">
+                <v-text-field
+                  v-model="item.kota"
+                  density="compact"
+                  variant="plain"
+                  hide-details
+                  placeholder="Input Kota..."
                 />
-                <v-btn
-                  size="x-small"
-                  color="success"
-                  variant="tonal"
-                  prepend-icon="mdi-microsoft-excel"
-                  @click="($refs.fileInput as any).click()"
-                >
-                  Import Excel
-                </v-btn>
+              </template>
 
-                <v-spacer />
-                <span class="text-caption text-grey">
-                  Format Header: Kota, Uraian, Size, Qty, Koli, Jam, Expedisi,
-                  Catatan
-                </span>
-              </div>
-            </template>
-          </v-data-table>
+              <template #[`item.uraian`]="{ item }">
+                <v-text-field
+                  v-model="item.uraian"
+                  density="compact"
+                  variant="plain"
+                  hide-details
+                  placeholder="Nama Item/Uraian..."
+                />
+              </template>
+
+              <template #[`item.size`]="{ item }">
+                <v-text-field
+                  v-model="item.size"
+                  density="compact"
+                  variant="plain"
+                  hide-details
+                  placeholder="Size..."
+                />
+              </template>
+
+              <template #[`item.qty`]="{ item }">
+                <v-text-field
+                  v-model.number="item.qty"
+                  type="number"
+                  density="compact"
+                  variant="plain"
+                  hide-details
+                  class="text-right-input"
+                  @update:model-value="validateQty(item)"
+                  :class="{
+                    'text-error font-weight-bold': item.qty > item.maxQty,
+                  }"
+                />
+                <div
+                  v-if="item.qty > item.maxQty"
+                  class="text-caption text-error"
+                  style="font-size: 9px !important"
+                >
+                  Max: {{ item.maxQty }}
+                </div>
+              </template>
+
+              <template #[`item.koli`]="{ item }">
+                <v-text-field
+                  v-model.number="item.koli"
+                  type="number"
+                  density="compact"
+                  variant="plain"
+                  hide-details
+                  class="text-right-input"
+                />
+              </template>
+
+              <template #[`item.jamReady`]="{ item }">
+                <v-text-field
+                  v-model="item.jamReady"
+                  type="time"
+                  density="compact"
+                  variant="plain"
+                  hide-details
+                />
+              </template>
+
+              <template #[`item.expedisi`]="{ item }">
+                <v-text-field
+                  v-model="item.expedisi"
+                  density="compact"
+                  variant="plain"
+                  hide-details
+                  placeholder="Nama Travel/Exp..."
+                />
+              </template>
+
+              <template #[`item.keterangan`]="{ item }">
+                <v-text-field
+                  v-model="item.keterangan"
+                  density="compact"
+                  variant="plain"
+                  hide-details
+                  placeholder="Catatan..."
+                />
+              </template>
+
+              <template #[`item.actions`]="{ index }">
+                <v-btn
+                  icon="mdi-delete"
+                  size="x-small"
+                  color="error"
+                  variant="text"
+                  @click="removeDetail(index)"
+                />
+              </template>
+
+              <!-- Bagian bottom tabel tetap berada di dalam flex container -->
+              <template #bottom>
+                <div class="pa-2 border-t d-flex align-center bg-white">
+                  <v-btn
+                    size="x-small"
+                    color="primary"
+                    variant="tonal"
+                    prepend-icon="mdi-plus"
+                    @click="addDetail"
+                  >
+                    Tambah Baris
+                  </v-btn>
+
+                  <v-divider vertical class="mx-3" />
+
+                  <input
+                    type="file"
+                    ref="fileInput"
+                    accept=".xlsx, .xls"
+                    style="display: none"
+                    @change="importExcel"
+                  />
+                  <v-btn
+                    size="x-small"
+                    color="success"
+                    variant="tonal"
+                    prepend-icon="mdi-microsoft-excel"
+                    @click="($refs.fileInput as any).click()"
+                  >
+                    Import Excel
+                  </v-btn>
+
+                  <v-spacer />
+                  <span class="text-caption text-grey">
+                    Format Header: Kota, Uraian, Size, Qty, Koli, Jam, Expedisi,
+                    Catatan
+                  </span>
+                </div>
+              </template>
+            </v-data-table>
+          </div>
         </v-card>
       </template>
     </BaseForm>
@@ -926,5 +931,16 @@ onMounted(() => {
 
 .cursor-pointer {
   cursor: pointer !important;
+}
+
+/* Tambahan CSS untuk mengaktifkan scroll pada tabel */
+.scrollable-table-container {
+  max-height: calc(100vh - 220px); /* Sesuaikan tinggi maksimal dengan layar */
+  overflow-y: auto;
+}
+
+.scrollable-table-container :deep(.v-table__wrapper) {
+  max-height: calc(100vh - 280px) !important;
+  overflow-y: auto !important;
 }
 </style>
