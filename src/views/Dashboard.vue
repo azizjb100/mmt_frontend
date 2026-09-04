@@ -478,6 +478,7 @@ const rolePermissions = {
     "Lap. Monitoring Kurang Produksi MMT",
     "Lap. Pemakaian Bahan",
     "Lap. Mon BS",
+    "Lap. Mon Kiriman",
     "Lap. Mon Cetak",
     "Lap. Mon Finishing",
     "Lap. Mon Tekstil",
@@ -714,6 +715,7 @@ const allMenuGroups = [
                 path: "/laporan/mmt/lap-mon-lmkp-mmt",
               },
               { name: "Lap. Mon BS", path: "/laporan/mmt/lap-mon-bs" },
+              { name: "Lap. Mon Kiriman", path: "/laporan/mmt/lap-kiriman" },
               { name: "Lap. Mon Cetak", path: "/laporan/mmt/lap-mon-cetak" },
               {
                 name: "Lap. Mon Finishing",

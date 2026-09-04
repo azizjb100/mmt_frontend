@@ -754,14 +754,17 @@ const {
           kurangcetak_asli: parseFloat(
             d.kurangcetak_asli || qtyOrder - sdhCetak + currentTotalInput,
           ),
+
+          // 🔥 PERBAIKAN DI SINI: Ambil padding_atas & padding_samping dari backend
           padding_atas:
-            d.padding_atas !== undefined
-              ? d.padding_atas
-              : d.Padding !== undefined
-                ? d.Padding
-                : 3,
+            d.padding_atas !== undefined && d.padding_atas !== null
+              ? Number(d.padding_atas)
+              : 3,
           padding_samping:
-            d.padding_samping !== undefined ? d.padding_samping : 3,
+            d.padding_samping !== undefined && d.padding_samping !== null
+              ? Number(d.padding_samping)
+              : 1,
+
           tile: d.Tile || 1,
           orientasi: d.Orientasi || "lebar",
           totalcetak: currentTotalInput,
@@ -827,8 +830,8 @@ const {
       tile: d.tile,
       jumlah: d.jumlah,
       luasm2: d.total_luas,
-      padding_atas: d.padding_atas,
-      padding_samping: d.padding_samping,
+      padding_atas: d.padding_atas, // Kirim padding atas
+      padding_samping: d.padding_samping, // Kirim padding samping
       ld_ambilbahan: parseFloat((formData.value.Panjang_bahan as any) || 0),
       ambilBahanPanjang: parseFloat((formData.value.Panjang_bahan as any) || 0),
       ambilBahanLebar: lebarAwal,

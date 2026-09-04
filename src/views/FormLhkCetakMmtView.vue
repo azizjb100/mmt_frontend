@@ -53,17 +53,20 @@ const detailHeaders = [
 ];
 
 // --- Helper Konversi Padding ke Toleransi ---
-const calculateToleransi = (paddingCm: number) => {
-  const pad = Number(paddingCm) || 0;
-  // (3 cm * 2) / 100 = 0.06 meter
-  const tolMeter = Number(((pad * 2) / 100).toFixed(4)); 
-  
+// --- Helper Konversi Padding ke Toleransi ---
+const calculateToleransi = (paddingAtas: number, paddingSamping: number) => {
+  const padAtas = Number(paddingAtas) || 0;
+  const padSamping = Number(paddingSamping) || 0;
+
+  // Contoh rumus konversi cm ke meter (disesuaikan dengan kebutuhan sistem Anda)
+  const tol1 = Number(((padAtas * 2) / 100).toFixed(4));
+  const tol2 = Number(((padSamping * 2) / 100).toFixed(4));
+
   return {
-    toleransi: tolMeter, // Hasil: 0.06
-    toleransi2: tolMeter, // Hasil: 0.06
+    toleransi: tol1, // Tampil di Tol 1 (padding_atas)
+    toleransi2: tol2, // Tampil di Tol 2 (padding_samping)
   };
 };
-
 // --- Handlers ---
 const addInkRow = () =>
   inkDetails.value.push({ msn_kode: "", c: 0, m: 0, y: 0, k: 0 });
@@ -143,9 +146,12 @@ const handleLhkSelect = async (selectedNomors: string[]) => {
 
     if (res && Array.isArray(res.details)) {
       res.details.forEach((d: any) => {
-        // Hitung Toleransi berdasarkan Padding (cm)
-        const paddingValue = d.padding ?? d.Padding ?? 0;
-        const { toleransi, toleransi2 } = calculateToleransi(paddingValue);
+        // 🔥 Ambil nilai padding atas dan samping dari database/response
+        const pAtas = Number(d.padding_atas ?? d.Padding ?? 3);
+        const pSamping = Number(d.padding_samping ?? 1);
+
+        // Hitung toleransi (Tol 1 dan Tol 2)
+        const { toleransi, toleransi2 } = calculateToleransi(pAtas, pSamping);
 
         const existingIndex = detailData.value.findIndex(
           (ex) =>
@@ -154,7 +160,8 @@ const handleLhkSelect = async (selectedNomors: string[]) => {
         );
 
         if (existingIndex !== -1) {
-          detailData.value[existingIndex].jumlah_cetak = Number(d.totalcetak) || 0;
+          detailData.value[existingIndex].jumlah_cetak =
+            Number(d.totalcetak) || 0;
           detailData.value[existingIndex].toleransi = toleransi;
           detailData.value[existingIndex].toleransi2 = toleransi2;
           detailData.value[existingIndex].total_m2 = Number(d.ld_luas_m2) || 0;
@@ -171,8 +178,8 @@ const handleLhkSelect = async (selectedNomors: string[]) => {
             spk_nama: d.nama_spk,
             operator: d.operator || "",
             jumlah_cetak: Number(d.totalcetak) || 0,
-            toleransi: toleransi,
-            toleransi2: toleransi2,
+            toleransi: toleransi, // Masuk ke Tol 1
+            toleransi2: toleransi2, // Masuk ke Tol 2
             total_m2: Number(d.ld_luas_m2) || 0,
             isManual: false,
           });
@@ -300,8 +307,11 @@ const loaddataall = async (nomor: string) => {
           spk_nomor: d.Nomor_SPK,
           spk_nama: d.Nama_SPK,
           jumlah_cetak: Number(d.Jml_Cetak) || 0,
+
+          // 🔥 AMBIL LANGSUNG NILAI DARI BACKEND (Tanpa dihitung ulang)
           toleransi: Number(d.toleransi) || 0,
           toleransi2: Number(d.toleransi2) || 0,
+
           total_m2: Number(d.m2_cetak) || 0,
           panjang_spk: Number(d.Panjang) || 0,
           lebar_spk: Number(d.Lebar) || 0,

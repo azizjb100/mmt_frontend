@@ -139,6 +139,7 @@ import FormPoPaperprintView from "@/views/FormPoPaperprintView.vue";
 import mapView from "@/views/mapView.vue";
 import MapPrintView from "@/views/MapPrintView.vue";
 import FormBastMmtView from "@/views/FormBastMmtView.vue";
+import LapKirimanView from "@/views/LapKirimanView.vue";
 
 const routes: RouteRecordRaw[] = [
   {
@@ -1073,6 +1074,12 @@ const routes: RouteRecordRaw[] = [
         path: "laporan/mmt/lap-mon-lmkp-mmt",
         name: "lapMonLmkpMmt",
         component: LapMonLmkpMmtView,
+      },
+
+      {
+        path: "laporan/mmt/lap-kiriman",
+        name: "lapKiriman",
+        component: LapKirimanView,
       },
       {
         path: "laporan/mmt/lap-mon-cetak",

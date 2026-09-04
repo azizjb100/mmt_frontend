@@ -13,9 +13,8 @@
         </v-card-title>
 
         <v-card-text class="text-body-1 py-4">
-          Ada perbaikan sistem (Validasi Barcode & Stok). Jika Anda sudah
-          selesai menyimpan data, harap segera perbarui aplikasi agar fitur
-          terbaru aktif.
+          Ada perbaikan sistem. Jika Anda sudah selesai menyimpan data, harap
+          segera perbarui aplikasi agar fitur terbaru aktif.
 
           <div class="mt-4 pa-2 bg-grey-lighten-4 rounded-lg text-caption">
             <div class="d-flex justify-space-between">
