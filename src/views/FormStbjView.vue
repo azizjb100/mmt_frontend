@@ -220,6 +220,63 @@ const handleSPKSelect = (spk) => {
   isSPKModalVisible.value = false;
 };
 
+const handleSPKManualInput = async (item: DetailItem, index: number) => {
+  if (!item.spk || !item.spk.trim()) return;
+
+  const inputNomor = item.spk.trim();
+
+  try {
+    const response = await api.get(`mmt/spk/${encodeURIComponent(inputNomor)}`);
+
+    const resData = response.data;
+    const spk = resData.data || resData;
+
+    // Ambil nomor SPK dari hasil respons backend
+    const foundSpkNomor = spk?.SPK || spk?.no_spk || spk?.Nomor;
+
+    // VALIDASI KETAT (Strict Check):
+    // Pastikan data ditemukan dan nomor SPK yang dikembalikan backend harus SAMA PERSIS
+    // dengan apa yang diketik oleh user (case-insensitive atau exact match).
+    if (
+      spk &&
+      foundSpkNomor &&
+      foundSpkNomor.toUpperCase() === inputNomor.toUpperCase()
+    ) {
+      item.spk = foundSpkNomor;
+      item.namaBarang = spk.Nama || spk.nama_spk || "";
+
+      item.totalOrder = Number(
+        spk.Jumlah || spk.Qty_Order || spk.total_order || 0,
+      );
+      item.order = Number(spk.Jadi || spk.Sudah_STBJ || spk.sudah_stbj || 0);
+      item.qty = Number(
+        spk.Kurang_Jadi || spk.Kurang_STBJ || spk.kurang_stbj || 0,
+      );
+      item.koli = 1;
+      item.size = spk.Ukuran || spk.size || "-";
+
+      // Kalkulasi otomatis Jadi & Kurang
+      item.jadi = item.order + item.qty;
+      item.kurang = item.totalOrder - item.jadi;
+
+      toast.success(`SPK ${item.spk} berhasil dimuat!`);
+
+      // Tambah baris baru jika di baris terakhir
+      if (index === formData.detail.length - 1) {
+        addDetail();
+      }
+    } else {
+      // Jika backend mengembalikan data tapi kodenya berbeda (seperti kasus MAP-AI-BB-000001)
+      toast.warning(`Nomor SPK "${inputNomor}" tidak ditemukan.`);
+      item.spk = ""; // Kosongkan kembali inputnya
+    }
+  } catch (error: any) {
+    console.error("Gagal mengambil detail SPK:", error);
+    toast.error(`Nomor SPK "${inputNomor}" tidak ditemukan.`);
+    item.spk = ""; // Kosongkan kembali inputnya
+  }
+};
+
 const fetchDataByNomor = async (nomor: string) => {
   try {
     const response = await api.get(`${API_URL}/${encodeURIComponent(nomor)}`);
@@ -391,16 +448,25 @@ onMounted(() => {
             <template #[`item.spk`]="{ item, index }">
               <v-text-field
                 v-model="item.spk"
-                @click="
-                  currentDetailIndex = index;
-                  isSPKModalVisible = true;
-                "
-                append-inner-icon="mdi-magnify"
-                readonly
                 density="compact"
                 variant="plain"
                 hide-details
-              />
+                placeholder="Ketik SPK..."
+                @keyup.enter="handleSPKManualInput(item, index)"
+                @blur="handleSPKManualInput(item, index)"
+              >
+                <template #append-inner>
+                  <v-icon
+                    icon="mdi-magnify"
+                    size="small"
+                    class="cursor-pointer text-grey-darken-1"
+                    @click.stop="
+                      currentDetailIndex = index;
+                      isSPKModalVisible = true;
+                    "
+                  />
+                </template>
+              </v-text-field>
             </template>
 
             <template #[`item.namaBarang`]="{ item }">
