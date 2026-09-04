@@ -380,6 +380,21 @@ const formatDate = (dateStr: string) => {
 const handleAcc = async () => {
   if (!selectedItemNomor.value) return;
 
+  // Ambil data item yang sedang dipilih untuk mengecek statusnya
+  const selectedItem = selected.value[0];
+  const currentStatus = (selectedItem?.Status || "DRAFT").toUpperCase();
+
+  // Validasi: Jika masih DRAFT, tampilkan warning dan hentikan proses
+  if (currentStatus === "DRAFT") {
+    Swal.fire({
+      title: "Tidak Dapat ACC",
+      text: "Data dengan status Draft tidak dapat di-ACC. Silakan post data terlebih dahulu.",
+      icon: "warning",
+      confirmButtonColor: "#00897B",
+    });
+    return;
+  }
+
   const result = await Swal.fire({
     title: "Konfirmasi ACC LHK",
     text: `Apakah Anda yakin ingin menyetujui (ACC) LHK Paperprint Nomor: ${selectedItemNomor.value}?`,
@@ -399,7 +414,7 @@ const handleAcc = async () => {
       selected.value = [];
     } catch (e: any) {
       toast.error(
-        e?.response?.data?.message || "Gagal memproses ACC LHK Sublim.",
+        e?.response?.data?.message || "Gagal memproses ACC LHK Paperprint.",
       );
     } finally {
       loading.acc = false;
