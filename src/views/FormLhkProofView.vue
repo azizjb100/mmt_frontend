@@ -634,6 +634,7 @@ const detailHeaders = [
 const jenisOptions = [
   { text: "MMT", value: "M" },
   { text: "TEKSTIL", value: "T" },
+  { text: "PAPERPRINT", value: "P" },
   { text: "SUBLIM", value: "S" },
 ];
 

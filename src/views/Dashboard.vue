@@ -486,6 +486,8 @@ const rolePermissions = {
     "Lap. Mon Paperprint",
     "Lap. Mon Sublim",
     "Lap. BS & Sisa Digital Printing",
+    "Mutasi Internal",
+    "Penerimaan PO External",
   ],
   2: ["File", "Ganti Password", "Customer", "Sales", "Laporan", "Penjualan"],
   4: [
