@@ -357,9 +357,17 @@
     <!-- Slot Row Baris Data Utama -->
     <template #row="{ item, formatNumber }">
       <tr class="table-row-item">
-        <!-- Sticky Left Columns -->
+        <!-- Sticky Left Columns (NOMOR SPK dapat diklik untuk Preview) -->
         <td class="text-center sticky-col-1 font-weight-bold">
-          {{ item.NOMOR || "-" }}
+          <span
+            v-if="item.NOMOR && item.NOMOR !== '-'"
+            class="text-primary cursor-pointer text-decoration-underline"
+            @click.stop="handlePreview(item.NOMOR)"
+            title="Klik untuk Preview SPK"
+          >
+            {{ item.NOMOR }}
+          </span>
+          <span v-else>-</span>
         </td>
         <td
           class="text-left sticky-col-2 text-truncate"
@@ -368,7 +376,6 @@
         >
           {{ item.spk_nama || "-" }}
         </td>
-
         <!-- Info Umum SPK -->
         <td class="text-center">{{ formatDateDisplay(item.spk_tanggal) }}</td>
         <td class="text-center font-weight-bold text-error">
@@ -530,6 +537,85 @@
       </v-table>
     </v-card>
   </div>
+
+  <v-dialog
+    v-model="showPreviewDialog"
+    max-width="1200px"
+    width="95vw"
+    height="92vh"
+    scrollable
+    transition="dialog-bottom-transition"
+  >
+    <v-card class="d-flex flex-column" style="height: 92vh; max-height: 92vh">
+      <v-toolbar
+        color="grey-darken-4"
+        density="compact"
+        class="flex-grow-0 flex-shrink-0"
+      >
+        <v-icon class="ml-3 mr-2" color="teal-lighten-2"
+          >mdi-file-eye-outline</v-icon
+        >
+        <v-toolbar-title class="text-subtitle-1 font-weight-bold">
+          Preview SPK — {{ previewSpkNomor }}
+        </v-toolbar-title>
+
+        <v-chip
+          color="error"
+          size="x-small"
+          label
+          class="mr-3 font-weight-bold"
+        >
+          PREVIEW MODE (DILARANG DICETAK)
+        </v-chip>
+
+        <v-spacer />
+
+        <v-btn icon variant="text" @click="showPreviewDialog = false">
+          <v-icon>mdi-close</v-icon>
+        </v-btn>
+      </v-toolbar>
+
+      <v-card-text
+        class="pa-0 flex-grow-1 position-relative bg-grey-lighten-3 iframe-wrapper"
+      >
+        <div
+          v-if="isIframeLoading"
+          class="preview-loading-overlay d-flex flex-column align-center justify-center"
+        >
+          <v-progress-circular indeterminate color="primary" size="48" />
+          <span class="text-caption text-grey-darken-2 mt-3 font-weight-medium">
+            Memuat dokumen preview SPK...
+          </span>
+        </div>
+
+        <iframe
+          v-if="previewUrl"
+          :src="previewUrl"
+          class="preview-iframe"
+          @load="handleIframeLoaded"
+        />
+      </v-card-text>
+
+      <v-divider />
+
+      <v-card-actions
+        class="bg-white py-2 px-4 justify-space-between flex-grow-0 flex-shrink-0"
+      >
+        <span class="text-caption text-grey-darken-1">
+          * Mode preview untuk pengecekan data visual &amp; layout SPK.
+        </span>
+        <v-btn
+          color="grey-darken-1"
+          variant="tonal"
+          size="small"
+          class="px-4 font-weight-bold"
+          @click="showPreviewDialog = false"
+        >
+          Tutup
+        </v-btn>
+      </v-card-actions>
+    </v-card>
+  </v-dialog>
 </template>
 
 <script setup lang="ts">
@@ -556,6 +642,10 @@ const searchQuery = ref("");
 const loading = reactive({ report: false });
 const allData = ref<any[]>([]);
 const summary = ref({ outputPerHari: "0", estimasiSelesaiHari: "0" });
+const showPreviewDialog = ref<boolean>(false);
+const previewUrl = ref<string>("");
+const previewSpkNomor = ref<string>("");
+const isIframeLoading = ref<boolean>(true);
 
 // --- COLUMN FILTERS & SORTING STATE ---
 const columnFilters = reactive({
@@ -590,6 +680,22 @@ const hasActiveFilter = computed(() => {
     (columnFilters.KAIN && columnFilters.KAIN !== "SEMUA")
   );
 });
+
+const handlePreview = (nomorSpk: string) => {
+  if (!nomorSpk || nomorSpk === "-") {
+    alert("SPK belum dibuat atau nomor SPK tidak valid.");
+    return;
+  }
+
+  previewSpkNomor.value = nomorSpk;
+  isIframeLoading.value = true;
+  previewUrl.value = `/mmt/so-spk/print/${encodeURIComponent(nomorSpk)}?preview=1`;
+  showPreviewDialog.value = true;
+};
+
+const handleIframeLoaded = () => {
+  isIframeLoading.value = false;
+};
 
 const resetAllFilters = () => {
   searchQuery.value = "";
@@ -1427,5 +1533,27 @@ onMounted(fetchReport);
 .sum-value {
   text-align: right;
   color: #0f172a;
+}
+.iframe-wrapper {
+  height: calc(92vh - 100px) !important;
+  min-height: 500px;
+  overflow: hidden;
+}
+
+.preview-iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+  display: block;
+}
+
+.preview-loading-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.85);
+  z-index: 10;
 }
 </style>

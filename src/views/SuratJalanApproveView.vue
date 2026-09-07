@@ -185,14 +185,14 @@ const masterHeaders = computed(() => {
 });
 
 const detailHeaders = [
-  { title: "Nomor", key: "Nomor", minWidth: "140px", fixed: true },
-  { title: "Nomor SPK", key: "sjd_spk_nomor", minWidth: "150px" },
-  { title: "Nama SPK", key: "spk_nama", minWidth: "250px" },
-  { title: "Ukuran", key: "sjd_ukuran", minWidth: "120px" },
+  { title: "Nomor SJ", key: "Nomor", minWidth: "140px", fixed: true },
+  { title: "Nomor SPK", key: "SPK", minWidth: "150px" },
+  { title: "Nama SPK", key: "Nama", minWidth: "250px" },
+  { title: "Ukuran", key: "Ukuran", minWidth: "120px" },
   { title: "Panjang", key: "Panjang", minWidth: "100px", align: "end" },
   { title: "Lebar", key: "Lebar", minWidth: "100px", align: "end" },
-  { title: "Jumlah", key: "sjd_jumlah", minWidth: "100px", align: "end" },
-  { title: "Keterangan", key: "sjd_keterangan", minWidth: "200px" },
+  { title: "Jumlah", key: "Jumlah", minWidth: "100px", align: "end" },
+  { title: "Keterangan", key: "Keterangan", minWidth: "200px" },
 ];
 
 const formatDateDisplay = (dateStr: string | null | undefined) => {
@@ -257,32 +257,19 @@ const handleExpandUpdate = async (expandedKeys: any[]) => {
   const lastItem = expandedKeys[expandedKeys.length - 1];
   if (!lastItem) return;
 
-  const lastExpandedNomor =
-    typeof lastItem === "object" ? lastItem.Nomor : lastItem;
-  if (!lastExpandedNomor || details.value[lastExpandedNomor]) return;
+  const nomorSJ = typeof lastItem === "object" ? lastItem.Nomor : lastItem;
+  if (!nomorSJ || details.value[nomorSJ]) return;
 
-  loadingDetails.value.add(lastExpandedNomor);
+  loadingDetails.value.add(nomorSJ);
   try {
-    const response = await api.get(`${API_SURAT_JALAN}/lookup/details`, {
-      params: {
-        startDate: startDate.value,
-        endDate: endDate.value,
-        cab: userConfig.cab,
-        pendingOnly: pendingOnly.value,
-      },
+    const res = await api.get(`${API_SURAT_JALAN}/detail`, {
+      params: { nomor: nomorSJ },
     });
-
-    const resData = response.data?.data ?? [];
-
-    masterData.value.forEach((row) => {
-      details.value[row.Nomor] = resData.filter(
-        (d: any) => d.Nomor === row.Nomor,
-      );
-    });
+    details.value[nomorSJ] = res.data.data || res.data || [];
   } catch (error) {
-    details.value[lastExpandedNomor] = [];
+    details.value[nomorSJ] = [];
   } finally {
-    loadingDetails.value.delete(lastExpandedNomor);
+    loadingDetails.value.delete(nomorSJ);
   }
 };
 
