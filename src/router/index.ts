@@ -111,6 +111,7 @@ import LapMonJadwalKirimView from "@/views/LapMonJadwalKirimView.vue";
 import LapMonSublimView from "@/views/LapMonSublimView.vue";
 import FormPoExtMmtView from "@/views/FormPoExtMmtView.vue";
 import POExternalMmtView from "@/views/POExternalMmtView.vue";
+import PoExternalMmtPrintView from "@/views/PoExternalMmtPrint.vue";
 import FormPlanningProduksiView from "@/views/FormPlanningProduksiView.vue";
 import LapMonPlanVsLHKView from "@/views/LapMonPlanVsLHKView.vue";
 import LhkPolaView from "@/views/LhkPolaView.vue";
@@ -406,7 +407,12 @@ const routes: RouteRecordRaw[] = [
         component: FormPoExtMmtView,
         props: { isEditMode: true },
       },
-      // { path: 'mmt/po-external-mmt/print/:nomor', name: 'POExternalMmtPrint', component: POExternalMmtPrintView, props: true },
+      {
+        path: "mmt/po-external-mmt/print/:nomor",
+        name: "POExternalMmtPrint",
+        component: PoExternalMmtPrintView,
+        props: true,
+      },
       {
         path: "mmt/po-bahan-mmt",
         name: "POBahanMmtBrowse",

@@ -364,11 +364,11 @@ const handleExportExcel = async () => {
     const fileName = `Jadwal_Kirim_${filters.startDate}_sd_${filters.endDate}.xlsx`;
 
     // ==========================================
-    // 1. DEFINISI STYLE EXCEL (PERSIS PERMINTAAN BAHAN)
+    // 1. DEFINISI STYLE EXCEL
     // ==========================================
     const styleHeaderMain = {
-      fill: { fgColor: { rgb: "B3E5FC" } }, // Biru muda cerah
-      font: { bold: true, color: { rgb: "000000" }, sz: 10 }, // Teks Hitam Tebal
+      fill: { fgColor: { rgb: "B3E5FC" } },
+      font: { bold: true, color: { rgb: "000000" }, sz: 10 },
       alignment: { horizontal: "center", vertical: "center", wrapText: true },
       border: {
         top: { style: "thin", color: { rgb: "000000" } },
@@ -381,7 +381,7 @@ const handleExportExcel = async () => {
     const styleDataCell = {
       font: { sz: 10 },
       border: {
-        top: { style: "thin", color: { rgb: "000000" } }, // Border hitam tipis seluruh sisi
+        top: { style: "thin", color: { rgb: "000000" } },
         bottom: { style: "thin", color: { rgb: "000000" } },
         left: { style: "thin", color: { rgb: "000000" } },
         right: { style: "thin", color: { rgb: "000000" } },
@@ -397,14 +397,32 @@ const handleExportExcel = async () => {
     const styleDataCellRight = {
       ...styleDataCell,
       alignment: { horizontal: "right", vertical: "center" },
+      numFmt: "#,##0",
+    };
+
+    const styleTotalCell = {
+      fill: { fgColor: { rgb: "E0E0E0" } },
+      font: { bold: true, sz: 10, color: { rgb: "000000" } },
+      border: {
+        top: { style: "thin", color: { rgb: "000000" } },
+        bottom: { style: "double", color: { rgb: "000000" } },
+        left: { style: "thin", color: { rgb: "000000" } },
+        right: { style: "thin", color: { rgb: "000000" } },
+      },
+      alignment: { horizontal: "right", vertical: "center" },
+      numFmt: "#,##0",
+    };
+
+    const styleTotalLabel = {
+      ...styleTotalCell,
+      alignment: { horizontal: "center", vertical: "center" },
     };
 
     // ==========================================
-    // 2. SUSUN DATA (Array of Arrays / AOA)
+    // 2. SUSUN DATA (Array of Objects / Cell Objects)
     // ==========================================
     const wsData = [];
 
-    // Fungsi Helper format tanggal Indonesia
     const formatTanggalIndo = (dateStr: string) => {
       if (!dateStr) return "";
       const bulanIndo = [
@@ -428,50 +446,49 @@ const handleExportExcel = async () => {
 
     const periodeStr = `Periode : ${formatTanggalIndo(filters.startDate)} s/d ${formatTanggalIndo(filters.endDate)}`;
 
-    // Judul & Info Atas Laporan (Tanpa Border)
     wsData.push([
       {
         v: "LAPORAN JADWAL KIRIM (GUDANG JADI)",
         s: { font: { bold: true, sz: 14 } },
+        t: "s",
       },
     ]);
-    wsData.push([{ v: periodeStr, s: { font: { sz: 10 } } }]);
+    wsData.push([{ v: periodeStr, s: { font: { sz: 10 } }, t: "s" }]);
     wsData.push([]); // Baris kosong
 
-    // Header Tabel (Total 21 Kolom terstruktur dari Master dan Detail)
     const tableHeaders = [
-      { v: "NOMOR KIRIM", s: styleHeaderMain },
-      { v: "KODE GDG", s: styleHeaderMain },
-      { v: "NAMA GUDANG", s: styleHeaderMain },
-      { v: "TANGGAL", s: styleHeaderMain },
-      { v: "NO. SPK", s: styleHeaderMain },
-      { v: "NAMA BARANG", s: styleHeaderMain },
-      { v: "UKURAN", s: styleHeaderMain },
-      { v: "KAIN", s: styleHeaderMain },
-      { v: "QTY RENCANA", s: styleHeaderMain },
-      { v: "KOLI", s: styleHeaderMain },
-      { v: "REALISASI", s: styleHeaderMain },
-      { v: "SELISIH QTY", s: styleHeaderMain },
-      { v: "SELISIH KOLI", s: styleHeaderMain },
-      { v: "USER CREATE", s: styleHeaderMain },
-      // Kolom Detail Internal
-      { v: "NO URUT", s: styleHeaderMain },
-      { v: "KOTA TUJUAN", s: styleHeaderMain },
-      { v: "URAIAN BARANG", s: styleHeaderMain },
-      { v: "SIZE", s: styleHeaderMain },
-      { v: "QTY DETAIL", s: styleHeaderMain },
-      { v: "KOLI DETAIL", s: styleHeaderMain },
-      { v: "EKSPEDISI", s: styleHeaderMain },
+      { v: "NOMOR KIRIM", s: styleHeaderMain, t: "s" },
+      { v: "KODE GDG", s: styleHeaderMain, t: "s" },
+      { v: "NAMA GUDANG", s: styleHeaderMain, t: "s" },
+      { v: "TANGGAL", s: styleHeaderMain, t: "s" },
+      { v: "NO. SPK", s: styleHeaderMain, t: "s" },
+      { v: "NAMA BARANG", s: styleHeaderMain, t: "s" },
+      { v: "UKURAN", s: styleHeaderMain, t: "s" },
+      { v: "KAIN", s: styleHeaderMain, t: "s" },
+      { v: "QTY RENCANA", s: styleHeaderMain, t: "s" },
+      { v: "KOLI", s: styleHeaderMain, t: "s" },
+      { v: "REALISASI", s: styleHeaderMain, t: "s" },
+      { v: "SELISIH QTY", s: styleHeaderMain, t: "s" },
+      { v: "SELISIH KOLI", s: styleHeaderMain, t: "s" },
+      { v: "USER CREATE", s: styleHeaderMain, t: "s" },
+      { v: "NO URUT", s: styleHeaderMain, t: "s" },
+      { v: "KOTA TUJUAN", s: styleHeaderMain, t: "s" },
+      { v: "URAIAN BARANG", s: styleHeaderMain, t: "s" },
+      { v: "SIZE", s: styleHeaderMain, t: "s" },
+      { v: "QTY DETAIL", s: styleHeaderMain, t: "s" },
+      { v: "KOLI DETAIL", s: styleHeaderMain, t: "s" },
+      { v: "EKSPEDISI", s: styleHeaderMain, t: "s" },
     ];
     wsData.push(tableHeaders);
 
-    // Hit data detail secara paralel agar performa cepat
     const detailPromises = masterData.value.map((m) =>
       api.get(`${API_URL}/${m.Nomor}`),
     );
     const detailResponses = await Promise.all(detailPromises);
 
-    // Looping gabungan Master & Detail
+    const startRowIndex = 5;
+    let currentRowCounter = startRowIndex;
+
     masterData.value.forEach((master, index) => {
       const detailItems = detailResponses[index].data.Detail || [];
       const tglFormatted = safeFormatDate(master.Tanggal);
@@ -479,96 +496,187 @@ const handleExportExcel = async () => {
       if (detailItems.length > 0) {
         detailItems.forEach((dtl: any, idxDtl: number) => {
           const row = [
-            // Kolom Master (Hanya muncul di baris pertama detail agar visual tidak penuh sesak)
-            { v: idxDtl === 0 ? master.Nomor : "", s: styleDataCellCenter },
+            {
+              v: idxDtl === 0 ? master.Nomor : "",
+              s: styleDataCellCenter,
+              t: "s",
+            },
             {
               v: idxDtl === 0 ? master.Gudang || "" : "",
               s: styleDataCellCenter,
+              t: "s",
             },
-            { v: idxDtl === 0 ? master.Nama_Gudang : "", s: styleDataCell },
-            { v: idxDtl === 0 ? tglFormatted : "", s: styleDataCellCenter },
-            { v: idxDtl === 0 ? master.No_SPK : "", s: styleDataCellCenter },
-            { v: idxDtl === 0 ? master.Nama_Spk : "", s: styleDataCell },
+            {
+              v: idxDtl === 0 ? master.Nama_Gudang : "",
+              s: styleDataCell,
+              t: "s",
+            },
+            {
+              v: idxDtl === 0 ? tglFormatted : "",
+              s: styleDataCellCenter,
+              t: "s",
+            },
+            {
+              v: idxDtl === 0 ? master.No_SPK : "",
+              s: styleDataCellCenter,
+              t: "s",
+            },
+            {
+              v: idxDtl === 0 ? master.Nama_Spk : "",
+              s: styleDataCell,
+              t: "s",
+            },
             {
               v: idxDtl === 0 ? master.Ukuran || "-" : "",
               s: styleDataCellCenter,
-            },
-            { v: idxDtl === 0 ? master.Kain || "-" : "", s: styleDataCell },
-            {
-              v: idxDtl === 0 ? Number(master.Jumlah || 0) : "",
-              s: styleDataCellRight,
+              t: "s",
             },
             {
-              v: idxDtl === 0 ? Number(master.Koli || 0) : "",
+              v: idxDtl === 0 ? master.Kain || "-" : "",
+              s: styleDataCell,
+              t: "s",
+            },
+            // Kolom angka master (t: "n")
+            {
+              v: idxDtl === 0 ? Number(master.Jumlah || 0) : 0,
               s: styleDataCellRight,
+              t: "n",
             },
             {
-              v: idxDtl === 0 ? Number(master.Realisasi || 0) : "",
+              v: idxDtl === 0 ? Number(master.Koli || 0) : 0,
               s: styleDataCellRight,
+              t: "n",
             },
             {
-              v: idxDtl === 0 ? Number(master.Selisih_Jumlah || 0) : "",
+              v: idxDtl === 0 ? Number(master.Realisasi || 0) : 0,
               s: styleDataCellRight,
+              t: "n",
             },
             {
-              v: idxDtl === 0 ? Number(master.Selisih_Koli || 0) : "",
+              v: idxDtl === 0 ? Number(master.Selisih_Jumlah || 0) : 0,
               s: styleDataCellRight,
+              t: "n",
+            },
+            {
+              v: idxDtl === 0 ? Number(master.Selisih_Koli || 0) : 0,
+              s: styleDataCellRight,
+              t: "n",
             },
             {
               v: idxDtl === 0 ? master.usr_create : "",
               s: styleDataCellCenter,
+              t: "s",
             },
-
-            // Kolom Detail Internal (Selalu Terisi)
-            { v: dtl.No_urut, s: styleDataCellCenter },
-            { v: dtl.kota || "-", s: styleDataCell },
-            { v: dtl.uraian || "-", s: styleDataCell },
-            { v: dtl.size || "-", s: styleDataCellCenter },
-            { v: Number(dtl.Jumlah || 0), s: styleDataCellRight },
-            { v: Number(dtl.Koli || 0), s: styleDataCellRight },
-            { v: dtl.expedisi || "-", s: styleDataCell },
+            // Kolom detail
+            { v: dtl.No_urut, s: styleDataCellCenter, t: "s" },
+            { v: dtl.kota || "-", s: styleDataCell, t: "s" },
+            { v: dtl.uraian || "-", s: styleDataCell, t: "s" },
+            { v: dtl.size || "-", s: styleDataCellCenter, t: "s" },
+            // Kolom angka detail (t: "n")
+            { v: Number(dtl.Jumlah || 0), s: styleDataCellRight, t: "n" },
+            { v: Number(dtl.Koli || 0), s: styleDataCellRight, t: "n" },
+            { v: dtl.expedisi || "-", s: styleDataCell, t: "s" },
           ];
           wsData.push(row);
+          currentRowCounter++;
         });
       } else {
-        // Fallback jika tidak didapatkan data detail sama sekali
         const row = [
-          { v: master.Nomor, s: styleDataCellCenter },
-          { v: master.Gudang || "", s: styleDataCellCenter },
-          { v: master.Nama_Gudang, s: styleDataCell },
-          { v: tglFormatted, s: styleDataCellCenter },
-          { v: master.No_SPK, s: styleDataCellCenter },
-          { v: master.Nama_Spk, s: styleDataCell },
-          { v: master.Ukuran || "-", s: styleDataCellCenter },
-          { v: master.Kain || "-", s: styleDataCell },
-          { v: Number(master.Jumlah || 0), s: styleDataCellRight },
-          { v: Number(master.Koli || 0), s: styleDataCellRight },
-          { v: Number(master.Realisasi || 0), s: styleDataCellRight },
-          { v: Number(master.Selisih_Jumlah || 0), s: styleDataCellRight },
-          { v: Number(master.Selisih_Koli || 0), s: styleDataCellRight },
-          { v: master.usr_create, s: styleDataCellCenter },
-          // Detail Kosong
-          { v: "-", s: styleDataCellCenter },
-          { v: "Tidak ada detail", s: styleDataCell },
-          { v: "-", s: styleDataCell },
-          { v: "-", s: styleDataCellCenter },
-          { v: 0, s: styleDataCellRight },
-          { v: 0, s: styleDataCellRight },
-          { v: "-", s: styleDataCell },
+          { v: master.Nomor, s: styleDataCellCenter, t: "s" },
+          { v: master.Gudang || "", s: styleDataCellCenter, t: "s" },
+          { v: master.Nama_Gudang, s: styleDataCell, t: "s" },
+          { v: tglFormatted, s: styleDataCellCenter, t: "s" },
+          { v: master.No_SPK, s: styleDataCellCenter, t: "s" },
+          { v: master.Nama_Spk, s: styleDataCell, t: "s" },
+          { v: master.Ukuran || "-", s: styleDataCellCenter, t: "s" },
+          { v: master.Kain || "-", s: styleDataCell, t: "s" },
+          { v: Number(master.Jumlah || 0), s: styleDataCellRight, t: "n" },
+          { v: Number(master.Koli || 0), s: styleDataCellRight, t: "n" },
+          { v: Number(master.Realisasi || 0), s: styleDataCellRight, t: "n" },
+          {
+            v: Number(master.Selisih_Jumlah || 0),
+            s: styleDataCellRight,
+            t: "n",
+          },
+          {
+            v: Number(master.Selisih_Koli || 0),
+            s: styleDataCellRight,
+            t: "n",
+          },
+          { v: master.usr_create, s: styleDataCellCenter, t: "s" },
+          { v: "-", s: styleDataCellCenter, t: "s" },
+          { v: "Tidak ada detail", s: styleDataCell, t: "s" },
+          { v: "-", s: styleDataCell, t: "s" },
+          { v: "-", s: styleDataCellCenter, t: "s" },
+          { v: 0, s: styleDataCellRight, t: "n" },
+          { v: 0, s: styleDataCellRight, t: "n" },
+          { v: "-", s: styleDataCell, t: "s" },
         ];
         wsData.push(row);
+        currentRowCounter++;
       }
     });
 
+    const endRowIndex = currentRowCounter - 1;
+
     // ==========================================
-    // 3. PEMBUATAN WORKSHEET & PROSES DOWNLOAD
+    // 3. BARIS TOTAL (SUM) DENGAN TIPE NUMERIK (`t: 'n'`)
+    // ==========================================
+    const totalRow = new Array(21)
+      .fill(null)
+      .map(() => ({ v: "", s: styleTotalCell, t: "s" }));
+
+    totalRow[7] = { v: "TOTAL", s: styleTotalLabel, t: "s" };
+
+    // Menggunakan formula SUM dengan tipe data 'n' (number)
+    totalRow[8] = {
+      t: "n",
+      f: `SUM(I${startRowIndex}:I${endRowIndex})`,
+      s: styleTotalCell,
+    };
+    totalRow[9] = {
+      t: "n",
+      f: `SUM(J${startRowIndex}:J${endRowIndex})`,
+      s: styleTotalCell,
+    };
+    totalRow[10] = {
+      t: "n",
+      f: `SUM(K${startRowIndex}:K${endRowIndex})`,
+      s: styleTotalCell,
+    };
+    totalRow[11] = {
+      t: "n",
+      f: `SUM(L${startRowIndex}:L${endRowIndex})`,
+      s: styleTotalCell,
+    };
+    totalRow[12] = {
+      t: "n",
+      f: `SUM(M${startRowIndex}:M${endRowIndex})`,
+      s: styleTotalCell,
+    };
+    totalRow[18] = {
+      t: "n",
+      f: `SUM(S${startRowIndex}:S${endRowIndex})`,
+      s: styleTotalCell,
+    };
+    totalRow[19] = {
+      t: "n",
+      f: `SUM(T${startRowIndex}:T${endRowIndex})`,
+      s: styleTotalCell,
+    };
+
+    wsData.push(totalRow);
+
+    // ==========================================
+    // 4. GENERATE WORKSHEET & FILE
     // ==========================================
     const worksheet = XLSX.utils.aoa_to_sheet(wsData);
 
-    // Merge baris judul atas (Kolom A sampai U / Total 21 Kolom)
-    worksheet["!merges"] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 20 } }];
+    worksheet["!merges"] = [
+      { s: { r: 0, c: 0 }, e: { r: 0, c: 20 } },
+      { s: { r: endRowIndex + 1, c: 0 }, e: { r: endRowIndex + 1, c: 7 } },
+    ];
 
-    // Atur Lebar Kolom Excel secara proporsional
     worksheet["!cols"] = [
       { wch: 22 },
       { wch: 12 },

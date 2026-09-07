@@ -310,12 +310,20 @@ const detailHeaders = [
 ];
 
 // --- Computed Helper ---
-const isSingleSelected = computed(() => selected.value.length === 1);
-const selectedRow = computed(() =>
-  isSingleSelected.value
-    ? masterData.value.find((i) => i.Nomor === selected.value[0])
-    : null,
-);
+// --- Computed Helper ---
+const isSingleSelected = computed(() => selected.value.length > 0);
+
+const selectedRow = computed(() => {
+  if (selected.value.length === 0) return null;
+  const val = selected.value[0];
+  const nomorKey = typeof val === "object" && val !== null ? val.Nomor : val;
+  return masterData.value.find((i) => i.Nomor === nomorKey) || null;
+});
+
+// --- Action Event Handlers ---
+const handleRowClick = (event: any, { item }: any) => {
+  selected.value = selected.value.includes(item.Nomor) ? [] : [item.Nomor];
+};
 
 const getRowProps = ({ item }: any) => {
   return {
@@ -367,11 +375,6 @@ const loadDetailForExpanded = async (expandedKeys: any[]) => {
   } finally {
     targetItem.loadingDetail = false;
   }
-};
-
-// --- Action Event Handlers ---
-const handleRowClick = (event: any, { item }: any) => {
-  selected.value = selected.value[0] === item.Nomor ? [] : [item.Nomor];
 };
 
 const handleNew = () => {
@@ -544,7 +547,7 @@ const closePengajuanDialog = () => {
 const handlePrint = () => {
   if (!selectedRow.value) return;
   router.push({
-    name: "POExternalPrint",
+    name: "POExternalMmtPrint",
     params: { nomor: selectedRow.value.Nomor },
   });
 };
