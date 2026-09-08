@@ -262,12 +262,12 @@
           </th>
 
           <!-- DINAMIS COLSPAN MESIN BASED ON KATEGORI -->
-          <th
+          <!-- <th
             :colspan="mesinColumns.length"
             class="text-center header-group bg-cyan-header"
           >
             MESIN ({{ jenisLabel }})
-          </th>
+          </th> -->
 
           <!-- GROUP PRODUKSI (METER) -->
           <th colspan="3" class="text-center header-group bg-teal-header">
@@ -288,25 +288,25 @@
             class="text-right bg-blue-sub cursor-pointer select-none"
             @click="toggleSort('krg_Cetak')"
           >
-            Cetak {{ getSortIcon("krg_Cetak") }}
+            K-Cetak {{ getSortIcon("krg_Cetak") }}
           </th>
           <th
             class="text-right bg-blue-sub cursor-pointer select-none"
             @click="toggleSort('krg_Seaming')"
           >
-            Seam {{ getSortIcon("krg_Seaming") }}
+            K-Seam {{ getSortIcon("krg_Seaming") }}
           </th>
           <th
             class="text-right bg-blue-sub cursor-pointer select-none"
             @click="toggleSort('krg_mataayam')"
           >
-            M.Ayam {{ getSortIcon("krg_mataayam") }}
+            K-M.Ayam {{ getSortIcon("krg_mataayam") }}
           </th>
           <th
             class="text-right bg-blue-sub cursor-pointer select-none"
             @click="toggleSort('krg_coly')"
           >
-            Coly {{ getSortIcon("krg_coly") }}
+            K-Coly {{ getSortIcon("krg_coly") }}
           </th>
           <th
             class="text-right bg-blue-sub cursor-pointer select-none"
@@ -720,34 +720,34 @@ const jenisLabel = computed(() => {
 });
 
 // --- SKEMA MESIN DINAMIS BASED ON KATEGORI ---
-const mesinColumns = computed(() => {
-  if (jenisIndex.value === "1") {
-    return [
-      { label: "MX01", key: "mx01" },
-      { label: "MX02", key: "mx02" },
-      { label: "MX03", key: "mx03" },
-      { label: "MX04", key: "mx04" },
-      { label: "MX05", key: "mx05" },
-    ];
-  }
-  if (jenisIndex.value === "2") {
-    return [
-      { label: "SB01", key: "sb01" },
-      { label: "SB02", key: "sb02" },
-      { label: "SB03", key: "sb03" },
-      { label: "SB04", key: "sb04" },
-      { label: "SB05", key: "sb05" },
-    ];
-  }
-  return [
-    { label: "MT01", key: "mt01" },
-    { label: "MT02", key: "mt02" },
-    { label: "MT03", key: "mt03" },
-    { label: "MT04", key: "mt04" },
-    { label: "MT05", key: "mt05" },
-    { label: "MI", key: "mi" },
-  ];
-});
+// const mesinColumns = computed(() => {
+//   if (jenisIndex.value === "1") {
+//     return [
+//       { label: "MX01", key: "mx01" },
+//       { label: "MX02", key: "mx02" },
+//       { label: "MX03", key: "mx03" },
+//       { label: "MX04", key: "mx04" },
+//       { label: "MX05", key: "mx05" },
+//     ];
+//   }
+//   if (jenisIndex.value === "2") {
+//     return [
+//       { label: "SB01", key: "sb01" },
+//       { label: "SB02", key: "sb02" },
+//       { label: "SB03", key: "sb03" },
+//       { label: "SB04", key: "sb04" },
+//       { label: "SB05", key: "sb05" },
+//     ];
+//   }
+//   return [
+//     { label: "MT01", key: "mt01" },
+//     { label: "MT02", key: "mt02" },
+//     { label: "MT03", key: "mt03" },
+//     { label: "MT04", key: "mt04" },
+//     { label: "MT05", key: "mt05" },
+//     { label: "MI", key: "mi" },
+//   ];
+// });
 
 // --- FETCH REPORT ---
 const fetchReport = async () => {
@@ -1110,10 +1110,10 @@ const exportToExcel = (dataToExport: any[]) => {
   // Header Row 2
   const subPcs = [
     "Order",
-    "Cetak",
-    "Seam",
-    "M.Ayam",
-    "Coly",
+    "K-Cetak",
+    "K-Seam",
+    "K-M.Ayam",
+    "K-Coly",
     "K-Kirim",
     "Kirim",
   ];

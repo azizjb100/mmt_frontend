@@ -264,16 +264,14 @@
                   <th width="50">Order</th>
                   <th width="55">Sdh Ctk</th>
                   <th width="55">Kurang</th>
-                  <th
-                    width="45"
-                    title="Faktor Pengali / Porsi Komponen dalam Set"
-                  >
-                    Porsi
+
+                  <!-- 🌟 KOLOM TILE (Pengganti Porsi / Pengatur Jumlah Per Baris/Tumpukan) -->
+                  <th width="55" title="Jumlah Tile / Tumpukan per baris">
+                    Tile
                   </th>
+
                   <th width="55">Cetak</th>
-                  <th width="65" title="Total Fisik (Cetak x Porsi)">
-                    Hasil Fisik
-                  </th>
+                  <th width="65" title="Total Hasil Fisik">Hasil Fisik</th>
                   <th width="80">Total M²</th>
                   <th width="35"></th>
                 </tr>
@@ -381,20 +379,19 @@
                     {{ item.spk_kurang_cetak || 0 }}
                   </td>
 
-                  <!-- 🆕 KOLOM MULTIPLIER / PORSI KOMPONEN -->
-                  <!-- Kolom Porsi (Multiplier) -->
+                  <!-- 🌟 INPUT KOLOM TILE (Bisa dipaksa isi lebih dari standar muat) -->
                   <td class="bg-amber-lighten-5">
                     <input
                       type="number"
-                      v-model.number="item.multiplier"
-                      class="cell-input text-center font-weight-bold"
+                      v-model.number="item.tile"
+                      class="cell-input text-center font-weight-bold text-orange-darken-4"
                       min="1"
                       @input="recalculateCombine"
                       @wheel="$event.target.blur()"
                     />
                   </td>
 
-                  <!-- Kolom Cetak (Lembar Layout) -->
+                  <!-- Kolom Cetak (Default 0) -->
                   <td class="bg-yellow-lighten-5">
                     <input
                       type="number"
@@ -405,12 +402,13 @@
                     />
                   </td>
 
-                  <!-- 🆕 KOLOM HASIL CETAK FISIK (Cetak x Porsi) -->
+                  <!-- Hasil Fisik (Cetak x Tile) -->
                   <td
                     class="text-center font-weight-bold bg-grey-lighten-4 text-blue-darken-3"
                   >
-                    {{ (item.jumlah_sublim || 0) * (item.multiplier || 1) }} Pcs
+                    {{ item.jumlah_sublim || 0 }} Pcs
                   </td>
+
                   <!-- Total Luas Meter -->
                   <td class="text-right font-weight-bold px-2 text-deep-purple">
                     {{ (item.spk_jmlmeter || 0).toFixed(2).replace(".", ",") }}
@@ -757,14 +755,16 @@ const fetchApi = async () => {
       const inputCetak = parseInt(
         item.Jumlah || item.jumlah_sublim || item.lsbd_jumlah || 0,
       );
-      const multiplierVal = parseInt(
-        item.multiplier || item.lsbd_multiplier || 1,
+
+      // Ambil nilai tile (fallback ke multiplier lama atau 1 jika kosong)
+      const tileVal = parseInt(
+        item.tile || item.multiplier || item.lsbd_multiplier || 1,
       );
 
       const kurangAsli =
         item.kurangcetak_asli !== undefined
           ? parseFloat(item.kurangcetak_asli)
-          : order - sdhCetak + inputCetak * multiplierVal;
+          : order - sdhCetak + inputCetak * tileVal;
 
       return {
         poi_nomor:
@@ -797,9 +797,9 @@ const fetchApi = async () => {
         spk_jmlorder: order,
         spk_sudah_cetak: sdhCetak,
         kurangcetak_asli: kurangAsli,
-        multiplier: multiplierVal,
+        tile: tileVal,
         jumlah_sublim: inputCetak,
-        spk_kurang_cetak: kurangAsli - inputCetak * multiplierVal,
+        spk_kurang_cetak: kurangAsli - inputCetak * tileVal,
         padding: item.Padding || item.padding || "0.03",
         orientasi: item.Orientasi || item.orientasi || "lebar",
         spk_jmlmeter: parseFloat(
@@ -854,6 +854,7 @@ const submitApi = async (): Promise<unknown> => {
       lsbd_komponen: d.spk_komponen || "ALL SET",
       spk_jmlorder: parseInt(d.spk_jmlorder || 0),
       jumlah_sublim: parseInt(d.jumlah_sublim || 0),
+      tile: parseInt(d.tile || 1),
       multiplier: parseInt(d.multiplier || 1),
       spk_panjang: parseFloat(d.spk_panjang || 0),
       spk_lebar: parseFloat(d.spk_lebar || 0),
@@ -962,15 +963,16 @@ const validateBeforeSave = (status: string) => {
   showSaveDialog.value = true;
 };
 
+// 2. Fungsi Recalculate Combine (Perhitungan berdasarkan Tile & Cetak)
 const recalculateCombine = () => {
   let subtotalSistemSemuaBaris = 0;
 
   formData.value.details.forEach((d: any) => {
     const pSpk = parseFloat(d.spk_panjang) || 0;
     const lSpk = parseFloat(d.spk_lebar) || 0;
-    const cetakLayout = parseFloat(d.jumlah_sublim) || 0; // Input Lembar Cetak
-    const porsiPcs = parseFloat(d.multiplier) || 1; // Input Porsi/Pcs per set
-    const padM = parseFloat(d.padding) || 0;
+    const cetakLayout = parseFloat(d.jumlah_sublim) || 0; // Qty Cetak
+    const tileInput = parseInt(d.tile) || 1; // Jumlah Tile
+    const padM = parseFloat(d.padding) || 0; // Padding (hanya untuk layout, tidak masuk M²)
 
     const order = parseFloat(d.spk_jmlorder) || 0;
     const sdhCetak = parseFloat(d.spk_sudah_cetak) || 0;
@@ -979,29 +981,21 @@ const recalculateCombine = () => {
       d.kurangcetak_asli = order - sdhCetak;
     }
 
-    // 🌟 1. HITUNG HASIL CETAK FISIK TOTAL (Contoh: 5 cetak x 3 porsi = 15 pcs)
-    const totalFisikRiil = cetakLayout * porsiPcs;
-
-    if (totalFisikRiil > d.kurangcetak_asli && d.kurangcetak_asli > 0) {
-      toast.warning(
-        `SPK ${d.spk_nomor} (Total Fisik: ${totalFisilRiil} melebihi sisa order: ${d.kurangcetak_asli})`,
-      );
-    }
-
+    const totalFisikRiil = cetakLayout; // Hasil fisik = cetak
     d.spk_kurang_cetak = d.kurangcetak_asli - totalFisikRiil;
 
-    // 🌟 2. HITUNG M² BERDASARKAN TOTAL FISIK RIIL
-    if (d.orientasi === "panjang") {
-      d.spk_jmlmeter = (lSpk + padM) * pSpk * totalFisikRiil;
-    } else {
-      d.spk_jmlmeter = (pSpk + padM) * lSpk * totalFisikRiil;
-    }
+    // 🌟 RUMUS M² MURNI: P_SPK x L_SPK x QTY CETAK (Tanpa Padding)
+    d.spk_jmlmeter = pSpk * lSpk * totalFisikRiil;
 
-    // 🌟 3. HITUNG PANJANG ROL BAHAN (Berdasarkan seberapa banyak lembar layout 'cetak' yang jalan)
+    // Hitung langkah maju roll (Panjang terpakai) dengan tetap memperhitungkan padding layout
+    const jumlahLangkahMaju = Math.ceil(cetakLayout / Math.max(tileInput, 1));
+
     if (d.orientasi === "panjang") {
-      subtotalSistemSemuaBaris += (lSpk + padM) * cetakLayout;
+      // Jika orientasi diputar, lebar SPK ditambah padding layout ke roll
+      subtotalSistemSemuaBaris += (lSpk + padM) * jumlahLangkahMaju;
     } else {
-      subtotalSistemSemuaBaris += (pSpk + padM) * cetakLayout;
+      // Jika orientasi normal, panjang SPK ditambah padding layout ke roll
+      subtotalSistemSemuaBaris += (pSpk + padM) * jumlahLangkahMaju;
     }
   });
 
@@ -1027,53 +1021,86 @@ const autoFillLayout = (isSilent = false) => {
     return;
   }
 
-  const maxBahanLebar = Number(formData.value.Lebar_bahan);
+  const maxLebarBahan = Number(formData.value.Lebar_bahan); // Misal 1.6 M
   let unitGlobalIdx = 0;
-  let currentStartX = 0;
-  let currentY = 0;
   let maxOverallX = 0;
   let maxOverallY = 0;
+  let maxLebarTerpakaiAktual = 0;
 
   formData.value.details.forEach((spk: any) => {
-    const qty = Number(spk.jumlah_sublim) || 0;
-    if (qty <= 0) return;
+    const cetakQty = Number(spk.jumlah_sublim) || 0;
+    const tileInput = Number(spk.tile) || 1; // Nilai tile yang dipaksa oleh user (misal 5)
+    if (cetakQty <= 0) return;
 
     const padM = parseFloat(spk.padding) || 0;
     const pSpk = parseFloat(spk.spk_panjang) || 0;
     const lSpk = parseFloat(spk.spk_lebar) || 0;
 
-    const w = spk.orientasi === "panjang" ? lSpk : pSpk + padM;
-    const h = spk.orientasi === "panjang" ? pSpk + padM : lSpk;
+    const unitW = spk.orientasi === "panjang" ? lSpk : pSpk + padM;
+    const unitH = spk.orientasi === "panjang" ? pSpk : lSpk + padM;
 
-    for (let i = 0; i < qty; i++) {
-      if (currentY + h > maxBahanLebar + 0.01) {
-        currentStartX = maxOverallX;
-        currentY = 0;
-      }
+    // 🌟 KUNCI UTAMA: Gunakan tileInput secara mutlak tanpa dibatasi kapasitas fisik,
+    // tapi jika jumlah tile dipaksa melebihi lebar bahan, kita sesuaikan jarak
+    // step vertikalnya (spacing tumpukan) agar tetap pas di dalam maxLebarBahan.
+    const effectiveSpacingY =
+      tileInput > 0 ? Math.min(unitH, maxLebarBahan / tileInput) : unitH;
 
+    let currentStepX = 0;
+    let currentTileY = 0;
+    let itemsInCurrentColumn = 0;
+
+    for (let i = 0; i < cetakQty; i++) {
       if (!manualOffsets[unitGlobalIdx]) {
         manualOffsets[unitGlobalIdx] = {
-          x: currentStartX,
-          y: currentY,
+          x: currentStepX,
+          y: currentTileY,
           rotation: spk.orientasi === "panjang" ? 90 : 0,
         };
       }
 
-      const edgeRight = manualOffsets[unitGlobalIdx].x + w;
-      const edgeBottom = manualOffsets[unitGlobalIdx].y + h;
+      const edgeRight = manualOffsets[unitGlobalIdx].x + unitW;
+      const edgeBottom = manualOffsets[unitGlobalIdx].y + unitH;
 
       if (edgeRight > maxOverallX) maxOverallX = edgeRight;
-      if (edgeBottom > maxOverallY) maxOverallY = edgeBottom;
+      if (edgeBottom > maxOverallY) maxOverallY = maxOverallY;
 
-      currentY += h;
+      const lebarBarisIni = currentTileY + unitH;
+      if (
+        lebarBarisIni > maxLebarTerpakaiAktual &&
+        lebarBarisIni <= maxLebarBahan
+      ) {
+        maxLebarTerpakaiAktual = lebarBarisIni;
+      }
+
+      itemsInCurrentColumn++;
+
+      // Geser posisi Y ke bawah berdasarkan spacing yang menyesuaikan jumlah paksaan tile,
+      // sehingga jika dipaksa 5 tile, posisinya akan bertumpuk rapat di dalam batas Lebar_bahan.
+      currentTileY += effectiveSpacingY;
+
+      // Jika jumlah item vertikal sudah mencapai tile yang dipaksa user (misal 5),
+      // maka reset posisi Y ke 0 dan geser ke kolom (X) berikutnya.
+      if (itemsInCurrentColumn >= tileInput) {
+        itemsInCurrentColumn = 0;
+        currentTileY = 0;
+        currentStepX += unitW;
+      }
+
       unitGlobalIdx++;
     }
   });
 
   totalPanjangTerpakai.value = Number(maxOverallX.toFixed(2));
-  totalLebarGabungan.value = Number(maxOverallY.toFixed(2));
 
-  if (!isSilent) toast.success("Layout otomatis berhasil dioptimasi.");
+  totalLebarGabungan.value = Number(
+    Math.min(
+      maxLebarTerpakaiAktual > 0 ? maxLebarTerpakaiAktual : maxOverallY,
+      maxLebarBahan,
+    ).toFixed(2),
+  );
+
+  if (!isSilent)
+    toast.success("Layout diperbarui: Tile dipaksa bertumpuk sesuai input.");
 };
 
 const handleBsInput = (event: any) => {
@@ -1157,16 +1184,18 @@ const layoutRows = computed(() => {
   const blocks: any[] = [];
   formData.value.details.forEach((spk: any) => {
     const padM = parseFloat(spk.padding) || 0;
-    const visualW =
+    const cetakQty = parseInt(spk.jumlah_sublim) || 0;
+
+    const unitW =
       spk.orientasi === "panjang" ? spk.spk_lebar : spk.spk_panjang + padM;
-    const visualH =
+    const unitH =
       spk.orientasi === "panjang" ? spk.spk_panjang + padM : spk.spk_lebar;
 
-    for (let i = 0; i < (spk.jumlah_sublim || 0); i++) {
+    for (let i = 0; i < cetakQty; i++) {
       blocks.push({
-        label: `${spk.spk_nomor}`,
-        w: visualW,
-        h: visualH,
+        label: `${spk.spk_nomor} (#${i + 1})`,
+        w: unitW,
+        h: unitH,
         x: 0,
         y: 0,
         rotated: spk.orientasi === "panjang",
@@ -1314,7 +1343,7 @@ const handlePoiSelect = (poiData: any) => {
     kurangcetak_asli: sisaQty > 0 ? sisaQty : qtyOrder,
     spk_kurang_cetak: 0,
     multiplier: 1,
-    jumlah_sublim: sisaQty > 0 ? sisaQty : qtyOrder,
+    jumlah_sublim: 0,
     padding: "0.03",
     orientasi: "lebar",
     spk_jmlmeter: 0,
@@ -1495,7 +1524,7 @@ const injectSpkObject = (spk: any, fallbackCode: string = "") => {
     kurangcetak_asli: kurangAsli > 0 ? kurangAsli : qtyOrderSpk,
     spk_kurang_cetak: 0,
     multiplier: item.multiplier || 1,
-    jumlah_sublim: kurangAsli > 0 ? kurangAsli : qtyOrderSpk,
+    jumlah_sublim: 0,
     padding: item.padding || "0.03",
     orientasi: item.orientasi || "lebar",
     spk_jmlmeter: 0,

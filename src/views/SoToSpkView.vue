@@ -123,8 +123,8 @@ const masterHeaders = [
   { title: "Nomor SPK", key: "SPK", width: "160px", minWidth: "160px" },
   { title: "MO", key: "MO", width: "100px" },
   { title: "CMO", key: "CMO", width: "120px" },
-  { title: "Tanggal", key: "Tanggal", width: "110px" },
-  { title: "Dateline", key: "Dateline", width: "110px" },
+  { title: "Tanggal", key: "Tanggal", minWidth: "110px", width: "110px" },
+  { title: "Dateline", key: "Dateline", minWidth: "110px", width: "110px" },
   { title: "Kepentingan", key: "Kepentingan", width: "120px" },
   { title: "Divisi", key: "Divisi", width: "90px" },
   { title: "Nama Pesanan", key: "Nama", width: "250px" },
@@ -204,6 +204,32 @@ const formatDateDisplay = (dateStr: string | null | undefined) => {
   if (!dateStr) return "-";
   const d = parseISO(dateStr);
   return isValid(d) ? format(d, "dd/MM/yyyy") : "-";
+};
+
+// --- Helper Custom Sort Kronologis dengan Deteksi Arah (Asc / Desc) ---
+const sortByFullDate = (rowA: any, rowB: any, key: string) => {
+  const parseDateNum = (item: any) => {
+    const val = item[key];
+    if (!val || val === "-") return 0;
+
+    const strVal = String(val).trim();
+    const parts = strVal.split("/");
+
+    if (parts.length === 3) {
+      const day = parseInt(parts[0], 10) || 0;
+      const month = parseInt(parts[1], 10) || 0;
+      const year = parseInt(parts[2], 10) || 0;
+
+      return year * 10000 + month * 100 + day;
+    }
+    return 0;
+  };
+
+  const dateA = parseDateNum(rowA);
+  const dateB = parseDateNum(rowB);
+
+  // Perbandingan dasar (Ascending: kecil ke besar)
+  return dateA - dateB;
 };
 
 const getStatusColor = (item: SpkHeader) => {
@@ -296,9 +322,41 @@ const exportToExcel = async () => {
 
   try {
     // =========================================================
-    // 1. SYNC DETAIL SPK
+    // 0. URUTKAN DATA (SORTING) KRONOLOGIS SEBELUM EXPORT
     // =========================================================
-    for (const header of currentFilteredItems.value) {
+    const sortedItems = [...currentFilteredItems.value].sort(
+      (a: any, b: any) => {
+        const getNum = (val: string) => {
+          if (!val || val === "-") return 0;
+          const strVal = String(val).trim();
+          // Mendukung format "DD/MM/YYYY" atau "YYYY-MM-DD"
+          if (strVal.includes("/")) {
+            const parts = strVal.split("/");
+            if (parts.length === 3) {
+              const day = parseInt(parts[0], 10) || 0;
+              const month = parseInt(parts[1], 10) || 0;
+              const year = parseInt(parts[2], 10) || 0;
+              return year * 10000 + month * 100 + day;
+            }
+          } else if (strVal.includes("-")) {
+            const parts = strVal.substring(0, 10).split("-");
+            if (parts.length === 3) {
+              const year = parseInt(parts[0], 10) || 0;
+              const month = parseInt(parts[1], 10) || 0;
+              const day = parseInt(parts[2], 10) || 0;
+              return year * 10000 + month * 100 + day;
+            }
+          }
+          return 0;
+        };
+        return getNum(a.Tanggal) - getNum(b.Tanggal);
+      },
+    );
+
+    // =========================================================
+    // 1. SYNC DETAIL SPK (Menggunakan sortedItems)
+    // =========================================================
+    for (const header of sortedItems) {
       const spkNomor = header.SPK || (header as any).Nomor;
 
       if (
@@ -312,7 +370,6 @@ const exportToExcel = async () => {
           details.value[spkNomor] = Array.isArray(resData) ? resData : [];
         } catch (e) {
           console.error(`Gagal sync detail SPK ${spkNomor}:`, e);
-
           details.value[spkNomor] = [];
         }
       }
@@ -328,32 +385,20 @@ const exportToExcel = async () => {
     // =========================================================
     const num = (value: any): number => {
       const parsed = Number(value);
-
       return Number.isNaN(parsed) ? 0 : parsed;
     };
 
     // =========================================================
     // 4. HELPER FORMAT TANGGAL
-    //
-    // Input:
-    // 2026-08-26 00:00:00
-    //
-    // Output:
-    // 26/08/2026
-    //
-    // Tidak menggunakan new Date() untuk MySQL DATETIME
-    // sehingga aman dari masalah timezone.
     // =========================================================
     const formatTglManual = (dateValue?: string | Date | null): string => {
       if (!dateValue) return "-";
 
       try {
-        // Jika Date object
         if (dateValue instanceof Date) {
           if (Number.isNaN(dateValue.getTime())) {
             return "-";
           }
-
           return [
             String(dateValue.getDate()).padStart(2, "0"),
             String(dateValue.getMonth() + 1).padStart(2, "0"),
@@ -362,55 +407,27 @@ const exportToExcel = async () => {
         }
 
         const value = String(dateValue).trim();
-
         if (!value) return "-";
 
-        // =====================================================
-        // MySQL DATETIME
-        // 2026-08-26 00:00:00
-        //
-        // Ambil YYYY-MM-DD saja.
-        // Jangan menggunakan new Date() karena timezone.
-        // =====================================================
         const mysqlMatch = value.match(/^(\d{4})-(\d{2})-(\d{2})/);
-
         if (mysqlMatch) {
           const [, year, month, day] = mysqlMatch;
-
           return `${day}/${month}/${year}`;
         }
 
-        // =====================================================
-        // Format DD-MM-YYYY
-        // 26-08-2026
-        // =====================================================
         const dmyMatch = value.match(/^(\d{2})-(\d{2})-(\d{4})/);
-
         if (dmyMatch) {
           const [, day, month, year] = dmyMatch;
-
           return `${day}/${month}/${year}`;
         }
 
-        // =====================================================
-        // Format DD/MM/YYYY
-        // 26/08/2026
-        // =====================================================
         const slashMatch = value.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
-
         if (slashMatch) {
           const [, day, month, year] = slashMatch;
-
           return `${day}/${month}/${year}`;
         }
 
-        // =====================================================
-        // ISO datetime
-        // Contoh:
-        // 2026-08-26T00:00:00.000Z
-        // =====================================================
         const isoDate = new Date(value);
-
         if (!Number.isNaN(isoDate.getTime())) {
           return [
             String(isoDate.getDate()).padStart(2, "0"),
@@ -442,44 +459,20 @@ const exportToExcel = async () => {
         wrapText: true,
       },
       border: {
-        top: {
-          style: "thin",
-          color: { rgb: "000000" },
-        },
-        bottom: {
-          style: "thin",
-          color: { rgb: "000000" },
-        },
-        left: {
-          style: "thin",
-          color: { rgb: "000000" },
-        },
-        right: {
-          style: "thin",
-          color: { rgb: "000000" },
-        },
+        top: { style: "thin", color: { rgb: "000000" } },
+        bottom: { style: "thin", color: { rgb: "000000" } },
+        left: { style: "thin", color: { rgb: "000000" } },
+        right: { style: "thin", color: { rgb: "000000" } },
       },
     };
 
     const styleDataCell = {
       font: { sz: 10 },
       border: {
-        top: {
-          style: "thin",
-          color: { rgb: "000000" },
-        },
-        bottom: {
-          style: "thin",
-          color: { rgb: "000000" },
-        },
-        left: {
-          style: "thin",
-          color: { rgb: "000000" },
-        },
-        right: {
-          style: "thin",
-          color: { rgb: "000000" },
-        },
+        top: { style: "thin", color: { rgb: "000000" } },
+        bottom: { style: "thin", color: { rgb: "000000" } },
+        left: { style: "thin", color: { rgb: "000000" } },
+        right: { style: "thin", color: { rgb: "000000" } },
       },
       alignment: {
         vertical: "center",
@@ -588,41 +581,25 @@ const exportToExcel = async () => {
     let grandTotalKirim = 0;
 
     // =========================================================
-    // 9. DATA ROW
+    // 9. DATA ROW (Menggunakan sortedItems)
     // =========================================================
-    currentFilteredItems.value.forEach((header) => {
+    sortedItems.forEach((header) => {
       const spkNomor = header.SPK || (header as any).Nomor || "-";
-
       const soNomor = header.SO || "-";
-
       const targetSizes = details.value[spkNomor] || [];
 
-      // =======================================================
-      // FORMAT TANGGAL
-      // =======================================================
       const tglSpk = formatTglManual(header.Tanggal);
-
       const datelineSpk = formatTglManual(header.Dateline);
-
       const cabText = header.Cab || (header as any).Cabang || "-";
 
-      // =======================================================
-      // TOTAL
-      // =======================================================
       grandTotalPraSJ += num(header.PraSJ);
       grandTotalKirim += num(header.Kirim);
 
-      // =======================================================
-      // JIKA ADA DETAIL SIZE
-      // =======================================================
       if (targetSizes.length > 0) {
         targetSizes.forEach((dtl, index) => {
           const isFirstRow = index === 0;
-
           const qtySize = num(dtl.Qty);
-
           const stbjSize = num(dtl.Stbj);
-
           const kurangSize = num(dtl.Kurang);
 
           grandTotalQtySPK += qtySize;
@@ -630,30 +607,12 @@ const exportToExcel = async () => {
           grandTotalKurang += kurangSize;
 
           worksheetData.push([
-            {
-              v: isFirstRow ? soNomor : "-",
-              s: styleDataCellCenter,
-            },
-            {
-              v: isFirstRow ? spkNomor : "-",
-              s: styleDataCellCenter,
-            },
-            {
-              v: isFirstRow ? header.MO || "-" : "-",
-              s: styleDataCellCenter,
-            },
-            {
-              v: isFirstRow ? header.CMO || "-" : "-",
-              s: styleDataCellCenter,
-            },
-            {
-              v: isFirstRow ? tglSpk : "-",
-              s: styleDataCellCenter,
-            },
-            {
-              v: isFirstRow ? datelineSpk : "-",
-              s: styleDataCellCenter,
-            },
+            { v: isFirstRow ? soNomor : "-", s: styleDataCellCenter },
+            { v: isFirstRow ? spkNomor : "-", s: styleDataCellCenter },
+            { v: isFirstRow ? header.MO || "-" : "-", s: styleDataCellCenter },
+            { v: isFirstRow ? header.CMO || "-" : "-", s: styleDataCellCenter },
+            { v: isFirstRow ? tglSpk : "-", s: styleDataCellCenter },
+            { v: isFirstRow ? datelineSpk : "-", s: styleDataCellCenter },
             {
               v: isFirstRow ? header.Kepentingan || "-" : "-",
               s: styleDataCell,
@@ -662,18 +621,9 @@ const exportToExcel = async () => {
               v: isFirstRow ? header.Divisi || "-" : "-",
               s: styleDataCellCenter,
             },
-            {
-              v: isFirstRow ? cabText : "-",
-              s: styleDataCellCenter,
-            },
-            {
-              v: isFirstRow ? header.Nama || "-" : "-",
-              s: styleDataCell,
-            },
-            {
-              v: isFirstRow ? header.Pesan || "-" : "-",
-              s: styleDataCell,
-            },
+            { v: isFirstRow ? cabText : "-", s: styleDataCellCenter },
+            { v: isFirstRow ? header.Nama || "-" : "-", s: styleDataCell },
+            { v: isFirstRow ? header.Pesan || "-" : "-", s: styleDataCell },
             {
               v: isFirstRow ? num(header.Panjang) : 0,
               t: "n",
@@ -690,14 +640,8 @@ const exportToExcel = async () => {
               v: isFirstRow ? header.Gramasi || "-" : "-",
               s: styleDataCellCenter,
             },
-            {
-              v: isFirstRow ? header.Bahan || "-" : "-",
-              s: styleDataCell,
-            },
-            {
-              v: isFirstRow ? header.Finishing || "-" : "-",
-              s: styleDataCell,
-            },
+            { v: isFirstRow ? header.Bahan || "-" : "-", s: styleDataCell },
+            { v: isFirstRow ? header.Finishing || "-" : "-", s: styleDataCell },
             {
               v: isFirstRow ? header.STATUS || "-" : "-",
               s: styleDataCellCenter,
@@ -706,28 +650,10 @@ const exportToExcel = async () => {
               v: isFirstRow ? header.Ngedit || "-" : "-",
               s: styleDataCellCenter,
             },
-            {
-              v: dtl.Size || "-",
-              s: styleDataCellCenter,
-            },
-            {
-              v: qtySize,
-              t: "n",
-              z: "#,##0",
-              s: styleDataCellRight,
-            },
-            {
-              v: stbjSize,
-              t: "n",
-              z: "#,##0",
-              s: styleDataCellRight,
-            },
-            {
-              v: kurangSize,
-              t: "n",
-              z: "#,##0",
-              s: styleDataCellRight,
-            },
+            { v: dtl.Size || "-", s: styleDataCellCenter },
+            { v: qtySize, t: "n", z: "#,##0", s: styleDataCellRight },
+            { v: stbjSize, t: "n", z: "#,##0", s: styleDataCellRight },
+            { v: kurangSize, t: "n", z: "#,##0", s: styleDataCellRight },
             isFirstRow
               ? {
                   v: num(header.PraSJ),
@@ -735,10 +661,7 @@ const exportToExcel = async () => {
                   z: "#,##0",
                   s: styleDataCellRight,
                 }
-              : {
-                  v: "-",
-                  s: styleDataCellCenter,
-                },
+              : { v: "-", s: styleDataCellCenter },
             isFirstRow
               ? {
                   v: num(header.Kirim),
@@ -746,61 +669,22 @@ const exportToExcel = async () => {
                   z: "#,##0",
                   s: styleDataCellRight,
                 }
-              : {
-                  v: "-",
-                  s: styleDataCellCenter,
-                },
+              : { v: "-", s: styleDataCellCenter },
           ]);
         });
       } else {
-        // =====================================================
-        // JIKA TIDAK ADA DETAIL SIZE
-        // =====================================================
         worksheetData.push([
-          {
-            v: soNomor,
-            s: styleDataCellCenter,
-          },
-          {
-            v: spkNomor,
-            s: styleDataCellCenter,
-          },
-          {
-            v: header.MO || "-",
-            s: styleDataCellCenter,
-          },
-          {
-            v: header.CMO || "-",
-            s: styleDataCellCenter,
-          },
-          {
-            v: tglSpk,
-            s: styleDataCellCenter,
-          },
-          {
-            v: datelineSpk,
-            s: styleDataCellCenter,
-          },
-          {
-            v: header.Kepentingan || "-",
-            s: styleDataCell,
-          },
-          {
-            v: header.Divisi || "-",
-            s: styleDataCellCenter,
-          },
-          {
-            v: cabText,
-            s: styleDataCellCenter,
-          },
-          {
-            v: header.Nama || "-",
-            s: styleDataCell,
-          },
-          {
-            v: header.Pesan || "-",
-            s: styleDataCell,
-          },
+          { v: soNomor, s: styleDataCellCenter },
+          { v: spkNomor, s: styleDataCellCenter },
+          { v: header.MO || "-", s: styleDataCellCenter },
+          { v: header.CMO || "-", s: styleDataCellCenter },
+          { v: tglSpk, s: styleDataCellCenter },
+          { v: datelineSpk, s: styleDataCellCenter },
+          { v: header.Kepentingan || "-", s: styleDataCell },
+          { v: header.Divisi || "-", s: styleDataCellCenter },
+          { v: cabText, s: styleDataCellCenter },
+          { v: header.Nama || "-", s: styleDataCell },
+          { v: header.Pesan || "-", s: styleDataCell },
           {
             v: num(header.Panjang),
             t: "n",
@@ -813,60 +697,17 @@ const exportToExcel = async () => {
             z: "#,##0.##",
             s: styleDataCellRight,
           },
-          {
-            v: header.Gramasi || "-",
-            s: styleDataCellCenter,
-          },
-          {
-            v: header.Bahan || "-",
-            s: styleDataCell,
-          },
-          {
-            v: header.Finishing || "-",
-            s: styleDataCell,
-          },
-          {
-            v: header.STATUS || "-",
-            s: styleDataCellCenter,
-          },
-          {
-            v: header.Ngedit || "-",
-            s: styleDataCellCenter,
-          },
-          {
-            v: "-",
-            s: styleDataCellCenter,
-          },
-          {
-            v: 0,
-            t: "n",
-            z: "#,##0",
-            s: styleDataCellRight,
-          },
-          {
-            v: 0,
-            t: "n",
-            z: "#,##0",
-            s: styleDataCellRight,
-          },
-          {
-            v: 0,
-            t: "n",
-            z: "#,##0",
-            s: styleDataCellRight,
-          },
-          {
-            v: num(header.PraSJ),
-            t: "n",
-            z: "#,##0",
-            s: styleDataCellRight,
-          },
-          {
-            v: num(header.Kirim),
-            t: "n",
-            z: "#,##0",
-            s: styleDataCellRight,
-          },
+          { v: header.Gramasi || "-", s: styleDataCellCenter },
+          { v: header.Bahan || "-", s: styleDataCell },
+          { v: header.Finishing || "-", s: styleDataCell },
+          { v: header.STATUS || "-", s: styleDataCellCenter },
+          { v: header.Ngedit || "-", s: styleDataCellCenter },
+          { v: "-", s: styleDataCellCenter },
+          { v: 0, t: "n", z: "#,##0", s: styleDataCellRight },
+          { v: 0, t: "n", z: "#,##0", s: styleDataCellRight },
+          { v: 0, t: "n", z: "#,##0", s: styleDataCellRight },
+          { v: num(header.PraSJ), t: "n", z: "#,##0", s: styleDataCellRight },
+          { v: num(header.Kirim), t: "n", z: "#,##0", s: styleDataCellRight },
         ]);
       }
     });
@@ -879,80 +720,53 @@ const exportToExcel = async () => {
         v: "GRAND TOTAL",
         s: {
           ...styleFooter,
-          alignment: {
-            horizontal: "right",
-            vertical: "center",
-          },
+          alignment: { horizontal: "right", vertical: "center" },
         },
       },
-
-      ...Array(18).fill({
-        v: "",
-        s: styleFooter,
-      }),
-
+      ...Array(18).fill({ v: "", s: styleFooter }),
       {
         v: grandTotalQtySPK,
         t: "n",
         z: "#,##0",
         s: {
           ...styleFooter,
-          alignment: {
-            horizontal: "right",
-            vertical: "center",
-          },
+          alignment: { horizontal: "right", vertical: "center" },
         },
       },
-
       {
         v: grandTotalStbj,
         t: "n",
         z: "#,##0",
         s: {
           ...styleFooter,
-          alignment: {
-            horizontal: "right",
-            vertical: "center",
-          },
+          alignment: { horizontal: "right", vertical: "center" },
         },
       },
-
       {
         v: grandTotalKurang,
         t: "n",
         z: "#,##0",
         s: {
           ...styleFooter,
-          alignment: {
-            horizontal: "right",
-            vertical: "center",
-          },
+          alignment: { horizontal: "right", vertical: "center" },
         },
       },
-
       {
         v: grandTotalPraSJ,
         t: "n",
         z: "#,##0",
         s: {
           ...styleFooter,
-          alignment: {
-            horizontal: "right",
-            vertical: "center",
-          },
+          alignment: { horizontal: "right", vertical: "center" },
         },
       },
-
       {
         v: grandTotalKirim,
         t: "n",
         z: "#,##0",
         s: {
           ...styleFooter,
-          alignment: {
-            horizontal: "right",
-            vertical: "center",
-          },
+          alignment: { horizontal: "right", vertical: "center" },
         },
       },
     ];
@@ -960,37 +774,19 @@ const exportToExcel = async () => {
     worksheetData.push(footerRow);
 
     // =========================================================
-    // 11. CREATE WORKSHEET
+    // 11. CREATE WORKSHEET & EXPORT
     // =========================================================
     const ws = XLSX.utils.aoa_to_sheet(worksheetData);
 
-    // =========================================================
-    // 12. MERGE
-    // =========================================================
     ws["!merges"] = [
+      { s: { r: 0, c: 0 }, e: { r: 0, c: 23 } },
+      { s: { r: 1, c: 0 }, e: { r: 1, c: 23 } },
       {
-        s: { r: 0, c: 0 },
-        e: { r: 0, c: 23 },
-      },
-      {
-        s: { r: 1, c: 0 },
-        e: { r: 1, c: 23 },
-      },
-      {
-        s: {
-          r: worksheetData.length - 1,
-          c: 0,
-        },
-        e: {
-          r: worksheetData.length - 1,
-          c: 18,
-        },
+        s: { r: worksheetData.length - 1, c: 0 },
+        e: { r: worksheetData.length - 1, c: 18 },
       },
     ];
 
-    // =========================================================
-    // 13. COLUMN WIDTH
-    // =========================================================
     ws["!cols"] = [
       { wch: 18 },
       { wch: 18 },
@@ -1018,19 +814,13 @@ const exportToExcel = async () => {
       { wch: 10 },
     ];
 
-    // =========================================================
-    // 14. CREATE WORKBOOK
-    // =========================================================
     const wb = XLSX.utils.book_new();
-
     XLSX.utils.book_append_sheet(wb, ws, "Monitoring_SPK");
-
     XLSX.writeFile(wb, fileName);
 
-    toast.success("Excel Berhasil Diexport Sesuai Data Terfilter!");
+    toast.success("Excel Berhasil Diexport Sesuai Data Terfilter dan Terurut!");
   } catch (error) {
     console.error("Export Error:", error);
-
     toast.error("Gagal mengekspor data terfilter.");
   } finally {
     isExporting.value = false;
@@ -1096,10 +886,13 @@ const fetchData = async () => {
           ...item,
           SPK: item.SPK || item.Nomor || "-",
           Nomor: item.Nomor || item.SPK || "-",
-          Tanggal: cleanDateToDMY(item.Tanggal || item.tanggal || item.Tgl),
-          Dateline: cleanDateToDMY(
-            item.Dateline || item.Deadline || item.dateline || item.deadline,
-          ),
+          Tanggal: item.Tanggal || item.tanggal || item.Tgl || "",
+          Dateline:
+            item.Dateline ||
+            item.Deadline ||
+            item.dateline ||
+            item.deadline ||
+            "",
           Deadline: cleanDateToDMY(
             item.Deadline || item.Dateline || item.deadline || item.dateline,
           ),
@@ -1494,13 +1287,13 @@ watch([startDate, endDate], ([newStart, newEnd]) => {
     </template>
 
     <!-- Slot Tanggal -->
-    <template #item.Tanggal="{ value }">
-      {{ value || "-" }}
+    <template #item.Tanggal="{ item }">
+      {{ formatDateDisplay(item.Tanggal) }}
     </template>
 
     <!-- Slot Dateline -->
     <template #item.Dateline="{ item }">
-      {{ item.Dateline || "-" }}
+      {{ formatDateDisplay(item.Dateline) }}
     </template>
 
     <!-- Slot Dateline PO -->
