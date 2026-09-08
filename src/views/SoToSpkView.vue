@@ -1086,6 +1086,56 @@ const handleExecuteGenerateSpk = async () => {
   }
 };
 
+const parseToExcelDate = (dateValue?: string | Date | null): Date | null => {
+  if (!dateValue) return null;
+
+  try {
+    if (dateValue instanceof Date) {
+      return Number.isNaN(dateValue.getTime()) ? null : dateValue;
+    }
+
+    const value = String(dateValue).trim();
+    if (!value) return null;
+
+    // Tangkap format MySQL DATETIME (YYYY-MM-DD ...)
+    const mysqlMatch = value.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (mysqlMatch) {
+      const [, year, month, day] = mysqlMatch;
+      // Buat Date dengan jam 00:00 local agar aman dari timezone
+      return new Date(
+        parseInt(year, 10),
+        parseInt(month, 10) - 1,
+        parseInt(day, 10),
+      );
+    }
+
+    // Tangkap format DD-MM-YYYY atau DD/MM/YYYY
+    const dmyMatch = value.match(/^(\d{2})[\/\-](\d{2})[\/\-](\d{4})/);
+    if (dmyMatch) {
+      const [, day, month, year] = dmyMatch;
+      return new Date(
+        parseInt(year, 10),
+        parseInt(month, 10) - 1,
+        parseInt(day, 10),
+      );
+    }
+
+    const isoDate = new Date(value);
+    if (!Number.isNaN(isoDate.getTime())) {
+      return new Date(
+        isoDate.getFullYear(),
+        isoDate.getMonth(),
+        isoDate.getDate(),
+      );
+    }
+
+    return null;
+  } catch (error) {
+    console.error("Gagal parse tanggal ke Date:", error);
+    return null;
+  }
+};
+
 // --- Lifecycle & Watchers ---
 onMounted(() => {
   fetchData();

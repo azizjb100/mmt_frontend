@@ -196,7 +196,6 @@ const handleSPKSelect = (spk: any) => {
 
   const sisa = formData.spkSisaBelumJadwal;
 
-  // Cek apakah data alokasi_list tersedia
   let alokasiData = spk.alokasi_list;
   if (typeof alokasiData === "string") {
     try {
@@ -206,7 +205,6 @@ const handleSPKSelect = (spk: any) => {
     }
   }
 
-  // Filter list alokasi yang valid (ada nama kota)
   const validAlokasi = Array.isArray(alokasiData)
     ? alokasiData.filter(
         (a: any) => (a.kota || a.spka_kota || "").trim() !== "",
@@ -214,10 +212,9 @@ const handleSPKSelect = (spk: any) => {
     : [];
 
   if (validAlokasi.length > 0) {
-    // JIKA ADA DATA ALOKASI: Buat baris sebanyak alokasi yang ada
-    formData.detail = validAlokasi.map((alok: any, idx: number) => {
+    validAlokasi.forEach((alok: any) => {
       const qtyAlokasi = Number(alok.jumlah || alok.spka_jumlah || 0);
-      const namaKota = alok.kota || alok.spka_kota || "";
+      const namaKota = (alok.kota || alok.spka_kota || "").trim();
       const pic = alok.person || alok.spka_person || "";
       const alamat = alok.alamat || alok.spka_alamat || "";
 
@@ -225,42 +222,92 @@ const handleSPKSelect = (spk: any) => {
       if (alamat) infoKet += alamat;
       if (pic) infoKet += (infoKet ? " - PIC: " : "PIC: ") + pic;
 
-      return {
-        no_urut: idx + 1,
-        kota: namaKota,
-        uraian: "",
-        size: formData.spkUkuran,
-        qty: qtyAlokasi > 0 ? qtyAlokasi : sisa,
-        maxQty: qtyAlokasi > 0 ? qtyAlokasi : sisa,
-        koli: 0,
-        jamInput: format(new Date(), "HH:mm"),
-        jamReady: "15:00",
-        expedisi: "",
-        keterangan: infoKet,
-      };
+      // Cek apakah kota yang sama sudah ada di tabel detail
+      const existingIndex = formData.detail.findIndex(
+        (d) => d.kota.trim().toLowerCase() === namaKota.toLowerCase(),
+      );
+
+      if (existingIndex !== -1) {
+        // REPLACE data pada baris yang sudah ada
+        formData.detail[existingIndex].size = formData.spkUkuran;
+        formData.detail[existingIndex].qty = qtyAlokasi > 0 ? qtyAlokasi : sisa;
+        formData.detail[existingIndex].maxQty =
+          qtyAlokasi > 0 ? qtyAlokasi : sisa;
+        if (infoKet) formData.detail[existingIndex].keterangan = infoKet;
+      } else {
+        // Jika belum ada dan baris pertama kosong, replace baris pertama; jika tidak, push baru
+        if (formData.detail.length === 1 && !formData.detail[0].kota.trim()) {
+          formData.detail[0] = {
+            no_urut: 1,
+            kota: namaKota,
+            uraian: "",
+            size: formData.spkUkuran,
+            qty: qtyAlokasi > 0 ? qtyAlokasi : sisa,
+            maxQty: qtyAlokasi > 0 ? qtyAlokasi : sisa,
+            koli: 0,
+            jamInput: format(new Date(), "HH:mm"),
+            jamReady: "15:00",
+            expedisi: "",
+            keterangan: infoKet,
+          };
+        } else {
+          formData.detail.push({
+            no_urut: formData.detail.length + 1,
+            kota: namaKota,
+            uraian: "",
+            size: formData.spkUkuran,
+            qty: qtyAlokasi > 0 ? qtyAlokasi : sisa,
+            maxQty: qtyAlokasi > 0 ? qtyAlokasi : sisa,
+            koli: 0,
+            jamInput: format(new Date(), "HH:mm"),
+            jamReady: "15:00",
+            expedisi: "",
+            keterangan: infoKet,
+          });
+        }
+      }
     });
   } else {
-    // JIKA TIDAK ADA DATA ALOKASI: Buat 1 baris default
-    formData.detail = [
-      {
-        no_urut: 1,
-        kota: spk.Alokasi || "",
-        uraian: "",
-        size: formData.spkUkuran,
-        qty: sisa > 0 ? sisa : 0,
-        maxQty: sisa > 0 ? sisa : 999999,
-        koli: 0,
-        jamInput: format(new Date(), "HH:mm"),
-        jamReady: "15:00",
-        expedisi: "",
-        keterangan: "",
-      },
-    ];
+    // Jika tidak ada data alokasi dari API SPK, perlakukan secara default
+    const defaultKota = (spk.Alokasi || "").trim();
+    if (defaultKota) {
+      const existingIndex = formData.detail.findIndex(
+        (d) => d.kota.trim().toLowerCase() === defaultKota.toLowerCase(),
+      );
+      if (existingIndex !== -1) {
+        formData.detail[existingIndex].qty = sisa > 0 ? sisa : 0;
+        formData.detail[existingIndex].maxQty = sisa > 0 ? sisa : 999999;
+      } else if (
+        formData.detail.length === 1 &&
+        !formData.detail[0].kota.trim()
+      ) {
+        formData.detail[0].kota = defaultKota;
+        formData.detail[0].qty = sisa > 0 ? sisa : 0;
+        formData.detail[0].maxQty = sisa > 0 ? sisa : 999999;
+      } else {
+        formData.detail.push({
+          no_urut: formData.detail.length + 1,
+          kota: defaultKota,
+          uraian: "",
+          size: formData.spkUkuran,
+          qty: sisa > 0 ? sisa : 0,
+          maxQty: sisa > 0 ? sisa : 999999,
+          koli: 0,
+          jamInput: format(new Date(), "HH:mm"),
+          jamReady: "15:00",
+          expedisi: "",
+          keterangan: "",
+        });
+      }
+    }
   }
+
+  // Merapikan kembali nomor urut (no_urut)
+  formData.detail.forEach((d, i) => (d.no_urut = i + 1));
 
   lookup.spk = false;
   toast.info(
-    `SPK ${formData.spkNomor} terpilih. (${formData.detail.length} baris tujuan disiapkan)`,
+    `SPK ${formData.spkNomor} berhasil diproses (Data alokasi disinkronkan).`,
   );
 };
 
@@ -352,14 +399,6 @@ const importExcel = (event: Event) => {
       return;
     }
 
-    const isFirstRowEmpty =
-      formData.detail.length === 1 && !formData.detail[0].kota;
-
-    if (isFirstRowEmpty) {
-      formData.detail = [];
-    }
-
-    const startIdx = formData.detail.length;
     const sisaBatasSpk = formData.spkSisaBelumJadwal;
 
     const excelSerialToTime = (serial: any) => {
@@ -370,24 +409,77 @@ const importExcel = (event: Event) => {
       return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
     };
 
-    const importedDetails: DetailItem[] = jsonData.map(
-      (row: any, index: number) => ({
-        no_urut: startIdx + index + 1,
-        kota: row.ALOKASI || row.KOTA || row.Kota || "",
-        uraian: row.URAIAN || row.Uraian || "",
-        size: row.SIZE || row.Size || formData.spkUkuran || "",
-        qty: Number(row.jumlah || row.JUMLAH || row.qty || row.Qty) || 0,
-        maxQty: sisaBatasSpk || 999999,
-        koli: Number(row.koli || row.KOLI) || 0,
-        jamInput: format(new Date(), "HH:mm"),
-        jamReady:
-          row.jam || row.JAM ? excelSerialToTime(row.jam || row.JAM) : "15:00",
-        expedisi: row.EXPEDISI || row.Expedisi || "",
-        keterangan: row.KETERANGAN || row.Keterangan || "",
-      }),
-    );
+    let importedCount = 0;
+    let replacedCount = 0;
 
-    formData.detail.push(...importedDetails);
+    jsonData.forEach((row: any) => {
+      const namaKota = String(row.ALOKASI || row.KOTA || row.Kota || "").trim();
+      if (!namaKota) return; // Lewati jika baris kosong / tanpa kota
+
+      const itemUraian = String(row.URAIAN || row.Uraian || "");
+      const itemSize = String(row.SIZE || row.Size || formData.spkUkuran || "");
+      const itemQty =
+        Number(row.jumlah || row.JUMLAH || row.qty || row.Qty) || 0;
+      const itemKoli = Number(row.koli || row.KOLI) || 0;
+      const itemJamReady =
+        row.jam || row.JAM ? excelSerialToTime(row.jam || row.JAM) : "15:00";
+      const itemExpedisi = String(row.EXPEDISI || row.Expedisi || "");
+      const itemKeterangan = String(row.KETERANGAN || row.Keterangan || "");
+
+      // Cek apakah kota sudah ada di tabel detail aktif
+      const existingIndex = formData.detail.findIndex(
+        (d) => d.kota.trim().toLowerCase() === namaKota.toLowerCase(),
+      );
+
+      if (existingIndex !== -1) {
+        // REPLACE data lama dengan data baru dari Excel
+        const targetItem = formData.detail[existingIndex];
+        targetItem.uraian = itemUraian || targetItem.uraian;
+        targetItem.size = itemSize || targetItem.size;
+        targetItem.qty = itemQty > 0 ? itemQty : targetItem.qty;
+        targetItem.koli = itemKoli > 0 ? itemKoli : targetItem.koli;
+        targetItem.jamReady = itemJamReady;
+        if (itemExpedisi) targetItem.expedisi = itemExpedisi;
+        if (itemKeterangan) targetItem.keterangan = itemKeterangan;
+        replacedCount++;
+      } else {
+        // Jika baris pertama masih kosong (belum diisi apa-apa), gunakan baris itu
+        if (formData.detail.length === 1 && !formData.detail[0].kota.trim()) {
+          formData.detail[0] = {
+            no_urut: 1,
+            kota: namaKota,
+            uraian: itemUraian,
+            size: itemSize,
+            qty: itemQty,
+            maxQty: sisaBatasSpk || 999999,
+            koli: itemKoli,
+            jamInput: format(new Date(), "HH:mm"),
+            jamReady: itemJamReady,
+            expedisi: itemExpedisi,
+            keterangan: itemKeterangan,
+          };
+        } else {
+          // Tambahkan sebagai baris baru jika kota belum ada sama sekali
+          formData.detail.push({
+            no_urut: formData.detail.length + 1,
+            kota: namaKota,
+            uraian: itemUraian,
+            size: itemSize,
+            qty: itemQty,
+            maxQty: sisaBatasSpk || 999999,
+            koli: itemKoli,
+            jamInput: format(new Date(), "HH:mm"),
+            jamReady: itemJamReady,
+            expedisi: itemExpedisi,
+            keterangan: itemKeterangan,
+          });
+        }
+        importedCount++;
+      }
+    });
+
+    // Merapikan kembali nomor urut
+    formData.detail.forEach((d, i) => (d.no_urut = i + 1));
 
     const totalQtySetelahImport = formData.detail.reduce(
       (sum, d) => sum + (Number(d.qty) || 0),
@@ -399,12 +491,14 @@ const importExcel = (event: Event) => {
       totalQtySetelahImport > formData.spkSisaBelumJadwal
     ) {
       toast.warning(
-        `Peringatan: Total Qty setelah import (${totalQtySetelahImport}) MELEBIHI sisa order SPK (${formData.spkSisaBelumJadwal})!`,
+        `Peringatan: Total Qty (${totalQtySetelahImport}) MELEBIHI sisa order SPK (${formData.spkSisaBelumJadwal})!`,
         { timeout: 5000 },
       );
     }
 
-    toast.success(`${importedDetails.length} baris berhasil diimpor.`);
+    toast.success(
+      `Import selesai: ${importedCount} data baru ditambahkan, ${replacedCount} data kota diperbarui (replaced).`,
+    );
     target.value = "";
   };
   reader.readAsArrayBuffer(file);
