@@ -146,17 +146,20 @@ const {
           kurangcetak_asli: parseInt(
             d.Kurang_Cetak || d.ltd_kurang_cetak || qtyOrder - sdhCetak,
           ),
-          tile: d.Tile || d.tile || 1, // 🔥 TILE SUPPORT
+          tile: d.Tile || d.tile || 1,
           padding: d.ltd_pad !== undefined ? parseFloat(d.ltd_pad) : 0.03,
           orientasi: d.Orientasi || d.ltd_orientasi || "lebar",
-          cetak1: parseInt(d.ltd_cetak1 ?? 0),
-          cetak2: parseInt(d.ltd_cetak2 ?? 0),
-          cetak3: parseInt(d.ltd_cetak3 ?? 0),
-          cetak4: parseInt(d.ltd_cetak4 ?? 0),
-          cetak5: parseInt(d.ltd_cetak5 ?? 0),
-          cetak6: parseInt(d.ltd_cetak6 ?? 0),
-          cetak7: parseInt(d.ltd_cetak7 ?? 0),
-          totalcetak: parseInt(d.Jml_Cetak || 0),
+
+          // Perbaikan mapping untuk Cetak 1 - 7 agar membaca dari backend (Cetak_1 / cetak1 / ltd_cetak1)
+          cetak1: parseInt(d.Cetak_1 ?? d.cetak1 ?? d.ltd_cetak1 ?? 0),
+          cetak2: parseInt(d.Cetak_2 ?? d.cetak2 ?? d.ltd_cetak2 ?? 0),
+          cetak3: parseInt(d.Cetak_3 ?? d.cetak3 ?? d.ltd_cetak3 ?? 0),
+          cetak4: parseInt(d.Cetak_4 ?? d.cetak4 ?? d.ltd_cetak4 ?? 0),
+          cetak5: parseInt(d.Cetak_5 ?? d.cetak5 ?? d.ltd_cetak5 ?? 0),
+          cetak6: parseInt(d.Cetak_6 ?? d.cetak6 ?? d.ltd_cetak6 ?? 0),
+          cetak7: parseInt(d.Cetak_7 ?? d.cetak7 ?? d.ltd_cetak7 ?? 0),
+
+          totalcetak: parseInt(d.Jml_Cetak || d.totalcetak || 0),
           kurangcetak: 0,
           ltd_sisameter: d.ltd_sisameter ? parseFloat(d.ltd_sisameter) : 0,
         };
