@@ -22,13 +22,14 @@
         :items="[
           { title: 'MT', value: '0' },
           { title: 'MX', value: '1' },
-          { title: 'SUBLIM', value: '2' },
+          { title: 'PAPERPRINT', value: '2' },
+          { title: 'SUBLIM', value: '3' },
         ]"
         label="Kategori"
         density="compact"
         hide-details
         variant="outlined"
-        style="max-width: 110px"
+        style="max-width: 140px"
         @update:model-value="fetchReport"
       />
 
@@ -715,7 +716,8 @@ const kainOptions = computed(() => {
 // --- LABEL KATEGORI ---
 const jenisLabel = computed(() => {
   if (jenisIndex.value === "1") return "MX";
-  if (jenisIndex.value === "2") return "SUBLIM";
+  if (jenisIndex.value === "2") return "PAPERPRINT";
+  if (jenisIndex.value === "3") return "SUBLIM";
   return "MT";
 });
 

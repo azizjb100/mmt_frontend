@@ -947,15 +947,21 @@ const exportToExcel = (dataToExport: any[]) => {
     wsData.push([
       { v: item.perush || "", s: styleDataCell },
       {
-        v: formatDateDisplay(item.tglLhk),
+        v: item.tglLhk ? new Date(item.tglLhk) : "",
+        t: item.tglLhk ? "d" : "s",
+        z: "dd/mm/yyyy",
         s: { ...styleDataCell, alignment: { horizontal: "center" } },
       },
       {
-        v: formatDateDisplay(item.tglSpk),
+        v: item.tglSpk ? new Date(item.tglSpk) : "",
+        t: item.tglSpk ? "d" : "s",
+        z: "dd/mm/yyyy",
         s: { ...styleDataCell, alignment: { horizontal: "center" } },
       },
       {
-        v: formatDateDisplay(item.deadline),
+        v: item.deadline ? new Date(item.deadline) : "",
+        t: item.deadline ? "d" : "s",
+        z: "dd/mm/yyyy",
         s: { ...styleDataCell, alignment: { horizontal: "center" } },
       },
       { v: item.namaOrder || "", s: styleDataCell },

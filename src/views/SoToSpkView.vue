@@ -3,7 +3,7 @@ import { ref, computed, onMounted, watch } from "vue";
 import { useRouter } from "vue-router";
 import { useToast } from "vue-toastification";
 import { format, isValid, parseISO } from "date-fns";
-import XLSX from "xlsx-js-style";
+import * as XLSX from "xlsx-js-style";
 import { soToSpkService } from "@/services/mmt/soToSpkService";
 import BaseBrowse from "@/components/BaseBrowse.vue";
 
@@ -109,6 +109,24 @@ const closeItem = ref<SpkHeader | null>(null);
 const closeAlasan = ref<string>("");
 const isProcessingClose = ref<boolean>(false);
 
+// --- Helper custom sort kronologis untuk Vuetify 3 ---
+const dateSortHelper = (valA: any, valB: any) => {
+  const parseToNum = (val: any) => {
+    if (!val || val === "-") return 0;
+    const strVal = String(val).trim();
+    const parts = strVal.split("/");
+    if (parts.length === 3) {
+      const day = parseInt(parts[0], 10) || 0;
+      const month = parseInt(parts[1], 10) || 0;
+      const year = parseInt(parts[2], 10) || 0;
+      return year * 10000 + month * 100 + day;
+    }
+    return 0;
+  };
+
+  return parseToNum(valA) - parseToNum(valB);
+};
+
 // --- Table Headers ---
 const masterHeaders = [
   {
@@ -123,8 +141,20 @@ const masterHeaders = [
   { title: "Nomor SPK", key: "SPK", width: "160px", minWidth: "160px" },
   { title: "MO", key: "MO", width: "100px" },
   { title: "CMO", key: "CMO", width: "120px" },
-  { title: "Tanggal", key: "Tanggal", minWidth: "110px", width: "110px" },
-  { title: "Dateline", key: "Dateline", minWidth: "110px", width: "110px" },
+  {
+    title: "Tanggal",
+    key: "Tanggal",
+    minWidth: "110px",
+    width: "110px",
+    customSort: dateSortHelper,
+  },
+  {
+    title: "Dateline",
+    key: "Dateline",
+    minWidth: "110px",
+    width: "110px",
+    customSort: dateSortHelper,
+  },
   { title: "Kepentingan", key: "Kepentingan", width: "120px" },
   { title: "Divisi", key: "Divisi", width: "90px" },
   { title: "Nama Pesanan", key: "Nama", width: "250px" },
@@ -206,30 +236,54 @@ const formatDateDisplay = (dateStr: string | null | undefined) => {
   return isValid(d) ? format(d, "dd/MM/yyyy") : "-";
 };
 
-// --- Helper Custom Sort Kronologis dengan Deteksi Arah (Asc / Desc) ---
-const sortByFullDate = (rowA: any, rowB: any, key: string) => {
-  const parseDateNum = (item: any) => {
-    const val = item[key];
-    if (!val || val === "-") return 0;
+// --- Parse tanggal ke objek Date Excel ---
+const parseToExcelDate = (dateValue?: string | Date | null): Date | null => {
+  if (!dateValue || dateValue === "-") return null;
 
-    const strVal = String(val).trim();
-    const parts = strVal.split("/");
-
-    if (parts.length === 3) {
-      const day = parseInt(parts[0], 10) || 0;
-      const month = parseInt(parts[1], 10) || 0;
-      const year = parseInt(parts[2], 10) || 0;
-
-      return year * 10000 + month * 100 + day;
+  try {
+    if (dateValue instanceof Date) {
+      return Number.isNaN(dateValue.getTime()) ? null : dateValue;
     }
-    return 0;
-  };
 
-  const dateA = parseDateNum(rowA);
-  const dateB = parseDateNum(rowB);
+    const value = String(dateValue).trim();
+    if (!value || value === "-") return null;
 
-  // Perbandingan dasar (Ascending: kecil ke besar)
-  return dateA - dateB;
+    // Tangkap format DD/MM/YYYY atau DD-MM-YYYY
+    const dmyMatch = value.match(/^(\d{2})[\/\-](\d{2})[\/\-](\d{4})/);
+    if (dmyMatch) {
+      const [, day, month, year] = dmyMatch;
+      return new Date(
+        parseInt(year, 10),
+        parseInt(month, 10) - 1,
+        parseInt(day, 10),
+      );
+    }
+
+    // Tangkap format MySQL DATETIME / YYYY-MM-DD
+    const mysqlMatch = value.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (mysqlMatch) {
+      const [, year, month, day] = mysqlMatch;
+      return new Date(
+        parseInt(year, 10),
+        parseInt(month, 10) - 1,
+        parseInt(day, 10),
+      );
+    }
+
+    const isoDate = new Date(value);
+    if (!Number.isNaN(isoDate.getTime())) {
+      return new Date(
+        isoDate.getFullYear(),
+        isoDate.getMonth(),
+        isoDate.getDate(),
+      );
+    }
+
+    return null;
+  } catch (error) {
+    console.error("Gagal parse tanggal ke Date:", error);
+    return null;
+  }
 };
 
 const getStatusColor = (item: SpkHeader) => {
@@ -285,16 +339,13 @@ const confirmToggleCloseSpk = async () => {
 
   isProcessingClose.value = true;
   try {
-    // 🟢 Perbaiki pemanggilan dengan membungkusnya ke dalam objek payload yang benar
     await soToSpkService.toggleClose(nomorSpk, {
       isClose: closeAction.value === "Y",
       alasan: closeAlasan.value,
     });
 
     toast.success(
-      `SPK ${nomorSpk} berhasil ${
-        closeAction.value === "Y" ? "di-Close" : "di-Open"
-      }.`,
+      `SPK ${nomorSpk} berhasil ${closeAction.value === "Y" ? "di-Close" : "di-Open"}.`,
     );
     showCloseDialog.value = false;
     await fetchData();
@@ -310,7 +361,6 @@ const confirmToggleCloseSpk = async () => {
 };
 
 // --- EXPORT TO EXCEL METHOD ---
-
 const exportToExcel = async () => {
   if (currentFilteredItems.value.length === 0) {
     return toast.warning(
@@ -321,15 +371,11 @@ const exportToExcel = async () => {
   isExporting.value = true;
 
   try {
-    // =========================================================
-    // 0. URUTKAN DATA (SORTING) KRONOLOGIS SEBELUM EXPORT
-    // =========================================================
     const sortedItems = [...currentFilteredItems.value].sort(
       (a: any, b: any) => {
         const getNum = (val: string) => {
           if (!val || val === "-") return 0;
           const strVal = String(val).trim();
-          // Mendukung format "DD/MM/YYYY" atau "YYYY-MM-DD"
           if (strVal.includes("/")) {
             const parts = strVal.split("/");
             if (parts.length === 3) {
@@ -353,12 +399,8 @@ const exportToExcel = async () => {
       },
     );
 
-    // =========================================================
-    // 1. SYNC DETAIL SPK (Menggunakan sortedItems)
-    // =========================================================
     for (const header of sortedItems) {
       const spkNomor = header.SPK || (header as any).Nomor;
-
       if (
         spkNomor &&
         (!details.value[spkNomor] || details.value[spkNomor].length === 0)
@@ -366,7 +408,6 @@ const exportToExcel = async () => {
         try {
           const res = await soToSpkService.getSizes(spkNomor);
           const resData = res.data?.data ?? res.data;
-
           details.value[spkNomor] = Array.isArray(resData) ? resData : [];
         } catch (e) {
           console.error(`Gagal sync detail SPK ${spkNomor}:`, e);
@@ -375,89 +416,17 @@ const exportToExcel = async () => {
       }
     }
 
-    // =========================================================
-    // 2. NAMA FILE
-    // =========================================================
     const fileName = `Monitoring_SO_to_SPK_${startDate.value}_sd_${endDate.value}.xlsx`;
 
-    // =========================================================
-    // 3. HELPER NUMBER
-    // =========================================================
     const num = (value: any): number => {
       const parsed = Number(value);
       return Number.isNaN(parsed) ? 0 : parsed;
     };
 
-    // =========================================================
-    // 4. HELPER FORMAT TANGGAL
-    // =========================================================
-    const formatTglManual = (dateValue?: string | Date | null): string => {
-      if (!dateValue) return "-";
-
-      try {
-        if (dateValue instanceof Date) {
-          if (Number.isNaN(dateValue.getTime())) {
-            return "-";
-          }
-          return [
-            String(dateValue.getDate()).padStart(2, "0"),
-            String(dateValue.getMonth() + 1).padStart(2, "0"),
-            dateValue.getFullYear(),
-          ].join("/");
-        }
-
-        const value = String(dateValue).trim();
-        if (!value) return "-";
-
-        const mysqlMatch = value.match(/^(\d{4})-(\d{2})-(\d{2})/);
-        if (mysqlMatch) {
-          const [, year, month, day] = mysqlMatch;
-          return `${day}/${month}/${year}`;
-        }
-
-        const dmyMatch = value.match(/^(\d{2})-(\d{2})-(\d{4})/);
-        if (dmyMatch) {
-          const [, day, month, year] = dmyMatch;
-          return `${day}/${month}/${year}`;
-        }
-
-        const slashMatch = value.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
-        if (slashMatch) {
-          const [, day, month, year] = slashMatch;
-          return `${day}/${month}/${year}`;
-        }
-
-        const isoDate = new Date(value);
-        if (!Number.isNaN(isoDate.getTime())) {
-          return [
-            String(isoDate.getDate()).padStart(2, "0"),
-            String(isoDate.getMonth() + 1).padStart(2, "0"),
-            isoDate.getFullYear(),
-          ].join("/");
-        }
-
-        return "-";
-      } catch (error) {
-        console.error("Gagal format tanggal:", error);
-        return "-";
-      }
-    };
-
-    // =========================================================
-    // 5. STYLE
-    // =========================================================
     const styleHeaderMain = {
       fill: { fgColor: { rgb: "B3E5FC" } },
-      font: {
-        bold: true,
-        color: { rgb: "000000" },
-        sz: 10,
-      },
-      alignment: {
-        horizontal: "center",
-        vertical: "center",
-        wrapText: true,
-      },
+      font: { bold: true, color: { rgb: "000000" }, sz: 10 },
+      alignment: { horizontal: "center", vertical: "center", wrapText: true },
       border: {
         top: { style: "thin", color: { rgb: "000000" } },
         bottom: { style: "thin", color: { rgb: "000000" } },
@@ -474,74 +443,39 @@ const exportToExcel = async () => {
         left: { style: "thin", color: { rgb: "000000" } },
         right: { style: "thin", color: { rgb: "000000" } },
       },
-      alignment: {
-        vertical: "center",
-      },
+      alignment: { vertical: "center" },
     };
 
     const styleDataCellCenter = {
       ...styleDataCell,
-      alignment: {
-        horizontal: "center",
-        vertical: "center",
-      },
+      alignment: { horizontal: "center", vertical: "center" },
     };
 
     const styleDataCellRight = {
       ...styleDataCell,
-      alignment: {
-        horizontal: "right",
-        vertical: "center",
-      },
+      alignment: { horizontal: "right", vertical: "center" },
     };
 
     const styleFooter = {
       ...styleDataCell,
-      fill: {
-        fgColor: { rgb: "F0F4F8" },
-      },
-      font: {
-        bold: true,
-        sz: 10,
-      },
+      fill: { fgColor: { rgb: "F0F4F8" } },
+      font: { bold: true, sz: 10 },
     };
 
-    // =========================================================
-    // 6. DATA EXCEL
-    // =========================================================
     const worksheetData: any[] = [];
 
     worksheetData.push([
-      {
-        v: "MONITORING SO TO SPK",
-        s: {
-          font: {
-            bold: true,
-            sz: 14,
-          },
-        },
-      },
+      { v: "MONITORING SO TO SPK", s: { font: { bold: true, sz: 14 } } },
     ]);
-
     worksheetData.push([
       {
-        v:
-          `Tanggal : ${formatTglManual(startDate.value)} ` +
-          `s.d ${formatTglManual(endDate.value)} ` +
-          `| Filter Keyword: ${keyword.value || "Semua"}`,
-        s: {
-          font: {
-            sz: 10,
-          },
-        },
+        v: `Tanggal Periode : ${startDate.value} s.d ${endDate.value} | Filter Keyword: ${keyword.value || "Semua"}`,
+        s: { font: { sz: 10 } },
       },
     ]);
-
     worksheetData.push([]);
 
-    // =========================================================
-    // 7. HEADER
-    // =========================================================
+    // Header sesuai dengan masterHeaders di frontend
     const headers = [
       { v: "NOMOR SO", s: styleHeaderMain },
       { v: "NOMOR SPK", s: styleHeaderMain },
@@ -551,53 +485,223 @@ const exportToExcel = async () => {
       { v: "DATELINE", s: styleHeaderMain },
       { v: "KEPENTINGAN", s: styleHeaderMain },
       { v: "DIVISI", s: styleHeaderMain },
-      { v: "CABANG", s: styleHeaderMain },
       { v: "NAMA PESANAN", s: styleHeaderMain },
-      { v: "PESAN", s: styleHeaderMain },
+      { v: "CABANG", s: styleHeaderMain },
+      { v: "WORKSHOP", s: styleHeaderMain },
+      { v: "PENDING", s: styleHeaderMain },
+      { v: "KET PENDING", s: styleHeaderMain },
+      { v: "TIPE", s: styleHeaderMain },
       { v: "PANJANG", s: styleHeaderMain },
       { v: "LEBAR", s: styleHeaderMain },
       { v: "GRAMASI", s: styleHeaderMain },
       { v: "KAIN/BAHAN", s: styleHeaderMain },
       { v: "FINISHING", s: styleHeaderMain },
-      { v: "STATUS", s: styleHeaderMain },
-      { v: "ACC PIN", s: styleHeaderMain },
-      { v: "UKURAN/SIZE", s: styleHeaderMain },
-      { v: "QTY SPK", s: styleHeaderMain },
-      { v: "REALISASI STBJ", s: styleHeaderMain },
-      { v: "SISA KURANG", s: styleHeaderMain },
+      { v: "PESAN", s: styleHeaderMain },
       { v: "PRASJ", s: styleHeaderMain },
       { v: "KIRIM", s: styleHeaderMain },
+      { v: "KURANG", s: styleHeaderMain },
+      { v: "CREATED BY", s: styleHeaderMain },
+      { v: "PO", s: styleHeaderMain },
+      { v: "KET PO", s: styleHeaderMain },
+      { v: "DATELINE PO", s: styleHeaderMain },
+      { v: "STATUS", s: styleHeaderMain },
+      { v: "ALASAN CLOSE", s: styleHeaderMain },
+      { v: "NO PENAWARAN", s: styleHeaderMain },
+      { v: "MAP", s: styleHeaderMain },
+      { v: "POTONG", s: styleHeaderMain },
+      { v: "REPEAT", s: styleHeaderMain },
+      { v: "QC POTONG", s: styleHeaderMain },
+      { v: "BORDIR", s: styleHeaderMain },
+      { v: "CETAK", s: styleHeaderMain },
+      { v: "QC CETAK", s: styleHeaderMain },
+      { v: "DC", s: styleHeaderMain },
+      { v: "JAHIT", s: styleHeaderMain },
+      { v: "LIPAT", s: styleHeaderMain },
+      { v: "JADI", s: styleHeaderMain },
+      { v: "KURANG JADI", s: styleHeaderMain },
+      { v: "KURANG POTONG", s: styleHeaderMain },
+      { v: "KURANG BORDIR", s: styleHeaderMain },
+      { v: "KURANG CETAK", s: styleHeaderMain },
+      { v: "KURANG QC CETAK", s: styleHeaderMain },
+      { v: "KURANG JAHIT", s: styleHeaderMain },
+      { v: "KURANG LIPAT", s: styleHeaderMain },
+      { v: "AKTIF", s: styleHeaderMain },
+      { v: "ACC PIN", s: styleHeaderMain },
+      { v: "ACC MO", s: styleHeaderMain },
+      { v: "UKURAN/SIZE (DETAIL)", s: styleHeaderMain },
+      { v: "QTY SPK (DETAIL)", s: styleHeaderMain },
+      { v: "REALISASI STBJ (DETAIL)", s: styleHeaderMain },
+      { v: "SISA KURANG (DETAIL)", s: styleHeaderMain },
     ];
-
     worksheetData.push(headers);
 
-    // =========================================================
-    // 8. GRAND TOTAL
-    // =========================================================
     let grandTotalQtySPK = 0;
     let grandTotalStbj = 0;
     let grandTotalKurang = 0;
     let grandTotalPraSJ = 0;
     let grandTotalKirim = 0;
 
-    // =========================================================
-    // 9. DATA ROW (Menggunakan sortedItems)
-    // =========================================================
     sortedItems.forEach((header) => {
       const spkNomor = header.SPK || (header as any).Nomor || "-";
       const soNomor = header.SO || "-";
       const targetSizes = details.value[spkNomor] || [];
 
-      const tglSpk = formatTglManual(header.Tanggal);
-      const datelineSpk = formatTglManual(header.Dateline);
+      const tglExcel = parseToExcelDate(header.Tanggal);
+      const datelineExcel = parseToExcelDate(header.Dateline);
+      const datelinePoExcel = parseToExcelDate(header.Dateline_PO);
       const cabText = header.Cab || (header as any).Cabang || "-";
 
       grandTotalPraSJ += num(header.PraSJ);
       grandTotalKirim += num(header.Kirim);
 
+      const baseRowData = [
+        { v: soNomor, s: styleDataCellCenter },
+        { v: spkNomor, s: styleDataCellCenter },
+        { v: header.MO || "-", s: styleDataCellCenter },
+        { v: header.CMO || "-", s: styleDataCellCenter },
+        tglExcel
+          ? { v: tglExcel, t: "d", z: "dd/mm/yyyy", s: styleDataCellCenter }
+          : { v: "-", s: styleDataCellCenter },
+        datelineExcel
+          ? {
+              v: datelineExcel,
+              t: "d",
+              z: "dd/mm/yyyy",
+              s: styleDataCellCenter,
+            }
+          : { v: "-", s: styleDataCellCenter },
+        { v: header.Kepentingan || "-", s: styleDataCell },
+        { v: header.Divisi || "-", s: styleDataCellCenter },
+        { v: header.Nama || "-", s: styleDataCell },
+        { v: cabText, s: styleDataCellCenter },
+        { v: header.Workshop || "-", s: styleDataCellCenter },
+        { v: header.Pending || "-", s: styleDataCellCenter },
+        { v: header.Ket_Pending || header.KetPending || "-", s: styleDataCell },
+        { v: header.Tipe_SPK || header.Tipe || "-", s: styleDataCellCenter },
+        {
+          v: num(header.Panjang),
+          t: "n",
+          z: "#,##0.##",
+          s: styleDataCellRight,
+        },
+        { v: num(header.Lebar), t: "n", z: "#,##0.##", s: styleDataCellRight },
+        { v: header.Gramasi || "-", s: styleDataCellCenter },
+        { v: header.Bahan || header.Kain || "-", s: styleDataCell },
+        { v: header.Finishing || "-", s: styleDataCell },
+        { v: num(header.Pesan), t: "n", z: "#,##0", s: styleDataCellRight },
+        {
+          v: num(header.PraSJ || header.Prasj),
+          t: "n",
+          z: "#,##0",
+          s: styleDataCellRight,
+        },
+        { v: num(header.Kirim), t: "n", z: "#,##0", s: styleDataCellRight },
+        {
+          v: num(header.Kurang_Cetak_Prod || header.Kurang),
+          t: "n",
+          z: "#,##0",
+          s: styleDataCellRight,
+        },
+        { v: header.Created || "-", s: styleDataCellCenter },
+        { v: header.PO || "-", s: styleDataCellCenter },
+        { v: header.Ket_PO || header.KetPO || "-", s: styleDataCell },
+        datelinePoExcel
+          ? {
+              v: datelinePoExcel,
+              t: "d",
+              z: "dd/mm/yyyy",
+              s: styleDataCellCenter,
+            }
+          : { v: "-", s: styleDataCellCenter },
+        { v: header.STATUS || header.Status || "-", s: styleDataCellCenter },
+        {
+          v: header.Alasan_Close || header.AlasanClose || "-",
+          s: styleDataCell,
+        },
+        {
+          v: header.No_Penawaran || header.NoPenawaran || "-",
+          s: styleDataCellCenter,
+        },
+        { v: header.MAP || "-", s: styleDataCellCenter },
+        { v: num(header.Potong), t: "n", z: "#,##0", s: styleDataCellRight },
+        { v: header.Repeat || "-", s: styleDataCellCenter },
+        {
+          v: num(header.QC_Potong || header.QcPotong),
+          t: "n",
+          z: "#,##0",
+          s: styleDataCellRight,
+        },
+        { v: num(header.Bordir), t: "n", z: "#,##0", s: styleDataCellRight },
+        {
+          v: num(header.Sudah_Cetak || header.Cetak),
+          t: "n",
+          z: "#,##0",
+          s: styleDataCellRight,
+        },
+        {
+          v: num(header.QC_Cetak || header.QcCetak),
+          t: "n",
+          z: "#,##0",
+          s: styleDataCellRight,
+        },
+        {
+          v: num(header.DC || header.dc),
+          t: "n",
+          z: "#,##0",
+          s: styleDataCellRight,
+        },
+        { v: num(header.Jahit), t: "n", z: "#,##0", s: styleDataCellRight },
+        { v: num(header.Lipat), t: "n", z: "#,##0", s: styleDataCellRight },
+        { v: num(header.Jadi), t: "n", z: "#,##0", s: styleDataCellRight },
+        {
+          v: num(header.Kurang_Jadi),
+          t: "n",
+          z: "#,##0",
+          s: styleDataCellRight,
+        },
+        {
+          v: num(header.Kurang_Potong),
+          t: "n",
+          z: "#,##0",
+          s: styleDataCellRight,
+        },
+        {
+          v: num(header.Kurang_Bordir),
+          t: "n",
+          z: "#,##0",
+          s: styleDataCellRight,
+        },
+        {
+          v: num(header.Kurang_Cetak_Prod || header.Kurang_Cetak),
+          t: "n",
+          z: "#,##0",
+          s: styleDataCellRight,
+        },
+        {
+          v: num(header.Kurang_QC_Cetak || header.Kurang_QcCetak),
+          t: "n",
+          z: "#,##0",
+          s: styleDataCellRight,
+        },
+        {
+          v: num(header.Kurang_Jahit),
+          t: "n",
+          z: "#,##0",
+          s: styleDataCellRight,
+        },
+        {
+          v: num(header.Kurang_Lipat),
+          t: "n",
+          z: "#,##0",
+          s: styleDataCellRight,
+        },
+        { v: header.Aktif || "-", s: styleDataCellCenter },
+        { v: header.Ngedit || "-", s: styleDataCellCenter },
+        { v: header.Acc_MO || "-", s: styleDataCellCenter },
+      ];
+
       if (targetSizes.length > 0) {
-        targetSizes.forEach((dtl, index) => {
-          const isFirstRow = index === 0;
+        targetSizes.forEach((dtl) => {
           const qtySize = num(dtl.Qty);
           const stbjSize = num(dtl.Stbj);
           const kurangSize = num(dtl.Kurang);
@@ -607,114 +711,24 @@ const exportToExcel = async () => {
           grandTotalKurang += kurangSize;
 
           worksheetData.push([
-            { v: isFirstRow ? soNomor : "-", s: styleDataCellCenter },
-            { v: isFirstRow ? spkNomor : "-", s: styleDataCellCenter },
-            { v: isFirstRow ? header.MO || "-" : "-", s: styleDataCellCenter },
-            { v: isFirstRow ? header.CMO || "-" : "-", s: styleDataCellCenter },
-            { v: isFirstRow ? tglSpk : "-", s: styleDataCellCenter },
-            { v: isFirstRow ? datelineSpk : "-", s: styleDataCellCenter },
-            {
-              v: isFirstRow ? header.Kepentingan || "-" : "-",
-              s: styleDataCell,
-            },
-            {
-              v: isFirstRow ? header.Divisi || "-" : "-",
-              s: styleDataCellCenter,
-            },
-            { v: isFirstRow ? cabText : "-", s: styleDataCellCenter },
-            { v: isFirstRow ? header.Nama || "-" : "-", s: styleDataCell },
-            { v: isFirstRow ? header.Pesan || "-" : "-", s: styleDataCell },
-            {
-              v: isFirstRow ? num(header.Panjang) : 0,
-              t: "n",
-              z: "#,##0.##",
-              s: styleDataCellRight,
-            },
-            {
-              v: isFirstRow ? num(header.Lebar) : 0,
-              t: "n",
-              z: "#,##0.##",
-              s: styleDataCellRight,
-            },
-            {
-              v: isFirstRow ? header.Gramasi || "-" : "-",
-              s: styleDataCellCenter,
-            },
-            { v: isFirstRow ? header.Bahan || "-" : "-", s: styleDataCell },
-            { v: isFirstRow ? header.Finishing || "-" : "-", s: styleDataCell },
-            {
-              v: isFirstRow ? header.STATUS || "-" : "-",
-              s: styleDataCellCenter,
-            },
-            {
-              v: isFirstRow ? header.Ngedit || "-" : "-",
-              s: styleDataCellCenter,
-            },
+            ...baseRowData,
             { v: dtl.Size || "-", s: styleDataCellCenter },
             { v: qtySize, t: "n", z: "#,##0", s: styleDataCellRight },
             { v: stbjSize, t: "n", z: "#,##0", s: styleDataCellRight },
             { v: kurangSize, t: "n", z: "#,##0", s: styleDataCellRight },
-            isFirstRow
-              ? {
-                  v: num(header.PraSJ),
-                  t: "n",
-                  z: "#,##0",
-                  s: styleDataCellRight,
-                }
-              : { v: "-", s: styleDataCellCenter },
-            isFirstRow
-              ? {
-                  v: num(header.Kirim),
-                  t: "n",
-                  z: "#,##0",
-                  s: styleDataCellRight,
-                }
-              : { v: "-", s: styleDataCellCenter },
           ]);
         });
       } else {
         worksheetData.push([
-          { v: soNomor, s: styleDataCellCenter },
-          { v: spkNomor, s: styleDataCellCenter },
-          { v: header.MO || "-", s: styleDataCellCenter },
-          { v: header.CMO || "-", s: styleDataCellCenter },
-          { v: tglSpk, s: styleDataCellCenter },
-          { v: datelineSpk, s: styleDataCellCenter },
-          { v: header.Kepentingan || "-", s: styleDataCell },
-          { v: header.Divisi || "-", s: styleDataCellCenter },
-          { v: cabText, s: styleDataCellCenter },
-          { v: header.Nama || "-", s: styleDataCell },
-          { v: header.Pesan || "-", s: styleDataCell },
-          {
-            v: num(header.Panjang),
-            t: "n",
-            z: "#,##0.##",
-            s: styleDataCellRight,
-          },
-          {
-            v: num(header.Lebar),
-            t: "n",
-            z: "#,##0.##",
-            s: styleDataCellRight,
-          },
-          { v: header.Gramasi || "-", s: styleDataCellCenter },
-          { v: header.Bahan || "-", s: styleDataCell },
-          { v: header.Finishing || "-", s: styleDataCell },
-          { v: header.STATUS || "-", s: styleDataCellCenter },
-          { v: header.Ngedit || "-", s: styleDataCellCenter },
+          ...baseRowData,
           { v: "-", s: styleDataCellCenter },
           { v: 0, t: "n", z: "#,##0", s: styleDataCellRight },
           { v: 0, t: "n", z: "#,##0", s: styleDataCellRight },
           { v: 0, t: "n", z: "#,##0", s: styleDataCellRight },
-          { v: num(header.PraSJ), t: "n", z: "#,##0", s: styleDataCellRight },
-          { v: num(header.Kirim), t: "n", z: "#,##0", s: styleDataCellRight },
         ]);
       }
     });
 
-    // =========================================================
-    // 10. FOOTER GRAND TOTAL
-    // =========================================================
     const footerRow = [
       {
         v: "GRAND TOTAL",
@@ -723,102 +737,26 @@ const exportToExcel = async () => {
           alignment: { horizontal: "right", vertical: "center" },
         },
       },
-      ...Array(18).fill({ v: "", s: styleFooter }),
-      {
-        v: grandTotalQtySPK,
-        t: "n",
-        z: "#,##0",
-        s: {
-          ...styleFooter,
-          alignment: { horizontal: "right", vertical: "center" },
-        },
-      },
-      {
-        v: grandTotalStbj,
-        t: "n",
-        z: "#,##0",
-        s: {
-          ...styleFooter,
-          alignment: { horizontal: "right", vertical: "center" },
-        },
-      },
-      {
-        v: grandTotalKurang,
-        t: "n",
-        z: "#,##0",
-        s: {
-          ...styleFooter,
-          alignment: { horizontal: "right", vertical: "center" },
-        },
-      },
-      {
-        v: grandTotalPraSJ,
-        t: "n",
-        z: "#,##0",
-        s: {
-          ...styleFooter,
-          alignment: { horizontal: "right", vertical: "center" },
-        },
-      },
-      {
-        v: grandTotalKirim,
-        t: "n",
-        z: "#,##0",
-        s: {
-          ...styleFooter,
-          alignment: { horizontal: "right", vertical: "center" },
-        },
-      },
+      ...Array(53).fill({ v: "", s: styleFooter }),
     ];
-
     worksheetData.push(footerRow);
 
-    // =========================================================
-    // 11. CREATE WORKSHEET & EXPORT
-    // =========================================================
     const ws = XLSX.utils.aoa_to_sheet(worksheetData);
 
     ws["!merges"] = [
-      { s: { r: 0, c: 0 }, e: { r: 0, c: 23 } },
-      { s: { r: 1, c: 0 }, e: { r: 1, c: 23 } },
+      { s: { r: 0, c: 0 }, e: { r: 0, c: 54 } },
+      { s: { r: 1, c: 0 }, e: { r: 1, c: 54 } },
       {
         s: { r: worksheetData.length - 1, c: 0 },
-        e: { r: worksheetData.length - 1, c: 18 },
+        e: { r: worksheetData.length - 1, c: 50 },
       },
     ];
 
-    ws["!cols"] = [
-      { wch: 18 },
-      { wch: 18 },
-      { wch: 12 },
-      { wch: 12 },
-      { wch: 12 },
-      { wch: 12 },
-      { wch: 14 },
-      { wch: 10 },
-      { wch: 14 },
-      { wch: 30 },
-      { wch: 18 },
-      { wch: 10 },
-      { wch: 10 },
-      { wch: 10 },
-      { wch: 18 },
-      { wch: 15 },
-      { wch: 12 },
-      { wch: 10 },
-      { wch: 14 },
-      { wch: 12 },
-      { wch: 14 },
-      { wch: 14 },
-      { wch: 10 },
-      { wch: 10 },
-    ];
-
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Monitoring_SPK");
+    XLSX.utils.book_append_sheet(wb, ws, "Monitoring_SO_SPK");
     XLSX.writeFile(wb, fileName);
 
-    toast.success("Excel Berhasil Diexport Sesuai Data Terfilter dan Terurut!");
+    toast.success("Excel Berhasil Diexport Sesuai Kolom Frontend dan Terurut!");
   } catch (error) {
     console.error("Export Error:", error);
     toast.error("Gagal mengekspor data terfilter.");
@@ -855,48 +793,16 @@ const fetchData = async () => {
 
     const result = res.data?.data ?? res.data;
 
-    const cleanDateToDMY = (dateVal: any) => {
-      if (!dateVal || dateVal === "-" || String(dateVal).startsWith("0000"))
-        return "-";
-
-      const strVal = String(dateVal).trim();
-
-      if (/^\d{4}-\d{2}-\d{2}/.test(strVal)) {
-        const parts = strVal.substring(0, 10).split("-");
-        if (parts.length === 3) {
-          return `${parts[2]}/${parts[1]}/${parts[0]}`;
-        }
-      }
-
-      const parsed = parseISO(strVal);
-      if (isValid(parsed)) {
-        return format(parsed, "dd/MM/yyyy");
-      }
-
-      const fallbackDate = new Date(strVal);
-      if (isValid(fallbackDate)) {
-        return format(fallbackDate, "dd/MM/yyyy");
-      }
-
-      return strVal;
-    };
-
     masterData.value = Array.isArray(result)
       ? result.map((item: any) => ({
           ...item,
           SPK: item.SPK || item.Nomor || "-",
           Nomor: item.Nomor || item.SPK || "-",
+          // Simpan string mentah dari backend (misal: "2026-08-10") agar bisa diparsing dengan benar oleh formatDateDisplay
           Tanggal: item.Tanggal || item.tanggal || item.Tgl || "",
-          Dateline:
-            item.Dateline ||
-            item.Deadline ||
-            item.dateline ||
-            item.deadline ||
-            "",
-          Deadline: cleanDateToDMY(
-            item.Deadline || item.Dateline || item.deadline || item.dateline,
-          ),
-          Dateline_PO: cleanDateToDMY(item.Dateline_PO || item.dateline_po),
+          Dateline: item.Dateline || item.dateline || "",
+          Deadline: item.Deadline || item.deadline || item.Dateline || "",
+          Dateline_PO: item.Dateline_PO || item.dateline_po || "",
         }))
       : [];
   } catch (e: any) {
@@ -1048,7 +954,6 @@ const handleExecuteGenerateSpk = async () => {
   if (!targetSoToGenerate.value) return;
 
   const soNomor = targetSoToGenerate.value.SO!;
-  // Ambil keterangan dari item SO yang sedang dipilih
   const ketSo =
     (targetSoToGenerate.value as any).so_keterangan ||
     (targetSoToGenerate.value as any).Keterangan ||
@@ -1061,7 +966,7 @@ const handleExecuteGenerateSpk = async () => {
       isEdit: false,
       so_nomor: soNomor,
       spk_ketbeli: "",
-      spk_keterangan: ketSo, // 🟢 Kirimkan data keterangan SO ke backend
+      spk_keterangan: ketSo,
     };
 
     let res: any;
@@ -1083,56 +988,6 @@ const handleExecuteGenerateSpk = async () => {
     );
   } finally {
     isGeneratingSpk.value = false;
-  }
-};
-
-const parseToExcelDate = (dateValue?: string | Date | null): Date | null => {
-  if (!dateValue) return null;
-
-  try {
-    if (dateValue instanceof Date) {
-      return Number.isNaN(dateValue.getTime()) ? null : dateValue;
-    }
-
-    const value = String(dateValue).trim();
-    if (!value) return null;
-
-    // Tangkap format MySQL DATETIME (YYYY-MM-DD ...)
-    const mysqlMatch = value.match(/^(\d{4})-(\d{2})-(\d{2})/);
-    if (mysqlMatch) {
-      const [, year, month, day] = mysqlMatch;
-      // Buat Date dengan jam 00:00 local agar aman dari timezone
-      return new Date(
-        parseInt(year, 10),
-        parseInt(month, 10) - 1,
-        parseInt(day, 10),
-      );
-    }
-
-    // Tangkap format DD-MM-YYYY atau DD/MM/YYYY
-    const dmyMatch = value.match(/^(\d{2})[\/\-](\d{2})[\/\-](\d{4})/);
-    if (dmyMatch) {
-      const [, day, month, year] = dmyMatch;
-      return new Date(
-        parseInt(year, 10),
-        parseInt(month, 10) - 1,
-        parseInt(day, 10),
-      );
-    }
-
-    const isoDate = new Date(value);
-    if (!Number.isNaN(isoDate.getTime())) {
-      return new Date(
-        isoDate.getFullYear(),
-        isoDate.getMonth(),
-        isoDate.getDate(),
-      );
-    }
-
-    return null;
-  } catch (error) {
-    console.error("Gagal parse tanggal ke Date:", error);
-    return null;
   }
 };
 
@@ -1237,7 +1092,6 @@ watch([startDate, endDate], ([newStart, newEnd]) => {
         Cetak
       </v-btn>
 
-      <!-- MENU DROPDOWN AKSI SPK -->
       <v-menu v-if="selectedItem">
         <template v-slot:activator="{ props }">
           <v-btn
@@ -1281,7 +1135,6 @@ watch([startDate, endDate], ([newStart, newEnd]) => {
       </v-menu>
     </template>
 
-    <!-- Extra Filter: Cari dan Tombol Preview SPK -->
     <template #filter-fields>
       <div class="d-flex align-center ga-2">
         <v-text-field
@@ -1308,14 +1161,12 @@ watch([startDate, endDate], ([newStart, newEnd]) => {
       </div>
     </template>
 
-    <!-- Slot Custom Item untuk Nomor SO -->
     <template #item.SO="{ value }">
       <span class="font-weight-medium text-primary">
         {{ value || "-" }}
       </span>
     </template>
 
-    <!-- Slot Custom Item untuk Nomor SPK -->
     <template #item.SPK="{ item }">
       <v-chip
         v-if="item.SPK || (item as any).Nomor"
@@ -1331,22 +1182,18 @@ watch([startDate, endDate], ([newStart, newEnd]) => {
       <span v-else class="text-caption text-grey">-</span>
     </template>
 
-    <!-- Slot Custom Item untuk Cabang -->
     <template #item.Cab="{ value, item }">
       {{ value || item.Cabang || "-" }}
     </template>
 
-    <!-- Slot Tanggal -->
     <template #item.Tanggal="{ item }">
       {{ formatDateDisplay(item.Tanggal) }}
     </template>
 
-    <!-- Slot Dateline -->
     <template #item.Dateline="{ item }">
       {{ formatDateDisplay(item.Dateline) }}
     </template>
 
-    <!-- Slot Dateline PO -->
     <template #item.Dateline_PO="{ value }">
       {{ value || "-" }}
     </template>
@@ -1363,7 +1210,6 @@ watch([startDate, endDate], ([newStart, newEnd]) => {
       </div>
     </template>
 
-    <!-- Expanded Detail Row -->
     <template #expanded-content="{ item }">
       <div
         v-if="isLoadingDetails(item.SPK || (item as any).Nomor)"
