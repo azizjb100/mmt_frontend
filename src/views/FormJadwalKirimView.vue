@@ -414,8 +414,6 @@ const importExcel = (event: Event) => {
 
     jsonData.forEach((row: any) => {
       const namaKota = String(row.ALOKASI || row.KOTA || row.Kota || "").trim();
-      if (!namaKota) return; // Lewati jika baris kosong / tanpa kota
-
       const itemUraian = String(row.URAIAN || row.Uraian || "");
       const itemSize = String(row.SIZE || row.Size || formData.spkUkuran || "");
       const itemQty =
@@ -426,13 +424,15 @@ const importExcel = (event: Event) => {
       const itemExpedisi = String(row.EXPEDISI || row.Expedisi || "");
       const itemKeterangan = String(row.KETERANGAN || row.Keterangan || "");
 
-      // Cek apakah kota sudah ada di tabel detail aktif
-      const existingIndex = formData.detail.findIndex(
-        (d) => d.kota.trim().toLowerCase() === namaKota.toLowerCase(),
-      );
+      // Cek apakah kota terisi dan sudah ada di tabel detail aktif
+      const existingIndex = namaKota
+        ? formData.detail.findIndex(
+            (d) => d.kota.trim().toLowerCase() === namaKota.toLowerCase(),
+          )
+        : -1;
 
       if (existingIndex !== -1) {
-        // REPLACE data lama dengan data baru dari Excel
+        // 1. JIKA ADA ALOKASI & KOTA SUDAH ADA -> REPLACE
         const targetItem = formData.detail[existingIndex];
         targetItem.uraian = itemUraian || targetItem.uraian;
         targetItem.size = itemSize || targetItem.size;
@@ -443,8 +443,14 @@ const importExcel = (event: Event) => {
         if (itemKeterangan) targetItem.keterangan = itemKeterangan;
         replacedCount++;
       } else {
-        // Jika baris pertama masih kosong (belum diisi apa-apa), gunakan baris itu
-        if (formData.detail.length === 1 && !formData.detail[0].kota.trim()) {
+        // 2. JIKA ALOKASI KOSONG ATAU KOTA BELUM ADA -> MENAMBAH BARIS BARU
+        // Jika baris pertama masih kosong melompong (belum diisi apa-apa), manfaatkan baris pertama tersebut
+        if (
+          formData.detail.length === 1 &&
+          !formData.detail[0].kota.trim() &&
+          !formData.detail[0].uraian.trim() &&
+          formData.detail[0].qty === 0
+        ) {
           formData.detail[0] = {
             no_urut: 1,
             kota: namaKota,
@@ -459,7 +465,7 @@ const importExcel = (event: Event) => {
             keterangan: itemKeterangan,
           };
         } else {
-          // Tambahkan sebagai baris baru jika kota belum ada sama sekali
+          // Tambahkan sebagai baris baru baru di bawah
           formData.detail.push({
             no_urut: formData.detail.length + 1,
             kota: namaKota,
@@ -497,7 +503,7 @@ const importExcel = (event: Event) => {
     }
 
     toast.success(
-      `Import selesai: ${importedCount} data baru ditambahkan, ${replacedCount} data kota diperbarui (replaced).`,
+      `Import selesai: ${importedCount} baris baru ditambahkan, ${replacedCount} data kota diperbarui (replaced).`,
     );
     target.value = "";
   };
