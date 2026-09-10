@@ -159,6 +159,7 @@ import { useRouter } from "vue-router";
 import { useToast } from "vue-toastification";
 import { format, subDays, parseISO, isValid } from "date-fns";
 import BaseBrowse from "@/components/BaseBrowse.vue";
+import * as XLSX from "xlsx-js-style";
 import api from "@/services/api";
 
 interface LhkCetakHeader {
@@ -352,10 +353,390 @@ const truncateString = (str: string, num: number) => {
 const exportToExcel = async () => {
   loading.value.headers = true;
   try {
-    // Logic export excel ...
-    toast.success("Excel Berhasil Diexport Sesuai Format!");
+    // Loop untuk memastikan data detail terambil jika belum ada
+    for (const header of masterData.value) {
+      if (
+        !details.value[header.Nomor] ||
+        details.value[header.Nomor].length === 0
+      ) {
+        try {
+          const res = await api.get(`${API_BASE_URL}/details`, {
+            params: { nomor: header.Nomor },
+          });
+          details.value[header.Nomor] = res.data?.details || res.data || [];
+        } catch (e) {
+          details.value[header.Nomor] = [];
+        }
+      }
+    }
+
+    const fileName = `Laporan_Detail_LHK_Cetak_${filters.startDate}_to_${filters.endDate}.xlsx`;
+
+    const parseNum = (val: any): number => {
+      if (val === null || val === undefined || val === "") return 0;
+      const parsed = Number(val);
+      return isNaN(parsed) ? 0 : parsed;
+    };
+
+    const styleHeaderMain = {
+      fill: { fgColor: { rgb: "B3E5FC" } },
+      font: { bold: true, color: { rgb: "000000" }, sz: 10 },
+      alignment: { horizontal: "center", vertical: "center", wrapText: true },
+      border: {
+        top: { style: "thin", color: { rgb: "000000" } },
+        bottom: { style: "thin", color: { rgb: "000000" } },
+        left: { style: "thin", color: { rgb: "000000" } },
+        right: { style: "thin", color: { rgb: "000000" } },
+      },
+    };
+
+    const styleDataCell = {
+      font: { sz: 10 },
+      border: {
+        top: { style: "thin", color: { rgb: "000000" } },
+        bottom: { style: "thin", color: { rgb: "000000" } },
+        left: { style: "thin", color: { rgb: "000000" } },
+        right: { style: "thin", color: { rgb: "000000" } },
+      },
+      alignment: { vertical: "center" },
+    };
+
+    const styleDataCellCenter = {
+      ...styleDataCell,
+      alignment: { horizontal: "center", vertical: "center" },
+    };
+
+    const styleDataCellRight = {
+      ...styleDataCell,
+      alignment: { horizontal: "right", vertical: "center" },
+    };
+
+    const styleFooter = {
+      ...styleDataCell,
+      fill: { fgColor: { rgb: "F0F4F8" } },
+      font: { bold: true, sz: 10 },
+    };
+
+    const formatTglManual = (dateStr: string) => {
+      if (!dateStr) return "-";
+      try {
+        if (dateStr.includes("-")) {
+          const parts = dateStr.split("T")[0].split("-");
+          if (parts.length === 3) {
+            return `${parts[2]}/${parts[1]}/${parts[0]}`;
+          }
+        }
+        return safeFormatDate(dateStr) || dateStr;
+      } catch {
+        return dateStr;
+      }
+    };
+
+    const worksheetData: any[] = [];
+    worksheetData.push([
+      {
+        v: "LAPORAN HASIL KERJA CETAK MMT",
+        s: { font: { bold: true, sz: 14 } },
+      },
+    ]);
+    worksheetData.push([
+      {
+        v: `Periode : ${formatTglManual(filters.startDate)} s/d ${formatTglManual(filters.endDate)}`,
+        s: { font: { sz: 10 } },
+      },
+    ]);
+    worksheetData.push([]);
+
+    const headers = [
+      { v: "NOMOR LHK", s: styleHeaderMain },
+      { v: "STATUS", s: styleHeaderMain },
+      { v: "SHIFT", s: styleHeaderMain },
+      { v: "TANGGAL", s: styleHeaderMain },
+      { v: "MESIN", s: styleHeaderMain },
+      { v: "NOMOR SPK", s: styleHeaderMain },
+      { v: "NAMA SPK / ORDER", s: styleHeaderMain },
+      { v: "PANJANG", s: styleHeaderMain },
+      { v: "LEBAR", s: styleHeaderMain },
+      { v: "JML ORDER", s: styleHeaderMain },
+      { v: "JML CETAK", s: styleHeaderMain },
+      { v: "BAHAN AWAL", s: styleHeaderMain },
+      { v: "SISA", s: styleHeaderMain },
+      { v: "STATUS BAHAN", s: styleHeaderMain },
+      { v: "KODE BAHAN", s: styleHeaderMain },
+      { v: "NAMA BAHAN", s: styleHeaderMain },
+      { v: "DETAIL NOMOR SPK", s: styleHeaderMain },
+      { v: "DETAIL NAMA SPK", s: styleHeaderMain },
+      { v: "CETAK 1", s: styleHeaderMain },
+      { v: "CETAK 2", s: styleHeaderMain },
+      { v: "CETAK 3", s: styleHeaderMain },
+      { v: "CETAK 4", s: styleHeaderMain },
+      { v: "CETAK 5", s: styleHeaderMain },
+      { v: "TOTAL CETAK", s: styleHeaderMain },
+    ];
+    worksheetData.push(headers);
+
+    let grandTotalJumlahOrderMaster = 0;
+    let grandTotalCetakMaster = 0;
+    let grandTotalDetailCetak = 0;
+
+    masterData.value.forEach((header) => {
+      const targetDetails = details.value[header.Nomor] || [];
+      const tglHeader = header.Tanggal ? formatTglManual(header.Tanggal) : "-";
+      const sisaMeter = parseNum(header.SisaMeterAkhir);
+
+      let statusBahanText = "PAS";
+      if (sisaMeter < 0) {
+        statusBahanText = `SURPLUS ${Math.abs(sisaMeter).toFixed(1)}m`;
+      } else if (sisaMeter > 0) {
+        statusBahanText = `SISA ${sisaMeter.toFixed(1)}m`;
+      }
+
+      const statusHeader = header.Status || "DRAFT";
+
+      if (targetDetails.length > 0) {
+        targetDetails.forEach((dtl, index) => {
+          const isFirstRow = index === 0;
+          const totalCetakDetail = parseNum(dtl.totalcetak || dtl.TotalCetak);
+
+          if (isFirstRow) {
+            grandTotalJumlahOrderMaster += parseNum(header.JumlahOrder);
+            grandTotalCetakMaster += parseNum(header.TotalCetak);
+          }
+          grandTotalDetailCetak += totalCetakDetail;
+
+          worksheetData.push([
+            { v: isFirstRow ? header.Nomor : "-", s: styleDataCellCenter },
+            { v: isFirstRow ? statusHeader : "-", s: styleDataCellCenter },
+            {
+              v: isFirstRow ? header.Shift || "-" : "-",
+              s: styleDataCellCenter,
+            },
+            { v: isFirstRow ? tglHeader : "-", s: styleDataCellCenter },
+            {
+              v: isFirstRow ? header.Mesin || "-" : "-",
+              s: styleDataCellCenter,
+            },
+            {
+              v: isFirstRow ? header.NomorSPK || "-" : "-",
+              s: styleDataCellCenter,
+            },
+            { v: isFirstRow ? header.NamaOrder || "-" : "-", s: styleDataCell },
+            isFirstRow
+              ? {
+                  v: parseNum(header.spk_panjang),
+                  t: "n",
+                  z: "#,##0.00",
+                  s: styleDataCellRight,
+                }
+              : { v: "-", s: styleDataCellCenter },
+            isFirstRow
+              ? {
+                  v: parseNum(header.spk_lebar),
+                  t: "n",
+                  z: "#,##0.00",
+                  s: styleDataCellRight,
+                }
+              : { v: "-", s: styleDataCellCenter },
+            isFirstRow
+              ? {
+                  v: parseNum(header.JumlahOrder),
+                  t: "n",
+                  z: "#,##0",
+                  s: styleDataCellRight,
+                }
+              : { v: "-", s: styleDataCellCenter },
+            isFirstRow
+              ? {
+                  v: parseNum(header.TotalCetak),
+                  t: "n",
+                  z: "#,##0.00",
+                  s: styleDataCellRight,
+                }
+              : { v: "-", s: styleDataCellCenter },
+            isFirstRow
+              ? {
+                  v: parseNum(header.PanjangBahanAwal),
+                  t: "n",
+                  z: "#,##0.00",
+                  s: styleDataCellRight,
+                }
+              : { v: "-", s: styleDataCellCenter },
+            isFirstRow
+              ? { v: sisaMeter, t: "n", z: "#,##0.00", s: styleDataCellRight }
+              : { v: "-", s: styleDataCellCenter },
+            { v: isFirstRow ? statusBahanText : "-", s: styleDataCellCenter },
+            {
+              v: isFirstRow ? header.Kode_bahan || "-" : "-",
+              s: styleDataCellCenter,
+            },
+            {
+              v: isFirstRow ? header.nama_Bahan || "-" : "-",
+              s: styleDataCell,
+            },
+            { v: dtl.nomor_spk || "-", s: styleDataCellCenter },
+            { v: dtl.nama_spk || "-", s: styleDataCell },
+            {
+              v: parseNum(dtl.cetak1),
+              t: "n",
+              z: "#,##0",
+              s: styleDataCellRight,
+            },
+            {
+              v: parseNum(dtl.cetak2),
+              t: "n",
+              z: "#,##0",
+              s: styleDataCellRight,
+            },
+            {
+              v: parseNum(dtl.cetak3),
+              t: "n",
+              z: "#,##0",
+              s: styleDataCellRight,
+            },
+            {
+              v: parseNum(dtl.cetak4),
+              t: "n",
+              z: "#,##0",
+              s: styleDataCellRight,
+            },
+            {
+              v: parseNum(dtl.cetak5),
+              t: "n",
+              z: "#,##0",
+              s: styleDataCellRight,
+            },
+            { v: totalCetakDetail, t: "n", z: "#,##0", s: styleDataCellRight },
+          ]);
+        });
+      } else {
+        grandTotalJumlahOrderMaster += parseNum(header.JumlahOrder);
+        grandTotalCetakMaster += parseNum(header.TotalCetak);
+
+        worksheetData.push([
+          { v: header.Nomor, s: styleDataCellCenter },
+          { v: statusHeader, s: styleDataCellCenter },
+          { v: header.Shift || "-", s: styleDataCellCenter },
+          { v: tglHeader, s: styleDataCellCenter },
+          { v: header.Mesin || "-", s: styleDataCellCenter },
+          { v: header.NomorSPK || "-", s: styleDataCellCenter },
+          { v: header.NamaOrder || "-", s: styleDataCell },
+          {
+            v: parseNum(header.spk_panjang),
+            t: "n",
+            z: "#,##0.00",
+            s: styleDataCellRight,
+          },
+          {
+            v: parseNum(header.spk_lebar),
+            t: "n",
+            z: "#,##0.00",
+            s: styleDataCellRight,
+          },
+          {
+            v: parseNum(header.JumlahOrder),
+            t: "n",
+            z: "#,##0",
+            s: styleDataCellRight,
+          },
+          {
+            v: parseNum(header.TotalCetak),
+            t: "n",
+            z: "#,##0.00",
+            s: styleDataCellRight,
+          },
+          {
+            v: parseNum(header.PanjangBahanAwal),
+            t: "n",
+            z: "#,##0.00",
+            s: styleDataCellRight,
+          },
+          { v: sisaMeter, t: "n", z: "#,##0.00", s: styleDataCellRight },
+          { v: statusBahanText, s: styleDataCellCenter },
+          { v: header.Kode_bahan || "-", s: styleDataCellCenter },
+          { v: header.nama_Bahan || "-", s: styleDataCell },
+          { v: "-", s: styleDataCellCenter },
+          { v: "Tidak ada data detail", s: styleDataCell },
+          { v: 0, t: "n", z: "#,##0", s: styleDataCellRight },
+          { v: 0, t: "n", z: "#,##0", s: styleDataCellRight },
+          { v: 0, t: "n", z: "#,##0", s: styleDataCellRight },
+          { v: 0, t: "n", z: "#,##0", s: styleDataCellRight },
+          { v: 0, t: "n", z: "#,##0", s: styleDataCellRight },
+          { v: 0, t: "n", z: "#,##0", s: styleDataCellRight },
+        ]);
+      }
+    });
+
+    const footerRow = [
+      {
+        v: "GRAND TOTAL",
+        s: { ...styleFooter, alignment: { horizontal: "right" } },
+      },
+      ...Array(8).fill({ v: "", s: styleFooter }),
+      {
+        v: grandTotalJumlahOrderMaster,
+        t: "n",
+        z: "#,##0",
+        s: { ...styleFooter, alignment: { horizontal: "right" } },
+      },
+      {
+        v: grandTotalCetakMaster,
+        t: "n",
+        z: "#,##0.00",
+        s: { ...styleFooter, alignment: { horizontal: "right" } },
+      },
+      ...Array(12).fill({ v: "", s: styleFooter }),
+      {
+        v: grandTotalDetailCetak,
+        t: "n",
+        z: "#,##0",
+        s: { ...styleFooter, alignment: { horizontal: "right" } },
+      },
+    ];
+    worksheetData.push(footerRow);
+
+    const ws = XLSX.utils.aoa_to_sheet(worksheetData);
+    ws["!merges"] = [
+      { s: { r: 0, c: 0 }, e: { r: 0, c: 23 } },
+      {
+        s: { r: worksheetData.length - 1, c: 0 },
+        e: { r: worksheetData.length - 1, c: 8 },
+      },
+    ];
+
+    ws["!cols"] = [
+      { wch: 22 },
+      { wch: 10 },
+      { wch: 8 },
+      { wch: 12 },
+      { wch: 10 },
+      { wch: 15 },
+      { wch: 25 },
+      { wch: 10 },
+      { wch: 10 },
+      { wch: 12 },
+      { wch: 12 },
+      { wch: 12 },
+      { wch: 10 },
+      { wch: 15 },
+      { wch: 12 },
+      { wch: 18 },
+      { wch: 15 },
+      { wch: 25 },
+      { wch: 10 },
+      { wch: 10 },
+      { wch: 10 },
+      { wch: 10 },
+      { wch: 10 },
+      { wch: 12 },
+    ];
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "LHK_Cetak_MMT");
+    XLSX.writeFile(wb, fileName);
+    toast.success("Excel Berhasil Diunduh!");
   } catch (error) {
-    toast.error("Gagal mengekspor data detail.");
+    console.error("Export Error:", error);
+    toast.error("Gagal mengekspor data ke Excel.");
   } finally {
     loading.value.headers = false;
   }

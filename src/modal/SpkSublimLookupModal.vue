@@ -365,6 +365,16 @@ const createMappedPayload = (
   const compName = isSetMode ? "ALL SET" : getKomponenName(targetComp, 0);
   const compKode = isSetMode ? "ALL SET" : getKomponenKode(targetComp);
 
+  // 🌟 Ambil panjang & lebar secara mutlak dari targetComp (prioritas dari join LHK Pola / item)
+  const resolvedPanjang =
+    targetComp.Panjang ??
+    targetComp.panjang ??
+    item.Panjang ??
+    item.panjang ??
+    0;
+  const resolvedLebar =
+    targetComp.Lebar ?? targetComp.lebar ?? item.Lebar ?? item.lebar ?? 0;
+
   return {
     ...item,
     ...targetComp,
@@ -380,23 +390,13 @@ const createMappedPayload = (
     poi_size: item.Size || item.poid_size || "-",
     poid_size: item.Size || item.poid_size || "-",
 
-    // 🌟 PASTIKAN PANJANG & LEBAR DITERUSKAN DI SINI (Mendukung Huruf Kapital & Kecil)
-    Panjang:
-      targetComp.Panjang ??
-      targetComp.panjang ??
-      item.Panjang ??
-      item.panjang ??
-      0,
-    Lebar:
-      targetComp.Lebar ?? targetComp.lebar ?? item.Lebar ?? item.lebar ?? 0,
-    spk_panjang:
-      targetComp.Panjang ??
-      targetComp.panjang ??
-      item.Panjang ??
-      item.panjang ??
-      0,
-    spk_lebar:
-      targetComp.Lebar ?? targetComp.lebar ?? item.Lebar ?? item.lebar ?? 0,
+    // Masukkan ke semua varian key agar tertangkap di form utama
+    Panjang: resolvedPanjang,
+    panjang: resolvedPanjang,
+    spk_panjang: resolvedPanjang,
+    Lebar: resolvedLebar,
+    lebar: resolvedLebar,
+    spk_lebar: resolvedLebar,
 
     Nama_Komponen: compName,
     nama_komponen: compName,

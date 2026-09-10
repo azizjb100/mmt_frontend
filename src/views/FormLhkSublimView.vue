@@ -1464,6 +1464,8 @@ const injectSpkObject = (spk: any, fallbackCode: string = "") => {
 
   if (!item) return;
 
+  console.log("DEBUG ITEM DARI MODAL:", item); // Cek console browser untuk memastikan Panjang & Lebar ada di sini
+
   const nomorSpk =
     item.spk_nomor ||
     item.SPK ||
@@ -1508,10 +1510,13 @@ const injectSpkObject = (spk: any, fallbackCode: string = "") => {
       qtyOrderSpk - sdhCetak,
   );
 
+  // 🌟 Ambil panjang & lebar dengan prioritas mutlak dari properti yang dikirim modal/backend
   const rawP = parseFloat(
-    item.spk_panjang || item.Panjang || item.panjang || 0,
+    item.spk_panjang ?? item.Panjang ?? item.panjang ?? item.ldg_panjang ?? 0,
   );
-  const rawL = parseFloat(item.spk_lebar || item.Lebar || item.lebar || 0);
+  const rawL = parseFloat(
+    item.spk_lebar ?? item.Lebar ?? item.lebar ?? item.ldg_lebar ?? 0,
+  );
 
   const newRow = {
     poi_nomor: item.poi_nomor || item.Poi_Nomor || "",
@@ -1539,7 +1544,7 @@ const injectSpkObject = (spk: any, fallbackCode: string = "") => {
   formData.value.details.push(newRow);
   recalculateCombine();
   toast.success(
-    `Berhasil menambahkan SPK ${newRow.spk_nomor} (${namaKomponen})`,
+    `Berhasil menambahkan SPK ${newRow.spk_nomor} (${namaKomponen}) - P: ${rawP}, L: ${rawL}`,
   );
 };
 
