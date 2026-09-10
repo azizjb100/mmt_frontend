@@ -379,6 +379,25 @@ const createMappedPayload = (
     Size: item.Size || item.poid_size || "-",
     poi_size: item.Size || item.poid_size || "-",
     poid_size: item.Size || item.poid_size || "-",
+
+    // 🌟 PASTIKAN PANJANG & LEBAR DITERUSKAN DI SINI (Mendukung Huruf Kapital & Kecil)
+    Panjang:
+      targetComp.Panjang ??
+      targetComp.panjang ??
+      item.Panjang ??
+      item.panjang ??
+      0,
+    Lebar:
+      targetComp.Lebar ?? targetComp.lebar ?? item.Lebar ?? item.lebar ?? 0,
+    spk_panjang:
+      targetComp.Panjang ??
+      targetComp.panjang ??
+      item.Panjang ??
+      item.panjang ??
+      0,
+    spk_lebar:
+      targetComp.Lebar ?? targetComp.lebar ?? item.Lebar ?? item.lebar ?? 0,
+
     Nama_Komponen: compName,
     nama_komponen: compName,
     Kode_Komponen: compKode,

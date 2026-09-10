@@ -793,18 +793,34 @@ const fetchData = async () => {
 
     const result = res.data?.data ?? res.data;
 
-    masterData.value = Array.isArray(result)
-      ? result.map((item: any) => ({
-          ...item,
-          SPK: item.SPK || item.Nomor || "-",
-          Nomor: item.Nomor || item.SPK || "-",
-          // Simpan string mentah dari backend (misal: "2026-08-10") agar bisa diparsing dengan benar oleh formatDateDisplay
-          Tanggal: item.Tanggal || item.tanggal || item.Tgl || "",
-          Dateline: item.Dateline || item.dateline || "",
-          Deadline: item.Deadline || item.deadline || item.Dateline || "",
-          Dateline_PO: item.Dateline_PO || item.dateline_po || "",
-        }))
-      : [];
+    if (Array.isArray(result)) {
+      const uniqueMap = new Map();
+
+      result.forEach((item: any) => {
+        const soVal = String(item.SO || "").trim();
+        if (!soVal) return; // Lewati jika tidak ada SO
+
+        // KUNCI UTAMA: 1 Nomor SO HANYA BOLEH ADA 1 Baris di Master Table
+        const uniqueKey = soVal;
+
+        if (!uniqueMap.has(uniqueKey)) {
+          const spkVal = item.Nomor || item.SPK || "-";
+          uniqueMap.set(uniqueKey, {
+            ...item,
+            SPK: spkVal,
+            Nomor: spkVal,
+            Tanggal: item.Tanggal || item.tanggal || item.Tgl || "",
+            Dateline: item.Dateline || item.dateline || "",
+            Deadline: item.Deadline || item.deadline || item.Dateline || "",
+            Dateline_PO: item.Dateline_PO || item.dateline_po || "",
+          });
+        }
+      });
+
+      masterData.value = Array.from(uniqueMap.values());
+    } else {
+      masterData.value = [];
+    }
   } catch (e: any) {
     if (e.name === "CanceledError" || e.code === "ERR_CANCELED") return;
     console.error("Fetch Browse Error:", e);
@@ -1026,6 +1042,8 @@ watch([startDate, endDate], ([newStart, newEnd]) => {
     :headers="masterHeaders"
     :items="filteredMasterData"
     :loading="loading"
+    :disable-sort="true"
+    item-value="SO"
     v-model:startDate="startDate"
     v-model:filteredItems="currentFilteredItems"
     v-model:endDate="endDate"

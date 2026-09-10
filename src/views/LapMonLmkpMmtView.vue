@@ -249,7 +249,10 @@
           </th>
 
           <!-- GROUP PRODUKSI (PCS) -->
-          <th colspan="7" class="text-center header-group bg-blue-header">
+          <th
+            :colspan="subPcs.length"
+            class="text-center header-group bg-blue-header"
+          >
             PRODUKSI (PCS)
           </th>
 
@@ -262,14 +265,6 @@
             CTK L. {{ getSortIcon("cetak_luarx") }}
           </th>
 
-          <!-- DINAMIS COLSPAN MESIN BASED ON KATEGORI -->
-          <!-- <th
-            :colspan="mesinColumns.length"
-            class="text-center header-group bg-cyan-header"
-          >
-            MESIN ({{ jenisLabel }})
-          </th> -->
-
           <!-- GROUP PRODUKSI (METER) -->
           <th colspan="3" class="text-center header-group bg-teal-header">
             PRODUKSI (METER)
@@ -278,51 +273,17 @@
 
         <!-- Row 2: Sub Header Detail Dengan Fitur Sorting -->
         <tr class="header-sub">
-          <!-- Produksi PCS (Urutan Disesuaikan) -->
+          <!-- DINAMIS SUB HEADER PCS -->
           <th
+            v-for="sub in subPcs"
+            :key="sub.key"
             class="text-right bg-blue-sub cursor-pointer select-none"
-            @click="toggleSort('spk_jumlah')"
+            @click="toggleSort(sub.key)"
           >
-            Order {{ getSortIcon("spk_jumlah") }}
-          </th>
-          <th
-            class="text-right bg-blue-sub cursor-pointer select-none"
-            @click="toggleSort('krg_Cetak')"
-          >
-            K-Cetak {{ getSortIcon("krg_Cetak") }}
-          </th>
-          <th
-            class="text-right bg-blue-sub cursor-pointer select-none"
-            @click="toggleSort('krg_Seaming')"
-          >
-            K-Seam {{ getSortIcon("krg_Seaming") }}
-          </th>
-          <th
-            class="text-right bg-blue-sub cursor-pointer select-none"
-            @click="toggleSort('krg_mataayam')"
-          >
-            K-M.Ayam {{ getSortIcon("krg_mataayam") }}
-          </th>
-          <th
-            class="text-right bg-blue-sub cursor-pointer select-none"
-            @click="toggleSort('krg_coly')"
-          >
-            K-Coly {{ getSortIcon("krg_coly") }}
-          </th>
-          <th
-            class="text-right bg-blue-sub cursor-pointer select-none"
-            @click="toggleSort('krg_kirim')"
-          >
-            K-Kirim {{ getSortIcon("krg_kirim") }}
-          </th>
-          <th
-            class="text-right bg-blue-sub cursor-pointer select-none"
-            @click="toggleSort('spk_jumlah_kirim')"
-          >
-            Kirim {{ getSortIcon("spk_jumlah_kirim") }}
+            {{ sub.label }} {{ getSortIcon(sub.key) }}
           </th>
 
-          <!-- DINAMIS SUB HEADER MESIN (MT / MX / SUBLIM) -->
+          <!-- DINAMIS SUB HEADER MESIN -->
           <th
             v-for="m in mesinColumns"
             :key="m.key"
@@ -402,25 +363,25 @@
           {{ item.FINISHING || "-" }}
         </td>
 
-        <!-- Produksi PCS (Urutan Disesuaikan) -->
-        <td class="text-right">{{ formatNumber(item.spk_jumlah, 0) }}</td>
-        <td class="text-right text-error font-weight-bold">
-          {{ formatNumber(item.krg_Cetak, 0) }}
-        </td>
-        <td class="text-right">{{ formatNumber(item.krg_Seaming, 0) }}</td>
-        <td class="text-right">{{ formatNumber(item.krg_mataayam, 0) }}</td>
-        <td class="text-right">{{ formatNumber(item.krg_coly, 0) }}</td>
-        <td class="text-right">{{ formatNumber(item.krg_kirim, 0) }}</td>
-        <td class="text-right text-success font-weight-bold">
-          {{ formatNumber(item.spk_jumlah_kirim, 0) }}
-        </td>
+        <!-- DINAMIS DATA PRODUKSI PCS -->
+        <template v-for="sub in subPcs" :key="sub.key">
+          <td
+            class="text-right"
+            :class="{
+              'text-error font-weight-bold': sub.key === 'krg_Cetak',
+              'text-success font-weight-bold': sub.key === 'spk_jumlah_kirim',
+            }"
+          >
+            {{ formatNumber(item[sub.key], 0) }}
+          </td>
+        </template>
 
         <!-- Cetak Luar -->
         <td class="text-right border-l border-r">
           {{ formatNumber(item.cetak_luarx, 0) }}
         </td>
 
-        <!-- DINAMIS DATA MESIN (MT / MX / SUBLIM) -->
+        <!-- DINAMIS DATA MESIN -->
         <td
           v-for="m in mesinColumns"
           :key="m.key"
@@ -449,35 +410,25 @@
           TOTAL (FILTERED):
         </td>
 
-        <!-- Produksi PCS Total (Urutan Disesuaikan) -->
-        <td class="text-right font-weight-black">
-          {{ formatNumber(totals.spk_jumlah, 0) }}
-        </td>
-        <td class="text-right font-weight-black text-error">
-          {{ formatNumber(totals.krg_Cetak, 0) }}
-        </td>
-        <td class="text-right font-weight-black">
-          {{ formatNumber(totals.krg_Seaming, 0) }}
-        </td>
-        <td class="text-right font-weight-black">
-          {{ formatNumber(totals.krg_mataayam, 0) }}
-        </td>
-        <td class="text-right font-weight-black">
-          {{ formatNumber(totals.krg_coly, 0) }}
-        </td>
-        <td class="text-right font-weight-black">
-          {{ formatNumber(totals.krg_kirim, 0) }}
-        </td>
-        <td class="text-right font-weight-black text-success">
-          {{ formatNumber(totals.spk_jumlah_kirim, 0) }}
-        </td>
+        <!-- DINAMIS TOTAL PRODUKSI PCS -->
+        <template v-for="sub in subPcs" :key="sub.key">
+          <td
+            class="text-right font-weight-black"
+            :class="{
+              'text-error': sub.key === 'krg_Cetak',
+              'text-success': sub.key === 'spk_jumlah_kirim',
+            }"
+          >
+            {{ formatNumber(totals[sub.key], 0) }}
+          </td>
+        </template>
 
         <!-- Cetak Luar -->
         <td class="text-right font-weight-black border-l border-r">
           {{ formatNumber(totals.cetak_luarx, 0) }}
         </td>
 
-        <!-- DINAMIS TOTAL MESIN (MT / MX / SUBLIM) -->
+        <!-- DINAMIS TOTAL MESIN -->
         <td
           v-for="m in mesinColumns"
           :key="m.key"
@@ -721,35 +672,60 @@ const jenisLabel = computed(() => {
   return "MT";
 });
 
+// --- DINAMIS SUB-HEADER & KEY PCS BERDASARKAN KATEGORI ---
+const subPcs = computed(() => {
+  if (jenisIndex.value === "1") {
+    // Kategori MX
+    return [
+      { label: "Order", key: "spk_jumlah" },
+      { label: "K-Cetak", key: "krg_Cetak" },
+      { label: "K-Jahit", key: "krg_Jahit" },
+      { label: "K-Coly", key: "krg_coly" },
+      { label: "K-Kirim", key: "krg_kirim" },
+      { label: "Kirim", key: "spk_jumlah_kirim" },
+    ];
+  }
+  // Kategori MT, Paperprint, Sublim (Default)
+  return [
+    { label: "Order", key: "spk_jumlah" },
+    { label: "K-Cetak", key: "krg_Cetak" },
+    { label: "K-Seam", key: "krg_Seaming" },
+    { label: "K-M.Ayam", key: "krg_mataayam" },
+    { label: "K-Coly", key: "krg_coly" },
+    { label: "K-Kirim", key: "krg_kirim" },
+    { label: "Kirim", key: "spk_jumlah_kirim" },
+  ];
+});
+
 // --- SKEMA MESIN DINAMIS BASED ON KATEGORI ---
-// const mesinColumns = computed(() => {
-//   if (jenisIndex.value === "1") {
-//     return [
-//       { label: "MX01", key: "mx01" },
-//       { label: "MX02", key: "mx02" },
-//       { label: "MX03", key: "mx03" },
-//       { label: "MX04", key: "mx04" },
-//       { label: "MX05", key: "mx05" },
-//     ];
-//   }
-//   if (jenisIndex.value === "2") {
-//     return [
-//       { label: "SB01", key: "sb01" },
-//       { label: "SB02", key: "sb02" },
-//       { label: "SB03", key: "sb03" },
-//       { label: "SB04", key: "sb04" },
-//       { label: "SB05", key: "sb05" },
-//     ];
-//   }
-//   return [
-//     { label: "MT01", key: "mt01" },
-//     { label: "MT02", key: "mt02" },
-//     { label: "MT03", key: "mt03" },
-//     { label: "MT04", key: "mt04" },
-//     { label: "MT05", key: "mt05" },
-//     { label: "MI", key: "mi" },
-//   ];
-// });
+const mesinColumns = computed(() => {
+  if (jenisIndex.value === "1") {
+    return [
+      { label: "MX01", key: "mx01" },
+      { label: "MX02", key: "mx02" },
+      { label: "MX03", key: "mx03" },
+      { label: "MX04", key: "mx04" },
+      { label: "MX05", key: "mx05" },
+    ];
+  }
+  if (jenisIndex.value === "2") {
+    return [
+      { label: "SB01", key: "sb01" },
+      { label: "SB02", key: "sb02" },
+      { label: "SB03", key: "sb03" },
+      { label: "SB04", key: "sb04" },
+      { label: "SB05", key: "sb05" },
+    ];
+  }
+  return [
+    { label: "MT01", key: "mt01" },
+    { label: "MT02", key: "mt02" },
+    { label: "MT03", key: "mt03" },
+    { label: "MT04", key: "mt04" },
+    { label: "MT05", key: "mt05" },
+    { label: "MI", key: "mi" },
+  ];
+});
 
 // --- FETCH REPORT ---
 const fetchReport = async () => {
@@ -792,6 +768,7 @@ const NUMERIC_KEYS = [
   "spk_jumlah_kirim",
   "krg_kirim",
   "krg_Seaming",
+  "krg_Jahit",
   "krg_mataayam",
   "krg_Cetak",
   "krg_coly",
@@ -896,6 +873,7 @@ const totals = computed(() => {
       acc.spk_jumlah_kirim += Number(item.spk_jumlah_kirim || 0);
       acc.krg_kirim += Number(item.krg_kirim || 0);
       acc.krg_Seaming += Number(item.krg_Seaming || 0);
+      acc.krg_Jahit += Number(item.krg_Jahit || 0);
       acc.krg_mataayam += Number(item.krg_mataayam || 0);
       acc.krg_Cetak += Number(item.krg_Cetak || 0);
       acc.krg_coly += Number(item.krg_coly || 0);
@@ -930,6 +908,7 @@ const totals = computed(() => {
       spk_jumlah_kirim: 0,
       krg_kirim: 0,
       krg_Seaming: 0,
+      krg_Jahit: 0,
       krg_mataayam: 0,
       krg_Cetak: 0,
       krg_coly: 0,
@@ -1002,20 +981,17 @@ const exportToExcel = (dataToExport: any[]) => {
   const fileName = `Laporan_LMKP_${jenisLabel.value}_${startDate.value}_sd_${endDate.value}.xlsx`;
   const num = (value: any) => (isNaN(Number(value)) ? 0 : Number(value));
 
-  // Helper yang memastikan string tanggal diubah menjadi objek Date JavaScript yang valid
   const excelDate = (dateStr: any) => {
     if (!dateStr) return null;
     if (dateStr instanceof Date) return isValid(dateStr) ? dateStr : null;
 
     const str = String(dateStr).trim();
 
-    // Cek jika format YYYY-MM-DD
     if (/^\d{4}-\d{2}-\d{2}/.test(str)) {
       const parsed = parseISO(str);
       if (isValid(parsed)) return parsed;
     }
 
-    // Cek jika format DD/MM/YYYY
     if (str.includes("/")) {
       const parts = str.split("/");
       if (parts.length === 3) {
@@ -1092,15 +1068,16 @@ const exportToExcel = (dataToExport: any[]) => {
     { v: "LEBAR", s: styleHeaderMain },
     { v: "FINISHING", s: styleHeaderMain },
     { v: "PRODUKSI (PCS)", s: styleHeaderMain },
-    "",
-    "",
-    "",
-    "",
-    "",
-    "",
+  ];
+
+  for (let i = 1; i < subPcs.value.length; i++) {
+    headerRow1.push({ v: "", s: styleHeaderMain });
+  }
+
+  headerRow1.push(
     { v: "CTK L.", s: styleHeaderMain },
     { v: "MESIN", s: styleHeaderMain },
-  ];
+  );
 
   for (let i = 1; i < mesinColumns.value.length; i++) {
     headerRow1.push({ v: "", s: styleHeaderMain });
@@ -1110,19 +1087,12 @@ const exportToExcel = (dataToExport: any[]) => {
   wsData.push(headerRow1);
 
   // Header Row 2
-  const subPcs = [
-    "Order",
-    "K-Cetak",
-    "K-Seam",
-    "K-M.Ayam",
-    "K-Coly",
-    "K-Kirim",
-    "Kirim",
-  ];
   const subMeter = ["K-KRM", "K-CTK", "K-CLY"];
 
   const headerRow2 = Array(9).fill({ v: "", s: styleHeaderMain });
-  subPcs.forEach((h) => headerRow2.push({ v: h, s: styleHeaderSub }));
+  subPcs.value.forEach((sub) =>
+    headerRow2.push({ v: sub.label, s: styleHeaderSub }),
+  );
   headerRow2.push({ v: "", s: styleHeaderMain });
 
   mesinColumns.value.forEach((m) => {
@@ -1143,14 +1113,12 @@ const exportToExcel = (dataToExport: any[]) => {
         s: { ...styleDataCell, alignment: { horizontal: "center" } },
       },
       { v: item.spk_nama || "", s: styleDataCell },
-      // Tanggal: Wajib menggunakan tipe 'd' dengan objek Date agar dibaca sebagai tanggal Excel
       {
         v: tglDate || "",
         t: "d",
         z: "dd/mm/yyyy",
         s: { ...styleDataCell, alignment: { horizontal: "center" } },
       },
-      // Deadline: Wajib menggunakan tipe 'd' dengan objek Date agar dibaca sebagai tanggal Excel
       {
         v: deadlineDate || "",
         t: "d",
@@ -1175,55 +1143,23 @@ const exportToExcel = (dataToExport: any[]) => {
         s: { ...styleDataCell, alignment: { horizontal: "center" } },
       },
       { v: item.FINISHING || "", s: styleDataCell },
-      {
-        v: num(item.spk_jumlah),
-        t: "n",
-        z: "#,##0",
-        s: { ...styleDataCell, alignment: { horizontal: "right" } },
-      },
-      {
-        v: num(item.krg_Cetak),
-        t: "n",
-        z: "#,##0",
-        s: { ...styleDataCell, alignment: { horizontal: "right" } },
-      },
-      {
-        v: num(item.krg_Seaming),
-        t: "n",
-        z: "#,##0",
-        s: { ...styleDataCell, alignment: { horizontal: "right" } },
-      },
-      {
-        v: num(item.krg_mataayam),
-        t: "n",
-        z: "#,##0",
-        s: { ...styleDataCell, alignment: { horizontal: "right" } },
-      },
-      {
-        v: num(item.krg_coly),
-        t: "n",
-        z: "#,##0",
-        s: { ...styleDataCell, alignment: { horizontal: "right" } },
-      },
-      {
-        v: num(item.krg_kirim),
-        t: "n",
-        z: "#,##0",
-        s: { ...styleDataCell, alignment: { horizontal: "right" } },
-      },
-      {
-        v: num(item.spk_jumlah_kirim),
-        t: "n",
-        z: "#,##0",
-        s: { ...styleDataCell, alignment: { horizontal: "right" } },
-      },
-      {
-        v: num(item.cetak_luarx),
-        t: "n",
-        z: "#,##0",
-        s: { ...styleDataCell, alignment: { horizontal: "right" } },
-      },
     ];
+
+    subPcs.value.forEach((sub) => {
+      row.push({
+        v: num(item[sub.key]),
+        t: "n",
+        z: "#,##0",
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+      });
+    });
+
+    row.push({
+      v: num(item.cetak_luarx),
+      t: "n",
+      z: "#,##0",
+      s: { ...styleDataCell, alignment: { horizontal: "right" } },
+    });
 
     mesinColumns.value.forEach((m) => {
       row.push({
@@ -1265,55 +1201,23 @@ const exportToExcel = (dataToExport: any[]) => {
       s: { ...styleFooterCell, alignment: { horizontal: "center" } },
     },
     ...Array(8).fill({ v: "", s: styleFooterCell }),
-    {
-      v: num(totals.value.spk_jumlah),
-      t: "n",
-      z: "#,##0",
-      s: { ...styleFooterCell, alignment: { horizontal: "right" } },
-    },
-    {
-      v: num(totals.value.krg_Cetak),
-      t: "n",
-      z: "#,##0",
-      s: { ...styleFooterCell, alignment: { horizontal: "right" } },
-    },
-    {
-      v: num(totals.value.krg_Seaming),
-      t: "n",
-      z: "#,##0",
-      s: { ...styleFooterCell, alignment: { horizontal: "right" } },
-    },
-    {
-      v: num(totals.value.krg_mataayam),
-      t: "n",
-      z: "#,##0",
-      s: { ...styleFooterCell, alignment: { horizontal: "right" } },
-    },
-    {
-      v: num(totals.value.krg_coly),
-      t: "n",
-      z: "#,##0",
-      s: { ...styleFooterCell, alignment: { horizontal: "right" } },
-    },
-    {
-      v: num(totals.value.krg_kirim),
-      t: "n",
-      z: "#,##0",
-      s: { ...styleFooterCell, alignment: { horizontal: "right" } },
-    },
-    {
-      v: num(totals.value.spk_jumlah_kirim),
-      t: "n",
-      z: "#,##0",
-      s: { ...styleFooterCell, alignment: { horizontal: "right" } },
-    },
-    {
-      v: num(totals.value.cetak_luarx),
-      t: "n",
-      z: "#,##0",
-      s: { ...styleFooterCell, alignment: { horizontal: "right" } },
-    },
   ];
+
+  subPcs.value.forEach((sub) => {
+    footerRow.push({
+      v: num(totals.value[sub.key]),
+      t: "n",
+      z: "#,##0",
+      s: { ...styleFooterCell, alignment: { horizontal: "right" } },
+    });
+  });
+
+  footerRow.push({
+    v: num(totals.value.cetak_luarx),
+    t: "n",
+    z: "#,##0",
+    s: { ...styleFooterCell, alignment: { horizontal: "right" } },
+  });
 
   mesinColumns.value.forEach((m) => {
     footerRow.push({
@@ -1349,7 +1253,10 @@ const exportToExcel = (dataToExport: any[]) => {
 
   const ws = XLSX.utils.aoa_to_sheet(wsData);
 
-  const mesinStartCol = 17;
+  const pcsStartCol = 9;
+  const pcsEndCol = pcsStartCol + subPcs.value.length - 1;
+  const cetakLuarCol = pcsEndCol + 1;
+  const mesinStartCol = cetakLuarCol + 1;
   const mesinEndCol = mesinStartCol + mesinColumns.value.length - 1;
 
   ws["!merges"] = [
@@ -1362,8 +1269,8 @@ const exportToExcel = (dataToExport: any[]) => {
     { s: { r: 4, c: 6 }, e: { r: 5, c: 6 } },
     { s: { r: 4, c: 7 }, e: { r: 5, c: 7 } },
     { s: { r: 4, c: 8 }, e: { r: 5, c: 8 } },
-    { s: { r: 4, c: 16 }, e: { r: 5, c: 16 } },
-    { s: { r: 4, c: 9 }, e: { r: 4, c: 15 } },
+    { s: { r: 4, c: pcsStartCol }, e: { r: 4, c: pcsEndCol } },
+    { s: { r: 4, c: cetakLuarCol }, e: { r: 5, c: cetakLuarCol } },
     { s: { r: 4, c: mesinStartCol }, e: { r: 4, c: mesinEndCol } },
     { s: { r: 4, c: mesinEndCol + 1 }, e: { r: 4, c: mesinEndCol + 3 } },
   ];

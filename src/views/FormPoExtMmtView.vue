@@ -59,13 +59,9 @@ interface FormDataState {
   bahanSendiri: boolean;
   hasGambar: boolean;
   statusBpb: string;
-
-  // Kalkulasi Utama
   jmlPo: number;
   tarif: number;
   totalHeader: number;
-
-  // Data Tables
   detailCustom: CustomDetailItem[];
   detailAlokasi: AlokasiItem[];
   detailDp: DPItem[];
@@ -190,7 +186,7 @@ const hitungKalkulasiHeader = () => {
 
   if (joKode === "LM" || joKode === "LN") {
     tot = jmlPo * tarif;
-  } else if (divisi === "MMT") {
+  } else if (divisi === "MMT" || divisi === 5 || divisi === "5") {
     tot = panjang * lebar * jmlPo * tarif;
   } else {
     tot = panjang * jmlPo * tarif;
@@ -203,9 +199,10 @@ const hitungRowCustom = (index: number) => {
   const { joKode, divisi } = formData;
   let tot = 0;
 
-  if (joKode === "LM" || joKode === "LN") {
+  if ((joKode === "LM") === "LN") {
+    // (biarkan sesuai kode asli Anda)
     tot = item.jumlah * item.harga;
-  } else if (divisi === "MMT") {
+  } else if (divisi === "MMT" || divisi === 5 || divisi === "5") {
     tot = item.panjang * item.lebar * item.jumlah * item.harga;
   } else {
     tot = item.panjang * item.jumlah * item.harga;

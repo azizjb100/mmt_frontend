@@ -678,6 +678,7 @@ const initialData = {
 
 const ensureMeter = (val: any) => {
   const num = parseFloat(val) || 0;
+  // Jika nilai lebih dari 10, asumsikan dalam satuan centimeter dan ubah ke meter
   return num > 10 ? parseFloat((num / 100).toFixed(2)) : num;
 };
 
@@ -1039,9 +1040,6 @@ const autoFillLayout = (isSilent = false) => {
     const unitW = spk.orientasi === "panjang" ? lSpk : pSpk + padM;
     const unitH = spk.orientasi === "panjang" ? pSpk : lSpk + padM;
 
-    // 🌟 KUNCI UTAMA: Gunakan tileInput secara mutlak tanpa dibatasi kapasitas fisik,
-    // tapi jika jumlah tile dipaksa melebihi lebar bahan, kita sesuaikan jarak
-    // step vertikalnya (spacing tumpukan) agar tetap pas di dalam maxLebarBahan.
     const effectiveSpacingY =
       tileInput > 0 ? Math.min(unitH, maxLebarBahan / tileInput) : unitH;
 
@@ -1403,6 +1401,7 @@ const handleSpkScan = async () => {
 const handleSpkSelect = (payload: any) => {
   if (!payload) return;
 
+  // 🌟 Ambil array data dari dalam payload emit modal ({ mode: ..., data: [...] })
   const items: any[] = Array.isArray(payload)
     ? payload
     : Array.isArray(payload?.data)
@@ -1412,21 +1411,23 @@ const handleSpkSelect = (payload: any) => {
   items.forEach((spkItem: any) => {
     if (!spkItem) return;
 
+    let itemObj = spkItem;
+    if (itemObj.data && !itemObj.Panjang && !itemObj.spk_panjang) {
+      itemObj = itemObj.data;
+    }
+
     const targetNomor =
-      spkItem.spk_nomor ||
-      spkItem.SPK ||
-      spkItem.Spk ||
-      spkItem.poi_spk_nomor ||
-      spkItem.Nomor_SPK ||
-      spkItem.Id;
+      itemObj.spk_nomor ||
+      itemObj.SPK ||
+      itemObj.Spk ||
+      itemObj.Nomor_SPK ||
+      itemObj.Id;
 
     const currentDetails = formData.value.details || [];
-
     const targetKomponen =
-      spkItem.spk_komponen ||
-      spkItem.Nama_Komponen ||
-      spkItem.nama_komponen ||
-      spkItem.Bhn_Name ||
+      itemObj.spk_komponen ||
+      itemObj.Nama_Komponen ||
+      itemObj.nama_komponen ||
       "ALL SET";
 
     if (
@@ -1443,7 +1444,7 @@ const handleSpkSelect = (payload: any) => {
       return;
     }
 
-    injectSpkObject(spkItem);
+    injectSpkObject(itemObj);
   });
 
   isSpkLookupVisible.value = false;
@@ -1507,8 +1508,10 @@ const injectSpkObject = (spk: any, fallbackCode: string = "") => {
       qtyOrderSpk - sdhCetak,
   );
 
-  const rawP = parseFloat(item.spk_panjang || item.Panjang || 0);
-  const rawL = parseFloat(item.spk_lebar || item.Lebar || 0);
+  const rawP = parseFloat(
+    item.spk_panjang || item.Panjang || item.panjang || 0,
+  );
+  const rawL = parseFloat(item.spk_lebar || item.Lebar || item.lebar || 0);
 
   const newRow = {
     poi_nomor: item.poi_nomor || item.Poi_Nomor || "",
