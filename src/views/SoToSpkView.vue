@@ -793,18 +793,20 @@ const fetchData = async () => {
 
     const result = res.data?.data ?? res.data;
 
+    // --- Di dalam fungsi fetchData() ---
     if (Array.isArray(result)) {
       const uniqueMap = new Map();
 
       result.forEach((item: any) => {
         const soVal = String(item.SO || "").trim();
-        if (!soVal) return; // Lewati jika tidak ada SO
+        if (!soVal) return;
 
-        // KUNCI UTAMA: 1 Nomor SO HANYA BOLEH ADA 1 Baris di Master Table
         const uniqueKey = soVal;
 
         if (!uniqueMap.has(uniqueKey)) {
           const spkVal = item.Nomor || item.SPK || "-";
+          uniqueMap.get(uniqueKey); // ... abaikan, gunakan logika di bawah setelah map terkumpul
+
           uniqueMap.set(uniqueKey, {
             ...item,
             SPK: spkVal,
@@ -817,7 +819,24 @@ const fetchData = async () => {
         }
       });
 
-      masterData.value = Array.from(uniqueMap.values());
+      // Ubah ke array, lalu urutkan: Belum ada SPK (di atas), Sudah ada SPK (di bawah)
+      const processedItems = Array.from(uniqueMap.values()).sort((a, b) => {
+        const spkA = String(a.SPK || a.Nomor || "").trim();
+        const spkB = String(b.SPK || b.Nomor || "").trim();
+
+        const isAEmpty = !spkA || spkA === "-";
+        const isBEmpty = !spkB || spkB === "-";
+
+        // Jika A belum ada SPK dan B sudah, A diprioritaskan di atas (-1)
+        if (isAEmpty && !isBEmpty) return -1;
+        // Jika B belum ada SPK dan A sudah, B diprioritaskan di atas (1)
+        if (!isAEmpty && isBEmpty) return 1;
+
+        // Jika status ketersediaan SPK sama, biarkan urutan aslinya atau urutkan berdasarkan tanggal
+        return 0;
+      });
+
+      masterData.value = processedItems;
     } else {
       masterData.value = [];
     }
