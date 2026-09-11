@@ -75,22 +75,22 @@
           <table class="print-table">
             <thead>
               <tr>
-                <th style="width: 35px">No.</th>
-                <th>Nama Pesanan</th>
-                <th style="width: 90px">Bahan</th>
-                <th style="width: 80px">Ukuran</th>
-                <th style="width: 110px">Finishing</th>
-                <th style="width: 100px">Jumlah</th>
-                <th style="width: 80px">DESAIN</th>
-                <th style="width: 90px">Harga/Pcs</th>
-                <th style="width: 120px">Subtotal</th>
+                <th style="width: 30px">No.</th>
+                <th style="width: 240px">Nama Pesanan</th>
+                <th style="width: 75px">Bahan</th>
+                <th style="width: 70px">Ukuran</th>
+                <th style="width: 100px">Finishing</th>
+                <th style="width: 85px">Jumlah</th>
+                <th style="width: 75px">DESAIN</th>
+                <th style="width: 80px">Harga/Pcs</th>
+                <th style="width: 105px">Subtotal</th>
               </tr>
             </thead>
             <tbody>
               <tr v-for="(item, index) in poItems" :key="index">
                 <td class="text-center">{{ index + 1 }}</td>
                 <td>
-                  <!-- Hanya menampilkan nama pesanan saja -->
+                  <!-- Nama pesanan dengan lebar kolom diperluas -->
                   <div class="font-weight-bold">{{ item.NamaPesanan }}</div>
                 </td>
                 <td class="text-center">{{ item.Bahan }}</td>

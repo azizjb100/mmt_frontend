@@ -6,6 +6,7 @@ import BaseBrowse from "@/components/BaseBrowse.vue";
 import { useBrowse } from "@/composables/useBrowse";
 import { mapService } from "@/services/mmt/mapService";
 import { useAuthStore } from "@/stores/authStore";
+import * as XLSX from "xlsx-js-style";
 import api from "@/services/api";
 import {
   IconClipboardText,
@@ -22,6 +23,7 @@ import {
   IconLayoutSidebarRight,
   IconLayoutSidebarRightCollapse,
   IconBrush,
+  IconFileSpreadsheet, // <-- Tambahkan ini
 } from "@tabler/icons-vue";
 import { formatTanggal, formatTanggalJam } from "@/utils/dateFormat";
 
@@ -32,6 +34,8 @@ const menuId = "162";
 
 const showPrintDialog = ref(false);
 const printNomorBrowse = ref("");
+const isExporting = ref(false);
+const mapDetails = ref<Record<string, any[]>>({});
 
 // Helper Tanggal Lokal YYYY-MM-DD
 const getLocalDate = () => {
@@ -49,6 +53,34 @@ const getFutureLocalDate = (daysAhead: number) => {
   const month = String(d.getMonth() + 1).padStart(2, "0");
   const day = String(d.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
+};
+
+const parseToExcelDate = (val: string | null) => {
+  if (!val || val === "-") return null;
+  const strVal = String(val).trim();
+  let parts: string[] = [];
+  if (strVal.includes("/")) {
+    parts = strVal.split("/");
+    if (parts.length === 3) {
+      const day = parseInt(parts[0], 10);
+      const month = parseInt(parts[1], 10);
+      const year = parseInt(parts[2], 10);
+      if (year && month && day) {
+        return new Date(year, month - 1, day);
+      }
+    }
+  } else if (strVal.includes("-")) {
+    parts = strVal.substring(0, 10).split("-");
+    if (parts.length === 3) {
+      const year = parseInt(parts[0], 10);
+      const month = parseInt(parts[1], 10);
+      const day = parseInt(parts[2], 10);
+      if (year && month && day) {
+        return new Date(year, month - 1, day);
+      }
+    }
+  }
+  return null;
 };
 
 // State Filter Tanggal (Eksplisit)
@@ -725,6 +757,373 @@ const openCloseDialog = (isClose: "Y" | "N") => {
   showCloseDialog.value = true;
 };
 
+const exportToExcelCustom = async () => {
+  if (!filteredItems.value || filteredItems.value.length === 0) {
+    return toast.warning(
+      "Tidak ada data yang sesuai dengan filter untuk diekspor.",
+    );
+  }
+
+  isExporting.value = true;
+
+  try {
+    // 1. Urutkan berdasarkan Tanggal
+    const sortedItems = [...filteredItems.value].sort((a: any, b: any) => {
+      const getNum = (val: string) => {
+        if (!val || val === "-") return 0;
+        const strVal = String(val).trim();
+        if (strVal.includes("/")) {
+          const parts = strVal.split("/");
+          if (parts.length === 3) {
+            const day = parseInt(parts[0], 10) || 0;
+            const month = parseInt(parts[1], 10) || 0;
+            const year = parseInt(parts[2], 10) || 0;
+            return year * 10000 + month * 100 + day;
+          }
+        } else if (strVal.includes("-")) {
+          const parts = strVal.substring(0, 10).split("-");
+          if (parts.length === 3) {
+            const year = parseInt(parts[0], 10) || 0;
+            const month = parseInt(parts[1], 10) || 0;
+            const day = parseInt(parts[2], 10) || 0;
+            return year * 10000 + month * 100 + day;
+          }
+        }
+        return 0;
+      };
+      return getNum(a.Tanggal) - getNum(b.Tanggal);
+    });
+
+    // 2. Ambil detail sizes jika diperlukan (opsional/disesuaikan dengan backend MAP Anda)
+    for (const header of sortedItems) {
+      const nomorMap = header.Nomor;
+      if (
+        nomorMap &&
+        (!mapDetails.value[nomorMap] || mapDetails.value[nomorMap].length === 0)
+      ) {
+        try {
+          // Ganti dengan method service size MAP Anda jika tersedia, misal: mapService.getSizes(nomorMap)
+          // Jika tidak ada detail size terpisah, bagian ini bisa dilewati atau disesuaikan.
+          const res = (mapService as any).getSizes
+            ? await (mapService as any).getSizes(nomorMap)
+            : null;
+          const resData = res?.data?.data ?? res?.data;
+          mapDetails.value[nomorMap] = Array.isArray(resData) ? resData : [];
+        } catch (e) {
+          mapDetails.value[nomorMap] = [];
+        }
+      }
+    }
+
+    const fileName = `Data_MAP_${startDate.value}_sd_${endDate.value}.xlsx`;
+
+    const num = (value: any): number => {
+      const parsed = Number(value);
+      return Number.isNaN(parsed) ? 0 : parsed;
+    };
+
+    // Style Definisi
+    const styleHeaderMain = {
+      fill: { fgColor: { rgb: "B3E5FC" } },
+      font: { bold: true, color: { rgb: "000000" }, sz: 10 },
+      alignment: { horizontal: "center", vertical: "center", wrapText: true },
+      border: {
+        top: { style: "thin", color: { rgb: "000000" } },
+        bottom: { style: "thin", color: { rgb: "000000" } },
+        left: { style: "thin", color: { rgb: "000000" } },
+        right: { style: "thin", color: { rgb: "000000" } },
+      },
+    };
+
+    const styleDataCell = {
+      font: { sz: 10 },
+      border: {
+        top: { style: "thin", color: { rgb: "000000" } },
+        bottom: { style: "thin", color: { rgb: "000000" } },
+        left: { style: "thin", color: { rgb: "000000" } },
+        right: { style: "thin", color: { rgb: "000000" } },
+      },
+      alignment: { vertical: "center" },
+    };
+
+    const styleDataCellCenter = {
+      ...styleDataCell,
+      alignment: { horizontal: "center", vertical: "center" },
+    };
+
+    const styleDataCellRight = {
+      ...styleDataCell,
+      alignment: { horizontal: "right", vertical: "center" },
+    };
+
+    const styleFooter = {
+      ...styleDataCell,
+      fill: { fgColor: { rgb: "F0F4F8" } },
+      font: { bold: true, sz: 10 },
+    };
+
+    const worksheetData: any[] = [];
+
+    // Title Block
+    worksheetData.push([
+      { v: "MEMO APPROVAL PRODUK (MAP)", s: { font: { bold: true, sz: 14 } } },
+    ]);
+    worksheetData.push([
+      {
+        v: `Tanggal Periode : ${startDate.value} s.d ${endDate.value}`,
+        s: { font: { sz: 10 } },
+      },
+    ]);
+    worksheetData.push([]);
+
+    // Headers kolom sesuai urutan header aktif di frontend
+    const headers = [
+      { v: "NOMOR", s: styleHeaderMain },
+      { v: "MO", s: styleHeaderMain },
+      { v: "CMO", s: styleHeaderMain },
+      { v: "TANGGAL", s: styleHeaderMain },
+      { v: "DATELINE", s: styleHeaderMain },
+      { v: "TGL. BAST", s: styleHeaderMain },
+      { v: "NAMA", s: styleHeaderMain },
+      { v: "SELISIH (BAST-MAP)", s: styleHeaderMain },
+      { v: "BERITA ACARA", s: styleHeaderMain },
+      { v: "DIVISI", s: styleHeaderMain },
+      { v: "CAB", s: styleHeaderMain },
+      { v: "WORKSHOP", s: styleHeaderMain },
+      { v: "WORKSHOP SPK", s: styleHeaderMain },
+      { v: "AKTIF", s: styleHeaderMain },
+      { v: "ACC. CUSTOMER", s: styleHeaderMain },
+      { v: "SURAT JALAN", s: styleHeaderMain },
+      { v: "UKURAN", s: styleHeaderMain },
+      { v: "PANJANG", s: styleHeaderMain },
+      { v: "LEBAR", s: styleHeaderMain },
+      { v: "GRAMASI", s: styleHeaderMain },
+      { v: "KAIN", s: styleHeaderMain },
+      { v: "FINISHING", s: styleHeaderMain },
+      { v: "QTY", s: styleHeaderMain },
+      { v: "KIRIM", s: styleHeaderMain },
+      ...(canLihatCus.value ? [{ v: "CUSTOMER", s: styleHeaderMain }] : []),
+      { v: "RENCANA", s: styleHeaderMain },
+      { v: "SALESMAN", s: styleHeaderMain },
+      { v: "TIPE", s: styleHeaderMain },
+      ...(canLihatHarga.value
+        ? [
+            { v: "HARGA", s: styleHeaderMain },
+            { v: "HARGA RIIL", s: styleHeaderMain },
+          ]
+        : []),
+      { v: "CREATED", s: styleHeaderMain },
+      { v: "REVISI", s: styleHeaderMain },
+      { v: "NO. REFERENSI", s: styleHeaderMain },
+      { v: "ESTIMASI JADI", s: styleHeaderMain },
+      { v: "CLOSE", s: styleHeaderMain },
+      { v: "SO", s: styleHeaderMain },
+      { v: "TGL. DESAIN", s: styleHeaderMain },
+      { v: "USER DESAIN", s: styleHeaderMain },
+      { v: "NOTE DESAIN", s: styleHeaderMain },
+      { v: "NGEDIT", s: styleHeaderMain },
+      { v: "DESAIN BARU", s: styleHeaderMain },
+      { v: "DESAIN DONE", s: styleHeaderMain },
+      { v: "KETERANGAN", s: styleHeaderMain },
+      // Kolom Detail Size tambahan
+      { v: "UKURAN/SIZE (DETAIL)", s: styleHeaderMain },
+      { v: "QTY SPK (DETAIL)", s: styleHeaderMain },
+      { v: "REALISASI STBJ (DETAIL)", s: styleHeaderMain },
+      { v: "SISA KURANG (DETAIL)", s: styleHeaderMain },
+    ];
+    worksheetData.push(headers);
+
+    let grandTotalQty = 0;
+    let grandTotalKirim = 0;
+    let grandTotalDetailQty = 0;
+
+    sortedItems.forEach((header) => {
+      const nomorMap = header.Nomor || "-";
+      const targetSizes = mapDetails.value[nomorMap] || [];
+
+      const tglExcel = parseToExcelDate(header.Tanggal);
+      const datelineExcel = parseToExcelDate(header.Dateline);
+      const tglBastExcel = parseToExcelDate(header.TglBast);
+      const estimasiJadiExcel = parseToExcelDate(header.EstimasiJadi);
+      const designTglExcel = parseToExcelDate(header.Design_Tanggal);
+      const createdExcel = parseToExcelDate(header.Created);
+
+      grandTotalQty += num(header.Jumlah);
+      grandTotalKirim += num(header.Kirim);
+
+      const baseRowData = [
+        { v: nomorMap, s: styleDataCellCenter },
+        { v: header.MO || "-", s: styleDataCellCenter },
+        { v: header.CMO || "-", s: styleDataCellCenter },
+        tglExcel
+          ? { v: tglExcel, t: "d", z: "dd/mm/yyyy", s: styleDataCellCenter }
+          : { v: "-", s: styleDataCellCenter },
+        datelineExcel
+          ? {
+              v: datelineExcel,
+              t: "d",
+              z: "dd/mm/yyyy",
+              s: styleDataCellCenter,
+            }
+          : { v: "-", s: styleDataCellCenter },
+        tglBastExcel
+          ? { v: tglBastExcel, t: "d", z: "dd/mm/yyyy", s: styleDataCellCenter }
+          : { v: "-", s: styleDataCellCenter },
+        { v: header.Nama || "-", s: styleDataCell },
+        {
+          v: num(header.SelisihBastMap),
+          t: "n",
+          z: "#,##0",
+          s: styleDataCellRight,
+        },
+        { v: header.Berita_Acara || "-", s: styleDataCellCenter },
+        { v: header.Divisi || "-", s: styleDataCellCenter },
+        { v: header.Cab || "-", s: styleDataCellCenter },
+        { v: header.Workshop || "-", s: styleDataCellCenter },
+        { v: header.WorkshopSPK || "-", s: styleDataCellCenter },
+        { v: header.Aktif || "-", s: styleDataCellCenter },
+        {
+          v:
+            header.AccCustomer === "Y"
+              ? `✓ ${formatTanggal(header.AccTanggal) || ""}`
+              : "Belum",
+          s: styleDataCellCenter,
+        },
+        { v: header.Surat_Jalan || "-", s: styleDataCellCenter },
+        { v: header.Ukuran || "-", s: styleDataCellCenter },
+        {
+          v: num(header.Panjang),
+          t: "n",
+          z: "#,##0.##",
+          s: styleDataCellRight,
+        },
+        { v: num(header.Lebar), t: "n", z: "#,##0.##", s: styleDataCellRight },
+        { v: header.Gramasi || "-", s: styleDataCellCenter },
+        { v: header.Kain || "-", s: styleDataCell },
+        { v: header.Finishing || "-", s: styleDataCell },
+        { v: num(header.Jumlah), t: "n", z: "#,##0", s: styleDataCellRight },
+        { v: num(header.Kirim), t: "n", z: "#,##0", s: styleDataCellRight },
+        ...(canLihatCus.value
+          ? [{ v: header.Customer || "-", s: styleDataCell }]
+          : []),
+        { v: num(header.Rencana), t: "n", z: "#,##0", s: styleDataCellRight },
+        { v: header.Salesman || "-", s: styleDataCell },
+        { v: header.Tipe || "-", s: styleDataCellCenter },
+        ...(canLihatHarga.value
+          ? [
+              {
+                v: num(header.Harga),
+                t: "n",
+                z: "#,##0",
+                s: styleDataCellRight,
+              },
+              {
+                v: num(header.HargaRiil),
+                t: "n",
+                z: "#,##0",
+                s: styleDataCellRight,
+              },
+            ]
+          : []),
+        createdExcel
+          ? {
+              v: createdExcel,
+              t: "d",
+              z: "dd/mm/yyyy hh:mm",
+              s: styleDataCellCenter,
+            }
+          : { v: "-", s: styleDataCellCenter },
+        { v: header.Revisi || "-", s: styleDataCellCenter },
+        { v: header.NoReferensi || "-", s: styleDataCellCenter },
+        estimasiJadiExcel
+          ? {
+              v: estimasiJadiExcel,
+              t: "d",
+              z: "dd/mm/yyyy",
+              s: styleDataCellCenter,
+            }
+          : { v: "-", s: styleDataCellCenter },
+        { v: header.CloseStatus || "-", s: styleDataCellCenter },
+        { v: header.SPK || "-", s: styleDataCellCenter },
+        designTglExcel
+          ? {
+              v: designTglExcel,
+              t: "d",
+              z: "dd/mm/yyyy",
+              s: styleDataCellCenter,
+            }
+          : { v: "-", s: styleDataCellCenter },
+        { v: header.Design_User || "-", s: styleDataCellCenter },
+        { v: header.Design_Note || "-", s: styleDataCell },
+        { v: header.Ngedit || "-", s: styleDataCellCenter },
+        { v: header.Design_Baru || "-", s: styleDataCellCenter },
+        { v: header.Design_Done || "-", s: styleDataCellCenter },
+        { v: header.Keterangan || "-", s: styleDataCell },
+      ];
+
+      if (targetSizes.length > 0) {
+        targetSizes.forEach((dtl: any) => {
+          const qtySize = num(dtl.Qty);
+          const stbjSize = num(dtl.Stbj);
+          const kurangSize = num(dtl.Kurang);
+          grandTotalDetailQty += qtySize;
+
+          worksheetData.push([
+            ...baseRowData,
+            { v: dtl.Size || "-", s: styleDataCellCenter },
+            { v: qtySize, t: "n", z: "#,##0", s: styleDataCellRight },
+            { v: stbjSize, t: "n", z: "#,##0", s: styleDataCellRight },
+            { v: kurangSize, t: "n", z: "#,##0", s: styleDataCellRight },
+          ]);
+        });
+      } else {
+        worksheetData.push([
+          ...baseRowData,
+          { v: "-", s: styleDataCellCenter },
+          { v: 0, t: "n", z: "#,##0", s: styleDataCellRight },
+          { v: 0, t: "n", z: "#,##0", s: styleDataCellRight },
+          { v: 0, t: "n", z: "#,##0", s: styleDataCellRight },
+        ]);
+      }
+    });
+
+    const totalColsCount = headers.length - 1;
+    const footerRow = [
+      {
+        v: "GRAND TOTAL",
+        s: {
+          ...styleFooter,
+          alignment: { horizontal: "right", vertical: "center" },
+        },
+      },
+      ...Array(totalColsCount).fill({ v: "", s: styleFooter }),
+    ];
+    worksheetData.push(footerRow);
+
+    const ws = XLSX.utils.aoa_to_sheet(worksheetData);
+
+    ws["!merges"] = [
+      { s: { r: 0, c: 0 }, e: { r: 0, c: totalColsCount } },
+      { s: { r: 1, c: 0 }, e: { r: 1, c: totalColsCount } },
+      {
+        s: { r: worksheetData.length - 1, c: 0 },
+        e: { r: worksheetData.length - 1, c: totalColsCount - 4 },
+      },
+    ];
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Data_MAP");
+    XLSX.writeFile(wb, fileName);
+
+    toast.success("Berhasil mengekspor data MAP ke Excel.");
+  } catch (error) {
+    console.error("Export Error:", error);
+    toast.error("Gagal mengekspor data ke Excel.");
+  } finally {
+    isExporting.value = false;
+  }
+};
+
 const confirmToggleClose = async () => {
   isLoading.value = true;
   try {
@@ -770,7 +1169,7 @@ const confirmToggleClose = async () => {
     @delete="goDelete"
     @print="cetak"
     @action:print="cetak"
-    @export="exportToExcel('MAP')"
+    @export="exportToExcelCustom"
     @row-click="handleRowClick"
   >
     <template #filter-left>
@@ -823,6 +1222,20 @@ const confirmToggleClose = async () => {
           <IconBrush :size="15" :stroke-width="1.7" />
         </template>
         Update Status Design
+      </v-btn>
+
+      <!-- TOMBOL EXCEL KUSTOM -->
+      <v-btn
+        size="small"
+        variant="flat"
+        color="success"
+        :loading="isExporting"
+        @click="exportToExcelCustom"
+      >
+        <template #prepend>
+          <IconFileSpreadsheet :size="15" :stroke-width="1.7" />
+        </template>
+        Export Excel
       </v-btn>
 
       <v-btn
