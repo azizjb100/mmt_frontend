@@ -1,7 +1,6 @@
 <template>
   <div class="login-page">
     <div class="main-container">
-
       <div class="illustration-side">
         <div class="overlay-text">
           <h1>MMT LOGIN</h1>
@@ -12,15 +11,26 @@
       <div class="form-side">
         <div class="form-wrapper">
           <form @submit.prevent="handleLogin">
-
             <div class="input-group">
               <label for="username">User name</label>
-              <input type="text" id="username" v-model="username" placeholder="Enter your username" required />
+              <input
+                type="text"
+                id="username"
+                v-model="username"
+                placeholder="Enter your username"
+                required
+              />
             </div>
 
             <div class="input-group">
               <label for="password">Password</label>
-              <input type="password" id="password" v-model="password" placeholder="........" required />
+              <input
+                type="password"
+                id="password"
+                v-model="password"
+                placeholder="........"
+                required
+              />
             </div>
 
             <div class="options">
@@ -31,7 +41,7 @@
             </div>
 
             <button type="submit" class="btn-signin" :disabled="loading">
-              {{ loading ? 'Signing In...' : 'Sign In' }}
+              {{ loading ? "Signing In..." : "Sign In" }}
             </button>
             <!-- 
             <div class="footer-links">
@@ -54,7 +64,6 @@
             <Transition name="fade">
               <p v-if="message" class="success-message">{{ message }}</p>
             </Transition>
-
           </form>
         </div>
       </div>
@@ -63,64 +72,64 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
-import { useRouter } from 'vue-router'
-import { useAuthStore } from '@/stores/authStore'
+import { ref } from "vue";
+import { useRouter } from "vue-router";
+import { useAuthStore } from "@/stores/authStore";
 
 // Inisialisasi Store dan Router
-const auth = useAuthStore()
-const router = useRouter()
+const auth = useAuthStore();
+const router = useRouter();
 
 // State Form
-const username = ref('')
-const password = ref('')
-const rememberMe = ref(false)
-const error = ref(null)
-const message = ref(null)
-const loading = ref(false)
+const username = ref("");
+const password = ref("");
+const rememberMe = ref(false);
+const error = ref(null);
+const message = ref(null);
+const loading = ref(false);
 
 // Fungsi Login
 const handleLogin = async () => {
-  loading.value = true
-  error.value = null
-  message.value = null
+  loading.value = true;
+  error.value = null;
+  message.value = null;
 
   try {
     // Memanggil fungsi login dari Pinia store Anda
-    await auth.login(username.value, password.value)
+    await auth.login(username.value, password.value);
 
     // Jika berhasil, arahkan ke dashboard/home
-    router.push('/')
+    router.push("/");
   } catch (err) {
     // Menangkap pesan error dari store/backend
-    error.value = err.message || "Login gagal. Username atau password salah."
+    error.value = err.message || "Login gagal. Username atau password salah.";
   } finally {
-    loading.value = false
+    loading.value = false;
   }
-}
+};
 
 // Fungsi Register (Sign Up)
 const handleRegister = async () => {
-  error.value = null
-  message.value = null
+  error.value = null;
+  message.value = null;
 
   if (!username.value) {
-    error.value = 'Isi username terlebih dahulu untuk registrasi.'
-    return
+    error.value = "Isi username terlebih dahulu untuk registrasi.";
+    return;
   }
 
   if (confirm(`Daftarkan perangkat ini untuk user: ${username.value}?`)) {
     try {
-      loading.value = true
-      const regMessage = await auth.register(username.value)
-      message.value = regMessage || "Registrasi berhasil! Silakan login."
+      loading.value = true;
+      const regMessage = await auth.register(username.value);
+      message.value = regMessage || "Registrasi berhasil! Silakan login.";
     } catch (err) {
-      error.value = err.message || "Registrasi gagal."
+      error.value = err.message || "Registrasi gagal.";
     } finally {
-      loading.value = false
+      loading.value = false;
     }
   }
-}
+};
 </script>
 
 <style scoped>
@@ -132,10 +141,10 @@ const handleRegister = async () => {
   min-height: 100vh;
   background-color: #f0f2f5;
   /* Background luar menggunakan gambar laut sesuai referensi */
-  background-image: url('@/assets/bg-login.png');
+  background-image: url("@/assets/bg-login.png");
   background-size: cover;
   background-position: center;
-  font-family: 'Inter', sans-serif;
+  font-family: "Inter", sans-serif;
 }
 
 .main-container {
@@ -155,7 +164,7 @@ const handleRegister = async () => {
   flex: 1.4;
   background-color: #ffffff;
   /* Menggunakan 'contain' agar gambar tidak terpotong */
-  background-image: url('@/assets/login.jpg');
+  background-image: url("@/assets/login.jpg");
   background-size: contain;
   background-repeat: no-repeat;
   background-position: center;

@@ -7,7 +7,7 @@ import { useAuthStore } from "../stores/authStore";
 
 // 1. Impor semua Halaman (Views) Anda
 import LoginView from "../views/LoginView.vue";
-import Dashboard from "../views/Dashboard.vue";
+import Navbar from "../views/NavBar.vue";
 import Home from "../views/Home.vue";
 import MaterialRequestForm from "../components/MaterialRequestForm.vue";
 import ComingSoon from "../views/ComingSoon.vue";
@@ -151,8 +151,8 @@ const routes: RouteRecordRaw[] = [
 
   {
     path: "/",
-    name: "DashboardLayout",
-    component: Dashboard,
+    name: "Navbar",
+    component: Navbar,
     meta: { requiresAuth: true },
     children: [
       // Rute Default untuk Dashboard (Home)
