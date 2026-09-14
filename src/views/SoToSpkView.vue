@@ -799,9 +799,12 @@ const fetchData = async () => {
 
       result.forEach((item: any) => {
         const soVal = String(item.SO || "").trim();
-        if (!soVal) return;
+        const nomorVal = String(item.Nomor || item.SPK || "").trim();
 
-        const uniqueKey = soVal;
+        // Lewati hanya jika keduanya benar-benar kosong
+        if (!soVal && !nomorVal) return;
+
+        const uniqueKey = soVal || nomorVal;
 
         if (!uniqueMap.has(uniqueKey)) {
           const spkVal = item.Nomor || item.SPK || "-";

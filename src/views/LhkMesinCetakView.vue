@@ -8,8 +8,11 @@
     v-model:selected="selected"
     v-model:expanded="expanded"
     v-model:filters="filters"
+    v-model:startDate="filters.startDate"
+    v-model:endDate="filters.endDate"
     item-value="Nomor"
     has-print
+    :row-props="getRowProps"
     :summary-fields="[
       'JumlahOrder',
       'TotalCetak',
@@ -205,7 +208,7 @@ let filters = reactive({
   startDate: format(subDays(new Date(), 30), "yyyy-MM-dd"),
   endDate: format(new Date(), "yyyy-MM-dd"),
   search: "",
-  mesin: [],
+  mesin: [] as string[],
 });
 
 // --- Headers ---
@@ -278,11 +281,10 @@ const masterHeaders = [
 
 // --- Fungsi Penentu Warna Baris ---
 const getRowTextColor = (item: LhkCetakHeader) => {
-  // Jika status bukan 'POSTED' (misal 'DRAFT' atau kosong), gunakan warna merah
   if (!item.Status || item.Status.toUpperCase() !== "POSTED") {
     return "text-error font-weight-medium";
   }
-  return ""; // Default (Hitam)
+  return "";
 };
 
 const detailHeaders = [
@@ -302,11 +304,21 @@ const detailHeaders = [
   },
 ];
 
-// --- Computed ---
+// --- Computed & Row Props ---
 const isSingleSelected = computed(() => selected.value.length === 1);
 const selectedRow = computed<LhkCetakItem | null>(() =>
   isSingleSelected.value ? (selected.value[0] as LhkCetakItem) : null,
 );
+
+const getRowProps = ({ item }: any) => {
+  const itemKey = item?.Nomor;
+  const isSelected =
+    itemKey && selected.value.some((s: any) => s?.Nomor === itemKey);
+
+  const classes: string[] = [];
+  if (isSelected) classes.push("selected-row");
+  return { class: classes.join(" ") };
+};
 
 // --- Action Handlers ---
 const handleNewEdit = (mode: "new" | "edit") => {
@@ -323,7 +335,7 @@ const handleNewEdit = (mode: "new" | "edit") => {
 const handleEditClick = () => handleNewEdit("edit");
 
 const handleRowClick = (_event: any, row: any) => {
-  const item = row.item;
+  const item = row?.item ?? row;
   const isSelected = selected.value.some((s) => s.Nomor === item.Nomor);
   selected.value = isSelected ? [] : [item];
 };
@@ -353,7 +365,6 @@ const truncateString = (str: string, num: number) => {
 const exportToExcel = async () => {
   loading.value.headers = true;
   try {
-    // Loop untuk memastikan data detail terambil jika belum ada
     for (const header of masterData.value) {
       if (
         !details.value[header.Nomor] ||
@@ -745,13 +756,16 @@ const exportToExcel = async () => {
 const fetchMasterData = async () => {
   loading.value.headers = true;
   try {
-    const response = await api.get<LhkCetakHeader[]>(API_BASE_URL, {
-      params: {
-        startDate: filters.startDate, // Memastikan tanggal terbaru yang dikirim
-        endDate: filters.endDate, // Memastikan tanggal terbaru yang dikirim
-        search: filters.search,
-      },
-    });
+    const params: any = {
+      startDate: filters.startDate,
+      endDate: filters.endDate,
+      search: filters.search,
+    };
+    if (filters.mesin && filters.mesin.length > 0) {
+      params.mesin = filters.mesin.join(",");
+    }
+
+    const response = await api.get<LhkCetakHeader[]>(API_BASE_URL, { params });
     masterData.value = response.data || [];
     selected.value = [];
     expanded.value = [];
@@ -809,15 +823,18 @@ const handlePrint = () => {
   alert(`TODO: Mencetak LHK Cetak ${selectedRow.value.Nomor}`);
 };
 
-onMounted(() => fetchMasterData());
-
+// --- Watcher yang sudah diperbaiki agar otomatis reaktif saat filter tanggal/pencarian berubah ---
 watch(
-  () => [filters.startDate, filters.endDate],
-  ([newStart, newEnd], [oldStart, oldEnd]) => {
-    if (newStart !== oldStart || newEnd !== oldEnd) {
-      fetchMasterData();
-    }
+  [
+    () => filters.startDate,
+    () => filters.endDate,
+    () => filters.search,
+    () => filters.mesin,
+  ],
+  () => {
+    fetchMasterData();
   },
+  { deep: true },
 );
 </script>
 
@@ -863,5 +880,15 @@ watch(
 }
 .text-error {
   color: #ff5252 !important;
+}
+
+:deep(.selected-row),
+:deep(.v-data-table__tr.selected-row),
+:deep(.v-data-table__tr.selected-row > td) {
+  background-color: #d8efff !important;
+}
+
+:deep(.v-data-table__tr.selected-row:hover > td) {
+  background-color: #c0e4ff !important;
 }
 </style>

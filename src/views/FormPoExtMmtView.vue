@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, computed, reactive, watch } from "vue";
+import { ref, onMounted, onUnmounted, computed, reactive, watch } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { format, parseISO, isBefore } from "date-fns";
 import { useToast } from "vue-toastification";
@@ -80,7 +80,7 @@ const route = useRoute();
 const toast = useToast();
 
 const API_URL = "/mmt/po-external-mmt";
-const API_SUPPLIER_DETAIL = "/supplier/detail"; // Endpoint detail supplier dari po-bahan
+const API_SUPPLIER_DETAIL = "/supplier/detail";
 
 // --- UI & Modal Controls ---
 const isEditMode = ref(false);
@@ -133,7 +133,7 @@ const formData = reactive<FormDataState>({
 
 // --- Table Headers Configuration ---
 const headerCustom = [
-  { title: "Nama Item", key: "nama", width: "200px" },
+  { title: "Nama Item", key: "nama", width: "220px" },
   { title: "Panjang", key: "panjang", width: "90px", align: "end" as const },
   { title: "Lebar", key: "lebar", width: "90px", align: "end" as const },
   { title: "Jumlah", key: "jumlah", width: "90px", align: "end" as const },
@@ -160,7 +160,7 @@ const headerDp = [
 // --- Computed Metrics ---
 const totalCustomSum = computed(() => {
   return formData.detailCustom.reduce(
-    (sum, item) => sum + (item.total || 0),
+    (sum, item) => sum + (Number(item.total) || 0),
     0,
   );
 });
@@ -179,14 +179,14 @@ const isFormReadOnly = computed(() => {
   );
 });
 
-// --- Core Delphi Logic Transformed ---
+// --- Core Calculations ---
 const hitungKalkulasiHeader = () => {
   const { joKode, divisi, panjang, lebar, jmlPo, tarif } = formData;
   let tot = 0;
 
   if (joKode === "LM" || joKode === "LN") {
     tot = jmlPo * tarif;
-  } else if (divisi === "MMT" || divisi === 5 || divisi === "5") {
+  } else if (divisi === "MMT" || divisi === "5" || divisi === 5) {
     tot = panjang * lebar * jmlPo * tarif;
   } else {
     tot = panjang * jmlPo * tarif;
@@ -194,15 +194,17 @@ const hitungKalkulasiHeader = () => {
   formData.totalHeader = tot;
 };
 
+// Perbaikan perbandingan logika operator
 const hitungRowCustom = (index: number) => {
   const item = formData.detailCustom[index];
+  if (!item) return;
+
   const { joKode, divisi } = formData;
   let tot = 0;
 
-  if ((joKode === "LM") === "LN") {
-    // (biarkan sesuai kode asli Anda)
+  if (joKode === "LM" || joKode === "LN") {
     tot = item.jumlah * item.harga;
-  } else if (divisi === "MMT" || divisi === 5 || divisi === "5") {
+  } else if (divisi === "MMT" || divisi === "5" || divisi === 5) {
     tot = item.panjang * item.lebar * item.jumlah * item.harga;
   } else {
     tot = item.panjang * item.jumlah * item.harga;
@@ -217,6 +219,7 @@ watch(
     formData.panjang,
     formData.lebar,
     formData.joKode,
+    formData.divisi,
   ],
   () => {
     hitungKalkulasiHeader();
@@ -224,7 +227,23 @@ watch(
   { deep: true },
 );
 
-// --- Methods & Events ---
+// --- Keyboard Shortcuts (F-Keys) Listener ---
+const handleKeydownShortcuts = (e: KeyboardEvent) => {
+  if (e.key === "F10") {
+    e.preventDefault();
+    if (!isFormReadOnly.value && !isSaving.value) saveForm();
+  } else if (e.key === "F7") {
+    e.preventDefault();
+    refreshData();
+  } else if (e.key === "F8") {
+    e.preventDefault();
+    router.back();
+  } else if (e.key === "F1") {
+    e.preventDefault();
+    if (!isFormReadOnly.value) isSpkModalVisible.value = true;
+  }
+};
+
 const getCurrentUser = () => {
   currentUserKode.value = localStorage.getItem("kdUser") || "";
 };
@@ -278,7 +297,6 @@ const loadDataAll = async (nomorPo: string) => {
   isSaving.value = true;
 
   try {
-    // 1. Ambil data utama PO dari API lookup backend
     const response = await api.get(`${API_URL}/${nomorPo}`);
     const res = response.data.data || response.data;
 
@@ -286,7 +304,6 @@ const loadDataAll = async (nomorPo: string) => {
       const h = res.header;
       isEditMode.value = true;
 
-      // Mapping data form header berdasarkan response database
       formData.nomor = h.poe_nomor;
       formData.tanggal = h.poe_tanggal
         ? format(parseISO(h.poe_tanggal), "yyyy-MM-dd")
@@ -308,24 +325,19 @@ const loadDataAll = async (nomorPo: string) => {
       formData.keterangan = h.poe_ket || "";
       formData.cabang = h.poe_cab || "P05";
 
-      // Data Supplier
       formData.supKode = h.poe_sup || "";
       formData.supNama = h.Sup_nama || "";
       formData.supAlamat = h.Sup_alamat || "";
       formData.supKota = h.Sup_kota || "";
 
-      // Checkbox Flags & Status
       formData.bahanSendiri = h.poe_bahansendiri === "Y";
       formData.statusBpb = h.poe_status || "";
       formData.hasGambar = h.has_gambar === "Y";
 
-      // Nilai Utama Tarif & Qty
       formData.jmlPo = Number(h.poe_jumlah) || 0;
       formData.tarif = Number(h.poe_tarif) || 0;
 
-      // ------------------------------------------------------------
-      // 2. AMBIL STATUS LOCK PIN APPROVAL SECARA DINAMIS (Sama dengan LHK pattern)
-      // ------------------------------------------------------------
+      // Cek PIN
       try {
         const pinRes = await api.get(`${API_URL}/check-pin/${nomorPo}`);
         const pinData = pinRes.data.data || pinRes.data;
@@ -349,27 +361,21 @@ const loadDataAll = async (nomorPo: string) => {
         xminta5.value = "";
       }
 
-      // ------------------------------------------------------------
-      // 3. MAPPING DETAIL ALOKASI KOTA
-      // ------------------------------------------------------------
-      formData.detailAlokasi.splice(0, formData.detailAlokasi.length);
+      // Alokasi
       if (Array.isArray(res.alokasi) && res.alokasi.length > 0) {
         formData.detailAlokasi = res.alokasi.map((a: any) => ({
           alokasi: true,
-          kota: a.poeda_kota,
-          jumlah: Number(a.poeda_jumlah) || 0,
+          kota: a.poeda_kota || a.kota || "",
+          jumlah: Number(a.poeda_jumlah || a.jumlah) || 0,
         }));
       } else {
         formData.detailAlokasi = [{ alokasi: false, kota: "", jumlah: 0 }];
       }
 
-      // ------------------------------------------------------------
-      // 4. MAPPING DETAIL ITEM CUSTOM
-      // ------------------------------------------------------------
-      formData.detailCustom.splice(0, formData.detailCustom.length);
+      // Item Custom
       if (Array.isArray(res.custom) && res.custom.length > 0) {
         formData.detailCustom = res.custom.map((c: any) => ({
-          nama: c.poed_nama,
+          nama: c.poed_nama || "",
           panjang: Number(c.poed_panjang) || 0,
           lebar: Number(c.poed_lebar) || 0,
           jumlah: Number(c.poed_jumlah) || 0,
@@ -382,16 +388,11 @@ const loadDataAll = async (nomorPo: string) => {
         ];
       }
 
-      // ------------------------------------------------------------
-      // 5. MAPPING DETAIL DP DENGAN LOOPING TERPISAH (POLA ASYNC LHK)
-      // ------------------------------------------------------------
-      formData.detailDp.splice(0, formData.detailDp.length);
-
+      // DP
+      formData.detailDp = [];
       if (Array.isArray(res.dp) && res.dp.length > 0) {
         for (const d of res.dp) {
           let namaBankFromDb = d.rek_nama || "";
-
-          // Pola LHK: Jika nama bank kosong di detail, tembak API bantuan finance secara dinamis
           if (!namaBankFromDb && d.poed2_akun) {
             try {
               const resBank = await api.get(
@@ -401,8 +402,7 @@ const loadDataAll = async (nomorPo: string) => {
               namaBankFromDb = b.rek_nama || b.NamaBank || "";
             } catch (e) {
               console.error(
-                `Gagal ambil detail rekening/bank untuk kode: ${d.poed2_akun}`,
-                e,
+                `Gagal ambil detail rekening/bank: ${d.poed2_akun}`,
               );
             }
           }
@@ -419,14 +419,12 @@ const loadDataAll = async (nomorPo: string) => {
         }
       }
 
-      // Jika data DP kosong setelah loop, buatkan baris instan kosong siap pakai
       if (formData.detailDp.length === 0) {
         formData.detailDp = [
           { tanggal: "", nominal: 0, akun: "", namabank: "", link: "" },
         ];
       }
 
-      // Hitung ulang total header utama
       hitungKalkulasiHeader();
       toast.success(`Berhasil memuat transaksi: ${nomorPo}`);
     }
@@ -439,7 +437,7 @@ const loadDataAll = async (nomorPo: string) => {
   }
 };
 
-// --- Handlers Supplier (Meniru Persis Sistem PO Bahan) ---
+// --- Handlers Supplier ---
 const openSupplierSearch = () => {
   if (isFormReadOnly.value) return;
   isSupplierModalVisible.value = true;
@@ -451,10 +449,10 @@ const handleSupKodeExit = async () => {
     const response = await api.get(
       `${API_SUPPLIER_DETAIL}/${formData.supKode}`,
     );
-    const detail = response.data;
-    formData.supNama = detail.Nama;
-    formData.supAlamat = detail.Alamat;
-    formData.supKota = detail.Kota;
+    const detail = response.data.data || response.data;
+    formData.supNama = detail.Nama || detail.nama || "";
+    formData.supAlamat = detail.Alamat || detail.alamat || "";
+    formData.supKota = detail.Kota || detail.kota || "";
   } catch (error) {
     toast.error("Kode Supplier tidak ditemukan.");
     formData.supKode = "";
@@ -473,59 +471,61 @@ const handleSupplierSelect = async (sup: LookupItem) => {
   isSupplierModalVisible.value = false;
 };
 
-const handleSpkSelect = (payload: any) => {
-  console.log("Payload mentah yang diterima dari modal:", payload);
-
+// --- Handler SPK Select ---
+const handleSpkSelect = async (payload: any) => {
   if (!payload) return;
 
-  let spk = payload;
-  if (payload.item) spk = payload.item;
-  if (payload.raw) spk = payload.raw;
-
-  console.log("Data SPK setelah diekstrak:", spk);
-
-  // PERBAIKAN: Tambahkan spk.Spk di urutan paling depan karena di console terbaca 'Spk'
+  const spk = payload.raw || payload.item || payload;
   const nomorSpkTerpilih = spk.Spk || spk.SPK || spk.spk || spk.spk_nomor || "";
+  if (!nomorSpkTerpilih) return;
 
-  if (!nomorSpkTerpilih) {
-    console.error(
-      "Gagal mendeteksi nomor SPK! Periksa key properti pada console.",
-    );
-    return; // Hentikan proses jika memang kosong
-  }
-
-  // Masukkan ke state reactive form
+  // 1. Mapping data header SPK
   formData.nomorSpk = nomorSpkTerpilih;
   formData.namaSpk = spk.Nama || spk.nama || "";
-  formData.divisi = spk.Divisi || spk.divisi || "";
+  formData.divisi = String(spk.Divisi || spk.divisi || "");
   formData.bahan = spk.Bahan || spk.bahan || "";
   formData.ukuran = spk.Ukuran || spk.ukuran || "";
   formData.panjang = Number(spk.Panjang) || 0;
   formData.lebar = Number(spk.Lebar) || 0;
   formData.jumlahSpk = Number(spk.Jumlah) || 0;
 
-  // Isi otomatis jumlah PO utama dengan Qty SPK jika nilai awal masih 0
+  // AMBIL FINISHING DARI SPK (Default awal dari SPK, tapi tetap bisa diedit nanti)
+  formData.finishing =
+    spk.Finishing || spk.finishing || spk.spk_finishing || "";
+
   if (formData.jmlPo === 0) {
     formData.jmlPo = Number(spk.Jumlah) || 0;
   }
 
-  // Tentukan Jenis Order otomatis berdasarkan prefix nomor SPK
-  if (formData.nomorSpk) {
-    const prefix = formData.nomorSpk.substring(3, 5); // Mengambil KO, MT, LT, dll.
-    formData.joKode = prefix;
-    formData.joNama = prefix === "MT" ? "MMT / BANNER" : "KONVEKSI / KAOS";
-  }
+  const prefix = nomorSpkTerpilih.substring(3, 5);
+  formData.joKode = prefix;
+  formData.joNama = prefix === "MT" ? "MMT / BANNER" : "KONVEKSI / KAOS";
 
   formData.hasGambar = spk.design_done === "Y" || spk.design_baru === "Y";
   formData.keterangan = spk.Kepentingan || "";
 
-  // Sediakan row alokasi default
-  formData.detailAlokasi = [{ alokasi: false, kota: "", jumlah: 0 }];
+  // 2. Ambil data alokasi SPK
+  try {
+    const resAlokasi = await api.get(`/mmt/spk/alokasi/${nomorSpkTerpilih}`);
+    const alokasiList = resAlokasi.data.data || resAlokasi.data || [];
 
-  // Tutup modal setelah data berhasil di-mapping
+    if (Array.isArray(alokasiList) && alokasiList.length > 0) {
+      formData.detailAlokasi = alokasiList.map((a: any) => ({
+        alokasi: true,
+        kota: a.kota || a.Kota || a.spka_kota || "",
+        jumlah: Number(a.jumlah || a.Jumlah || a.spka_jumlah) || 0,
+      }));
+    } else {
+      formData.detailAlokasi = [{ alokasi: false, kota: "", jumlah: 0 }];
+    }
+  } catch (err) {
+    formData.detailAlokasi = [{ alokasi: false, kota: "", jumlah: 0 }];
+  }
+
   isSpkModalVisible.value = false;
 };
 
+// --- Grid Item Controls ---
 const addRowCustom = () => {
   formData.detailCustom.push({
     nama: "",
@@ -557,23 +557,24 @@ const removeRowDp = (index: number) => {
   if (formData.detailDp.length === 0) addRowDp();
 };
 
+// --- Simpan Data ---
 const saveForm = async () => {
   if (isFormReadOnly.value) {
-    toast.error("Transaksi sudah diclose. Silakan minta approve kembali.");
+    toast.error("Transaksi sudah diclose / menunggu approve.");
     return;
   }
   if (isPeriodClosed.value) {
-    toast.error(
-      "Anda tidak boleh input di tanggal periode yang sudah diclose.",
-    );
+    toast.error("Periode tanggal sudah diclose oleh akuntansi.");
     return;
   }
-  if (!formData.nomorSpk) return toast.warning("SPK harus diisi.");
+  if (!formData.nomorSpk) return toast.warning("Nomor SPK harus diisi.");
   if (!formData.supKode) return toast.warning("Supplier belum diisi.");
   if (formData.jmlPo <= 0) return toast.warning("Jumlah PO belum diisi.");
   if (formData.tarif <= 0) return toast.warning("Tarif belum diisi.");
   if (isBefore(parseISO(formData.dateline), parseISO(formData.tanggal))) {
-    return toast.error("Tanggal Dateline salah (mendahului tanggal order).");
+    return toast.error(
+      "Tanggal Dateline tidak boleh mendahului tanggal order.",
+    );
   }
 
   if (!confirm("Yakin ingin menyimpan data transaksi ini?")) return;
@@ -594,18 +595,23 @@ const saveForm = async () => {
       poe_tarif: formData.tarif,
       poe_total: formData.totalHeader,
       poe_bahansendiri: formData.bahanSendiri ? "Y" : "N",
+      currentUser:
+        currentUserKode.value || localStorage.getItem("kdUser") || "SYSTEM",
       xminta5: xminta5.value,
       xurut5: xurut5.value,
-      alokasi: formData.detailAlokasi.filter((a) => a.alokasi),
-      dp: formData.detailDp.filter((d) => d.tanggal && d.nominal > 0),
-      custom: formData.detailCustom.filter((c) => c.total > 0),
+      alokasi: formData.detailAlokasi.filter(
+        (a) => a.alokasi && a.kota.trim() !== "",
+      ),
+      dp: formData.detailDp.filter((d) => d.nominal > 0),
+      custom: formData.detailCustom.filter((c) => c.nama.trim() !== ""),
     };
 
     const res = await api.post(`${API_URL}/save`, payload);
-    toast.success(`Tersimpan dengan nomor: ${res.data.nomor}`);
+    const nomorTersimpan = res.data.nomor || res.data.data?.nomor;
+    toast.success(`Tersimpan dengan nomor: ${nomorTersimpan}`);
 
     if (confirm("Ingin cetak nota PO External?")) {
-      window.open(`${API_URL}/print/${res.data.nomor}`, "_blank");
+      window.open(`${API_URL}/print/${nomorTersimpan}`, "_blank");
     }
 
     refreshData();
@@ -616,28 +622,27 @@ const saveForm = async () => {
   }
 };
 
-// --- Perbaikan onMounted pada Halaman Form ---
 onMounted(async () => {
+  window.addEventListener("keydown", handleKeydownShortcuts);
   getCurrentUser();
-  refreshData(); // Bersihkan / isi default form di awal
+  refreshData();
 
-  // Deteksi parameter nomor dari rute (diambil dari router.push halaman browse)
   const nomorDariParams = route.params.nomor as string;
 
   if (nomorDariParams) {
-    console.log("Mendeteksi Mode Edit untuk Nomor PO:", nomorDariParams);
-    // Jalankan fungsi load data pola asynchronous LHK yang sudah kita buat
     await loadDataAll(nomorDariParams);
   } else {
-    console.log("Mendeteksi Mode Input Transaksi Baru");
-    // Jalankan API kuncian date-close bulanan secara background hanya jika transaksi baru
     try {
       const res = await api.get(`${API_URL}/date-close/PO EXT MMT`);
-      zCloseDate.value = res.data.closeDate;
+      zCloseDate.value = res.data.closeDate || res.data.data?.closeDate || null;
     } catch (err) {
-      console.error("Gagal mengambil status periode closing", err);
+      console.error("Gagal mengambil status closing:", err);
     }
   }
+});
+
+onUnmounted(() => {
+  window.removeEventListener("keydown", handleKeydownShortcuts);
 });
 </script>
 
@@ -715,7 +720,7 @@ onMounted(async () => {
             <v-row dense>
               <v-col cols="12">
                 <v-text-field
-                  label="Nomor PO (F1)"
+                  label="Nomor PO (Browse)"
                   v-model="formData.nomor"
                   readonly
                   append-inner-icon="mdi-magnify"
@@ -762,14 +767,11 @@ onMounted(async () => {
 
               <v-col cols="12" class="mt-2">
                 <v-text-field
-                  label="Nomor SPK (F1)"
+                  label="Nomor SPK [F1]"
                   v-model="formData.nomorSpk"
                   readonly
                   append-inner-icon="mdi-magnify"
-                  @click:control="!isFormReadOnly && (isSpkModalVisible = true)"
-                  @click:append-inner="
-                    !isFormReadOnly && (isSpkModalVisible = true)
-                  "
+                  @click="!isFormReadOnly && (isSpkModalVisible = true)"
                   density="compact"
                   variant="outlined"
                   color="blue"
@@ -822,6 +824,7 @@ onMounted(async () => {
                   bg-color="grey-lighten-4"
                 />
               </v-col>
+
               <v-col cols="6">
                 <v-text-field
                   label="Ukuran"
@@ -833,21 +836,26 @@ onMounted(async () => {
                   bg-color="grey-lighten-4"
                 />
               </v-col>
-              <v-col cols="4">
+
+              <!-- INPUT FINISHING (Otomatis terisi dari SPK & Bisa Diedit) -->
+              <v-col cols="12">
                 <v-text-field
-                  label="Panjang"
-                  v-model="formData.panjang"
-                  readonly
+                  label="Finishing"
+                  v-model="formData.finishing"
                   density="compact"
                   variant="outlined"
                   hide-details
-                  bg-color="grey-lighten-4"
+                  :readonly="isFormReadOnly"
+                  placeholder="Contoh: Mata ayam keliling, Slongsong, Potong Pas, dll."
+                  prepend-inner-icon="mdi-format-paint"
+                  class="bg-white"
                 />
               </v-col>
+
               <v-col cols="4">
                 <v-text-field
-                  label="Lebar"
-                  v-model="formData.lebar"
+                  label="Panjang"
+                  v-model.number="formData.panjang"
                   readonly
                   density="compact"
                   variant="outlined"
@@ -858,7 +866,7 @@ onMounted(async () => {
               <v-col cols="4">
                 <v-text-field
                   label="Qty SPK"
-                  v-model="formData.jumlahSpk"
+                  v-model.number="formData.jumlahSpk"
                   readonly
                   density="compact"
                   variant="outlined"
@@ -904,7 +912,6 @@ onMounted(async () => {
                   v-model="formData.supKode"
                   :readonly="isFormReadOnly"
                   @click="openSupplierSearch"
-                  @keyup.f1.prevent="openSupplierSearch"
                   @blur="handleSupKodeExit"
                   append-inner-icon="mdi-magnify"
                   density="compact"
@@ -987,7 +994,6 @@ onMounted(async () => {
                 >
                   TOTAL NOTA UTAMA
                 </span>
-                <!-- PERBAIKAN: white--text diubah ke text-white -->
                 <span class="text-h6 font-weight-black px-2 text-white">
                   Rp {{ Number(formData.totalHeader).toLocaleString() }}
                 </span>
@@ -1003,14 +1009,14 @@ onMounted(async () => {
           color="primary"
           bg-color="grey-lighten-4"
         >
-          <v-tab value="0">
+          <v-tab :value="0">
             <v-icon start size="small">mdi-table-edit</v-icon>Item Custom (CDS)
           </v-tab>
-          <v-tab value="1">
+          <v-tab :value="1">
             <v-icon start size="small">mdi-map-marker-distance</v-icon>Alokasi
             Kota (CDS2)
           </v-tab>
-          <v-tab value="2">
+          <v-tab :value="2">
             <v-icon start size="small">mdi-cash-multiple</v-icon>Uang Muka / DP
             (CDS3)
           </v-tab>
@@ -1021,7 +1027,7 @@ onMounted(async () => {
           class="border-x border-b fill-height-window bg-white pa-2"
         >
           <!-- TAB 1: ITEM CUSTOM GRID -->
-          <v-window-item value="0">
+          <v-window-item :value="0">
             <v-data-table
               :headers="headerCustom"
               :items="formData.detailCustom"
@@ -1029,18 +1035,18 @@ onMounted(async () => {
               density="compact"
               hide-default-footer
             >
-              <template #[`item.nama`]="{ item }">
+              <template #[`item.nama`]="{ index }">
                 <v-text-field
-                  v-model="item.nama"
+                  v-model="formData.detailCustom[index].nama"
                   density="compact"
                   variant="plain"
                   hide-details
                   :readonly="isFormReadOnly"
                 />
               </template>
-              <template #[`item.panjang`]="{ item, index }">
+              <template #[`item.panjang`]="{ index }">
                 <v-text-field
-                  v-model.number="item.panjang"
+                  v-model.number="formData.detailCustom[index].panjang"
                   type="number"
                   density="compact"
                   variant="plain"
@@ -1050,9 +1056,9 @@ onMounted(async () => {
                   @update:model-value="hitungRowCustom(index)"
                 />
               </template>
-              <template #[`item.lebar`]="{ item, index }">
+              <template #[`item.lebar`]="{ index }">
                 <v-text-field
-                  v-model.number="item.lebar"
+                  v-model.number="formData.detailCustom[index].lebar"
                   type="number"
                   density="compact"
                   variant="plain"
@@ -1062,9 +1068,9 @@ onMounted(async () => {
                   @update:model-value="hitungRowCustom(index)"
                 />
               </template>
-              <template #[`item.jumlah`]="{ item, index }">
+              <template #[`item.jumlah`]="{ index }">
                 <v-text-field
-                  v-model.number="item.jumlah"
+                  v-model.number="formData.detailCustom[index].jumlah"
                   type="number"
                   density="compact"
                   variant="plain"
@@ -1074,9 +1080,9 @@ onMounted(async () => {
                   @update:model-value="hitungRowCustom(index)"
                 />
               </template>
-              <template #[`item.harga`]="{ item, index }">
+              <template #[`item.harga`]="{ index }">
                 <v-text-field
-                  v-model.number="item.harga"
+                  v-model.number="formData.detailCustom[index].harga"
                   type="number"
                   density="compact"
                   variant="plain"
@@ -1086,9 +1092,12 @@ onMounted(async () => {
                   @update:model-value="hitungRowCustom(index)"
                 />
               </template>
-              <template #[`item.total`]="{ item }">
+              <template #[`item.total`]="{ index }">
                 <span class="d-block text-right font-weight-bold">
-                  Rp {{ Number(item.total).toLocaleString() }}
+                  Rp
+                  {{
+                    Number(formData.detailCustom[index].total).toLocaleString()
+                  }}
                 </span>
               </template>
               <template #[`item.actions`]="{ index }">
@@ -1102,7 +1111,6 @@ onMounted(async () => {
                 />
               </template>
               <template #bottom>
-                <!-- PERBAIKAN: justify-between dihapus, mengandalkan v-spacer di dalam d-flex -->
                 <div class="pa-2 border-t d-flex align-center">
                   <v-btn
                     size="x-small"
@@ -1124,7 +1132,7 @@ onMounted(async () => {
           </v-window-item>
 
           <!-- TAB 2: ALOKASI KOTA -->
-          <v-window-item value="1">
+          <v-window-item :value="1">
             <v-data-table
               :headers="headerAlokasi"
               :items="formData.detailAlokasi"
@@ -1132,27 +1140,27 @@ onMounted(async () => {
               density="compact"
               hide-default-footer
             >
-              <template #[`item.alokasi`]="{ item }">
+              <template #[`item.alokasi`]="{ index }">
                 <v-checkbox
-                  v-model="item.alokasi"
+                  v-model="formData.detailAlokasi[index].alokasi"
                   density="compact"
                   hide-details
                   color="primary"
                   :readonly="isFormReadOnly"
                 />
               </template>
-              <template #[`item.kota`]="{ item }">
+              <template #[`item.kota`]="{ index }">
                 <v-text-field
-                  v-model="item.kota"
+                  v-model="formData.detailAlokasi[index].kota"
                   density="compact"
                   variant="plain"
                   hide-details
                   :readonly="isFormReadOnly"
                 />
               </template>
-              <template #[`item.jumlah`]="{ item }">
+              <template #[`item.jumlah`]="{ index }">
                 <v-text-field
-                  v-model.number="item.jumlah"
+                  v-model.number="formData.detailAlokasi[index].jumlah"
                   type="number"
                   density="compact"
                   variant="plain"
@@ -1165,7 +1173,7 @@ onMounted(async () => {
           </v-window-item>
 
           <!-- TAB 3: DP -->
-          <v-window-item value="2">
+          <v-window-item :value="2">
             <v-data-table
               :headers="headerDp"
               :items="formData.detailDp"
@@ -1173,9 +1181,9 @@ onMounted(async () => {
               density="compact"
               hide-default-footer
             >
-              <template #[`item.tanggal`]="{ item }">
+              <template #[`item.tanggal`]="{ index }">
                 <v-text-field
-                  v-model="item.tanggal"
+                  v-model="formData.detailDp[index].tanggal"
                   type="date"
                   density="compact"
                   variant="plain"
@@ -1183,9 +1191,9 @@ onMounted(async () => {
                   :readonly="isFormReadOnly"
                 />
               </template>
-              <template #[`item.nominal`]="{ item }">
+              <template #[`item.nominal`]="{ index }">
                 <v-text-field
-                  v-model.number="item.nominal"
+                  v-model.number="formData.detailDp[index].nominal"
                   type="number"
                   density="compact"
                   variant="plain"
@@ -1194,9 +1202,9 @@ onMounted(async () => {
                   :readonly="isFormReadOnly"
                 />
               </template>
-              <template #[`item.akun`]="{ item }">
+              <template #[`item.akun`]="{ index }">
                 <v-text-field
-                  v-model="item.akun"
+                  v-model="formData.detailDp[index].akun"
                   density="compact"
                   variant="plain"
                   hide-details
@@ -1205,9 +1213,9 @@ onMounted(async () => {
                   :readonly="isFormReadOnly"
                 />
               </template>
-              <template #[`item.namabank`]="{ item }">
+              <template #[`item.namabank`]="{ index }">
                 <v-text-field
-                  v-model="item.namabank"
+                  v-model="formData.detailDp[index].namabank"
                   density="compact"
                   variant="plain"
                   hide-details
@@ -1215,9 +1223,9 @@ onMounted(async () => {
                   bg-color="grey-lighten-5"
                 />
               </template>
-              <template #[`item.link`]="{ item }">
+              <template #[`item.link`]="{ index }">
                 <v-text-field
-                  v-model="item.link"
+                  v-model="formData.detailDp[index].link"
                   density="compact"
                   variant="plain"
                   hide-details
@@ -1280,7 +1288,7 @@ onMounted(async () => {
     <SupplierLookupModal
       v-if="isSupplierModalVisible"
       :isVisible="isSupplierModalVisible"
-      @close="() => (isSupplierModalVisible = false)"
+      @close="isSupplierModalVisible = false"
       @select="handleSupplierSelect"
     />
   </PageLayout>

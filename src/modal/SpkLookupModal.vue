@@ -1,8 +1,8 @@
 <template>
   <v-dialog
     :model-value="isVisible"
-    @update:modelValue="emit('close')"
-    max-width="1000px"
+    @update:model-value="emit('close')"
+    max-width="1050px"
     persistent
   >
     <v-card class="dialog-card d-flex flex-column" style="height: 85vh">
@@ -20,18 +20,21 @@
       </v-toolbar>
 
       <v-card-text class="pa-4 d-flex flex-column flex-grow-1">
+        <!-- SEARCH BAR -->
         <v-text-field
           v-model="searchKeyword"
-          label="Cari Nomor atau Nama SPK..."
+          label="Cari Nomor atau Nama SPK... (Tekan Enter)"
           prepend-inner-icon="mdi-magnify"
           variant="outlined"
           density="compact"
           clearable
-          class="mb-4 flex-shrink-0"
+          class="mb-3 flex-shrink-0"
           hide-details
           @keyup.enter="fetchSPKData"
+          @click:clear="handleClearSearch"
         ></v-text-field>
 
+        <!-- DATA TABLE -->
         <v-data-table
           :headers="headers"
           :items="SPKList"
@@ -44,24 +47,43 @@
           :items-per-page="20"
           @dblclick:row="handleDoubleClick"
         >
-          <template #item.SPK="{ item }">{{ item.SPK }}</template>
-          <template #item.Nama="{ item }">{{ item.Nama }}</template>
           <template #item.Tanggal="{ item }">
             {{
-              item.Tanggal
-                ? new Date(item.Tanggal).toLocaleDateString("id-ID")
+              resolveItem(item).Tanggal
+                ? new Date(resolveItem(item).Tanggal).toLocaleDateString(
+                    "id-ID",
+                  )
                 : "-"
             }}
           </template>
-          <template #item.Divisi="{ item }">{{ item.Divisi }}</template>
+
+          <template #item.Jumlah="{ item }">
+            {{ Number(resolveItem(item).Jumlah || 0).toLocaleString() }}
+          </template>
+
+          <template #item.Sudah_Cetak="{ item }">
+            {{ Number(resolveItem(item).Sudah_Cetak || 0).toLocaleString() }}
+          </template>
+
+          <template #item.Kurang_Cetak="{ item }">
+            <span
+              :class="
+                Number(resolveItem(item).Kurang_Cetak) > 0
+                  ? 'text-error font-weight-bold'
+                  : ''
+              "
+            >
+              {{ Number(resolveItem(item).Kurang_Cetak || 0).toLocaleString() }}
+            </span>
+          </template>
 
           <template #item.actions="{ item }">
             <div class="text-center">
               <v-btn
-                color="success"
+                color="primary"
                 size="x-small"
-                @click.stop="selectSPK(item as SPKItem)"
-                variant="tonal"
+                @click.stop="selectSPK(resolveItem(item))"
+                variant="flat"
               >
                 Pilih
               </v-btn>
@@ -69,9 +91,8 @@
           </template>
 
           <template #no-data>
-            <div class="text-center pa-4">
-              Tidak ada data SPK ditemukan (Filter: Divisi 5, 24 bulan
-              terakhir).
+            <div class="text-center pa-4 text-grey-darken-1">
+              Tidak ada data SPK ditemukan.
             </div>
           </template>
 
@@ -84,10 +105,17 @@
         </v-data-table>
       </v-card-text>
 
-      <v-card-actions class="d-flex justify-end">
-        <v-btn @click="emit('close')" color="secondary" variant="flat"
-          >Tutup</v-btn
+      <v-divider></v-divider>
+
+      <v-card-actions class="d-flex justify-end pa-3 bg-grey-lighten-4">
+        <v-btn
+          @click="emit('close')"
+          color="secondary"
+          variant="outlined"
+          size="small"
         >
+          Tutup [Esc]
+        </v-btn>
       </v-card-actions>
     </v-card>
   </v-dialog>
@@ -104,15 +132,18 @@ interface SPKItem {
   SPK: string;
   Nama: string;
   Tanggal: string;
-  Divisi: number;
+  Divisi: string | number;
   Jumlah?: number;
   Panjang?: number;
   Lebar?: number;
   Bahan?: string;
+  Ukuran?: string;
   Gramasi?: string;
-  Jumlah_jadi?: number;
-  Sudah_Cetak: number; // Hasil akumulasi dari Backend
-  Kurang_Cetak: number; // Sisa yang belum diproduksi
+  Kepentingan?: string;
+  design_done?: string;
+  design_baru?: string;
+  Sudah_Cetak?: number;
+  Kurang_Cetak?: number;
   [key: string]: any;
 }
 
@@ -123,21 +154,22 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: "close"): void;
-  (e: "select", data: any): void;
+  (e: "select", data: SPKItem): void;
 }>();
 
 const toast = useToast();
 
-// --- State ---
-const API_URL = "/mmt/SPK/lookup";
+// Ubah ke lowercase agar aman di semua environment Linux/Windows
+const API_URL = "/mmt/spk/lookup";
 const SPKList = ref<SPKItem[]>([]);
 const searchKeyword = ref("");
 const loading = ref(false);
 
 const headers = [
-  { title: "Nomor SPK", key: "SPK", width: "200px" },
-  { title: "Nama Proyek/SPK", key: "Nama", width: "450px" },
-  { title: "Tanggal", key: "Tanggal", width: "120px" },
+  { title: "Nomor SPK", key: "SPK", width: "160px" },
+  { title: "Nama Proyek/SPK", key: "Nama", width: "350px" },
+  { title: "Divisi", key: "Divisi", width: "80px" },
+  { title: "Tanggal", key: "Tanggal", width: "110px" },
   { title: "Target", key: "Jumlah", width: "90px", align: "end" as const },
   {
     title: "Sdh Cetak",
@@ -155,76 +187,73 @@ const headers = [
     title: "Aksi",
     key: "actions",
     sortable: false,
-    width: "100px",
+    width: "80px",
     align: "center" as const,
   },
 ];
 
-// --- API & Logic ---
+// Helper untuk mengekstrak objek asli baik dari Vuetify proxy wrapper (item.raw) maupun direct object
+const resolveItem = (item: any): SPKItem => {
+  return (item?.raw || item) as SPKItem;
+};
 
+// --- API Methods ---
 const fetchSPKData = async () => {
   loading.value = true;
   try {
-    // 1. Sesuaikan Tipe Generic Axios untuk menangkap { success, data }
     const response = await api.get<{ success: boolean; data: SPKItem[] }>(
       API_URL,
       {
-        params: { keyword: searchKeyword.value },
+        params: { keyword: searchKeyword.value || "" },
       },
     );
 
-    // 2. Ambil data dari properti .data (sesuai struktur controller backend)
-    const allData = response.data.data || [];
-
-    // 3. Simpan ke state
-    SPKList.value = !searchKeyword.value ? allData.slice(0, 200) : allData;
+    const allData = response.data.data || response.data || [];
+    SPKList.value = Array.isArray(allData) ? allData : [];
   } catch (error) {
     const err = error as AxiosError;
-    console.error("Fetch SPK Error:", err); // Log untuk debug
-    toast.error("Gagal memuat daftar SPK. Periksa koneksi backend.");
+    console.error("Fetch SPK Error:", err);
+    toast.error("Gagal memuat daftar SPK.");
     SPKList.value = [];
   } finally {
     loading.value = false;
   }
 };
 
-const selectSPK = (SPK: SPKItem) => {
-  if (!SPK.SPK) {
-    toast.error("Error: Nomor SPK kosong.");
+const handleClearSearch = () => {
+  searchKeyword.value = "";
+  fetchSPKData();
+};
+
+const selectSPK = (itemData: any) => {
+  const spk = resolveItem(itemData);
+  const nomorSpk = spk.SPK || spk.Spk || spk.spk;
+
+  if (!nomorSpk) {
+    toast.error("Error: Nomor SPK tidak terdeteksi.");
     return;
   }
 
-  // 4. Pastikan Sudah_Cetak dan Kurang_Cetak ikut dikirim ke Parent
+  // Kirim SELURUH object SPK apa adanya + inject alias fallback 'Spk'
+  // agar semua field (Kepentingan, design_done, design_baru, alokasi) tidak hilang
   emit("select", {
-    Spk: SPK.SPK,
-    Nama: SPK.Nama,
-    Tanggal: SPK.Tanggal,
-    Panjang: SPK.Panjang,
-    Lebar: SPK.Lebar,
-    Divisi: SPK.Divisi,
-    Bahan: SPK.Bahan,
-    Gramasi: SPK.Gramasi,
-    Jumlah: SPK.Jumlah,
-    Ukuran: SPK.Ukuran,
-    Jumlah_jadi: SPK.Jumlah_jadi,
-    Sudah_Cetak: SPK.Sudah_Cetak || 0,
-    Kurang_Cetak: SPK.Kurang_Cetak || 0,
+    ...spk,
+    Spk: nomorSpk,
+    SPK: nomorSpk,
   });
 
   emit("close");
 };
 
-/**
- * Handler untuk double click pada baris tabel
- */
-const handleDoubleClick = (_event: MouseEvent, { item }: { item: SPKItem }) => {
-  selectSPK(item);
+const handleDoubleClick = (_event: MouseEvent, rowData: any) => {
+  selectSPK(rowData.item || rowData);
 };
 
+// Auto fetch saat modal dibuka
 watch(
   () => props.isVisible,
-  (newValue) => {
-    if (newValue) {
+  (val) => {
+    if (val) {
       searchKeyword.value = "";
       fetchSPKData();
     } else {
@@ -245,7 +274,7 @@ watch(
 .desktop-table :deep(td),
 .desktop-table :deep(th) {
   padding: 0 8px !important;
-  height: 35px !important;
+  height: 34px !important;
 }
 .desktop-table :deep(thead th) {
   background-color: #f5f5f5 !important;
@@ -253,7 +282,6 @@ watch(
   color: #333 !important;
 }
 
-/* Tambahkan styling hover dan pointer */
 .clickable-row :deep(tbody tr):hover {
   cursor: pointer !important;
   background-color: #f0f4f8 !important;
