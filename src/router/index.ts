@@ -119,6 +119,7 @@ import FormLhkPolaView from "@/views/FormLhkPolaView.vue";
 import LhkLayoutView from "@/views/LhkLayoutView.vue";
 import FormLhkLayoutView from "@/views/FormLhkLayoutView.vue";
 import MutasiInternalView from "@/views/MutasiInternalView.vue";
+import MutasiInternalPrintView from "@/views/MutasiInternalPrintView.vue";
 import FormMutasiInternalView from "@/views/FormMutasiInternalView.vue";
 import SuratJalanView from "@/views/SuratJalanView.vue";
 import SuratJalanPrintView from "@/views/SuratJalanPrintView.vue";
@@ -139,8 +140,11 @@ import SoToSpkPrintView from "@/views/SoToSpkPrintView.vue";
 import FormPoPaperprintView from "@/views/FormPoPaperprintView.vue";
 import mapView from "@/views/mapView.vue";
 import MapPrintView from "@/views/MapPrintView.vue";
+import BastMapView from "@/views/BastMapView.vue";
 import FormBastMmtView from "@/views/FormBastMmtView.vue";
 import LapKirimanView from "@/views/LapKirimanView.vue";
+import SuratJalanMapView from "@/views/SuratJalanMapView.vue";
+import UserManagementView from "@/views/UserManagementView.vue";
 
 const routes: RouteRecordRaw[] = [
   {
@@ -294,6 +298,17 @@ const routes: RouteRecordRaw[] = [
         path: "mmt/surat-jalan/approve/:nomor",
         name: "SuratJalanApproveEdit",
         component: FormSuratJalanApvView,
+        props: true,
+      },
+      {
+        path: "mmt/surat-jalan-map",
+        name: "SuratJalanMapBrowse",
+        component: SuratJalanMapView,
+      },
+      {
+        path: "mmt/surat-jalan-map/print/:nomor(.*)*", // <-- Tambahkan (.*)* agar menyerap karakter /
+        name: "SuratJalanMapPrint",
+        component: ComingSoon,
         props: true,
       },
 
@@ -608,7 +623,7 @@ const routes: RouteRecordRaw[] = [
       },
 
       // // --- GRUP COMING SOON / UMUM (PATH DIBUAT RELATIF) ---
-      { path: "file/user", name: "User", component: ComingSoon },
+      { path: "mmt/manage-user", name: "User", component: UserManagementView },
       {
         path: "file/perusahaan",
         name: "Identitas Perusahaan",
@@ -700,6 +715,11 @@ const routes: RouteRecordRaw[] = [
         path: "mmt/map/print/:nomor",
         name: "MapPrint",
         component: MapPrintView,
+      },
+      {
+        path: "mmt/bast-map",
+        name: "BastMmtBrowse",
+        component: BastMapView,
       },
 
       {
@@ -1028,6 +1048,11 @@ const routes: RouteRecordRaw[] = [
         path: "mmt/mutasi-internal/edit/:nomor",
         name: "MutasiInternalMMTEdit",
         component: FormMutasiInternalView,
+      },
+      {
+        path: "mmt/mutasi-internal/print/:nomor",
+        name: "MutasiInternalMMTPrint",
+        component: MutasiInternalPrintView,
       },
 
       // // Rute untuk "Produksi MMT"

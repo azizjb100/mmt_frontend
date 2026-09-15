@@ -14,8 +14,11 @@
       </button>
     </div>
 
+    <!-- Loading & Error State -->
+    <div v-if="loading" class="text-center py-6 text-muted">Memuat data...</div>
+
     <!-- Tabel Browse User -->
-    <div class="table-card shadow-md">
+    <div v-else class="table-card shadow-md">
       <table class="data-table">
         <thead>
           <tr>
@@ -30,16 +33,25 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for="(user, index) in userList" :key="user.kode">
+          <tr v-if="userList.length === 0">
+            <td colspan="8" class="text-center text-muted">
+              Tidak ada data user.
+            </td>
+          </tr>
+          <tr v-for="(user, index) in userList" :key="user.user_kode">
             <td>{{ index + 1 }}</td>
-            <td class="font-semibold text-primary">{{ user.kode }}</td>
-            <td>{{ user.nama }}</td>
-            <td>{{ user.kantor }}</td>
-            <td>{{ user.cabang }}</td>
-            <td>{{ user.bagian }}</td>
+            <td class="font-semibold text-primary">{{ user.user_kode }}</td>
+            <td>{{ user.user_nama }}</td>
+            <td>{{ user.user_divisi || "-" }}</td>
+            <td>{{ user.user_cab }}</td>
+            <td>{{ user.user_bagian }}</td>
             <td>
-              <span :class="user.aktif ? 'badge-active' : 'badge-inactive'">
-                {{ user.aktif ? "Aktif" : "Non-Aktif" }}
+              <span
+                :class="
+                  user.user_aktif === 1 ? 'badge-active' : 'badge-inactive'
+                "
+              >
+                {{ user.user_aktif === 1 ? "Aktif" : "Non-Aktif" }}
               </span>
             </td>
             <td class="text-center">
@@ -56,7 +68,7 @@
       </table>
     </div>
 
-    <!-- Modal Setting Hak Akses Menu (Sesuai Referensi Gambar) -->
+    <!-- Modal Setting Hak Akses Menu -->
     <div v-if="showModal" class="modal-overlay">
       <div class="modal-content shadow-lg">
         <div class="modal-header">
@@ -65,8 +77,9 @@
               Konfigurasi Hak Akses User
             </h3>
             <p class="text-xs text-muted">
-              User: <b class="text-primary">{{ selectedUser?.nama }}</b> ({{
-                selectedUser?.kode
+              User:
+              <b class="text-primary">{{ selectedUser?.user_nama }}</b> ({{
+                selectedUser?.user_kode
               }})
             </p>
           </div>
@@ -76,7 +89,10 @@
         </div>
 
         <div class="modal-body">
-          <table class="permission-table">
+          <div v-if="loadingModal" class="text-center py-4 text-muted">
+            Memuat hak akses...
+          </div>
+          <table v-else class="permission-table">
             <thead>
               <tr>
                 <th class="w-12">No</th>
@@ -128,8 +144,12 @@
           <button @click="showModal = false" class="btn-secondary">
             Batal
           </button>
-          <button @click="savePermissions" class="btn-primary">
-            Simpan Perubahan
+          <button
+            @click="savePermissions"
+            class="btn-primary"
+            :disabled="saving"
+          >
+            {{ saving ? "Menyimpan..." : "Simpan Perubahan" }}
           </button>
         </div>
       </div>
@@ -138,156 +158,343 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue";
+import { ref, onMounted } from "vue";
 import { IconUserPlus, IconShieldLock, IconX } from "@tabler/icons-vue";
+import axios from "axios";
 
-// Mock Data User (Browse User)
-const userList = ref([
-  {
-    kode: "ADI",
-    nama: "ADI",
-    kantor: "Garment",
-    cabang: "P04",
-    bagian: "CETAK",
-    aktif: true,
-  },
-  {
-    kode: "BDI",
-    nama: "BUDI SANTOSO",
-    kantor: "Pusat",
-    cabang: "P01",
-    bagian: "EDP",
-    aktif: true,
-  },
-  {
-    kode: "SIT",
-    nama: "SITI AMINAH",
-    kantor: "Spanduk",
-    cabang: "P02",
-    bagian: "MARKETING",
-    aktif: false,
-  },
-]);
+const userList = ref<any[]>([]);
+const loading = ref(false);
+const loadingModal = ref(false);
+const saving = ref(false);
 
 const showModal = ref(false);
 const selectedUser = ref<any>(null);
+const menuPermissions = ref<any[]>([]);
 
-// Daftar Menu Hak Akses (Meniru Tabel pada Gambar Referensi)
-const menuPermissions = ref([
+// Daftar Struktur Menu Lengkap (Group & Sub-Group)
+const allMenuGroups = [
   {
-    id: 1,
-    name: "MENU DAFTAR",
-    view: false,
-    insert: false,
-    update: false,
-    delete: false,
-    save: false,
+    name: "File",
+    items: [
+      { name: "User", path: "/file/user" },
+      { name: "Identitas Perusahaan", path: "/file/perusahaan" },
+      { name: "Ganti Password", path: "/file/ganti-password" },
+    ],
+  },
+  { name: "Daftar", items: [{ name: "Supplier", path: "/daftar/supplier" }] },
+  {
+    name: "Spanduk",
+    items: [
+      {
+        name: "Penerimaan Bahan Penolong",
+        path: "/spanduk/penerimaan-bahan-penolong",
+      },
+    ],
   },
   {
-    id: 2,
-    name: "MENU PEMBELIAN",
-    view: false,
-    insert: false,
-    update: false,
-    delete: false,
-    save: false,
+    name: "Transaksi",
+    items: [
+      {
+        name: "Daftar",
+        isSubGroup: true,
+        items: [
+          { name: "Master Bahan", path: "/mmt/daftar/bahan" },
+          { name: "Mesin Produksi", path: "/mmt/daftar/mesin-produksi" },
+          { name: "Operator", path: "/mmt/daftar/operator" },
+          { name: "Bahan Sisa", path: "/mmt/daftar/bahan-sisa" },
+        ],
+      },
+      {
+        name: "Finance",
+        isSubGroup: true,
+        items: [
+          { name: "PO Bahan MMT", path: "/mmt/po-bahan-mmt" },
+          { name: "PO External MMT", path: "/mmt/po-external-mmt" },
+          { name: "Invoice", path: "/mmt/invoice" },
+          { name: "Retur Beli", path: "/mmt/retur-beli" },
+          { name: "Voucher Pelunasan", path: "/mmt/voucher-pembelian" },
+          { name: "Laporan Outstanding", path: "/laporan/mmt/lap-hutang" },
+        ],
+      },
+      {
+        name: "Bahan Baku & Produksi",
+        isSubGroup: true,
+        items: [
+          {
+            name: "Daftar Permintaan Pembelian",
+            path: "/mmt/pengajuan-permintaan",
+          },
+          { name: "Purchase Request (PR)", path: "/mmt/permintaan-bahan" },
+          { name: "Penerimaan Bahan", path: "/mmt/penerimaan-bahan" },
+          { name: "Retur Produksi", path: "/mmt/retur-produksi" },
+          { name: "Retur Beli", path: "/mmt/retur-beli" },
+          { name: "Mutasi Bahan", path: "/mmt/mutasi-gudang" },
+          { name: "Koreksi Stok", path: "/mmt/koreksi-stok" },
+          { name: "Stok Opname", path: "/mmt/stok-opname" },
+          { name: "Permintaan Produksi", path: "/mmt/permintaan-produksi" },
+          { name: "Realisasi Produksi", path: "/mmt/realisasi-produksi" },
+        ],
+      },
+      {
+        name: "LHK",
+        isSubGroup: true,
+        items: [
+          { name: "LHK Cetak (Mesin)", path: "/mmt/lhk/cetak" },
+          { name: "LHK Approval Cetak", path: "/mmt/lhk/cetak-mmt" },
+          { name: "LHK Tekstil", path: "/mmt/lhk/tekstil" },
+          { name: "LHK Approval Tekstil", path: "/mmt/lhk/tekstil/approve" },
+          { name: "LHK Finishing", path: "/mmt/lhk/finishing" },
+          { name: "LHK Proof", path: "/mmt/lhk/proof" },
+          { name: "LHK Paperprint", path: "/mmt/lhk/paperprint" },
+          { name: "LHK Sublim", path: "/mmt/lhk/sublim" },
+          { name: "LHK Layout", path: "/mmt/lhk/layout" },
+        ],
+      },
+      { name: "Planning Produksi", path: "/mmt/planning-produksi" },
+      { name: "Memo Approval Produk (MAP)", path: "/mmt/map" },
+      { name: "SO TO SPK (Surat Perintah Kerja)", path: "/mmt/so-spk" },
+      { name: "BS & Sisa Digital Print", path: "/mmt/bs-digital" },
+      { name: "BS & Sisa Tekstil", path: "/mmt/bs-tekstil" },
+      { name: "STBJ", path: "/mmt/stbj" },
+      { name: "Surat Jalan", path: "/mmt/surat-jalan" },
+      { name: "Surat Jalan Approve", path: "/mmt/surat-jalan/approve" },
+      { name: "Jadwal Kirim", path: "/mmt/jadwal-kirim" },
+      { name: "PO Internal", path: "/mmt/po-paperprint" },
+      { name: "Mutasi Internal", path: "/mmt/mutasi-internal" },
+      { name: "Penerimaan PO External", path: "/mmt/penerimaan-po-external" },
+    ],
   },
   {
-    id: 3,
-    name: "MENU GARMEN",
-    view: false,
-    insert: false,
-    update: false,
-    delete: false,
-    save: false,
+    name: "Laporan",
+    items: [
+      {
+        name: "Garmen",
+        isSubGroup: true,
+        items: [
+          { name: "Mutasi Bahan", path: "/laporan/garmen/mutasi-bahan" },
+          {
+            name: "Kartu Stok Bahan Baku",
+            path: "/laporan/garmen/kartu-stok-bahan",
+          },
+          { name: "Stok Barang", path: "/laporan/garmen/stok-barang" },
+          { name: "SPK vs STBJ vs SJ", path: "/laporan/garmen/spk-stbj-sj" },
+          { name: "Proses Produksi", path: "/laporan/garmen/proses-produksi" },
+          {
+            name: "Lap Outstanding SPK",
+            path: "/laporan/garmen/outstanding-spk",
+          },
+        ],
+      },
+      {
+        name: "Penjualan",
+        isSubGroup: true,
+        items: [
+          {
+            name: "Penawaran vs SPK",
+            path: "/laporan/penjualan/penawaran-vs-spk",
+          },
+          {
+            name: "Realisasi Pengiriman SPK",
+            path: "/laporan/penjualan/realisasi-kirim-spk",
+          },
+          {
+            name: "SPK vs SJ vs Invoice",
+            path: "/laporan/penjualan/spk-sj-invoice",
+          },
+          {
+            name: "Rekap Penawaran",
+            path: "/laporan/penjualan/rekap-penawaran",
+          },
+        ],
+      },
+      {
+        name: "Hutang",
+        isSubGroup: true,
+        items: [
+          { name: "PPN Masukan", path: "/laporan/hutang/ppn-masukan" },
+          { name: "PO vs BPB", path: "/laporan/hutang/po-vs-bpb" },
+          { name: "Daftar Hutang", path: "/laporan/hutang/daftar-hutang" },
+          {
+            name: "PO Bahan vs Realisasi",
+            path: "/laporan/hutang/po-bahan-vs-realisasi",
+          },
+        ],
+      },
+      {
+        name: "Piutang",
+        isSubGroup: true,
+        items: [
+          {
+            name: "Rekap Mutasi Piutang",
+            path: "/laporan/piutang/rekap-mutasi",
+          },
+          { name: "Daftar Piutang", path: "/laporan/piutang/daftar-piutang" },
+          { name: "Saldo Piutang", path: "/laporan/piutang/saldo-piutang" },
+        ],
+      },
+      {
+        name: "Spanduk",
+        isSubGroup: true,
+        items: [
+          { name: "Laporan Persediaan", path: "/laporan/spanduk/persediaan" },
+          { name: "Laporan Kartu Stok", path: "/laporan/spanduk/kartu-stok" },
+          {
+            name: "Laporan In Out Gudang",
+            path: "/laporan/spanduk/in-out-gudang",
+          },
+          { name: "Stok Barang Jadi", path: "/laporan/spanduk/stok-jadi" },
+        ],
+      },
+      {
+        name: "Produksi MMT",
+        isSubGroup: true,
+        items: [
+          {
+            name: "Monitoring & Dokumen",
+            isSubGroup: true,
+            items: [
+              {
+                name: "Lap. Monitoring Kurang Produksi MMT",
+                path: "/laporan/mmt/lap-mon-lmkp-mmt",
+              },
+              { name: "Lap. Mon BS", path: "/laporan/mmt/lap-mon-bs" },
+              { name: "Lap. Mon Kiriman", path: "/laporan/mmt/lap-kiriman" },
+              { name: "Lap. Mon Cetak", path: "/laporan/mmt/lap-mon-cetak" },
+              {
+                name: "Lap. Mon Finishing",
+                path: "/laporan/mmt/lap-mon-finishing",
+              },
+              {
+                name: "Lap. Mon Tekstil",
+                path: "/laporan/mmt/lap-mon-tekstil",
+              },
+              {
+                name: "Lap. Mon Paperprint",
+                path: "/laporan/mmt/lap-mon-paperprint",
+              },
+              { name: "Lap. Mon Proof", path: "/laporan/mmt/lap-mon-proof" },
+              { name: "Lap. Mon Sublim", path: "/laporan/mmt/lap-mon-sublim" },
+            ],
+          },
+          { name: "LS Bahan Utama", path: "/laporan/mmt/ls-bahan-utama" },
+          { name: "LS Bahan Penolong", path: "/laporan/mmt/ls-bahan-penolong" },
+          {
+            name: "Lap. Pemakaian Bahan",
+            path: "/laporan/mmt/lap-pemakaian-bahan",
+          },
+          { name: "Laporan SPK MMT", path: "/laporan/mmt/lap-spk-mmt" },
+          { name: "Laporan LHK", path: "/laporan/mmt/lap-lhk" },
+        ],
+      },
+      {
+        name: "Marketing",
+        isSubGroup: true,
+        items: [
+          {
+            name: "Target vs Realisasi",
+            path: "/laporan/marketing/target-vs-realisasi",
+          },
+          {
+            name: "Proyeksi vs Realisasi",
+            path: "/laporan/marketing/proyeksi-vs-realisasi",
+          },
+        ],
+      },
+    ],
   },
-  {
-    id: 9000,
-    name: "MENU PPIC",
-    view: false,
-    insert: false,
-    update: false,
-    delete: false,
-    save: false,
-  },
-  {
-    id: 4,
-    name: "MENU SPANDUK",
-    view: false,
-    insert: false,
-    update: false,
-    delete: false,
-    save: false,
-  },
-  {
-    id: 5,
-    name: "MENU MMT",
-    view: false,
-    insert: false,
-    update: false,
-    delete: false,
-    save: false,
-  },
-  {
-    id: 6,
-    name: "MENU PENJUALAN",
-    view: false,
-    insert: false,
-    update: false,
-    delete: false,
-    save: false,
-  },
-  {
-    id: 7,
-    name: "MENU HUTANG",
-    view: false,
-    insert: false,
-    update: false,
-    delete: false,
-    save: false,
-  },
-  {
-    id: 8,
-    name: "MENU PIUTANG",
-    view: false,
-    insert: false,
-    update: false,
-    delete: false,
-    save: false,
-  },
-  {
-    id: 9,
-    name: "MENU LAPORAN",
-    view: false,
-    insert: false,
-    update: false,
-    delete: false,
-    save: false,
-  },
-  {
-    id: 210,
-    name: "Setting Harga Bahan Garmen",
-    view: false,
-    insert: false,
-    update: false,
-    delete: false,
-    save: false,
-  },
-  {
-    id: 211,
-    name: "Setting Harga Bahan MMT",
-    view: false,
-    insert: false,
-    update: false,
-    delete: false,
-    save: false,
-  },
-]);
+];
 
-const openPermissionModal = (user: any) => {
+// Helper untuk meratakan menu bertingkat menjadi list datar dengan ID unik
+const generateFlatMenuList = () => {
+  let list: any[] = [];
+  let idCounter = 1;
+
+  const traverse = (items: any[]) => {
+    for (const item of items) {
+      if (item.isSubGroup && item.items) {
+        traverse(item.items);
+      } else if (item.items && !item.path) {
+        traverse(item.items);
+      } else if (item.path) {
+        list.push({
+          id: idCounter++,
+          name: item.name,
+          view: false,
+          insert: false,
+          update: false,
+          delete: false,
+          save: false,
+        });
+      }
+    }
+  };
+
+  for (const group of allMenuGroups) {
+    if (group.items) {
+      traverse(group.items);
+    }
+  }
+
+  return list;
+};
+
+// 1. Ambil Data User (Browse) dari Endpoint GET /api/mmt/manage-user
+const fetchUsers = async () => {
+  loading.value = true;
+  try {
+    const response = await axios.get("/api/mmt/manage-user");
+    userList.value = response.data.data || response.data;
+  } catch (error) {
+    console.error("Gagal memuat data user:", error);
+    alert("Gagal memuat data user dari server.");
+  } finally {
+    loading.value = false;
+  }
+};
+
+onMounted(() => {
+  fetchUsers();
+});
+
+// 2. Buka Modal & Ambil Hak Akses Berdasarkan Kode User: GET /api/mmt/manage-user/:kode/akses
+const openPermissionModal = async (user: any) => {
   selectedUser.value = user;
-  // Di sini Anda bisa memuat data akses user dari backend berdasarkan user.kode
   showModal.value = true;
+  loadingModal.value = true;
+
+  try {
+    const response = await axios.get(
+      `/api/mmt/manage-user/${user.user_kode}/akses`,
+    );
+    // Mengambil data akses tersimpan dari struktur { user, akses } atau array langsung
+    const savedAkses = response.data.akses || response.data.data || [];
+
+    // Generate menu dasar dari struktur allMenuGroups
+    const defaultMenus = generateFlatMenuList();
+
+    // Gabungkan dengan data akses yang sudah tersimpan di database
+    menuPermissions.value = defaultMenus.map((menu) => {
+      const found = savedAkses.find(
+        (a: any) => Number(a.hak_men_id) === Number(menu.id),
+      );
+      if (found) {
+        return {
+          ...menu,
+          view: found.hak_men_view === "1" || found.hak_men_view === 1,
+          insert: found.hak_men_insert === "1" || found.hak_men_insert === 1,
+          update: found.hak_men_edit === "1" || found.hak_men_edit === 1,
+          delete: found.hak_men_delete === "1" || found.hak_men_delete === 1,
+          save: found.hak_men_save === "1" || found.hak_men_save === 1,
+        };
+      }
+      return menu;
+    });
+  } catch (error) {
+    console.error("Gagal memuat hak akses:", error);
+    alert("Gagal memuat konfigurasi hak akses user.");
+  } finally {
+    loadingModal.value = false;
+  }
 };
 
 const openAddModal = () => {
@@ -307,10 +514,27 @@ const toggleAllMenu = (menu: any, event: Event) => {
   menu.save = checked;
 };
 
-const savePermissions = () => {
-  // Kirim data menuPermissions ke backend API menggunakan prefix kolom brg_ atau payload terkait
-  showModal.value = false;
-  alert("Hak akses berhasil disimpan!");
+// 3. Simpan Hak Akses: POST /api/mmt/manage-user/:kode/akses
+const savePermissions = async () => {
+  if (!selectedUser.value) return;
+
+  saving.value = true;
+  try {
+    await axios.post(
+      `/api/mmt/manage-user/${selectedUser.value.user_kode}/akses`,
+      {
+        permissions: menuPermissions.value,
+      },
+    );
+
+    showModal.value = false;
+    alert("Hak akses berhasil disimpan!");
+  } catch (error) {
+    console.error("Gagal menyimpan hak akses:", error);
+    alert("Terjadi kesalahan saat menyimpan hak akses.");
+  } finally {
+    saving.value = false;
+  }
 };
 </script>
 

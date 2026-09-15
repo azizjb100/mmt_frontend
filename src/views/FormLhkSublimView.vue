@@ -257,6 +257,7 @@
                   <th width="120">Nomor SPK</th>
                   <th>Nama Pekerjaan</th>
                   <th width="110">Komponen</th>
+                  <th width="55">Size</th>
                   <th width="55">P (M)</th>
                   <th width="55">L (M)</th>
                   <th width="110">Orientasi</th>
@@ -1464,11 +1465,9 @@ const injectSpkObject = (spk: any, fallbackCode: string = "") => {
 
   if (!item) return;
 
-  console.log("DEBUG ITEM DARI MODAL:", item); // Cek console browser untuk memastikan Panjang & Lebar ada di sini
-
   const nomorSpk =
-    item.spk_nomor ||
     item.SPK ||
+    item.spk_nomor ||
     item.Spk ||
     item.poi_spk_nomor ||
     item.Nomor_SPK ||
@@ -1491,6 +1490,15 @@ const injectSpkObject = (spk: any, fallbackCode: string = "") => {
     item.bhn_name ||
     "ALL SET";
 
+  // 🌟 AMBIL SIZE DARI BERBAGAI KEMUNGKINAN NAMA PROPERTI DARI MODAL
+  const resolvedSize =
+    rawItem.Size ||
+    rawItem.size ||
+    rawItem.poid_size ||
+    rawItem.spks_size ||
+    rawItem.ukuran ||
+    "-";
+
   const qtyOrderSpk = parseInt(
     item.spk_jmlorder ||
       item.Jumlah ||
@@ -1510,7 +1518,6 @@ const injectSpkObject = (spk: any, fallbackCode: string = "") => {
       qtyOrderSpk - sdhCetak,
   );
 
-  // 🌟 Ambil panjang & lebar dengan prioritas mutlak dari properti yang dikirim modal/backend
   const rawP = parseFloat(
     item.spk_panjang ?? item.Panjang ?? item.panjang ?? item.ldg_panjang ?? 0,
   );
@@ -1520,8 +1527,12 @@ const injectSpkObject = (spk: any, fallbackCode: string = "") => {
 
   const newRow = {
     poi_nomor: item.poi_nomor || item.Poi_Nomor || "",
-    poi_size:
-      item.poi_size || item.poid_size || item.Poi_Size || item.Size || "",
+
+    // 🌟 PASTIKAN PROPERTI SIZE TERISI DISINI
+    poi_size: resolvedSize,
+    Size: resolvedSize,
+    poid_size: resolvedSize,
+
     spk_nomor: nomorSpk,
     spk_nama: namaSpk,
     spk_komponen: namaKomponen,
@@ -1544,7 +1555,7 @@ const injectSpkObject = (spk: any, fallbackCode: string = "") => {
   formData.value.details.push(newRow);
   recalculateCombine();
   toast.success(
-    `Berhasil menambahkan SPK ${newRow.spk_nomor} (${namaKomponen}) - P: ${rawP}, L: ${rawL}`,
+    `Berhasil menambah SPK ${newRow.spk_nomor} [Size: ${resolvedSize}] (${namaKomponen})`,
   );
 };
 

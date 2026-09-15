@@ -62,6 +62,7 @@ interface FormDataState {
   jmlPo: number;
   tarif: number;
   totalHeader: number;
+  tipeHitung: "meter" | "pcs";
   detailCustom: CustomDetailItem[];
   detailAlokasi: AlokasiItem[];
   detailDp: DPItem[];
@@ -124,6 +125,7 @@ const formData = reactive<FormDataState>({
   jmlPo: 0,
   tarif: 0,
   totalHeader: 0,
+  tipeHitung: "meter",
   detailCustom: [
     { nama: "", panjang: 0, lebar: 0, jumlah: 0, harga: 0, total: 0 },
   ],
@@ -181,33 +183,40 @@ const isFormReadOnly = computed(() => {
 
 // --- Core Calculations ---
 const hitungKalkulasiHeader = () => {
-  const { joKode, divisi, panjang, lebar, jmlPo, tarif } = formData;
+  const { joKode, divisi, panjang, lebar, jmlPo, tarif, tipeHitung } = formData;
   let tot = 0;
 
-  if (joKode === "LM" || joKode === "LN") {
+  if (tipeHitung === "pcs") {
     tot = jmlPo * tarif;
-  } else if (divisi === "MMT" || divisi === "5" || divisi === 5) {
-    tot = panjang * lebar * jmlPo * tarif;
   } else {
-    tot = panjang * jmlPo * tarif;
+    if (joKode === "LM" || joKode === "LN") {
+      tot = jmlPo * tarif;
+    } else if (divisi === "MMT" || divisi === "5" || divisi === 5) {
+      tot = panjang * lebar * jmlPo * tarif;
+    } else {
+      tot = panjang * jmlPo * tarif;
+    }
   }
   formData.totalHeader = tot;
 };
 
-// Perbaikan perbandingan logika operator
 const hitungRowCustom = (index: number) => {
   const item = formData.detailCustom[index];
   if (!item) return;
 
-  const { joKode, divisi } = formData;
+  const { joKode, divisi, tipeHitung } = formData;
   let tot = 0;
 
-  if (joKode === "LM" || joKode === "LN") {
+  if (tipeHitung === "pcs") {
     tot = item.jumlah * item.harga;
-  } else if (divisi === "MMT" || divisi === "5" || divisi === 5) {
-    tot = item.panjang * item.lebar * item.jumlah * item.harga;
   } else {
-    tot = item.panjang * item.jumlah * item.harga;
+    if (joKode === "LM" || joKode === "LN") {
+      tot = item.jumlah * item.harga;
+    } else if (divisi === "MMT" || divisi === "5" || divisi === 5) {
+      tot = item.panjang * item.lebar * item.jumlah * item.harga;
+    } else {
+      tot = item.panjang * item.jumlah * item.harga;
+    }
   }
   item.total = tot;
 };
@@ -220,6 +229,7 @@ watch(
     formData.lebar,
     formData.joKode,
     formData.divisi,
+    formData.tipeHitung,
   ],
   () => {
     hitungKalkulasiHeader();
@@ -288,6 +298,7 @@ const refreshData = () => {
   formData.jmlPo = 0;
   formData.tarif = 0;
   formData.totalHeader = 0;
+  formData.tipeHitung = "meter";
 
   initGridDefaults();
 };
@@ -336,8 +347,8 @@ const loadDataAll = async (nomorPo: string) => {
 
       formData.jmlPo = Number(h.poe_jumlah) || 0;
       formData.tarif = Number(h.poe_tarif) || 0;
+      formData.tipeHitung = h.poe_tipe_hitung === "pcs" ? "pcs" : "meter";
 
-      // Cek PIN
       try {
         const pinRes = await api.get(`${API_URL}/check-pin/${nomorPo}`);
         const pinData = pinRes.data.data || pinRes.data;
@@ -361,7 +372,6 @@ const loadDataAll = async (nomorPo: string) => {
         xminta5.value = "";
       }
 
-      // Alokasi
       if (Array.isArray(res.alokasi) && res.alokasi.length > 0) {
         formData.detailAlokasi = res.alokasi.map((a: any) => ({
           alokasi: true,
@@ -372,7 +382,6 @@ const loadDataAll = async (nomorPo: string) => {
         formData.detailAlokasi = [{ alokasi: false, kota: "", jumlah: 0 }];
       }
 
-      // Item Custom
       if (Array.isArray(res.custom) && res.custom.length > 0) {
         formData.detailCustom = res.custom.map((c: any) => ({
           nama: c.poed_nama || "",
@@ -388,7 +397,6 @@ const loadDataAll = async (nomorPo: string) => {
         ];
       }
 
-      // DP
       formData.detailDp = [];
       if (Array.isArray(res.dp) && res.dp.length > 0) {
         for (const d of res.dp) {
@@ -437,7 +445,6 @@ const loadDataAll = async (nomorPo: string) => {
   }
 };
 
-// --- Handlers Supplier ---
 const openSupplierSearch = () => {
   if (isFormReadOnly.value) return;
   isSupplierModalVisible.value = true;
@@ -471,7 +478,6 @@ const handleSupplierSelect = async (sup: LookupItem) => {
   isSupplierModalVisible.value = false;
 };
 
-// --- Handler SPK Select ---
 const handleSpkSelect = async (payload: any) => {
   if (!payload) return;
 
@@ -479,7 +485,6 @@ const handleSpkSelect = async (payload: any) => {
   const nomorSpkTerpilih = spk.Spk || spk.SPK || spk.spk || spk.spk_nomor || "";
   if (!nomorSpkTerpilih) return;
 
-  // 1. Mapping data header SPK
   formData.nomorSpk = nomorSpkTerpilih;
   formData.namaSpk = spk.Nama || spk.nama || "";
   formData.divisi = String(spk.Divisi || spk.divisi || "");
@@ -489,7 +494,6 @@ const handleSpkSelect = async (payload: any) => {
   formData.lebar = Number(spk.Lebar) || 0;
   formData.jumlahSpk = Number(spk.Jumlah) || 0;
 
-  // AMBIL FINISHING DARI SPK (Default awal dari SPK, tapi tetap bisa diedit nanti)
   formData.finishing =
     spk.Finishing || spk.finishing || spk.spk_finishing || "";
 
@@ -504,7 +508,6 @@ const handleSpkSelect = async (payload: any) => {
   formData.hasGambar = spk.design_done === "Y" || spk.design_baru === "Y";
   formData.keterangan = spk.Kepentingan || "";
 
-  // 2. Ambil data alokasi SPK
   try {
     const resAlokasi = await api.get(`/mmt/spk/alokasi/${nomorSpkTerpilih}`);
     const alokasiList = resAlokasi.data.data || resAlokasi.data || [];
@@ -525,7 +528,6 @@ const handleSpkSelect = async (payload: any) => {
   isSpkModalVisible.value = false;
 };
 
-// --- Grid Item Controls ---
 const addRowCustom = () => {
   formData.detailCustom.push({
     nama: "",
@@ -557,7 +559,6 @@ const removeRowDp = (index: number) => {
   if (formData.detailDp.length === 0) addRowDp();
 };
 
-// --- Simpan Data ---
 const saveForm = async () => {
   if (isFormReadOnly.value) {
     toast.error("Transaksi sudah diclose / menunggu approve.");
@@ -594,6 +595,7 @@ const saveForm = async () => {
       poe_jumlah: formData.jmlPo,
       poe_tarif: formData.tarif,
       poe_total: formData.totalHeader,
+      poe_tipe_hitung: formData.tipeHitung,
       poe_bahansendiri: formData.bahanSendiri ? "Y" : "N",
       currentUser:
         currentUserKode.value || localStorage.getItem("kdUser") || "SYSTEM",
@@ -837,7 +839,6 @@ onUnmounted(() => {
                 />
               </v-col>
 
-              <!-- INPUT FINISHING (Otomatis terisi dari SPK & Bisa Diedit) -->
               <v-col cols="12">
                 <v-text-field
                   label="Finishing"
@@ -963,7 +964,7 @@ onUnmounted(() => {
         <!-- DETAIL PRICING PANEL -->
         <v-card flat border class="mb-2 bg-blue-grey-lighten-5 pa-3">
           <v-row dense align="center">
-            <v-col cols="3">
+            <v-col cols="2">
               <v-text-field
                 label="Jumlah PO"
                 v-model.number="formData.jmlPo"
@@ -987,12 +988,29 @@ onUnmounted(() => {
                 class="bg-white"
               />
             </v-col>
-            <v-col cols="6">
+            <v-col cols="2">
+              <v-select
+                label="Hitung"
+                v-model="formData.tipeHitung"
+                :items="[
+                  { title: 'Meter', value: 'meter' },
+                  { title: 'Pcs', value: 'pcs' },
+                ]"
+                item-title="title"
+                item-value="value"
+                density="compact"
+                variant="outlined"
+                hide-details
+                class="bg-white"
+                :readonly="isFormReadOnly"
+              />
+            </v-col>
+            <v-col cols="5">
               <v-card flat border color="primary" class="pa-1 text-right">
                 <span
                   class="text-caption font-weight-bold d-block px-2 text-blue-lighten-4"
                 >
-                  TOTAL NOTA UTAMA
+                  TOTAL NOTA UTAMA ({{ formData.tipeHitung.toUpperCase() }})
                 </span>
                 <span class="text-h6 font-weight-black px-2 text-white">
                   Rp {{ Number(formData.totalHeader).toLocaleString() }}
@@ -1052,7 +1070,7 @@ onUnmounted(() => {
                   variant="plain"
                   hide-details
                   class="text-right-input"
-                  :readonly="isFormReadOnly"
+                  :readonly="isFormReadOnly || formData.tipeHitung === 'pcs'"
                   @update:model-value="hitungRowCustom(index)"
                 />
               </template>
@@ -1064,7 +1082,7 @@ onUnmounted(() => {
                   variant="plain"
                   hide-details
                   class="text-right-input"
-                  :readonly="isFormReadOnly"
+                  :readonly="isFormReadOnly || formData.tipeHitung === 'pcs'"
                   @update:model-value="hitungRowCustom(index)"
                 />
               </template>

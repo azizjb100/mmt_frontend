@@ -533,7 +533,7 @@ const allMenuGroups = [
   {
     name: "File",
     items: [
-      { name: "User", path: "/file/user" },
+      { name: "User", path: "/mmt/manage-user" },
       { name: "Identitas Perusahaan", path: "/file/perusahaan" },
       { name: "Ganti Password", path: "/file/ganti-password" },
     ],

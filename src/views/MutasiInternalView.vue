@@ -14,7 +14,7 @@ const masterData = ref([]);
 const details = ref<Record<string, any[]>>({});
 const loading = ref(true);
 const loadingDetails = ref(new Set<string>());
-const selected = ref([]);
+const selected = ref<any[]>([]);
 const expanded = ref([]);
 const startDate = ref(format(subDays(new Date(), 30), "yyyy-MM-dd"));
 const endDate = ref(format(new Date(), "yyyy-MM-dd"));
@@ -49,26 +49,18 @@ const detailHeaders = [
   { title: "Qty Mutasi", key: "Qty_Mutasi", minWidth: "100px", align: "end" },
 ];
 
-// Helper parsing tanggal jika data dari database bertipe string custom
+// Helper parsing tanggal aman
 const parseCustomDate = (dateString: any): Date | null => {
   if (!dateString) return null;
-
-  // Jika data ternyata sudah berupa objek Date, langsung kembalikan
   if (dateString instanceof Date) {
     return isNaN(dateString.getTime()) ? null : dateString;
   }
-
-  // Konversi ke string jika bertipe data lain (misal number/timestamp)
   const str = String(dateString).trim();
   if (!str) return null;
-
-  // 1. Cek jika formatnya adalah kustom bawaan database (misal: "14-Jul-2026" atau "14-07-2026")
   const parts = str.split("-");
   if (parts.length === 3) {
     const day = Number(parts[0]);
     const year = Number(parts[2]);
-
-    // Validasi struktur angka hari dan tahun dasar
     if (!isNaN(day) && !isNaN(year) && year > 1000) {
       let month = isNaN(Number(parts[1]))
         ? [
@@ -89,21 +81,12 @@ const parseCustomDate = (dateString: any): Date | null => {
 
       if (month >= 0 && month <= 11) {
         const parsedDate = new Date(year, month, day);
-        if (!isNaN(parsedDate.getTime())) {
-          return parsedDate;
-        }
+        if (!isNaN(parsedDate.getTime())) return parsedDate;
       }
     }
   }
-
-  // 2. Fallback jika string adalah ISO Standard (misal: "2026-07-14") atau format bawaan Javascript
   const fallbackDate = new Date(str);
-  if (!isNaN(fallbackDate.getTime())) {
-    return fallbackDate;
-  }
-
-  // Jika semua metode gagal, kembalikan null agar tidak crash di date-fns
-  return null;
+  return isNaN(fallbackDate.getTime()) ? null : fallbackDate;
 };
 
 const fetchData = async () => {
@@ -120,6 +103,27 @@ const fetchData = async () => {
   } finally {
     loading.value = false;
   }
+};
+
+// ✅ Perbaikan logika pengambilan nomor mutasi saat tombol cetak ditekan
+const handlePrintAction = () => {
+  const selectedItem = selected.value[0];
+  const nomor =
+    typeof selectedItem === "object"
+      ? selectedItem?.Nomor_Mutasi
+      : selectedItem;
+
+  if (!nomor) {
+    toast.warning(
+      "Silakan pilih dokumen mutasi yang ingin dicetak terlebih dahulu.",
+    );
+    return;
+  }
+
+  router.push({
+    name: "MutasiInternalMMTPrint",
+    params: { nomor },
+  });
 };
 
 const handleExpandUpdate = async (expandedKeys: any[]) => {
@@ -210,16 +214,15 @@ const getBagianNama = (kode: string) => {
   }
 };
 
-// Mengubah warna menjadi kategori netral (Grayscale/Slate)
 const getBagianColor = (kode: string) => {
   if (!kode) return "grey-darken-1";
   const k = kode.toUpperCase();
   switch (k) {
     case "PTG":
     case "GP001":
-      return "grey-darken-3"; // Abu-abu gelap untuk bagian produksi utama
+      return "grey-darken-3";
     case "SUBLIM":
-      return "grey-darken-1"; // Abu-abu sedang
+      return "grey-darken-1";
     default:
       return "grey-darken-2";
   }
@@ -248,6 +251,21 @@ onMounted(fetchData);
     :row-props="getRowProps"
     @update:expanded="handleExpandUpdate(expanded)"
   >
+    <!-- ✅ Ubah dari #actions menjadi #header-actions agar tombolnya muncul di toolbar BaseBrowse -->
+    <template #header-actions>
+      <v-btn
+        size="small"
+        color="secondary"
+        variant="elevated"
+        prepend-icon="mdi-printer"
+        :disabled="selected.length === 0"
+        @click="handlePrintAction"
+        class="mr-2"
+      >
+        Cetak
+      </v-btn>
+    </template>
+
     <template #item.Nomor_Mutasi="{ value }">
       <div
         class="d-flex align-center font-weight-medium text-blue-grey-darken-4"
@@ -381,36 +399,26 @@ onMounted(fetchData);
 </template>
 
 <style scoped>
-/* Warna highlight baris yang dipilih: Abu-abu super lembut */
 .row-selected {
   background-color: #f1f3f5 !important;
 }
 :deep(.row-selected td) {
   background-color: #f1f3f5 !important;
 }
-
-/* Hover effect minimalis */
 :deep(.v-data-table__tr:hover) {
   background-color: #fafbfc !important;
   cursor: pointer;
 }
-
-/* Dekorasi text link tipis pada Nomor Mutasi saat di-hover */
 .hover-underline:hover {
   text-decoration: underline;
-  color: #1a73e8; /* Sedikit aksen interaktif saat diarahkan mouse */
+  color: #1a73e8;
 }
-
-/* Pembungkus area detail */
 .expanded-wrapper {
-  border-left: 3px solid #757575; /* Aksen garis abu-abu kokoh di sebelah kiri */
+  border-left: 3px solid #757575;
 }
-
 .minimal-border-dashed {
   border: 1px dashed #e0e0e0;
 }
-
-/* Menghilangkan border internal berlebih di tabel detail */
 .minimal-detail-table :deep(th) {
   background-color: #f8f9fa !important;
   font-weight: 600 !important;

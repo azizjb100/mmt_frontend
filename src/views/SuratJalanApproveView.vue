@@ -20,7 +20,7 @@ const startDate = ref(format(subDays(new Date(), 30), "yyyy-MM-dd"));
 const endDate = ref(format(new Date(), "yyyy-MM-dd"));
 const pendingOnly = ref(false);
 
-// --- EXCEL-STYLE FILTER STATE ---
+// --- EXCEL-STYLE & GLOBAL FILTER STATE ---
 // 1. Filter Nomor SJ
 const menuNomor = ref(false);
 const filterNomorInput = ref<string>("");
@@ -32,6 +32,9 @@ const selectedGudangFilter = ref<string[]>([]);
 // 3. Filter Customer
 const menuCustomer = ref(false);
 const filterCustomerInput = ref<string>("");
+
+// 4. Filter SPK (Global Input)
+const filterSpkInput = ref<string>("");
 
 // --- Ambil Cabang Dinamis dari Session Storage / Local Storage ---
 const getSessionUser = () => {
@@ -125,7 +128,25 @@ const filteredMasterData = computed(() => {
         .toLowerCase()
         .includes(filterCustomerInput.value.trim().toLowerCase());
 
-    return matchesNomor && matchesGudang && matchesCustomer;
+    // Filter SPK (Mengecek ke data detail yang sudah/sedang di-load)
+    let matchesSpk = true;
+    if (filterSpkInput.value.trim()) {
+      const keyword = filterSpkInput.value.trim().toLowerCase();
+      const itemDetails = details.value[item.Nomor] || [];
+
+      // Jika detail belum selesai di-load, kembalikan false dulu sampai datanya siap
+      if (!details.value.hasOwnProperty(item.Nomor)) {
+        matchesSpk = false;
+      } else {
+        matchesSpk = itemDetails.some(
+          (d) =>
+            (d.SPK && d.SPK.toLowerCase().includes(keyword)) ||
+            (d.Nama && d.Nama.toLowerCase().includes(keyword)),
+        );
+      }
+    }
+
+    return matchesNomor && matchesGudang && matchesCustomer && matchesSpk;
   });
 
   // 2. Sorting Data: Prioritaskan status PENDING di paling atas
@@ -226,10 +247,28 @@ const formatDateDisplay = (dateStr: string | null | undefined) => {
   }
 };
 
+// --- Fetch Detail secara Background untuk keperluan Search SPK ---
+const fetchAllDetailsInBackground = async (items: any[]) => {
+  for (const item of items) {
+    const nomorSJ = item.Nomor;
+    if (nomorSJ && !details.value[nomorSJ]) {
+      try {
+        const res = await api.get(`${API_SURAT_JALAN}/detail`, {
+          params: { nomor: nomorSJ },
+        });
+        details.value[nomorSJ] = res.data.data || res.data || [];
+      } catch (error) {
+        details.value[nomorSJ] = [];
+      }
+    }
+  }
+};
+
 // --- Data Fetching ---
 const fetchData = async () => {
   loading.value = true;
   userConfig.cab = getSessionUser()?.cab || "";
+  details.value = {}; // Reset cache detail saat data master diperbarui
 
   try {
     const res = await api.get(`${API_SURAT_JALAN}/`, {
@@ -244,6 +283,9 @@ const fetchData = async () => {
 
     masterData.value = res.data.data || [];
     selectedGudangFilter.value = [...availableGudangList.value];
+
+    // Ambil detail secara background agar pencarian SPK langsung bisa mendeteksi data
+    fetchAllDetailsInBackground(masterData.value);
   } catch (error) {
     console.error("Gagal mengambil data Surat Jalan:", error);
     toast.error("Gagal mengambil data Surat Jalan");
@@ -378,13 +420,26 @@ onMounted(fetchData);
 
 <template>
   <div class="sj-approval-wrapper">
-    <v-row class="px-4 pt-2 align-center bg-grey-lighten-4 rounded mb-2">
+    <!-- Baris Atas: Switch Pending & Input Search SPK Berdampingan -->
+    <v-row class="px-4 py-2 align-center bg-grey-lighten-4 rounded mb-2">
       <v-col cols="12" sm="4">
         <v-switch
           v-model="pendingOnly"
           color="primary"
           label="Tampilkan Hanya Data Pending (btnShow)"
           hide-details
+        />
+      </v-col>
+      <v-col cols="12" sm="4" class="ml-auto">
+        <v-text-field
+          v-model="filterSpkInput"
+          placeholder="Cari Nomor / Nama SPK..."
+          density="compact"
+          variant="outlined"
+          hide-details
+          clearable
+          prepend-inner-icon="mdi-magnify"
+          bg-color="white"
         />
       </v-col>
     </v-row>
@@ -438,7 +493,7 @@ onMounted(fetchData);
       </template>
 
       <!-- ======================================================== -->
-      <!-- EXCEL-STYLE FILTER HEADERS                               -->
+      <!-- EXCEL-STYLE FILTER HEADERS                              -->
       <!-- ======================================================== -->
 
       <!-- 1. FILTER NOMOR SURAT JALAN -->

@@ -673,6 +673,7 @@ const jenisLabel = computed(() => {
 });
 
 // --- DINAMIS SUB-HEADER & KEY PCS BERDASARKAN KATEGORI ---
+// --- DINAMIS SUB-HEADER & KEY PCS BERDASARKAN KATEGORI ---
 const subPcs = computed(() => {
   if (jenisIndex.value === "1") {
     // Kategori MX
@@ -685,7 +686,23 @@ const subPcs = computed(() => {
       { label: "Kirim", key: "spk_jumlah_kirim" },
     ];
   }
-  // Kategori MT, Paperprint, Sublim (Default)
+  if (jenisIndex.value === "2") {
+    // Kategori Paperprint
+    return [
+      { label: "Order", key: "spk_jumlah" },
+      { label: "Cetak", key: "spk_cetak" }, // Sesuaikan key database jika berbeda (misal: jumlah_cetak)
+      { label: "K-Cetak", key: "krg_Cetak" },
+    ];
+  }
+  if (jenisIndex.value === "3") {
+    // Kategori Sublim
+    return [
+      { label: "Order", key: "spk_jumlah" },
+      { label: "K-Cetak", key: "krg_Cetak" },
+      { label: "K-Mutasi P04", key: "krg_mutasi_p04" }, // Sesuaikan key database backend
+    ];
+  }
+  // Kategori MT (Default)
   return [
     { label: "Order", key: "spk_jumlah" },
     { label: "K-Cetak", key: "krg_Cetak" },
@@ -698,34 +715,34 @@ const subPcs = computed(() => {
 });
 
 // --- SKEMA MESIN DINAMIS BASED ON KATEGORI ---
-const mesinColumns = computed(() => {
-  if (jenisIndex.value === "1") {
-    return [
-      { label: "MX01", key: "mx01" },
-      { label: "MX02", key: "mx02" },
-      { label: "MX03", key: "mx03" },
-      { label: "MX04", key: "mx04" },
-      { label: "MX05", key: "mx05" },
-    ];
-  }
-  if (jenisIndex.value === "2") {
-    return [
-      { label: "SB01", key: "sb01" },
-      { label: "SB02", key: "sb02" },
-      { label: "SB03", key: "sb03" },
-      { label: "SB04", key: "sb04" },
-      { label: "SB05", key: "sb05" },
-    ];
-  }
-  return [
-    { label: "MT01", key: "mt01" },
-    { label: "MT02", key: "mt02" },
-    { label: "MT03", key: "mt03" },
-    { label: "MT04", key: "mt04" },
-    { label: "MT05", key: "mt05" },
-    { label: "MI", key: "mi" },
-  ];
-});
+// const mesinColumns = computed(() => {
+//   if (jenisIndex.value === "1") {
+//     return [
+//       { label: "MX01", key: "mx01" },
+//       { label: "MX02", key: "mx02" },
+//       { label: "MX03", key: "mx03" },
+//       { label: "MX04", key: "mx04" },
+//       { label: "MX05", key: "mx05" },
+//     ];
+//   }
+//   if (jenisIndex.value === "2") {
+//     return [
+//       { label: "SB01", key: "sb01" },
+//       { label: "SB02", key: "sb02" },
+//       { label: "SB03", key: "sb03" },
+//       { label: "SB04", key: "sb04" },
+//       { label: "SB05", key: "sb05" },
+//     ];
+//   }
+//   return [
+//     { label: "MT01", key: "mt01" },
+//     { label: "MT02", key: "mt02" },
+//     { label: "MT03", key: "mt03" },
+//     { label: "MT04", key: "mt04" },
+//     { label: "MT05", key: "mt05" },
+//     { label: "MI", key: "mi" },
+//   ];
+// });
 
 // --- FETCH REPORT ---
 const fetchReport = async () => {

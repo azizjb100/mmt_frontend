@@ -767,34 +767,10 @@ const exportToExcelCustom = async () => {
   isExporting.value = true;
 
   try {
-    // 1. Urutkan berdasarkan Tanggal
-    const sortedItems = [...filteredItems.value].sort((a: any, b: any) => {
-      const getNum = (val: string) => {
-        if (!val || val === "-") return 0;
-        const strVal = String(val).trim();
-        if (strVal.includes("/")) {
-          const parts = strVal.split("/");
-          if (parts.length === 3) {
-            const day = parseInt(parts[0], 10) || 0;
-            const month = parseInt(parts[1], 10) || 0;
-            const year = parseInt(parts[2], 10) || 0;
-            return year * 10000 + month * 100 + day;
-          }
-        } else if (strVal.includes("-")) {
-          const parts = strVal.substring(0, 10).split("-");
-          if (parts.length === 3) {
-            const year = parseInt(parts[0], 10) || 0;
-            const month = parseInt(parts[1], 10) || 0;
-            const day = parseInt(parts[2], 10) || 0;
-            return year * 10000 + month * 100 + day;
-          }
-        }
-        return 0;
-      };
-      return getNum(a.Tanggal) - getNum(b.Tanggal);
-    });
+    // 1. Gunakan langsung filteredItems TANPA sorting ulang agar urutan sama persis dengan di browse
+    const sortedItems = [...filteredItems.value];
 
-    // 2. Ambil detail sizes jika diperlukan (opsional/disesuaikan dengan backend MAP Anda)
+    // 2. Ambil detail sizes jika diperlukan
     for (const header of sortedItems) {
       const nomorMap = header.Nomor;
       if (
@@ -802,8 +778,6 @@ const exportToExcelCustom = async () => {
         (!mapDetails.value[nomorMap] || mapDetails.value[nomorMap].length === 0)
       ) {
         try {
-          // Ganti dengan method service size MAP Anda jika tersedia, misal: mapService.getSizes(nomorMap)
-          // Jika tidak ada detail size terpisah, bagian ini bisa dilewati atau disesuaikan.
           const res = (mapService as any).getSizes
             ? await (mapService as any).getSizes(nomorMap)
             : null;
@@ -925,7 +899,6 @@ const exportToExcelCustom = async () => {
       { v: "DESAIN BARU", s: styleHeaderMain },
       { v: "DESAIN DONE", s: styleHeaderMain },
       { v: "KETERANGAN", s: styleHeaderMain },
-      // Kolom Detail Size tambahan
       { v: "UKURAN/SIZE (DETAIL)", s: styleHeaderMain },
       { v: "QTY SPK (DETAIL)", s: styleHeaderMain },
       { v: "REALISASI STBJ (DETAIL)", s: styleHeaderMain },
@@ -941,34 +914,17 @@ const exportToExcelCustom = async () => {
       const nomorMap = header.Nomor || "-";
       const targetSizes = mapDetails.value[nomorMap] || [];
 
-      const tglExcel = parseToExcelDate(header.Tanggal);
-      const datelineExcel = parseToExcelDate(header.Dateline);
-      const tglBastExcel = parseToExcelDate(header.TglBast);
-      const estimasiJadiExcel = parseToExcelDate(header.EstimasiJadi);
-      const designTglExcel = parseToExcelDate(header.Design_Tanggal);
-      const createdExcel = parseToExcelDate(header.Created);
-
       grandTotalQty += num(header.Jumlah);
       grandTotalKirim += num(header.Kirim);
 
+      // Gunakan getCellValue agar format tanggal yang masuk ke Excel sama persis dengan yang tampil di tabel (browse)
       const baseRowData = [
         { v: nomorMap, s: styleDataCellCenter },
         { v: header.MO || "-", s: styleDataCellCenter },
         { v: header.CMO || "-", s: styleDataCellCenter },
-        tglExcel
-          ? { v: tglExcel, t: "d", z: "dd/mm/yyyy", s: styleDataCellCenter }
-          : { v: "-", s: styleDataCellCenter },
-        datelineExcel
-          ? {
-              v: datelineExcel,
-              t: "d",
-              z: "dd/mm/yyyy",
-              s: styleDataCellCenter,
-            }
-          : { v: "-", s: styleDataCellCenter },
-        tglBastExcel
-          ? { v: tglBastExcel, t: "d", z: "dd/mm/yyyy", s: styleDataCellCenter }
-          : { v: "-", s: styleDataCellCenter },
+        { v: getCellValue(header, "Tanggal"), s: styleDataCellCenter },
+        { v: getCellValue(header, "Dateline"), s: styleDataCellCenter },
+        { v: getCellValue(header, "TglBast"), s: styleDataCellCenter },
         { v: header.Nama || "-", s: styleDataCell },
         {
           v: num(header.SelisihBastMap),
@@ -1025,34 +981,13 @@ const exportToExcelCustom = async () => {
               },
             ]
           : []),
-        createdExcel
-          ? {
-              v: createdExcel,
-              t: "d",
-              z: "dd/mm/yyyy hh:mm",
-              s: styleDataCellCenter,
-            }
-          : { v: "-", s: styleDataCellCenter },
+        { v: getCellValue(header, "Created"), s: styleDataCellCenter },
         { v: header.Revisi || "-", s: styleDataCellCenter },
         { v: header.NoReferensi || "-", s: styleDataCellCenter },
-        estimasiJadiExcel
-          ? {
-              v: estimasiJadiExcel,
-              t: "d",
-              z: "dd/mm/yyyy",
-              s: styleDataCellCenter,
-            }
-          : { v: "-", s: styleDataCellCenter },
+        { v: getCellValue(header, "EstimasiJadi"), s: styleDataCellCenter },
         { v: header.CloseStatus || "-", s: styleDataCellCenter },
         { v: header.SPK || "-", s: styleDataCellCenter },
-        designTglExcel
-          ? {
-              v: designTglExcel,
-              t: "d",
-              z: "dd/mm/yyyy",
-              s: styleDataCellCenter,
-            }
-          : { v: "-", s: styleDataCellCenter },
+        { v: getCellValue(header, "Design_Tanggal"), s: styleDataCellCenter },
         { v: header.Design_User || "-", s: styleDataCellCenter },
         { v: header.Design_Note || "-", s: styleDataCell },
         { v: header.Ngedit || "-", s: styleDataCellCenter },

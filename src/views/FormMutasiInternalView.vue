@@ -279,14 +279,16 @@ const openLhkSublimLookup = () => {
 // Handler saat data dipilih dari modal lookup LHK Sublim
 const handleLhkSelect = (selectedItems: any[]) => {
   selectedItems.forEach((item) => {
-    // Sesuaikan mapping key dari API karena Nama_Komponen di API Anda adalah Jenis_Bahan
     const namaKomponenApi = item.Nama_Komponen || item.Jenis_Bahan || "ALL SET";
+    const itemSize = item.Size || "-"; // Tangkap nilai size dari item
 
+    // ✅ TAMBAHKAN `poi_size` KE DALAM PENGECEKAN DUPLIKASI
     const isExist = detailData.value.some(
       (row) =>
         row.spk_nomor === item.Nomor_SPK &&
         row.poi_nomor === item.No_PO_Internal &&
-        row.nama_komponen === namaKomponenApi,
+        row.nama_komponen === namaKomponenApi &&
+        row.poi_size === itemSize, // <-- Kunci perbaikannya di sini
     );
 
     if (!isExist) {
@@ -299,12 +301,12 @@ const handleLhkSelect = (selectedItems: any[]) => {
       detailData.value.push({
         lhk_detail_id: item.Id || `${item.Nomor}_${item.No_Urut}`,
         poi_nomor: item.No_PO_Internal || "-",
-        poi_size: item.Size || "-",
+        poi_size: itemSize, // Pastikan tersimpan dengan benar
         spk_nomor: item.Nomor_SPK,
         spk_nama: item.Nama_SPK,
         nama_komponen: namaKomponenApi,
-        stok_sublim: stokTersedia, // Sisa yang bisa dimutasi
-        qty_mutasi: stokTersedia, // Default disamakan
+        stok_sublim: stokTersedia,
+        qty_mutasi: stokTersedia,
       });
     }
   });

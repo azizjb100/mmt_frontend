@@ -1,6 +1,6 @@
 <template>
   <div>
-    <!-- Dialog Utama Lookup SPK Sublim (Bersih dari pilihan mode di atas) -->
+    <!-- Dialog Utama Lookup SPK Sublim -->
     <v-dialog
       :model-value="isVisible"
       @update:modelValue="emit('close')"
@@ -133,56 +133,88 @@
       </v-card>
     </v-dialog>
 
-    <!-- Sub-Dialog Pemilihan Mode & Ceklist Komponen (Muncul Setelah Klik SPK) -->
+    <!-- Sub-Dialog Pemilihan Mode, Size & Komponen -->
     <v-dialog v-model="componentDialog" max-width="550px" scrollable>
       <v-card border>
         <v-card-title
           class="bg-indigo-darken-3 text-white text-subtitle-1 pa-3 d-flex justify-space-between align-center"
         >
-          <div>
-            Pilih Komponen SPK [{{ selectedSPKNo }}]
-            <span v-if="selectedSize" class="text-caption">
-              | Size: ({{ selectedSize }})</span
-            >
-          </div>
+          <div>Pilih SPK [{{ selectedSPKNo }}]</div>
         </v-card-title>
 
         <v-card-text class="pa-4">
-          <!-- Pilihan Mode Pengambilan -->
+          <!-- 1. PILIH METODE PENGAMBILAN (SET / KOMPONEN) TERLEBIH DAHULU -->
+          <div
+            class="text-subtitle-2 font-weight-bold text-indigo-darken-3 mb-1"
+          >
+            1. Pilih Metode Pengambilan:
+          </div>
           <v-radio-group
             v-model="extractMode"
             inline
             density="compact"
             class="mb-3"
             hide-details
+            @update:model-value="onModeChange"
           >
             <v-radio
-              label="Ambil Semua Set (Semua Komponen)"
+              label="Ambil Semua Set (All Set)"
               value="SET"
               color="indigo-darken-3"
             ></v-radio>
             <v-radio
-              label="Pilih Komponen Tertentu (Multi-Select)"
+              label="Pilih Komponen Tertentu"
               value="KOMPONEN"
               color="indigo-darken-3"
             ></v-radio>
           </v-radio-group>
 
+          <v-divider class="mb-4"></v-divider>
+
+          <!-- 2. PILIH UKURAN (SIZE) -->
+          <div
+            class="text-subtitle-2 font-weight-bold text-indigo-darken-3 mb-1"
+          >
+            2. Pilih Ukuran (Size):
+          </div>
+          <v-select
+            v-model="selectedSize"
+            :items="availableSizes"
+            label="Pilih Size SPK..."
+            variant="outlined"
+            density="compact"
+            class="mb-4"
+            hide-details
+            @update:model-value="onSizeChange"
+          ></v-select>
+
           <v-divider class="mb-3"></v-divider>
 
-          <!-- Daftar Checkbox Komponen (Aktif jika mode KOMPONEN dipilih) -->
+          <!-- 3. DAFTAR KOMPONEN (Hanya muncul jika mode 'KOMPONEN' dan Size sudah dipilih) -->
           <div v-if="extractMode === 'KOMPONEN'">
-            <div class="text-caption text-grey-darken-1 mb-2">
-              Centang komponen (misal: badan depan, badan belakang, lengan)
-              untuk digabung jadi 1 sub set:
+            <div
+              class="text-subtitle-2 font-weight-bold text-indigo-darken-3 mb-1"
+            >
+              3. Pilih Komponen (Multi-Select):
             </div>
+            <div
+              v-if="selectedSize"
+              class="text-caption text-grey-darken-1 mb-2"
+            >
+              Centang komponen untuk size {{ selectedSize }}:
+            </div>
+            <div v-else class="text-caption text-error mb-2">
+              Harap pilih Size terlebih dahulu untuk melihat komponen.
+            </div>
+
             <v-list
+              v-if="selectedSize"
               density="compact"
               class="border rounded bg-grey-lighten-5"
-              style="max-height: 250px; overflow-y: auto"
+              style="max-height: 220px; overflow-y: auto"
             >
               <v-list-item
-                v-for="(comp, idx) in filteredComponents"
+                v-for="(comp, idx) in currentSizeComponents"
                 :key="idx"
                 class="border-bottom"
               >
@@ -200,19 +232,26 @@
                   {{ getKomponenName(comp, idx) }}
                 </v-list-item-title>
                 <v-list-item-subtitle class="text-caption">
-                  Kode: {{ getKomponenKode(comp) }} | Qty:
-                  {{ comp.Qty_Order || comp.poid_jumlah || 0 }}
+                  Kode: {{ getKomponenKode(comp) }} | P:
+                  {{ comp.Panjang || comp.panjang || 0 }}M, L:
+                  {{ comp.Lebar || comp.lebar || 0 }}M
                 </v-list-item-subtitle>
               </v-list-item>
             </v-list>
           </div>
 
           <div
-            v-else
-            class="text-body-2 text-grey-darken-2 pa-4 bg-grey-lighten-4 rounded text-center"
+            v-else-if="extractMode === 'SET' && selectedSize"
+            class="text-body-2 text-grey-darken-2 pa-3 bg-grey-lighten-4 rounded text-center"
           >
-            Semua komponen dalam SPK ini akan diambil secara utuh sebagai satu
-            kesatuan set.
+            Semua komponen untuk Size <b>{{ selectedSize }}</b> akan diambil
+            sebagai satu kesatuan set (All Set).
+          </div>
+          <div
+            v-else
+            class="text-body-2 text-grey pa-3 bg-grey-lighten-3 rounded text-center"
+          >
+            Silakan pilih Size di atas.
           </div>
         </v-card-text>
 
@@ -225,6 +264,10 @@
             size="small"
             color="indigo-darken-3"
             variant="flat"
+            :disabled="
+              !selectedSize ||
+              (extractMode === 'KOMPONEN' && selectedComponentKeys.length === 0)
+            "
             @click="confirmSelection"
           >
             Konfirmasi & Pilih
@@ -282,10 +325,11 @@ const loading = ref(false);
 // State Sub-Dialog
 const componentDialog = ref(false);
 const extractMode = ref<"SET" | "KOMPONEN">("SET");
-const filteredComponents = ref<SPKSublimItem[]>([]);
+const selectedSize = ref("");
+const availableSizes = ref<string[]>([]);
+const currentSizeComponents = ref<SPKSublimItem[]>([]);
 const selectedComponentKeys = ref<string[]>([]);
 const selectedSPKNo = ref("");
-const selectedSize = ref("");
 const activeRowItem = ref<SPKSublimItem | null>(null);
 
 const headers = [
@@ -319,7 +363,7 @@ const headers = [
 const groupedItems = computed(() => {
   const seen = new Set();
   return SPKList.value.filter((item) => {
-    const itemSize = item.Size || item.poid_size || "";
+    const itemSize = item.Size || item.poid_size || "-";
     const duplicateKey = `${item.SPK}_${itemSize}`;
     if (seen.has(duplicateKey)) {
       return false;
@@ -365,7 +409,6 @@ const createMappedPayload = (
   const compName = isSetMode ? "ALL SET" : getKomponenName(targetComp, 0);
   const compKode = isSetMode ? "ALL SET" : getKomponenKode(targetComp);
 
-  // 🌟 Ambil panjang & lebar secara mutlak dari targetComp (prioritas dari join LHK Pola / item)
   const resolvedPanjang =
     targetComp.Panjang ??
     targetComp.panjang ??
@@ -386,11 +429,10 @@ const createMappedPayload = (
     Nama: spkNama,
     spk_nama: spkNama,
     nama_pekerjaan: spkNama,
-    Size: item.Size || item.poid_size || "-",
-    poi_size: item.Size || item.poid_size || "-",
-    poid_size: item.Size || item.poid_size || "-",
+    Size: selectedSize.value,
+    poi_size: selectedSize.value,
+    poid_size: selectedSize.value,
 
-    // Masukkan ke semua varian key agar tertangkap di form utama
     Panjang: resolvedPanjang,
     panjang: resolvedPanjang,
     spk_panjang: resolvedPanjang,
@@ -457,17 +499,45 @@ const openComponentDialog = (item: SPKSublimItem) => {
     );
   }
 
-  const currentSize = item.Size || item.poid_size || "";
+  const allRowsForSpk = SPKList.value.filter((data) => data.SPK === item.SPK);
 
-  // 1. Ambil data yang sesuai SPK dan Size-nya
-  const komponenTerkait = SPKList.value.filter(
+  const sizesSet = new Set<string>();
+  allRowsForSpk.forEach((row) => {
+    const s = row.Size || row.poid_size;
+    if (s) sizesSet.add(s);
+  });
+
+  activeRowItem.value = item;
+  selectedSPKNo.value = item.SPK;
+  availableSizes.value = Array.from(sizesSet);
+  selectedSize.value =
+    availableSizes.value.length > 0 ? availableSizes.value[0] : "";
+
+  extractMode.value = "SET";
+  selectedComponentKeys.value = [];
+
+  onSizeChange(selectedSize.value);
+
+  componentDialog.value = true;
+};
+
+const onModeChange = () => {
+  selectedComponentKeys.value = [];
+};
+
+const onSizeChange = (newSize: string) => {
+  selectedSize.value = newSize;
+  selectedComponentKeys.value = [];
+
+  if (!activeRowItem.value) return;
+
+  const spkNo = activeRowItem.value.SPK;
+  const matchedRows = SPKList.value.filter(
     (data) =>
-      data.SPK === item.SPK &&
-      (data.Size || data.poid_size || "") === currentSize,
+      data.SPK === spkNo && (data.Size || data.poid_size || "") === newSize,
   );
 
-  // 2. Filter agar tidak ada komponen yang double berdasarkan Kode & Nama Komponen
-  const uniqueComponents = komponenTerkait.filter((comp, index, self) => {
+  const uniqueComponents = matchedRows.filter((comp, index, self) => {
     const kKode = getKomponenKode(comp);
     const kName = getKomponenName(comp, index);
     return (
@@ -479,26 +549,19 @@ const openComponentDialog = (item: SPKSublimItem) => {
     );
   });
 
-  activeRowItem.value = item;
-  selectedSPKNo.value = item.SPK;
-  selectedSize.value = currentSize;
-  filteredComponents.value =
-    uniqueComponents.length > 0 ? uniqueComponents : [item];
-
-  // Default reset ke SET dan kosongkan ceklist
-  extractMode.value = "SET";
-  selectedComponentKeys.value = [];
-
-  componentDialog.value = true;
+  currentSizeComponents.value = uniqueComponents;
 };
 
 const confirmSelection = () => {
-  if (!activeRowItem.value) return;
+  if (!activeRowItem.value || !selectedSize.value) {
+    toast.warning("Silakan pilih Size terlebih dahulu.");
+    return;
+  }
 
   if (extractMode.value === "SET") {
     const baseItem =
-      filteredComponents.value.length > 0
-        ? filteredComponents.value[0]
+      currentSizeComponents.value.length > 0
+        ? currentSizeComponents.value[0]
         : activeRowItem.value;
     const rowPerSet = createMappedPayload(baseItem, true);
     rowPerSet.multiplier = 1;
@@ -507,20 +570,19 @@ const confirmSelection = () => {
     componentDialog.value = false;
     emit("close");
   } else {
-    // Mode Komponen (Multi-select)
     if (selectedComponentKeys.value.length === 0) {
       toast.warning("Pilih minimal satu komponen terlebih dahulu.");
       return;
     }
 
-    // Ambil semua komponen yang dicentang
-    const selectedItemsData = filteredComponents.value.filter((comp, idx) => {
-      const uniqueKey =
-        getKomponenKode(comp) + "_" + getKomponenName(comp, idx);
-      return selectedComponentKeys.value.includes(uniqueKey);
-    });
+    const selectedItemsData = currentSizeComponents.value.filter(
+      (comp, idx) => {
+        const uniqueKey =
+          getKomponenKode(comp) + "_" + getKomponenName(comp, idx);
+        return selectedComponentKeys.value.includes(uniqueKey);
+      },
+    );
 
-    // Buat payload terpisah untuk setiap komponen yang dicentang (masing-masing 1 baris)
     const payloadArray = selectedItemsData.map((comp) => {
       const mappedPayload = createMappedPayload(
         activeRowItem.value!,
@@ -531,7 +593,6 @@ const confirmSelection = () => {
       return mappedPayload;
     });
 
-    // Emit sebagai array berisi beberapa baris sesuai jumlah komponen yang dipilih
     emit("select", { mode: "KOMPONEN", data: payloadArray });
     componentDialog.value = false;
     emit("close");
