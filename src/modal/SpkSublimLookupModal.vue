@@ -1,17 +1,17 @@
 <template>
   <div>
-    <!-- Dialog Utama Lookup SPK Sublim -->
+    <!-- Dialog Utama Lookup LHK Sublim -->
     <v-dialog
       :model-value="isVisible"
       @update:modelValue="emit('close')"
-      max-width="1100px"
+      max-width="1200px"
       persistent
     >
       <v-card class="dialog-card d-flex flex-column" style="height: 85vh">
         <!-- Header Toolbar -->
         <v-toolbar color="indigo-darken-2" density="compact">
           <v-toolbar-title class="text-subtitle-1 font-weight-bold">
-            🔥 Pencarian SPK & Realisasi Bahan (Khusus Sublimasi)
+            🔥 Pilih LHK Sublim & Detail Realisasi Bahan
           </v-toolbar-title>
           <v-spacer></v-spacer>
           <v-btn
@@ -24,254 +24,166 @@
 
         <!-- Body Content -->
         <v-card-text class="pa-4 d-flex flex-column flex-grow-1">
-          <v-text-field
-            v-model="searchKeyword"
-            label="Cari Nomor SPK, Nama Pelanggan, atau Kain..."
-            prepend-inner-icon="mdi-magnify"
-            variant="outlined"
-            density="compact"
-            clearable
-            class="mb-4 flex-shrink-0"
-            hide-details
-            @keyup.enter="fetchSPKData"
-          ></v-text-field>
-
-          <v-data-table
-            :headers="headers"
-            :items="groupedItems"
-            :loading="loading"
-            hover
-            class="desktop-table flex-grow-1 clickable-row"
-            density="compact"
-            item-key="SPK"
-            fixed-header
-            :items-per-page="20"
-            @click:row="handleRowClick"
-            @dblclick:row="handleDoubleClick"
-          >
-            <template #item.SPK="{ item }">
-              <span class="font-weight-bold color-spk">{{ item.SPK }}</span>
-            </template>
-
-            <template #item.Nomor_Realisasi="{ item }">
-              <v-chip
-                :color="item.Nomor_Realisasi !== '-' ? 'success' : 'default'"
-                size="x-small"
-                label
-                class="font-weight-medium"
+          <!-- Filter Tanggal & Pencarian -->
+          <v-row class="mb-3 flex-shrink-0" dense>
+            <v-col cols="3">
+              <v-text-field
+                v-model="startDate"
+                type="date"
+                label="Mulai Tanggal"
+                density="compact"
+                variant="outlined"
+                hide-details
+              />
+            </v-col>
+            <v-col cols="3">
+              <v-text-field
+                v-model="endDate"
+                type="date"
+                label="Sampai Tanggal"
+                density="compact"
+                variant="outlined"
+                hide-details
+              />
+            </v-col>
+            <v-col cols="4">
+              <v-text-field
+                v-model="searchKeyword"
+                label="Cari Nomor LHK / Gudang..."
+                prepend-inner-icon="mdi-magnify"
+                variant="outlined"
+                density="compact"
+                clearable
+                hide-details
+                @keyup.enter="fetchLhkHeaders"
+              />
+            </v-col>
+            <v-col cols="2">
+              <v-btn
+                color="indigo-darken-2"
+                block
+                height="40"
+                @click="fetchLhkHeaders"
+                :loading="loading"
               >
-                {{ item.Nomor_Realisasi }}
-              </v-chip>
-            </template>
+                Cari
+              </v-btn>
+            </v-col>
+          </v-row>
 
-            <template #item.Tanggal="{ item }">
-              {{
-                item.Tanggal
-                  ? new Date(item.Tanggal).toLocaleDateString("id-ID")
-                  : "-"
-              }}
-            </template>
-
-            <template #item.Bahan_Awal="{ item }">
+          <!-- Tabel Utama Header LHK dengan Expand & Checkbox -->
+          <v-data-table
+            :headers="headerColumns"
+            :items="lhkList"
+            :loading="loading"
+            item-value="nomor"
+            show-select
+            v-model="selectedHeaders"
+            density="compact"
+            class="desktop-table flex-grow-1"
+            fixed-header
+            show-expand
+            return-object
+          >
+            <!-- Kolom Total Meter -->
+            <template #[`item.total_meter`]="{ item }">
               <span class="font-weight-bold text-teal-darken-3">
-                {{ item.Bahan_Awal ? item.Bahan_Awal + " M" : "-" }}
+                {{
+                  item.total_meter
+                    ? Number(item.total_meter).toFixed(2) + " m²"
+                    : "-"
+                }}
               </span>
             </template>
 
-            <template #item.Tipe_SPK="{ item }">
+            <!-- Kolom Status Mutasi -->
+            <template #[`item.lsb_status`]="{ item }">
               <v-chip
-                :color="
-                  item.Tipe_SPK === 'REGULER'
-                    ? 'blue-darken-1'
-                    : 'purple-darken-1'
-                "
                 size="x-small"
+                :color="
+                  item.lsb_status === 'close'
+                    ? 'error'
+                    : item.lsb_status === 'progress'
+                      ? 'warning'
+                      : 'success'
+                "
                 variant="flat"
+                class="font-weight-bold text-uppercase"
               >
-                {{ item.Tipe_SPK }}
+                {{ item.lsb_status || "open" }}
               </v-chip>
             </template>
 
-            <template #item.actions="{ item }">
-              <div class="text-center">
-                <v-btn
-                  color="indigo"
-                  size="x-small"
-                  @click.stop="openComponentDialog(item as SPKSublimItem)"
-                  variant="flat"
-                >
-                  Pilih
-                </v-btn>
-              </div>
+            <!-- Template Expanded Row untuk Detail Item LHK (Dengan Checkbox per Baris) -->
+            <template #expanded-row="{ columns, item }">
+              <tr>
+                <td :colspan="columns.length" class="bg-grey-lighten-4 pa-3">
+                  <v-card flat border>
+                    <v-data-table
+                      :headers="detailColumns"
+                      :items="item.details || []"
+                      density="compact"
+                      hide-default-footer
+                      show-select
+                      v-model="item.selectedDetails"
+                      item-value="No_Urut"
+                      return-object
+                    >
+                      <template #[`item.Nomor_SPK`]="{ item: dItem }">
+                        <span class="font-weight-bold color-spk">{{
+                          dItem.Nomor_SPK
+                        }}</span>
+                      </template>
+                      <template #[`item.Jumlah_meter`]="{ item: dItem }">
+                        <span>{{
+                          dItem.Jumlah_meter
+                            ? Number(dItem.Jumlah_meter).toFixed(2) + " m²"
+                            : "-"
+                        }}</span>
+                      </template>
+                      <template #[`item.Sisa_Belum_Mutasi`]="{ item: dItem }">
+                        <span class="font-weight-bold text-teal-darken-3">{{
+                          dItem.Sisa_Belum_Mutasi
+                        }}</span>
+                      </template>
+                    </v-data-table>
+                  </v-card>
+                </td>
+              </tr>
             </template>
 
             <template #no-data>
               <div class="text-center pa-4">
-                Tidak ada SPK aktif dengan berkas Realisasi Bahan Gudang yang
-                ditemukan.
+                Tidak ada data LHK Sublim ditemukan.
               </div>
-            </template>
-
-            <template #loading>
-              <v-progress-linear
-                indeterminate
-                color="indigo"
-              ></v-progress-linear>
             </template>
           </v-data-table>
         </v-card-text>
 
-        <v-card-actions class="d-flex justify-end border-top pa-3">
-          <v-btn
-            @click="emit('close')"
-            color="secondary"
-            variant="outlined"
-            size="small"
-            >Batal</v-btn
-          >
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
-
-    <!-- Sub-Dialog Pemilihan Mode, Size & Komponen -->
-    <v-dialog v-model="componentDialog" max-width="550px" scrollable>
-      <v-card border>
-        <v-card-title
-          class="bg-indigo-darken-3 text-white text-subtitle-1 pa-3 d-flex justify-space-between align-center"
-        >
-          <div>Pilih SPK [{{ selectedSPKNo }}]</div>
-        </v-card-title>
-
-        <v-card-text class="pa-4">
-          <!-- 1. PILIH METODE PENGAMBILAN (SET / KOMPONEN) TERLEBIH DAHULU -->
-          <div
-            class="text-subtitle-2 font-weight-bold text-indigo-darken-3 mb-1"
-          >
-            1. Pilih Metode Pengambilan:
+        <!-- Footer Actions -->
+        <v-card-actions class="d-flex justify-space-between border-top pa-3">
+          <div class="text-caption font-weight-bold text-grey-darken-2">
+            Tip: Klik ikon panah pada baris LHK, lalu centang baris detail
+            tertentu yang ingin diambil.
           </div>
-          <v-radio-group
-            v-model="extractMode"
-            inline
-            density="compact"
-            class="mb-3"
-            hide-details
-            @update:model-value="onModeChange"
-          >
-            <v-radio
-              label="Ambil Semua Set (All Set)"
-              value="SET"
+          <div>
+            <v-btn
+              @click="emit('close')"
+              color="secondary"
+              variant="outlined"
+              size="small"
+              class="mr-2"
+              >Batal</v-btn
+            >
+            <v-btn
+              @click="confirmSelection"
               color="indigo-darken-3"
-            ></v-radio>
-            <v-radio
-              label="Pilih Komponen Tertentu"
-              value="KOMPONEN"
-              color="indigo-darken-3"
-            ></v-radio>
-          </v-radio-group>
-
-          <v-divider class="mb-4"></v-divider>
-
-          <!-- 2. PILIH UKURAN (SIZE) -->
-          <div
-            class="text-subtitle-2 font-weight-bold text-indigo-darken-3 mb-1"
-          >
-            2. Pilih Ukuran (Size):
-          </div>
-          <v-select
-            v-model="selectedSize"
-            :items="availableSizes"
-            label="Pilih Size SPK..."
-            variant="outlined"
-            density="compact"
-            class="mb-4"
-            hide-details
-            @update:model-value="onSizeChange"
-          ></v-select>
-
-          <v-divider class="mb-3"></v-divider>
-
-          <!-- 3. DAFTAR KOMPONEN (Hanya muncul jika mode 'KOMPONEN' dan Size sudah dipilih) -->
-          <div v-if="extractMode === 'KOMPONEN'">
-            <div
-              class="text-subtitle-2 font-weight-bold text-indigo-darken-3 mb-1"
+              variant="flat"
+              size="small"
             >
-              3. Pilih Komponen (Multi-Select):
-            </div>
-            <div
-              v-if="selectedSize"
-              class="text-caption text-grey-darken-1 mb-2"
-            >
-              Centang komponen untuk size {{ selectedSize }}:
-            </div>
-            <div v-else class="text-caption text-error mb-2">
-              Harap pilih Size terlebih dahulu untuk melihat komponen.
-            </div>
-
-            <v-list
-              v-if="selectedSize"
-              density="compact"
-              class="border rounded bg-grey-lighten-5"
-              style="max-height: 220px; overflow-y: auto"
-            >
-              <v-list-item
-                v-for="(comp, idx) in currentSizeComponents"
-                :key="idx"
-                class="border-bottom"
-              >
-                <template v-slot:prepend>
-                  <v-checkbox-btn
-                    v-model="selectedComponentKeys"
-                    :value="
-                      getKomponenKode(comp) + '_' + getKomponenName(comp, idx)
-                    "
-                    color="indigo-darken-3"
-                    class="mr-2"
-                  ></v-checkbox-btn>
-                </template>
-                <v-list-item-title class="font-weight-bold text-body-2">
-                  {{ getKomponenName(comp, idx) }}
-                </v-list-item-title>
-                <v-list-item-subtitle class="text-caption">
-                  Kode: {{ getKomponenKode(comp) }} | P:
-                  {{ comp.Panjang || comp.panjang || 0 }}M, L:
-                  {{ comp.Lebar || comp.lebar || 0 }}M
-                </v-list-item-subtitle>
-              </v-list-item>
-            </v-list>
+              Ambil Item Terpilih
+            </v-btn>
           </div>
-
-          <div
-            v-else-if="extractMode === 'SET' && selectedSize"
-            class="text-body-2 text-grey-darken-2 pa-3 bg-grey-lighten-4 rounded text-center"
-          >
-            Semua komponen untuk Size <b>{{ selectedSize }}</b> akan diambil
-            sebagai satu kesatuan set (All Set).
-          </div>
-          <div
-            v-else
-            class="text-body-2 text-grey pa-3 bg-grey-lighten-3 rounded text-center"
-          >
-            Silakan pilih Size di atas.
-          </div>
-        </v-card-text>
-
-        <v-card-actions class="bg-grey-lighten-4 pa-3">
-          <v-btn size="small" variant="text" @click="componentDialog = false"
-            >Batal</v-btn
-          >
-          <v-spacer />
-          <v-btn
-            size="small"
-            color="indigo-darken-3"
-            variant="flat"
-            :disabled="
-              !selectedSize ||
-              (extractMode === 'KOMPONEN' && selectedComponentKeys.length === 0)
-            "
-            @click="confirmSelection"
-          >
-            Konfirmasi & Pilih
-          </v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>
@@ -279,337 +191,148 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, computed } from "vue";
-import { AxiosError } from "axios";
+import { ref, watch } from "vue";
 import api from "@/services/api";
 import { useToast } from "vue-toastification";
+import { format } from "date-fns";
 
-interface SPKSublimItem {
-  SPK: string;
-  Nama: string;
-  Tanggal: string;
-  Qty_Order: number;
-  Nama_Bahan_Rencana: string;
-  Tipe_SPK: string;
-  Divisi: string;
-  Nomor_Realisasi: string;
-  Barang_ID: string;
-  Nama_Bahan_Realisasi: string;
-  Bahan_Awal: number;
-  Size?: string;
-  poid_size?: string;
-  Nama_Komponen?: string;
-  nama_komponen?: string;
-  Kode_Komponen?: string;
-  poid_bhn_kode?: string;
-  poid_jumlah?: number;
-  [key: string]: any;
-}
-
-const props = defineProps<{
-  isVisible: boolean;
-}>();
-
-const emit = defineEmits<{
-  (e: "close"): void;
-  (e: "select", payload: { mode: string; data: any[] }): void;
-}>();
-
+const props = defineProps<{ isVisible: boolean }>();
+const emit = defineEmits(["close", "select"]);
 const toast = useToast();
 
-const API_URL = "/mmt/SPK/lookup-sublim";
-const SPKList = ref<SPKSublimItem[]>([]);
-const searchKeyword = ref("");
 const loading = ref(false);
+const startDate = ref(format(new Date(), "yyyy-MM-01"));
+const endDate = ref(format(new Date(), "yyyy-MM-dd"));
+const searchKeyword = ref("");
 
-// State Sub-Dialog
-const componentDialog = ref(false);
-const extractMode = ref<"SET" | "KOMPONEN">("SET");
-const selectedSize = ref("");
-const availableSizes = ref<string[]>([]);
-const currentSizeComponents = ref<SPKSublimItem[]>([]);
-const selectedComponentKeys = ref<string[]>([]);
-const selectedSPKNo = ref("");
-const activeRowItem = ref<SPKSublimItem | null>(null);
+const lhkList = ref<any[]>([]);
+const selectedHeaders = ref<any[]>([]);
 
-const headers = [
-  { title: "Nomor SPK", key: "SPK", width: "150px" },
-  { title: "No. Realisasi Gudang", key: "Nomor_Realisasi", width: "150px" },
-  { title: "Nama Order / Pelanggan", key: "Nama", width: "250px" },
-  { title: "Bahan Realisasi", key: "Nama_Bahan_Realisasi", width: "200px" },
+const headerColumns = [
+  { title: "Nomor LHK", key: "nomor", width: "180px" },
+  { title: "Tanggal", key: "Tanggal", width: "110px" },
+  { title: "Kode Gdg", key: "Gudang", width: "90px" },
+  { title: "Nama Gudang", key: "Nama_Gudang", width: "200px" },
   {
-    title: "Bahan Awal (Gudang)",
-    key: "Bahan_Awal",
-    width: "120px",
+    title: "Total Luas Meter",
+    key: "total_meter",
+    width: "130px",
     align: "end" as const,
   },
   {
-    title: "Target Qty",
-    key: "Qty_Order",
-    width: "100px",
-    align: "end" as const,
-  },
-  { title: "Tanggal SPK", key: "Tanggal", width: "110px" },
-  { title: "Jenis", key: "Tipe_SPK", width: "90px", align: "center" as const },
-  {
-    title: "Aksi",
-    key: "actions",
-    sortable: false,
-    width: "80px",
+    title: "Status Mutasi",
+    key: "lsb_status",
+    width: "110px",
     align: "center" as const,
   },
 ];
 
-const groupedItems = computed(() => {
-  const seen = new Set();
-  return SPKList.value.filter((item) => {
-    const itemSize = item.Size || item.poid_size || "-";
-    const duplicateKey = `${item.SPK}_${itemSize}`;
-    if (seen.has(duplicateKey)) {
-      return false;
-    }
-    seen.add(duplicateKey);
-    return true;
-  });
-});
+const detailColumns = [
+  {
+    title: "No. Urut",
+    key: "No_Urut",
+    width: "70px",
+    align: "center" as const,
+  },
+  { title: "Nomor SPK", key: "Nomor_SPK", width: "150px" },
+  { title: "Nama SPK", key: "Nama_SPK", width: "200px" },
+  { title: "Bahan", key: "Jenis_Bahan", width: "130px" },
+  { title: "Lokasi", key: "Lokasi", width: "80px" },
+  { title: "P (cm)", key: "Panjang", width: "80px", align: "end" as const },
+  { title: "L (cm)", key: "Lebar", width: "80px", align: "end" as const },
+  { title: "J. Order", key: "J_Order", width: "80px", align: "end" as const },
+  { title: "Jumlah", key: "Jumlah", width: "80px", align: "end" as const },
+  {
+    title: "Sisa Mutasi",
+    key: "Sisa_Belum_Mutasi",
+    width: "100px",
+    align: "end" as const,
+  },
+  {
+    title: "Total Meter",
+    key: "Jumlah_meter",
+    width: "110px",
+    align: "end" as const,
+  },
+];
 
-const getKomponenName = (comp: SPKSublimItem, idx: number) => {
-  if (comp.Bhn_Name && comp.Bhn_Name.trim() !== "") return comp.Bhn_Name;
-  if (comp.bhn_name && comp.bhn_name.trim() !== "") return comp.bhn_name;
-  if (comp.Nama_Komponen && comp.Nama_Komponen.trim() !== "")
-    return comp.Nama_Komponen;
-  if (comp.nama_komponen && comp.nama_komponen.trim() !== "")
-    return comp.nama_komponen;
-  if (comp.sk_nama && comp.sk_nama.trim() !== "") return comp.sk_nama;
-  if (comp.Kode_Komponen && comp.Kode_Komponen.trim() !== "")
-    return comp.Kode_Komponen;
-  if (comp.sk_kode && comp.sk_kode.trim() !== "") return comp.sk_kode;
-  return `Komponen Bagian ${idx + 1}`;
-};
-
-const getKomponenKode = (comp: SPKSublimItem) => {
-  return (
-    comp.Kode_Komponen ||
-    comp.poid_bhn_kode ||
-    comp.sk_kode ||
-    comp.Barang_ID ||
-    "-"
-  );
-};
-
-const createMappedPayload = (
-  item: SPKSublimItem,
-  isSetMode = false,
-  compItem?: SPKSublimItem,
-) => {
-  const targetComp = compItem || item;
-  const spkNo = item.SPK || item.spk_nomor || "";
-  const spkNama = item.Nama || item.spk_nama || "";
-
-  const compName = isSetMode ? "ALL SET" : getKomponenName(targetComp, 0);
-  const compKode = isSetMode ? "ALL SET" : getKomponenKode(targetComp);
-
-  const resolvedPanjang =
-    targetComp.Panjang ??
-    targetComp.panjang ??
-    item.Panjang ??
-    item.panjang ??
-    0;
-  const resolvedLebar =
-    targetComp.Lebar ?? targetComp.lebar ?? item.Lebar ?? item.lebar ?? 0;
-
-  return {
-    ...item,
-    ...targetComp,
-    SPK: spkNo,
-    Spk: spkNo,
-    spk_nomor: spkNo,
-    poi_spk_nomor: spkNo,
-    poi_nomor: item.PO || item.poi_nomor || spkNo,
-    Nama: spkNama,
-    spk_nama: spkNama,
-    nama_pekerjaan: spkNama,
-    Size: selectedSize.value,
-    poi_size: selectedSize.value,
-    poid_size: selectedSize.value,
-
-    Panjang: resolvedPanjang,
-    panjang: resolvedPanjang,
-    spk_panjang: resolvedPanjang,
-    Lebar: resolvedLebar,
-    lebar: resolvedLebar,
-    spk_lebar: resolvedLebar,
-
-    Nama_Komponen: compName,
-    nama_komponen: compName,
-    Kode_Komponen: compKode,
-    poid_bhn_kode: compKode,
-    Nama_Bahan: item.Nama_Bahan_Realisasi || item.Nama_Bahan_Rencana || "-",
-    Barang_ID: item.Barang_ID || "-",
-    Nomor_Realisasi: item.Nomor_Realisasi || "-",
-    Bahan_Awal: item.Bahan_Awal || 0,
-  };
-};
-
-const fetchSPKData = async () => {
+const fetchLhkHeaders = async () => {
   loading.value = true;
   try {
-    const response = await api.get<{ success: boolean; data: SPKSublimItem[] }>(
-      API_URL,
-      {
-        params: { keyword: searchKeyword.value },
+    const res = await api.get("/mmt/lhk-sublim/headers", {
+      params: {
+        startDate: startDate.value,
+        endDate: endDate.value,
+        keyword: searchKeyword.value,
       },
+    });
+
+    const rawHeaders = res.data.data || [];
+
+    const dataWithDetails = await Promise.all(
+      rawHeaders.map(async (hdr: any) => {
+        try {
+          const detailRes = await api.get(
+            `/mmt/lhk-sublim/detail/${hdr.nomor}`,
+          );
+          return {
+            ...hdr,
+            details: detailRes.data.data || [],
+            selectedDetails: [], // Menyimpan item detail yang dicentang per baris LHK
+          };
+        } catch {
+          return { ...hdr, details: [], selectedDetails: [] };
+        }
+      }),
     );
-    SPKList.value = response.data.data || [];
+
+    lhkList.value = dataWithDetails;
   } catch (error) {
-    const err = error as AxiosError;
-    console.error("Fetch SPK Sublim Error:", err);
-    toast.error(
-      "Gagal memuat antrean SPK Sublim. Periksa koneksi server database.",
-    );
-    SPKList.value = [];
+    console.error("Fetch LHK Headers Error:", error);
+    toast.error("Gagal memuat data LHK Sublim.");
+    lhkList.value = [];
   } finally {
     loading.value = false;
   }
 };
 
-const handleRowClick = (
-  _event: MouseEvent,
-  { item }: { item: SPKSublimItem },
-) => {
-  openComponentDialog(item);
-};
-
-const handleDoubleClick = (
-  _event: MouseEvent,
-  { item }: { item: SPKSublimItem },
-) => {
-  openComponentDialog(item);
-};
-
-const openComponentDialog = (item: SPKSublimItem) => {
-  if (!item.SPK) {
-    toast.error("Error: Struktur data nomor SPK rusak.");
-    return;
-  }
-
-  if (item.Nomor_Realisasi === "-") {
-    toast.warning(
-      `Peringatan: SPK ${item.SPK} belum diproses realisasi bahan oleh gudang.`,
-    );
-  }
-
-  const allRowsForSpk = SPKList.value.filter((data) => data.SPK === item.SPK);
-
-  const sizesSet = new Set<string>();
-  allRowsForSpk.forEach((row) => {
-    const s = row.Size || row.poid_size;
-    if (s) sizesSet.add(s);
-  });
-
-  activeRowItem.value = item;
-  selectedSPKNo.value = item.SPK;
-  availableSizes.value = Array.from(sizesSet);
-  selectedSize.value =
-    availableSizes.value.length > 0 ? availableSizes.value[0] : "";
-
-  extractMode.value = "SET";
-  selectedComponentKeys.value = [];
-
-  onSizeChange(selectedSize.value);
-
-  componentDialog.value = true;
-};
-
-const onModeChange = () => {
-  selectedComponentKeys.value = [];
-};
-
-const onSizeChange = (newSize: string) => {
-  selectedSize.value = newSize;
-  selectedComponentKeys.value = [];
-
-  if (!activeRowItem.value) return;
-
-  const spkNo = activeRowItem.value.SPK;
-  const matchedRows = SPKList.value.filter(
-    (data) =>
-      data.SPK === spkNo && (data.Size || data.poid_size || "") === newSize,
-  );
-
-  const uniqueComponents = matchedRows.filter((comp, index, self) => {
-    const kKode = getKomponenKode(comp);
-    const kName = getKomponenName(comp, index);
-    return (
-      index ===
-      self.findIndex(
-        (c) =>
-          getKomponenKode(c) === kKode && getKomponenName(c, index) === kName,
-      )
-    );
-  });
-
-  currentSizeComponents.value = uniqueComponents;
-};
-
 const confirmSelection = () => {
-  if (!activeRowItem.value || !selectedSize.value) {
-    toast.warning("Silakan pilih Size terlebih dahulu.");
+  let collectedItems: any[] = [];
+
+  lhkList.value.forEach((hdr) => {
+    // 1. Ambil detail yang spesifik dicentang user pada tabel rincian (misal baris 2 & 3)
+    if (hdr.selectedDetails && hdr.selectedDetails.length > 0) {
+      collectedItems.push(...hdr.selectedDetails);
+    }
+    // 2. Jika header LHK utama yang dicentang (ambil semua detail di LHK tersebut)
+    else if (selectedHeaders.value.some((h) => h.nomor === hdr.nomor)) {
+      collectedItems.push(...hdr.details);
+    }
+  });
+
+  if (collectedItems.length === 0) {
+    toast.warning(
+      "Silakan centang minimal satu baris detail LHK (atau Header LHK).",
+    );
     return;
   }
 
-  if (extractMode.value === "SET") {
-    const baseItem =
-      currentSizeComponents.value.length > 0
-        ? currentSizeComponents.value[0]
-        : activeRowItem.value;
-    const rowPerSet = createMappedPayload(baseItem, true);
-    rowPerSet.multiplier = 1;
-
-    emit("select", { mode: "SET", data: [rowPerSet] });
-    componentDialog.value = false;
-    emit("close");
-  } else {
-    if (selectedComponentKeys.value.length === 0) {
-      toast.warning("Pilih minimal satu komponen terlebih dahulu.");
-      return;
-    }
-
-    const selectedItemsData = currentSizeComponents.value.filter(
-      (comp, idx) => {
-        const uniqueKey =
-          getKomponenKode(comp) + "_" + getKomponenName(comp, idx);
-        return selectedComponentKeys.value.includes(uniqueKey);
-      },
-    );
-
-    const payloadArray = selectedItemsData.map((comp) => {
-      const mappedPayload = createMappedPayload(
-        activeRowItem.value!,
-        false,
-        comp,
-      );
-      mappedPayload.multiplier = 1;
-      return mappedPayload;
-    });
-
-    emit("select", { mode: "KOMPONEN", data: payloadArray });
-    componentDialog.value = false;
-    emit("close");
-  }
+  emit("select", collectedItems);
+  emit("close");
 };
 
 watch(
   () => props.isVisible,
-  (newValue) => {
-    if (newValue) {
+  (val) => {
+    if (val) {
       searchKeyword.value = "";
-      fetchSPKData();
+      selectedHeaders.value = [];
+      fetchLhkHeaders();
     } else {
-      SPKList.value = [];
+      lhkList.value = [];
+      selectedHeaders.value = [];
     }
   },
-  { immediate: false },
 );
 </script>
 
@@ -635,16 +358,6 @@ watch(
 }
 .color-spk {
   color: #1a237e;
-}
-.clickable-row :deep(tbody tr):hover {
-  cursor: pointer !important;
-  background-color: #edf2f7 !important;
-}
-.clickable-row :deep(tbody tr):active {
-  background-color: #e2e8f0 !important;
-}
-.border-bottom {
-  border-bottom: 1px solid #e0e0e0;
 }
 .flex-grow-1 {
   height: 100%;

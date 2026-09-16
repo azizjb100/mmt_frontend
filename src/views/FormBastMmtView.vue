@@ -1,15 +1,12 @@
 <script setup lang="ts">
 import { ref, onMounted, watch, nextTick } from "vue";
-import { useRouter } from "vue-router";
+import { useRouter, useRoute } from "vue-router";
 import { useToast } from "vue-toastification";
 import BaseForm from "@/components/BaseForm.vue";
 import { useForm } from "@/composables/useForm";
 import { IconPrinter, IconSearch } from "@tabler/icons-vue";
 import api from "@/services/api";
-
-// import MmtSearchModal from "@/components/lookups/MmtSearchModal.vue";
-// import AccesoriesSearchModal from "@/components/lookups/AccesoriesSearchModal.vue";
-// import BahanSearchModal from "@/components/lookups/BahanSearchModal.vue";
+import SpkLookupView from "@/modal/SpkMemoLookupModal.vue";
 
 interface RouteParams {
   nomor?: string;
@@ -56,9 +53,12 @@ interface Header {
 }
 
 const router = useRouter();
+const route = useRoute();
 const toast = useToast();
+const API_BASE_URL = "/mmt/bast-map";
+
 const activeTab = ref(0);
-const showMmtModal = ref(false);
+const isSpkLookupVisible = ref(false);
 const showAccModal = ref(false);
 const activeAccIdx = ref(-1);
 const showPrintDialog = ref(false);
@@ -70,18 +70,19 @@ let cachedSizesNomor = "";
 let cachedSizes: any[] | null = null;
 
 function normalizeHeader(h: any) {
+  if (!h) return {};
   return {
-    mmpt_nomor: h.mmpt_nomor ?? h.MMPT_Nomor ?? "",
-    mmpt_tanggal: h.mmpt_tanggal ?? h.Mmpt_Tanggal ?? "",
-    mmpt_nama: h.mmpt_nama ?? h.Mmpt_nama ?? "",
+    mmpt_nomor: h.mmpt_nomor ?? h.MMPT_Nomor ?? h.Nomor ?? "",
+    mmpt_tanggal: h.mmpt_tanggal ?? h.Mmpt_Tanggal ?? h.Tanggal ?? "",
+    mmpt_nama: h.mmpt_nama ?? h.Mmpt_nama ?? h.Nama ?? "",
     mmpt_nama2: h.mmpt_nama2 ?? h.Mmpt_nama2 ?? "",
-    mmpt_ukuran: h.mmpt_ukuran ?? h.Mmpt_ukuran ?? "",
-    mmpt_kain: h.mmpt_kain ?? h.Mmpt_kain ?? "",
-    mmpt_finishing: h.mmpt_finishing ?? h.Mmpt_finishing ?? "",
+    mmpt_ukuran: h.mmpt_ukuran ?? h.Mmpt_ukuran ?? h.Ukuran ?? "",
+    mmpt_kain: h.mmpt_kain ?? h.Mmpt_kain ?? h.Kain ?? "",
+    mmpt_finishing: h.mmpt_finishing ?? h.Mmpt_finishing ?? h.Finishing ?? "",
     mmpt_kendala: h.mmpt_kendala ?? h.Mmpt_kendala ?? "",
-    mmpt_jumlah_jadi: h.mmpt_jumlah_jadi ?? h.Mmpt_jumlah ?? 0,
-    mmpt_tipe: h.mmpt_tipe ?? h.Mmpt_tipe ?? "",
-    mmpt_gramasi: h.mmpt_gramasi ?? h.Mmpt_gramasi ?? "",
+    mmpt_jumlah_jadi: h.mmpt_jumlah_jadi ?? h.Mmpt_jumlah ?? h.Jumlah ?? 0,
+    mmpt_tipe: h.mmpt_tipe ?? h.Mmpt_tipe ?? h.Tipe ?? "Standard",
+    mmpt_gramasi: h.mmpt_gramasi ?? h.Mmpt_gramasi ?? h.Gramasi ?? "",
     mmpt_rencana_size: h.mmpt_rencana_size ?? h.Mmpt_rencana_size ?? "",
     mmpt_keterangan: h.mmpt_keterangan ?? h.Mmpt_keterangan ?? "",
   };
@@ -158,7 +159,7 @@ const {
   initialData,
   onFormReset: () => {
     activeTab.value = 0;
-    showMmtModal.value = false;
+    isSpkLookupVisible.value = false;
     showAccModal.value = false;
     activeAccIdx.value = -1;
     showPrintDialog.value = false;
@@ -169,15 +170,14 @@ const {
     cachedSizes = null;
   },
   fetchApi: async (): Promise<typeof initialData> => {
-    const res = await api.get<{ data: typeof initialData }>(
-      `/mmt/cetak-bast/form/${encodeURIComponent(params.nomor ?? "")}`,
+    const response = await api.get(
+      `${API_BASE_URL}/${encodeURIComponent(params.nomor ?? "")}`,
     );
+    const res = response.data.data || response.data;
+    res.header = normalizeHeader(res.header || {});
 
-    const data = res.data.data;
-    data.header = normalizeHeader(data.header);
-
-    if (data.aksesoris && data.aksesoris.length > 0) {
-      data.aksesoris = data.aksesoris.map((acc: any) => ({
+    if (res.aksesoris && res.aksesoris.length > 0) {
+      res.aksesoris = res.aksesoris.map((acc: any) => ({
         kode: acc.kode || "",
         nama: acc.acc_nama || acc.nama || "",
         satuan: acc.acc_satuan || acc.satuan || "",
@@ -186,16 +186,16 @@ const {
       }));
     }
 
-    if (data.lock) {
-      data.isLocked = true;
-      data.isApproved = data.lock.apv === "Y";
-      data.alasanApproval = data.lock.alasan || "";
+    if (res.lock) {
+      res.isLocked = true;
+      res.isApproved = res.lock.apv === "Y";
+      res.alasanApproval = res.lock.alasan || "";
     }
 
-    return data;
+    return res;
   },
-  submitApi: async (data) => await api.post("/mmt/cetak-bast/form", data),
-  onSuccess: (res: any) => {
+  submitApi: async (data) => await api.post(`${API_BASE_URL}/`, data),
+  onSuccess: () => {
     toast.success("Data BAST MMT berhasil disimpan.");
     savedNomor.value = formData.value.header.mmpt_nomor;
     showPrintDialog.value = true;
@@ -268,9 +268,9 @@ const ensureSizeRowsForKomponen = async (komponenStr: string) => {
     cachedSizes = null;
     try {
       const res = await api.get(
-        `/mmt/cetak-bast/form/${encodeURIComponent(nomor)}/sizes`,
+        `${API_BASE_URL}/${encodeURIComponent(nomor)}/sizes`,
       );
-      cachedSizes = res.data.data || [];
+      cachedSizes = res.data.data || res.data || [];
     } catch (error: any) {
       console.error("Gagal mengambil daftar size MMT", error);
       cachedSizes = [];
@@ -281,7 +281,7 @@ const ensureSizeRowsForKomponen = async (komponenStr: string) => {
     cachedSizes.forEach((sz: any) => {
       formData.value.sizeBreakdown.push({
         komponen: komponenStr,
-        size: sz.mmpts_size,
+        size: sz.mmpts_size || sz.size,
         babaran: 0,
       });
     });
@@ -297,52 +297,81 @@ const onKomponenChange = async (k: any) => {
   await ensureSizeRowsForKomponen(komponenStr);
 };
 
-const onMmtSelected = async (mmt: any) => {
-  isLoading.value = true;
-  try {
-    const res = await api.get(
-      `/mmt/cetak-bast/form/${encodeURIComponent(mmt.Nomor)}`,
-    );
-    const data = res.data.data;
-    data.header = normalizeHeader(data.header);
+// Mengambil data langsung dari objek spk yang dipilih di SpkLookupView
+const handleSpkSelect = async (spk: any) => {
+  isSpkLookupVisible.value = false;
+  if (!spk) return;
 
-    if (data.aksesoris && data.aksesoris.length > 0) {
-      data.aksesoris = data.aksesoris.map((acc: any) => ({
-        kode: acc.kode || "",
-        nama: acc.acc_nama || acc.nama || "",
-        satuan: acc.acc_satuan || acc.satuan || "",
-        qty: Number(acc.qty) || 0,
-        note: acc.acc_note || acc.note || "",
-      }));
-    }
-    if (data.lock) {
-      data.isLocked = true;
-      data.isApproved = data.lock.apv === "Y";
-      data.alasanApproval = data.lock.alasan || "";
-    } else {
-      data.isLocked = false;
-      data.isApproved = false;
-      data.alasanApproval = "";
-    }
-
-    formData.value = data;
-    showMmtModal.value = false;
-
-    cachedSizesNomor = "";
-    cachedSizes = null;
-
-    await nextTick();
-    for (const k of formData.value.komponen) {
-      const komponenStr = (k.komponen || "").trim();
-      if (komponenStr) {
-        await ensureSizeRowsForKomponen(komponenStr);
-      }
-    }
-  } catch (e: any) {
-    toast.error("Gagal memuat data MMT: " + e.message);
-  } finally {
-    isLoading.value = false;
+  if (!formData.value.header) {
+    formData.value.header = {} as any;
   }
+
+  // Pemetaan data termasuk Nama2 (mmpt_nama2)
+  formData.value.header.mmpt_nomor = spk.SPK || spk.Nomor || "";
+  formData.value.header.mmpt_tanggal = formatDateLocal(
+    spk.Tanggal || new Date(),
+  );
+  formData.value.header.mmpt_nama = spk.Nama || "";
+  formData.value.header.mmpt_nama2 = spk.Nama2 || ""; // [DITAMBAHKAN]
+  formData.value.header.mmpt_ukuran = spk.Ukuran || "";
+  formData.value.header.mmpt_kain = spk.Bahan || "";
+  formData.value.header.mmpt_finishing = spk.Finishing || "";
+  formData.value.header.mmpt_jumlah_jadi = Number(spk.Jumlah || 0);
+  formData.value.header.mmpt_tipe = spk.Tipe_SPK || spk.Tipe || "Standard";
+  formData.value.header.mmpt_gramasi = spk.Gramasi || "";
+  formData.value.header.mmpt_rencana_size = spk.Ukuran || "";
+  formData.value.header.mmpt_keterangan = spk.Pesan || "";
+
+  // Inisialisasi checklist kesesuaian
+  if (!formData.value.checklist || formData.value.checklist.length === 0) {
+    formData.value.checklist = [
+      {
+        no: 1,
+        kesesuaian: "Jenis & Ukuran Bahan",
+        status: "Y",
+        keterangan: "-",
+      },
+      {
+        no: 2,
+        kesesuaian: "Gramasi/Tebal Bahan",
+        status: "Y",
+        keterangan: spk.Gramasi || "-",
+      },
+      {
+        no: 3,
+        kesesuaian: "Finishing",
+        status: "Y",
+        keterangan: spk.Finishing || "-",
+      },
+      {
+        no: 4,
+        kesesuaian: "Jumlah Cetak",
+        status: "Y",
+        keterangan: String(spk.Jumlah || 0),
+      },
+      {
+        no: 5,
+        kesesuaian: "Kualitas Warna/Cetak",
+        status: "Y",
+        keterangan: "-",
+      },
+      {
+        no: 6,
+        kesesuaian: "Ketepatan Cutting/Potong",
+        status: "Y",
+        keterangan: "-",
+      },
+      { no: 7, kesesuaian: "Packing & Label", status: "Y", keterangan: "-" },
+      { no: 8, kesesuaian: "Babaran", status: "Y", keterangan: "-" },
+    ];
+  }
+
+  cachedSizesNomor = "";
+  cachedSizes = null;
+
+  toast.success(
+    `Memo SPK ${formData.value.header.mmpt_nomor} berhasil dimuat.`,
+  );
 };
 
 const onBahanSelected = (item: any) => {
@@ -487,7 +516,7 @@ const validateBeforeSave = () => {
 const fetchListKomponen = async () => {
   try {
     const res = await api.get("/lookups/komponen-mmt");
-    listKomponen.value = res.data.data || [];
+    listKomponen.value = res.data.data || res.data || [];
   } catch (error) {
     console.error("Gagal memuat list komponen MMT", error);
   }
@@ -496,15 +525,15 @@ const fetchListKomponen = async () => {
 const handlePrint = () => {
   showPrintDialog.value = false;
   window.open(
-    `/mmt/cetak-bast/print/${encodeURIComponent(savedNomor.value)}`,
+    `${API_BASE_URL}/print/${encodeURIComponent(savedNomor.value)}`,
     "_blank",
   );
-  router.push("/mmt/cetak-bast");
+  router.push(API_BASE_URL);
 };
 
 const skipPrint = () => {
   showPrintDialog.value = false;
-  router.push("/mmt/cetak-bast");
+  router.push(API_BASE_URL);
 };
 
 onMounted(() => {
@@ -548,10 +577,9 @@ onMounted(() => {
               placeholder="Pilih MMT..."
             />
             <button
-              v-if="!isEditMode"
               type="button"
               class="btn-lkp"
-              @click="showMmtModal = true"
+              @click="isSpkLookupVisible = true"
             >
               <IconSearch :size="12" color="#1565c0" />
             </button>
@@ -1026,16 +1054,12 @@ onMounted(() => {
     </template>
   </BaseForm>
 
-  <MmtSearchModal
-    v-model="showMmtModal"
-    include-closed
-    @selected="onMmtSelected"
-  />
-  <AccesoriesSearchModal v-model="showAccModal" @selected="onAccSelected" />
-  <BahanSearchModal
-    v-model="showBahanModal"
-    mode="all"
-    @selected="onBahanSelected"
+  <!-- Komponen Lookup SPK / MMT menggunakan SpkLookupView -->
+  <SpkLookupView
+    :isVisible="isSpkLookupVisible"
+    @close="isSpkLookupVisible = false"
+    @select="handleSpkSelect"
+    @selected="handleSpkSelect"
   />
 
   <v-dialog v-model="showPrintDialog" max-width="400px" persistent>

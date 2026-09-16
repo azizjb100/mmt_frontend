@@ -197,27 +197,31 @@ const fetchMemoData = async () => {
     loading.value = false;
   }
 };
+
 const selectMemo = (memo: MemoItem) => {
   if (!memo.SPK) {
     toast.error("Error: Nomor Memo SPK kosong.");
     return;
   }
 
-  // Mengirim data terpilih ke parent component dengan struktur payload yang seragam
+  // Lengkapi properti yang dikirim agar selaras dengan form BAST MMT
   emit("select", {
-    Spk: memo.SPK,
+    SPK: memo.SPK,
     Nama: memo.Nama,
+    Nama2: memo.Nama2, // [DITAMBAHKAN]
     Tanggal: memo.Tanggal,
     Panjang: memo.Panjang,
     Lebar: memo.Lebar,
     Divisi: memo.Divisi,
     Bahan: memo.Bahan,
     Gramasi: memo.Gramasi,
+    Finishing: memo.Finishing,
+    Pesan: memo.Pesan,
     Jumlah: memo.Jumlah,
     Ukuran: memo.Ukuran,
     Sudah_Cetak: memo.Sudah_Cetak || 0,
     Kurang_Cetak: memo.Kurang_Cetak || 0,
-    Tipe_SPK: "MEMO",
+    Tipe_SPK: memo.Tipe_SPK || "MEMO",
   });
 
   emit("close");

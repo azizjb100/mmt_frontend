@@ -27,7 +27,7 @@
 
       <!-- NAVBAR MENU (Desktop Horizontal / Mobile Vertical Drawer) -->
       <ul class="navbar-menu" :class="{ 'is-mobile-open': isMobileMenuOpen }">
-        <!-- HEADER PROFILE UNTUK MOBILE (Hanya muncul di Android/Tab sesuai gambar) -->
+        <!-- HEADER PROFILE UNTUK MOBILE -->
         <li class="mobile-profile-header">
           <div class="mobile-avatar-circle" :class="userRoleConfig.color">
             <component :is="userRoleConfig.icon" class="mobile-avatar-icon" />
@@ -247,7 +247,7 @@
           </ul>
         </li>
 
-        <!-- BOTTOM ACTION UNTUK MOBILE MENU (Ganti Password & Logout nempel di bawah drawer) -->
+        <!-- BOTTOM ACTION UNTUK MOBILE MENU -->
         <li class="mobile-actions-footer">
           <router-link
             to="/file/ganti-password"
@@ -264,7 +264,7 @@
         </li>
       </ul>
 
-      <!-- USER INFO DESKTOP (Aman & Tersembunyi di Mobile) -->
+      <!-- USER INFO DESKTOP -->
       <div class="navbar-user hide-mobile">
         <div class="user-profile-badge" :class="userRoleConfig.color">
           <component :is="userRoleConfig.icon" class="role-icon" />
@@ -283,6 +283,39 @@
       </div>
     </nav>
 
+    <!-- MULTI-TAB NAVIGATION BAR (Gaya Multi-Tab / Desktop App) -->
+    <div class="sub-tab-bar d-flex align-center px-3 border-bottom">
+      <!-- Tab Dashboard Default -->
+      <router-link
+        to="/"
+        class="tab-item"
+        :class="{ active: route.path === '/' }"
+      >
+        <v-icon size="small" class="mr-1">mdi-view-dashboard</v-icon>
+        <span>Dashboard</span>
+      </router-link>
+
+      <!-- Loop Tab Dinamis yang Sedang Dibuka -->
+      <div
+        v-for="tab in tabStore.tabs"
+        :key="tab.path"
+        class="tab-item d-flex align-center px-3 py-1"
+        :class="{ active: route.path === tab.path }"
+        @click="openTab(tab)"
+      >
+        <span class="text-caption font-weight-medium mr-2">{{
+          tab.title
+        }}</span>
+        <v-icon
+          size="x-small"
+          class="close-icon"
+          @click.stop="tabStore.removeTab(tab.path, router)"
+        >
+          mdi-close
+        </v-icon>
+      </div>
+    </div>
+
     <div class="main-content-top">
       <main class="content-area">
         <router-view />
@@ -292,9 +325,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from "vue";
-import { useRouter } from "vue-router";
+import { ref, computed, onMounted, onUnmounted, watch } from "vue";
+import { useRouter, useRoute } from "vue-router";
 import { useAuthStore } from "@/stores/authStore";
+import { useTabStore } from "@/stores/tabStore";
 
 import {
   IconMenu2,
@@ -323,9 +357,11 @@ import {
 } from "@tabler/icons-vue";
 
 const authStore = useAuthStore();
+const tabStore = useTabStore();
 const currentUser = authStore.user;
 const router = useRouter();
-const logoSrc = ref(""); // Isi path logo jika ada
+const route = useRoute();
+const logoSrc = ref("");
 
 const isMobileMenuOpen = ref(false);
 const activeMenu = ref<string | null>(null);
@@ -364,6 +400,27 @@ const closeAllMenus = () => {
   activeSubLevel4.value = null;
   isMobileMenuOpen.value = false;
 };
+
+// Fungsi Navigasi Klik Tab di Tab Bar
+const openTab = (tab: any) => {
+  router.push({ name: tab.name, params: tab.params });
+};
+
+// Watcher untuk mencatat halaman yang dibuka ke Tab Store secara otomatis
+watch(
+  () => route.path,
+  () => {
+    if (route.path !== "/" && route.name) {
+      tabStore.addTab({
+        name: String(route.name),
+        title: (route.meta?.title as string) || String(route.name),
+        path: route.path,
+        params: route.params,
+      });
+    }
+  },
+  { immediate: true },
+);
 
 const handleClickOutside = (e: MouseEvent) => {
   const target = e.target as HTMLElement;
@@ -430,11 +487,9 @@ const userRoleConfig = computed(() => {
   return { icon: IconTie, color: "role-default" };
 });
 
-// data permissions & allMenuGroups tetap sama sesuai bawaan Anda...
 const rolePermissions = {
   1: [
     "Daftar",
-    "Master Bahan",
     "Master Bahan",
     "Mesin Produksi",
     "Daftar Permintaan Pembelian",
@@ -449,7 +504,6 @@ const rolePermissions = {
     "Stok Opname",
     "Surat Jalan",
     "Surat Jalan Approve",
-
     "Retur Beli",
     "Retur Produksi",
     "STBJ",
@@ -613,12 +667,10 @@ const allMenuGroups = [
       { name: "BS & Sisa Digital Print", path: "/mmt/bs-digital" },
       { name: "BS & Sisa Tekstil", path: "/mmt/bs-tekstil" },
       { name: "STBJ", path: "/mmt/stbj" },
-
       { name: "Surat Jalan", path: "/mmt/surat-jalan" },
       { name: "Surat Jalan Approve", path: "/mmt/surat-jalan/approve" },
       { name: "Jadwal Kirim", path: "/mmt/jadwal-kirim" },
       { name: "PO Internal", path: "/mmt/po-paperprint" },
-
       { name: "Mutasi Internal", path: "/mmt/mutasi-internal" },
       { name: "Penerimaan PO External", path: "/mmt/penerimaan-po-external" },
     ],
@@ -874,6 +926,57 @@ const menuGroups = computed(() => {
   text-decoration: none;
 }
 
+/* ==================== MULTI-TAB BAR STYLING (Gaya ERP Desktop) ==================== */
+.sub-tab-bar {
+  height: 40px;
+  background-color: #edf2f7;
+  overflow-x: auto;
+  white-space: nowrap;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--color-border);
+  gap: 4px;
+  padding-left: 16px;
+}
+
+.tab-item {
+  height: 32px;
+  background: #e2e8f0;
+  border-radius: 6px 6px 0 0;
+  cursor: pointer;
+  text-decoration: none;
+  color: #475569;
+  font-size: 0.85rem;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 12px;
+  transition: background 0.2s;
+  border: 1px solid #cbd5e1;
+  border-bottom: none;
+}
+
+.tab-item:hover {
+  background: #cbd5e1;
+}
+
+.tab-item.active {
+  background: #ffffff;
+  color: var(--color-primary);
+  border-top: 3px solid var(--color-primary);
+  font-weight: 600;
+  box-shadow: 0 -2px 6px rgba(0, 0, 0, 0.04);
+}
+
+.close-icon {
+  margin-left: 8px;
+  border-radius: 50%;
+  padding: 2px;
+}
+.close-icon:hover {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.1);
+}
+
+/* ==================== LANJUTAN NAVBAR MENU & DROPDOWN ==================== */
 .navbar-menu {
   display: flex;
   list-style: none;
@@ -1152,7 +1255,7 @@ const menuGroups = computed(() => {
   transform: rotate(90deg);
 }
 
-/* ==================== ANDROID / TABLET RESPONSIVE STYLE (DRAWER SESUAI GAMBAR) ==================== */
+/* ==================== ANDROID / TABLET RESPONSIVE STYLE ==================== */
 @media (max-width: 1024px) {
   .mobile-toggle {
     display: flex;
@@ -1167,12 +1270,11 @@ const menuGroups = computed(() => {
     display: none !important;
   }
 
-  /* Drawer Container Luas Luang */
   .navbar-menu {
     position: fixed;
     top: 0;
     left: -100%;
-    width: 340px; /* Ukuran lebar proporsional untuk Tablet/Android */
+    width: 340px;
     height: 100vh;
     background: #ffffff;
     flex-direction: column;
@@ -1188,7 +1290,6 @@ const menuGroups = computed(() => {
     left: 0;
   }
 
-  /* 1. Header Profil Atas (Sesuai Gambar) */
   .mobile-profile-header {
     display: flex;
     align-items: center;
@@ -1224,7 +1325,6 @@ const menuGroups = computed(() => {
     color: #64748b;
   }
 
-  /* 2. List Accordion Menu Tengah */
   .dropdown {
     height: auto;
     border-bottom: 1px solid #f1f5f9;
@@ -1243,10 +1343,9 @@ const menuGroups = computed(() => {
   }
 
   .menu-title-wrapper .menu-icon {
-    color: #94a3b8; /* Warna icon soft abu-abu seperti gambar */
+    color: #94a3b8;
   }
 
-  /* Dropdown Child (Level 2) */
   .dropdown-menu {
     position: static;
     visibility: visible;
@@ -1277,7 +1376,6 @@ const menuGroups = computed(() => {
     color: var(--color-primary) !important;
   }
 
-  /* Level 3 & 4 Popup Transform ke Accordion */
   .sub-menu-popup {
     position: static;
     box-shadow: none;
@@ -1294,11 +1392,10 @@ const menuGroups = computed(() => {
     margin-left: 16px;
   }
 
-  /* 3. Footer Tombol Bawah (Sesuai Gambar) */
   .mobile-actions-footer {
     display: flex;
     flex-direction: column;
-    margin-top: auto; /* Memaksa footer nempel di paling bawah drawer */
+    margin-top: auto;
     padding: 16px;
     background-color: #ffffff;
     border-top: 1px solid var(--color-border);

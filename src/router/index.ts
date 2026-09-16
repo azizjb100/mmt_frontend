@@ -9,20 +9,16 @@ import { useAuthStore } from "../stores/authStore";
 import LoginView from "../views/LoginView.vue";
 import Navbar from "../views/NavBar.vue";
 import Home from "../views/Home.vue";
-import MaterialRequestForm from "../components/MaterialRequestForm.vue";
 import ComingSoon from "../views/ComingSoon.vue";
 import LhkCetakView from "../views/LhkMesinCetakView.vue";
 import LhkFinishingView from "../views/LhkFinishingView.vue";
-import StbjMmtBiew from "../views/StbjMmtView.vue";
-import lapBahanUtamaView from "../views/LapLsBahanUtamaView.vue";
-import lapBahanPenolongView from "../views/LapLsBahanPenolongView.vue";
+import StbjMmtView from "../views/StbjMmtView.vue";
 import LapMonCetakView from "../views/LapMonCetakView.vue";
 
-// Pastikan file-file ini sudah ada di views/ dan path ../views adalah benar
 import PermintaanBahanView from "../views/PermintaanBahanView.vue";
 import penerimaanBahanView from "../views/penerimaanBahanView.vue";
 import FormPenerimaanBahanView from "../views/FormPenerimaanBahanView.vue";
-import FormPermintaanBahanView from "../views/FormPermintaanBahanView.vue"; // Asumsi Anda punya form ini
+import FormPermintaanBahanView from "../views/FormPermintaanBahanView.vue";
 import PermintaanProduksiView from "../views/PermintaanProduksiView.vue";
 import FormPermintaanProduksiView from "../views/FormPermintaanProduksiView.vue";
 import ReturBeliView from "@/views/ReturBeliView.vue";
@@ -36,19 +32,16 @@ import POBahanMmtView from "@/views/POBahanMmtView.vue";
 import PoPrintView from "@/views/PoPrintView.vue";
 import LapLsBahanUtamaView from "../views/LapLsBahanUtamaView.vue";
 import LapLsBahanPenolongView from "../views/LapLsBahanPenolongView.vue";
-import FormLhkCetakView from "@/views/FormLhkCetakView.vue";
+import FormLhkCetakZView from "@/views/FormLhkCetakView.vue";
 import PermintaanBahanPrintView from "@/views/PermintaanBahanPrintView.vue";
-import FormLhkCetakViewNew from "@/views/FormLhkCetakViewNew.vue";
 import FormRecreateBarcode from "@/views/FormRecreateBarcode.vue";
 import LapMonLmkpMmtView from "@/views/LapMonLmkpMmtView.vue";
-import FormInvoiceView from "@/views/FormInvoiceView.vue";
 import LapSpkMmtView from "@/views/LapSpkMmtView.vue";
 import LapPlanProdView from "@/views/LapPlanProdView.vue";
 import LapBarangJadiView from "@/views/LapBarangJadiView.vue";
 import LapStokTintaMmtView from "@/views/LapStokTintaMmtView.vue";
 import LapOutputMesinView from "@/views/LapOutputMesinView.vue";
 import FormReturBeliView from "@/views/FormReturBeliView.vue";
-import InvoiceView from "@/views/InvoiceView.vue";
 import FormPengajuanPermintaanView from "@/views/FormPengajuanPermintaanView.vue";
 import PengajuanPermintaanView from "@/views/PengajuanPermintaanView.vue";
 import MutasiProduksiView from "@/views/MutasiProduksiView.vue";
@@ -62,12 +55,10 @@ import LhkMesinCetakView from "../views/LhkMesinCetakView.vue";
 import LhkCetakMmtView from "@/views/LhkCetakMmtView.vue";
 import PlanningProduksiView from "@/views/PlanningProduksiView.vue";
 import CreateBarcodeView from "@/views/CreateBarcodeView.vue";
-import LhkTekstilView from "@/views/LhkTekstilView.vue";
 import LhkTekstilMmtView from "@/views/LhkTekstilMmtView.vue";
 import SupplierView from "@/views/SupplierView.vue";
 import FormSupplierView from "@/views/FormSupplierView.vue";
 import FormReturProduksiView from "@/views/FormReturProduksiView.vue";
-import { Form } from "lucide-vue-next";
 import ReturProduksiView from "@/views/ReturProduksiView.vue";
 import FormMasterBahanView from "@/views/FormMasterBahanView.vue";
 import FormLhkCetakMmtView from "@/views/FormLhkCetakMmtView.vue";
@@ -80,13 +71,11 @@ import FormLhkFinishingBuildView from "@/views/FormLhkFinishingBuildView.vue";
 import PenerimaanPoExtMmtView from "@/views/PenerimaanPoExtMmtView.vue";
 import FormPenerimaanPoExtMmtView from "@/views/FormPenerimaanPoExtMmtView.vue";
 import FormLhkTekstilView from "@/views/FormLhkTekstilView.vue";
-import StbjMmtView from "@/views/StbjMmtView.vue";
 import StbjView from "@/views/StbjView.vue";
 import SpkView from "@/views/SpkView.vue";
 import LapPemakaianBahanView from "@/views/LapPemakaianBahanView.vue";
 import MutasiGudangView from "@/views/MutasiGudangView.vue";
 import FormMutasiGudangView from "@/views/FormMutasiGudangView.vue";
-import SpkPrintView from "@/views/SpkPrintView.vue";
 import SearchBarcodeView from "@/views/SearchBarcodeView.vue";
 import FormStbjView from "@/views/FormStbjView.vue";
 import JadwalKirimView from "@/views/JadwalKirimView.vue";
@@ -94,9 +83,7 @@ import FormJadwalKirimView from "@/views/FormJadwalKirimView.vue";
 import FormFinishingAccView from "@/views/FormFinishingAccView.vue";
 import LapMonFinishingView from "@/views/LapMonFinishingView.vue";
 import LapMonTekstilView from "@/views/LapMonTekstilView.vue";
-import InvoicePrintView from "@/views/InvoicePrintView.vue";
 import FormRekapLhkTekstilView from "@/views/FormRekapLhkTekstilView.vue";
-import FormAbsesnView from "@/views/FormAbsesnView.vue";
 import LapMonProofView from "@/views/LapMonProofView.vue";
 import LapMonPaperprintView from "@/views/LapMonPaperprintView.vue";
 import LhkProofView from "@/views/LhkProofView.vue";
@@ -130,13 +117,11 @@ import MutasiBahanSpanduk from "@/views/spanduk/MutasiBahanView.vue";
 import PermintaanBahanSpandukView from "@/views/spanduk/PermintaanBahanSpandukView.vue";
 import FormPermintaanBahanSpandukView from "@/views/spanduk/FormPermintaanBahanSpandukView.vue";
 import MasterBahanSpandukView from "@/views/spanduk/MasterBahanSpandukView.vue";
-import MasterBahanSpandukView from "@/views/spanduk/MasterBahanSpandukView.vue";
 import PenerimaanBahanPenolongView from "@/views/spanduk/PenerimaanBahanPenolongView.vue";
 import LapKartuStokMmtView from "@/views/LapKartuStokMmtView.vue";
 import LapPemakaianBahanTekstil from "@/views/LapPemakaianBahanTekstil.vue";
 import SoToSpkView from "@/views/SoToSpkView.vue";
 import FormSoToSpkView from "@/views/FormSoToSpkView.vue";
-import SoToSpkPrintView from "@/views/SoToSpkPrintView.vue";
 import FormPoPaperprintView from "@/views/FormPoPaperprintView.vue";
 import mapView from "@/views/mapView.vue";
 import MapPrintView from "@/views/MapPrintView.vue";
@@ -1263,7 +1248,6 @@ const routes: RouteRecordRaw[] = [
   },
 ];
 
-// 3. Buat router
 const router = createRouter({
   history: createWebHistory(),
   routes,
@@ -1271,22 +1255,15 @@ const router = createRouter({
   linkExactActiveClass: "router-link-exact-active",
 });
 
-// 🧭 NAVIGATION GUARD (Perbaikan Akhir)
 router.beforeEach((to, from, next) => {
-  // Dapatkan instance store. Harus dipanggil di dalam function.
   const authStore = useAuthStore();
-
-  // 1. Dapatkan status autentikasi dari Pinia Store (menggunakan Getter yang sudah dibuat)
   const loggedIn = authStore.isAuthenticated;
-
-  // 2. Cek apakah rute tujuan memerlukan autentikasi (meta: { requiresAuth: true })
   const requiresAuth = Boolean(to.meta?.requiresAuth);
 
   if (requiresAuth && !loggedIn) {
     if (authStore.isTokenExpired) {
       authStore.handleSessionExpired();
     }
-
     return next({ name: "Login", query: { redirect: to.fullPath } });
   }
 
@@ -1294,7 +1271,6 @@ router.beforeEach((to, from, next) => {
     return next({ name: "Home" });
   }
 
-  // C. Lanjutkan navigasi (sudah login, atau rute tidak memerlukan auth)
   return next();
 });
 

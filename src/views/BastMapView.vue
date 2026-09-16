@@ -10,8 +10,8 @@ import { exportExcelSingle, type ExcelColumn } from "@/utils/excelExport";
 
 const router = useRouter();
 const toast = useToast();
-const menuId = "117";
-const API_BAST = "/mmt/bast-map"; // Sesuaikan base endpoint Anda jika berbeda
+const menuId = "118";
+const API_BAST = "/mmt/bast-map";
 
 // --- State Management ---
 const masterData = ref<any[]>([]);
@@ -21,63 +21,59 @@ const loadingDetails = ref(new Set<string>());
 const selected = ref<any[]>([]);
 const expanded = ref<any[]>([]);
 
-const filters = reactive({
-  startDate: format(subDays(new Date(), 30), "yyyy-MM-dd"),
-  endDate: format(new Date(), "yyyy-MM-dd"),
-  search: "",
-  onProgress: false,
-});
+const startDate = ref(format(subDays(new Date(), 30), "yyyy-MM-dd"));
+const endDate = ref(format(new Date(), "yyyy-MM-dd"));
+const search = ref("");
+const onProgress = ref(false);
 
-// Alias computed untuk filterState BaseBrowse
-const filterState = computed({
-  get: () => filters,
-  set: (val) => {
-    if (val) {
-      filters.startDate = val.startDate || filters.startDate;
-      filters.endDate = val.endDate || filters.endDate;
-      filters.onProgress = val.onProgress ?? filters.onProgress;
-    }
-  },
-});
+const isSingleSelected = computed(() => selected.value.length === 1);
+const selectedNomor = computed(() =>
+  isSingleSelected.value ? selected.value[0].Nomor : null,
+);
 
 // --- Headers Master & Detail ---
 const headers = computed(() => [
   {
     title: "Detail",
     key: "data-table-expand",
-    width: "60px",
-    align: "center",
+    minWidth: "60px",
+    align: "center" as const,
     fixed: true,
   },
   {
     title: "Status BAST",
     key: "CetakBAST",
-    width: "110px",
-    align: "center",
+    minWidth: "110px",
+    align: "center" as const,
     fixed: true,
   },
-  { title: "Nomor", key: "Nomor", width: "160px", fixed: true },
-  { title: "Divisi", key: "Divisi", width: "100px" },
-  { title: "Tipe", key: "Tipe", width: "80px" },
-  { title: "Tanggal", key: "Tanggal", width: "110px" },
-  { title: "Nama Pekerjaan", key: "NamaPekerjaan", width: "250px" },
-  { title: "Nama Ext", key: "NamaExt", width: "250px" },
-  { title: "Ukuran", key: "Ukuran", width: "150px" },
-  { title: "Gramasi", key: "Gramasi", width: "130px" },
-  { title: "Gramasi Aktual", key: "GramasiSetting_Aktual", width: "150px" },
-  { title: "Kain", key: "Kain", width: "180px" },
-  { title: "Finishing", key: "Finishing", width: "150px" },
-  { title: "Jumlah", key: "Jumlah", width: "80px", align: "right" },
-  { title: "Keterangan", key: "Keterangan", width: "200px" },
-  { title: "Kendala", key: "kendalaProduksi", width: "200px" },
+  { title: "Nomor", key: "Nomor", minWidth: "160px", fixed: true },
+  { title: "Divisi", key: "Divisi", minWidth: "100px" },
+  { title: "Tipe", key: "Tipe", minWidth: "80px" },
+  { title: "Tanggal", key: "Tanggal", minWidth: "110px" },
+  { title: "Nama Pekerjaan", key: "NamaPekerjaan", minWidth: "250px" },
+  { title: "Nama Ext", key: "NamaExt", minWidth: "250px" },
+  { title: "Ukuran", key: "Ukuran", minWidth: "150px" },
+  { title: "Gramasi", key: "Gramasi", minWidth: "130px" },
+  { title: "Gramasi Aktual", key: "GramasiSetting_Aktual", minWidth: "150px" },
+  { title: "Kain", key: "Kain", minWidth: "180px" },
+  { title: "Finishing", key: "Finishing", minWidth: "150px" },
+  { title: "Jumlah", key: "Jumlah", minWidth: "80px", align: "end" as const },
+  { title: "Keterangan", key: "Keterangan", minWidth: "200px" },
+  { title: "Kendala", key: "kendalaProduksi", minWidth: "200px" },
 ]);
 
 const detailHeaders = [
-  { title: "Jenis Rincian", key: "JenisDetail", width: "120px" },
-  { title: "Kode Bahan", key: "KodeBahan", width: "130px" },
-  { title: "Nama Bahan", key: "NamaBahan", width: "220px" },
-  { title: "Satuan", key: "Satuan", width: "80px", align: "center" },
-  { title: "Qty", key: "Qty", width: "100px", align: "right" },
+  { title: "Jenis Rincian", key: "JenisDetail", minWidth: "120px" },
+  { title: "Kode Bahan", key: "KodeBahan", minWidth: "130px" },
+  { title: "Nama Bahan", key: "NamaBahan", minWidth: "220px" },
+  {
+    title: "Satuan",
+    key: "Satuan",
+    minWidth: "80px",
+    align: "center" as const,
+  },
+  { title: "Qty", key: "Qty", minWidth: "100px", align: "end" as const },
 ];
 
 const safeFormatDate = (dateString: string | undefined): string => {
@@ -94,13 +90,15 @@ const safeFormatDate = (dateString: string | undefined): string => {
 // --- Data Fetching ---
 const fetchData = async () => {
   isLoading.value = true;
+  selected.value = [];
+  expanded.value = [];
   try {
     const res = await api.get(`${API_BAST}/`, {
       params: {
-        startDate: filters.startDate,
-        endDate: filters.endDate,
-        onProgress: filters.onProgress,
-        search: filters.search,
+        startDate: startDate.value,
+        endDate: endDate.value,
+        onProgress: onProgress.value,
+        search: search.value,
       },
     });
     masterData.value = res.data.data || res.data || [];
@@ -136,16 +134,13 @@ const isLoadingDetails = (nomor: string) => loadingDetails.value.has(nomor);
 
 // --- Row Click & Selection Style ---
 const handleRowClick = (_event: any, row: any) => {
-  const index = selected.value.findIndex((s) => s.Nomor === row.item.Nomor);
-  if (index > -1) {
-    selected.value.splice(index, 1);
-  } else {
-    selected.value = [row.item];
-  }
+  selected.value = selected.value.some((s) => s.Nomor === row.item.Nomor)
+    ? []
+    : [row.item];
 };
 
 const getRowProps = ({ item }: any) => ({
-  class: selected.value.some((s) => s.Nomor === item.Nomor)
+  class: selected.value.some((s) => s.Nomor === item?.Nomor)
     ? "row-selected"
     : "",
 });
@@ -157,24 +152,29 @@ const getRowTextColor = (item: any) => {
   return "";
 };
 
-// --- Aksi ---
-const goAdd = () => router.push({ name: "CetakBastFormCreate" });
-const goEdit = (item: any) =>
-  router.push({ name: "CetakBastFormEdit", params: { nomor: item.Nomor } });
+// --- Aksi Navigasi (Disamakan polanya dengan Permintaan Bahan) ---
+const handleNewEdit = (mode: "new" | "edit") => {
+  if (mode === "new") {
+    router.push({ name: "BastMmtNew" });
+  } else if (selectedNomor.value) {
+    router.push({
+      name: "BastMmtEdit",
+      params: { nomor: selectedNomor.value },
+    });
+  }
+};
 
-const goDelete = async () => {
-  if (selected.value.length === 0) {
-    toast.warning("Pilih BAST MAP yang akan dihapus.");
+const handleDelete = async () => {
+  if (!selectedNomor.value) {
+    toast.warning("Pilih BAST MMT yang akan dihapus.");
     return;
   }
-  const item = selected.value[0];
-  if (!confirm(`Yakin hapus BAST untuk MAP ${item.Nomor}?`)) return;
+  if (!confirm(`Yakin hapus BAST untuk Nomor ${selectedNomor.value}?`)) return;
 
   isLoading.value = true;
   try {
-    await api.delete(`${API_BAST}/${encodeURIComponent(item.Nomor)}`);
+    await api.delete(`${API_BAST}/${encodeURIComponent(selectedNomor.value)}`);
     toast.success("Berhasil dihapus.");
-    selected.value = [];
     fetchData();
   } catch (e: any) {
     toast.error(e.response?.data?.message || "Gagal menghapus.");
@@ -184,13 +184,12 @@ const goDelete = async () => {
 };
 
 const cetak = () => {
-  if (selected.value.length === 0) {
-    toast.warning("Pilih BAST MAP yang akan dicetak.");
+  if (!selectedNomor.value) {
+    toast.warning("Pilih BAST MMT yang akan dicetak.");
     return;
   }
-  const nomor = selected.value[0].Nomor;
   window.open(
-    `/garmen/cetak-bast/print/${encodeURIComponent(nomor)}`,
+    `${API_BAST}/print/${encodeURIComponent(selectedNomor.value)}`,
     "_blank",
   );
 };
@@ -232,11 +231,11 @@ const onExportHeader = async () => {
     }));
 
     await exportExcelSingle(
-      `BAST_Header_${filters.startDate}_to_${filters.endDate}.xlsx`,
+      `BAST_Header_${startDate.value}_to_${endDate.value}.xlsx`,
       "Data BAST",
       columns,
       formattedData,
-      `LAPORAN BAST MAP (HEADER) | Periode: ${safeFormatDate(filters.startDate)} s.d ${safeFormatDate(filters.endDate)}`,
+      `LAPORAN BAST MMT (HEADER) | Periode: ${safeFormatDate(startDate.value)} s.d ${safeFormatDate(endDate.value)}`,
     );
     toast.success("Berhasil export header BAST.");
   } catch {
@@ -252,10 +251,10 @@ const onExportDetail = async () => {
   try {
     const res = await api.get(`${API_BAST}/export-detail`, {
       params: {
-        startDate: filters.startDate,
-        endDate: filters.endDate,
-        onProgress: filters.onProgress,
-        search: filters.search,
+        startDate: startDate.value,
+        endDate: endDate.value,
+        onProgress: onProgress.value,
+        search: search.value,
       },
     });
 
@@ -351,11 +350,11 @@ const onExportDetail = async () => {
     ];
 
     await exportExcelSingle(
-      `BAST_Detail_${filters.startDate}_to_${filters.endDate}.xlsx`,
+      `BAST_Detail_${startDate.value}_to_${endDate.value}.xlsx`,
       "Detail BAST",
       columns,
       combinedRows,
-      `RINCIAN BAST MAP | Periode: ${safeFormatDate(filters.startDate)} s.d ${safeFormatDate(filters.endDate)}`,
+      `RINCIAN BAST MMT | Periode: ${safeFormatDate(startDate.value)} s.d ${safeFormatDate(endDate.value)}`,
     );
     toast.success("Berhasil export detail BAST.");
   } catch {
@@ -366,18 +365,7 @@ const onExportDetail = async () => {
 };
 
 // --- Watcher reaktif otomatis untuk filter ---
-watch(
-  [
-    () => filters.startDate,
-    () => filters.endDate,
-    () => filters.onProgress,
-    () => filters.search,
-  ],
-  () => {
-    fetchData();
-  },
-  { deep: true },
-);
+watch([startDate, endDate, onProgress, search], fetchData);
 
 onMounted(fetchData);
 </script>
@@ -385,7 +373,7 @@ onMounted(fetchData);
 <template>
   <div class="bast-browse-wrapper">
     <BaseBrowse
-      title="Cetak BAST MAP"
+      title="Cetak BAST MMT"
       :menu-id="menuId"
       :icon="IconPrinter"
       :headers="headers"
@@ -395,24 +383,17 @@ onMounted(fetchData);
       height="500px"
       fixed-header
       v-model:selected="selected"
-      v-model:startDate="filters.startDate"
-      v-model:endDate="filters.endDate"
-      v-model:start-date="filters.startDate"
-      v-model:end-date="filters.endDate"
+      v-model:startDate="startDate"
+      v-model:endDate="endDate"
+      v-model:expanded="expanded"
       has-print
-      can-export
-      :can-insert="canInsert"
-      :can-edit="canEdit"
-      :can-delete="canDelete"
-      :row-props-fn="getRowProps"
       @refresh="fetchData"
-      @add="goAdd"
-      @edit="goEdit"
-      @delete="goDelete"
-      @print="cetak"
+      @action:new="handleNewEdit('new')"
+      @action:edit="handleNewEdit('edit')"
+      @action:delete="handleDelete"
       @action:print="cetak"
-      @export="onExportHeader"
       @row-click="handleRowClick"
+      :row-props="getRowProps"
       @update:expanded="handleExpandUpdate(expanded)"
     >
       <!-- Keterangan Warna Status di atas tabel -->
@@ -437,7 +418,7 @@ onMounted(fetchData);
       <!-- Filter Fields di Toolbar (Pencarian & Checkbox OnProgress) -->
       <template #filter-fields>
         <v-text-field
-          v-model="filters.search"
+          v-model="search"
           prepend-inner-icon="mdi-magnify"
           label="Cari Nomor / Pekerjaan"
           density="compact"
@@ -451,8 +432,8 @@ onMounted(fetchData);
 
       <template #filter-left>
         <v-checkbox
-          v-model="filters.onProgress"
-          label="Tampilkan saja BAST MAP On Progress"
+          v-model="onProgress"
+          label="Tampilkan saja BAST MMT On Progress"
           density="compact"
           hide-details
           class="cust-cb"
@@ -460,13 +441,13 @@ onMounted(fetchData);
       </template>
 
       <!-- Tombol Aksi Tambahan -->
-      <template #extra-actions>
+      <template #extra-actions="{ isSingleSelected }">
         <v-btn
           size="small"
           variant="flat"
           color="blue-grey"
           class="mr-2"
-          :disabled="selected.length === 0"
+          :disabled="!isSingleSelected"
           @click="cetak"
         >
           <template #prepend
@@ -509,39 +490,45 @@ onMounted(fetchData);
       </template>
 
       <!-- Sub-Grid Expanded Row Details -->
-      <template #expanded-content="{ item }">
-        <div v-if="isLoadingDetails(item.Nomor)" class="text-center pa-2">
-          <v-progress-circular
-            indeterminate
-            size="20"
-            color="primary"
-            class="mr-2"
-          />
-          <span class="text-caption">Memuat detail komponen & obat...</span>
-        </div>
-
-        <div
-          v-else-if="!details[item.Nomor] || details[item.Nomor].length === 0"
-          class="text-center pa-2 text-caption text-grey"
-        >
-          Tidak ada detail rincian untuk BAST Nomor {{ item.Nomor }}
-        </div>
-
-        <v-data-table
-          v-else
-          :headers="detailHeaders"
-          :items="details[item.Nomor]"
-          density="compact"
-          class="bg-white border rounded"
-          :items-per-page="-1"
-          hide-default-footer
-        >
-          <template #[`item.Qty`]="{ item: d }">
-            <div class="text-right">
-              {{ Number(d.Qty || 0).toLocaleString() }}
+      <template #expanded-row="{ columns, item }">
+        <tr>
+          <td :colspan="columns.length" class="pa-3 bg-grey-lighten-4">
+            <div v-if="isLoadingDetails(item.Nomor)" class="text-center pa-2">
+              <v-progress-circular
+                indeterminate
+                size="20"
+                color="primary"
+                class="mr-2"
+              />
+              <span class="text-caption">Memuat detail komponen & obat...</span>
             </div>
-          </template>
-        </v-data-table>
+
+            <div
+              v-else-if="
+                !details[item.Nomor] || details[item.Nomor].length === 0
+              "
+              class="text-center pa-2 text-caption text-grey"
+            >
+              Tidak ada detail rincian untuk BAST Nomor {{ item.Nomor }}
+            </div>
+
+            <v-data-table
+              v-else
+              :headers="detailHeaders"
+              :items="details[item.Nomor]"
+              density="compact"
+              class="bg-white border rounded"
+              :items-per-page="-1"
+              hide-default-footer
+            >
+              <template #[`item.Qty`]="{ item: d }">
+                <div class="text-right">
+                  {{ Number(d.Qty || 0).toLocaleString() }}
+                </div>
+              </template>
+            </v-data-table>
+          </td>
+        </tr>
       </template>
     </BaseBrowse>
   </div>

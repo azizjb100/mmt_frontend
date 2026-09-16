@@ -254,7 +254,7 @@ const detailHeaders = [
   { title: "No. SPK", key: "spk_nomor", width: "130px" },
   { title: "Nama Order", key: "spk_nama", width: "180px" },
   { title: "Komponen", key: "nama_komponen", width: "120px" },
-  { title: "Sisa di Sublim", key: "stok_sublim", width: "110px", align: "end" },
+  { title: "Stok di Sublim", key: "stok_sublim", width: "110px", align: "end" },
   { title: "Jml Mutasi", key: "qty_mutasi", width: "110px", align: "end" },
   { title: "", key: "actions", width: "50px" },
 ];
@@ -277,31 +277,38 @@ const openLhkSublimLookup = () => {
 };
 
 // Handler saat data dipilih dari modal lookup LHK Sublim
+// Handler saat data dipilih dari modal lookup LHK Sublim
 const handleLhkSelect = (selectedItems: any[]) => {
   selectedItems.forEach((item) => {
     const namaKomponenApi = item.Nama_Komponen || item.Jenis_Bahan || "ALL SET";
-    const itemSize = item.Size || "-"; // Tangkap nilai size dari item
+    const itemSize = item.Size || "-";
+    const stokTersedia = parseFloat(
+      item.Sisa_Belum_Mutasi !== undefined
+        ? item.Sisa_Belum_Mutasi
+        : item.Jumlah || 0,
+    );
 
-    // ✅ TAMBAHKAN `poi_size` KE DALAM PENGECEKAN DUPLIKASI
-    const isExist = detailData.value.some(
+    // Cek apakah item dengan kombinasi (SPK, PO Internal, Komponen, Size) sudah ada di grid
+    const existingIndex = detailData.value.findIndex(
       (row) =>
         row.spk_nomor === item.Nomor_SPK &&
         row.poi_nomor === item.No_PO_Internal &&
         row.nama_komponen === namaKomponenApi &&
-        row.poi_size === itemSize, // <-- Kunci perbaikannya di sini
+        row.poi_size === itemSize,
     );
 
-    if (!isExist) {
-      const stokTersedia = parseFloat(
-        item.Sisa_Belum_Mutasi !== undefined
-          ? item.Sisa_Belum_Mutasi
-          : item.Jumlah || 0,
-      );
-
+    if (existingIndex !== -1) {
+      // Jika sudah ada, jumlahkan stok dan qty mutasinya
+      detailData.value[existingIndex].stok_sublim += stokTersedia;
+      detailData.value[existingIndex].stok_sublim_asli =
+        detailData.value[existingIndex].stok_sublim; // Opsional untuk referensi
+      detailData.value[existingIndex].qty_mutasi += stokTersedia;
+    } else {
+      // Jika belum ada, tambahkan baris baru
       detailData.value.push({
         lhk_detail_id: item.Id || `${item.Nomor}_${item.No_Urut}`,
         poi_nomor: item.No_PO_Internal || "-",
-        poi_size: itemSize, // Pastikan tersimpan dengan benar
+        poi_size: itemSize,
         spk_nomor: item.Nomor_SPK,
         spk_nama: item.Nama_SPK,
         nama_komponen: namaKomponenApi,
