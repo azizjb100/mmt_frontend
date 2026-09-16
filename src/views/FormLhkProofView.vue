@@ -232,6 +232,42 @@
             >
               <template #[`item.no`]="{ index }">{{ index + 1 }}</template>
 
+              <!-- Panjang SPK: Editable jika jenis Paperprint (P) atau Sublim (S) -->
+              <template #[`item.panjang_spk`]="{ item }">
+                <v-text-field
+                  v-if="formData.jenis === 'P' || formData.jenis === 'S'"
+                  v-model.number="item.panjang_spk"
+                  type="number"
+                  density="compact"
+                  variant="underlined"
+                  hide-details
+                  @update:modelValue="recalculateCombine"
+                  class="text-end font-mono"
+                  style="min-width: 60px"
+                />
+                <div v-else class="text-end font-mono pr-2 text-slate-700">
+                  {{ item.panjang_spk || "0" }}
+                </div>
+              </template>
+
+              <!-- Lebar SPK: Editable jika jenis Paperprint (P) atau Sublim (S) -->
+              <template #[`item.lebar_spk`]="{ item }">
+                <v-text-field
+                  v-if="formData.jenis === 'P' || formData.jenis === 'S'"
+                  v-model.number="item.lebar_spk"
+                  type="number"
+                  density="compact"
+                  variant="underlined"
+                  hide-details
+                  @update:modelValue="recalculateCombine"
+                  class="text-end font-mono"
+                  style="min-width: 60px"
+                />
+                <div v-else class="text-end font-mono pr-2 text-slate-700">
+                  {{ item.lebar_spk || "0" }}
+                </div>
+              </template>
+
               <template #[`item.padding`]="{ item }">
                 <v-text-field
                   v-model.number="item.padding"
@@ -863,15 +899,10 @@ const handleBarcodeScan = async () => {
         formData.sku_aktif = coreData.Barcode || code;
         formData.kode_bahan_aktif = coreData.Kode;
 
-        // Lebar bahan diambil dari master
         formData.Lebar_bahan = parseFloat(
           coreData.Lebar || coreData.mst_lebar || 0,
         );
 
-        // =====================================================================
-        // 🔥 JIKA MODE EDIT & PANJANG BAHAN SUDAH TERISI (DARI panjang_roll_awal 7.44)
-        // JANGAN TIMPA DENGAN SISA STOK GUDANG!
-        // =====================================================================
         if (!isEditMode.value || !formData.Panjang_bahan) {
           let panjangMentah = parseFloat(coreData.Sisa_Panjang) || 0;
 
@@ -970,7 +1001,6 @@ const handleSpkSelect = (spk: any) => {
   isSpkLookupVisible.value = false;
 };
 
-// --- LOGIKA LOAD DATA EDIT: AMBIL DATA DARI HISTORI AMBIL BAHAN / DETAIL ---
 const loaddataall = async (nomor: string) => {
   isSaving.value = true;
   try {
@@ -980,7 +1010,6 @@ const loaddataall = async (nomor: string) => {
     if (res && res.header) {
       const h = res.header;
 
-      // 1. Ambil data Header LHK
       formData.nomor = h.lpr_nomor;
       formData.tanggal = h.lpr_tanggal;
       formData.jenis = h.lpr_jenis || "M";
@@ -997,11 +1026,8 @@ const loaddataall = async (nomor: string) => {
       if (Array.isArray(res.details) && res.details.length > 0) {
         const firstDetail = res.details[0];
 
-        // =====================================================================
-        // 🔥 BACA PANJANG BAHAN AWAL DARI "panjang_roll_awal" SESUAI RESPONSE API
-        // =====================================================================
         let pAwalHistori = parseFloat(
-          firstDetail.panjang_roll_awal || // <--- Mengambil "7.44" dari JSON
+          firstDetail.panjang_roll_awal ||
             firstDetail.ld_ambilbahan ||
             firstDetail.lprd_panjang_awal ||
             firstDetail.AmbilBahanPanjang ||
@@ -1017,13 +1043,11 @@ const loaddataall = async (nomor: string) => {
           pAwalHistori = parseFloat((pAwalHistori * 0.9).toFixed(2));
         }
 
-        // Set Nilai Bahan Awal LHK
         formData.Panjang_bahan = pAwalHistori;
         if (lAwalHistori > 0) {
           formData.Lebar_bahan = lAwalHistori;
         }
 
-        // Dibiarkan null agar pemakaian & sisa dihitung ulang secara otomatis oleh sistem
         formData.sisa_panjang_manual = null;
         formData.sisa_lebar_manual = null;
         formData.sku_aktif =
@@ -1033,7 +1057,6 @@ const loaddataall = async (nomor: string) => {
         formData.kode_bahan_aktif =
           firstDetail.Jenis_Bahan || firstDetail.lprd_bahan || "";
 
-        // 2. Petakan seluruh baris SPK Detail
         res.details.forEach((d: any) => {
           const detailObj: any = {
             nomor_spk: d.Nomor_SPK || d.lprd_spk_nomor,
@@ -1113,7 +1136,6 @@ const handleSave = async (statusValue: "DRAFT" | "POSTED" = "DRAFT") => {
   try {
     const currentUser = authStore.user?.kdUser || "SYSTEM";
 
-    // --- LOGIKA SISA BAHAN ---
     let sisaPanjangFinal = sisaStokOtomatis.value;
 
     if (

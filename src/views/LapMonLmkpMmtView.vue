@@ -319,13 +319,35 @@
     <!-- Slot Row Baris Data Utama -->
     <template #row="{ item, formatNumber }">
       <tr class="table-row-item">
-        <!-- Sticky Left Columns (NOMOR SPK dapat diklik untuk Preview) -->
-        <td class="text-center sticky-col-1 font-weight-bold">
+        <td
+          class="text-center sticky-col-1 font-weight-bold d-flex align-center justify-between"
+        >
+          <!-- Tombol Expand khusus Paperprint (2) & Sublim (3) -->
+          <v-btn
+            v-if="
+              ['2', '3'].includes(jenisIndex) &&
+              item.sizes &&
+              item.sizes.length > 0
+            "
+            icon
+            variant="text"
+            size="x-small"
+            class="mr-1"
+            @click.stop="toggleExpand(item.NOMOR)"
+          >
+            <v-icon size="16">
+              {{
+                expanded.includes(item.NOMOR)
+                  ? "mdi-chevron-down"
+                  : "mdi-chevron-right"
+              }}
+            </v-icon>
+          </v-btn>
+
           <span
             v-if="item.NOMOR && item.NOMOR !== '-'"
             class="text-primary cursor-pointer text-decoration-underline"
             @click.stop="handlePreview(item.NOMOR)"
-            title="Klik untuk Preview SPK"
           >
             {{ item.NOMOR }}
           </span>
@@ -397,6 +419,37 @@
           {{ formatNumber(item.krg_Cetak_meter, 2) }}
         </td>
         <td class="text-right">{{ formatNumber(item.krg_coly_meter, 2) }}</td>
+      </tr>
+      <tr
+        v-if="['2', '3'].includes(jenisIndex) && expanded.includes(item.NOMOR)"
+      >
+        <td :colspan="getTotalColumnsCount" class="bg-grey-lighten-4 pa-3">
+          <div class="pa-2 border rounded bg-white">
+            <div class="text-subtitle-2 font-weight-bold text-primary mb-2">
+              Detail Ukuran & Kurang Cetak per Size: {{ item.NOMOR }}
+            </div>
+            <v-table density="compact" class="elevation-0 size-detail-table">
+              <thead>
+                <tr class="bg-blue-lighten-5">
+                  <th class="text-center">Ukuran (Size)</th>
+                  <th class="text-right">Qty Order</th>
+                  <th class="text-right text-error">Kurang Cetak</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="(sz, idx) in item.sizes" :key="idx">
+                  <td class="text-center font-weight-bold">
+                    {{ sz.size_name }}
+                  </td>
+                  <td class="text-right">{{ formatNumber(sz.size_qty, 0) }}</td>
+                  <td class="text-right text-error font-weight-bold">
+                    {{ formatNumber(sz.size_krg_cetak, 0) }}
+                  </td>
+                </tr>
+              </tbody>
+            </v-table>
+          </div>
+        </td>
       </tr>
     </template>
 
@@ -598,6 +651,7 @@ const showPreviewDialog = ref<boolean>(false);
 const previewUrl = ref<string>("");
 const previewSpkNomor = ref<string>("");
 const isIframeLoading = ref<boolean>(true);
+const expanded = ref<string[]>([]); // Menyimpan NOMOR SPK yang sedang dibuka
 
 // --- COLUMN FILTERS & SORTING STATE ---
 const columnFilters = reactive({
@@ -713,36 +767,6 @@ const subPcs = computed(() => {
     { label: "Kirim", key: "spk_jumlah_kirim" },
   ];
 });
-
-// --- SKEMA MESIN DINAMIS BASED ON KATEGORI ---
-// const mesinColumns = computed(() => {
-//   if (jenisIndex.value === "1") {
-//     return [
-//       { label: "MX01", key: "mx01" },
-//       { label: "MX02", key: "mx02" },
-//       { label: "MX03", key: "mx03" },
-//       { label: "MX04", key: "mx04" },
-//       { label: "MX05", key: "mx05" },
-//     ];
-//   }
-//   if (jenisIndex.value === "2") {
-//     return [
-//       { label: "SB01", key: "sb01" },
-//       { label: "SB02", key: "sb02" },
-//       { label: "SB03", key: "sb03" },
-//       { label: "SB04", key: "sb04" },
-//       { label: "SB05", key: "sb05" },
-//     ];
-//   }
-//   return [
-//     { label: "MT01", key: "mt01" },
-//     { label: "MT02", key: "mt02" },
-//     { label: "MT03", key: "mt03" },
-//     { label: "MT04", key: "mt04" },
-//     { label: "MT05", key: "mt05" },
-//     { label: "MI", key: "mi" },
-//   ];
-// });
 
 // --- FETCH REPORT ---
 const fetchReport = async () => {
@@ -958,6 +982,15 @@ const waitingListKerja = computed(() => {
   const output = Number(summary.value.outputPerHari || 0);
   return output <= 0 ? 0 : totals.value.krg_Cetak_meter / output;
 });
+
+const toggleExpand = (nomor: string) => {
+  const index = expanded.value.indexOf(nomor);
+  if (index > -1) {
+    expanded.value.splice(index, 1);
+  } else {
+    expanded.value.push(nomor);
+  }
+};
 
 const outputHariTetap = 2700;
 const waitingListTetap = computed(

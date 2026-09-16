@@ -280,8 +280,10 @@
 
               <tbody>
                 <tr v-for="(item, index) in formData.details" :key="index">
+                  <!-- 1. No -->
                   <td class="text-center">{{ index + 1 }}</td>
 
+                  <!-- 2. PO Internal -->
                   <td class="fw-bold px-1" style="background-color: #fcf8e3">
                     <div class="d-flex align-center">
                       <input
@@ -295,14 +297,17 @@
                     </div>
                   </td>
 
+                  <!-- 3. Size PO -->
                   <td class="text-center bg-grey-lighten-4">
                     {{ item.poi_size || "-" }}
                   </td>
 
+                  <!-- 4. Nomor SPK -->
                   <td class="fw-bold text-blue-darken-4 px-2">
                     {{ item.spk_nomor }}
                   </td>
 
+                  <!-- 5. Nama Pekerjaan -->
                   <td
                     class="px-2 text-truncate"
                     style="max-width: 140px"
@@ -311,6 +316,7 @@
                     {{ item.spk_nama }}
                   </td>
 
+                  <!-- 6. Komponen -->
                   <td
                     class="px-2 text-truncate font-weight-bold"
                     style="max-width: 120px"
@@ -319,11 +325,16 @@
                         ? 'text-teal-darken-3'
                         : 'text-indigo-darken-3'
                     "
-                    :title="item.spk_komponen || 'ALL SET'"
                   >
                     {{ item.spk_komponen || "ALL SET" }}
                   </td>
 
+                  <!-- 7. SIZE (BAGIAN INI YANG SEBELUMNYA TERLEWAT / TERTUKAR) -->
+                  <td class="text-center font-weight-bold bg-grey-lighten-4">
+                    {{ item.Size || item.poid_size || "-" }}
+                  </td>
+
+                  <!-- 8. P (M) -->
                   <td>
                     <input
                       type="number"
@@ -332,6 +343,8 @@
                       @input="recalculateCombine"
                     />
                   </td>
+
+                  <!-- 9. L (M) -->
                   <td>
                     <input
                       type="number"
@@ -340,6 +353,8 @@
                       @input="recalculateCombine"
                     />
                   </td>
+
+                  <!-- 10. Orientasi -->
                   <td>
                     <select
                       v-model="item.orientasi"
@@ -350,6 +365,8 @@
                       <option value="panjang">P. SPK (Diputar)</option>
                     </select>
                   </td>
+
+                  <!-- 11. Pad(M) -->
                   <td class="bg-blue-lighten-5">
                     <input
                       type="text"
@@ -359,28 +376,28 @@
                     />
                   </td>
 
-                  <!-- Order / Target -->
+                  <!-- 12. Order -->
                   <td
                     class="text-right px-2 text-grey-darken-1 font-weight-bold"
                   >
                     {{ item.spk_jmlorder || 0 }}
                   </td>
 
-                  <!-- Sudah / Pernah Cetak -->
+                  <!-- 13. Sdh Ctk -->
                   <td
                     class="text-right px-2 text-blue-darken-1 font-weight-bold"
                   >
                     {{ item.spk_sudah_cetak || 0 }}
                   </td>
 
-                  <!-- Sisa Kurang Cetak -->
+                  <!-- 14. Kurang -->
                   <td
                     class="text-right px-2 text-red-darken-1 font-weight-bold"
                   >
                     {{ item.spk_kurang_cetak || 0 }}
                   </td>
 
-                  <!-- 🌟 INPUT KOLOM TILE (Bisa dipaksa isi lebih dari standar muat) -->
+                  <!-- 15. Tile -->
                   <td class="bg-amber-lighten-5">
                     <input
                       type="number"
@@ -392,7 +409,7 @@
                     />
                   </td>
 
-                  <!-- Kolom Cetak (Default 0) -->
+                  <!-- 16. Cetak -->
                   <td class="bg-yellow-lighten-5">
                     <input
                       type="number"
@@ -403,19 +420,20 @@
                     />
                   </td>
 
-                  <!-- Hasil Fisik (Cetak x Tile) -->
+                  <!-- 17. Hasil Fisik -->
                   <td
                     class="text-center font-weight-bold bg-grey-lighten-4 text-blue-darken-3"
                   >
                     {{ item.jumlah_sublim || 0 }} Pcs
                   </td>
 
-                  <!-- Total Luas Meter -->
+                  <!-- 18. Total M² -->
                   <td class="text-right font-weight-bold px-2 text-deep-purple">
                     {{ (item.spk_jmlmeter || 0).toFixed(2).replace(".", ",") }}
                     M²
                   </td>
 
+                  <!-- 19. Aksi -->
                   <td class="text-center">
                     <v-btn
                       size="x-small"
@@ -1023,15 +1041,18 @@ const autoFillLayout = (isSilent = false) => {
     return;
   }
 
-  const maxLebarBahan = Number(formData.value.Lebar_bahan); // Misal 1.6 M
+  const maxLebarBahan = Number(formData.value.Lebar_bahan); // Batas maksimal lebar roll
   let unitGlobalIdx = 0;
   let maxOverallX = 0;
-  let maxOverallY = 0;
-  let maxLebarTerpakaiAktual = 0;
+  let maxOverallY = 0; // 🌟 Ini akan menampung batas tinggi/lebar vertikal terjauh yang terpakai
+
+  let currentX = 0;
+  let currentY = 0;
+  let maxColumnWidth = 0;
 
   formData.value.details.forEach((spk: any) => {
     const cetakQty = Number(spk.jumlah_sublim) || 0;
-    const tileInput = Number(spk.tile) || 1; // Nilai tile yang dipaksa oleh user (misal 5)
+    const tileInput = Number(spk.tile) || 1;
     if (cetakQty <= 0) return;
 
     const padM = parseFloat(spk.padding) || 0;
@@ -1039,67 +1060,68 @@ const autoFillLayout = (isSilent = false) => {
     const lSpk = parseFloat(spk.spk_lebar) || 0;
 
     const unitW = spk.orientasi === "panjang" ? lSpk : pSpk + padM;
-    const unitH = spk.orientasi === "panjang" ? pSpk : lSpk + padM;
+    const rawUnitH = spk.orientasi === "panjang" ? pSpk : lSpk + padM;
 
-    const effectiveSpacingY =
-      tileInput > 0 ? Math.min(unitH, maxLebarBahan / tileInput) : unitH;
+    const effectiveUnitH =
+      tileInput > 0 && rawUnitH * tileInput > maxLebarBahan
+        ? maxLebarBahan / tileInput
+        : rawUnitH;
 
-    let currentStepX = 0;
-    let currentTileY = 0;
-    let itemsInCurrentColumn = 0;
+    let stackedCountInColumn = 0;
 
     for (let i = 0; i < cetakQty; i++) {
+      if (stackedCountInColumn >= tileInput) {
+        currentX += maxColumnWidth > 0 ? maxColumnWidth : unitW;
+        currentY = 0;
+        stackedCountInColumn = 0;
+        maxColumnWidth = 0;
+      }
+
       if (!manualOffsets[unitGlobalIdx]) {
         manualOffsets[unitGlobalIdx] = {
-          x: currentStepX,
-          y: currentTileY,
+          x: currentX,
+          y: currentY,
           rotation: spk.orientasi === "panjang" ? 90 : 0,
         };
       }
 
-      const edgeRight = manualOffsets[unitGlobalIdx].x + unitW;
-      const edgeBottom = manualOffsets[unitGlobalIdx].y + unitH;
+      const edgeRight = currentX + unitW;
+
+      // 🌟 Hitung total batas bawah yang terpakai pada sumbu Y (lebar)
+      const edgeBottom = currentY + rawUnitH;
 
       if (edgeRight > maxOverallX) maxOverallX = edgeRight;
-      if (edgeBottom > maxOverallY) maxOverallY = maxOverallY;
+      if (edgeBottom > maxOverallY) maxOverallY = edgeBottom;
 
-      const lebarBarisIni = currentTileY + unitH;
-      if (
-        lebarBarisIni > maxLebarTerpakaiAktual &&
-        lebarBarisIni <= maxLebarBahan
-      ) {
-        maxLebarTerpakaiAktual = lebarBarisIni;
+      if (unitW > maxColumnWidth) {
+        maxColumnWidth = unitW;
       }
 
-      itemsInCurrentColumn++;
-
-      // Geser posisi Y ke bawah berdasarkan spacing yang menyesuaikan jumlah paksaan tile,
-      // sehingga jika dipaksa 5 tile, posisinya akan bertumpuk rapat di dalam batas Lebar_bahan.
-      currentTileY += effectiveSpacingY;
-
-      // Jika jumlah item vertikal sudah mencapai tile yang dipaksa user (misal 5),
-      // maka reset posisi Y ke 0 dan geser ke kolom (X) berikutnya.
-      if (itemsInCurrentColumn >= tileInput) {
-        itemsInCurrentColumn = 0;
-        currentTileY = 0;
-        currentStepX += unitW;
-      }
+      currentY += effectiveUnitH;
+      stackedCountInColumn++;
 
       unitGlobalIdx++;
+    }
+
+    if (stackedCountInColumn > 0) {
+      currentX += maxColumnWidth;
+      currentY = 0;
+      stackedCountInColumn = 0;
+      maxColumnWidth = 0;
     }
   });
 
   totalPanjangTerpakai.value = Number(maxOverallX.toFixed(2));
 
+  // 🌟 PERBAIKAN UTAMA: Simpan tinggi vertikal terpakai yang sebenarnya ke totalLebarGabungan
   totalLebarGabungan.value = Number(
-    Math.min(
-      maxLebarTerpakaiAktual > 0 ? maxLebarTerpakaiAktual : maxOverallY,
-      maxLebarBahan,
-    ).toFixed(2),
+    Math.min(maxOverallY, maxLebarBahan).toFixed(2),
   );
 
   if (!isSilent)
-    toast.success("Layout diperbarui: Tile dipaksa bertumpuk sesuai input.");
+    toast.success(
+      "Layout diperbarui: Sisa samping lebar terkalkulasi otomatis.",
+    );
 };
 
 const handleBsInput = (event: any) => {
@@ -1402,7 +1424,6 @@ const handleSpkScan = async () => {
 const handleSpkSelect = (payload: any) => {
   if (!payload) return;
 
-  // 🌟 Ambil array data dari dalam payload emit modal ({ mode: ..., data: [...] })
   const items: any[] = Array.isArray(payload)
     ? payload
     : Array.isArray(payload?.data)
@@ -1421,26 +1442,41 @@ const handleSpkSelect = (payload: any) => {
       itemObj.spk_nomor ||
       itemObj.SPK ||
       itemObj.Spk ||
+      itemObj.poi_spk_nomor ||
       itemObj.Nomor_SPK ||
+      itemObj.No_SPK ||
       itemObj.Id;
 
-    const currentDetails = formData.value.details || [];
     const targetKomponen =
       itemObj.spk_komponen ||
       itemObj.Nama_Komponen ||
       itemObj.nama_komponen ||
       "ALL SET";
 
-    if (
-      targetNomor &&
-      currentDetails.some(
-        (d: any) =>
-          d.spk_nomor === targetNomor &&
-          (d.spk_komponen || "ALL SET") === targetKomponen,
-      )
-    ) {
+    // 🌟 Ambil size dari objek item yang dipilih
+    const targetSize =
+      itemObj.Size ||
+      itemObj.size ||
+      itemObj.poid_size ||
+      itemObj.spks_size ||
+      itemObj.ukuran ||
+      "-";
+
+    const currentDetails = formData.value.details || [];
+
+    // 🌟 VALIDASI GABUNGAN: SPK + Komponen + Size
+    const isDuplicate = currentDetails.some((d: any) => {
+      const dSize = d.Size || d.poid_size || d.poi_size || "-";
+      return (
+        d.spk_nomor === targetNomor &&
+        (d.spk_komponen || "ALL SET") === targetKomponen &&
+        dSize === targetSize
+      );
+    });
+
+    if (targetNomor && isDuplicate) {
       toast.warning(
-        `SPK ${targetNomor} (${targetKomponen}) sudah ada di daftar.`,
+        `SPK ${targetNomor} (${targetKomponen} - Size: ${targetSize}) sudah ada di daftar.`,
       );
       return;
     }
@@ -1490,13 +1526,13 @@ const injectSpkObject = (spk: any, fallbackCode: string = "") => {
     item.bhn_name ||
     "ALL SET";
 
-  // 🌟 AMBIL SIZE DARI BERBAGAI KEMUNGKINAN NAMA PROPERTI DARI MODAL
   const resolvedSize =
-    rawItem.Size ||
-    rawItem.size ||
-    rawItem.poid_size ||
-    rawItem.spks_size ||
-    rawItem.ukuran ||
+    item.Size ||
+    item.size ||
+    item.poid_size ||
+    item.spks_size ||
+    item.ukuran ||
+    item.Ukuran ||
     "-";
 
   const qtyOrderSpk = parseInt(
@@ -1518,6 +1554,7 @@ const injectSpkObject = (spk: any, fallbackCode: string = "") => {
       qtyOrderSpk - sdhCetak,
   );
 
+  // 🌟 PENANGKAPAN PANJANG & LEBAR YANG LEBIH KUAT
   const rawP = parseFloat(
     item.spk_panjang ?? item.Panjang ?? item.panjang ?? item.ldg_panjang ?? 0,
   );
@@ -1527,8 +1564,6 @@ const injectSpkObject = (spk: any, fallbackCode: string = "") => {
 
   const newRow = {
     poi_nomor: item.poi_nomor || item.Poi_Nomor || "",
-
-    // 🌟 PASTIKAN PROPERTI SIZE TERISI DISINI
     poi_size: resolvedSize,
     Size: resolvedSize,
     poid_size: resolvedSize,
@@ -1555,7 +1590,7 @@ const injectSpkObject = (spk: any, fallbackCode: string = "") => {
   formData.value.details.push(newRow);
   recalculateCombine();
   toast.success(
-    `Berhasil menambah SPK ${newRow.spk_nomor} [Size: ${resolvedSize}] (${namaKomponen})`,
+    `Berhasil menambah SPK ${newRow.spk_nomor} [Size: ${resolvedSize}] (P: ${ensureMeter(rawP)}, L: ${ensureMeter(rawL)})`,
   );
 };
 

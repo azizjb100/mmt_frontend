@@ -10,7 +10,8 @@ import GudangLookupModal from "@/modal/GudangLookupView.vue";
 
 // --- Interfaces ---
 interface DetailItem {
-  SKU: string;
+  SKU: string; // Menyimpan Barcode atau Kode Barang sesuai kebutuhan cetak
+  KodeBarang: string; // Kolom Kode Barang terpisah
   NamaBarang: string;
   Satuan: string;
   Panjang: number;
@@ -67,7 +68,11 @@ const bahanModalMode = computed(() => {
   const kode = header.GudangKode?.toUpperCase();
   const nama = header.GudangNama?.toLowerCase() || "";
 
-  // Tambahkan pengecekan spesifik untuk WH-20
+  // Jika Sisa Produksi (300) di Gudang GPM
+  if (header.TypeKor === 300 && kode === "GPM") {
+    return "produksi"; // Pastikan backend lookup menangani mode 'produksi' ini
+  }
+
   if (kode === "WH-20" || nama.includes("tinta") || nama.includes("obat")) {
     return "obat";
   }
@@ -76,7 +81,7 @@ const bahanModalMode = computed(() => {
     return "produksi";
   }
 
-  return "mmt"; // Default kembali ke WH-16
+  return "mmt";
 });
 
 // --- Table Headers ---
@@ -173,24 +178,28 @@ const searchBarang = (index: number) => {
 
 const handleBahanSelect = (bahan: any) => {
   if (currentDetailIndex.value !== null) {
-    const skuBaru = bahan.Kode || bahan.sku;
+    // Tentukan unik identifier (utamakan Barcode jika ada, jika tidak pakai Kode)
+    const identifier =
+      bahan.Barcode && bahan.Barcode !== "-" ? bahan.Barcode : bahan.Kode;
+
     const isDuplicate = details.value.some(
-      (d, i) => d.SKU === skuBaru && i !== currentDetailIndex.value,
+      (d, i) => d.SKU === identifier && i !== currentDetailIndex.value,
     );
 
     if (isDuplicate) {
-      alert(`Bahan ${skuBaru} sudah ada di daftar.`);
+      alert(`Barang dengan Barcode/Kode ${identifier} sudah ada di daftar.`);
       return;
     }
 
     const item = details.value[currentDetailIndex.value];
-    item.SKU = skuBaru;
+    item.SKU = identifier; // Digunakan untuk cetak QR/Barcode
+    item.KodeBarang = bahan.Kode; // Menyimpan kode barang asli
     item.NamaBarang = bahan.Nama || bahan.namaBarang;
     item.Satuan = bahan.Satuan || bahan.satuan;
     item.Panjang = Number(bahan.Panjang) || 0;
     item.Lebar = Number(bahan.Lebar) || 0;
-    item.System = bahan.Stok || 0;
-    item.Harga = bahan.HRGBELI || bahan.Harga || 0;
+    item.System = Number(bahan.Stok) || 0;
+    item.Harga = Number(bahan.HRGBELI || bahan.Harga || 0);
     item.Fisik = 0;
 
     calculateRow(currentDetailIndex.value);

@@ -234,34 +234,106 @@ const poData = ref<any>({});
 const poAlokasi = ref<any[]>([]);
 const resolvedImageUrl = ref("");
 const isLoadingImage = ref(false);
+const kaosanExtIndex = ref(0);
 
 const getBaseUrl = () => {
   const rawBase = api.defaults.baseURL || import.meta.env.VITE_API_URL || "";
   return rawBase.replace(/\/api\/?$/, "");
 };
 
+const tryKaosanExt = (cabang: string, invdc: string, extIdx: number) => {
+  const base = getBaseUrl();
+  const extensions = [".jpg", ".png", ".jpeg", ".webp"];
+  if (extIdx >= extensions.length) {
+    isLoadingImage.value = false;
+    return;
+  }
+  const ext = extensions[extIdx];
+  const url = `${base}/images/${cabang}/kaosan/${encodeURIComponent(invdc)}${ext}`;
+  const img = new Image();
+  img.onload = () => {
+    resolvedImageUrl.value = url;
+    isLoadingImage.value = false;
+  };
+  img.onerror = () => {
+    tryKaosanExt(cabang, invdc, extIdx + 1);
+  };
+  img.src = url;
+};
+
 const resolveDesignImage = () => {
-  if (!poData.value.poe_nomor && !poData.value.poe_spk_nomor) {
+  // Menggunakan poe_spk_nomor sebagai acuan nomor SPK
+  const spkNomor = poData.value.poe_spk_nomor || "";
+  if (!spkNomor && !poData.value.poe_nomor) {
     resolvedImageUrl.value = "";
+    return;
+  }
+
+  const isKaosan = Boolean(poData.value.is_kaosan);
+  const isNewFormatSO = Boolean(poData.value.is_new_format_so);
+  const invdc = poData.value.spk_invdc || "";
+
+  if (isKaosan && isNewFormatSO && invdc) {
+    kaosanExtIndex.value = 0;
+    const cab = poData.value.poe_cab || "HO-";
+    const cabangKaosan = invdc.includes(".") ? invdc.split(".")[0] : cab;
+    isLoadingImage.value = true;
+    tryKaosanExt(cabangKaosan, invdc, 0);
     return;
   }
 
   const base = getBaseUrl();
   const cab = poData.value.poe_cab || "HO-";
-  const spkRef = poData.value.poe_spk_nomor || "";
-  const soRef = spkRef.startsWith("SPK-")
-    ? spkRef.replace("SPK-", "SO-")
-    : `SO-${spkRef}`;
-  const nomorPoVal = poData.value.poe_nomor || "";
+  const nomor = spkNomor || poData.value.poe_nomor;
+  const soRef =
+    poData.value.spk_so_ref ||
+    (spkNomor.startsWith("SPK-")
+      ? spkNomor.replace("SPK-", "SO-")
+      : `SO-${spkNomor}`);
 
-  const candidates: string[] = [
-    `${base}/images/${cab}/${encodeURIComponent(soRef)}.jpg`,
-    `/file-gambar/${encodeURIComponent(soRef)}.jpg`,
-    `${base}/images/${cab}/${encodeURIComponent(spkRef)}.jpg`,
-    `/file-gambar/${encodeURIComponent(spkRef)}.jpg`,
-    `${base}/images/${cab}/${encodeURIComponent(nomorPoVal)}.jpg`,
-    `/file-gambar/${encodeURIComponent(nomorPoVal)}.jpg`,
+  // Mengambil spk_memo dari tabel tspk yang dikirim via getPoExternalById
+  const mapNomor = poData.value.spk_memo || "";
+
+  const fallbackSoNomor = nomor.startsWith("SPK-")
+    ? nomor.replace("SPK-", "SO-")
+    : nomor.startsWith("SO-")
+      ? nomor
+      : `SO-${nomor}`;
+
+  const isLegacyFormat = !nomor.startsWith("SPK-");
+  const candidates: string[] = [];
+
+  const mapCandidates = mapNomor
+    ? [
+        `${base}/images/${cab}/map/${encodeURIComponent(mapNomor)}.jpg`,
+        `/file-gambar/map/${encodeURIComponent(mapNomor)}.jpg`,
+        `${base}/images/${cab}/${encodeURIComponent(mapNomor)}.jpg`,
+        `/file-gambar/${encodeURIComponent(mapNomor)}.jpg`,
+      ]
+    : [];
+
+  const ownCandidates = [
+    `${base}/images/${cab}/${encodeURIComponent(nomor)}.jpg`,
+    `/file-gambar/${encodeURIComponent(nomor)}.jpg`,
   ];
+
+  if (isLegacyFormat) {
+    candidates.push(...ownCandidates, ...mapCandidates);
+  } else {
+    candidates.push(...mapCandidates, ...ownCandidates);
+  }
+
+  if (soRef && soRef !== nomor) {
+    candidates.push(`${base}/images/${cab}/${encodeURIComponent(soRef)}.jpg`);
+    candidates.push(`/file-gambar/${encodeURIComponent(soRef)}.jpg`);
+  }
+
+  if (fallbackSoNomor !== nomor && fallbackSoNomor !== soRef) {
+    candidates.push(
+      `${base}/images/${cab}/${encodeURIComponent(fallbackSoNomor)}.jpg`,
+    );
+    candidates.push(`/file-gambar/${encodeURIComponent(fallbackSoNomor)}.jpg`);
+  }
 
   isLoadingImage.value = true;
   resolvedImageUrl.value = "";

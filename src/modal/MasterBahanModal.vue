@@ -2,7 +2,7 @@
   <v-dialog
     :model-value="isVisible"
     @update:modelValue="emit('close')"
-    max-width="950px"
+    max-width="1050px"
     persistent
   >
     <v-card class="dialog-card d-flex flex-column" style="height: 85vh">
@@ -45,23 +45,25 @@
           :items-per-page="15"
           @dblclick:row="handleDoubleClick"
         >
+          <!-- Kolom Kode Barang -->
           <template #item.Kode="{ item }">
-            <span
-              :class="item.Aktif === 'N' ? 'text-error font-weight-bold' : ''"
-            >
-              {{ item.Kode }}
-            </span>
+            <span class="font-weight-medium">{{ item.Kode }}</span>
+          </template>
+
+          <!-- Kolom Barcode Terpisah -->
+          <template #item.Barcode="{ item }">
+            <span class="font-weight-bold text-indigo">{{
+              item.Barcode || "-"
+            }}</span>
           </template>
 
           <template #item.Nama="{ item }">
-            <span :class="item.Aktif === 'N' ? 'text-error' : ''">
-              {{ item.Nama }}
-            </span>
+            <span>{{ item.Nama }}</span>
           </template>
 
           <template #item.Stok="{ item }">
             <v-chip
-              :color="item.Stok && item.Stok > 0 ? 'success' : 'error'"
+              :color="item.Stok && item.Stok > 0 ? 'success' : 'grey-darken-1'"
               size="x-small"
               label
               variant="flat"
@@ -85,14 +87,8 @@
           <template #no-data>
             <div class="text-center pa-10">
               <v-icon size="large" color="grey">mdi-database-off</v-icon>
-              <div class="text-grey mt-2">
-                Data tidak ditemukan atau gudang belum dipilih.
-              </div>
+              <div class="text-grey mt-2">Data tidak ditemukan.</div>
             </div>
-          </template>
-
-          <template #loading>
-            <v-skeleton-loader type="table-row-divider@5"></v-skeleton-loader>
           </template>
         </v-data-table>
       </v-card-text>
@@ -118,27 +114,21 @@ import { AxiosError } from "axios";
 import api from "@/services/api";
 import { useToast } from "vue-toastification";
 
-// --- Interfaces ---
 interface MasterBahan {
   Kode: string;
+  Barcode: string;
   Nama: string;
   Satuan: string;
   Panjang: number;
   Lebar: number;
   brg_satuan_harga: string;
   Stok?: number;
-  Aktif?: string; // Untuk indikator obat (Y/N)
+  Aktif?: string;
 }
 
-interface ApiResponse {
-  success: boolean;
-  data: MasterBahan[];
-}
-
-// --- Props & Emits ---
 const props = defineProps<{
   isVisible: boolean;
-  mode: "mmt" | "produksi" | "obat"; // <── Tambah mode obat
+  mode: "mmt" | "produksi" | "obat";
 }>();
 
 const emit = defineEmits<{
@@ -148,32 +138,24 @@ const emit = defineEmits<{
 
 const toast = useToast();
 
-// --- Computed State ---
 const titleText = computed(() => {
   switch (props.mode) {
     case "produksi":
       return "Pencarian Sisa Produksi (GUDANG GPM)";
     case "obat":
-      return "Pencarian Master Tinta / Obat (TABLE TOBAT)";
+      return "Pencarian Master Tinta / Obat";
     default:
-      return "Pencarian Master Bahan MMT (WH-16)";
+      return "Pencarian Master Bahan MMT";
   }
 });
 
-const searchLabel = computed(() => {
-  return props.mode === "obat"
-    ? "Cari Nama Tinta atau Kode Obat..."
-    : "Cari Kode atau Nama Bahan...";
-});
+const searchLabel = computed(
+  () => "Cari Berdasarkan Kode, Barcode, atau Nama Barang...",
+);
 
-// Mapping API URL sesuai struktur index.js Express Anda
 const API_URL = computed(() => {
-  // Debug: Cek apakah mode yang diterima sudah benar "obat" saat pilih WH-20
-  console.log("Mode Modal Aktif:", props.mode);
-
   switch (props.mode) {
     case "obat":
-      // Sesuaikan dengan route di index.js Anda: app.use("/api/mmt/master-obat", ...)
       return "/master/bahan/obat";
     case "produksi":
       return "/master/bahan/mmt/produksi";
@@ -182,72 +164,58 @@ const API_URL = computed(() => {
   }
 });
 
-// --- Data State ---
 const listData = ref<MasterBahan[]>([]);
 const searchKeyword = ref("");
 const loading = ref(false);
 
 const headers = [
-  { title: "Kode", key: "Kode", width: "130px", sortable: true },
+  { title: "Kode Barang", key: "Kode", width: "130px", sortable: true },
+  { title: "Barcode", key: "Barcode", width: "140px", sortable: true },
   {
     title: "Nama Barang / Bahan",
     key: "Nama",
-    minWidth: "250px",
+    minWidth: "220px",
     sortable: true,
   },
   { title: "Satuan", key: "Satuan", width: "90px" },
   { title: "P (m)", key: "Panjang", width: "80px", align: "end" as const },
   { title: "L (m)", key: "Lebar", width: "80px", align: "end" as const },
-  { title: "Stok", key: "Stok", width: "100px", align: "end" as const },
+  { title: "Stok", key: "Stok", width: "90px", align: "end" as const },
   {
     title: "Aksi",
     key: "actions",
-    width: "100px",
+    width: "90px",
     sortable: false,
     align: "center" as const,
   },
 ];
 
-// --- Methods ---
 const fetchBahanData = async () => {
   if (!props.isVisible) return;
   loading.value = true;
 
   try {
     const response = await api.get<any>(API_URL.value, {
-      params: {
-        q: searchKeyword.value,
-        keyword: searchKeyword.value,
-      },
+      params: { q: searchKeyword.value, keyword: searchKeyword.value },
     });
 
     const rawData = response.data.data || response.data || [];
 
-    listData.value = rawData.map((item: any) => {
-      // 1. Tentukan sumber data satuan harga dari API (cek semua kemungkinan field)
-      const rawSatuanHarga = item.brg_satuan_harga || item.SatuanHarga || null;
-
-      return {
-        ...item,
-        Kode: item.Kode || item.brg_kode || item.o_kode || item.sku,
-        Nama: item.Nama || item.brg_nama || item.o_nama || item.namaBarang,
-        Satuan: item.Satuan || item.brg_satuan || item.o_satuan || "-",
-        Panjang: Number(item.Panjang || item.brg_panjang || 0),
-        Lebar: Number(item.Lebar || item.brg_lebar || 0),
-        Stok: Number(item.Stok || item.brg_stok || 0),
-        Aktif: item.Aktif || item.o_aktif || item.brg_isaktif || "Y",
-
-        // 2. Gunakan rawSatuanHarga yang sudah didefinisikan di atas
-        brg_satuan_harga: rawSatuanHarga
-          ? rawSatuanHarga.toString().toLowerCase().trim()
-          : "roll",
-      };
-    });
+    listData.value = rawData.map((item: any) => ({
+      ...item,
+      Kode: item.Kode || item.brg_kode || item.sku || "",
+      Barcode: item.Barcode || item.mst_barcode || "-",
+      Nama: item.Nama || item.brg_nama || item.namaBarang || "",
+      Satuan: item.Satuan || item.brg_satuan || "-",
+      Panjang: Number(item.Panjang || item.brg_panjang || 0),
+      Lebar: Number(item.Lebar || item.brg_lebar || 0),
+      Stok: Number(item.Stok || item.brg_stok || 0),
+    }));
   } catch (error) {
     const err = error as AxiosError;
-    const msg =
-      (err.response?.data as any)?.message || "Gagal mengambil data master.";
-    toast.error(msg);
+    toast.error(
+      (err.response?.data as any)?.message || "Gagal mengambil data master.",
+    );
     listData.value = [];
   } finally {
     loading.value = false;
@@ -256,12 +224,6 @@ const fetchBahanData = async () => {
 
 const selectBahan = (bahan: MasterBahan) => {
   if (!bahan.Kode) return toast.error("Data tidak valid.");
-
-  // Jika obat non-aktif, beri peringatan tapi tetap izinkan atau blokir sesuai kebutuhan bisnis
-  if (bahan.Aktif === "N") {
-    if (!confirm("Bahan ini berstatus NON-AKTIF. Tetap pilih?")) return;
-  }
-
   emit("select", bahan);
   emit("close");
 };
@@ -273,7 +235,6 @@ const handleDoubleClick = (
   selectBahan(item);
 };
 
-// --- Watchers ---
 watch(
   () => props.isVisible,
   (newVal) => {
@@ -294,7 +255,6 @@ watch(
 .desktop-table {
   font-size: 12px;
 }
-/* Styling Row & Header Vuetify 3 */
 .desktop-table :deep(td) {
   padding: 0 12px !important;
   height: 40px !important;
@@ -306,19 +266,9 @@ watch(
   color: #333 !important;
   text-transform: uppercase;
   font-size: 11px;
-  letter-spacing: 0.5px;
 }
-
 .clickable-row :deep(tbody tr):hover {
   cursor: pointer !important;
   background-color: #f1f5f9 !important;
-}
-
-.clickable-row :deep(tbody tr):active {
-  background-color: #e2e8f0 !important;
-}
-
-.text-error {
-  color: #d32f2f !important;
 }
 </style>
