@@ -83,6 +83,7 @@
             :loading="loadingDetails.has(item.nomor)"
             density="compact"
             hide-default-footer
+            :items-per-page="-1"
             class="custom-table"
           >
             <template #item.Ukuran="{ item: detailItem }">
