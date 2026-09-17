@@ -33,6 +33,8 @@ interface PermintaanBahanHeader {
   Status_PO?: string;
   Status_Diterima?: string;
   Status_Acc?: string;
+  Acc_SPV?: string; // Tambahkan ini
+  pp_acc_req_user?: string; // Tambahkan ini sesuai kolom database Anda
   Detail?: PermintaanBahanDetail[];
 }
 
@@ -509,14 +511,24 @@ watch([startDate, endDate], fetchData);
       </v-chip>
     </template>
 
-    <template #item.Status_Acc="{ value }">
+    <template #item.Status_Acc="{ item }">
       <v-chip
-        :color="getStatusColor(value)"
+        :color="
+          item.pp_acc_req_user || item.Acc_SPV
+            ? 'success'
+            : getStatusColor(item.Status_Acc)
+        "
         size="x-small"
         label
         class="font-weight-bold"
       >
-        {{ value }}
+        <!-- Mengambil dari pp_acc_req_user atau Acc_SPV, jika ada tampilkan ACC + Nama User, jika tidak tampilkan Status_Acc biasa -->
+        {{
+          item.pp_acc_req_user || item.Acc_SPV
+            ? "ACC " +
+              String(item.pp_acc_req_user || item.Acc_SPV).toUpperCase()
+            : item.Status_Acc || "-"
+        }}
       </v-chip>
     </template>
 

@@ -1,348 +1,365 @@
 <template>
-  <v-dialog
-    :model-value="isVisible"
-    @update:modelValue="emit('close')"
-    max-width="1400px"
-    width="95vw"
-    persistent
-  >
-    <v-card>
-      <v-toolbar color="primary" density="compact">
-        <v-toolbar-title class="text-subtitle-1">
-          🔍 Pilih LHK Sublim (Lookup)
-        </v-toolbar-title>
-        <v-spacer></v-spacer>
-        <v-btn
-          v-if="selectedItems.length > 0"
-          color="white"
-          variant="elevated"
-          size="small"
-          class="text-primary mr-2 font-weight-bold"
-          @click="submitSelection"
-        >
-          Ambil ({{ selectedItems.length }})
-        </v-btn>
-        <v-btn icon="mdi-close" @click="emit('close')" variant="text"></v-btn>
-      </v-toolbar>
+  <div>
+    <!-- Dialog Utama Lookup LHK Sublim -->
+    <v-dialog
+      :model-value="isVisible"
+      @update:modelValue="emit('close')"
+      max-width="1200px"
+      persistent
+    >
+      <v-card class="dialog-card d-flex flex-column" style="height: 85vh">
+        <!-- Header Toolbar -->
+        <v-toolbar color="indigo-darken-2" density="compact">
+          <v-toolbar-title class="text-subtitle-1 font-weight-bold">
+            🔥 Pilih LHK Sublim & Detail Realisasi Bahan
+          </v-toolbar-title>
+          <v-spacer></v-spacer>
+          <v-btn
+            icon="mdi-close"
+            @click="emit('close')"
+            variant="text"
+            size="small"
+          ></v-btn>
+        </v-toolbar>
 
-      <v-card-text class="pa-4">
-        <v-row dense class="mb-2 align-center">
-          <v-col cols="12" md="5">
-            <v-text-field
-              v-model="filters.startDate"
-              label="Mulai Tanggal"
-              type="date"
-              density="compact"
-              variant="outlined"
-              hide-details
-            ></v-text-field>
-          </v-col>
+        <!-- Body Content -->
+        <v-card-text class="pa-4 d-flex flex-column flex-grow-1">
+          <!-- Filter Tanggal & Pencarian -->
+          <v-row class="mb-3 flex-shrink-0" dense>
+            <v-col cols="3">
+              <v-text-field
+                v-model="startDate"
+                type="date"
+                label="Mulai Tanggal"
+                density="compact"
+                variant="outlined"
+                hide-details
+              />
+            </v-col>
+            <v-col cols="3">
+              <v-text-field
+                v-model="endDate"
+                type="date"
+                label="Sampai Tanggal"
+                density="compact"
+                variant="outlined"
+                hide-details
+              />
+            </v-col>
+            <v-col cols="4">
+              <v-text-field
+                v-model="searchKeyword"
+                label="Cari Nomor LHK / Gudang..."
+                prepend-inner-icon="mdi-magnify"
+                variant="outlined"
+                density="compact"
+                clearable
+                hide-details
+                @keyup.enter="fetchLhkHeaders"
+              />
+            </v-col>
+            <v-col cols="2">
+              <v-btn
+                color="indigo-darken-2"
+                block
+                height="40"
+                @click="fetchLhkHeaders"
+                :loading="loading"
+              >
+                Cari
+              </v-btn>
+            </v-col>
+          </v-row>
 
-          <v-col cols="12" md="5">
-            <v-text-field
-              v-model="filters.endDate"
-              label="Sampai Tanggal"
-              type="date"
-              density="compact"
-              variant="outlined"
-              hide-details
-            ></v-text-field>
-          </v-col>
+          <!-- Tabel Utama Header LHK dengan Expand & Checkbox -->
+          <v-data-table
+            :headers="headerColumns"
+            :items="lhkList"
+            :loading="loading"
+            item-value="nomor"
+            show-select
+            v-model="selectedHeaders"
+            density="compact"
+            class="desktop-table flex-grow-1"
+            fixed-header
+            show-expand
+            return-object
+          >
+            <!-- Kolom Total Meter -->
+            <template #[`item.total_meter`]="{ item }">
+              <span class="font-weight-bold text-teal-darken-3">
+                {{
+                  item.total_meter
+                    ? Number(item.total_meter).toFixed(2) + " m²"
+                    : "-"
+                }}
+              </span>
+            </template>
 
-          <v-col cols="12" md="2">
+            <!-- Kolom Status Mutasi -->
+            <template #[`item.lsb_status`]="{ item }">
+              <v-chip
+                size="x-small"
+                :color="
+                  item.lsb_status === 'close'
+                    ? 'error'
+                    : item.lsb_status === 'progress'
+                      ? 'warning'
+                      : 'success'
+                "
+                variant="flat"
+                class="font-weight-bold text-uppercase"
+              >
+                {{ item.lsb_status || "open" }}
+              </v-chip>
+            </template>
+
+            <!-- Template Expanded Row untuk Detail Item LHK (Dengan Checkbox per Baris) -->
+            <template #expanded-row="{ columns, item }">
+              <tr>
+                <td :colspan="columns.length" class="bg-grey-lighten-4 pa-3">
+                  <v-card flat border>
+                    <v-data-table
+                      :headers="detailColumns"
+                      :items="item.details || []"
+                      density="compact"
+                      hide-default-footer
+                      show-select
+                      v-model="item.selectedDetails"
+                      item-value="No_Urut"
+                      return-object
+                    >
+                      <template #[`item.Nomor_SPK`]="{ item: dItem }">
+                        <span class="font-weight-bold color-spk">{{
+                          dItem.Nomor_SPK
+                        }}</span>
+                      </template>
+                      <template #[`item.Jumlah_meter`]="{ item: dItem }">
+                        <span>{{
+                          dItem.Jumlah_meter
+                            ? Number(dItem.Jumlah_meter).toFixed(2) + " m²"
+                            : "-"
+                        }}</span>
+                      </template>
+                      <template #[`item.Sisa_Belum_Mutasi`]="{ item: dItem }">
+                        <span class="font-weight-bold text-teal-darken-3">{{
+                          dItem.Sisa_Belum_Mutasi
+                        }}</span>
+                      </template>
+                    </v-data-table>
+                  </v-card>
+                </td>
+              </tr>
+            </template>
+
+            <template #no-data>
+              <div class="text-center pa-4">
+                Tidak ada data LHK Sublim ditemukan.
+              </div>
+            </template>
+          </v-data-table>
+        </v-card-text>
+
+        <!-- Footer Actions -->
+        <v-card-actions class="d-flex justify-space-between border-top pa-3">
+          <div class="text-caption font-weight-bold text-grey-darken-2">
+            Tip: Klik ikon panah pada baris LHK, lalu centang baris detail
+            tertentu yang ingin diambil.
+          </div>
+          <div>
             <v-btn
-              color="primary"
-              block
-              @click="fetchLhkData"
-              :loading="loading"
-              prepend-icon="mdi-magnify"
+              @click="emit('close')"
+              color="secondary"
+              variant="outlined"
+              size="small"
+              class="mr-2"
+              >Batal</v-btn
             >
-              Cari
+            <v-btn
+              @click="confirmSelection"
+              color="indigo-darken-3"
+              variant="flat"
+              size="small"
+            >
+              Ambil Item Terpilih
             </v-btn>
-          </v-col>
-        </v-row>
-
-        <v-divider class="mb-4"></v-divider>
-
-        <v-data-table
-          v-model="selectedItems"
-          v-model:expanded="expanded"
-          :headers="headers"
-          :items="lhkList"
-          :loading="loading"
-          item-value="nomor"
-          show-expand
-          show-select
-          density="compact"
-          hover
-          fixed-header
-          height="450px"
-          class="custom-table"
-        >
-          <template v-slot:expanded-row="{ columns, item }">
-            <tr>
-              <td :colspan="columns.length" class="bg-grey-lighten-5 pa-0">
-                <v-expand-transition>
-                  <div v-if="expanded.includes(item.nomor)">
-                    <v-linear-progress
-                      v-if="!lhkDetailsCache[item.nomor]"
-                      indeterminate
-                      color="primary"
-                    ></v-linear-progress>
-
-                    <v-card v-else variant="flat" class="ma-3 border">
-                      <v-table
-                        density="compact"
-                        class="bg-transparent detail-table"
-                      >
-                        <thead>
-                          <tr class="bg-grey-lighten-3">
-                            <th>No. Urut</th>
-                            <th>Nomor SPK</th>
-                            <th>Nama SPK</th>
-                            <th>Bahan</th>
-                            <th>Lokasi</th>
-                            <th class="text-right">P (cm)</th>
-                            <th class="text-right">L (cm)</th>
-                            <th class="text-right">J. Order</th>
-                            <th class="text-right">Jumlah</th>
-                            <th class="text-right">Total Meter</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          <tr
-                            v-for="detail in lhkDetailsCache[item.nomor]"
-                            :key="detail.No_Urut"
-                          >
-                            <td>{{ detail.No_Urut }}</td>
-                            <td class="font-weight-bold text-primary">
-                              {{ truncateString(detail.Nomor_SPK, 15) }}
-                            </td>
-                            <td>
-                              {{ truncateString(detail.Nama_SPK || "-", 40) }}
-                            </td>
-                            <td>{{ detail.Jenis_Bahan || "-" }}</td>
-                            <td>{{ detail.Lokasi || "-" }}</td>
-                            <td class="text-right">{{ detail.Panjang }}</td>
-                            <td class="text-right">{{ detail.Lebar }}</td>
-                            <td class="text-right">{{ detail.J_Order }}</td>
-                            <td class="text-right font-weight-bold">
-                              {{ detail.Jumlah }}
-                            </td>
-                            <td
-                              class="text-right font-weight-bold text-blue-darken-2"
-                            >
-                              {{ Number(detail.Jumlah_meter).toFixed(2) }} m²
-                            </td>
-                          </tr>
-                        </tbody>
-                      </v-table>
-                    </v-card>
-                  </div>
-                </v-expand-transition>
-              </td>
-            </tr>
-          </template>
-
-          <template #[`item.nomor`]="{ item }">
-            <span class="font-weight-bold text-primary">{{ item.nomor }}</span>
-          </template>
-
-          <template #[`item.total_meter`]="{ item }">
-            <v-chip
-              size="x-small"
-              color="blue-darken-1"
-              label
-              class="font-weight-bold"
-            >
-              {{ Number(item.total_meter).toFixed(2) }} m²
-            </v-chip>
-          </template>
-        </v-data-table>
-      </v-card-text>
-
-      <v-divider></v-divider>
-      <v-card-actions class="pa-4">
-        <span class="text-caption text-grey"
-          >Terpilih: {{ selectedItems.length }} item</span
-        >
-        <v-spacer></v-spacer>
-        <v-btn
-          color="error"
-          variant="text"
-          size="small"
-          @click="selectedItems = []"
-          >Batal</v-btn
-        >
-        <v-btn
-          color="primary"
-          variant="elevated"
-          size="small"
-          @click="submitSelection"
-          :disabled="selectedItems.length === 0"
-          >Ambil LHK</v-btn
-        >
-      </v-card-actions>
-    </v-card>
-  </v-dialog>
+          </div>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+  </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, watch } from "vue";
+import { ref, watch } from "vue";
 import api from "@/services/api";
-import { format, subDays } from "date-fns";
 import { useToast } from "vue-toastification";
+import { format } from "date-fns";
 
 const props = defineProps<{ isVisible: boolean }>();
 const emit = defineEmits(["close", "select"]);
 const toast = useToast();
 
 const loading = ref(false);
+const startDate = ref(format(new Date(), "yyyy-MM-01"));
+const endDate = ref(format(new Date(), "yyyy-MM-dd"));
+const searchKeyword = ref("");
+
 const lhkList = ref<any[]>([]);
-const selectedItems = ref<string[]>([]); // Menyimpan array string `nomor` (LHK) dari checkbox
-const expanded = ref<string[]>([]);
-const lhkDetailsCache = reactive<Record<string, any[]>>({});
+const selectedHeaders = ref<any[]>([]);
 
-// Filter diatur seminggu ke belakang sebagai default pencarian awal
-const filters = reactive({
-  startDate: format(subDays(new Date(), 7), "yyyy-MM-dd"),
-  endDate: format(new Date(), "yyyy-MM-dd"),
-});
-
-const headers = [
-  { title: "", key: "data-table-expand", width: "40px" },
+const headerColumns = [
   { title: "Nomor LHK", key: "nomor", width: "180px" },
-  { title: "Tanggal", key: "Tanggal", width: "130px" },
-  { title: "Kode Gdg", key: "Gudang", width: "100px" },
-  { title: "Nama Gudang", key: "Nama_Gudang", width: "250px" },
+  { title: "Tanggal", key: "Tanggal", width: "110px" },
+  { title: "Kode Gdg", key: "Gudang", width: "90px" },
+  { title: "Nama Gudang", key: "Nama_Gudang", width: "200px" },
   {
     title: "Total Luas Meter",
     key: "total_meter",
-    align: "end",
-    width: "150px",
+    width: "130px",
+    align: "end" as const,
+  },
+  {
+    title: "Status Mutasi",
+    key: "lsb_status",
+    width: "110px",
+    align: "center" as const,
   },
 ];
 
-const truncateString = (str: string, num: number) => {
-  if (str?.length > num) return str.slice(0, num) + "...";
-  return str;
-};
+const detailColumns = [
+  {
+    title: "No. Urut",
+    key: "No_Urut",
+    width: "70px",
+    align: "center" as const,
+  },
+  { title: "Nomor SPK", key: "Nomor_SPK", width: "150px" },
+  { title: "Nama SPK", key: "Nama_SPK", width: "200px" },
+  { title: "Bahan", key: "Jenis_Bahan", width: "130px" },
+  { title: "Lokasi", key: "Lokasi", width: "80px" },
+  { title: "P (cm)", key: "Panjang", width: "80px", align: "end" as const },
+  { title: "L (cm)", key: "Lebar", width: "80px", align: "end" as const },
+  { title: "J. Order", key: "J_Order", width: "80px", align: "end" as const },
+  { title: "Jumlah", key: "Jumlah", width: "80px", align: "end" as const },
+  {
+    title: "Sisa Mutasi",
+    key: "Sisa_Belum_Mutasi",
+    width: "100px",
+    align: "end" as const,
+  },
+  {
+    title: "Total Meter",
+    key: "Jumlah_meter",
+    width: "110px",
+    align: "end" as const,
+  },
+];
 
-// Mengambil detail berdasarkan field `nomor` (ls_nomor)
-const loadDetail = async (nomor: string): Promise<any[]> => {
-  // Jika sudah ada di cache, langsung kembalikan datanya
-  if (lhkDetailsCache[nomor]) return lhkDetailsCache[nomor];
-
-  try {
-    const response = await api.get("/mmt/lhk-sublim/lookup/details", {
-      params: { nomor },
-    });
-    // Menangkap schema array dari backend response (.details atau .data)
-    const dataDetail =
-      response.data.details || response.data.data || response.data || [];
-    lhkDetailsCache[nomor] = dataDetail;
-    return dataDetail;
-  } catch (error) {
-    toast.error(`Gagal mengambil detail untuk LHK ${nomor}`);
-    return [];
-  }
-};
-
-watch(expanded, (newVal) => {
-  if (newVal.length > 0) {
-    loadDetail(newVal[newVal.length - 1]);
-  }
-});
-
-// Ambil data header dengan filter range tanggal
-const fetchLhkData = async () => {
+const fetchLhkHeaders = async () => {
   loading.value = true;
-  selectedItems.value = [];
-
   try {
-    const response = await api.get("/mmt/lhk-sublim/lookup", {
+    const res = await api.get("/mmt/lhk-sublim/lookup", {
       params: {
-        startDate: filters.startDate,
-        endDate: filters.endDate,
+        startDate: startDate.value,
+        endDate: endDate.value,
+        keyword: searchKeyword.value,
       },
     });
 
-    lhkList.value = response.data.data || response.data || [];
+    const rawHeaders = res.data.data || [];
+
+    const dataWithDetails = await Promise.all(
+      rawHeaders.map(async (hdr: any) => {
+        try {
+          const detailRes = await api.get(
+            `/mmt/lhk-sublim/detail/${hdr.nomor}`,
+          );
+          return {
+            ...hdr,
+            details: detailRes.data.data || [],
+            selectedDetails: [], // Menyimpan item detail yang dicentang per baris LHK
+          };
+        } catch {
+          return { ...hdr, details: [], selectedDetails: [] };
+        }
+      }),
+    );
+
+    lhkList.value = dataWithDetails;
   } catch (error) {
-    console.error("Fetch Error:", error);
-    toast.error("Gagal memuat master LHK Sublim");
+    console.error("Fetch LHK Headers Error:", error);
+    toast.error("Gagal memuat data LHK Sublim.");
+    lhkList.value = [];
   } finally {
     loading.value = false;
   }
 };
 
-// Memproses pengambilan item terpilih dan melemparkannya ke form utama
-const submitSelection = async () => {
-  if (selectedItems.value.length === 0) return;
+const confirmSelection = () => {
+  let collectedItems: any[] = [];
 
-  loading.value = true;
-  const allSelectedDetails: any[] = [];
-
-  try {
-    // Lakukan perulangan untuk menjamin data detail terisi (baik yang dichache maupun belum)
-    for (const nomorLhk of selectedItems.value) {
-      const details = await loadDetail(nomorLhk);
-      allSelectedDetails.push(...details);
+  lhkList.value.forEach((hdr) => {
+    // 1. Ambil detail yang spesifik dicentang user pada tabel rincian (misal baris 2 & 3)
+    if (hdr.selectedDetails && hdr.selectedDetails.length > 0) {
+      collectedItems.push(...hdr.selectedDetails);
     }
-
-    if (allSelectedDetails.length === 0) {
-      toast.warning("Tidak ada detail item dari LHK yang Anda pilih.");
-      return;
+    // 2. Jika header LHK utama yang dicentang (ambil semua detail di LHK tersebut)
+    else if (selectedHeaders.value.some((h) => h.nomor === hdr.nomor)) {
+      collectedItems.push(...hdr.details);
     }
+  });
 
-    // Mengirimkan array object detail lengkap ke form utama
-    emit("select", allSelectedDetails);
-    emit("close");
-  } catch (err) {
-    toast.error("Gagal memproses data LHK yang dipilih.");
-  } finally {
-    loading.value = false;
+  if (collectedItems.length === 0) {
+    toast.warning(
+      "Silakan centang minimal satu baris detail LHK (atau Header LHK).",
+    );
+    return;
   }
+
+  emit("select", collectedItems);
+  emit("close");
 };
 
 watch(
   () => props.isVisible,
   (val) => {
-    if (val) fetchLhkData();
+    if (val) {
+      searchKeyword.value = "";
+      selectedHeaders.value = [];
+      fetchLhkHeaders();
+    } else {
+      lhkList.value = [];
+      selectedHeaders.value = [];
+    }
   },
 );
 </script>
 
 <style scoped>
-/* Standarisasi Font Size 11px agar padat (Khas modul ERP desktop/Delphi) */
-:deep(.v-data-table .v-table__wrapper table th),
-:deep(.v-data-table .v-table__wrapper table td),
-:deep(.detail-table thead th),
-:deep(.detail-table tbody td) {
-  font-size: 11px !important;
-  height: 32px !important;
-  white-space: nowrap;
+.dialog-card {
+  font-size: 13px;
 }
-
-/* Header master table styling */
-:deep(.v-data-table-header th) {
-  background-color: #f5f5f5 !important;
-  font-weight: 700 !important;
-  color: #333 !important;
+.border-top {
+  border-top: 1px solid #e0e0e0;
 }
-
-/* Header detail table styling */
-:deep(.detail-table thead tr) {
-  background-color: #eeeeee !important;
+.desktop-table {
+  font-size: 12px;
 }
-
-:deep(.detail-table年には th) {
-  font-weight: 700 !important;
-  color: #555 !important;
+.desktop-table :deep(td),
+.desktop-table :deep(th) {
+  padding: 0 8px !important;
+  height: 36px !important;
 }
-
-:deep(.v-chip) {
-  font-size: 10px !important;
-  height: 18px !important;
+.desktop-table :deep(thead th) {
+  background-color: #f8f9fa !important;
+  font-weight: bold;
+  color: #2c3e50 !important;
+}
+.color-spk {
+  color: #1a237e;
+}
+.flex-grow-1 {
+  height: 100%;
 }
 </style>

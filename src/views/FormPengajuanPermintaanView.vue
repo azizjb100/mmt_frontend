@@ -78,7 +78,6 @@ const isLocked = computed(() => {
 
 // Fungsi untuk mengambil user dari localStorage
 const getCurrentUser = () => {
-  // Mencari di dalam objek JSON seperti yang Anda lakukan di fungsi approveData
   for (let i = 0; i < localStorage.length; i++) {
     const key = localStorage.key(i);
     if (key) {
@@ -94,7 +93,6 @@ const getCurrentUser = () => {
       }
     }
   }
-  // Fallback jika disimpan langsung
   currentUserKode.value = localStorage.getItem("kdUser") || "";
 };
 
@@ -172,20 +170,17 @@ const isFormValid = computed(() => {
   return headerOk && detailOk;
 });
 
-// --- Tambahkan Fungsi ini di dalam script setup ---
-// --- Bagian Script Setup ---
-
 const approvePengajuan = async () => {
   isApproving.value = true;
   try {
     const payload = {
-      nomor: formData.nomor, // Hanya kirim nomor
+      nomor: formData.nomor,
     };
 
     await api.post(`/mmt/pengajuan-permintaan/approve`, payload);
 
     toast.success(`Berhasil melakukan ACC Pengajuan`);
-    await loaddataall(formData.nomor); // Refresh data untuk update UI
+    await loaddataall(formData.nomor);
   } catch (error: any) {
     toast.error(error.response?.data?.message || "Gagal ACC Pengajuan");
   } finally {
@@ -218,8 +213,6 @@ const saveForm = async (saveAndNew: boolean) => {
         })),
     };
 
-    console.log("Payload yang dikirim:", payload); // Untuk memantau di console
-
     if (isEditMode.value) {
       await api.put(`${API_URL}/${formData.nomor}`, payload);
     } else {
@@ -239,7 +232,6 @@ const saveForm = async (saveAndNew: boolean) => {
   }
 };
 
-// --- Methods ---
 const addDetail = () => {
   if (isLocked.value) return;
   formData.detail.push(createEmptyDetail());
@@ -263,7 +255,6 @@ const loaddataall = async (nomor: string) => {
 
     const d = response.data;
 
-    // --- Pemetaan Header ---
     formData.nomor = d.Nomor;
     formData.tanggal = d.Tanggal
       ? d.Tanggal.substring(0, 10)
@@ -274,8 +265,6 @@ const loaddataall = async (nomor: string) => {
     formData.kepada = d.Ditujukan_Ke || "";
     formData.keteranganHeader = d.Keterangan || "";
 
-    // --- PERBAIKAN DI SINI ---
-    // Jika Status_Acc adalah 'Y' atau Acc_SPV berisi nama user, maka tampilkan nama usernya
     if (d.Status_Acc === "Y" || (d.Acc_SPV && d.Acc_SPV !== "")) {
       formData.accSpv = d.Acc_SPV || "EKAMMT";
     } else {
@@ -284,7 +273,6 @@ const loaddataall = async (nomor: string) => {
 
     formData.accManager = "-";
 
-    // --- Pemetaan Detail ---
     if (d.Detail && Array.isArray(d.Detail)) {
       formData.detail = d.Detail.map((item: any) => ({
         sku: item.Kode_Bahan || item.Kode,
@@ -320,17 +308,15 @@ const bahanModalMode = computed(() => {
   const kode = formData.gudangKode?.toUpperCase() || "";
   const nama = formData.gudangNama?.toLowerCase() || "";
 
-  // Jika gudang WH-20 atau mengandung kata 'tinta'/'obat'
   if (kode === "WH-20" || nama.includes("tinta") || nama.includes("obat")) {
     return "obat";
   }
 
-  // Jika gudang produksi
   if (kode === "GPM" || nama.includes("produksi")) {
     return "produksi";
   }
 
-  return "mmt"; // Default mode
+  return "mmt";
 });
 
 const handleBahanSelect = (bahan: MasterBahan) => {
@@ -361,7 +347,6 @@ const handlePabrikSelect = (pabrik: { Kode: string; Nama: string }) => {
 };
 
 const handleGudangAsalSelect = (gudang: { Kode: string; Nama: string }) => {
-  // Cek jika sudah ada item di detail
   const hasItems = formData.detail.some((d) => d.sku !== "");
 
   if (hasItems && formData.gudangKode !== gudang.Kode) {
@@ -400,20 +385,26 @@ onMounted(() => {
   <PageLayout title="Form Pengajuan Permintaan" icon="mdi-basket-fill">
     <template #header-actions>
       <v-btn
-        v-if="isEditMode && currentUserKode === 'EKAMMT'"
+        v-if="
+          isEditMode &&
+          (currentUserKode === 'EKAMMT' || currentUserKode === 'PARJO')
+        "
         size="x-small"
         color="orange-darken-2"
         @click="approvePengajuan"
         :loading="isApproving"
         class="mr-1"
       >
-        <v-icon start>mdi-account-check</v-icon> Acc Ekammt
+        <v-icon start>mdi-account-check</v-icon> Acc Supervisor
       </v-btn>
 
       <v-divider
         vertical
         class="mx-2"
-        v-if="isEditMode && currentUserKode === 'EKAMMT'"
+        v-if="
+          isEditMode &&
+          (currentUserKode === 'EKAMMT' || currentUserKode === 'PARJO')
+        "
       ></v-divider>
 
       <v-btn

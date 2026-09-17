@@ -282,7 +282,6 @@
 
         <!-- Row 2: Sub Header Detail -->
         <tr class="header-sub">
-          <!-- Ukuran -->
           <th
             class="text-right bg-cyan-sub cursor-pointer select-none"
             @click="toggleSort('panjang')"
@@ -296,7 +295,6 @@
             LEB {{ getSortIcon("lebar") }}
           </th>
 
-          <!-- Order SPK -->
           <th
             class="text-right bg-blue-sub cursor-pointer select-none"
             @click="toggleSort('pcs')"
@@ -310,7 +308,6 @@
             MTR {{ getSortIcon("order_meter") }}
           </th>
 
-          <!-- Hasil Cetak PCS (SB01 - SB05) -->
           <th
             class="text-right bg-blue-sub cursor-pointer select-none"
             @click="toggleSort('sb01')"
@@ -342,7 +339,6 @@
             SB05 {{ getSortIcon("sb05") }}
           </th>
 
-          <!-- Hasil Cetak Meter (JSB01 - JSB05) -->
           <th
             class="text-right bg-teal-sub cursor-pointer select-none"
             @click="toggleSort('jsb01')"
@@ -380,7 +376,7 @@
     <!-- Slot Row Baris Data Utama -->
     <template #row="{ item, formatNumber }">
       <tr class="table-row-item">
-        <!-- Sticky Left Column 1: Perusahaan -->
+        <!-- Perusahaan -->
         <td
           class="text-left sticky-col-1 font-weight-bold text-truncate"
           style="max-width: 180px"
@@ -409,9 +405,27 @@
         <td class="text-right">{{ formatNumber(item.panjang, 2) }}</td>
         <td class="text-right">{{ formatNumber(item.lebar, 2) }}</td>
 
-        <!-- Sticky Left Column 2: No SPK -->
+        <!-- No SPK dengan Tombol Expand -->
         <td class="text-center sticky-col-2 font-weight-bold text-primary">
-          {{ item.noSpk || "-" }}
+          <div class="d-flex align-center justify-space-between">
+            <v-btn
+              v-if="item.sizes && item.sizes.length > 0"
+              icon
+              variant="text"
+              size="x-small"
+              class="mr-1"
+              @click.stop="toggleExpand(item.noSpk)"
+            >
+              <v-icon size="16">
+                {{
+                  expanded.includes(item.noSpk)
+                    ? "mdi-chevron-down"
+                    : "mdi-chevron-right"
+                }}
+              </v-icon>
+            </v-btn>
+            <span>{{ item.noSpk || "-" }}</span>
+          </div>
         </td>
 
         <!-- Order SPK -->
@@ -443,6 +457,64 @@
         <!-- Kurang -->
         <td class="text-right font-weight-bold text-error bg-red-lighten-5">
           {{ formatNumber(item.jmlkurang, 0) }}
+        </td>
+      </tr>
+
+      <!-- Baris Detail Expand: Size & Komponen -->
+      <tr v-if="expanded.includes(item.noSpk)">
+        <td :colspan="23" class="bg-grey-lighten-4 pa-3">
+          <div class="pa-2 border rounded bg-white">
+            <div class="text-subtitle-2 font-weight-bold text-primary mb-2">
+              Detail Ukuran & Komponen per Size: {{ item.noSpk }}
+            </div>
+            <v-table density="compact" class="elevation-0 size-detail-table">
+              <thead>
+                <tr class="bg-blue-lighten-5">
+                  <th class="text-center">Ukuran (Size)</th>
+                  <th class="text-right">Qty Order Size</th>
+                  <th class="text-left">Kode Komponen</th>
+                  <th class="text-left">Nama Komponen</th>
+                  <th class="text-right">Qty Cetak</th>
+                  <th class="text-right text-error">Kurang Cetak</th>
+                </tr>
+              </thead>
+              <tbody>
+                <template v-for="(sz, sIdx) in item.sizes" :key="sIdx">
+                  <template
+                    v-for="(comp, cIdx) in sz.komponen"
+                    :key="`${sIdx}-${cIdx}`"
+                  >
+                    <tr>
+                      <td
+                        v-if="cIdx === 0"
+                        :rowspan="sz.komponen.length"
+                        class="text-center font-weight-bold align-middle bg-grey-lighten-3 border-r"
+                      >
+                        {{ sz.size_name }}
+                      </td>
+                      <td
+                        v-if="cIdx === 0"
+                        :rowspan="sz.komponen.length"
+                        class="text-right align-middle bg-grey-lighten-3 border-r"
+                      >
+                        {{ formatNumber(sz.size_qty, 0) }}
+                      </td>
+                      <td class="text-left">{{ comp.komponen_code }}</td>
+                      <td class="text-left font-weight-medium">
+                        {{ comp.komponen_name }}
+                      </td>
+                      <td class="text-right">
+                        {{ formatNumber(comp.qty_cetak, 0) }}
+                      </td>
+                      <td class="text-right text-error font-weight-bold">
+                        {{ formatNumber(comp.size_krg_cetak, 0) }}
+                      </td>
+                    </tr>
+                  </template>
+                </template>
+              </tbody>
+            </v-table>
+          </div>
         </td>
       </tr>
     </template>
@@ -541,6 +613,16 @@ const startDate = ref(formatDate(getDateDaysAgo(7)));
 const searchQuery = ref("");
 const loading = reactive({ report: false });
 const allData = ref<any[]>([]);
+const expanded = ref<string[]>([]); // Menyimpan No SPK yang sedang dibuka
+
+const toggleExpand = (noSpk: string) => {
+  const index = expanded.value.indexOf(noSpk);
+  if (index > -1) {
+    expanded.value.splice(index, 1);
+  } else {
+    expanded.value.push(noSpk);
+  }
+};
 
 // --- COLUMN FILTERS & SORTING STATE ---
 const columnFilters = reactive({
@@ -550,7 +632,7 @@ const columnFilters = reactive({
   jenis: "SEMUA",
 });
 
-const sortKey = ref("noSpk"); // Default sorting awal
+const sortKey = ref("noSpk");
 const sortOrder = ref<"asc" | "desc">("asc");
 
 const toggleSort = (key: string) => {
@@ -562,13 +644,11 @@ const toggleSort = (key: string) => {
   }
 };
 
-// HELPER IKON SORTING: Hanya tampil saat kolom di-klik/aktif
 const getSortIcon = (key: string) => {
   if (sortKey.value !== key) return "";
   return sortOrder.value === "asc" ? " ▲" : " ▼";
 };
 
-// State Active Filter
 const hasActiveFilter = computed(() => {
   return (
     Boolean(searchQuery.value) ||
@@ -589,7 +669,6 @@ const resetAllFilters = () => {
   sortOrder.value = "asc";
 };
 
-// --- OPTIONS DROPDOWN JENIS ---
 const jenisOptions = computed(() => {
   const list = allData.value.map((x) => x.jenis).filter(Boolean);
   return ["SEMUA", ...new Set(list)];
@@ -633,6 +712,7 @@ const fetchReport = async () => {
         jsb04: Number(row.METER_SB04 || 0),
         jsb05: Number(row.METER_SB05 || 0),
         jmlkurang: Number(row.KURANG_VARIANT || 0),
+        sizes: row.sizes || [], // Menerima data nested sizes & komponen dari backend
       };
     });
   } catch (error) {
@@ -643,18 +723,15 @@ const fetchReport = async () => {
   }
 };
 
-// --- HELPER PARSING TANGGAL UTK SORTING ---
 const getTimestamp = (val: any): number => {
   if (!val) return 0;
   const strVal = String(val).trim();
   const parsedISO = parseISO(strVal);
   if (isValid(parsedISO)) return parsedISO.getTime();
-
   const fallbackDate = new Date(strVal).getTime();
   return isNaN(fallbackDate) ? 0 : fallbackDate;
 };
 
-// --- KLASIFIKASI KUNCI KOLOM UNTUK SORTING ---
 const DATE_KEYS = ["tglLhk", "tglSpk", "deadline"];
 const NUMERIC_KEYS = [
   "panjang",
@@ -675,11 +752,9 @@ const NUMERIC_KEYS = [
   "jmlkurang",
 ];
 
-// --- FILTERED & SORTED DATA ---
 const filteredData = computed(() => {
   let result = [...allData.value];
 
-  // 1. Filter Global Search
   if (searchQuery.value) {
     const q = searchQuery.value.toLowerCase().trim();
     result = result.filter((item: any) => {
@@ -692,7 +767,6 @@ const filteredData = computed(() => {
     });
   }
 
-  // 2. Filter Per Kolom (Perusahaan)
   if (columnFilters.perush) {
     const q = columnFilters.perush.toLowerCase().trim();
     result = result.filter((item: any) =>
@@ -700,7 +774,6 @@ const filteredData = computed(() => {
     );
   }
 
-  // 3. Filter Per Kolom (No. SPK)
   if (columnFilters.noSpk) {
     const q = columnFilters.noSpk.toLowerCase().trim();
     result = result.filter((item: any) =>
@@ -708,7 +781,6 @@ const filteredData = computed(() => {
     );
   }
 
-  // 4. Filter Per Kolom (Nama Order)
   if (columnFilters.namaOrder) {
     const q = columnFilters.namaOrder.toLowerCase().trim();
     result = result.filter((item: any) =>
@@ -716,12 +788,10 @@ const filteredData = computed(() => {
     );
   }
 
-  // 5. Filter Per Kolom (Jenis)
   if (columnFilters.jenis && columnFilters.jenis !== "SEMUA") {
     result = result.filter((item: any) => item.jenis === columnFilters.jenis);
   }
 
-  // 6. Logic Sorting Presisi
   if (sortKey.value) {
     const key = sortKey.value;
     const isAsc = sortOrder.value === "asc";
@@ -730,14 +800,12 @@ const filteredData = computed(() => {
       const valA = a[key];
       const valB = b[key];
 
-      // A. Sorting Kolom Tanggal
       if (DATE_KEYS.includes(key)) {
         const timeA = getTimestamp(valA);
         const timeB = getTimestamp(valB);
         return isAsc ? timeA - timeB : timeB - timeA;
       }
 
-      // B. Sorting Kolom Angka
       if (NUMERIC_KEYS.includes(key)) {
         const numA =
           valA !== null && valA !== undefined && valA !== "" ? Number(valA) : 0;
@@ -746,7 +814,6 @@ const filteredData = computed(() => {
         return isAsc ? numA - numB : numB - numA;
       }
 
-      // C. Sorting Kolom Teks / Alfanumerik
       const strA = valA !== null && valA !== undefined ? String(valA) : "";
       const strB = valB !== null && valB !== undefined ? String(valB) : "";
 
@@ -762,7 +829,6 @@ const filteredData = computed(() => {
   return result;
 });
 
-// --- CALCULATE TOTALS ---
 const totals = computed(() => {
   return filteredData.value.reduce(
     (acc, item: any) => {
@@ -801,7 +867,6 @@ const totals = computed(() => {
   );
 });
 
-// --- HELPER FORMAT DISPLAY ---
 const formatDateDisplay = (dateStr: string) => {
   if (!dateStr) return "-";
   const date = parseISO(dateStr);
@@ -876,7 +941,6 @@ const exportToExcel = (dataToExport: any[]) => {
     [],
   ];
 
-  // Header Row 1
   const headerRow1 = [
     { v: "PERUSAHAAN", s: styleHeaderMain },
     { v: "TGL LHK", s: styleHeaderMain },
@@ -904,7 +968,6 @@ const exportToExcel = (dataToExport: any[]) => {
   ];
   wsData.push(headerRow1);
 
-  // Header Row 2
   const headerRow2 = [
     "",
     "",
@@ -932,7 +995,6 @@ const exportToExcel = (dataToExport: any[]) => {
   ];
   wsData.push(headerRow2);
 
-  // Loop Data
   dataToExport.forEach((item: any) => {
     wsData.push([
       { v: item.perush || "", s: styleDataCell },
@@ -1056,7 +1118,6 @@ const exportToExcel = (dataToExport: any[]) => {
     ]);
   });
 
-  // Footer Total Row
   const footerRow = [
     {
       v: "TOTAL (FILTERED)",
@@ -1155,20 +1216,20 @@ const exportToExcel = (dataToExport: any[]) => {
   const ws = XLSX.utils.aoa_to_sheet(wsData);
 
   ws["!merges"] = [
-    { s: { r: 3, c: 0 }, e: { r: 4, c: 0 } }, // Perusahaan
-    { s: { r: 3, c: 1 }, e: { r: 4, c: 1 } }, // Tgl Lhk
-    { s: { r: 3, c: 2 }, e: { r: 4, c: 2 } }, // Tgl Spk
-    { s: { r: 3, c: 3 }, e: { r: 4, c: 3 } }, // Deadline
-    { s: { r: 3, c: 4 }, e: { r: 4, c: 4 } }, // Nama Order
-    { s: { r: 3, c: 5 }, e: { r: 3, c: 6 } }, // Ukuran (Pang, Leb)
-    { s: { r: 3, c: 7 }, e: { r: 4, c: 7 } }, // No SPK
-    { s: { r: 3, c: 8 }, e: { r: 3, c: 9 } }, // Order SPK (Pcs, Mtr)
-    { s: { r: 3, c: 10 }, e: { r: 4, c: 10 } }, // Jenis
-    { s: { r: 3, c: 11 }, e: { r: 3, c: 15 } }, // Hasil Cetak PCS (SB01-05)
-    { s: { r: 3, c: 16 }, e: { r: 4, c: 16 } }, // Total Qty
-    { s: { r: 3, c: 17 }, e: { r: 3, c: 21 } }, // Hasil Cetak MTR (JSB01-05)
-    { s: { r: 3, c: 22 }, e: { r: 4, c: 22 } }, // Kurang
-    { s: { r: wsData.length - 1, c: 0 }, e: { r: wsData.length - 1, c: 7 } }, // Title Footer
+    { s: { r: 3, c: 0 }, e: { r: 4, c: 0 } },
+    { s: { r: 3, c: 1 }, e: { r: 4, c: 1 } },
+    { s: { r: 3, c: 2 }, e: { r: 4, c: 2 } },
+    { s: { r: 3, c: 3 }, e: { r: 4, c: 3 } },
+    { s: { r: 3, c: 4 }, e: { r: 4, c: 4 } },
+    { s: { r: 3, c: 5 }, e: { r: 3, c: 6 } },
+    { s: { r: 3, c: 7 }, e: { r: 4, c: 7 } },
+    { s: { r: 3, c: 8 }, e: { r: 3, c: 9 } },
+    { s: { r: 3, c: 10 }, e: { r: 4, c: 10 } },
+    { s: { r: 3, c: 11 }, e: { r: 3, c: 15 } },
+    { s: { r: 3, c: 16 }, e: { r: 4, c: 16 } },
+    { s: { r: 3, c: 17 }, e: { r: 3, c: 21 } },
+    { s: { r: 3, c: 22 }, e: { r: 4, c: 22 } },
+    { s: { r: wsData.length - 1, c: 0 }, e: { r: wsData.length - 1, c: 7 } },
   ];
 
   const wb = XLSX.utils.book_new();
@@ -1180,7 +1241,6 @@ onMounted(fetchReport);
 </script>
 
 <style scoped>
-/* 1. CONTAINER WRAPPER UNTUK OVERFLOW SCROLL */
 :deep(.v-table__wrapper),
 :deep(.v-data-table__wrapper) {
   max-height: calc(100vh - 280px) !important;
@@ -1188,7 +1248,6 @@ onMounted(fetchReport);
   overflow-x: auto !important;
 }
 
-/* 2. STANDARISASI SELURUH TABEL & FONT SIZE KE 12PX */
 :deep(table) {
   border-collapse: separate !important;
   border-spacing: 0 !important;
@@ -1202,7 +1261,6 @@ onMounted(fetchReport);
   padding: 6px 8px !important;
 }
 
-/* 3. STICKY HEADER */
 :deep(thead) {
   position: sticky !important;
   top: 0 !important;
@@ -1226,7 +1284,6 @@ onMounted(fetchReport);
   border-right: 1px solid #60a5fa !important;
 }
 
-/* 4. STICKY FOOTER */
 :deep(tfoot) {
   position: sticky !important;
   bottom: 0 !important;
@@ -1239,7 +1296,6 @@ onMounted(fetchReport);
   border-bottom: 2px solid #000 !important;
 }
 
-/* 5. STICKY LEFT COLUMNS */
 :deep(.sticky-col-1) {
   position: sticky !important;
   left: 0px !important;
@@ -1275,7 +1331,6 @@ onMounted(fetchReport);
   background-color: #fef3c7 !important;
 }
 
-/* 6. BACKGROUND COLOR GROUP HEADER & SUB HEADER */
 .bg-blue-header {
   background-color: #1d4ed8 !important;
   color: white !important;
@@ -1306,7 +1361,6 @@ onMounted(fetchReport);
   color: #000 !important;
 }
 
-/* 7. UTILITY BORDERS & BUTTONS */
 .border-l {
   border-left: 1px solid #cbd5e1 !important;
 }

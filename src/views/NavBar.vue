@@ -663,6 +663,7 @@ const allMenuGroups = [
       },
       { name: "Planning Produksi", path: "/mmt/planning-produksi" },
       { name: "Memo Approval Produk (MAP)", path: "/mmt/map" },
+      { name: "BAST-MAP", path: "/mmt/bast-map" },
       { name: "SO TO SPK (Surat Perintah Kerja)", path: "/mmt/so-spk" },
       { name: "BS & Sisa Digital Print", path: "/mmt/bs-digital" },
       { name: "BS & Sisa Tekstil", path: "/mmt/bs-tekstil" },

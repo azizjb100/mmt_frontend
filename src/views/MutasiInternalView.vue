@@ -1,47 +1,227 @@
+<template>
+  <BaseBrowse
+    title="Data Mutasi Internal (Ex Sublim)"
+    icon="mdi-vector-arrange-redirect"
+    :headers="masterHeaders"
+    :items="masterData"
+    :loading="loading.headers"
+    v-model:selected="selected"
+    v-model:expanded="expanded"
+    v-model:filters="filters"
+    v-model:startDate="filters.startDate"
+    v-model:endDate="filters.endDate"
+    item-value="Nomor_Mutasi"
+    has-print
+    :row-props="getRowProps"
+    :summary-fields="['Total_Qty']"
+    @refresh="fetchData"
+    @action:new="actionSaveRedirect('new')"
+    @action:edit="actionSaveRedirect('edit')"
+    @action:delete="handleDelete"
+    @action:print="handlePrintAction"
+    @row-click="handleRowClick"
+    @update:expanded="handleExpandUpdate"
+  >
+    <!-- Keterangan Warna Status di atas tabel -->
+    <template #prepend-content>
+      <div
+        class="d-flex align-center px-4 py-2 bg-grey-lighten-4 mb-2 rounded text-caption"
+      >
+        <span class="font-weight-bold mr-4">Keterangan Dokumen:</span>
+        <span class="d-flex align-center mr-4">
+          <span class="color-indicator bg-primary rounded-circle mr-1"></span>
+          Mutasi Internal Aktif / Tersimpan
+        </span>
+      </div>
+    </template>
+
+    <!-- Tombol Ekstra: Export Detail -->
+    <template #extra-actions="{ isSingleSelected }">
+      <v-btn
+        size="x-small"
+        color="success"
+        :disabled="masterData.length === 0"
+        @click="exportToExcel"
+      >
+        <v-icon start>mdi-download</v-icon> Export Detail
+      </v-btn>
+    </template>
+
+    <!-- Filter Tambahan di Toolbar -->
+    <template #filter-fields>
+      <v-text-field
+        v-model="filters.search"
+        prepend-inner-icon="mdi-magnify"
+        label="Cari No. Mutasi / Keterangan..."
+        density="compact"
+        hide-details
+        variant="outlined"
+        clearable
+        style="max-width: 300px"
+        @keyup.enter="fetchData"
+      />
+    </template>
+
+    <!-- Custom Template Kolom Tabel Utama -->
+    <template #item.Tanggal="{ item }">
+      {{ safeFormatDate(item.Tanggal) }}
+    </template>
+
+    <template #item.Nomor_Mutasi="{ item }">
+      <span class="font-weight-bold text-blue-grey-darken-4">{{
+        item.Nomor_Mutasi
+      }}</span>
+    </template>
+
+    <template #item.Bagian_Asal="{ item }">
+      <v-chip
+        size="small"
+        :color="getBagianColor(item.Bagian_Asal)"
+        variant="outlined"
+        class="font-weight-medium rounded px-2 text-caption border-opacity-50"
+      >
+        {{ getBagianNama(item.Bagian_Asal) }}
+      </v-chip>
+    </template>
+
+    <template #item.Bagian_Tujuan="{ item }">
+      <v-chip
+        size="small"
+        :color="getBagianColor(item.Bagian_Tujuan)"
+        variant="tonal"
+        class="font-weight-medium rounded px-2 text-caption"
+      >
+        {{ getBagianNama(item.Bagian_Tujuan) }}
+      </v-chip>
+    </template>
+
+    <template #item.Total_Qty="{ item }">
+      <div class="text-right font-weight-bold text-grey-darken-4">
+        {{ Number(item.Total_Qty || 0).toLocaleString("id-ID") }}
+      </div>
+    </template>
+
+    <template #item.Keterangan="{ item }">
+      <span class="text-caption text-grey-darken-1">
+        {{ item.Keterangan || "—" }}
+      </span>
+    </template>
+
+    <!-- Slot Expanded Content untuk Menampilkan Detail -->
+    <template #expanded-content="{ item }">
+      <div class="detail-container">
+        <div class="detail-table-wrapper">
+          <div
+            v-if="isLoadingDetails(item.Nomor_Mutasi)"
+            class="text-center pa-4"
+          >
+            <v-progress-circular indeterminate size="20" />
+            <span class="ml-2 text-caption">Memuat detail...</span>
+          </div>
+
+          <v-data-table
+            v-else-if="
+              details[item.Nomor_Mutasi] && details[item.Nomor_Mutasi].length
+            "
+            :headers="detailHeaders"
+            :items="details[item.Nomor_Mutasi]"
+            density="compact"
+            hide-default-footer
+            class="detail-table border"
+          >
+            <template #item.Nomor_SPK="{ item: d }">
+              <span class="text-grey-darken-3 font-weight-medium">{{
+                d.Nomor_SPK
+              }}</span>
+            </template>
+
+            <template #item.Nama_Komponen="{ item: d }">
+              <v-chip
+                size="x-small"
+                variant="outlined"
+                color="grey-darken-2"
+                class="font-weight-medium rounded-sm"
+              >
+                {{ d.Nama_Komponen || "ALL SET" }}
+              </v-chip>
+            </template>
+
+            <template #item.Qty_Mutasi="{ item: d }">
+              <div class="text-right font-weight-bold text-grey-darken-4">
+                {{ Number(d.Qty_Mutasi || 0).toLocaleString("id-ID") }}
+              </div>
+            </template>
+          </v-data-table>
+
+          <div v-else class="text-center pa-4 text-caption">
+            Data detail tidak ditemukan atau gagal dimuat.
+          </div>
+        </div>
+      </div>
+    </template>
+  </BaseBrowse>
+</template>
+
 <script setup lang="ts">
-import { ref, onMounted, computed, watch } from "vue";
+import { ref, reactive, onMounted, computed, watch } from "vue";
 import { useRouter } from "vue-router";
 import { useToast } from "vue-toastification";
-import api from "@/services/api";
-import { format, subDays } from "date-fns";
+import { format, subDays, parseISO, isValid } from "date-fns";
 import BaseBrowse from "@/components/BaseBrowse.vue";
+import * as XLSX from "xlsx-js-style";
+import api from "@/services/api";
 
 const router = useRouter();
 const toast = useToast();
 const API_MUTASI_INTERNAL = "/mmt/mutasi-internal";
 
-const masterData = ref([]);
+const masterData = ref<any[]>([]);
 const details = ref<Record<string, any[]>>({});
-const loading = ref(true);
-const loadingDetails = ref(new Set<string>());
+const loading = reactive({ headers: true, details: false });
+const loadingDetails = ref<Set<string>>(new Set());
 const selected = ref<any[]>([]);
-const expanded = ref([]);
-const startDate = ref(format(subDays(new Date(), 30), "yyyy-MM-dd"));
-const endDate = ref(format(new Date(), "yyyy-MM-dd"));
+const expanded = ref<any[]>([]);
+
+const filters = reactive({
+  startDate: format(subDays(new Date(), 30), "yyyy-MM-dd"),
+  endDate: format(new Date(), "yyyy-MM-dd"),
+  search: "",
+});
 
 const masterHeaders = [
   {
-    title: "Detail",
-    key: "data-table-expand",
-    minWidth: "60px",
-    align: "center",
-    fixed: true,
+    title: "No. Mutasi",
+    key: "Nomor_Mutasi",
+    minWidth: "160px",
+    width: "160px",
   },
-  { title: "No. Mutasi", key: "Nomor_Mutasi", minWidth: "150px", fixed: true },
-  { title: "Tanggal", key: "Tanggal", minWidth: "120px" },
-  { title: "Asal", key: "Bagian_Asal", minWidth: "100px", align: "center" },
-  { title: "Tujuan", key: "Bagian_Tujuan", minWidth: "160px", align: "center" },
+  { title: "Tanggal", key: "Tanggal", minWidth: "120px", width: "120px" },
+  {
+    title: "Asal",
+    key: "Bagian_Asal",
+    minWidth: "120px",
+    width: "120px",
+    align: "center",
+  },
+  {
+    title: "Tujuan",
+    key: "Bagian_Tujuan",
+    minWidth: "160px",
+    width: "160px",
+    align: "center",
+  },
   {
     title: "Total Qty Item",
     key: "Total_Qty",
-    minWidth: "110px",
+    minWidth: "120px",
+    width: "120px",
     align: "end",
   },
   { title: "Keterangan", key: "Keterangan", minWidth: "250px" },
 ];
 
 const detailHeaders = [
-  { title: "No. SPK", key: "Nomor_SPK", minWidth: "130px", fixed: true },
+  { title: "No. SPK", key: "Nomor_SPK", minWidth: "130px" },
   { title: "PO Internal", key: "No_PO_Internal", minWidth: "140px" },
   { title: "Size", key: "Size", minWidth: "80px" },
   { title: "Nama Order", key: "Nama_SPK", minWidth: "200px" },
@@ -49,102 +229,77 @@ const detailHeaders = [
   { title: "Qty Mutasi", key: "Qty_Mutasi", minWidth: "100px", align: "end" },
 ];
 
-// Helper parsing tanggal aman
-const parseCustomDate = (dateString: any): Date | null => {
-  if (!dateString) return null;
-  if (dateString instanceof Date) {
-    return isNaN(dateString.getTime()) ? null : dateString;
-  }
-  const str = String(dateString).trim();
-  if (!str) return null;
-  const parts = str.split("-");
-  if (parts.length === 3) {
-    const day = Number(parts[0]);
-    const year = Number(parts[2]);
-    if (!isNaN(day) && !isNaN(year) && year > 1000) {
-      let month = isNaN(Number(parts[1]))
-        ? [
-            "jan",
-            "feb",
-            "mar",
-            "apr",
-            "may",
-            "jun",
-            "jul",
-            "aug",
-            "sep",
-            "oct",
-            "nov",
-            "dec",
-          ].indexOf(parts[1].toLowerCase().substring(0, 3))
-        : Number(parts[1]) - 1;
+const selectedRow = computed(() =>
+  selected.value.length === 1 ? selected.value[0] : null,
+);
 
-      if (month >= 0 && month <= 11) {
-        const parsedDate = new Date(year, month, day);
-        if (!isNaN(parsedDate.getTime())) return parsedDate;
-      }
-    }
+const safeFormatDate = (dateString: string | undefined): string => {
+  if (!dateString) return "";
+  try {
+    const parsedDate = parseISO(dateString);
+    if (isValid(parsedDate)) return format(parsedDate, "dd/MM/yyyy");
+    const parts = dateString.split("T")[0].split("-");
+    if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
+    return dateString;
+  } catch {
+    return dateString || "";
   }
-  const fallbackDate = new Date(str);
-  return isNaN(fallbackDate.getTime()) ? null : fallbackDate;
 };
 
 const fetchData = async () => {
-  loading.value = true;
-  selected.value = [];
-  expanded.value = [];
+  loading.headers = true;
   try {
     const res = await api.get(API_MUTASI_INTERNAL, {
-      params: { startDate: startDate.value, endDate: endDate.value },
+      params: {
+        startDate: filters.startDate,
+        endDate: filters.endDate,
+        search: filters.search,
+      },
     });
     masterData.value = res.data.data || [];
+    selected.value = [];
+    expanded.value = [];
   } catch (error) {
     toast.error("Gagal memuat data utama mutasi internal.");
   } finally {
-    loading.value = false;
+    loading.headers = false;
   }
 };
 
-// ✅ Perbaikan logika pengambilan nomor mutasi saat tombol cetak ditekan
 const handlePrintAction = () => {
-  const selectedItem = selected.value[0];
-  const nomor =
-    typeof selectedItem === "object"
-      ? selectedItem?.Nomor_Mutasi
-      : selectedItem;
-
+  const nomor = selectedRow.value?.Nomor_Mutasi;
   if (!nomor) {
     toast.warning(
       "Silakan pilih dokumen mutasi yang ingin dicetak terlebih dahulu.",
     );
     return;
   }
-
   router.push({
     name: "MutasiInternalMMTPrint",
     params: { nomor },
   });
 };
 
-const handleExpandUpdate = async (expandedKeys: any[]) => {
-  const lastItem = expandedKeys[expandedKeys.length - 1];
-  if (!lastItem) return;
+const handleExpandUpdate = async (newlyExpandedItems: any[]) => {
+  const itemToLoad = newlyExpandedItems?.find(
+    (it) =>
+      it &&
+      !details.value[it.Nomor_Mutasi] &&
+      !loadingDetails.value.has(it.Nomor_Mutasi),
+  );
+  if (!itemToLoad) return;
 
-  const lastExpandedNomor =
-    typeof lastItem === "object" ? lastItem.Nomor_Mutasi : lastItem;
-  if (!lastExpandedNomor || details.value[lastExpandedNomor]) return;
-
-  loadingDetails.value.add(lastExpandedNomor);
+  const nomor = itemToLoad.Nomor_Mutasi;
+  loadingDetails.value.add(nomor);
   try {
     const response = await api.get(
-      `${API_MUTASI_INTERNAL}/detail/${encodeURIComponent(lastExpandedNomor)}`,
+      `${API_MUTASI_INTERNAL}/detail/${encodeURIComponent(nomor)}`,
     );
-    const resData = response.data?.data ?? response.data;
-    details.value[lastExpandedNomor] = resData || [];
+    details.value[nomor] = response.data?.data ?? response.data ?? [];
   } catch (error) {
-    details.value[lastExpandedNomor] = [];
+    details.value[nomor] = [];
   } finally {
-    loadingDetails.value.delete(lastExpandedNomor);
+    loadingDetails.value.delete(nomor);
   }
 };
 
@@ -153,45 +308,46 @@ const isLoadingDetails = (nomor: string) => loadingDetails.value.has(nomor);
 const actionSaveRedirect = (mode: "new" | "edit") => {
   if (mode === "new") {
     router.push({ name: "MutasiInternalMMTNew" });
-  } else if (selected.value[0]?.Nomor_Mutasi) {
+  } else if (selectedRow.value?.Nomor_Mutasi) {
     router.push({
       name: "MutasiInternalMMTEdit",
-      params: { nomor: selected.value[0].Nomor_Mutasi },
+      params: { nomor: selectedRow.value.Nomor_Mutasi },
     });
   }
 };
 
 const handleDelete = async () => {
-  const nomor = selected.value[0]?.Nomor_Mutasi;
+  const nomor = selectedRow.value?.Nomor_Mutasi;
+  if (!nomor) return;
   if (
-    !nomor ||
-    !confirm(
-      `Apakah Anda yakin ingin menghapus dokumen mutasi ${nomor}? Sisa stok bagian tujuan akan dikembalikan ke Sublim.`,
+    confirm(
+      `Apakah Anda yakin ingin menghapus dokumen mutasi ${nomor}? Sisa stok bagian tujuan akan dikembalikan.`,
     )
-  )
-    return;
-  try {
-    await api.delete(`${API_MUTASI_INTERNAL}/${nomor}`);
-    toast.success("Dokumen mutasi berhasil dihapus!");
-    fetchData();
-  } catch (e: any) {
-    toast.error("Gagal menghapus data mutasi.");
+  ) {
+    try {
+      await api.delete(`${API_MUTASI_INTERNAL}/${nomor}`);
+      toast.success("Dokumen mutasi berhasil dihapus!");
+      fetchData();
+    } catch (e: any) {
+      toast.error("Gagal menghapus data mutasi.");
+    }
   }
 };
 
 const handleRowClick = (_event: any, row: any) => {
-  selected.value = selected.value.some(
-    (s: any) => s.Nomor_Mutasi === row.item.Nomor_Mutasi,
-  )
-    ? []
-    : [row.item];
+  const item = row?.item ?? row;
+  const isSelected = selected.value.some(
+    (s) => s.Nomor_Mutasi === item.Nomor_Mutasi,
+  );
+  selected.value = isSelected ? [] : [item];
 };
 
-const getRowProps = ({ item }: any) => ({
-  class: selected.value.some((s: any) => s.Nomor_Mutasi === item.Nomor_Mutasi)
-    ? "row-selected"
-    : "",
-});
+const getRowProps = ({ item }: any) => {
+  const isSelected = selected.value.some(
+    (s) => s?.Nomor_Mutasi === item?.Nomor_Mutasi,
+  );
+  return { class: isSelected ? "selected-row" : "" };
+};
 
 const getBagianNama = (kode: string) => {
   if (!kode) return "SUBLIM";
@@ -221,207 +377,136 @@ const getBagianColor = (kode: string) => {
     case "PTG":
     case "GP001":
       return "grey-darken-3";
-    case "SUBLIM":
-      return "grey-darken-1";
     default:
       return "grey-darken-2";
   }
 };
 
-watch([startDate, endDate], fetchData);
+const exportToExcel = async () => {
+  loading.headers = true;
+  try {
+    for (const header of masterData.value) {
+      if (
+        !details.value[header.Nomor_Mutasi] ||
+        details.value[header.Nomor_Mutasi].length === 0
+      ) {
+        try {
+          const res = await api.get(
+            `${API_MUTASI_INTERNAL}/detail/${encodeURIComponent(header.Nomor_Mutasi)}`,
+          );
+          details.value[header.Nomor_Mutasi] = res.data?.data || res.data || [];
+        } catch {
+          details.value[header.Nomor_Mutasi] = [];
+        }
+      }
+    }
+
+    const worksheetData: any[] = [];
+    worksheetData.push([
+      {
+        v: "LAPORAN DATA MUTASI INTERNAL",
+        s: { font: { bold: true, sz: 14 } },
+      },
+    ]);
+    worksheetData.push([
+      {
+        v: `Periode : ${filters.startDate} s/d ${filters.endDate}`,
+        s: { font: { sz: 10 } },
+      },
+    ]);
+    worksheetData.push([]);
+
+    const headers = [
+      { v: "NO. MUTASI" },
+      { v: "TANGGAL" },
+      { v: "BAGIAN ASAL" },
+      { v: "BAGIAN TUJUAN" },
+      { v: "KETERANGAN" },
+      { v: "NOMOR SPK" },
+      { v: "PO INTERNAL" },
+      { v: "SIZE" },
+      { v: "NAMA ORDER" },
+      { v: "KOMPONEN" },
+      { v: "QTY MUTASI" },
+    ];
+    worksheetData.push(headers);
+
+    masterData.value.forEach((header) => {
+      const targetDetails = details.value[header.Nomor_Mutasi] || [];
+      if (targetDetails.length > 0) {
+        targetDetails.forEach((dtl) => {
+          worksheetData.push([
+            { v: header.Nomor_Mutasi },
+            { v: header.Tanggal },
+            { v: getBagianNama(header.Bagian_Asal) },
+            { v: getBagianNama(header.Bagian_Tujuan) },
+            { v: header.Keterangan || "" },
+            { v: dtl.Nomor_SPK || "" },
+            { v: dtl.No_PO_Internal || "" },
+            { v: dtl.Size || "" },
+            { v: dtl.Nama_SPK || "" },
+            { v: dtl.Nama_Komponen || "ALL SET" },
+            { v: Number(dtl.Qty_Mutasi || 0), t: "n" },
+          ]);
+        });
+      }
+    });
+
+    const ws = XLSX.utils.aoa_to_sheet(worksheetData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Mutasi_Internal");
+    XLSX.writeFile(
+      wb,
+      `Laporan_Mutasi_Internal_${filters.startDate}_to_${filters.endDate}.xlsx`,
+    );
+    toast.success("Excel Berhasil Diunduh!");
+  } catch (error) {
+    toast.error("Gagal mengekspor data ke Excel.");
+  } finally {
+    loading.headers = false;
+  }
+};
+
+watch(
+  [() => filters.startDate, () => filters.endDate, () => filters.search],
+  () => {
+    fetchData();
+  },
+);
+
 onMounted(fetchData);
 </script>
 
-<template>
-  <BaseBrowse
-    title="Data Mutasi Internal (Ex Sublim)"
-    icon="mdi-vector-arrange-redirect"
-    :headers="masterHeaders"
-    :items="masterData"
-    :loading="loading"
-    v-model:startDate="startDate"
-    v-model:endDate="endDate"
-    v-model:selected="selected"
-    v-model:expanded="expanded"
-    @refresh="fetchData"
-    @action:new="actionSaveRedirect('new')"
-    @action:edit="actionSaveRedirect('edit')"
-    @action:delete="handleDelete"
-    @row-click="handleRowClick"
-    :row-props="getRowProps"
-    @update:expanded="handleExpandUpdate(expanded)"
-  >
-    <!-- ✅ Ubah dari #actions menjadi #header-actions agar tombolnya muncul di toolbar BaseBrowse -->
-    <template #header-actions>
-      <v-btn
-        size="small"
-        color="secondary"
-        variant="elevated"
-        prepend-icon="mdi-printer"
-        :disabled="selected.length === 0"
-        @click="handlePrintAction"
-        class="mr-2"
-      >
-        Cetak
-      </v-btn>
-    </template>
-
-    <template #item.Nomor_Mutasi="{ value }">
-      <div
-        class="d-flex align-center font-weight-medium text-blue-grey-darken-4"
-      >
-        <v-icon size="16" class="mr-2 text-grey-darken-1"
-          >mdi-file-document-outline</v-icon
-        >
-        <span class="hover-underline">{{ value }}</span>
-      </div>
-    </template>
-
-    <template #item.Tanggal="{ value }">
-      <div class="d-flex align-center text-body-2 text-grey-darken-2">
-        <v-icon size="14" class="mr-2 text-grey-lighten-1">mdi-calendar</v-icon>
-        {{
-          parseCustomDate(value)
-            ? format(parseCustomDate(value)!, "dd/MM/yyyy")
-            : value || "-"
-        }}
-      </div>
-    </template>
-
-    <template #item.Bagian_Asal="{ value }">
-      <v-chip
-        size="small"
-        :color="getBagianColor(value)"
-        variant="outlined"
-        class="font-weight-medium rounded px-2 text-caption border-opacity-50"
-      >
-        {{ getBagianNama(value) }}
-      </v-chip>
-    </template>
-
-    <template #item.Bagian_Tujuan="{ value }">
-      <v-chip
-        size="small"
-        :color="getBagianColor(value)"
-        variant="tonal"
-        class="font-weight-medium rounded px-2 text-caption"
-      >
-        {{ getBagianNama(value) }}
-      </v-chip>
-    </template>
-
-    <template #item.Total_Qty="{ value }">
-      <div
-        :class="
-          Number(value) > 0
-            ? 'text-grey-darken-4 font-weight-bold'
-            : 'text-grey-lighten-1'
-        "
-        class="text-right pr-2 text-body-2"
-      >
-        {{ Number(value || 0).toLocaleString("id-ID") }}
-      </div>
-    </template>
-
-    <template #item.Keterangan="{ value }">
-      <span class="text-caption text-grey-darken-1">
-        {{ value || "—" }}
-      </span>
-    </template>
-
-    <template #expanded-content="{ item }">
-      <div class="expanded-wrapper pa-4 bg-grey-lighten-5">
-        <div
-          v-if="isLoadingDetails(item.Nomor_Mutasi)"
-          class="text-center pa-3"
-        >
-          <v-progress-circular
-            indeterminate
-            size="20"
-            color="grey-darken-3"
-            class="mr-2"
-          />
-          <span class="text-caption text-grey">Memuat detail...</span>
-        </div>
-
-        <div
-          v-else-if="
-            !details[item.Nomor_Mutasi] ||
-            details[item.Nomor_Mutasi].length === 0
-          "
-          class="text-center pa-3 text-caption text-grey minimal-border-dashed"
-        >
-          Tidak ada data detail.
-        </div>
-
-        <v-card
-          v-else
-          variant="outlined"
-          class="bg-white rounded border-grey-lighten-2"
-        >
-          <v-data-table
-            :headers="detailHeaders"
-            :items="details[item.Nomor_Mutasi]"
-            density="compact"
-            :items-per-page="-1"
-            hide-default-footer
-            class="minimal-detail-table"
-          >
-            <template #[`item.Nomor_SPK`]="{ item: d }">
-              <span class="text-grey-darken-3 font-weight-medium">{{
-                d.Nomor_SPK
-              }}</span>
-            </template>
-
-            <template #[`item.Nama_Komponen`]="{ item: d }">
-              <v-chip
-                size="x-small"
-                variant="outlined"
-                color="grey-darken-2"
-                class="font-weight-medium rounded-sm"
-              >
-                {{ d.Nama_Komponen || "ALL SET" }}
-              </v-chip>
-            </template>
-
-            <template #[`item.Qty_Mutasi`]="{ item: d }">
-              <div
-                class="text-right font-weight-bold text-grey-darken-4 text-body-2"
-              >
-                {{ Number(d.Qty_Mutasi || 0).toLocaleString("id-ID") }}
-              </div>
-            </template>
-          </v-data-table>
-        </v-card>
-      </div>
-    </template>
-  </BaseBrowse>
-</template>
-
 <style scoped>
-.row-selected {
-  background-color: #f1f3f5 !important;
+.detail-container {
+  padding: 8px 0;
+  background-color: #f7f7f7;
+  border-top: 1px solid #ddd;
 }
-:deep(.row-selected td) {
-  background-color: #f1f3f5 !important;
+.detail-table-wrapper {
+  padding: 0 12px;
+  width: 100%;
+  overflow-x: auto;
 }
-:deep(.v-data-table__tr:hover) {
-  background-color: #fafbfc !important;
-  cursor: pointer;
+.detail-table {
+  background-color: white !important;
+  font-size: 0.8rem;
+  width: 100% !important;
 }
-.hover-underline:hover {
-  text-decoration: underline;
-  color: #1a73e8;
+.color-indicator {
+  width: 10px;
+  height: 10px;
+  display: inline-block;
 }
-.expanded-wrapper {
-  border-left: 3px solid #757575;
+.bg-primary {
+  background-color: #1976d2 !important;
 }
-.minimal-border-dashed {
-  border: 1px dashed #e0e0e0;
+:deep(.selected-row),
+:deep(.v-data-table__tr.selected-row),
+:deep(.v-data-table__tr.selected-row > td) {
+  background-color: #d8efff !important;
 }
-.minimal-detail-table :deep(th) {
-  background-color: #f8f9fa !important;
-  font-weight: 600 !important;
-  color: #495057 !important;
+:deep(.v-data-table__tr.selected-row:hover > td) {
+  background-color: #c0e4ff !important;
 }
 </style>

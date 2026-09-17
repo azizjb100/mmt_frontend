@@ -317,6 +317,7 @@
     </template>
 
     <!-- Slot Row Baris Data Utama -->
+    <!-- Slot Row Baris Data Utama -->
     <template #row="{ item, formatNumber }">
       <tr class="table-row-item">
         <td
@@ -420,30 +421,86 @@
         </td>
         <td class="text-right">{{ formatNumber(item.krg_coly_meter, 2) }}</td>
       </tr>
+
+      <!-- Expanded Row: Detail Ukuran & Komponen per Size -->
       <tr
         v-if="['2', '3'].includes(jenisIndex) && expanded.includes(item.NOMOR)"
       >
         <td :colspan="getTotalColumnsCount" class="bg-grey-lighten-4 pa-3">
           <div class="pa-2 border rounded bg-white">
             <div class="text-subtitle-2 font-weight-bold text-primary mb-2">
-              Detail Ukuran & Kurang Cetak per Size: {{ item.NOMOR }}
+              Detail Ukuran, Komponen & Kurang Cetak: {{ item.NOMOR }}
             </div>
-            <v-table density="compact" class="elevation-0 size-detail-table">
+            <v-table
+              density="compact"
+              class="elevation-0 size-detail-table border"
+            >
               <thead>
                 <tr class="bg-blue-lighten-5">
-                  <th class="text-center">Ukuran (Size)</th>
-                  <th class="text-right">Qty Order</th>
-                  <th class="text-right text-error">Kurang Cetak</th>
+                  <th class="text-center" style="width: 120px">
+                    Ukuran (Size)
+                  </th>
+                  <th class="text-right" style="width: 100px">Qty Order</th>
+                  <th class="text-right text-error" style="width: 120px">
+                    Kurang Cetak Size
+                  </th>
+                  <th class="text-left">Rincian Komponen & Qty Cetak</th>
                 </tr>
               </thead>
               <tbody>
                 <tr v-for="(sz, idx) in item.sizes" :key="idx">
-                  <td class="text-center font-weight-bold">
-                    {{ sz.size_name }}
+                  <td class="text-center font-weight-bold align-top pt-2">
+                    <v-chip
+                      size="small"
+                      color="primary"
+                      variant="tonal"
+                      class="font-weight-bold"
+                    >
+                      {{ sz.size_name }}
+                    </v-chip>
                   </td>
-                  <td class="text-right">{{ formatNumber(sz.size_qty, 0) }}</td>
-                  <td class="text-right text-error font-weight-bold">
+                  <td class="text-right align-top pt-3">
+                    {{ formatNumber(sz.size_qty, 0) }}
+                  </td>
+                  <td
+                    class="text-right text-error font-weight-bold align-top pt-3"
+                  >
                     {{ formatNumber(sz.size_krg_cetak, 0) }}
+                  </td>
+                  <td>
+                    <!-- Sub-tabel komponen di dalam tiap ukuran -->
+                    <v-table
+                      density="compact"
+                      class="inner-component-table bg-transparent"
+                    >
+                      <thead>
+                        <tr class="text-grey-darken-1 text-caption">
+                          <th class="text-left">Nama Komponen</th>
+                          <th class="text-right">Sudah Dicetak</th>
+                          <th class="text-right">Kurang Komponen</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr v-for="(comp, cIdx) in sz.components" :key="cIdx">
+                          <td class="text-left font-weight-medium">
+                            {{ comp.komponen_nama }}
+                          </td>
+                          <td class="text-right text-success">
+                            {{ formatNumber(comp.qty_cetak, 0) }}
+                          </td>
+                          <td
+                            class="text-right"
+                            :class="
+                              comp.kurang_cetak > 0
+                                ? 'text-error font-weight-bold'
+                                : 'text-grey'
+                            "
+                          >
+                            {{ formatNumber(comp.kurang_cetak, 0) }}
+                          </td>
+                        </tr>
+                      </tbody>
+                    </v-table>
                   </td>
                 </tr>
               </tbody>
@@ -509,33 +566,60 @@
     <v-card
       flat
       class="border rounded-lg overflow-hidden"
-      style="min-width: 520px"
+      style="min-width: 650px"
     >
       <v-table density="compact" class="summary-table">
         <tbody>
+          <!-- Baris 1: Kekurangan & Output / Hari -->
           <tr>
-            <td class="sum-label">Kekurangan Meter:</td>
-            <td class="sum-value text-error text-subtitle-2 font-weight-bold">
+            <td class="sum-label" style="width: 20%">Kekurangan Meter:</td>
+            <td
+              class="sum-value text-error text-subtitle-2 font-weight-bold"
+              style="width: 15%"
+            >
               {{ formatNumber(totals.krg_Cetak_meter, 2) }}
             </td>
-            <td class="sum-label">Output / Hari:</td>
-            <td class="sum-value">
-              {{ formatNumber(summary.outputPerHari, 2) }}
+            <td class="sum-label text-center" style="width: 15%">
+              Output / Hari:
             </td>
-            <td class="sum-value bg-blue-lighten-5 font-weight-bold">
+            <td
+              class="sum-value text-center font-weight-bold bg-blue-lighten-5"
+              style="width: 15%"
+            >
+              3.100,00
+            </td>
+            <td class="sum-label" style="width: 20%">Kekurangan Coly:</td>
+            <td
+              class="sum-value text-error text-subtitle-2 font-weight-bold"
+              style="width: 15%"
+            >
+              {{ formatNumber(totals.krg_coly_meter, 2) }}
+            </td>
+            <td class="sum-label text-center" style="width: 15%">
+              Output / Hari:
+            </td>
+            <td
+              class="sum-value text-center font-weight-bold bg-teal-lighten-5"
+              style="width: 15%"
+            >
               2.700,00
             </td>
           </tr>
+
+          <!-- Baris 2: Waiting List & Estimasi -->
           <tr>
-            <td class="sum-label">Waiting List:</td>
-            <td class="sum-value font-weight-bold text-primary">
-              {{ formatNumber(waitingListKerja, 2) }} Hari
+            <td class="sum-label">Waiting List (Meter):</td>
+            <td colspan="3" class="sum-value text-primary font-weight-bold">
+              {{ formatNumber(waitingListMeter, 2) }} Hari
+              <span class="text-caption text-grey">(Krg Meter / 3.100)</span>
             </td>
-            <td colspan="2" class="sum-label text-center">Estimasi Tetap:</td>
+            <td class="sum-label">Estimasi (Coly):</td>
             <td
-              class="sum-value text-center font-weight-bold text-teal-darken-2"
+              colspan="3"
+              class="sum-value text-teal-darken-2 font-weight-bold"
             >
-              {{ formatNumber(waitingListTetap, 2) }} Hari
+              {{ formatNumber(estimasiColy, 2) }} Hari
+              <span class="text-caption text-grey">(Krg Coly / 2.700)</span>
             </td>
           </tr>
         </tbody>
@@ -977,10 +1061,20 @@ const totals = computed(() => {
   );
 });
 
-// --- WAITING LIST CALCULATIONS ---
-const waitingListKerja = computed(() => {
-  const output = Number(summary.value.outputPerHari || 0);
-  return output <= 0 ? 0 : totals.value.krg_Cetak_meter / output;
+// --- SUMMARY CONSTANTS & CALCULATIONS ---
+const outputMeterTarget = 3100;
+const outputColyTarget = 2700;
+
+// Waiting List Meter = Kurang Cetak Meter / 3.100
+const waitingListMeter = computed(() => {
+  const krgMeter = Number(totals.value.krg_Cetak_meter || 0);
+  return krgMeter <= 0 ? 0 : krgMeter / outputMeterTarget;
+});
+
+// Estimasi Coly = Kurang Cetak Coly / 2.700
+const estimasiColy = computed(() => {
+  const krgColy = Number(totals.value.krg_coly_meter || 0);
+  return krgColy <= 0 ? 0 : krgColy / outputColyTarget;
 });
 
 const toggleExpand = (nomor: string) => {
@@ -991,11 +1085,6 @@ const toggleExpand = (nomor: string) => {
     expanded.value.push(nomor);
   }
 };
-
-const outputHariTetap = 2700;
-const waitingListTetap = computed(
-  () => totals.value.krg_Cetak_meter / outputHariTetap,
-);
 
 // --- HELPER FORMAT ---
 const formatNumber = (val: any, dec = 0) => {
