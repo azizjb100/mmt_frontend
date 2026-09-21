@@ -27,9 +27,9 @@
               @change="emitRefresh"
             />
           </div>
-          <!-- Slot khusus catatan di bawah tanggal -->
           <slot name="date-note"></slot>
         </div>
+
         <!-- Select Gudang -->
         <div
           v-if="showGudangFilter"
@@ -73,6 +73,19 @@
 
         <v-spacer />
 
+        <!-- Tombol Reset Urutan & Lebar Kolom -->
+        <v-btn
+          v-if="hasCustomLayout"
+          size="small"
+          color="blue-grey"
+          variant="tonal"
+          @click="resetColumnLayout"
+          title="Reset kustomisasi kolom ke default"
+          class="text-none rounded-lg"
+        >
+          <v-icon start size="small">mdi-refresh</v-icon> Reset Kolom
+        </v-btn>
+
         <!-- Reset Filter Button -->
         <v-btn
           v-if="hasActiveFilter"
@@ -89,7 +102,7 @@
 
     <!-- 2. TABEL DATA UTAMA -->
     <v-card class="table-card rounded-xl elevation-2 border-0">
-      <div class="table-responsive-wrapper">
+      <div class="table-responsive-wrapper" ref="tableWrapRef">
         <v-data-table
           :items="processedData"
           :loading="loading"
@@ -120,6 +133,13 @@
               :jenis-options="jenisOptions"
               :satuan-options="satuanOptions"
               :status-options="statusOptions"
+              :col-styles="colStyles"
+              :on-col-pointer-down="onColPointerDown"
+              :on-col-pointer-move="onColPointerMove"
+              :on-col-pointer-up="onColPointerUp"
+              :start-resize="startResize"
+              :drag-src-key="dragSrcKey"
+              :drag-over-key="dragOverKey"
             ></slot>
           </template>
 
@@ -132,6 +152,7 @@
               :isExpanded="isExpanded"
               :toggleExpand="toggleExpand"
               :formatNumber="formatNumber"
+              :col-styles="colStyles"
             ></slot>
           </template>
 
@@ -141,6 +162,7 @@
               name="tfoot"
               :totals="reportTotals"
               :formatNumber="formatNumber"
+              :col-styles="colStyles"
             ></slot>
           </template>
         </v-data-table>
@@ -158,7 +180,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, nextTick } from "vue";
+import { ref, reactive, computed } from "vue";
 import GudangLookupView from "@/modal/GudangLookupView.vue";
 import * as XLSX from "xlsx-js-style";
 
@@ -199,6 +221,185 @@ const emit = defineEmits([
   "row-expand",
 ]);
 
+// --- PERSISTENCE & LAYOUT STATE (Resizing & Reorder) ---
+const storageKey = computed(
+  () => `mmt_report_layout_${props.title.replace(/\s+/g, "_")}`,
+);
+
+const loadLayoutState = () => {
+  try {
+    const raw = localStorage.getItem(storageKey.value);
+    return raw ? JSON.parse(raw) : { widths: {}, order: [] };
+  } catch {
+    return { widths: {}, order: [] };
+  }
+};
+
+const saveLayoutState = () => {
+  try {
+    localStorage.setItem(
+      storageKey.value,
+      JSON.stringify({
+        widths: colWidths.value,
+        order: colOrder.value,
+      }),
+    );
+  } catch {}
+};
+
+const savedState = loadLayoutState();
+const colWidths = ref<Record<string, string>>(savedState.widths || {});
+const colOrder = ref<string[]>(savedState.order || []);
+
+const hasCustomLayout = computed(() => {
+  return Object.keys(colWidths.value).length > 0 || colOrder.value.length > 0;
+});
+
+const resetColumnLayout = () => {
+  colWidths.value = {};
+  colOrder.value = [];
+  localStorage.removeItem(storageKey.value);
+};
+
+// Helper style binding untuk elemen kolom di slot
+const colStyles = (key: string, defaultWidth?: string) => {
+  const w = colWidths.value[key] || defaultWidth;
+  return w ? { width: w, minWidth: w, maxWidth: w } : {};
+};
+
+// --- POINTER DRAG & DROP REORDER (Meniru BaseBrowse) ---
+const dragSrcKey = ref<string | null>(null);
+const dragOverKey = ref<string | null>(null);
+const isDragging = ref(false);
+
+let pointerDragKey: string | null = null;
+let autoScrollTimer: number | null = null;
+const tableWrapRef = ref<any>(null);
+
+const onColPointerDown = (key: string, e: PointerEvent) => {
+  const target = e.target as HTMLElement;
+  if (!target.classList.contains("col-drag-handle")) return; // Hanya dari handle ⠿
+
+  pointerDragKey = key;
+  dragSrcKey.value = key;
+  isDragging.value = true;
+  (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+};
+
+const onColPointerMove = (e: PointerEvent, allKeys: string[]) => {
+  if (!isDragging.value || !pointerDragKey) return;
+
+  const els = document.elementsFromPoint(e.clientX, e.clientY);
+  const th = els.find(
+    (el) => el.tagName === "TH" && el.hasAttribute("data-col-key"),
+  ) as HTMLElement | undefined;
+
+  if (th) {
+    const key = th.getAttribute("data-col-key");
+    if (key && key !== pointerDragKey) {
+      dragOverKey.value = key;
+    }
+  }
+
+  // Auto-scroll horizontal wrapper
+  const wrapper =
+    tableWrapRef.value?.querySelector(".v-table__wrapper") ||
+    tableWrapRef.value;
+  if (!wrapper) return;
+
+  const rect = wrapper.getBoundingClientRect();
+  const EDGE = 60;
+  const SPEED = 12;
+
+  if (autoScrollTimer) {
+    clearInterval(autoScrollTimer);
+    autoScrollTimer = null;
+  }
+
+  if (e.clientX < rect.left + EDGE) {
+    autoScrollTimer = window.setInterval(() => {
+      wrapper.scrollLeft -= SPEED;
+    }, 16);
+  } else if (e.clientX > rect.right - EDGE) {
+    autoScrollTimer = window.setInterval(() => {
+      wrapper.scrollLeft += SPEED;
+    }, 16);
+  }
+};
+
+const onColPointerUp = (allDefaultKeys: string[]) => {
+  if (!isDragging.value) return;
+
+  if (autoScrollTimer) {
+    clearInterval(autoScrollTimer);
+    autoScrollTimer = null;
+  }
+
+  if (
+    pointerDragKey &&
+    dragOverKey.value &&
+    pointerDragKey !== dragOverKey.value
+  ) {
+    const currentOrder =
+      colOrder.value.length > 0 ? [...colOrder.value] : [...allDefaultKeys];
+
+    const srcIdx = currentOrder.indexOf(pointerDragKey);
+    const tgtIdx = currentOrder.indexOf(dragOverKey.value);
+
+    if (srcIdx !== -1 && tgtIdx !== -1) {
+      currentOrder.splice(srcIdx, 1);
+      currentOrder.splice(tgtIdx, 0, pointerDragKey);
+      colOrder.value = currentOrder;
+      saveLayoutState();
+    }
+  }
+
+  pointerDragKey = null;
+  dragSrcKey.value = null;
+  dragOverKey.value = null;
+  isDragging.value = false;
+};
+
+// --- RESIZING KOLOM ---
+const resizingKey = ref<string | null>(null);
+const startX = ref(0);
+const startWidth = ref(0);
+
+const startResize = (e: MouseEvent, key: string, defaultWidthPx = 120) => {
+  resizingKey.value = key;
+  startX.value = e.clientX;
+
+  const currentW = colWidths.value[key];
+  let w = currentW ? parseInt(currentW, 10) : defaultWidthPx;
+  if (isNaN(w)) w = defaultWidthPx;
+  startWidth.value = w;
+
+  window.addEventListener("mousemove", onMouseMove);
+  window.addEventListener("mouseup", onMouseUp);
+  e.stopPropagation();
+};
+
+const onMouseMove = (e: MouseEvent) => {
+  if (!resizingKey.value) return;
+  const diff = e.clientX - startX.value;
+  const newWidth = Math.max(50, startWidth.value + diff);
+
+  colWidths.value = {
+    ...colWidths.value,
+    [resizingKey.value]: `${newWidth}px`,
+  };
+};
+
+const onMouseUp = () => {
+  if (resizingKey.value) {
+    saveLayoutState();
+  }
+  resizingKey.value = null;
+  window.removeEventListener("mousemove", onMouseMove);
+  window.removeEventListener("mouseup", onMouseUp);
+};
+
+// --- LOGIKA UTAMA LAPORAN (Sama Seperti Sebelumnya) ---
 const formatNumber = (val: any, decimalPlaces = 0) => {
   if (val === null || val === undefined || val === "") return "0";
   const num = parseFloat(val);
@@ -347,9 +548,7 @@ const handleResetFilter = () => {
 };
 
 const processedData = computed(() => {
-  if (props.disableSort && props.disableFilter) {
-    return props.items;
-  }
+  if (props.disableSort && props.disableFilter) return props.items;
 
   let filtered = props.items;
 
@@ -473,122 +672,6 @@ const handleExportExcel = () => {
   XLSX.utils.book_append_sheet(wb, ws, "Report");
   XLSX.writeFile(wb, props.excelFileName || "Laporan.xlsx");
 };
-
-// --- OTOMATISASI FITUR RESIZING & DRAG-AND-DROP PADA SUB-KOLOM LAPORAN ---
-onMounted(() => {
-  setupHeaderInteractions();
-});
-
-const setupHeaderInteractions = () => {
-  nextTick(() => {
-    setTimeout(() => {
-      const table = document.querySelector(".custom-modern-table table");
-      if (!table) return;
-
-      const thead = table.querySelector("thead");
-      if (!thead) return;
-      const headerRows = thead.querySelectorAll("tr");
-      if (headerRows.length < 2) return;
-
-      // Ambil baris sub-header terakhir (tempat sub-kolom berada)
-      const subHeaderRow = headerRows[headerRows.length - 1];
-      const subThs = subHeaderRow.querySelectorAll("th");
-
-      subThs.forEach((th: any, subIndex: number) => {
-        // Pasang Resizer line
-        if (!th.querySelector(".column-resizer")) {
-          th.style.position = "relative";
-          const resizer = document.createElement("div");
-          resizer.classList.add("column-resizer");
-          th.appendChild(resizer);
-
-          let x = 0;
-          let w = 0;
-
-          resizer.addEventListener("mousedown", (e: MouseEvent) => {
-            x = e.clientX;
-            w = th.offsetWidth;
-            document.addEventListener("mousemove", mouseMoveHandler);
-            document.addEventListener("mouseup", mouseUpHandler);
-            e.stopPropagation();
-          });
-
-          const mouseMoveHandler = (e: MouseEvent) => {
-            const dx = e.clientX - x;
-            const newW = Math.max(50, w + dx);
-            th.style.width = `${newW}px`;
-            th.style.minWidth = `${newW}px`;
-            th.style.maxWidth = `${newW}px`;
-          };
-
-          const mouseUpHandler = () => {
-            document.removeEventListener("mousemove", mouseMoveHandler);
-            document.removeEventListener("mouseup", mouseUpHandler);
-          };
-        }
-
-        // Aktifkan Drag & Drop Reorder pada Sub-Kolom
-        th.setAttribute("draggable", "true");
-        th.classList.add("draggable-header-cell");
-
-        th.addEventListener("dragstart", (e: DragEvent) => {
-          th.classList.add("dragging");
-          if (e.dataTransfer) {
-            e.dataTransfer.effectAllowed = "move";
-            e.dataTransfer.setData("text/plain", String(subIndex));
-          }
-          e.stopPropagation();
-        });
-
-        th.addEventListener("dragend", () => {
-          th.classList.remove("dragging");
-          table
-            .querySelectorAll("th, td")
-            .forEach((el) => el.classList.remove("drag-over"));
-        });
-
-        th.addEventListener("dragover", (e: DragEvent) => {
-          e.preventDefault();
-          if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
-        });
-
-        th.addEventListener("dragenter", () => {
-          th.classList.add("drag-over");
-        });
-
-        th.addEventListener("dragleave", () => {
-          th.classList.remove("drag-over");
-        });
-
-        th.addEventListener("drop", (e: DragEvent) => {
-          e.preventDefault();
-          e.stopPropagation();
-          const srcIdxStr = e.dataTransfer?.getData("text/plain");
-          if (srcIdxStr === undefined) return;
-          const srcIdx = parseInt(srcIdxStr, 10);
-          const targetIdx = subIndex;
-
-          if (isNaN(srcIdx) || srcIdx === targetIdx) return;
-
-          // Pindahkan sel secara serentak di baris sub-header, baris isi data (tbody), dan footer (tfoot)
-          const allRows = table.querySelectorAll("tr");
-          allRows.forEach((row, rIdx) => {
-            const cells = row.children;
-            if (rIdx === headerRows.length - 1 || rIdx >= headerRows.length) {
-              if (cells[srcIdx] && cells[targetIdx]) {
-                if (srcIdx < targetIdx) {
-                  row.insertBefore(cells[srcIdx], cells[targetIdx].nextSibling);
-                } else {
-                  row.insertBefore(cells[srcIdx], cells[targetIdx]);
-                }
-              }
-            }
-          });
-        });
-      });
-    }, 600);
-  });
-};
 </script>
 
 <style scoped>
@@ -636,16 +719,26 @@ const setupHeaderInteractions = () => {
   user-select: none;
 }
 
-:deep(.draggable-header-cell) {
+/* Styling Drag & Drop Handle & Resizer untuk Report */
+:deep(.col-dragging) {
+  opacity: 0.5;
+  background-color: #cfd8dc !important;
+}
+:deep(.col-drag-over) {
+  background-color: rgba(25, 118, 210, 0.25) !important;
+  box-shadow: inset 3px 0 0 #1976d2;
+}
+:deep(.col-drag-handle) {
   cursor: grab;
-  position: relative;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 13px;
+  user-select: none;
+  touch-action: none;
+  flex-shrink: 0;
+  margin-right: 4px;
 }
-:deep(.draggable-header-cell:active) {
+:deep(.col-drag-handle:active) {
   cursor: grabbing;
-}
-:deep(.drag-over) {
-  background-color: rgba(25, 118, 210, 0.3) !important;
-  outline: 2px dashed #ffffff !important;
 }
 
 :deep(.column-resizer) {
@@ -659,61 +752,7 @@ const setupHeaderInteractions = () => {
   z-index: 25;
 }
 :deep(.column-resizer:hover),
-:deep(.draggable-header-cell:hover .column-resizer) {
+:deep(th:hover .column-resizer) {
   background-color: rgba(255, 255, 255, 0.4);
-}
-
-:deep(.sticky-col-1) {
-  position: sticky;
-  left: 0;
-  z-index: 5;
-  background-color: #ffffff !important;
-}
-
-:deep(.sticky-col-2) {
-  position: sticky;
-  left: 120px;
-  z-index: 5;
-  background-color: #ffffff !important;
-  box-shadow: 3px 0px 5px -2px rgba(0, 0, 0, 0.08);
-}
-
-:deep(.table-row-item:hover td) {
-  background-color: #f1f5f9 !important;
-}
-
-:deep(.table-row-item:hover .sticky-col-1),
-:deep(.table-row-item:hover .sticky-col-2) {
-  background-color: #f1f5f9 !important;
-}
-
-:deep(.table-footer-row td) {
-  position: sticky;
-  bottom: 0;
-  z-index: 10;
-  background-color: #e2e8f0 !important;
-  border-top: 2px solid #64748b !important;
-  color: #0f172a !important;
-  font-size: 11px !important;
-  padding: 6px 10px !important;
-}
-
-:deep(.sticky-footer-title) {
-  position: sticky;
-  left: 0;
-  background-color: #e2e8f0 !important;
-  z-index: 11;
-}
-
-:deep(.btn-filter-icon) {
-  opacity: 0.85;
-  transition: opacity 0.2s;
-}
-:deep(.btn-filter-icon:hover) {
-  opacity: 1;
-}
-
-:deep(.custom-modern-table th.v-data-table-column--no-padding) {
-  display: none !important;
 }
 </style>

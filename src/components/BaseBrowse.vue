@@ -40,6 +40,19 @@
       >
         <v-icon start>mdi-printer</v-icon> Cetak
       </v-btn>
+
+      <!-- Tombol Reset Urutan Kolom jika ada kustomisasi -->
+      <v-btn
+        v-if="colOrder.length > 0"
+        size="x-small"
+        color="blue-grey"
+        variant="tonal"
+        @click="resetColOrder"
+        title="Reset urutan kolom ke default"
+        class="ml-2"
+      >
+        <v-icon start>mdi-refresh</v-icon> Reset Kolom
+      </v-btn>
     </template>
 
     <div class="browse-content">
@@ -94,6 +107,7 @@
       <!-- Tabel Data Utama -->
       <div class="table-container">
         <v-data-table
+          ref="tableWrapRef"
           :model-value="selected"
           @update:model-value="$emit('update:selected', $event)"
           :expanded="expanded"
@@ -110,163 +124,202 @@
           :show-expand="computedShowExpand"
           @click:row="(e, row) => $emit('row-click', e, row)"
           :row-props="rowProps"
+          @scroll.passive="onTableScroll"
         >
-          <!-- Custom Header Template dengan Filter Excel, Drag, & Resizing Otomatis -->
-          <template
-            v-for="header in internalHeaders"
-            :key="header.key"
-            #[`header.${header.key}`]="{ column }"
-          >
-            <div
-              class="d-flex align-center justify-space-between w-100 draggable-header-cell position-relative"
-              :class="{ 'header-drop-target': dragOverKey === header.key }"
-              draggable="true"
-              @dragstart="onDragStart($event, header.key)"
-              @dragover="onDragOver"
-              @dragenter="onDragEnter(header.key)"
-              @dragleave="onDragLeave(header.key)"
-              @drop="onDrop($event, header.key)"
-            >
-              <span
-                class="font-weight-bold text-truncate mr-1 header-drag-title"
-              >
-                {{ column.title }}
-              </span>
-
-              <div class="d-flex align-center">
-                <!-- Menu Filter Excel per Kolom (Kecuali kolom expand bawaan) -->
-                <v-menu
-                  v-if="header.key !== 'data-table-expand'"
-                  v-model="menuStates[header.key]"
-                  :close-on-content-click="false"
-                  location="bottom start"
+          <!-- Custom Header Template dengan Filter Excel, Pointer Drag, & Resizing -->
+          <template #headers="{ columns, isSorted, getSortIcon, toggleSort }">
+            <tr>
+              <template v-for="header in internalHeaders" :key="header.key">
+                <th
+                  :data-col-key="header.key"
+                  :style="{ width: header.width, minWidth: header.minWidth }"
+                  :class="[
+                    'base-th position-relative',
+                    header.align ? `text-${header.align}` : '',
+                    dragOverKey === header.key && dragSrcKey !== header.key
+                      ? 'col-drag-over'
+                      : '',
+                    dragSrcKey === header.key ? 'col-dragging' : '',
+                  ]"
+                  @pointerdown="onColPointerDown(header.key, $event)"
+                  @pointermove="onColPointerMove($event)"
+                  @pointerup="onColPointerUp"
+                  @pointercancel="onColPointerUp"
                 >
-                  <template #activator="{ props }">
-                    <v-btn
-                      icon
-                      variant="text"
-                      density="compact"
-                      size="x-small"
-                      v-bind="props"
-                      @click.stop
-                      @mousedown.stop
-                      :color="
-                        isColumnFilterActive(header.key)
-                          ? 'primary'
-                          : 'grey-darken-1'
-                      "
-                    >
-                      <v-icon size="16">
-                        {{
-                          isColumnFilterActive(header.key)
-                            ? "mdi-filter"
-                            : "mdi-filter-variant"
-                        }}
-                      </v-icon>
-                    </v-btn>
-                  </template>
+                  <div class="d-flex align-center justify-space-between w-100">
+                    <div class="d-flex align-center overflow-hidden w-100">
+                      <!-- Handle Drag Khusus (⠿) -->
+                      <span
+                        v-if="header.key && header.key !== 'data-table-expand'"
+                        class="col-drag-handle mr-1"
+                        title="Geser untuk memindahkan kolom"
+                        >⠿</span
+                      >
 
-                  <v-card
-                    min-width="280"
-                    max-width="320"
-                    class="pa-2 border shadow-2 rounded-lg"
-                  >
-                    <v-text-field
-                      v-model="columnSearch[header.key]"
-                      density="compact"
-                      variant="outlined"
-                      hide-details
-                      clearable
-                      autofocus
-                      placeholder="Cari..."
-                      class="mb-1"
-                    />
-
-                    <div class="text-caption text-grey-darken-1 my-1 px-1">
-                      {{ getFilteredPopupOptions(header.key).length }} dari
-                      {{ (uniqueValuesMap[header.key] || []).length }} nilai
-                      ditampilkan
+                      <span
+                        class="font-weight-bold text-truncate mr-1 header-drag-title flex-grow-1"
+                        :class="{ 'cursor-pointer': header.sortable !== false }"
+                        @click="header.sortable !== false && toggleSort(header)"
+                      >
+                        {{ header.title }}
+                      </span>
                     </div>
 
-                    <div
-                      class="d-flex ga-2 px-1 mb-2 text-caption font-weight-medium"
-                    >
-                      <a
-                        href="#"
-                        class="text-primary text-decoration-none"
-                        @click.prevent="selectAllFiltered(header.key)"
+                    <div class="d-flex align-center flex-shrink-0">
+                      <!-- Menu Filter Excel per Kolom -->
+                      <v-menu
+                        v-if="header.key !== 'data-table-expand'"
+                        v-model="menuStates[header.key]"
+                        :close-on-content-click="false"
+                        location="bottom start"
                       >
-                        Tampilkan Semua
-                      </a>
-                      <span class="text-grey-lighten-1">|</span>
-                      <a
-                        href="#"
-                        class="text-error text-decoration-none"
-                        @click.prevent="deselectAllFiltered(header.key)"
-                      >
-                        Sembunyikan Semua
-                      </a>
-                    </div>
+                        <template #activator="{ props: menuProps }">
+                          <v-btn
+                            icon
+                            variant="text"
+                            density="compact"
+                            size="x-small"
+                            v-bind="menuProps"
+                            @click.stop
+                            @mousedown.stop
+                            :color="
+                              isColumnFilterActive(header.key)
+                                ? 'primary'
+                                : 'grey-darken-1'
+                            "
+                          >
+                            <v-icon size="16">
+                              {{
+                                isColumnFilterActive(header.key)
+                                  ? "mdi-filter"
+                                  : "mdi-filter-variant"
+                              }}
+                            </v-icon>
+                          </v-btn>
+                        </template>
 
-                    <v-divider />
+                        <v-card
+                          min-width="280"
+                          max-width="320"
+                          class="pa-2 border shadow-2 rounded-lg"
+                        >
+                          <v-text-field
+                            v-model="columnSearch[header.key]"
+                            density="compact"
+                            variant="outlined"
+                            hide-details
+                            clearable
+                            autofocus
+                            placeholder="Cari..."
+                            class="mb-1"
+                          />
 
-                    <div
-                      style="max-height: 220px; overflow-y: auto"
-                      class="my-1 px-1"
-                    >
-                      <v-checkbox
-                        v-for="opt in getFilteredPopupOptions(header.key)"
-                        :key="opt"
-                        :label="opt"
-                        :model-value="isOptionSelected(header.key, opt)"
-                        density="compact"
-                        hide-details
-                        color="primary"
-                        @update:model-value="toggleOption(header.key, opt)"
+                          <div
+                            class="text-caption text-grey-darken-1 my-1 px-1"
+                          >
+                            {{
+                              getFilteredPopupOptions(header.key).length
+                            }}
+                            dari
+                            {{
+                              (uniqueValuesMap[header.key] || []).length
+                            }}
+                            nilai ditampilkan
+                          </div>
+
+                          <div
+                            class="d-flex ga-2 px-1 mb-2 text-caption font-weight-medium"
+                          >
+                            <a
+                              href="#"
+                              class="text-primary text-decoration-none"
+                              @click.prevent="selectAllFiltered(header.key)"
+                            >
+                              Tampilkan Semua
+                            </a>
+                            <span class="text-grey-lighten-1">|</span>
+                            <a
+                              href="#"
+                              class="text-error text-decoration-none"
+                              @click.prevent="deselectAllFiltered(header.key)"
+                            >
+                              Sembunyikan Semua
+                            </a>
+                          </div>
+
+                          <v-divider />
+
+                          <div
+                            style="max-height: 220px; overflow-y: auto"
+                            class="my-1 px-1"
+                          >
+                            <v-checkbox
+                              v-for="opt in getFilteredPopupOptions(header.key)"
+                              :key="opt"
+                              :label="opt"
+                              :model-value="isOptionSelected(header.key, opt)"
+                              density="compact"
+                              hide-details
+                              color="primary"
+                              @update:model-value="
+                                toggleOption(header.key, opt)
+                              "
+                            />
+                            <div
+                              v-if="
+                                getFilteredPopupOptions(header.key).length === 0
+                              "
+                              class="text-caption text-grey text-center py-4"
+                            >
+                              Tidak ada data
+                            </div>
+                          </div>
+
+                          <v-divider class="mb-2" />
+
+                          <div
+                            class="d-flex justify-space-between align-center"
+                          >
+                            <v-btn
+                              size="x-small"
+                              variant="text"
+                              color="grey-darken-1"
+                              @click="resetColumnFilter(header.key)"
+                            >
+                              Reset
+                            </v-btn>
+                            <v-btn
+                              size="small"
+                              color="primary"
+                              variant="flat"
+                              class="px-4 font-weight-bold"
+                              @click="menuStates[header.key] = false"
+                            >
+                              OK
+                            </v-btn>
+                          </div>
+                        </v-card>
+                      </v-menu>
+
+                      <!-- Slot Suffix Kustom jika ada -->
+                      <slot
+                        :name="`header-suffix.${header.key}`"
+                        :column="header"
                       />
+
+                      <!-- Garis Resizer Handle di Ujung Kanan Header -->
                       <div
-                        v-if="getFilteredPopupOptions(header.key).length === 0"
-                        class="text-caption text-grey text-center py-4"
-                      >
-                        Tidak ada data
-                      </div>
+                        v-if="header.key !== 'data-table-expand'"
+                        class="column-resizer"
+                        @mousedown.stop.prevent="
+                          startResize($event, header.key)
+                        "
+                      ></div>
                     </div>
-
-                    <v-divider class="mb-2" />
-
-                    <div class="d-flex justify-space-between align-center">
-                      <v-btn
-                        size="x-small"
-                        variant="text"
-                        color="grey-darken-1"
-                        @click="resetColumnFilter(header.key)"
-                      >
-                        Reset
-                      </v-btn>
-                      <v-btn
-                        size="small"
-                        color="primary"
-                        variant="flat"
-                        class="px-4 font-weight-bold"
-                        @click="menuStates[header.key] = false"
-                      >
-                        OK
-                      </v-btn>
-                    </div>
-                  </v-card>
-                </v-menu>
-
-                <!-- Slot Suffix Kustom jika ada -->
-                <slot :name="`header-suffix.${header.key}`" :column="column" />
-
-                <!-- Garis Resizer Handle di Ujung Kanan Header -->
-                <div
-                  v-if="header.key !== 'data-table-expand'"
-                  class="column-resizer"
-                  @mousedown.stop.prevent="startResize($event, header.key)"
-                ></div>
-              </div>
-            </div>
+                  </div>
+                </th>
+              </template>
+            </tr>
           </template>
 
           <!-- Handle Slot #expanded-row bawaan Vuetify 3 -->
@@ -377,7 +430,7 @@ const props = defineProps({
 
   selected: { type: Array, default: () => [] },
   expanded: { type: Array, default: () => [] },
-  filteredItems: { type: Array, default: () => [] }, // Tambahan props pendukung
+  filteredItems: { type: Array, default: () => [] },
   search: { type: String, default: "" },
   itemValue: { type: String, default: "Nomor" },
   showExpand: { type: Boolean, default: false },
@@ -392,7 +445,7 @@ const emit = defineEmits([
   "update:filters",
   "update:selected",
   "update:expanded",
-  "update:filteredItems", // Event emit untuk meneruskan data terfilter ke parent
+  "update:filteredItems",
   "refresh",
   "action:new",
   "action:edit",
@@ -403,30 +456,168 @@ const emit = defineEmits([
 
 const slots = useSlots();
 
-// --- STATE INTERNAL UNTUK DRAG, RESIZE, & FILTER KOLOM ---
+// --- STATE & PERSISTENCE UNTUK URUTAN KOLOM (LOCALSTORAGE) ---
+const colOrderKey = computed(
+  () => `mmt_browse_colorder_${props.title.replace(/\s+/g, "_")}`,
+);
+
+const loadColOrder = (): string[] => {
+  try {
+    const raw = localStorage.getItem(colOrderKey.value);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+};
+
+const saveColOrder = (order: string[]) => {
+  try {
+    localStorage.setItem(colOrderKey.value, JSON.stringify(order));
+  } catch {}
+};
+
+const colOrder = ref<string[]>(loadColOrder());
 const internalHeaders = ref<any[]>([]);
 
 watch(
   () => props.headers,
   (newHeaders) => {
     if (!newHeaders) return;
-    if (internalHeaders.value.length === 0) {
-      internalHeaders.value = JSON.parse(JSON.stringify(newHeaders));
-    } else {
-      const currentKeys = new Set(newHeaders.map((h: any) => h.key));
-      const preserved = internalHeaders.value.filter((h: any) =>
-        currentKeys.has(h.key),
-      );
-      const existingKeys = new Set(preserved.map((h: any) => h.key));
-      newHeaders.forEach((h: any) => {
-        if (!existingKeys.has(h.key))
-          preserved.push(JSON.parse(JSON.stringify(h)));
-      });
-      internalHeaders.value = preserved;
+    let baseHeaders = JSON.parse(JSON.stringify(newHeaders));
+
+    if (colOrder.value.length > 0) {
+      const map = new Map(baseHeaders.map((h: any) => [h.key, h]));
+      const ordered: any[] = [];
+      for (const key of colOrder.value) {
+        if (map.has(key)) ordered.push(map.get(key));
+      }
+      for (const h of baseHeaders) {
+        if (!colOrder.value.includes(h.key)) ordered.push(h);
+      }
+      baseHeaders = ordered;
     }
+
+    internalHeaders.value = baseHeaders;
   },
   { immediate: true, deep: true },
 );
+
+const resetColOrder = () => {
+  colOrder.value = [];
+  localStorage.removeItem(colOrderKey.value);
+  internalHeaders.value = JSON.parse(JSON.stringify(props.headers));
+};
+
+// --- STATE POINTER DRAG & DROP KOLOM ---
+const dragSrcKey = ref<string | null>(null);
+const dragOverKey = ref<string | null>(null);
+const isDragging = ref(false);
+
+let pointerDragKey: string | null = null;
+let autoScrollTimer: number | null = null;
+const tableWrapRef = ref<any>(null);
+
+const onColPointerDown = (key: string | null | undefined, e: PointerEvent) => {
+  if (!key || key === "data-table-expand") return;
+  const target = e.target as HTMLElement;
+  if (!target.classList.contains("col-drag-handle")) return; // Hanya dari handle ⠿
+
+  pointerDragKey = key;
+  dragSrcKey.value = key;
+  isDragging.value = true;
+
+  (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+};
+
+const onColPointerMove = (e: PointerEvent) => {
+  if (!isDragging.value || !pointerDragKey) return;
+
+  const els = document.elementsFromPoint(e.clientX, e.clientY);
+  const th = els.find(
+    (el) => el.tagName === "TH" && el.hasAttribute("data-col-key"),
+  ) as HTMLElement | undefined;
+
+  if (th) {
+    const key = th.getAttribute("data-col-key");
+    if (key && key !== pointerDragKey) {
+      dragOverKey.value = key;
+    }
+  }
+
+  // Auto-scroll horizontal wrapper tabel saat pointer di tepi
+  const wrapper = tableWrapRef.value?.$el?.querySelector(
+    ".v-table__wrapper",
+  ) as HTMLElement | null;
+  if (!wrapper) return;
+
+  const rect = wrapper.getBoundingClientRect();
+  const EDGE = 60;
+  const SPEED = 12;
+
+  if (autoScrollTimer) {
+    clearInterval(autoScrollTimer);
+    autoScrollTimer = null;
+  }
+
+  if (e.clientX < rect.left + EDGE) {
+    autoScrollTimer = window.setInterval(() => {
+      wrapper.scrollLeft -= SPEED;
+    }, 16);
+  } else if (e.clientX > rect.right - EDGE) {
+    autoScrollTimer = window.setInterval(() => {
+      wrapper.scrollLeft += SPEED;
+    }, 16);
+  }
+};
+
+const onColPointerUp = () => {
+  if (!isDragging.value) return;
+
+  if (autoScrollTimer) {
+    clearInterval(autoScrollTimer);
+    autoScrollTimer = null;
+  }
+
+  if (
+    pointerDragKey &&
+    dragOverKey.value &&
+    pointerDragKey !== dragOverKey.value
+  ) {
+    const currentOrder = internalHeaders.value
+      .map((h) => h.key)
+      .filter((k) => k && k !== "data-table-expand");
+
+    const srcIdx = currentOrder.indexOf(pointerDragKey);
+    const tgtIdx = currentOrder.indexOf(dragOverKey.value);
+
+    if (srcIdx !== -1 && tgtIdx !== -1) {
+      const newOrder = [...currentOrder];
+      newOrder.splice(srcIdx, 1);
+      newOrder.splice(tgtIdx, 0, pointerDragKey);
+      colOrder.value = newOrder;
+      saveColOrder(newOrder);
+
+      // Re-order internalHeaders
+      const map = new Map(internalHeaders.value.map((h: any) => [h.key, h]));
+      const reordered: any[] = [];
+      for (const k of newOrder) {
+        if (map.has(k)) reordered.push(map.get(k));
+      }
+      internalHeaders.value.forEach((h) => {
+        if (!newOrder.includes(h.key)) reordered.push(h);
+      });
+      internalHeaders.value = reordered;
+    }
+  }
+
+  pointerDragKey = null;
+  dragSrcKey.value = null;
+  dragOverKey.value = null;
+  isDragging.value = false;
+};
+
+// Kosongkan fungsi drag lama HTML5 agar tidak konflik
+const onTableScroll = () => {};
 
 // State Resizing
 const resizingKey = ref<string | null>(null);
@@ -468,49 +659,6 @@ const onMouseUp = () => {
   resizingKey.value = null;
   window.removeEventListener("mousemove", onMouseMove);
   window.removeEventListener("mouseup", onMouseUp);
-};
-
-// State Drag and Drop Posisi Kolom
-const draggedKey = ref<string | null>(null);
-const dragOverKey = ref<string | null>(null);
-
-const onDragStart = (e: DragEvent, key: string) => {
-  resizingKey.value = null;
-  draggedKey.value = key;
-  if (e.dataTransfer) {
-    e.dataTransfer.effectAllowed = "move";
-    e.dataTransfer.setData("text/plain", key);
-  }
-};
-
-const onDragOver = (e: DragEvent) => {
-  e.preventDefault();
-  if (e.dataTransfer) {
-    e.dataTransfer.dropEffect = "move";
-  }
-};
-
-const onDragEnter = (key: string) => {
-  dragOverKey.value = key;
-};
-
-const onDragLeave = (_key: string) => {};
-
-const onDrop = (e: DragEvent, targetKey: string) => {
-  e.preventDefault();
-  const sourceKey = draggedKey.value;
-  draggedKey.value = null;
-  dragOverKey.value = null;
-
-  if (!sourceKey || sourceKey === targetKey) return;
-
-  const srcIdx = internalHeaders.value.findIndex((h) => h.key === sourceKey);
-  const targetIdx = internalHeaders.value.findIndex((h) => h.key === targetKey);
-
-  if (srcIdx !== -1 && targetIdx !== -1) {
-    const movedItem = internalHeaders.value.splice(srcIdx, 1)[0];
-    internalHeaders.value.splice(targetIdx, 0, movedItem);
-  }
 };
 
 // --- EXCEL FILTER CORE LOGIC ---
@@ -625,7 +773,6 @@ const filteredItems = computed(() => {
   });
 });
 
-// Watch dan kirim hasil data terfilter ke komponen parent secara otomatis
 watch(
   filteredItems,
   (newVal) => {
@@ -649,14 +796,12 @@ const formatTotal = (val: number) => {
   }).format(val);
 };
 
-// Otomatis aktifkan tombol expand jika parent mempunyai slot detail/expanded
 const computedShowExpand = computed(() => {
   return (
     props.showExpand || !!slots["expanded-row"] || !!slots["expanded-content"]
   );
 });
 
-// Mengambil slot custom tanpa menyertakan slot internal / layout
 const customSlots = computed(() => {
   const {
     "extra-actions": _,
@@ -668,7 +813,6 @@ const customSlots = computed(() => {
   return rest;
 });
 
-// Getter & Event Handler Tanggal
 const startDateVal = computed(
   () => props.filters?.startDate ?? props.startDate,
 );
@@ -717,6 +861,7 @@ const isSingleSelected = computed(() => props.selected.length === 1);
   position: sticky !important;
   top: 0 !important;
   z-index: 5 !important;
+  user-select: none;
 }
 
 :deep(.v-data-table td) {
@@ -747,29 +892,25 @@ const isSingleSelected = computed(() => props.selected.length === 1);
   height: 28px !important;
 }
 
-.draggable-header-cell {
-  cursor: grab;
-  user-select: none;
-  transition:
-    background-color 0.2s ease,
-    border 0.2s ease;
-  padding: 2px 6px;
-  border-radius: 2px;
-  position: relative;
-  border-right: 1px solid rgba(0, 0, 0, 0.12);
+/* --- STYLING DRAG & DROP POINTER --- */
+.col-dragging {
+  opacity: 0.5;
+  background-color: #cfd8dc !important;
 }
-
-.draggable-header-cell:active {
-  cursor: grabbing;
-}
-
-.header-drag-title {
-  cursor: grab;
-}
-
-.header-drop-target {
+.col-drag-over {
   background-color: rgba(25, 118, 210, 0.15) !important;
-  outline: 2px dashed #1976d2 !important;
+  box-shadow: inset 3px 0 0 #1976d2;
+}
+.col-drag-handle {
+  cursor: grab;
+  color: rgba(0, 0, 0, 0.4);
+  font-size: 14px;
+  user-select: none;
+  touch-action: none;
+  flex-shrink: 0;
+}
+.col-drag-handle:active {
+  cursor: grabbing;
 }
 
 .column-resizer {
@@ -785,7 +926,7 @@ const isSingleSelected = computed(() => props.selected.length === 1);
 }
 
 .column-resizer:hover,
-.draggable-header-cell:hover .column-resizer {
+.base-th:hover .column-resizer {
   background-color: rgba(0, 0, 0, 0.15);
 }
 

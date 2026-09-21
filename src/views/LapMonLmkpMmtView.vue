@@ -30,7 +30,7 @@
         hide-details
         variant="outlined"
         style="max-width: 140px"
-        @update:model-value="fetchReport"
+        @update:model-value="onJenisChange"
       />
 
       <v-text-field
@@ -45,7 +45,7 @@
       />
     </template>
 
-    <!-- Slot Header Tabel Berkelompok Custom -->
+    <!-- Slot Header Tabel Berkelompok Custom dengan Support Drag & Drop -->
     <template #thead>
       <thead>
         <!-- Row 1: Header Utama & Grouping Header -->
@@ -53,13 +53,17 @@
           <!-- 1. NOMOR SPK -->
           <th
             rowspan="2"
-            class="text-center sticky-col-1 cursor-pointer select-none"
+            :style="colStyles('NOMOR', '140px')"
+            class="text-center sticky-col-1 cursor-pointer select-none position-relative"
             @click="toggleSort('NOMOR')"
           >
-            <div class="d-flex align-center justify-space-between px-1">
-              <span class="font-weight-bold">
-                NOMOR SPK {{ getSortIcon("NOMOR") }}
-              </span>
+            <div class="d-flex align-center justify-space-between px-1 w-100">
+              <div class="d-flex align-center overflow-hidden w-100">
+                <span class="col-drag-handle mr-1" title="Geser kolom">⠿</span>
+                <span class="font-weight-bold text-truncate">
+                  NOMOR SPK {{ getSortIcon("NOMOR") }}
+                </span>
+              </div>
               <v-menu :close-on-content-click="false">
                 <template #activator="{ props }">
                   <v-btn
@@ -90,18 +94,26 @@
                 </v-card>
               </v-menu>
             </div>
+            <div
+              class="column-resizer"
+              @mousedown.stop.prevent="startResize($event, 'NOMOR', 140)"
+            ></div>
           </th>
 
           <!-- 2. NAMA ORDER -->
           <th
             rowspan="2"
-            class="text-left sticky-col-2 cursor-pointer select-none"
+            :style="colStyles('spk_nama', '220px')"
+            class="text-left sticky-col-2 cursor-pointer select-none position-relative"
             @click="toggleSort('spk_nama')"
           >
-            <div class="d-flex align-center justify-space-between px-1">
-              <span class="font-weight-bold">
-                NAMA ORDER {{ getSortIcon("spk_nama") }}
-              </span>
+            <div class="d-flex align-center justify-space-between px-1 w-100">
+              <div class="d-flex align-center overflow-hidden w-100">
+                <span class="col-drag-handle mr-1" title="Geser kolom">⠿</span>
+                <span class="font-weight-bold text-truncate">
+                  NAMA ORDER {{ getSortIcon("spk_nama") }}
+                </span>
+              </div>
               <v-menu :close-on-content-click="false">
                 <template #activator="{ props }">
                   <v-btn
@@ -134,40 +146,70 @@
                 </v-card>
               </v-menu>
             </div>
+            <div
+              class="column-resizer"
+              @mousedown.stop.prevent="startResize($event, 'spk_nama', 220)"
+            ></div>
           </th>
 
           <!-- 3. TANGGAL -->
           <th
             rowspan="2"
-            class="text-center cursor-pointer select-none"
+            :style="colStyles('spk_tanggal', '110px')"
+            class="text-center cursor-pointer select-none position-relative"
             @click="toggleSort('spk_tanggal')"
           >
-            <span class="font-weight-bold">
-              TANGGAL {{ getSortIcon("spk_tanggal") }}
-            </span>
+            <div class="d-flex align-center justify-space-between px-1 w-100">
+              <div class="d-flex align-center overflow-hidden w-100">
+                <span class="col-drag-handle mr-1" title="Geser kolom">⠿</span>
+                <span class="font-weight-bold text-truncate">
+                  TANGGAL {{ getSortIcon("spk_tanggal") }}
+                </span>
+              </div>
+            </div>
+            <div
+              class="column-resizer"
+              @mousedown.stop.prevent="startResize($event, 'spk_tanggal', 110)"
+            ></div>
           </th>
 
           <!-- 4. DEADLINE -->
           <th
             rowspan="2"
-            class="text-center cursor-pointer select-none"
+            :style="colStyles('deadline', '110px')"
+            class="text-center cursor-pointer select-none position-relative"
             @click="toggleSort('deadline')"
           >
-            <span class="font-weight-bold">
-              DEADLINE {{ getSortIcon("deadline") }}
-            </span>
+            <div class="d-flex align-center justify-space-between px-1 w-100">
+              <div class="d-flex align-center overflow-hidden w-100">
+                <span class="col-drag-handle mr-1" title="Geser kolom">⠿</span>
+                <span class="font-weight-bold text-truncate">
+                  DEADLINE {{ getSortIcon("deadline") }}
+                </span>
+              </div>
+            </div>
+            <div
+              class="column-resizer"
+              @mousedown.stop.prevent="startResize($event, 'deadline', 110)"
+            ></div>
           </th>
 
           <!-- 5. BAHAN -->
           <th
             rowspan="2"
-            class="text-left border cursor-pointer select-none"
+            :style="colStyles('KAIN', '140px')"
+            class="text-left border cursor-pointer select-none position-relative"
             @click="toggleSort('KAIN')"
           >
-            <div class="d-flex align-center justify-space-between px-1 ga-1">
-              <span class="font-weight-bold">
-                BAHAN {{ getSortIcon("KAIN") }}
-              </span>
+            <div
+              class="d-flex align-center justify-space-between px-1 ga-1 w-100"
+            >
+              <div class="d-flex align-center overflow-hidden w-100">
+                <span class="col-drag-handle mr-1" title="Geser kolom">⠿</span>
+                <span class="font-weight-bold text-truncate">
+                  BAHAN {{ getSortIcon("KAIN") }}
+                </span>
+              </div>
               <v-menu :close-on-content-click="false">
                 <template #activator="{ props }">
                   <v-btn
@@ -202,50 +244,94 @@
                 </v-card>
               </v-menu>
             </div>
+            <div
+              class="column-resizer"
+              @mousedown.stop.prevent="startResize($event, 'KAIN', 140)"
+            ></div>
           </th>
 
           <!-- 6. GRAMASI -->
           <th
             rowspan="2"
-            class="text-center cursor-pointer select-none"
+            :style="colStyles('spk_gramasi', '90px')"
+            class="text-center cursor-pointer select-none position-relative"
             @click="toggleSort('spk_gramasi')"
           >
-            <span class="font-weight-bold">
-              GRAMASI {{ getSortIcon("spk_gramasi") }}
-            </span>
+            <div class="d-flex align-center justify-space-between px-1 w-100">
+              <div class="d-flex align-center overflow-hidden w-100">
+                <span class="col-drag-handle mr-1" title="Geser kolom">⠿</span>
+                <span class="font-weight-bold text-truncate">
+                  GRAMASI {{ getSortIcon("spk_gramasi") }}
+                </span>
+              </div>
+            </div>
+            <div
+              class="column-resizer"
+              @mousedown.stop.prevent="startResize($event, 'spk_gramasi', 90)"
+            ></div>
           </th>
 
           <!-- 7. PANJANG -->
           <th
             rowspan="2"
-            class="text-center cursor-pointer select-none"
+            :style="colStyles('PANJANG', '90px')"
+            class="text-center cursor-pointer select-none position-relative"
             @click="toggleSort('PANJANG')"
           >
-            <span class="font-weight-bold">
-              PANJANG {{ getSortIcon("PANJANG") }}
-            </span>
+            <div class="d-flex align-center justify-space-between px-1 w-100">
+              <div class="d-flex align-center overflow-hidden w-100">
+                <span class="col-drag-handle mr-1" title="Geser kolom">⠿</span>
+                <span class="font-weight-bold text-truncate">
+                  PANJANG {{ getSortIcon("PANJANG") }}
+                </span>
+              </div>
+            </div>
+            <div
+              class="column-resizer"
+              @mousedown.stop.prevent="startResize($event, 'PANJANG', 90)"
+            ></div>
           </th>
 
           <!-- 8. LEBAR -->
           <th
             rowspan="2"
-            class="text-center cursor-pointer select-none"
+            :style="colStyles('LEBAR', '90px')"
+            class="text-center cursor-pointer select-none position-relative"
             @click="toggleSort('LEBAR')"
           >
-            <span class="font-weight-bold">
-              LEBAR {{ getSortIcon("LEBAR") }}
-            </span>
+            <div class="d-flex align-center justify-space-between px-1 w-100">
+              <div class="d-flex align-center overflow-hidden w-100">
+                <span class="col-drag-handle mr-1" title="Geser kolom">⠿</span>
+                <span class="font-weight-bold text-truncate">
+                  LEBAR {{ getSortIcon("LEBAR") }}
+                </span>
+              </div>
+            </div>
+            <div
+              class="column-resizer"
+              @mousedown.stop.prevent="startResize($event, 'LEBAR', 90)"
+            ></div>
           </th>
 
           <!-- 9. FINISHING -->
           <th
             rowspan="2"
-            class="text-left cursor-pointer select-none"
+            :style="colStyles('FINISHING', '130px')"
+            class="text-left cursor-pointer select-none position-relative"
             @click="toggleSort('FINISHING')"
           >
-            <span class="font-weight-bold">
-              FINISHING {{ getSortIcon("FINISHING") }}
-            </span>
+            <div class="d-flex align-center justify-space-between px-1 w-100">
+              <div class="d-flex align-center overflow-hidden w-100">
+                <span class="col-drag-handle mr-1" title="Geser kolom">⠿</span>
+                <span class="font-weight-bold text-truncate">
+                  FINISHING {{ getSortIcon("FINISHING") }}
+                </span>
+              </div>
+            </div>
+            <div
+              class="column-resizer"
+              @mousedown.stop.prevent="startResize($event, 'FINISHING', 130)"
+            ></div>
           </th>
 
           <!-- GROUP PRODUKSI (PCS) -->
@@ -259,71 +345,155 @@
           <!-- CETAK LUAR -->
           <th
             rowspan="2"
-            class="text-right border-l border-r cursor-pointer select-none"
+            :style="colStyles('cetak_luarx', '90px')"
+            class="text-right border-l border-r cursor-pointer select-none position-relative"
             @click="toggleSort('cetak_luarx')"
           >
-            CTK L. {{ getSortIcon("cetak_luarx") }}
+            <div class="d-flex align-center justify-space-between px-1 w-100">
+              <div class="d-flex align-center overflow-hidden w-100">
+                <span class="col-drag-handle mr-1" title="Geser kolom">⠿</span>
+                <span class="font-weight-bold text-truncate">
+                  CTK L. {{ getSortIcon("cetak_luarx") }}
+                </span>
+              </div>
+            </div>
+            <div
+              class="column-resizer"
+              @mousedown.stop.prevent="startResize($event, 'cetak_luarx', 90)"
+            ></div>
           </th>
 
-          <!-- GROUP PRODUKSI (METER) -->
+          <th
+            v-if="mesinColumns.length > 0"
+            :colspan="mesinColumns.length"
+            class="text-center header-group bg-cyan-header"
+          >
+            MESIN
+          </th>
+
           <th colspan="3" class="text-center header-group bg-teal-header">
             PRODUKSI (METER)
           </th>
         </tr>
 
-        <!-- Row 2: Sub Header Detail Dengan Fitur Sorting -->
+        <!-- Row 2: Sub Header Detail (Drag Target Utama) -->
         <tr class="header-sub">
           <!-- DINAMIS SUB HEADER PCS -->
           <th
             v-for="sub in subPcs"
             :key="sub.key"
-            class="text-right bg-blue-sub cursor-pointer select-none"
+            :style="colStyles(sub.key, '90px')"
+            class="text-right bg-blue-sub cursor-pointer select-none position-relative draggable-th"
             @click="toggleSort(sub.key)"
           >
-            {{ sub.label }} {{ getSortIcon(sub.key) }}
+            <div class="d-flex align-center justify-space-between px-1 w-100">
+              <div class="d-flex align-center overflow-hidden w-100">
+                <span class="col-drag-handle mr-1" title="Geser kolom">⠿</span>
+                <span class="font-weight-bold text-truncate">
+                  {{ sub.label }} {{ getSortIcon(sub.key) }}
+                </span>
+              </div>
+            </div>
+            <div
+              class="column-resizer"
+              @mousedown.stop.prevent="startResize($event, sub.key, 90)"
+            ></div>
           </th>
 
           <!-- DINAMIS SUB HEADER MESIN -->
           <th
             v-for="m in mesinColumns"
             :key="m.key"
-            class="text-center bg-cyan-sub cursor-pointer select-none"
+            :style="colStyles(m.key, '80px')"
+            class="text-center bg-cyan-sub cursor-pointer select-none position-relative draggable-th"
             @click="toggleSort(m.key)"
           >
-            {{ m.label }} {{ getSortIcon(m.key) }}
+            <div class="d-flex align-center justify-space-between px-1 w-100">
+              <div class="d-flex align-center overflow-hidden w-100">
+                <span class="col-drag-handle mr-1" title="Geser kolom">⠿</span>
+                <span class="font-weight-bold text-truncate">
+                  {{ m.label }} {{ getSortIcon(m.key) }}
+                </span>
+              </div>
+            </div>
+            <div
+              class="column-resizer"
+              @mousedown.stop.prevent="startResize($event, m.key, 80)"
+            ></div>
           </th>
 
           <!-- Produksi Meter -->
           <th
-            class="text-right bg-teal-sub cursor-pointer select-none"
+            :style="colStyles('krg_kirim_meter', '90px')"
+            class="text-right bg-teal-sub cursor-pointer select-none position-relative draggable-th"
             @click="toggleSort('krg_kirim_meter')"
           >
-            K-KRM {{ getSortIcon("krg_kirim_meter") }}
+            <div class="d-flex align-center justify-space-between px-1 w-100">
+              <div class="d-flex align-center overflow-hidden w-100">
+                <span class="col-drag-handle mr-1" title="Geser kolom">⠿</span>
+                <span class="font-weight-bold text-truncate">
+                  K-KRM {{ getSortIcon("krg_kirim_meter") }}
+                </span>
+              </div>
+            </div>
+            <div
+              class="column-resizer"
+              @mousedown.stop.prevent="
+                startResize($event, 'krg_kirim_meter', 90)
+              "
+            ></div>
           </th>
           <th
-            class="text-right bg-teal-sub cursor-pointer select-none"
+            :style="colStyles('krg_Cetak_meter', '90px')"
+            class="text-right bg-teal-sub cursor-pointer select-none position-relative draggable-th"
             @click="toggleSort('krg_Cetak_meter')"
           >
-            K-CTK {{ getSortIcon("krg_Cetak_meter") }}
+            <div class="d-flex align-center justify-space-between px-1 w-100">
+              <div class="d-flex align-center overflow-hidden w-100">
+                <span class="col-drag-handle mr-1" title="Geser kolom">⠿</span>
+                <span class="font-weight-bold text-truncate">
+                  K-CTK {{ getSortIcon("krg_Cetak_meter") }}
+                </span>
+              </div>
+            </div>
+            <div
+              class="column-resizer"
+              @mousedown.stop.prevent="
+                startResize($event, 'krg_Cetak_meter', 90)
+              "
+            ></div>
           </th>
           <th
-            class="text-right bg-teal-sub cursor-pointer select-none"
+            :style="colStyles('krg_coly_meter', '90px')"
+            class="text-right bg-teal-sub cursor-pointer select-none position-relative draggable-th"
             @click="toggleSort('krg_coly_meter')"
           >
-            K-CLY {{ getSortIcon("krg_coly_meter") }}
+            <div class="d-flex align-center justify-space-between px-1 w-100">
+              <div class="d-flex align-center overflow-hidden w-100">
+                <span class="col-drag-handle mr-1" title="Geser kolom">⠿</span>
+                <span class="font-weight-bold text-truncate">
+                  K-CLY {{ getSortIcon("krg_coly_meter") }}
+                </span>
+              </div>
+            </div>
+            <div
+              class="column-resizer"
+              @mousedown.stop.prevent="
+                startResize($event, 'krg_coly_meter', 90)
+              "
+            ></div>
           </th>
         </tr>
       </thead>
     </template>
 
     <!-- Slot Row Baris Data Utama -->
-    <!-- Slot Row Baris Data Utama -->
     <template #row="{ item, formatNumber }">
       <tr class="table-row-item">
         <td
+          :style="colStyles('NOMOR', '140px')"
           class="text-center sticky-col-1 font-weight-bold d-flex align-center justify-between"
         >
-          <!-- Tombol Expand khusus Paperprint (2) & Sublim (3) -->
           <v-btn
             v-if="
               ['2', '3'].includes(jenisIndex) &&
@@ -355,32 +525,40 @@
           <span v-else>-</span>
         </td>
         <td
+          :style="colStyles('spk_nama', '220px')"
           class="text-left sticky-col-2 text-truncate"
-          style="max-width: 250px"
           :title="item.spk_nama"
         >
           {{ item.spk_nama || "-" }}
         </td>
-        <!-- Info Umum SPK -->
-        <td class="text-center">{{ formatDateDisplay(item.spk_tanggal) }}</td>
-        <td class="text-center font-weight-bold text-error">
+        <td :style="colStyles('spk_tanggal', '110px')" class="text-center">
+          {{ formatDateDisplay(item.spk_tanggal) }}
+        </td>
+        <td
+          :style="colStyles('deadline', '110px')"
+          class="text-center font-weight-bold text-error"
+        >
           {{ formatDateDisplay(item.deadline) }}
         </td>
         <td
+          :style="colStyles('KAIN', '140px')"
           class="text-left text-truncate"
-          style="max-width: 150px"
           :title="item.KAIN"
         >
           {{ item.KAIN || "-" }}
         </td>
-        <td class="text-center">{{ item.spk_gramasi || "-" }}</td>
-
-        <!-- Data Dimensi & Finishing -->
-        <td class="text-center">{{ formatNumber(item.PANJANG, 2) }}</td>
-        <td class="text-center">{{ formatNumber(item.LEBAR, 2) }}</td>
+        <td :style="colStyles('spk_gramasi', '90px')" class="text-center">
+          {{ item.spk_gramasi || "-" }}
+        </td>
+        <td :style="colStyles('PANJANG', '90px')" class="text-center">
+          {{ formatNumber(item.PANJANG, 2) }}
+        </td>
+        <td :style="colStyles('LEBAR', '90px')" class="text-center">
+          {{ formatNumber(item.LEBAR, 2) }}
+        </td>
         <td
+          :style="colStyles('FINISHING', '130px')"
           class="text-left text-truncate"
-          style="max-width: 180px"
           :title="item.FINISHING"
         >
           {{ item.FINISHING || "-" }}
@@ -389,6 +567,7 @@
         <!-- DINAMIS DATA PRODUKSI PCS -->
         <template v-for="sub in subPcs" :key="sub.key">
           <td
+            :style="colStyles(sub.key, '90px')"
             class="text-right"
             :class="{
               'text-error font-weight-bold': sub.key === 'krg_Cetak',
@@ -400,7 +579,10 @@
         </template>
 
         <!-- Cetak Luar -->
-        <td class="text-right border-l border-r">
+        <td
+          :style="colStyles('cetak_luarx', '90px')"
+          class="text-right border-l border-r"
+        >
           {{ formatNumber(item.cetak_luarx, 0) }}
         </td>
 
@@ -408,6 +590,7 @@
         <td
           v-for="m in mesinColumns"
           :key="m.key"
+          :style="colStyles(m.key, '80px')"
           class="text-center"
           :class="{ 'font-weight-bold text-primary': item[m.key] > 0 }"
         >
@@ -415,92 +598,148 @@
         </td>
 
         <!-- Produksi Meter -->
-        <td class="text-right">{{ formatNumber(item.krg_kirim_meter, 2) }}</td>
-        <td class="text-right text-error font-weight-bold bg-red-lighten-5">
+        <td :style="colStyles('krg_kirim_meter', '90px')" class="text-right">
+          {{ formatNumber(item.krg_kirim_meter, 2) }}
+        </td>
+        <td
+          :style="colStyles('krg_Cetak_meter', '90px')"
+          class="text-right text-error font-weight-bold bg-red-lighten-5"
+        >
           {{ formatNumber(item.krg_Cetak_meter, 2) }}
         </td>
-        <td class="text-right">{{ formatNumber(item.krg_coly_meter, 2) }}</td>
+        <td :style="colStyles('krg_coly_meter', '90px')" class="text-right">
+          {{ formatNumber(item.krg_coly_meter, 2) }}
+        </td>
       </tr>
 
-      <!-- Expanded Row: Detail Ukuran & Komponen per Size -->
+      <!-- Expanded Row: Detail Ukuran & Komponen (Format Tabel) -->
       <tr
         v-if="['2', '3'].includes(jenisIndex) && expanded.includes(item.NOMOR)"
       >
-        <td :colspan="getTotalColumnsCount" class="bg-grey-lighten-4 pa-3">
-          <div class="pa-2 border rounded bg-white">
-            <div class="text-subtitle-2 font-weight-bold text-primary mb-2">
-              Detail Ukuran, Komponen & Kurang Cetak: {{ item.NOMOR }}
-            </div>
-            <v-table
-              density="compact"
-              class="elevation-0 size-detail-table border"
+        <td colspan="100" class="bg-grey-lighten-4 pa-3">
+          <div
+            class="detail-table-wrapper border rounded-lg bg-white elevation-1 pa-3"
+          >
+            <div
+              class="text-subtitle-2 font-weight-bold text-primary mb-2 d-flex align-center"
             >
+              <v-icon size="small" class="mr-2">mdi-table-large</v-icon>
+              Rincian Detail Ukuran & Komponen — SPK: {{ item.NOMOR }}
+            </div>
+
+            <v-table density="compact" class="clean-detail-table border">
               <thead>
-                <tr class="bg-blue-lighten-5">
-                  <th class="text-center" style="width: 120px">
+                <tr class="bg-blue-darken-2 text-white">
+                  <th
+                    class="text-center font-weight-bold"
+                    style="width: 130px; color: white !important"
+                  >
                     Ukuran (Size)
                   </th>
-                  <th class="text-right" style="width: 100px">Qty Order</th>
-                  <th class="text-right text-error" style="width: 120px">
+                  <th
+                    class="text-right font-weight-bold"
+                    style="width: 120px; color: white !important"
+                  >
+                    Qty Order
+                  </th>
+                  <th
+                    class="text-right font-weight-bold"
+                    style="width: 140px; color: white !important"
+                  >
                     Kurang Cetak Size
                   </th>
-                  <th class="text-left">Rincian Komponen & Qty Cetak</th>
+                  <th
+                    class="text-left font-weight-bold"
+                    style="color: white !important"
+                  >
+                    Komponen Cetak & Rincian Qty
+                  </th>
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="(sz, idx) in item.sizes" :key="idx">
-                  <td class="text-center font-weight-bold align-top pt-2">
+                <tr
+                  v-for="(sz, idx) in item.sizes"
+                  :key="idx"
+                  class="detail-row"
+                >
+                  <!-- Kolom Size -->
+                  <td class="text-center align-middle font-weight-bold py-2">
                     <v-chip
                       size="small"
                       color="primary"
                       variant="tonal"
-                      class="font-weight-bold"
+                      class="font-weight-bold px-3"
                     >
                       {{ sz.size_name }}
                     </v-chip>
                   </td>
-                  <td class="text-right align-top pt-3">
+
+                  <!-- Kolom Qty Order -->
+                  <td class="text-right align-middle font-weight-medium">
                     {{ formatNumber(sz.size_qty, 0) }}
                   </td>
+
+                  <!-- Kolom Kurang Cetak Size -->
                   <td
-                    class="text-right text-error font-weight-bold align-top pt-3"
+                    class="text-right align-middle font-weight-bold"
+                    :class="
+                      sz.size_krg_cetak > 0 ? 'text-error' : 'text-success'
+                    "
                   >
                     {{ formatNumber(sz.size_krg_cetak, 0) }}
                   </td>
-                  <td>
-                    <!-- Sub-tabel komponen di dalam tiap ukuran -->
-                    <v-table
-                      density="compact"
-                      class="inner-component-table bg-transparent"
-                    >
+
+                  <!-- Kolom Rincian Komponen (Sub-Tabel Minimalis) -->
+                  <td class="py-2 px-0">
+                    <table class="w-100 inner-sub-table">
                       <thead>
-                        <tr class="text-grey-darken-1 text-caption">
-                          <th class="text-left">Nama Komponen</th>
-                          <th class="text-right">Sudah Dicetak</th>
-                          <th class="text-right">Kurang Komponen</th>
+                        <tr
+                          class="text-grey-darken-1 text-caption bg-grey-lighten-4"
+                        >
+                          <th class="text-left py-1 px-2 font-weight-bold">
+                            Nama Komponen
+                          </th>
+                          <th
+                            class="text-right py-1 px-2 font-weight-bold"
+                            style="width: 120px"
+                          >
+                            Sudah Dicetak
+                          </th>
+                          <th
+                            class="text-right py-1 px-2 font-weight-bold"
+                            style="width: 120px"
+                          >
+                            Kurang Cetak
+                          </th>
                         </tr>
                       </thead>
                       <tbody>
-                        <tr v-for="(comp, cIdx) in sz.components" :key="cIdx">
-                          <td class="text-left font-weight-medium">
+                        <tr
+                          v-for="(comp, cIdx) in sz.components"
+                          :key="cIdx"
+                          class="sub-row"
+                        >
+                          <td
+                            class="text-left py-1 px-2 font-weight-medium text-body-2"
+                          >
                             {{ comp.komponen_nama }}
                           </td>
-                          <td class="text-right text-success">
+                          <td
+                            class="text-right py-1 px-2 text-success font-weight-medium"
+                          >
                             {{ formatNumber(comp.qty_cetak, 0) }}
                           </td>
                           <td
-                            class="text-right"
+                            class="text-right py-1 px-2 font-weight-medium"
                             :class="
-                              comp.kurang_cetak > 0
-                                ? 'text-error font-weight-bold'
-                                : 'text-grey'
+                              comp.kurang_cetak > 0 ? 'text-error' : 'text-grey'
                             "
                           >
                             {{ formatNumber(comp.kurang_cetak, 0) }}
                           </td>
                         </tr>
                       </tbody>
-                    </v-table>
+                    </table>
                   </td>
                 </tr>
               </tbody>
@@ -520,9 +759,9 @@
           TOTAL (FILTERED):
         </td>
 
-        <!-- DINAMIS TOTAL PRODUKSI PCS -->
         <template v-for="sub in subPcs" :key="sub.key">
           <td
+            :style="colStyles(sub.key, '90px')"
             class="text-right font-weight-black"
             :class="{
               'text-error': sub.key === 'krg_Cetak',
@@ -533,28 +772,38 @@
           </td>
         </template>
 
-        <!-- Cetak Luar -->
-        <td class="text-right font-weight-black border-l border-r">
+        <td
+          :style="colStyles('cetak_luarx', '90px')"
+          class="text-right font-weight-black border-l border-r"
+        >
           {{ formatNumber(totals.cetak_luarx, 0) }}
         </td>
 
-        <!-- DINAMIS TOTAL MESIN -->
         <td
           v-for="m in mesinColumns"
           :key="m.key"
+          :style="colStyles(m.key, '80px')"
           class="text-center font-weight-black"
         >
           {{ formatNumber(totals[m.key] || 0, 0) }}
         </td>
 
-        <!-- Produksi Meter -->
-        <td class="text-right font-weight-black">
+        <td
+          :style="colStyles('krg_kirim_meter', '90px')"
+          class="text-right font-weight-black"
+        >
           {{ formatNumber(totals.krg_kirim_meter, 2) }}
         </td>
-        <td class="text-right font-weight-black text-error bg-red-lighten-5">
+        <td
+          :style="colStyles('krg_Cetak_meter', '90px')"
+          class="text-right font-weight-black text-error bg-red-lighten-5"
+        >
           {{ formatNumber(totals.krg_Cetak_meter, 2) }}
         </td>
-        <td class="text-right font-weight-black">
+        <td
+          :style="colStyles('krg_coly_meter', '90px')"
+          class="text-right font-weight-black"
+        >
           {{ formatNumber(totals.krg_coly_meter, 2) }}
         </td>
       </tr>
@@ -570,7 +819,6 @@
     >
       <v-table density="compact" class="summary-table">
         <tbody>
-          <!-- Baris 1: Kekurangan & Output / Hari -->
           <tr>
             <td class="sum-label" style="width: 20%">Kekurangan Meter:</td>
             <td
@@ -605,8 +853,6 @@
               2.700,00
             </td>
           </tr>
-
-          <!-- Baris 2: Waiting List & Estimasi -->
           <tr>
             <td class="sum-label">Waiting List (Meter):</td>
             <td colspan="3" class="sum-value text-primary font-weight-bold">
@@ -627,6 +873,7 @@
     </v-card>
   </div>
 
+  <!-- Preview Dialog -->
   <v-dialog
     v-model="showPreviewDialog"
     max-width="1200px"
@@ -647,7 +894,6 @@
         <v-toolbar-title class="text-subtitle-1 font-weight-bold">
           Preview SPK — {{ previewSpkNomor }}
         </v-toolbar-title>
-
         <v-chip
           color="error"
           size="x-small"
@@ -656,14 +902,11 @@
         >
           PREVIEW MODE (DILARANG DICETAK)
         </v-chip>
-
         <v-spacer />
-
         <v-btn icon variant="text" @click="showPreviewDialog = false">
           <v-icon>mdi-close</v-icon>
         </v-btn>
       </v-toolbar>
-
       <v-card-text
         class="pa-0 flex-grow-1 position-relative bg-grey-lighten-3 iframe-wrapper"
       >
@@ -676,7 +919,6 @@
             Memuat dokumen preview SPK...
           </span>
         </div>
-
         <iframe
           v-if="previewUrl"
           :src="previewUrl"
@@ -684,9 +926,7 @@
           @load="handleIframeLoaded"
         />
       </v-card-text>
-
       <v-divider />
-
       <v-card-actions
         class="bg-white py-2 px-4 justify-space-between flex-grow-0 flex-shrink-0"
       >
@@ -708,7 +948,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from "vue";
+import { ref, reactive, computed, onMounted, nextTick } from "vue";
 import BaseReportLayout from "@/components/BaseReportLayout.vue";
 import api from "@/services/api";
 import { format, parseISO, isValid } from "date-fns";
@@ -723,7 +963,6 @@ const getStartOfMonth = (date: Date) => {
   return new Date(date.getFullYear(), date.getMonth(), 1);
 };
 
-// --- STATE MANAGEMENT ---
 const endDate = ref(formatDate(new Date()));
 const startDate = ref(formatDate(getStartOfMonth(new Date())));
 const jenisIndex = ref("0");
@@ -735,9 +974,144 @@ const showPreviewDialog = ref<boolean>(false);
 const previewUrl = ref<string>("");
 const previewSpkNomor = ref<string>("");
 const isIframeLoading = ref<boolean>(true);
-const expanded = ref<string[]>([]); // Menyimpan NOMOR SPK yang sedang dibuka
+const expanded = ref<string[]>([]);
 
-// --- COLUMN FILTERS & SORTING STATE ---
+// --- PERSISTENCE & LAYOUT STATE (Resizing) ---
+const storageKey = computed(() => `mmt_report_layout_LMKP_${jenisIndex.value}`);
+const loadColWidths = (): Record<string, string> => {
+  try {
+    const raw = localStorage.getItem(storageKey.value);
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+};
+const saveColWidths = (widths: Record<string, string>) => {
+  try {
+    localStorage.setItem(storageKey.value, JSON.stringify(widths));
+  } catch {}
+};
+
+const colWidths = ref<Record<string, string>>(loadColWidths());
+
+const colStyles = (key: string, defaultWidth?: string) => {
+  const w = colWidths.value[key] || defaultWidth;
+  return w ? { width: w, minWidth: w, maxWidth: w } : {};
+};
+
+const resizingKey = ref<string | null>(null);
+const startX = ref(0);
+const startWidth = ref(0);
+
+const startResize = (e: MouseEvent, key: string, defaultWidthPx = 120) => {
+  resizingKey.value = key;
+  startX.value = e.clientX;
+  const currentW = colWidths.value[key];
+  let w = currentW ? parseInt(currentW, 10) : defaultWidthPx;
+  if (isNaN(w)) w = defaultWidthPx;
+  startWidth.value = w;
+
+  window.addEventListener("mousemove", onMouseMove);
+  window.addEventListener("mouseup", onMouseUp);
+  e.stopPropagation();
+};
+
+const onMouseMove = (e: MouseEvent) => {
+  if (!resizingKey.value) return;
+  const diff = e.clientX - startX.value;
+  const newWidth = Math.max(50, startWidth.value + diff);
+  colWidths.value = {
+    ...colWidths.value,
+    [resizingKey.value]: `${newWidth}px`,
+  };
+};
+
+const onMouseUp = () => {
+  if (resizingKey.value) {
+    saveColWidths(colWidths.value);
+  }
+  resizingKey.value = null;
+  window.removeEventListener("mousemove", onMouseMove);
+  window.removeEventListener("mouseup", onMouseUp);
+};
+
+// --- HTML5 NATIVE DRAG & DROP REORDER SETUP ---
+const setupTableReorder = () => {
+  nextTick(() => {
+    setTimeout(() => {
+      const table = document.querySelector(".custom-modern-table table");
+      if (!table) return;
+
+      const thead = table.querySelector("thead");
+      if (!thead) return;
+      const headerRows = thead.querySelectorAll("tr");
+      if (headerRows.length < 2) return;
+
+      // Ambil baris sub-header bawah sebagai pemicu drag kolom individual
+      const subHeaderRow = headerRows[headerRows.length - 1];
+      const subThs = subHeaderRow.querySelectorAll("th");
+
+      subThs.forEach((th: any, subIndex: number) => {
+        th.setAttribute("draggable", "true");
+
+        th.addEventListener("dragstart", (e: DragEvent) => {
+          th.classList.add("col-dragging");
+          if (e.dataTransfer) {
+            e.dataTransfer.effectAllowed = "move";
+            e.dataTransfer.setData("text/plain", String(subIndex));
+          }
+          e.stopPropagation();
+        });
+
+        th.addEventListener("dragend", () => {
+          th.classList.remove("col-dragging");
+          table.querySelectorAll("th, td").forEach((el) => {
+            el.classList.remove("col-drag-over");
+          });
+        });
+
+        th.addEventListener("dragover", (e: DragEvent) => {
+          e.preventDefault();
+          if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
+        });
+
+        th.addEventListener("dragenter", () => {
+          th.classList.add("col-drag-over");
+        });
+
+        th.addEventListener("dragleave", () => {
+          th.classList.remove("col-drag-over");
+        });
+
+        th.addEventListener("drop", (e: DragEvent) => {
+          e.preventDefault();
+          e.stopPropagation();
+          const srcIdxStr = e.dataTransfer?.getData("text/plain");
+          if (srcIdxStr === undefined) return;
+          const srcIdx = parseInt(srcIdxStr, 10);
+          const targetIdx = subIndex;
+
+          if (isNaN(srcIdx) || srcIdx === targetIdx) return;
+
+          // Pindahkan sel secara serentak di semua baris tabel (header, tbody, tfoot)
+          const allRows = table.querySelectorAll("tr");
+          allRows.forEach((row) => {
+            const cells = row.children;
+            if (cells[srcIdx] && cells[targetIdx]) {
+              if (srcIdx < targetIdx) {
+                row.insertBefore(cells[srcIdx], cells[targetIdx].nextSibling);
+              } else {
+                row.insertBefore(cells[srcIdx], cells[targetIdx]);
+              }
+            }
+          });
+        });
+      });
+    }, 500);
+  });
+};
+
+// --- SORTING & FILTERING STATE ---
 const columnFilters = reactive({
   NOMOR: "",
   spk_nama: "",
@@ -761,7 +1135,6 @@ const getSortIcon = (key: string) => {
   return sortOrder.value === "asc" ? "▲" : "▼";
 };
 
-// State Active Filter
 const hasActiveFilter = computed(() => {
   return (
     Boolean(searchQuery.value) ||
@@ -776,7 +1149,6 @@ const handlePreview = (nomorSpk: string) => {
     alert("SPK belum dibuat atau nomor SPK tidak valid.");
     return;
   }
-
   previewSpkNomor.value = nomorSpk;
   isIframeLoading.value = true;
   previewUrl.value = `/mmt/so-spk/print/${encodeURIComponent(nomorSpk)}?preview=1`;
@@ -796,13 +1168,11 @@ const resetAllFilters = () => {
   sortOrder.value = "asc";
 };
 
-// --- OPTIONS FOR DROPDOWN FILTER ---
 const kainOptions = computed(() => {
   const list = allData.value.map((x) => x.KAIN).filter(Boolean);
   return ["SEMUA", ...new Set(list)];
 });
 
-// --- LABEL KATEGORI ---
 const jenisLabel = computed(() => {
   if (jenisIndex.value === "1") return "MX";
   if (jenisIndex.value === "2") return "PAPERPRINT";
@@ -810,11 +1180,8 @@ const jenisLabel = computed(() => {
   return "MT";
 });
 
-// --- DINAMIS SUB-HEADER & KEY PCS BERDASARKAN KATEGORI ---
-// --- DINAMIS SUB-HEADER & KEY PCS BERDASARKAN KATEGORI ---
 const subPcs = computed(() => {
   if (jenisIndex.value === "1") {
-    // Kategori MX
     return [
       { label: "Order", key: "spk_jumlah" },
       { label: "K-Cetak", key: "krg_Cetak" },
@@ -825,22 +1192,18 @@ const subPcs = computed(() => {
     ];
   }
   if (jenisIndex.value === "2") {
-    // Kategori Paperprint
     return [
       { label: "Order", key: "spk_jumlah" },
-      { label: "Cetak", key: "spk_cetak" }, // Sesuaikan key database jika berbeda (misal: jumlah_cetak)
       { label: "K-Cetak", key: "krg_Cetak" },
     ];
   }
   if (jenisIndex.value === "3") {
-    // Kategori Sublim
     return [
       { label: "Order", key: "spk_jumlah" },
       { label: "K-Cetak", key: "krg_Cetak" },
-      { label: "K-Mutasi P04", key: "krg_mutasi_p04" }, // Sesuaikan key database backend
+      { label: "K-Mutasi P04", key: "krg_mutasi_p04" },
     ];
   }
-  // Kategori MT (Default)
   return [
     { label: "Order", key: "spk_jumlah" },
     { label: "K-Cetak", key: "krg_Cetak" },
@@ -852,7 +1215,25 @@ const subPcs = computed(() => {
   ];
 });
 
-// --- FETCH REPORT ---
+const mesinColumns = computed(() => {
+  if (jenisIndex.value === "1") {
+    return [
+      { label: "MX01", key: "mx01" },
+      { label: "MX02", key: "mx02" },
+      { label: "MX03", key: "mx03" },
+      { label: "MX04", key: "mx04" },
+      { label: "MX05", key: "mx05" },
+    ];
+  } else if (jenisIndex.value === "2" || jenisIndex.value === "3") {
+    return [
+      { label: "SB01", key: "sb01" },
+      { label: "SB02", key: "sb02" },
+      { label: "SB03", key: "sb03" },
+    ];
+  }
+  return [];
+});
+
 const fetchReport = async () => {
   loading.report = true;
   try {
@@ -865,6 +1246,7 @@ const fetchReport = async () => {
     });
     allData.value = res.data.data || [];
     summary.value = res.data.summary || summary.value;
+    setupTableReorder();
   } catch (error) {
     console.error("Gagal memuat laporan LMKP:", error);
     allData.value = [];
@@ -873,13 +1255,16 @@ const fetchReport = async () => {
   }
 };
 
-// --- HELPER PARSING TANGGAL UTK SORTING ---
+const onJenisChange = () => {
+  fetchReport();
+  colWidths.value = loadColWidths();
+};
+
 const getTimestamp = (val: any): number => {
   if (!val) return 0;
   const strVal = String(val).trim();
   const parsedISO = parseISO(strVal);
   if (isValid(parsedISO)) return parsedISO.getTime();
-
   const fallbackDate = new Date(strVal).getTime();
   return isNaN(fallbackDate) ? 0 : fallbackDate;
 };
@@ -919,7 +1304,6 @@ const NUMERIC_KEYS = [
   "sb05",
 ];
 
-// --- FILTERED & SORTED DATA ---
 const filteredData = computed(() => {
   let result = [...allData.value];
 
@@ -990,7 +1374,6 @@ const filteredData = computed(() => {
   return result;
 });
 
-// --- CALCULATE TOTALS ---
 const totals = computed(() => {
   return filteredData.value.reduce(
     (acc, item: any) => {
@@ -1061,17 +1444,14 @@ const totals = computed(() => {
   );
 });
 
-// --- SUMMARY CONSTANTS & CALCULATIONS ---
 const outputMeterTarget = 3100;
 const outputColyTarget = 2700;
 
-// Waiting List Meter = Kurang Cetak Meter / 3.100
 const waitingListMeter = computed(() => {
   const krgMeter = Number(totals.value.krg_Cetak_meter || 0);
   return krgMeter <= 0 ? 0 : krgMeter / outputMeterTarget;
 });
 
-// Estimasi Coly = Kurang Cetak Coly / 2.700
 const estimasiColy = computed(() => {
   const krgColy = Number(totals.value.krg_coly_meter || 0);
   return krgColy <= 0 ? 0 : krgColy / outputColyTarget;
@@ -1086,7 +1466,6 @@ const toggleExpand = (nomor: string) => {
   }
 };
 
-// --- HELPER FORMAT ---
 const formatNumber = (val: any, dec = 0) => {
   if (val === null || val === undefined || val === "") return "0";
   const num = parseFloat(val);
@@ -1110,39 +1489,22 @@ const formatDateFull = (dateStr: string) => {
   return format(date, "dd MMMM yyyy", { locale: id });
 };
 
-// --- EXPORT TO EXCEL ---
+// --- EXPORT TO EXCEL DENGAN DETAIL UKURAN & KOMPONEN MEMANJANG KE KANAN ---
 const exportToExcel = (dataToExport: any[]) => {
   if (!dataToExport || dataToExport.length === 0) {
     alert("Tidak ada data untuk diekspor");
     return;
   }
-
   const fileName = `Laporan_LMKP_${jenisLabel.value}_${startDate.value}_sd_${endDate.value}.xlsx`;
   const num = (value: any) => (isNaN(Number(value)) ? 0 : Number(value));
-
   const excelDate = (dateStr: any) => {
     if (!dateStr) return null;
     if (dateStr instanceof Date) return isValid(dateStr) ? dateStr : null;
-
     const str = String(dateStr).trim();
-
     if (/^\d{4}-\d{2}-\d{2}/.test(str)) {
       const parsed = parseISO(str);
       if (isValid(parsed)) return parsed;
     }
-
-    if (str.includes("/")) {
-      const parts = str.split("/");
-      if (parts.length === 3) {
-        const d = new Date(
-          Number(parts[2]),
-          Number(parts[1]) - 1,
-          Number(parts[0]),
-        );
-        if (isValid(d)) return d;
-      }
-    }
-
     const fallback = new Date(str);
     return isValid(fallback) ? fallback : null;
   };
@@ -1174,6 +1536,20 @@ const exportToExcel = (dataToExport: any[]) => {
     border: borderThin,
   };
 
+  const styleDetailHeader = {
+    fill: { fgColor: { rgb: "DBEAFE" } },
+    font: { bold: true, sz: 9, color: { rgb: "1E3A8A" } },
+    alignment: { horizontal: "center", vertical: "center" },
+    border: borderThin,
+  };
+
+  const styleDetailCell = {
+    fill: { fgColor: { rgb: "F8FAFC" } },
+    font: { sz: 8.5, color: { rgb: "334155" } },
+    alignment: { vertical: "center" },
+    border: borderThin,
+  };
+
   const styleFooterCell = {
     fill: { fgColor: { rgb: "c7ecfe" } },
     font: { bold: true, sz: 10, color: { rgb: "000000" } },
@@ -1195,7 +1571,6 @@ const exportToExcel = (dataToExport: any[]) => {
     [],
   ];
 
-  // Header Row 1
   const headerRow1 = [
     { v: "NOMOR SPK", s: styleHeaderMain },
     { v: "NAMA ORDER", s: styleHeaderMain },
@@ -1213,21 +1588,18 @@ const exportToExcel = (dataToExport: any[]) => {
     headerRow1.push({ v: "", s: styleHeaderMain });
   }
 
-  headerRow1.push(
-    { v: "CTK L.", s: styleHeaderMain },
-    { v: "MESIN", s: styleHeaderMain },
-  );
-
-  for (let i = 1; i < mesinColumns.value.length; i++) {
-    headerRow1.push({ v: "", s: styleHeaderMain });
+  headerRow1.push({ v: "CTK L.", s: styleHeaderMain });
+  if (mesinColumns.value.length > 0) {
+    headerRow1.push({ v: "MESIN", s: styleHeaderMain });
+    for (let i = 1; i < mesinColumns.value.length; i++) {
+      headerRow1.push({ v: "", s: styleHeaderMain });
+    }
   }
 
   headerRow1.push({ v: "PRODUKSI (METER)", s: styleHeaderMain }, "", "");
   wsData.push(headerRow1);
 
-  // Header Row 2
   const subMeter = ["K-KRM", "K-CTK", "K-CLY"];
-
   const headerRow2 = Array(9).fill({ v: "", s: styleHeaderMain });
   subPcs.value.forEach((sub) =>
     headerRow2.push({ v: sub.label, s: styleHeaderSub }),
@@ -1241,7 +1613,6 @@ const exportToExcel = (dataToExport: any[]) => {
   subMeter.forEach((h) => headerRow2.push({ v: h, s: styleHeaderSub }));
   wsData.push(headerRow2);
 
-  // Loop Data
   dataToExport.forEach((item: any) => {
     const tglDate = excelDate(item.spk_tanggal);
     const deadlineDate = excelDate(item.deadline);
@@ -1331,6 +1702,113 @@ const exportToExcel = (dataToExport: any[]) => {
     );
 
     wsData.push(row);
+
+    // --- TAMBAHKAN BARIS DETAIL FORMAT TABEL MEMANJANG KE KANAN ---
+    if (
+      ["2", "3"].includes(jenisIndex.value) &&
+      item.sizes &&
+      item.sizes.length > 0
+    ) {
+      // Baris Header Sub-Tabel Detail
+      wsData.push([
+        { v: `   [DETAIL UKURAN]`, s: styleDetailHeader },
+        { v: `Size`, s: styleDetailHeader },
+        { v: `Qty Order`, s: styleDetailHeader },
+        { v: `Krg Cetak`, s: styleDetailHeader },
+        { v: `Nama Komponen`, s: styleDetailHeader },
+        { v: `Sudah Dicetak`, s: styleDetailHeader },
+        { v: `Kurang Cetak`, s: styleDetailHeader },
+        ...Array(Math.max(0, headerRow1.length - 7)).fill({
+          v: "",
+          s: styleDetailHeader,
+        }),
+      ]);
+
+      item.sizes.forEach((sz: any) => {
+        if (sz.components && sz.components.length > 0) {
+          sz.components.forEach((comp: any) => {
+            wsData.push([
+              { v: "", s: styleDetailCell },
+              {
+                v: sz.size_name,
+                s: {
+                  ...styleDetailCell,
+                  alignment: { horizontal: "center" },
+                },
+              },
+              {
+                v: num(sz.size_qty),
+                t: "n",
+                z: "#,##0",
+                s: {
+                  ...styleDetailCell,
+                  alignment: { horizontal: "right" },
+                },
+              },
+              {
+                v: num(sz.size_krg_cetak),
+                t: "n",
+                z: "#,##0",
+                s: {
+                  ...styleDetailCell,
+                  alignment: { horizontal: "right" },
+                },
+              },
+              { v: comp.komponen_nama, s: styleDetailCell },
+              {
+                v: num(comp.qty_cetak),
+                t: "n",
+                z: "#,##0",
+                s: {
+                  ...styleDetailCell,
+                  alignment: { horizontal: "right" },
+                },
+              },
+              {
+                v: num(comp.kurang_cetak),
+                t: "n",
+                z: "#,##0",
+                s: {
+                  ...styleDetailCell,
+                  alignment: { horizontal: "right" },
+                },
+              },
+              ...Array(Math.max(0, headerRow1.length - 7)).fill({
+                v: "",
+                s: styleDetailCell,
+              }),
+            ]);
+          });
+        } else {
+          wsData.push([
+            { v: "", s: styleDetailCell },
+            {
+              v: sz.size_name,
+              s: { ...styleDetailCell, alignment: { horizontal: "center" } },
+            },
+            {
+              v: num(sz.size_qty),
+              t: "n",
+              z: "#,##0",
+              s: { ...styleDetailCell, alignment: { horizontal: "right" } },
+            },
+            {
+              v: num(sz.size_krg_cetak),
+              t: "n",
+              z: "#,##0",
+              s: { ...styleDetailCell, alignment: { horizontal: "right" } },
+            },
+            { v: "-", s: styleDetailCell },
+            { v: 0, t: "n", z: "#,##0", s: styleDetailCell },
+            { v: 0, t: "n", z: "#,##0", s: styleDetailCell },
+            ...Array(Math.max(0, headerRow1.length - 7)).fill({
+              v: "",
+              s: styleDetailCell,
+            }),
+          ]);
+        }
+      });
+    }
   });
 
   // Footer Total Excel
@@ -1391,29 +1869,6 @@ const exportToExcel = (dataToExport: any[]) => {
   wsData.push(footerRow);
 
   const ws = XLSX.utils.aoa_to_sheet(wsData);
-
-  const pcsStartCol = 9;
-  const pcsEndCol = pcsStartCol + subPcs.value.length - 1;
-  const cetakLuarCol = pcsEndCol + 1;
-  const mesinStartCol = cetakLuarCol + 1;
-  const mesinEndCol = mesinStartCol + mesinColumns.value.length - 1;
-
-  ws["!merges"] = [
-    { s: { r: 4, c: 0 }, e: { r: 5, c: 0 } },
-    { s: { r: 4, c: 1 }, e: { r: 5, c: 1 } },
-    { s: { r: 4, c: 2 }, e: { r: 5, c: 2 } },
-    { s: { r: 4, c: 3 }, e: { r: 5, c: 3 } },
-    { s: { r: 4, c: 4 }, e: { r: 5, c: 4 } },
-    { s: { r: 4, c: 5 }, e: { r: 5, c: 5 } },
-    { s: { r: 4, c: 6 }, e: { r: 5, c: 6 } },
-    { s: { r: 4, c: 7 }, e: { r: 5, c: 7 } },
-    { s: { r: 4, c: 8 }, e: { r: 5, c: 8 } },
-    { s: { r: 4, c: pcsStartCol }, e: { r: 4, c: pcsEndCol } },
-    { s: { r: 4, c: cetakLuarCol }, e: { r: 5, c: cetakLuarCol } },
-    { s: { r: 4, c: mesinStartCol }, e: { r: 4, c: mesinEndCol } },
-    { s: { r: 4, c: mesinEndCol + 1 }, e: { r: 4, c: mesinEndCol + 3 } },
-  ];
-
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "LMKP");
   XLSX.writeFile(wb, fileName);
@@ -1423,7 +1878,23 @@ onMounted(fetchReport);
 </script>
 
 <style scoped>
-/* 1. CONTAINER WRAPPER UNTUK OVERFLOW SCROLL */
+/* Warna Teks Seluruh Header Menjadi Putih */
+:deep(.custom-modern-table th),
+:deep(.header-main th),
+:deep(.header-sub th),
+:deep(.header-group),
+:deep(thead th),
+:deep(thead span),
+:deep(thead .v-icon) {
+  color: #ffffff !important;
+}
+
+/* Pastikan ikon filter dan sorting di header juga putih */
+:deep(thead .btn-filter-icon .v-icon) {
+  color: #ffffff !important;
+}
+
+/* Penyesuaian Tabel Wrapper */
 :deep(.v-table__wrapper),
 :deep(.v-data-table__wrapper) {
   max-height: calc(100vh - 280px) !important;
@@ -1431,7 +1902,6 @@ onMounted(fetchReport);
   overflow-x: auto !important;
 }
 
-/* 2. STANDARISASI SELURUH TABEL & FONT SIZE KE 12PX */
 :deep(table) {
   border-collapse: separate !important;
   border-spacing: 0 !important;
@@ -1445,7 +1915,6 @@ onMounted(fetchReport);
   padding: 6px 8px !important;
 }
 
-/* 3. STICKY HEADER */
 :deep(thead) {
   position: sticky !important;
   top: 0 !important;
@@ -1455,7 +1924,6 @@ onMounted(fetchReport);
 .header-main th {
   background: linear-gradient(180deg, #142f7b 0%, #3b82f6 100%) !important;
   border-right: 1px solid #3b82f6 !important;
-  color: #ffffff !important;
 }
 
 .header-sub th {
@@ -1469,7 +1937,6 @@ onMounted(fetchReport);
   border-right: 1px solid #60a5fa !important;
 }
 
-/* 4. STICKY FOOTER */
 :deep(tfoot) {
   position: sticky !important;
   bottom: 0 !important;
@@ -1480,23 +1947,18 @@ onMounted(fetchReport);
   background-color: #c7ecfe !important;
   border-top: 2px solid #000 !important;
   border-bottom: 2px solid #000 !important;
+  color: #0f172a !important;
 }
 
-/* 5. STICKY LEFT COLUMNS */
 :deep(.sticky-col-1) {
   position: sticky !important;
   left: 0px !important;
-  width: 130px !important;
-  min-width: 130px !important;
-  max-width: 130px !important;
 }
 
 :deep(.sticky-col-2) {
   position: sticky !important;
-  left: 130px !important;
+  left: 140px !important;
   box-shadow: 3px 0px 5px -2px rgba(0, 0, 0, 0.15);
-  width: 220px !important;
-  min-width: 220px !important;
 }
 
 :deep(tbody .sticky-col-1),
@@ -1518,7 +1980,56 @@ onMounted(fetchReport);
   background-color: #fef3c7 !important;
 }
 
-/* 6. BACKGROUND COLOR GROUP HEADER & SUB HEADER */
+/* Komponen Detail Block */
+.size-block {
+  border-color: #e2e8f0 !important;
+}
+.component-chip {
+  border-color: #cbd5e1 !important;
+}
+
+/* Styling Drag & Drop & Resizer */
+:deep(.draggable-th) {
+  cursor: grab !important;
+}
+:deep(.draggable-th:active) {
+  cursor: grabbing !important;
+}
+:deep(.col-dragging) {
+  opacity: 0.4;
+  background-color: #cbd5e1 !important;
+}
+:deep(.col-drag-over) {
+  background-color: rgba(25, 118, 210, 0.3) !important;
+  box-shadow: inset 3px 0 0 #1976d2;
+}
+:deep(.col-drag-handle) {
+  cursor: grab;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 13px;
+  user-select: none;
+  touch-action: none;
+  flex-shrink: 0;
+}
+:deep(.col-drag-handle:active) {
+  cursor: grabbing;
+}
+
+:deep(.column-resizer) {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 6px;
+  height: 100%;
+  cursor: col-resize;
+  background-color: transparent;
+  z-index: 25;
+}
+:deep(.column-resizer:hover),
+:deep(th:hover .column-resizer) {
+  background-color: rgba(255, 255, 255, 0.4);
+}
+
 .bg-blue-header {
   background-color: #1d4ed8 !important;
   color: white !important;
@@ -1533,19 +2044,18 @@ onMounted(fetchReport);
 }
 
 .bg-blue-sub {
-  background-color: #93c5fd !important;
-  color: #000 !important;
+  background-color: #1e40af !important;
+  color: white !important;
 }
 .bg-cyan-sub {
-  background-color: #a5f3fc !important;
-  color: #000 !important;
+  background-color: #0e7490 !important;
+  color: white !important;
 }
 .bg-teal-sub {
-  background-color: #99f6e4 !important;
-  color: #000 !important;
+  background-color: #0f766e !important;
+  color: white !important;
 }
 
-/* 7. UTILITY BORDERS & BUTTONS */
 .border-l {
   border-left: 1px solid #cbd5e1 !important;
 }
@@ -1565,19 +2075,16 @@ onMounted(fetchReport);
   opacity: 1;
 }
 
-/* 8. STYLING TABEL SUMMARY OUTPUT & WAITING LIST */
 .summary-table td {
   padding: 6px 12px !important;
   font-size: 12px !important;
   border-bottom: 1px solid #e2e8f0;
 }
-
 .sum-label {
   background: #f8fafc;
   font-weight: 600;
   color: #334155;
 }
-
 .sum-value {
   text-align: right;
   color: #0f172a;
@@ -1587,14 +2094,12 @@ onMounted(fetchReport);
   min-height: 500px;
   overflow: hidden;
 }
-
 .preview-iframe {
   width: 100%;
   height: 100%;
   border: none;
   display: block;
 }
-
 .preview-loading-overlay {
   position: absolute;
   top: 0;
@@ -1603,5 +2108,39 @@ onMounted(fetchReport);
   bottom: 0;
   background: rgba(255, 255, 255, 0.85);
   z-index: 10;
+}
+
+/* Styling Tambahan untuk Tabel Detail Clean */
+.clean-detail-table th {
+  background-color: #1e3a8a !important;
+  font-size: 11px !important;
+  letter-spacing: 0.3px;
+}
+
+.clean-detail-table td {
+  border-bottom: 1px solid #e2e8f0 !important;
+  vertical-align: middle !important;
+}
+
+.inner-sub-table {
+  border-collapse: collapse !important;
+  background: transparent !important;
+}
+.inner-sub-table th,
+.inner-sub-table :deep(th) {
+  background-color: #81afe8 !important; /* Warna latar header sub-tabel lebih kontras */
+  color: #0f172a !important; /* Warna teks hitam gelap pekat */
+  font-weight: 700 !important;
+  font-size: 11px !important;
+  opacity: 1 !important;
+}
+
+.inner-sub-table td {
+  border-bottom: 1px dashed #e2e8f0 !important;
+  font-size: 11px !important;
+}
+
+.sub-row:last-child td {
+  border-bottom: none !important;
 }
 </style>

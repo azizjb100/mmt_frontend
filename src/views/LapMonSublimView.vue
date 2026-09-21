@@ -1,623 +1,1028 @@
 <template>
-  <PageLayout title="Laporan Monitoring Sublim" icon="mdi-printer-3d">
-    <template #header-actions> </template>
+  <BaseReportLayout
+    v-model:start-date="startDate"
+    v-model:end-date="endDate"
+    :items="filteredData"
+    :loading="loading.report"
+    :show-gudang-filter="false"
+    :disable-sort="true"
+    :disable-filter="true"
+    :has-active-filter="hasActiveFilter"
+    item-key="lsbd_spk_nomor"
+    title="Laporan Monitoring Sublim"
+    excel-file-name="Laporan_Monitoring_Sublim.xlsx"
+    :custom-export-excel="exportToExcel"
+    @refresh="fetchReport"
+    @reset-filter="resetAllFilters"
+  >
+    <!-- Slot Filter Utama Tambahan -->
+    <template #extra-filters>
+      <v-text-field
+        v-model="searchQuery"
+        label="Cari SPK, Nama Order, PO..."
+        prepend-inner-icon="mdi-magnify"
+        density="compact"
+        hide-details
+        variant="outlined"
+        clearable
+        style="max-width: 280px"
+      />
+    </template>
 
-    <div class="browse-content">
-      <v-card flat class="border-bottom mb-1">
-        <v-card-text class="py-2 px-3">
-          <div class="filter-section d-flex align-center flex-wrap ga-3">
-            <span class="text-caption font-weight-bold">Periode:</span>
-            <v-text-field
-              v-model="startDate"
-              type="date"
-              density="compact"
-              hide-details
-              variant="outlined"
-              style="max-width: 140px"
-            />
-            <v-label class="mx-1">s/d</v-label>
-            <v-text-field
-              v-model="endDate"
-              type="date"
-              density="compact"
-              hide-details
-              variant="outlined"
-              style="max-width: 140px"
-            />
-            <v-btn
-              size="x-small"
-              color="info"
-              variant="text"
-              @click="fetchReport"
-              :loading="loading"
-            >
-              <v-icon start>mdi-refresh</v-icon> Tampil
-            </v-btn>
-
-            <v-btn
-              size="x-small"
-              color="success"
-              @click="exportToExcel"
-              :disabled="allData.length === 0"
-            >
-              <v-icon start>mdi-file-excel</v-icon> Export Excel
-            </v-btn>
-            <v-spacer />
-
-            <v-text-field
-              v-model="searchQuery"
-              label="Cari SPK, Salesman, No. PO..."
-              prepend-inner-icon="mdi-magnify"
-              density="compact"
-              hide-details
-              variant="outlined"
-              style="max-width: 300px"
-            />
-          </div>
-        </v-card-text>
-      </v-card>
-
-      <div class="text-caption text-primary mb-1 px-1 d-flex align-center ga-1">
-        <v-icon size="small" color="primary">mdi-information</v-icon>
-        <span
-          >Gaya Grid DevExpress: Geser sub-header ke kanan/kiri. Seluruh nilai
-          lajur vertikal akan ikut pindah secara sinkron.</span
-        >
-      </div>
-
-      <div class="grid-table-container">
-        <div class="grid-table-viewport">
-          <div class="grid-table-header-group">
-            <div
-              v-for="(group, gIdx) in dynamicGroups"
-              :key="'group-' + gIdx"
-              class="grid-group-th text-center"
-              :class="group.class"
-              :style="{
-                width: group.width + 'px',
-                minWidth: group.width + 'px',
-                height: group.rowspan === 2 ? '56px' : '28px',
-                lineHeight: group.rowspan === 2 ? '56px' : '28px',
-              }"
-            >
-              {{ group.label }}
-            </div>
-          </div>
-
-          <div class="grid-table-main-view">
-            <draggable
-              v-model="columns"
-              item-key="field"
-              class="draggable-columns-binder"
-              handle=".grid-sub-th"
-              ghost-class="column-drag-ghost"
-            >
-              <template #item="{ element: col, index: colIdx }">
-                <div
-                  class="grid-column-vertical-stack"
-                  :style="{
-                    width: col.width + 'px',
-                    minWidth: col.width + 'px',
-                  }"
-                >
-                  <div
-                    class="grid-sub-th text-center"
-                    :class="{ 'hidden-sub-title': col.group === 'NONE' }"
-                  >
-                    <v-icon size="x-small" class="mr-1 text-blue-grey-lighten-3"
-                      >mdi-drag-vertical</v-icon
-                    >
-                    <span>{{ col.label }}</span>
-                  </div>
-
-                  <div class="grid-column-body-cells">
-                    <div
-                      v-for="(item, rowIdx) in paginatedData"
-                      :key="'row-' + rowIdx"
-                      class="grid-data-td"
-                      :class="[
-                        col.class,
-                        rowIdx % 2 === 1 ? 'zebra-stripe-row' : '',
-                      ]"
-                    >
-                      <template v-if="col.type === 'number'">
-                        <span
-                          :class="{
-                            'font-weight-bold text-red': col.field === 'kurang',
-                          }"
-                        >
-                          {{
-                            formatNumber(
-                              getValueByField(item, col.field),
-                              col.dec,
-                            )
-                          }}
-                        </span>
-                      </template>
-                      <template v-else-if="col.type === 'date'">
-                        {{ formatOnlyDate(getValueByField(item, col.field)) }}
-                      </template>
-                      <template v-else>
-                        {{ getValueByField(item, col.field) || "-" }}
-                      </template>
-                    </div>
-
-                    <div
-                      v-if="filteredData.length === 0"
-                      class="grid-data-td text-center text-grey-lighten-1"
-                    >
-                      -
-                    </div>
-                  </div>
-
-                  <div
-                    class="grid-footer-td font-weight-bold"
-                    :class="col.class"
-                  >
-                    <span v-if="colIdx === 0">TOTAL SUM:</span>
-                    <span v-else-if="col.sum">
-                      <template v-if="col.field === 'total_pcs_aktual'">
-                        {{
-                          formatNumber(
-                            filteredData.reduce(
-                              (a, b) =>
-                                a +
-                                (Number(b.sb01 || 0) +
-                                  Number(b.sb02 || 0) +
-                                  Number(b.sb03 || 0)),
-                              0,
-                            ),
-                            0,
-                          )
-                        }}
-                      </template>
-                      <template v-else-if="col.field === 'total_mtr_aktual'">
-                        {{
-                          formatNumber(
-                            filteredData.reduce(
-                              (a, b) =>
-                                a +
-                                (Number(b.sb01_m || 0) +
-                                  Number(b.sb02_m || 0) +
-                                  Number(b.sb03_m || 0)),
-                              0,
-                            ),
-                            col.dec,
-                          )
-                        }}
-                      </template>
-                      <template v-else>
-                        {{ formatNumber(sumField(col.field), col.dec) }}
-                      </template>
-                    </span>
-                  </div>
-                </div>
-              </template>
-            </draggable>
-          </div>
-        </div>
-      </div>
-
-      <div
-        class="d-flex justify-space-between align-center mt-3"
-        v-if="filteredData.length > 0"
-      >
-        <span class="text-caption text-grey-darken-1"
-          >Total {{ filteredData.length }} Record</span
-        >
-        <div class="d-flex align-center ga-2">
-          <v-btn
-            size="x-small"
-            icon="mdi-chevron-left"
-            @click="currentPage--"
-            :disabled="currentPage === 1"
-          />
-          <span class="text-caption"
-            >Halaman {{ currentPage }} / {{ totalPages }}</span
+    <!-- Slot Header Tabel Berkelompok Custom -->
+    <template #thead>
+      <thead>
+        <!-- Row 1: Header Utama & Grouping Header -->
+        <tr class="header-main">
+          <th
+            rowspan="2"
+            :style="colStyles('poi_nomor', '140px')"
+            class="text-center sticky-col-1 cursor-pointer select-none"
+            @click="toggleSort('poi_nomor')"
           >
-          <v-btn
-            size="x-small"
-            icon="mdi-chevron-right"
-            @click="currentPage++"
-            :disabled="currentPage === totalPages"
-          />
-        </div>
-      </div>
-    </div>
-  </PageLayout>
+            <div class="d-flex align-center justify-space-between px-1 w-100">
+              <span class="font-weight-bold text-truncate">
+                NOMOR POI {{ getSortIcon("poi_nomor") }}
+              </span>
+            </div>
+            <div
+              class="column-resizer"
+              @mousedown.stop.prevent="startResize($event, 'poi_nomor', 140)"
+            ></div>
+          </th>
+
+          <th
+            rowspan="2"
+            :style="colStyles('poi_tanggal', '110px')"
+            class="text-center cursor-pointer select-none"
+            @click="toggleSort('poi_tanggal')"
+          >
+            <span class="font-weight-bold">
+              TGL POI {{ getSortIcon("poi_tanggal") }}
+            </span>
+            <div
+              class="column-resizer"
+              @mousedown.stop.prevent="startResize($event, 'poi_tanggal', 110)"
+            ></div>
+          </th>
+
+          <th
+            rowspan="2"
+            :style="colStyles('poi_dateline', '110px')"
+            class="text-center cursor-pointer select-none"
+            @click="toggleSort('poi_dateline')"
+          >
+            <span class="font-weight-bold">
+              DEADLINE POI {{ getSortIcon("poi_dateline") }}
+            </span>
+            <div
+              class="column-resizer"
+              @mousedown.stop.prevent="startResize($event, 'poi_dateline', 110)"
+            ></div>
+          </th>
+
+          <th
+            rowspan="2"
+            :style="colStyles('poi_spk_nomor', '120px')"
+            class="text-center cursor-pointer select-none"
+            @click="toggleSort('poi_spk_nomor')"
+          >
+            <span class="font-weight-bold">
+              SPK POI {{ getSortIcon("poi_spk_nomor") }}
+            </span>
+            <div
+              class="column-resizer"
+              @mousedown.stop.prevent="
+                startResize($event, 'poi_spk_nomor', 120)
+              "
+            ></div>
+          </th>
+
+          <th
+            rowspan="2"
+            :style="colStyles('poid_size', '80px')"
+            class="text-center cursor-pointer select-none"
+            @click="toggleSort('poid_size')"
+          >
+            <span class="font-weight-bold">
+              SIZE {{ getSortIcon("poid_size") }}
+            </span>
+            <div
+              class="column-resizer"
+              @mousedown.stop.prevent="startResize($event, 'poid_size', 80)"
+            ></div>
+          </th>
+
+          <th
+            rowspan="2"
+            :style="colStyles('poid_jumlah', '95px')"
+            class="text-right cursor-pointer select-none"
+            @click="toggleSort('poid_jumlah')"
+          >
+            <span class="font-weight-bold">
+              JUMLAH POI {{ getSortIcon("poid_jumlah") }}
+            </span>
+            <div
+              class="column-resizer"
+              @mousedown.stop.prevent="startResize($event, 'poid_jumlah', 95)"
+            ></div>
+          </th>
+
+          <th
+            rowspan="2"
+            :style="colStyles('spk_perush_kode', '85px')"
+            class="text-center cursor-pointer select-none"
+            @click="toggleSort('spk_perush_kode')"
+          >
+            <span class="font-weight-bold">
+              PERUSH {{ getSortIcon("spk_perush_kode") }}
+            </span>
+            <div
+              class="column-resizer"
+              @mousedown.stop.prevent="
+                startResize($event, 'spk_perush_kode', 85)
+              "
+            ></div>
+          </th>
+
+          <th
+            rowspan="2"
+            :style="colStyles('spk_tanggal', '105px')"
+            class="text-center cursor-pointer select-none"
+            @click="toggleSort('spk_tanggal')"
+          >
+            <span class="font-weight-bold">
+              TGL SPK {{ getSortIcon("spk_tanggal") }}
+            </span>
+            <div
+              class="column-resizer"
+              @mousedown.stop.prevent="startResize($event, 'spk_tanggal', 105)"
+            ></div>
+          </th>
+
+          <th
+            rowspan="2"
+            :style="colStyles('spk_dateline', '105px')"
+            class="text-center cursor-pointer select-none"
+            @click="toggleSort('spk_dateline')"
+          >
+            <span class="font-weight-bold">
+              DEADLINE SPK {{ getSortIcon("spk_dateline") }}
+            </span>
+            <div
+              class="column-resizer"
+              @mousedown.stop.prevent="startResize($event, 'spk_dateline', 105)"
+            ></div>
+          </th>
+
+          <th
+            rowspan="2"
+            :style="colStyles('spk_nama', '250px')"
+            class="text-left sticky-col-2 cursor-pointer select-none"
+            @click="toggleSort('spk_nama')"
+          >
+            <div class="d-flex align-center justify-space-between px-1 w-100">
+              <span class="font-weight-bold text-truncate">
+                NAMA ORDER {{ getSortIcon("spk_nama") }}
+              </span>
+            </div>
+            <div
+              class="column-resizer"
+              @mousedown.stop.prevent="startResize($event, 'spk_nama', 250)"
+            ></div>
+          </th>
+
+          <!-- GROUP UKURAN -->
+          <th colspan="2" class="text-center header-group bg-cyan-header">
+            UKURAN
+          </th>
+
+          <th
+            rowspan="2"
+            :style="colStyles('lsbd_spk_nomor', '130px')"
+            class="text-center cursor-pointer select-none"
+            @click="toggleSort('lsbd_spk_nomor')"
+          >
+            <span class="font-weight-bold">
+              NOMOR SPK {{ getSortIcon("lsbd_spk_nomor") }}
+            </span>
+            <div
+              class="column-resizer"
+              @mousedown.stop.prevent="
+                startResize($event, 'lsbd_spk_nomor', 130)
+              "
+            ></div>
+          </th>
+
+          <th
+            rowspan="2"
+            :style="colStyles('lsbd_jumlah_order', '90px')"
+            class="text-right cursor-pointer select-none"
+            @click="toggleSort('lsbd_jumlah_order')"
+          >
+            <span class="font-weight-bold">
+              ORDER {{ getSortIcon("lsbd_jumlah_order") }}
+            </span>
+            <div
+              class="column-resizer"
+              @mousedown.stop.prevent="
+                startResize($event, 'lsbd_jumlah_order', 90)
+              "
+            ></div>
+          </th>
+
+          <th
+            rowspan="2"
+            :style="colStyles('meter_order', '105px')"
+            class="text-right cursor-pointer select-none"
+            @click="toggleSort('meter_order')"
+          >
+            <span class="font-weight-bold">
+              J. METER {{ getSortIcon("meter_order") }}
+            </span>
+            <div
+              class="column-resizer"
+              @mousedown.stop.prevent="startResize($event, 'meter_order', 105)"
+            ></div>
+          </th>
+
+          <th
+            rowspan="2"
+            :style="colStyles('spk_kain', '200px')"
+            class="text-left cursor-pointer select-none"
+            @click="toggleSort('spk_kain')"
+          >
+            <span class="font-weight-bold text-truncate">
+              JENIS BAHAN {{ getSortIcon("spk_kain") }}
+            </span>
+            <div
+              class="column-resizer"
+              @mousedown.stop.prevent="startResize($event, 'spk_kain', 200)"
+            ></div>
+          </th>
+
+          <th
+            rowspan="2"
+            :style="colStyles('spk_gramasi', '100px')"
+            class="text-center cursor-pointer select-none"
+            @click="toggleSort('spk_gramasi')"
+          >
+            <span class="font-weight-bold">
+              GRAMASI {{ getSortIcon("spk_gramasi") }}
+            </span>
+            <div
+              class="column-resizer"
+              @mousedown.stop.prevent="startResize($event, 'spk_gramasi', 100)"
+            ></div>
+          </th>
+
+          <th
+            rowspan="2"
+            :style="colStyles('kurang', '90px')"
+            class="text-right cursor-pointer select-none bg-red-header"
+            @click="toggleSort('kurang')"
+          >
+            <span class="font-weight-bold">
+              KURANG {{ getSortIcon("kurang") }}
+            </span>
+            <div
+              class="column-resizer"
+              @mousedown.stop.prevent="startResize($event, 'kurang', 90)"
+            ></div>
+          </th>
+
+          <!-- Groups Aktual & Standar -->
+          <th colspan="4" class="text-center header-group bg-blue-header">
+            J. PCS AKTUAL
+          </th>
+          <th colspan="4" class="text-center header-group bg-teal-header">
+            J. METER AKTUAL
+          </th>
+          <th colspan="4" class="text-center header-group bg-blue-header">
+            J. PCS STANDAR
+          </th>
+          <th colspan="4" class="text-center header-group bg-cyan-header">
+            J. METER STANDAR
+          </th>
+        </tr>
+
+        <!-- Row 2: Sub Header Detail -->
+        <tr class="header-sub">
+          <th
+            :style="colStyles('lsbd_panjang', '90px')"
+            class="text-right bg-cyan-sub cursor-pointer select-none"
+            @click="toggleSort('lsbd_panjang')"
+          >
+            PANJANG {{ getSortIcon("lsbd_panjang") }}
+          </th>
+          <th
+            :style="colStyles('lsbd_lebar', '90px')"
+            class="text-right bg-cyan-sub cursor-pointer select-none"
+            @click="toggleSort('lsbd_lebar')"
+          >
+            LEBAR {{ getSortIcon("lsbd_lebar") }}
+          </th>
+
+          <th
+            :style="colStyles('sb01', '80px')"
+            class="text-right bg-blue-sub cursor-pointer select-none"
+            @click="toggleSort('sb01')"
+          >
+            SB01 {{ getSortIcon("sb01") }}
+          </th>
+          <th
+            :style="colStyles('sb02', '80px')"
+            class="text-right bg-blue-sub cursor-pointer select-none"
+            @click="toggleSort('sb02')"
+          >
+            SB02 {{ getSortIcon("sb02") }}
+          </th>
+          <th
+            :style="colStyles('sb03', '80px')"
+            class="text-right bg-blue-sub cursor-pointer select-none"
+            @click="toggleSort('sb03')"
+          >
+            SB03 {{ getSortIcon("sb03") }}
+          </th>
+          <th
+            :style="colStyles('total_pcs_aktual', '95px')"
+            class="text-right bg-blue-sub font-weight-bold"
+          >
+            TOTAL
+          </th>
+
+          <th
+            :style="colStyles('sb01_m', '85px')"
+            class="text-right bg-teal-sub cursor-pointer select-none"
+            @click="toggleSort('sb01_m')"
+          >
+            SB01 {{ getSortIcon("sb01_m") }}
+          </th>
+          <th
+            :style="colStyles('sb02_m', '85px')"
+            class="text-right bg-teal-sub cursor-pointer select-none"
+            @click="toggleSort('sb02_m')"
+          >
+            SB02 {{ getSortIcon("sb02_m") }}
+          </th>
+          <th
+            :style="colStyles('sb03_m', '85px')"
+            class="text-right bg-teal-sub cursor-pointer select-none"
+            @click="toggleSort('sb03_m')"
+          >
+            SB03 {{ getSortIcon("sb03_m") }}
+          </th>
+          <th
+            :style="colStyles('total_mtr_aktual', '95px')"
+            class="text-right bg-teal-sub font-weight-bold"
+          >
+            TOTAL
+          </th>
+
+          <th
+            :style="colStyles('sb01_std', '85px')"
+            class="text-right bg-blue-sub cursor-pointer select-none"
+            @click="toggleSort('sb01_std')"
+          >
+            SB01 {{ getSortIcon("sb01_std") }}
+          </th>
+          <th
+            :style="colStyles('sb02_std', '85px')"
+            class="text-right bg-blue-sub cursor-pointer select-none"
+            @click="toggleSort('sb02_std')"
+          >
+            SB02 {{ getSortIcon("sb02_std") }}
+          </th>
+          <th
+            :style="colStyles('sb03_std', '85px')"
+            class="text-right bg-blue-sub cursor-pointer select-none"
+            @click="toggleSort('sb03_std')"
+          >
+            SB03 {{ getSortIcon("sb03_std") }}
+          </th>
+          <th
+            :style="colStyles('pcs_std', '95px')"
+            class="text-right bg-blue-sub font-weight-bold"
+          >
+            TOTAL
+          </th>
+
+          <th
+            :style="colStyles('sb01_std_m', '85px')"
+            class="text-right bg-cyan-sub cursor-pointer select-none"
+            @click="toggleSort('sb01_std_m')"
+          >
+            SB01 {{ getSortIcon("sb01_std_m") }}
+          </th>
+          <th
+            :style="colStyles('sb02_std_m', '85px')"
+            class="text-right bg-cyan-sub cursor-pointer select-none"
+            @click="toggleSort('sb02_std_m')"
+          >
+            SB02 {{ getSortIcon("sb02_std_m") }}
+          </th>
+          <th
+            :style="colStyles('sb03_std_m', '85px')"
+            class="text-right bg-cyan-sub cursor-pointer select-none"
+            @click="toggleSort('sb03_std_m')"
+          >
+            SB03 {{ getSortIcon("sb03_std_m") }}
+          </th>
+          <th
+            :style="colStyles('meter_std', '95px')"
+            class="text-right bg-cyan-sub font-weight-bold"
+          >
+            TOTAL
+          </th>
+        </tr>
+      </thead>
+    </template>
+
+    <!-- Slot Row Baris Data Utama -->
+    <template #row="{ item, formatNumber }">
+      <tr class="table-row-item">
+        <td
+          :style="colStyles('poi_nomor', '140px')"
+          class="text-center font-weight-bold text-primary"
+        >
+          {{ item.poi_nomor || "-" }}
+        </td>
+        <td :style="colStyles('poi_tanggal', '110px')" class="text-center">
+          {{ formatOnlyDate(item.poi_tanggal) }}
+        </td>
+        <td
+          :style="colStyles('poi_dateline', '110px')"
+          class="text-center text-error font-weight-bold"
+        >
+          {{ formatOnlyDate(item.poi_dateline) }}
+        </td>
+        <td :style="colStyles('poi_spk_nomor', '120px')" class="text-center">
+          {{ item.poi_spk_nomor || "-" }}
+        </td>
+        <td
+          :style="colStyles('poid_size', '80px')"
+          class="text-center font-weight-bold"
+        >
+          {{ item.poid_size || "-" }}
+        </td>
+        <td
+          :style="colStyles('poid_jumlah', '95px')"
+          class="text-right font-weight-bold"
+        >
+          {{ formatNumber(item.poid_jumlah, 0) }}
+        </td>
+        <td :style="colStyles('spk_perush_kode', '85px')" class="text-center">
+          {{ item.spk_perush_kode || "-" }}
+        </td>
+        <td :style="colStyles('spk_tanggal', '105px')" class="text-center">
+          {{ formatOnlyDate(item.spk_tanggal) }}
+        </td>
+        <td
+          :style="colStyles('spk_dateline', '105px')"
+          class="text-center text-error"
+        >
+          {{ formatOnlyDate(item.spk_dateline) }}
+        </td>
+        <td
+          :style="colStyles('spk_nama', '250px')"
+          class="text-left sticky-col-2 text-truncate"
+          :title="item.spk_nama"
+        >
+          {{ item.spk_nama || "-" }}
+        </td>
+        <td :style="colStyles('lsbd_panjang', '90px')" class="text-right">
+          {{ formatNumber(item.lsbd_panjang, 2) }}
+        </td>
+        <td :style="colStyles('lsbd_lebar', '90px')" class="text-right">
+          {{ formatNumber(item.lsbd_lebar, 2) }}
+        </td>
+        <td
+          :style="colStyles('lsbd_spk_nomor', '130px')"
+          class="text-center font-weight-bold text-primary"
+        >
+          {{ item.lsbd_spk_nomor || "-" }}
+        </td>
+        <td :style="colStyles('lsbd_jumlah_order', '90px')" class="text-right">
+          {{ formatNumber(item.lsbd_jumlah_order, 0) }}
+        </td>
+        <td :style="colStyles('meter_order', '105px')" class="text-right">
+          {{ formatNumber(item.meter_order, 2) }}
+        </td>
+        <td
+          :style="colStyles('spk_kain', '200px')"
+          class="text-left text-truncate"
+          :title="item.spk_kain"
+        >
+          {{ item.spk_kain || "-" }}
+        </td>
+        <td :style="colStyles('spk_gramasi', '100px')" class="text-center">
+          {{ item.spk_gramasi || "-" }}
+        </td>
+        <td
+          :style="colStyles('kurang', '90px')"
+          class="text-right text-error font-weight-bold"
+        >
+          {{ formatNumber(item.kurang, 0) }}
+        </td>
+
+        <!-- SB01-03 Aktual -->
+        <td :style="colStyles('sb01', '80px')" class="text-right">
+          {{ formatNumber(item.sb01, 0) }}
+        </td>
+        <td :style="colStyles('sb02', '80px')" class="text-right">
+          {{ formatNumber(item.sb02, 0) }}
+        </td>
+        <td :style="colStyles('sb03', '80px')" class="text-right">
+          {{ formatNumber(item.sb03, 0) }}
+        </td>
+        <td
+          :style="colStyles('total_pcs_aktual', '95px')"
+          class="text-right font-weight-bold text-primary"
+        >
+          {{
+            formatNumber(
+              Number(item.sb01 || 0) +
+                Number(item.sb02 || 0) +
+                Number(item.sb03 || 0),
+              0,
+            )
+          }}
+        </td>
+
+        <!-- Meter Aktual -->
+        <td :style="colStyles('sb01_m', '85px')" class="text-right">
+          {{ formatNumber(item.sb01_m, 2) }}
+        </td>
+        <td :style="colStyles('sb02_m', '85px')" class="text-right">
+          {{ formatNumber(item.sb02_m, 2) }}
+        </td>
+        <td :style="colStyles('sb03_m', '85px')" class="text-right">
+          {{ formatNumber(item.sb03_m, 2) }}
+        </td>
+        <td
+          :style="colStyles('total_mtr_aktual', '95px')"
+          class="text-right font-weight-bold text-primary"
+        >
+          {{
+            formatNumber(
+              Number(item.sb01_m || 0) +
+                Number(item.sb02_m || 0) +
+                Number(item.sb03_m || 0),
+              2,
+            )
+          }}
+        </td>
+
+        <!-- PCS Standar -->
+        <td :style="colStyles('sb01_std', '85px')" class="text-right">
+          {{ formatNumber(item.sb01_std, 0) }}
+        </td>
+        <td :style="colStyles('sb02_std', '85px')" class="text-right">
+          {{ formatNumber(item.sb02_std, 0) }}
+        </td>
+        <td :style="colStyles('sb03_std', '85px')" class="text-right">
+          {{ formatNumber(item.sb03_std, 0) }}
+        </td>
+        <td
+          :style="colStyles('pcs_std', '95px')"
+          class="text-right font-weight-bold"
+        >
+          {{ formatNumber(item.pcs_std, 0) }}
+        </td>
+
+        <!-- Meter Standar -->
+        <td :style="colStyles('sb01_std_m', '85px')" class="text-right">
+          {{ formatNumber(item.sb01_std_m, 2) }}
+        </td>
+        <td :style="colStyles('sb02_std_m', '85px')" class="text-right">
+          {{ formatNumber(item.sb02_std_m, 2) }}
+        </td>
+        <td :style="colStyles('sb03_std_m', '85px')" class="text-right">
+          {{ formatNumber(item.sb03_std_m, 2) }}
+        </td>
+        <td
+          :style="colStyles('meter_std', '95px')"
+          class="text-right font-weight-bold"
+        >
+          {{ formatNumber(item.meter_std, 2) }}
+        </td>
+      </tr>
+    </template>
+
+    <!-- Slot Total Footer -->
+    <template #tfoot="{ formatNumber }">
+      <tr class="table-footer-row">
+        <td
+          colspan="5"
+          class="text-right font-weight-black text-uppercase sticky-footer-title"
+        >
+          TOTAL SUM:
+        </td>
+        <td
+          :style="colStyles('poid_jumlah', '95px')"
+          class="text-right font-weight-black"
+        >
+          {{ formatNumber(sumField("poid_jumlah"), 0) }}
+        </td>
+        <td colspan="7"></td>
+        <td
+          :style="colStyles('lsbd_jumlah_order', '90px')"
+          class="text-right font-weight-black"
+        >
+          {{ formatNumber(sumField("lsbd_jumlah_order"), 0) }}
+        </td>
+        <td
+          :style="colStyles('meter_order', '105px')"
+          class="text-right font-weight-black"
+        >
+          {{ formatNumber(sumField("meter_order"), 2) }}
+        </td>
+        <td colspan="2"></td>
+        <td
+          :style="colStyles('kurang', '90px')"
+          class="text-right font-weight-black text-error"
+        >
+          {{ formatNumber(sumField("kurang"), 0) }}
+        </td>
+        <td
+          :style="colStyles('sb01', '80px')"
+          class="text-right font-weight-black"
+        >
+          {{ formatNumber(sumField("sb01"), 0) }}
+        </td>
+        <td
+          :style="colStyles('sb02', '80px')"
+          class="text-right font-weight-black"
+        >
+          {{ formatNumber(sumField("sb02"), 0) }}
+        </td>
+        <td
+          :style="colStyles('sb03', '80px')"
+          class="text-right font-weight-black"
+        >
+          {{ formatNumber(sumField("sb03"), 0) }}
+        </td>
+        <td
+          :style="colStyles('total_pcs_aktual', '95px')"
+          class="text-right font-weight-black text-primary"
+        >
+          {{
+            formatNumber(
+              filteredData.reduce(
+                (a, b) =>
+                  a +
+                  (Number(b.sb01 || 0) +
+                    Number(b.sb02 || 0) +
+                    Number(b.sb03 || 0)),
+                0,
+              ),
+              0,
+            )
+          }}
+        </td>
+        <td
+          :style="colStyles('sb01_m', '85px')"
+          class="text-right font-weight-black"
+        >
+          {{ formatNumber(sumField("sb01_m"), 2) }}
+        </td>
+        <td
+          :style="colStyles('sb02_m', '85px')"
+          class="text-right font-weight-black"
+        >
+          {{ formatNumber(sumField("sb02_m"), 2) }}
+        </td>
+        <td
+          :style="colStyles('sb03_m', '85px')"
+          class="text-right font-weight-black"
+        >
+          {{ formatNumber(sumField("sb03_m"), 2) }}
+        </td>
+        <td
+          :style="colStyles('total_mtr_aktual', '95px')"
+          class="text-right font-weight-black text-primary"
+        >
+          {{
+            formatNumber(
+              filteredData.reduce(
+                (a, b) =>
+                  a +
+                  (Number(b.sb01_m || 0) +
+                    Number(b.sb02_m || 0) +
+                    Number(b.sb03_m || 0)),
+                0,
+              ),
+              2,
+            )
+          }}
+        </td>
+        <td
+          :style="colStyles('sb01_std', '85px')"
+          class="text-right font-weight-black"
+        >
+          {{ formatNumber(sumField("sb01_std"), 0) }}
+        </td>
+        <td
+          :style="colStyles('sb02_std', '85px')"
+          class="text-right font-weight-black"
+        >
+          {{ formatNumber(sumField("sb02_std"), 0) }}
+        </td>
+        <td
+          :style="colStyles('sb03_std', '85px')"
+          class="text-right font-weight-black"
+        >
+          {{ formatNumber(sumField("sb03_std"), 0) }}
+        </td>
+        <td
+          :style="colStyles('pcs_std', '95px')"
+          class="text-right font-weight-black"
+        >
+          {{ formatNumber(sumField("pcs_std"), 0) }}
+        </td>
+        <td
+          :style="colStyles('sb01_std_m', '85px')"
+          class="text-right font-weight-black"
+        >
+          {{ formatNumber(sumField("sb01_std_m"), 2) }}
+        </td>
+        <td
+          :style="colStyles('sb02_std_m', '85px')"
+          class="text-right font-weight-black"
+        >
+          {{ formatNumber(sumField("sb02_std_m"), 2) }}
+        </td>
+        <td
+          :style="colStyles('sb03_std_m', '85px')"
+          class="text-right font-weight-black"
+        >
+          {{ formatNumber(sumField("sb03_std_m"), 2) }}
+        </td>
+        <td
+          :style="colStyles('meter_std', '95px')"
+          class="text-right font-weight-black"
+        >
+          {{ formatNumber(sumField("meter_std"), 2) }}
+        </td>
+      </tr>
+    </template>
+  </BaseReportLayout>
 </template>
 
-<script setup>
-import { ref, onMounted, computed } from "vue";
-import PageLayout from "../components/PageLayout.vue";
+<script setup lang="ts">
+import { ref, reactive, computed, onMounted } from "vue";
+import BaseReportLayout from "@/components/BaseReportLayout.vue";
 import api from "@/services/api";
-import XLSX from "xlsx-js-style";
-import { parseISO, isValid, format } from "date-fns";
-import { saveAs } from "file-saver";
-import draggable from "vuedraggable";
+import { format, parseISO, isValid } from "date-fns";
+import { id } from "date-fns/locale";
+import * as XLSX from "xlsx-js-style";
 
-// --- URUTAN DEFAULT DAN METADATA FILTER SINKRON (image_0e7861.png / image_0ee1f7.png) ---
-const columns = ref([
-  // POI Internal Group
-  {
-    label: "NOMOR",
-    field: "poi_nomor",
-    class: "text-center",
-    type: "string",
-    group: "POI INTERNAL",
-    width: 140,
-  },
-  {
-    label: "TANGGAL",
-    field: "poi_tanggal",
-    class: "text-center",
-    type: "date",
-    group: "POI INTERNAL",
-    width: 100,
-  },
-  {
-    label: "DEADLINE",
-    field: "poi_dateline",
-    class: "text-center",
-    type: "date",
-    group: "POI INTERNAL",
-    width: 100,
-  },
-  {
-    label: "NOMOR SPK",
-    field: "poi_spk_nomor",
-    class: "text-center",
-    type: "string",
-    group: "POI INTERNAL",
-    width: 120,
-  },
-  {
-    label: "UKURAN",
-    field: "poid_size",
-    class: "text-center",
-    type: "string",
-    group: "POI INTERNAL",
-    width: 80,
-  },
-  {
-    label: "JUMLAH",
-    field: "poid_jumlah",
-    class: "text-right",
-    type: "number",
-    dec: 0,
-    sum: true,
-    group: "POI INTERNAL",
-    width: 95,
-  },
+const formatDate = (date: Date) => {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+};
 
-  // Kolom Mandiri (Tanpa Induk Group - Ditandai dengan 'NONE' -> Otomatis Rowspan 2)
-  {
-    label: "PERUSH",
-    field: "spk_perush_kode",
-    class: "text-center",
-    type: "string",
-    group: "NONE",
-    width: 85,
-  },
-  {
-    label: "TGL SPK",
-    field: "spk_tanggal",
-    class: "text-center",
-    type: "date",
-    group: "NONE",
-    width: 105,
-  },
-  {
-    label: "DEADLINE",
-    field: "spk_dateline",
-    class: "text-center",
-    type: "date",
-    group: "NONE",
-    width: 105,
-  },
-  {
-    label: "NAMA ORDER",
-    field: "spk_nama",
-    class: "text-left",
-    type: "string",
-    group: "NONE",
-    width: 280,
-  },
-
-  // Group UKURAN SPK
-  {
-    label: "PANJANG",
-    field: "lsbd_panjang",
-    class: "text-right",
-    type: "number",
-    dec: 2,
-    group: "UKURAN",
-    width: 90,
-  },
-  {
-    label: "LEBAR",
-    field: "lsbd_lebar",
-    class: "text-right",
-    type: "number",
-    dec: 2,
-    group: "UKURAN",
-    width: 90,
-  },
-
-  // Lajur Detail Dokumen SPK Utama
-  {
-    label: "NOMOR SPK",
-    field: "lsbd_spk_nomor",
-    class: "text-center",
-    type: "string",
-    group: "NONE",
-    width: 130,
-  },
-  {
-    label: "ORDER",
-    field: "lsbd_jumlah_order",
-    class: "text-right",
-    type: "number",
-    dec: 0,
-    sum: true,
-    group: "NONE",
-    width: 90,
-  },
-  {
-    label: "J. METER",
-    field: "meter_order",
-    class: "text-right",
-    type: "number",
-    dec: 2,
-    sum: true,
-    group: "NONE",
-    width: 105,
-  },
-  {
-    label: "JENIS BAHAN",
-    field: "spk_kain",
-    class: "text-left",
-    type: "string",
-    group: "NONE",
-    width: 220,
-  },
-  {
-    label: "GRAMASI",
-    field: "spk_gramasi",
-    class: "text-center",
-    type: "string",
-    group: "NONE",
-    width: 105,
-  },
-  {
-    label: "KURANG",
-    field: "kurang",
-    class: "text-right",
-    type: "number",
-    dec: 0,
-    sum: true,
-    group: "NONE",
-    width: 90,
-  },
-
-  // Group J. PCS AKTUAL
-  {
-    label: "SB01",
-    field: "sb01",
-    class: "text-right",
-    type: "number",
-    dec: 0,
-    sum: true,
-    group: "J. PCS AKTUAL",
-    width: 80,
-  },
-  {
-    label: "SB02",
-    field: "sb02",
-    class: "text-right",
-    type: "number",
-    dec: 0,
-    sum: true,
-    group: "J. PCS AKTUAL",
-    width: 80,
-  },
-  {
-    label: "SB03",
-    field: "sb03",
-    class: "text-right",
-    type: "number",
-    dec: 0,
-    sum: true,
-    group: "J. PCS AKTUAL",
-    width: 80,
-  },
-  {
-    label: "TOTAL",
-    field: "total_pcs_aktual",
-    class: "text-right font-weight-bold",
-    type: "number",
-    dec: 0,
-    sum: true,
-    group: "J. PCS AKTUAL",
-    width: 95,
-  },
-
-  // Group J. METER AKTUAL
-  {
-    label: "SB01",
-    field: "sb01_m",
-    class: "text-right",
-    type: "number",
-    dec: 2,
-    sum: true,
-    group: "J. METER AKTUAL",
-    width: 85,
-  },
-  {
-    label: "SB02",
-    field: "sb02_m",
-    class: "text-right",
-    type: "number",
-    dec: 2,
-    sum: true,
-    group: "J. METER AKTUAL",
-    width: 85,
-  },
-  {
-    label: "SB03",
-    field: "sb03_m",
-    class: "text-right",
-    type: "number",
-    dec: 2,
-    sum: true,
-    group: "J. METER AKTUAL",
-    width: 85,
-  },
-  {
-    label: "TOTAL",
-    field: "total_mtr_aktual",
-    class: "text-right font-weight-bold",
-    type: "number",
-    dec: 2,
-    sum: true,
-    group: "J. METER AKTUAL",
-    width: 95,
-  },
-
-  // Group J. PCS STANDAR
-  {
-    label: "SB01",
-    field: "sb01_std",
-    class: "text-right",
-    type: "number",
-    dec: 0,
-    sum: true,
-    group: "J. PCS STANDAR",
-    width: 85,
-  },
-  {
-    label: "SB02",
-    field: "sb02_std",
-    class: "text-right",
-    type: "number",
-    dec: 0,
-    sum: true,
-    group: "J. PCS STANDAR",
-    width: 85,
-  },
-  {
-    label: "SB03",
-    field: "sb03_std",
-    class: "text-right",
-    type: "number",
-    dec: 0,
-    sum: true,
-    group: "J. PCS STANDAR",
-    width: 85,
-  },
-  {
-    label: "TOTAL",
-    field: "pcs_std",
-    class: "text-right font-weight-bold",
-    type: "number",
-    dec: 0,
-    sum: true,
-    group: "J. PCS STANDAR",
-    width: 95,
-  },
-
-  // Group J. METER STANDAR
-  {
-    label: "SB01",
-    field: "sb01_std_m",
-    class: "text-right",
-    type: "number",
-    dec: 2,
-    sum: true,
-    group: "J. METER STANDAR",
-    width: 85,
-  },
-  {
-    label: "SB02",
-    field: "sb02_std_m",
-    class: "text-right",
-    type: "number",
-    dec: 2,
-    sum: true,
-    group: "J. METER STANDAR",
-    width: 85,
-  },
-  {
-    label: "SB03",
-    field: "sb03_std_m",
-    class: "text-right",
-    type: "number",
-    dec: 2,
-    sum: true,
-    group: "J. METER STANDAR",
-    width: 85,
-  },
-  {
-    label: "TOTAL",
-    field: "meter_std",
-    class: "text-right font-weight-bold",
-    type: "number",
-    dec: 2,
-    sum: true,
-    group: "J. METER STANDAR",
-    width: 95,
-  },
-]);
-
-// --- LOGIKA UTAMA: MENGHITUNG KEMBALI KUMPULAN LEBAR BANDED HEADER SECARA REAL-TIME ---
-const dynamicGroups = computed(() => {
-  const groups = [];
-  let currentGroup = null;
-
-  columns.value.forEach((col) => {
-    if (col.group === "NONE") {
-      groups.push({
-        label: col.label,
-        width: col.width,
-        colspan: 1,
-        rowspan: 2,
-        class: "header-cell-dark",
-      });
-      currentGroup = null;
-    } else {
-      if (currentGroup && currentGroup.label === col.group) {
-        currentGroup.width += col.width;
-        currentGroup.colspan += 1;
-      } else {
-        currentGroup = {
-          label: col.group,
-          width: col.width,
-          colspan: 1,
-          rowspan: 1,
-          class: "header-cell-light",
-        };
-        groups.push(currentGroup);
-      }
-    }
-  });
-  return groups;
-});
+const getDateDaysAgo = (days: number) => {
+  const date = new Date();
+  date.setDate(date.getDate() - days);
+  return date;
+};
 
 // --- STATE MANAGEMENT ---
-const allData = ref([]);
-const loading = ref(false);
+const API_URL = "/mmt/monitoring-sublim/sublim-monitoring";
+const endDate = ref(formatDate(new Date()));
+const startDate = ref(formatDate(getDateDaysAgo(7)));
 const searchQuery = ref("");
-const startDate = ref(
-  new Date(new Date().getFullYear(), new Date().getMonth(), 1)
-    .toISOString()
-    .substr(0, 10),
-);
-const endDate = ref(new Date().toISOString().substr(0, 10));
-const currentPage = ref(1);
-const itemsPerPage = ref(25);
+const loading = reactive({ report: false });
+const allData = ref<any[]>([]);
 
-// --- UTILS LAYOUT FORMATTER ---
-const formatNumber = (val, dec = 0) => {
+// --- PERSISTENCE & RESIZING STATE ---
+const storageKey = "mmt_report_layout_Monitoring_Sublim";
+const loadColWidths = (): Record<string, string> => {
+  try {
+    const raw = localStorage.getItem(storageKey);
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+};
+const saveColWidths = (widths: Record<string, string>) => {
+  try {
+    localStorage.setItem(storageKey, JSON.stringify(widths));
+  } catch {}
+};
+
+const colWidths = ref<Record<string, string>>(loadColWidths());
+
+const colStyles = (key: string, defaultWidth?: string) => {
+  const w = colWidths.value[key] || defaultWidth;
+  return w ? { width: w, minWidth: w, maxWidth: w } : {};
+};
+
+const resizingKey = ref<string | null>(null);
+const startX = ref(0);
+const startWidth = ref(0);
+
+const startResize = (e: MouseEvent, key: string, defaultWidthPx = 120) => {
+  resizingKey.value = key;
+  startX.value = e.clientX;
+  const currentW = colWidths.value[key];
+  let w = currentW ? parseInt(currentW, 10) : defaultWidthPx;
+  if (isNaN(w)) w = defaultWidthPx;
+  startWidth.value = w;
+
+  window.addEventListener("mousemove", onMouseMove);
+  window.addEventListener("mouseup", onMouseUp);
+  e.stopPropagation();
+};
+
+const onMouseMove = (e: MouseEvent) => {
+  if (!resizingKey.value) return;
+  const diff = e.clientX - startX.value;
+  const newWidth = Math.max(50, startWidth.value + diff);
+  colWidths.value = {
+    ...colWidths.value,
+    [resizingKey.value]: `${newWidth}px`,
+  };
+};
+
+const onMouseUp = () => {
+  if (resizingKey.value) {
+    saveColWidths(colWidths.value);
+  }
+  resizingKey.value = null;
+  window.removeEventListener("mousemove", onMouseMove);
+  window.removeEventListener("mouseup", onMouseUp);
+};
+
+// --- COLUMN FILTERS & SORTING STATE ---
+const columnFilters = reactive({
+  poi_nomor: "",
+  poi_spk_nomor: "",
+  spk_nama: "",
+});
+
+const sortKey = ref("poi_nomor");
+const sortOrder = ref<"asc" | "desc">("asc");
+
+const toggleSort = (key: string) => {
+  if (sortKey.value === key) {
+    sortOrder.value = sortOrder.value === "asc" ? "desc" : "asc";
+  } else {
+    sortKey.value = key;
+    sortOrder.value = "asc";
+  }
+};
+
+const getSortIcon = (key: string) => {
+  if (sortKey.value !== key) return "";
+  return sortOrder.value === "asc" ? " ▲" : " ▼";
+};
+
+const hasActiveFilter = computed(() => {
+  return (
+    Boolean(searchQuery.value) ||
+    Boolean(columnFilters.poi_nomor) ||
+    Boolean(columnFilters.poi_spk_nomor) ||
+    Boolean(columnFilters.spk_nama)
+  );
+});
+
+const resetAllFilters = () => {
+  searchQuery.value = "";
+  columnFilters.poi_nomor = "";
+  columnFilters.poi_spk_nomor = "";
+  columnFilters.spk_nama = "";
+  sortKey.value = "poi_nomor";
+  sortOrder.value = "asc";
+};
+
+// --- FETCH REPORT ---
+const fetchReport = async () => {
+  loading.report = true;
+  try {
+    const res = await api.get(API_URL, {
+      params: { startDate: startDate.value, endDate: endDate.value },
+    });
+    allData.value = res.data.data || res.data || [];
+  } catch (error) {
+    console.error("Gagal memuat monitoring sublim:", error);
+    allData.value = [];
+  } finally {
+    loading.report = false;
+  }
+};
+
+const getTimestamp = (val: any): number => {
+  if (!val) return 0;
+  const strVal = String(val).trim();
+  const parsedISO = parseISO(strVal);
+  if (isValid(parsedISO)) return parsedISO.getTime();
+  const fallbackDate = new Date(strVal).getTime();
+  return isNaN(fallbackDate) ? 0 : fallbackDate;
+};
+
+const DATE_KEYS = [
+  "poi_tanggal",
+  "poi_dateline",
+  "spk_tanggal",
+  "spk_dateline",
+];
+const NUMERIC_KEYS = [
+  "poid_jumlah",
+  "lsbd_panjang",
+  "lsbd_lebar",
+  "lsbd_jumlah_order",
+  "meter_order",
+  "kurang",
+  "sb01",
+  "sb02",
+  "sb03",
+  "sb01_m",
+  "sb02_m",
+  "sb03_m",
+  "sb01_std",
+  "sb02_std",
+  "sb03_std",
+  "pcs_std",
+  "sb01_std_m",
+  "sb02_std_m",
+  "sb03_std_m",
+  "meter_std",
+];
+
+const filteredData = computed(() => {
+  let result = [...allData.value];
+
+  if (searchQuery.value) {
+    const q = searchQuery.value.toLowerCase().trim();
+    result = result.filter((item: any) => {
+      return (
+        item.lsbd_spk_nomor?.toLowerCase().includes(q) ||
+        item.spk_nama?.toLowerCase().includes(q) ||
+        item.poi_nomor?.toLowerCase().includes(q)
+      );
+    });
+  }
+
+  if (sortKey.value) {
+    const key = sortKey.value;
+    const isAsc = sortOrder.value === "asc";
+
+    result.sort((a, b) => {
+      let valA = a[key];
+      let valB = b[key];
+
+      if (key === "total_pcs_aktual") {
+        valA = Number(a.sb01 || 0) + Number(a.sb02 || 0) + Number(a.sb03 || 0);
+        valB = Number(b.sb01 || 0) + Number(b.sb02 || 0) + Number(b.sb03 || 0);
+      } else if (key === "total_mtr_aktual") {
+        valA =
+          Number(a.sb01_m || 0) + Number(a.sb02_m || 0) + Number(a.sb03_m || 0);
+        valB =
+          Number(b.sb01_m || 0) + Number(b.sb02_m || 0) + Number(b.sb03_m || 0);
+      }
+
+      if (DATE_KEYS.includes(key)) {
+        const timeA = getTimestamp(valA);
+        const timeB = getTimestamp(valB);
+        return isAsc ? timeA - timeB : timeB - timeA;
+      }
+
+      if (
+        NUMERIC_KEYS.includes(key) ||
+        key === "total_pcs_aktual" ||
+        key === "total_mtr_aktual"
+      ) {
+        const numA =
+          valA !== null && valA !== undefined && valA !== "" ? Number(valA) : 0;
+        const numB =
+          valB !== null && valB !== undefined && valB !== "" ? Number(valB) : 0;
+        return isAsc ? numA - numB : numB - numA;
+      }
+
+      const strA = valA !== null && valA !== undefined ? String(valA) : "";
+      const strB = valB !== null && valB !== undefined ? String(valB) : "";
+
+      const res = strA.localeCompare(strB, "id", {
+        numeric: true,
+        sensitivity: "base",
+      });
+
+      return isAsc ? res : -res;
+    });
+  }
+
+  return result;
+});
+
+const sumField = (fieldName: string) => {
+  return filteredData.value.reduce((sum, item) => {
+    const val = parseFloat(item[fieldName]);
+    return sum + (isNaN(val) ? 0 : val);
+  }, 0);
+};
+
+const formatNumber = (val: any, dec = 0) => {
   if (val === null || val === undefined || isNaN(val))
     return dec === 0 ? "0" : "0,00";
   return parseFloat(val).toLocaleString("id-ID", {
@@ -626,102 +1031,29 @@ const formatNumber = (val, dec = 0) => {
   });
 };
 
-const formatOnlyDate = (dateStr) => {
+const formatOnlyDate = (dateStr: string) => {
   if (!dateStr || dateStr === "-") return "-";
   const date = parseISO(dateStr);
   return isValid(date) ? format(date, "dd/MM/yyyy") : dateStr;
 };
 
-const getValueByField = (item, field) => {
-  if (field === "total_pcs_aktual") {
-    return (
-      Number(item.sb01 || 0) + Number(item.sb02 || 0) + Number(item.sb03 || 0)
-    );
-  }
-  if (field === "total_mtr_aktual") {
-    return (
-      Number(item.sb01_m || 0) +
-      Number(item.sb02_m || 0) +
-      Number(item.sb03_m || 0)
-    );
-  }
-  return item[field];
+const formatDateFull = (dateStr: string) => {
+  if (!dateStr) return "-";
+  const date = parseISO(dateStr);
+  return isValid(date) ? format(date, "dd MMMM yyyy", { locale: id }) : dateStr;
 };
 
-// --- API HIT METHODS ---
-const fetchReport = async () => {
-  loading.value = true;
-  try {
-    const res = await api.get("/mmt/monitoring-sublim/sublim-monitoring", {
-      params: { startDate: startDate.value, endDate: endDate.value },
-    });
-    allData.value = res.data.data || [];
-    currentPage.value = 1;
-  } catch (error) {
-    console.error("Gagal memuat data monitoring sublim:", error);
-  } finally {
-    loading.value = false;
+// --- EXPORT TO EXCEL ---
+const exportToExcel = (dataToExport: any[]) => {
+  if (!dataToExport || dataToExport.length === 0) {
+    alert("Tidak ada data untuk diekspor");
+    return;
   }
-};
 
-const filteredData = computed(() => {
-  const q = searchQuery.value.toLowerCase().trim();
-  if (!q) return allData.value;
-  return allData.value.filter((r) => {
-    return (
-      (r.lsbd_spk_nomor && r.lsbd_spk_nomor.toLowerCase().includes(q)) ||
-      (r.spk_nama && r.spk_nama.toLowerCase().includes(q)) ||
-      (r.lsbd_poi_nomor && r.lsbd_poi_nomor.toLowerCase().includes(q))
-    );
-  });
-});
+  const fileName = `Laporan_Monitoring_Sublim_${startDate.value}_sd_${endDate.value}.xlsx`;
+  const num = (value: any) => (isNaN(Number(value)) ? 0 : Number(value));
 
-const sumField = (fieldName) => {
-  return filteredData.value.reduce((sum, item) => {
-    const val = parseFloat(item[fieldName]);
-    return sum + (isNaN(val) ? 0 : val);
-  }, 0);
-};
-
-const totalPages = computed(
-  () => Math.ceil(filteredData.value.length / itemsPerPage.value) || 1,
-);
-const paginatedData = computed(() => {
-  const start = (currentPage.value - 1) * itemsPerPage.value;
-  return filteredData.value.slice(start, start + itemsPerPage.value);
-});
-
-// --- EXPORT TO EXCEL FIXED STRICT 2 DESIMAL & BORDER HITAM ---
-const exportToExcel = () => {
-  const fileName = `Laporan_Monitoring_Sublim_${startDate.value}.xlsx`;
-
-  const formatDateIndo = (dateStr) => {
-    if (!dateStr) return "-";
-    try {
-      const date = parseISO(dateStr);
-      if (!isValid(date)) return dateStr;
-      const bulanIndo = [
-        "Januari",
-        "Februari",
-        "Maret",
-        "April",
-        "Mei",
-        "Juni",
-        "Juli",
-        "Agustus",
-        "September",
-        "Oktober",
-        "November",
-        "Desember",
-      ];
-      return `${date.getDate()} ${bulanIndo[date.getMonth()]} ${date.getFullYear()}`;
-    } catch {
-      return dateStr;
-    }
-  };
-
-  // --- 1. Definisi Style (Sesuai Standar Kotak Bergaris Penuh & Biru Muda MMT) ---
-  const borderTegasHitam = {
+  const borderThin = {
     top: { style: "thin", color: { rgb: "000000" } },
     bottom: { style: "thin", color: { rgb: "000000" } },
     left: { style: "thin", color: { rgb: "000000" } },
@@ -729,385 +1061,623 @@ const exportToExcel = () => {
   };
 
   const styleHeaderMain = {
-    fill: { fgColor: { rgb: "B3E5FC" } }, // Diselaraskan ke Biru Muda Cerah MMT Anda
-    font: { bold: true, color: { rgb: "000000" }, name: "Calibri", sz: 10 },
+    fill: { fgColor: { rgb: "1E3A8A" } },
+    font: { bold: true, color: { rgb: "FFFFFF" }, sz: 10 },
     alignment: { horizontal: "center", vertical: "center", wrapText: true },
-    border: borderTegasHitam,
+    border: borderThin,
   };
 
   const styleHeaderSub = {
-    ...styleHeaderMain,
-    fill: { fgColor: { rgb: "F0F8FF" } },
+    fill: { fgColor: { rgb: "2563EB" } },
+    font: { bold: true, color: { rgb: "FFFFFF" }, sz: 10 },
+    alignment: { horizontal: "center", vertical: "center", wrapText: true },
+    border: borderThin,
   };
 
   const styleDataCell = {
-    font: { name: "Calibri", sz: 10, color: { rgb: "000000" } },
+    font: { sz: 9, color: { rgb: "0F172A" } },
     alignment: { vertical: "center" },
-    border: borderTegasHitam,
+    border: borderThin,
   };
 
-  const styleFooter = {
-    ...styleDataCell,
-    fill: { fgColor: { rgb: "F0F4F8" } }, // Format abu terang totalan LHK Anda
-    font: { bold: true, name: "Calibri", sz: 10, color: { rgb: "000000" } },
+  const styleFooterCell = {
+    fill: { fgColor: { rgb: "C7ECFE" } },
+    font: { bold: true, sz: 10, color: { rgb: "000000" } },
     border: {
-      top: { style: "thin", color: { rgb: "000000" } },
-      bottom: { style: "double", color: { rgb: "000000" } }, // Akuntansi Ganda Bawah
+      top: { style: "double", color: { rgb: "000000" } },
+      bottom: { style: "thick", color: { rgb: "000000" } },
       left: { style: "thin", color: { rgb: "000000" } },
       right: { style: "thin", color: { rgb: "000000" } },
     },
   };
 
-  const wsData = [];
+  const formattedStart = formatDateFull(startDate.value);
+  const formattedEnd = formatDateFull(endDate.value);
 
-  wsData.push([
-    {
-      v: "LAPORAN MONITORING SUBLIM",
-      s: {
-        font: { bold: true, sz: 14, name: "Calibri", color: { rgb: "000000" } },
+  const wsData: any[] = [
+    [
+      {
+        v: "LAPORAN MONITORING SUBLIM",
+        s: { font: { bold: true, sz: 14 } },
       },
-    },
-  ]);
-  wsData.push([
-    {
-      v: `Periode: ${formatDateIndo(startDate.value)} s/d ${formatDateIndo(endDate.value)}`,
-      s: {
-        font: { bold: true, sz: 10, name: "Calibri", color: { rgb: "000000" } },
+    ],
+    [{ v: `Periode : ${formattedStart} s/d ${formattedEnd}` }],
+    [],
+  ];
+
+  const headerRow1 = [
+    { v: "NOMOR POI", s: styleHeaderMain },
+    { v: "TGL POI", s: styleHeaderMain },
+    { v: "DEADLINE POI", s: styleHeaderMain },
+    { v: "SPK POI", s: styleHeaderMain },
+    { v: "SIZE", s: styleHeaderMain },
+    { v: "JUMLAH POI", s: styleHeaderMain },
+    { v: "PERUSH", s: styleHeaderMain },
+    { v: "TGL SPK", s: styleHeaderMain },
+    { v: "DEADLINE SPK", s: styleHeaderMain },
+    { v: "NAMA ORDER", s: styleHeaderMain },
+    { v: "UKURAN", s: styleHeaderMain },
+    "",
+    { v: "NOMOR SPK", s: styleHeaderMain },
+    { v: "ORDER", s: styleHeaderMain },
+    { v: "J. METER", s: styleHeaderMain },
+    { v: "JENIS BAHAN", s: styleHeaderMain },
+    { v: "GRAMASI", s: styleHeaderMain },
+    { v: "KURANG", s: styleHeaderMain },
+    { v: "J. PCS AKTUAL", s: styleHeaderMain },
+    "",
+    "",
+    "",
+    { v: "J. METER AKTUAL", s: styleHeaderMain },
+    "",
+    "",
+    "",
+    { v: "J. PCS STANDAR", s: styleHeaderMain },
+    "",
+    "",
+    "",
+    { v: "J. METER STANDAR", s: styleHeaderMain },
+    "",
+    "",
+    "",
+  ];
+  wsData.push(headerRow1);
+
+  const headerRow2 = [
+    { v: "", s: styleHeaderMain },
+    { v: "", s: styleHeaderMain },
+    { v: "", s: styleHeaderMain },
+    { v: "", s: styleHeaderMain },
+    { v: "", s: styleHeaderMain },
+    { v: "", s: styleHeaderMain },
+    { v: "", s: styleHeaderMain },
+    { v: "", s: styleHeaderMain },
+    { v: "", s: styleHeaderMain },
+    { v: "", s: styleHeaderMain },
+    { v: "PANG", s: styleHeaderSub },
+    { v: "LEB", s: styleHeaderSub },
+    { v: "", s: styleHeaderMain },
+    { v: "", s: styleHeaderMain },
+    { v: "", s: styleHeaderMain },
+    { v: "", s: styleHeaderMain },
+    { v: "", s: styleHeaderMain },
+    { v: "", s: styleHeaderMain },
+    { v: "SB01", s: styleHeaderSub },
+    { v: "SB02", s: styleHeaderSub },
+    { v: "SB03", s: styleHeaderSub },
+    { v: "TOTAL", s: styleHeaderSub },
+    { v: "SB01", s: styleHeaderSub },
+    { v: "SB02", s: styleHeaderSub },
+    { v: "SB03", s: styleHeaderSub },
+    { v: "TOTAL", s: styleHeaderSub },
+    { v: "SB01", s: styleHeaderSub },
+    { v: "SB02", s: styleHeaderSub },
+    { v: "SB03", s: styleHeaderSub },
+    { v: "TOTAL", s: styleHeaderSub },
+    { v: "SB01", s: styleHeaderSub },
+    { v: "SB02", s: styleHeaderSub },
+    { v: "SB03", s: styleHeaderSub },
+    { v: "TOTAL", s: styleHeaderSub },
+  ];
+  wsData.push(headerRow2);
+
+  dataToExport.forEach((item: any) => {
+    const totPcsAktual =
+      Number(item.sb01 || 0) + Number(item.sb02 || 0) + Number(item.sb03 || 0);
+    const totMtrAktual =
+      Number(item.sb01_m || 0) +
+      Number(item.sb02_m || 0) +
+      Number(item.sb03_m || 0);
+
+    wsData.push([
+      {
+        v: item.poi_nomor || "",
+        s: { ...styleDataCell, alignment: { horizontal: "center" } },
       },
-    },
-  ]);
-  wsData.push([
-    {
-      v: "Kategori: SB",
-      s: {
-        font: {
-          bold: false,
-          sz: 10,
-          name: "Calibri",
-          color: { rgb: "000000" },
-        },
+      {
+        v: formatOnlyDate(item.poi_tanggal),
+        s: { ...styleDataCell, alignment: { horizontal: "center" } },
       },
-    },
-  ]);
-  wsData.push([]);
-
-  const excelHeaderRow1 = [];
-  const excelHeaderRow2 = [];
-  const excelMerges = [];
-
-  dynamicGroups.value.forEach((group) => {
-    excelHeaderRow1.push({ v: group.label, s: styleHeaderMain });
-    for (let i = 1; i < group.colspan; i++) {
-      excelHeaderRow1.push({ v: "", s: styleHeaderMain });
-    }
-  });
-
-  columns.value.forEach((col) => {
-    excelHeaderRow2.push({ v: col.label, s: styleHeaderSub });
-  });
-
-  wsData.push(excelHeaderRow1);
-  wsData.push(excelHeaderRow2);
-
-  let currentExcelCol = 0;
-  dynamicGroups.value.forEach((group) => {
-    if (group.rowspan === 2) {
-      excelMerges.push({
-        s: { r: 4, c: currentExcelCol },
-        e: { r: 5, c: currentExcelCol },
-      });
-      currentExcelCol += 1;
-    } else {
-      excelMerges.push({
-        s: { r: 4, c: currentExcelCol },
-        e: { r: 4, c: currentExcelCol + group.colspan - 1 },
-      });
-      currentExcelCol += group.colspan;
-    }
-  });
-
-  // Gabungkan label title "TOTAL SUM:" di footer (Merge kolom indeks 0 s/d 4)
-  excelMerges.push({
-    s: { r: filteredData.value.length + 6, c: 0 },
-    e: { r: filteredData.value.length + 6, c: 4 },
-  });
-
-  // --- 2. LOOP DATA VALUE ROW ---
-  filteredData.value.forEach((item) => {
-    const row = [];
-    columns.value.forEach((col) => {
-      const value = getValueByField(item, col.field);
-      if (col.type === "number") {
-        const isDecimalCol =
-          col.field.includes("_m") ||
-          col.field.includes("panjang") ||
-          col.field.includes("lebar") ||
-          col.field.includes("meter") ||
-          col.field.includes("std_m") ||
-          col.field === "total_mtr_aktual";
-
-        const finalNum = isDecimalCol
-          ? Number(parseFloat(value || 0).toFixed(2))
-          : Number(value || 0);
-
-        // PERBAIKAN UTAMA: Taruh properti 't' dan 'z' di tingkat root sel objek (sejajar v dan s)
-        row.push({
-          v: finalNum,
-          t: "n",
-          z: isDecimalCol ? "#,##0.00" : "#,##0",
-          s: {
-            ...styleDataCell,
-            alignment: { horizontal: "right", vertical: "center" },
-          },
-        });
-      } else if (col.type === "date") {
-        row.push({
-          v: formatOnlyDate(value),
-          s: {
-            ...styleDataCell,
-            alignment: { horizontal: "center", vertical: "center" },
-          },
-        });
-      } else {
-        row.push({
-          v: value || "-", // Mengganti string kosong menjadi tanda strip pembatas agar ber-gridline rapi
-          s: styleDataCell,
-        });
-      }
-    });
-    wsData.push(row);
-  });
-
-  // --- 3. MAP BARIS SUMMARY FOOTER TOTAL ---
-  const excelFooter = [];
-  columns.value.forEach((col, idx) => {
-    if (idx === 0) {
-      excelFooter.push({
-        v: "TOTAL SUM:",
-        s: {
-          ...styleFooter,
-          alignment: { horizontal: "right", vertical: "center" },
-        },
-      });
-    } else if (col.sum) {
-      let sumVal = 0;
-      if (col.field === "total_pcs_aktual") {
-        sumVal = filteredData.value.reduce(
-          (a, b) =>
-            a +
-            (Number(b.sb01 || 0) + Number(b.sb02 || 0) + Number(b.sb03 || 0)),
-          0,
-        );
-      } else if (col.field === "total_mtr_aktual") {
-        sumVal = filteredData.value.reduce(
-          (a, b) =>
-            a +
-            (Number(b.sb01_m || 0) +
-              Number(b.sb02_m || 0) +
-              Number(b.sb03_m || 0)),
-          0,
-        );
-      } else {
-        sumVal = sumField(col.field);
-      }
-
-      const isDecimalCol =
-        col.field.includes("_m") ||
-        col.field.includes("panjang") ||
-        col.field.includes("lebar") ||
-        col.field.includes("meter") ||
-        col.field.includes("std_m") ||
-        col.field === "total_mtr_aktual";
-
-      const finalSum = isDecimalCol
-        ? Number(parseFloat(sumVal).toFixed(2))
-        : Number(sumVal);
-
-      // PERBAIKAN UTAMA FOOTER: Pindahkan 't' dan 'z' ke tingkat root objek sel agar kalkulasi SUM valid
-      excelFooter.push({
-        v: finalSum,
+      {
+        v: formatOnlyDate(item.poi_dateline),
+        s: { ...styleDataCell, alignment: { horizontal: "center" } },
+      },
+      {
+        v: item.poi_spk_nomor || "",
+        s: { ...styleDataCell, alignment: { horizontal: "center" } },
+      },
+      {
+        v: item.poid_size || "",
+        s: { ...styleDataCell, alignment: { horizontal: "center" } },
+      },
+      {
+        v: num(item.poid_jumlah),
         t: "n",
-        z: isDecimalCol ? "#,##0.00" : "#,##0",
-        s: {
-          ...styleFooter,
-          alignment: { horizontal: "right", vertical: "center" },
-        },
-      });
-    } else {
-      excelFooter.push({
-        v: "-",
-        s: {
-          ...styleFooter,
-          alignment: { horizontal: "center", vertical: "center" },
-        },
-      });
-    }
+        z: "#,##0",
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+      },
+      {
+        v: item.spk_perush_kode || "",
+        s: { ...styleDataCell, alignment: { horizontal: "center" } },
+      },
+      {
+        v: formatOnlyDate(item.spk_tanggal),
+        s: { ...styleDataCell, alignment: { horizontal: "center" } },
+      },
+      {
+        v: formatOnlyDate(item.spk_dateline),
+        s: { ...styleDataCell, alignment: { horizontal: "center" } },
+      },
+      { v: item.spk_nama || "", s: styleDataCell },
+      {
+        v: num(item.lsbd_panjang),
+        t: "n",
+        z: "#,##0.00",
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+      },
+      {
+        v: num(item.lsbd_lebar),
+        t: "n",
+        z: "#,##0.00",
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+      },
+      {
+        v: item.lsbd_spk_nomor || "",
+        s: { ...styleDataCell, alignment: { horizontal: "center" } },
+      },
+      {
+        v: num(item.lsbd_jumlah_order),
+        t: "n",
+        z: "#,##0",
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+      },
+      {
+        v: num(item.meter_order),
+        t: "n",
+        z: "#,##0.00",
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+      },
+      { v: item.spk_kain || "", s: styleDataCell },
+      {
+        v: item.spk_gramasi || "",
+        s: { ...styleDataCell, alignment: { horizontal: "center" } },
+      },
+      {
+        v: num(item.kurang),
+        t: "n",
+        z: "#,##0",
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+      },
+      {
+        v: num(item.sb01),
+        t: "n",
+        z: "#,##0",
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+      },
+      {
+        v: num(item.sb02),
+        t: "n",
+        z: "#,##0",
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+      },
+      {
+        v: num(item.sb03),
+        t: "n",
+        z: "#,##0",
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+      },
+      {
+        v: num(totPcsAktual),
+        t: "n",
+        z: "#,##0",
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+      },
+      {
+        v: num(item.sb01_m),
+        t: "n",
+        z: "#,##0.00",
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+      },
+      {
+        v: num(item.sb02_m),
+        t: "n",
+        z: "#,##0.00",
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+      },
+      {
+        v: num(item.sb03_m),
+        t: "n",
+        z: "#,##0.00",
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+      },
+      {
+        v: num(totMtrAktual),
+        t: "n",
+        z: "#,##0.00",
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+      },
+      {
+        v: num(item.sb01_std),
+        t: "n",
+        z: "#,##0",
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+      },
+      {
+        v: num(item.sb02_std),
+        t: "n",
+        z: "#,##0",
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+      },
+      {
+        v: num(item.sb03_std),
+        t: "n",
+        z: "#,##0",
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+      },
+      {
+        v: num(item.pcs_std),
+        t: "n",
+        z: "#,##0",
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+      },
+      {
+        v: num(item.sb01_std_m),
+        t: "n",
+        z: "#,##0.00",
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+      },
+      {
+        v: num(item.sb02_std_m),
+        t: "n",
+        z: "#,##0.00",
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+      },
+      {
+        v: num(item.sb03_std_m),
+        t: "n",
+        z: "#,##0.00",
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+      },
+      {
+        v: num(item.meter_std),
+        t: "n",
+        z: "#,##0.00",
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+      },
+    ]);
   });
-  wsData.push(excelFooter);
+
+  const totSumPcsAktual = filteredData.value.reduce(
+    (a, b) =>
+      a + (Number(b.sb01 || 0) + Number(b.sb02 || 0) + Number(b.sb03 || 0)),
+    0,
+  );
+  const totSumMtrAktual = filteredData.value.reduce(
+    (a, b) =>
+      a +
+      (Number(b.sb01_m || 0) + Number(b.sb02_m || 0) + Number(b.sb03_m || 0)),
+    0,
+  );
+
+  const footerRow = [
+    {
+      v: "TOTAL (FILTERED)",
+      s: { ...styleFooterCell, alignment: { horizontal: "center" } },
+    },
+    ...Array(4).fill({ v: "", s: styleFooterCell }),
+    {
+      v: num(sumField("poid_jumlah")),
+      t: "n",
+      z: "#,##0",
+      s: { ...styleFooterCell, alignment: { horizontal: "right" } },
+    },
+    ...Array(6).fill({ v: "", s: styleFooterCell }),
+    {
+      v: num(sumField("lsbd_jumlah_order")),
+      t: "n",
+      z: "#,##0",
+      s: { ...styleFooterCell, alignment: { horizontal: "right" } },
+    },
+    {
+      v: num(sumField("meter_order")),
+      t: "n",
+      z: "#,##0.00",
+      s: { ...styleFooterCell, alignment: { horizontal: "right" } },
+    },
+    ...Array(2).fill({ v: "", s: styleFooterCell }),
+    {
+      v: num(sumField("kurang")),
+      t: "n",
+      z: "#,##0",
+      s: { ...styleFooterCell, alignment: { horizontal: "right" } },
+    },
+    {
+      v: num(sumField("sb01")),
+      t: "n",
+      z: "#,##0",
+      s: { ...styleFooterCell, alignment: { horizontal: "right" } },
+    },
+    {
+      v: num(sumField("sb02")),
+      t: "n",
+      z: "#,##0",
+      s: { ...styleFooterCell, alignment: { horizontal: "right" } },
+    },
+    {
+      v: num(sumField("sb03")),
+      t: "n",
+      z: "#,##0",
+      s: { ...styleFooterCell, alignment: { horizontal: "right" } },
+    },
+    {
+      v: num(totSumPcsAktual),
+      t: "n",
+      z: "#,##0",
+      s: { ...styleFooterCell, alignment: { horizontal: "right" } },
+    },
+    {
+      v: num(sumField("sb01_m")),
+      t: "n",
+      z: "#,##0.00",
+      s: { ...styleFooterCell, alignment: { horizontal: "right" } },
+    },
+    {
+      v: num(sumField("sb02_m")),
+      t: "n",
+      z: "#,##0.00",
+      s: { ...styleFooterCell, alignment: { horizontal: "right" } },
+    },
+    {
+      v: num(sumField("sb03_m")),
+      t: "n",
+      z: "#,##0.00",
+      s: { ...styleFooterCell, alignment: { horizontal: "right" } },
+    },
+    {
+      v: num(totSumMtrAktual),
+      t: "n",
+      z: "#,##0.00",
+      s: { ...styleFooterCell, alignment: { horizontal: "right" } },
+    },
+    {
+      v: num(sumField("sb01_std")),
+      t: "n",
+      z: "#,##0",
+      s: { ...styleFooterCell, alignment: { horizontal: "right" } },
+    },
+    {
+      v: num(sumField("sb02_std")),
+      t: "n",
+      z: "#,##0",
+      s: { ...styleFooterCell, alignment: { horizontal: "right" } },
+    },
+    {
+      v: num(sumField("sb03_std")),
+      t: "n",
+      z: "#,##0",
+      s: { ...styleFooterCell, alignment: { horizontal: "right" } },
+    },
+    {
+      v: num(sumField("pcs_std")),
+      t: "n",
+      z: "#,##0",
+      s: { ...styleFooterCell, alignment: { horizontal: "right" } },
+    },
+    {
+      v: num(sumField("sb01_std_m")),
+      t: "n",
+      z: "#,##0.00",
+      s: { ...styleFooterCell, alignment: { horizontal: "right" } },
+    },
+    {
+      v: num(sumField("sb02_std_m")),
+      t: "n",
+      z: "#,##0.00",
+      s: { ...styleFooterCell, alignment: { horizontal: "right" } },
+    },
+    {
+      v: num(sumField("sb03_std_m")),
+      t: "n",
+      z: "#,##0.00",
+      s: { ...styleFooterCell, alignment: { horizontal: "right" } },
+    },
+    {
+      v: num(sumField("meter_std")),
+      t: "n",
+      z: "#,##0.00",
+      s: { ...styleFooterCell, alignment: { horizontal: "right" } },
+    },
+  ];
+
+  wsData.push(footerRow);
 
   const ws = XLSX.utils.aoa_to_sheet(wsData);
-  ws["!merges"] = excelMerges;
-  ws["!cols"] = columns.value.map((c) => ({ wch: c.width / 7.2 }));
+  ws["!merges"] = [
+    { s: { r: 3, c: 0 }, e: { r: 4, c: 0 } },
+    { s: { r: 3, c: 1 }, e: { r: 4, c: 1 } },
+    { s: { r: 3, c: 2 }, e: { r: 4, c: 2 } },
+    { s: { r: 3, c: 3 }, e: { r: 4, c: 3 } },
+    { s: { r: 3, c: 4 }, e: { r: 4, c: 4 } },
+    { s: { r: 3, c: 5 }, e: { r: 4, c: 5 } },
+    { s: { r: 3, c: 6 }, e: { r: 4, c: 6 } },
+    { s: { r: 3, c: 7 }, e: { r: 4, c: 7 } },
+    { s: { r: 3, c: 8 }, e: { r: 4, c: 8 } },
+    { s: { r: 3, c: 9 }, e: { r: 4, c: 9 } },
+    { s: { r: 3, c: 10 }, e: { r: 3, c: 11 } },
+    { s: { r: 3, c: 12 }, e: { r: 4, c: 12 } },
+    { s: { r: 3, c: 13 }, e: { r: 4, c: 13 } },
+    { s: { r: 3, c: 14 }, e: { r: 4, c: 14 } },
+    { s: { r: 3, c: 15 }, e: { r: 4, c: 15 } },
+    { s: { r: 3, c: 16 }, e: { r: 4, c: 16 } },
+    { s: { r: 3, c: 17 }, e: { r: 4, c: 17 } },
+    { s: { r: 3, c: 18 }, e: { r: 3, c: 21 } },
+    { s: { r: 3, c: 22 }, e: { r: 3, c: 25 } },
+    { s: { r: 3, c: 26 }, e: { r: 3, c: 29 } },
+    { s: { r: 3, c: 30 }, e: { r: 3, c: 33 } },
+    { s: { r: wsData.length - 1, c: 0 }, e: { r: wsData.length - 1, c: 4 } },
+  ];
 
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Sublim_Monitoring");
-
-  const wbout = XLSX.write(wb, { bookType: "xlsx", type: "binary" });
-  const s2ab = (s) => {
-    const buf = new ArrayBuffer(s.length);
-    const view = new Uint8Array(buf);
-    for (let i = 0; i < s.length; i++) view[i] = s.charCodeAt(i) & 0xff;
-    return buf;
-  };
-
-  saveAs(
-    new Blob([s2ab(wbout)], { type: "application/octet-stream" }),
-    fileName,
-  );
+  XLSX.writeFile(wb, fileName);
 };
 
 onMounted(fetchReport);
 </script>
 
 <style scoped>
-.grid-table-container {
-  border: 1px solid #4ba3e3;
-  border-radius: 4px;
-  overflow: auto;
-  max-height: calc(100vh - 260px);
-  background: white;
+:deep(.v-table__wrapper),
+:deep(.v-data-table__wrapper) {
+  max-height: calc(100vh - 280px) !important;
+  overflow-y: auto !important;
+  overflow-x: auto !important;
 }
 
-.grid-table-viewport {
-  display: block;
-  width: max-content;
-  position: relative;
+:deep(table) {
+  border-collapse: separate !important;
+  border-spacing: 0 !important;
+  font-size: 12px !important;
 }
 
-/* Row 1: CSS Object Model untuk Group Header */
-.grid-table-header-group {
-  display: flex;
-  flex-direction: row;
-  height: 28px;
-  background: #e3f2fd;
+:deep(th),
+:deep(td) {
+  font-size: 12px !important;
+  white-space: nowrap !important;
+  padding: 6px 8px !important;
 }
 
-.grid-group-th {
-  font-size: 10px;
-  font-weight: bold;
-  border-right: 0.5px solid #bbdefb;
-  border-bottom: 0.5px solid #bbdefb;
-  box-sizing: border-box;
-  text-overflow: ellipsis;
-  overflow: hidden;
-  white-space: nowrap;
-  padding: 0 4px;
+:deep(thead) {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 10 !important;
 }
 
-.header-cell-light {
-  background: #e3f2fd;
-  color: #0d47a1;
-  height: 28px;
-  line-height: 28px;
+.header-main th {
+  background: linear-gradient(180deg, #142f7b 0%, #3b82f6 100%) !important;
+  border-right: 1px solid #3b82f6 !important;
+  color: #ffffff !important;
 }
 
-.header-cell-dark {
-  background: #bbdefb;
-  color: #0d47a1;
-  position: relative;
-  z-index: 50;
+.header-sub th {
+  background: #2563eb !important;
+  font-size: 11px !important;
+  border-right: 1px solid #60a5fa !important;
+  color: #ffffff !important;
 }
 
-/* Row 2: Draggable Sub-Header */
-.grid-table-main-view {
-  display: block;
-  margin-top: 0px;
+.header-group {
+  border-left: 1px solid #60a5fa !important;
+  border-right: 1px solid #60a5fa !important;
+  color: #ffffff !important;
 }
 
-.draggable-columns-binder {
-  display: flex;
-  flex-direction: row;
+:deep(tfoot) {
+  position: sticky !important;
+  bottom: 0 !important;
+  z-index: 10 !important;
 }
 
-.grid-column-vertical-stack {
-  display: flex;
-  flex-direction: column;
+.table-footer-row td {
+  background-color: #c7ecfe !important;
+  border-top: 2px solid #000 !important;
+  border-bottom: 2px solid #000 !important;
+  color: #0f172a !important;
 }
 
-.grid-sub-th {
-  font-size: 10px;
-  font-weight: bold;
-  background: #f0f8ff;
-  color: #333333;
-  height: 28px;
-  line-height: 28px;
-  border-right: 0.5px solid #bbdefb;
-  border-bottom: 0.5px solid #bbdefb;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-sizing: border-box;
-  cursor: grab;
-  padding: 0 4px;
-  white-space: nowrap;
+:deep(.sticky-col-1) {
+  position: sticky !important;
+  left: 0px !important;
+  width: 140px !important;
+  min-width: 140px !important;
 }
 
-.grid-sub-th:active {
-  cursor: grabbing;
+:deep(.sticky-col-2) {
+  position: sticky !important;
+  left: 250px !important;
+  box-shadow: 3px 0px 5px -2px rgba(0, 0, 0, 0.15);
+  width: 250px !important;
+  min-width: 250px !important;
 }
 
-/* Aturan Sembunyikan Sub-Header apabila Kolom Mandiri (Rowspan 2) */
-.hidden-sub-title {
-  visibility: hidden;
-  height: 28px;
-  pointer-events: none;
+:deep(tbody .sticky-col-1),
+:deep(tbody .sticky-col-2) {
+  z-index: 5 !important;
+  background-color: #ffffff !important;
 }
 
-/* Body Lajur Data Value */
-.grid-column-body-cells {
-  display: flex;
-  flex-direction: column;
+:deep(thead .sticky-col-1),
+:deep(thead .sticky-col-2) {
+  z-index: 12 !important;
+  background-color: #1e3a8a !important;
 }
 
-.grid-data-td {
-  font-size: 11px;
-  font-weight: normal;
-  height: 28px;
-  line-height: 28px;
-  padding: 0 8px;
-  border-right: 0.5px solid #f5f5f5;
-  border-bottom: 0.5px solid #f5f5f5;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  box-sizing: border-box;
-  background: white;
+:deep(tfoot .sticky-col-1),
+:deep(tfoot .sticky-col-2),
+:deep(tfoot .sticky-footer-title) {
+  z-index: 12 !important;
+  background-color: #fef3c7 !important;
 }
 
-.zebra-stripe-row {
-  background-color: #f9fbfd !important;
+.bg-blue-header {
+  background-color: #1d4ed8 !important;
+  color: white !important;
+}
+.bg-cyan-header {
+  background-color: #0891b2 !important;
+  color: white !important;
+}
+.bg-teal-header {
+  background-color: #0d9488 !important;
+  color: white !important;
+}
+.bg-red-header {
+  background-color: #b91c1c !important;
+  color: white !important;
 }
 
-/* Summary Footer */
-.grid-footer-td {
-  background: #f5f5f5;
-  color: #212121;
-  font-size: 11px;
-  height: 30px;
-  line-height: 30px;
-  padding: 0 8px;
-  border-right: 0.5px solid #9e9e9e;
-  border-top: 2px solid #9e9e9e;
-  border-bottom: 2px solid #9e9e9e;
-  box-sizing: border-box;
+.bg-blue-sub {
+  background-color: #1e40af !important;
+  color: white !important;
+}
+.bg-cyan-sub {
+  background-color: #0e7490 !important;
+  color: white !important;
+}
+.bg-teal-sub {
+  background-color: #0f766e !important;
+  color: white !important;
 }
 
-.column-drag-ghost {
-  opacity: 0.3;
-  background: #b3e5fc !important;
+.border-l {
+  border-left: 1px solid #cbd5e1 !important;
 }
-
-.text-red {
-  color: #d32f2f !important;
+.border-r {
+  border-right: 1px solid #cbd5e1 !important;
+}
+.cursor-pointer {
+  cursor: pointer;
+}
+.select-none {
+  user-select: none;
 }
 </style>
