@@ -122,11 +122,21 @@
           fixed-header
           return-object
           :show-expand="computedShowExpand"
-          @click:row="(e, row) => $emit('row-click', e, row)"
-          :row-props="rowProps"
+          :row-props="
+            (data) => {
+              const id = data.item[itemValue];
+              const isActive = activeRowId === id;
+              return {
+                class: { 'row-active': isActive },
+                onClick: (e) => {
+                  activeRowId = id;
+                  $emit('row-click', e, data);
+                },
+              };
+            }
+          "
           @scroll.passive="onTableScroll"
         >
-          <!-- Custom Header Template dengan Filter Excel, Pointer Drag, & Resizing -->
           <template #headers="{ columns, isSorted, getSortIcon, toggleSort }">
             <tr>
               <template v-for="header in internalHeaders" :key="header.key">
@@ -217,13 +227,9 @@
                           <div
                             class="text-caption text-grey-darken-1 my-1 px-1"
                           >
-                            {{
-                              getFilteredPopupOptions(header.key).length
-                            }}
+                            {{ getFilteredPopupOptions(header.key).length }}
                             dari
-                            {{
-                              (uniqueValuesMap[header.key] || []).length
-                            }}
+                            {{ (uniqueValuesMap[header.key] || []).length }}
                             nilai ditampilkan
                           </div>
 
@@ -666,10 +672,55 @@ const columnSearch = ref<Record<string, string>>({});
 const selectedValues = ref<Record<string, string[]>>({});
 const menuStates = ref<Record<string, boolean>>({});
 
+const formatCellDate = (val: any) => {
+  if (
+    !val ||
+    val === "-" ||
+    val === "null" ||
+    String(val).startsWith("0000-00-00")
+  )
+    return "-";
+  const str = String(val).trim();
+
+  // Jika sudah format dd/mm/yyyy
+  if (/^\d{2}[\/\-]\d{2}[\/\-]\d{4}/.test(str)) {
+    return str.substring(0, 10).replace(/-/g, "/");
+  }
+
+  // Tangkap pola yyyy-mm-dd atau datetime ISO
+  const matchYmd = str.match(/^(\d{4})[\/\-](\d{2})[\/\-](\d{2})/);
+  if (matchYmd) {
+    const [, year, month, day] = matchYmd;
+    return `${day}/${month}/${year}`;
+  }
+
+  const d = new Date(str);
+  if (!isNaN(d.getTime())) {
+    const day = String(d.getDate()).padStart(2, "0");
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    const year = d.getFullYear();
+    return `${day}/${month}/${year}`;
+  }
+
+  return str;
+};
+
 const getCellValue = (item: any, key: string): string => {
   if (!item) return "-";
   let val = item[key];
   if (val === null || val === undefined || val === "") return "-";
+
+  // OTOMATIS FORMAT TANGGAL UNTUK SEMUA HALAMAN YANG PAKAI BASEBROWSE
+  const lowerKey = key.toLowerCase();
+  if (
+    lowerKey.includes("tanggal") ||
+    lowerKey.includes("tgl") ||
+    lowerKey.includes("dateline") ||
+    lowerKey.includes("deadline")
+  ) {
+    return formatCellDate(val);
+  }
+
   return String(val);
 };
 
@@ -691,6 +742,35 @@ const uniqueValuesMap = computed(() => {
   });
   return map;
 });
+
+const universalDateSort = (valA: any, valB: any) => {
+  const parseToNum = (val: any) => {
+    if (!val || val === "-") return 0;
+    const strVal = String(val).trim();
+
+    // Cek format DD/MM/YYYY
+    const partsSlash = strVal.split("/");
+    if (partsSlash.length === 3) {
+      const day = parseInt(partsSlash[0], 10) || 0;
+      const month = parseInt(partsSlash[1], 10) || 0;
+      const year = parseInt(partsSlash[2], 10) || 0;
+      return year * 10000 + month * 100 + day;
+    }
+
+    // Cek format YYYY-MM-DD
+    const partsDash = strVal.substring(0, 10).split("-");
+    if (partsDash.length === 3) {
+      const year = parseInt(partsDash[0], 10) || 0;
+      const month = parseInt(partsDash[1], 10) || 0;
+      const day = parseInt(partsDash[2], 10) || 0;
+      return year * 10000 + month * 100 + day;
+    }
+
+    return 0;
+  };
+
+  return parseToNum(valA) - parseToNum(valB);
+};
 
 const getFilteredPopupOptions = (key: string) => {
   const options = uniqueValuesMap.value[key] || [];
@@ -774,9 +854,40 @@ const filteredItems = computed(() => {
 });
 
 watch(
-  filteredItems,
-  (newVal) => {
-    emit("update:filteredItems", newVal);
+  () => props.headers,
+  (newHeaders) => {
+    if (!newHeaders) return;
+    let baseHeaders = JSON.parse(JSON.stringify(newHeaders));
+
+    // OTOMATIS BERI CUSTOM SORT UNTUK KOLOM TANGGAL
+    baseHeaders = baseHeaders.map((h: any) => {
+      const lowerKey = h.key?.toLowerCase() || "";
+      // Jika key mengandung kata tanggal, tgl, dateline, deadline, dll dan belum punya customSort
+      if (
+        (lowerKey.includes("tanggal") ||
+          lowerKey.includes("tgl") ||
+          lowerKey.includes("dateline") ||
+          lowerKey.includes("deadline")) &&
+        !h.customSort
+      ) {
+        return { ...h, customSort: universalDateSort };
+      }
+      return h;
+    });
+
+    if (colOrder.value.length > 0) {
+      const map = new Map(baseHeaders.map((h: any) => [h.key, h]));
+      const ordered: any[] = [];
+      for (const key of colOrder.value) {
+        if (map.has(key)) ordered.push(map.get(key));
+      }
+      for (const h of baseHeaders) {
+        if (!colOrder.value.includes(h.key)) ordered.push(h);
+      }
+      baseHeaders = ordered;
+    }
+
+    internalHeaders.value = baseHeaders;
   },
   { immediate: true, deep: true },
 );
@@ -938,5 +1049,9 @@ const isSingleSelected = computed(() => props.selected.length === 1);
   border-top: 2px solid #90caf9 !important;
   font-size: 12px !important;
   padding: 6px 8px !important;
+}
+
+:deep(.v-data-table__tr.row-active) {
+  background-color: #e8f4fd !important; /* Warna biru muda lembut */
 }
 </style>

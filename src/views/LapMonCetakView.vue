@@ -267,7 +267,7 @@
           </th>
 
           <!-- GROUP HASIL CETAK (PCS) -->
-          <th colspan="5" class="text-center header-group bg-blue-header">
+          <th colspan="6" class="text-center header-group bg-blue-header">
             HASIL CETAK (PCS)
           </th>
 
@@ -280,8 +280,8 @@
             TOTAL QTY {{ getSortIcon("total_qty") }}
           </th>
 
-          <!-- GROUP HASIL CETAK (METER) -->
-          <th colspan="5" class="text-center header-group bg-teal-header">
+          <!-- GROUP HASIL CETAK (METER) - Diperluas colspan menjadi 6 (JMT01-JMT05 + Meter Cetak Luar) -->
+          <th colspan="6" class="text-center header-group bg-teal-header">
             HASIL CETAK (MTR)
           </th>
 
@@ -356,8 +356,14 @@
           >
             MT05 {{ getSortIcon("mt05") }}
           </th>
+          <th
+            class="text-right bg-blue-sub cursor-pointer select-none"
+            @click="toggleSort('cetak_luar')"
+          >
+            Cetak Luar {{ getSortIcon("cetak_luar") }}
+          </th>
 
-          <!-- Hasil Cetak MTR -->
+          <!-- Hasil Cetak MTR (JMT01 - JMT05 & Meter Cetak Luar) -->
           <th
             class="text-right bg-teal-sub cursor-pointer select-none"
             @click="toggleSort('jmt01')"
@@ -387,6 +393,12 @@
             @click="toggleSort('jmt05')"
           >
             JMT05 {{ getSortIcon("jmt05") }}
+          </th>
+          <th
+            class="text-right bg-teal-sub cursor-pointer select-none"
+            @click="toggleSort('jmt_cetak_luar')"
+          >
+            Mtr Cetak Luar {{ getSortIcon("jmt_cetak_luar") }}
           </th>
         </tr>
       </thead>
@@ -436,24 +448,26 @@
         <!-- Jenis -->
         <td class="text-center">{{ item.jenis || "-" }}</td>
 
-        <!-- Hasil Cetak PCS (MT01 - MT05) -->
+        <!-- Hasil Cetak PCS (MT01 - MT05 & Cetak Luar) -->
         <td class="text-right">{{ formatNumber(item.mt01, 0) }}</td>
         <td class="text-right">{{ formatNumber(item.mt02, 0) }}</td>
         <td class="text-right">{{ formatNumber(item.mt03, 0) }}</td>
         <td class="text-right">{{ formatNumber(item.mt04, 0) }}</td>
         <td class="text-right">{{ formatNumber(item.mt05, 0) }}</td>
+        <td class="text-right">{{ formatNumber(item.cetak_luar, 0) }}</td>
 
         <!-- Total Qty -->
         <td class="text-right font-weight-bold bg-grey-lighten-4">
           {{ formatNumber(item.total_qty, 0) }}
         </td>
 
-        <!-- Hasil Cetak Meter (JMT01 - JMT05) -->
+        <!-- Hasil Cetak Meter (JMT01 - JMT05 & Meter Cetak Luar) -->
         <td class="text-right">{{ formatNumber(item.jmt01, 2) }}</td>
         <td class="text-right">{{ formatNumber(item.jmt02, 2) }}</td>
         <td class="text-right">{{ formatNumber(item.jmt03, 2) }}</td>
         <td class="text-right">{{ formatNumber(item.jmt04, 2) }}</td>
         <td class="text-right">{{ formatNumber(item.jmt05, 2) }}</td>
+        <td class="text-right">{{ formatNumber(item.jmt_cetak_luar, 2) }}</td>
 
         <!-- Kurang -->
         <td class="text-right font-weight-bold text-error bg-red-lighten-5">
@@ -498,6 +512,9 @@
         <td class="text-right font-weight-black">
           {{ formatNumber(totals.mt05, 0) }}
         </td>
+        <td class="text-right font-weight-black">
+          {{ formatNumber(totals.cetak_luar, 0) }}
+        </td>
 
         <!-- Total Qty -->
         <td class="text-right font-weight-black bg-grey-lighten-2">
@@ -519,6 +536,9 @@
         </td>
         <td class="text-right font-weight-black">
           {{ formatNumber(totals.jmt05, 2) }}
+        </td>
+        <td class="text-right font-weight-black">
+          {{ formatNumber(totals.jmt_cetak_luar, 2) }}
         </td>
 
         <!-- Total Kurang -->
@@ -638,14 +658,16 @@ const fetchReport = async () => {
         mt03: Number(row.PCS_MT03 || 0),
         mt04: Number(row.PCS_MT04 || 0),
         mt05: Number(row.PCS_MT05 || 0),
-        jmlcetak,
         cetak_luar: cetakLuar,
+        jmlcetak,
         total_qty: jmlcetak + cetakLuar,
         jmt01: Number(row.METER_MT01 || 0),
         jmt02: Number(row.METER_MT02 || 0),
         jmt03: Number(row.METER_MT03 || 0),
         jmt04: Number(row.METER_MT04 || 0),
         jmt05: Number(row.METER_MT05 || 0),
+        // Sesuaikan nama field database untuk meter cetak luar jika berbeda, misal: row.METER_CETAK_LUAR
+        jmt_cetak_luar: Number(row.METER_CETAK_LUAR || 0),
         jmlkurang: Number(row.KURANG_VARIANT || 0),
       };
     });
@@ -680,12 +702,14 @@ const NUMERIC_KEYS = [
   "mt03",
   "mt04",
   "mt05",
+  "cetak_luar",
   "total_qty",
   "jmt01",
   "jmt02",
   "jmt03",
   "jmt04",
   "jmt05",
+  "jmt_cetak_luar",
   "jmlkurang",
 ];
 
@@ -787,12 +811,14 @@ const totals = computed(() => {
       acc.mt03 += Number(item.mt03 || 0);
       acc.mt04 += Number(item.mt04 || 0);
       acc.mt05 += Number(item.mt05 || 0);
+      acc.cetak_luar += Number(item.cetak_luar || 0);
       acc.total_qty += Number(item.total_qty || 0);
       acc.jmt01 += Number(item.jmt01 || 0);
       acc.jmt02 += Number(item.jmt02 || 0);
       acc.jmt03 += Number(item.jmt03 || 0);
       acc.jmt04 += Number(item.jmt04 || 0);
       acc.jmt05 += Number(item.jmt05 || 0);
+      acc.jmt_cetak_luar += Number(item.jmt_cetak_luar || 0);
       acc.jmlkurang += Number(item.jmlkurang || 0);
       return acc;
     },
@@ -804,12 +830,14 @@ const totals = computed(() => {
       mt03: 0,
       mt04: 0,
       mt05: 0,
+      cetak_luar: 0,
       total_qty: 0,
       jmt01: 0,
       jmt02: 0,
       jmt03: 0,
       jmt04: 0,
       jmt05: 0,
+      jmt_cetak_luar: 0,
       jmlkurang: 0,
     },
   );
@@ -904,8 +932,10 @@ const exportToExcel = (dataToExport: any[]) => {
     "",
     "",
     "",
+    "",
     { v: "TOTAL QTY", s: styleHeaderMain },
     { v: "HASIL CETAK (MTR)", s: styleHeaderMain },
+    "",
     "",
     "",
     "",
@@ -932,12 +962,14 @@ const exportToExcel = (dataToExport: any[]) => {
     { v: "MT03", s: styleHeaderSub },
     { v: "MT04", s: styleHeaderSub },
     { v: "MT05", s: styleHeaderSub },
+    { v: "Cetak Luar", s: styleHeaderSub },
     "",
     { v: "JMT01", s: styleHeaderSub },
     { v: "JMT02", s: styleHeaderSub },
     { v: "JMT03", s: styleHeaderSub },
     { v: "JMT04", s: styleHeaderSub },
     { v: "JMT05", s: styleHeaderSub },
+    { v: "Mtr Cetak Luar", s: styleHeaderSub },
     "",
   ];
   wsData.push(headerRow2);
@@ -1028,6 +1060,12 @@ const exportToExcel = (dataToExport: any[]) => {
         s: { ...styleDataCell, alignment: { horizontal: "right" } },
       },
       {
+        v: num(item.cetak_luar),
+        t: "n",
+        z: "#,##0",
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+      },
+      {
         v: num(item.total_qty),
         t: "n",
         z: "#,##0",
@@ -1059,6 +1097,12 @@ const exportToExcel = (dataToExport: any[]) => {
       },
       {
         v: num(item.jmt05),
+        t: "n",
+        z: "#,##0.00",
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+      },
+      {
+        v: num(item.jmt_cetak_luar),
         t: "n",
         z: "#,##0.00",
         s: { ...styleDataCell, alignment: { horizontal: "right" } },
@@ -1123,6 +1167,12 @@ const exportToExcel = (dataToExport: any[]) => {
       s: { ...styleFooterCell, alignment: { horizontal: "right" } },
     },
     {
+      v: num(totals.value.cetak_luar),
+      t: "n",
+      z: "#,##0",
+      s: { ...styleFooterCell, alignment: { horizontal: "right" } },
+    },
+    {
       v: num(totals.value.total_qty),
       t: "n",
       z: "#,##0",
@@ -1159,6 +1209,12 @@ const exportToExcel = (dataToExport: any[]) => {
       s: { ...styleFooterCell, alignment: { horizontal: "right" } },
     },
     {
+      v: num(totals.value.jmt_cetak_luar),
+      t: "n",
+      z: "#,##0.00",
+      s: { ...styleFooterCell, alignment: { horizontal: "right" } },
+    },
+    {
       v: num(totals.value.jmlkurang),
       t: "n",
       z: "#,##0",
@@ -1180,10 +1236,10 @@ const exportToExcel = (dataToExport: any[]) => {
     { s: { r: 3, c: 7 }, e: { r: 4, c: 7 } }, // No SPK
     { s: { r: 3, c: 8 }, e: { r: 3, c: 9 } }, // Order SPK (Pcs, Mtr)
     { s: { r: 3, c: 10 }, e: { r: 4, c: 10 } }, // Jenis
-    { s: { r: 3, c: 11 }, e: { r: 3, c: 15 } }, // Hasil Cetak PCS
-    { s: { r: 3, c: 16 }, e: { r: 4, c: 16 } }, // Total Qty
-    { s: { r: 3, c: 17 }, e: { r: 3, c: 21 } }, // Hasil Cetak MTR
-    { s: { r: 3, c: 22 }, e: { r: 4, c: 22 } }, // Kurang
+    { s: { r: 3, c: 11 }, e: { r: 3, c: 16 } }, // Hasil Cetak PCS (MT01 s.d. Cetak Luar)
+    { s: { r: 3, c: 17 }, e: { r: 4, c: 17 } }, // Total Qty
+    { s: { r: 3, c: 18 }, e: { r: 3, c: 23 } }, // Hasil Cetak MTR (JMT01 s.d. Mtr Cetak Luar)
+    { s: { r: 3, c: 24 }, e: { r: 4, c: 24 } }, // Kurang
     { s: { r: wsData.length - 1, c: 0 }, e: { r: wsData.length - 1, c: 7 } }, // Title Footer
   ];
 

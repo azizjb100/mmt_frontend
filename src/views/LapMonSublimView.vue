@@ -8,9 +8,9 @@
     :disable-sort="true"
     :disable-filter="true"
     :has-active-filter="hasActiveFilter"
-    item-key="lsbd_spk_nomor"
-    title="Laporan Monitoring Sublim"
-    excel-file-name="Laporan_Monitoring_Sublim.xlsx"
+    item-key="noSpk"
+    title="Laporan Monitoring Sublim / RTR"
+    :excel-file-name="`Laporan_Monitoring_Sublim_${startDate}_sd_${endDate}.xlsx`"
     :custom-export-excel="exportToExcel"
     @refresh="fetchReport"
     @reset-filter="resetAllFilters"
@@ -19,7 +19,7 @@
     <template #extra-filters>
       <v-text-field
         v-model="searchQuery"
-        label="Cari SPK, Nama Order, PO..."
+        label="Cari No. SPK, Nama Order, Perusahaan..."
         prepend-inner-icon="mdi-magnify"
         density="compact"
         hide-details
@@ -34,162 +34,123 @@
       <thead>
         <!-- Row 1: Header Utama & Grouping Header -->
         <tr class="header-main">
+          <!-- 1. PERUSAHAAN (Sticky Left 1) -->
           <th
             rowspan="2"
-            :style="colStyles('poi_nomor', '140px')"
-            class="text-center sticky-col-1 cursor-pointer select-none"
-            @click="toggleSort('poi_nomor')"
+            class="text-left sticky-col-1 cursor-pointer select-none"
+            @click="toggleSort('perush')"
           >
-            <div class="d-flex align-center justify-space-between px-1 w-100">
-              <span class="font-weight-bold text-truncate">
-                NOMOR POI {{ getSortIcon("poi_nomor") }}
+            <div class="d-flex align-center justify-space-between px-1">
+              <span class="font-weight-bold">
+                PERUSAHAAN {{ getSortIcon("perush") }}
               </span>
+              <v-menu :close-on-content-click="false">
+                <template #activator="{ props }">
+                  <v-btn
+                    v-bind="props"
+                    icon
+                    variant="text"
+                    size="x-small"
+                    class="btn-filter-icon ml-1"
+                    @click.stop
+                  >
+                    <v-icon
+                      size="14"
+                      :color="columnFilters.perush ? 'amber-accent-2' : 'white'"
+                    >
+                      mdi-filter-variant
+                    </v-icon>
+                  </v-btn>
+                </template>
+                <v-card min-width="180" class="pa-2 rounded-lg" @click.stop>
+                  <v-text-field
+                    v-model="columnFilters.perush"
+                    label="Filter Perusahaan..."
+                    density="compact"
+                    hide-details
+                    variant="outlined"
+                    clearable
+                  />
+                </v-card>
+              </v-menu>
             </div>
-            <div
-              class="column-resizer"
-              @mousedown.stop.prevent="startResize($event, 'poi_nomor', 140)"
-            ></div>
           </th>
 
+          <!-- 2. TGL LHK -->
           <th
             rowspan="2"
-            :style="colStyles('poi_tanggal', '110px')"
             class="text-center cursor-pointer select-none"
-            @click="toggleSort('poi_tanggal')"
+            @click="toggleSort('tglLhk')"
           >
             <span class="font-weight-bold">
-              TGL POI {{ getSortIcon("poi_tanggal") }}
+              TGL LHK {{ getSortIcon("tglLhk") }}
             </span>
-            <div
-              class="column-resizer"
-              @mousedown.stop.prevent="startResize($event, 'poi_tanggal', 110)"
-            ></div>
           </th>
 
+          <!-- 3. TGL SPK -->
           <th
             rowspan="2"
-            :style="colStyles('poi_dateline', '110px')"
             class="text-center cursor-pointer select-none"
-            @click="toggleSort('poi_dateline')"
+            @click="toggleSort('tglSpk')"
           >
             <span class="font-weight-bold">
-              DEADLINE POI {{ getSortIcon("poi_dateline") }}
+              TGL SPK {{ getSortIcon("tglSpk") }}
             </span>
-            <div
-              class="column-resizer"
-              @mousedown.stop.prevent="startResize($event, 'poi_dateline', 110)"
-            ></div>
           </th>
 
+          <!-- 4. DEADLINE -->
           <th
             rowspan="2"
-            :style="colStyles('poi_spk_nomor', '120px')"
             class="text-center cursor-pointer select-none"
-            @click="toggleSort('poi_spk_nomor')"
+            @click="toggleSort('deadline')"
           >
             <span class="font-weight-bold">
-              SPK POI {{ getSortIcon("poi_spk_nomor") }}
+              DEADLINE {{ getSortIcon("deadline") }}
             </span>
-            <div
-              class="column-resizer"
-              @mousedown.stop.prevent="
-                startResize($event, 'poi_spk_nomor', 120)
-              "
-            ></div>
           </th>
 
+          <!-- 5. NAMA ORDER -->
           <th
             rowspan="2"
-            :style="colStyles('poid_size', '80px')"
-            class="text-center cursor-pointer select-none"
-            @click="toggleSort('poid_size')"
+            class="text-left cursor-pointer select-none"
+            @click="toggleSort('namaOrder')"
           >
-            <span class="font-weight-bold">
-              SIZE {{ getSortIcon("poid_size") }}
-            </span>
-            <div
-              class="column-resizer"
-              @mousedown.stop.prevent="startResize($event, 'poid_size', 80)"
-            ></div>
-          </th>
-
-          <th
-            rowspan="2"
-            :style="colStyles('poid_jumlah', '95px')"
-            class="text-right cursor-pointer select-none"
-            @click="toggleSort('poid_jumlah')"
-          >
-            <span class="font-weight-bold">
-              JUMLAH POI {{ getSortIcon("poid_jumlah") }}
-            </span>
-            <div
-              class="column-resizer"
-              @mousedown.stop.prevent="startResize($event, 'poid_jumlah', 95)"
-            ></div>
-          </th>
-
-          <th
-            rowspan="2"
-            :style="colStyles('spk_perush_kode', '85px')"
-            class="text-center cursor-pointer select-none"
-            @click="toggleSort('spk_perush_kode')"
-          >
-            <span class="font-weight-bold">
-              PERUSH {{ getSortIcon("spk_perush_kode") }}
-            </span>
-            <div
-              class="column-resizer"
-              @mousedown.stop.prevent="
-                startResize($event, 'spk_perush_kode', 85)
-              "
-            ></div>
-          </th>
-
-          <th
-            rowspan="2"
-            :style="colStyles('spk_tanggal', '105px')"
-            class="text-center cursor-pointer select-none"
-            @click="toggleSort('spk_tanggal')"
-          >
-            <span class="font-weight-bold">
-              TGL SPK {{ getSortIcon("spk_tanggal") }}
-            </span>
-            <div
-              class="column-resizer"
-              @mousedown.stop.prevent="startResize($event, 'spk_tanggal', 105)"
-            ></div>
-          </th>
-
-          <th
-            rowspan="2"
-            :style="colStyles('spk_dateline', '105px')"
-            class="text-center cursor-pointer select-none"
-            @click="toggleSort('spk_dateline')"
-          >
-            <span class="font-weight-bold">
-              DEADLINE SPK {{ getSortIcon("spk_dateline") }}
-            </span>
-            <div
-              class="column-resizer"
-              @mousedown.stop.prevent="startResize($event, 'spk_dateline', 105)"
-            ></div>
-          </th>
-
-          <th
-            rowspan="2"
-            :style="colStyles('spk_nama', '250px')"
-            class="text-left sticky-col-2 cursor-pointer select-none"
-            @click="toggleSort('spk_nama')"
-          >
-            <div class="d-flex align-center justify-space-between px-1 w-100">
-              <span class="font-weight-bold text-truncate">
-                NAMA ORDER {{ getSortIcon("spk_nama") }}
+            <div class="d-flex align-center justify-space-between px-1">
+              <span class="font-weight-bold">
+                NAMA ORDER {{ getSortIcon("namaOrder") }}
               </span>
+              <v-menu :close-on-content-click="false">
+                <template #activator="{ props }">
+                  <v-btn
+                    v-bind="props"
+                    icon
+                    variant="text"
+                    size="x-small"
+                    class="btn-filter-icon ml-1"
+                    @click.stop
+                  >
+                    <v-icon
+                      size="14"
+                      :color="
+                        columnFilters.namaOrder ? 'amber-accent-2' : 'white'
+                      "
+                    >
+                      mdi-filter-variant
+                    </v-icon>
+                  </v-btn>
+                </template>
+                <v-card min-width="220" class="pa-2 rounded-lg" @click.stop>
+                  <v-text-field
+                    v-model="columnFilters.namaOrder"
+                    label="Filter Nama Order..."
+                    density="compact"
+                    hide-details
+                    variant="outlined"
+                    clearable
+                  />
+                </v-card>
+              </v-menu>
             </div>
-            <div
-              class="column-resizer"
-              @mousedown.stop.prevent="startResize($event, 'spk_nama', 250)"
-            ></div>
           </th>
 
           <!-- GROUP UKURAN -->
@@ -197,242 +158,162 @@
             UKURAN
           </th>
 
+          <!-- 6. NO SPK (Sticky Left 2) -->
           <th
             rowspan="2"
-            :style="colStyles('lsbd_spk_nomor', '130px')"
+            class="text-center sticky-col-2 cursor-pointer select-none"
+            @click="toggleSort('noSpk')"
+          >
+            <div class="d-flex align-center justify-space-between px-1 ga-1">
+              <span class="font-weight-bold">
+                NO SPK {{ getSortIcon("noSpk") }}
+              </span>
+              <v-menu :close-on-content-click="false">
+                <template #activator="{ props }">
+                  <v-btn
+                    v-bind="props"
+                    icon
+                    variant="text"
+                    size="x-small"
+                    class="btn-filter-icon"
+                    @click.stop
+                  >
+                    <v-icon
+                      size="14"
+                      :color="columnFilters.noSpk ? 'amber-accent-2' : 'white'"
+                    >
+                      mdi-filter-variant
+                    </v-icon>
+                  </v-btn>
+                </template>
+                <v-card min-width="180" class="pa-2 rounded-lg" @click.stop>
+                  <v-text-field
+                    v-model="columnFilters.noSpk"
+                    label="Filter No. SPK..."
+                    density="compact"
+                    hide-details
+                    variant="outlined"
+                    clearable
+                  />
+                </v-card>
+              </v-menu>
+            </div>
+          </th>
+
+          <!-- GROUP ORDER SPK -->
+          <th colspan="2" class="text-center header-group bg-blue-header">
+            ORDER SPK
+          </th>
+
+          <!-- 7. JENIS -->
+          <th
+            rowspan="2"
             class="text-center cursor-pointer select-none"
-            @click="toggleSort('lsbd_spk_nomor')"
+            @click="toggleSort('jenis')"
           >
-            <span class="font-weight-bold">
-              NOMOR SPK {{ getSortIcon("lsbd_spk_nomor") }}
-            </span>
-            <div
-              class="column-resizer"
-              @mousedown.stop.prevent="
-                startResize($event, 'lsbd_spk_nomor', 130)
-              "
-            ></div>
+            <div class="d-flex align-center justify-center ga-1">
+              <span class="font-weight-bold">
+                JENIS {{ getSortIcon("jenis") }}
+              </span>
+              <v-menu :close-on-content-click="false">
+                <template #activator="{ props }">
+                  <v-btn
+                    v-bind="props"
+                    icon
+                    variant="text"
+                    size="x-small"
+                    class="btn-filter-icon"
+                    @click.stop
+                  >
+                    <v-icon
+                      size="14"
+                      :color="
+                        columnFilters.jenis !== 'SEMUA'
+                          ? 'amber-accent-2'
+                          : 'white'
+                      "
+                    >
+                      mdi-filter-variant
+                    </v-icon>
+                  </v-btn>
+                </template>
+                <v-card min-width="180" class="pa-2 rounded-lg" @click.stop>
+                  <v-select
+                    v-model="columnFilters.jenis"
+                    :items="jenisOptions"
+                    label="Pilih Jenis"
+                    density="compact"
+                    hide-details
+                    variant="outlined"
+                  />
+                </v-card>
+              </v-menu>
+            </div>
           </th>
 
+          <!-- HASIL CETAK SUBLIM / RTR (1 Kolom Spesifik RTR) -->
           <th
             rowspan="2"
-            :style="colStyles('lsbd_jumlah_order', '90px')"
-            class="text-right cursor-pointer select-none"
-            @click="toggleSort('lsbd_jumlah_order')"
+            class="text-right border-l border-r cursor-pointer select-none bg-blue-sub text-black font-weight-bold"
+            @click="toggleSort('rtr')"
           >
-            <span class="font-weight-bold">
-              ORDER {{ getSortIcon("lsbd_jumlah_order") }}
-            </span>
-            <div
-              class="column-resizer"
-              @mousedown.stop.prevent="
-                startResize($event, 'lsbd_jumlah_order', 90)
-              "
-            ></div>
+            RTR {{ getSortIcon("rtr") }}
           </th>
 
+          <!-- TOTAL QTY -->
           <th
             rowspan="2"
-            :style="colStyles('meter_order', '105px')"
-            class="text-right cursor-pointer select-none"
-            @click="toggleSort('meter_order')"
+            class="text-right border-l border-r cursor-pointer select-none"
+            @click="toggleSort('total_qty')"
           >
-            <span class="font-weight-bold">
-              J. METER {{ getSortIcon("meter_order") }}
-            </span>
-            <div
-              class="column-resizer"
-              @mousedown.stop.prevent="startResize($event, 'meter_order', 105)"
-            ></div>
+            TOTAL QTY {{ getSortIcon("total_qty") }}
           </th>
 
+          <!-- HASIL CETAK METER (JRTR) -->
           <th
             rowspan="2"
-            :style="colStyles('spk_kain', '200px')"
-            class="text-left cursor-pointer select-none"
-            @click="toggleSort('spk_kain')"
+            class="text-right border-l border-r cursor-pointer select-none bg-teal-sub text-black font-weight-bold"
+            @click="toggleSort('jrtr')"
           >
-            <span class="font-weight-bold text-truncate">
-              JENIS BAHAN {{ getSortIcon("spk_kain") }}
-            </span>
-            <div
-              class="column-resizer"
-              @mousedown.stop.prevent="startResize($event, 'spk_kain', 200)"
-            ></div>
+            JRTR {{ getSortIcon("jrtr") }}
           </th>
 
+          <!-- KURANG -->
           <th
             rowspan="2"
-            :style="colStyles('spk_gramasi', '100px')"
-            class="text-center cursor-pointer select-none"
-            @click="toggleSort('spk_gramasi')"
+            class="text-right border-l border-r cursor-pointer select-none bg-red-header"
+            @click="toggleSort('jmlkurang')"
           >
-            <span class="font-weight-bold">
-              GRAMASI {{ getSortIcon("spk_gramasi") }}
-            </span>
-            <div
-              class="column-resizer"
-              @mousedown.stop.prevent="startResize($event, 'spk_gramasi', 100)"
-            ></div>
-          </th>
-
-          <th
-            rowspan="2"
-            :style="colStyles('kurang', '90px')"
-            class="text-right cursor-pointer select-none bg-red-header"
-            @click="toggleSort('kurang')"
-          >
-            <span class="font-weight-bold">
-              KURANG {{ getSortIcon("kurang") }}
-            </span>
-            <div
-              class="column-resizer"
-              @mousedown.stop.prevent="startResize($event, 'kurang', 90)"
-            ></div>
-          </th>
-
-          <!-- Groups Aktual & Standar -->
-          <th colspan="4" class="text-center header-group bg-blue-header">
-            J. PCS AKTUAL
-          </th>
-          <th colspan="4" class="text-center header-group bg-teal-header">
-            J. METER AKTUAL
-          </th>
-          <th colspan="4" class="text-center header-group bg-blue-header">
-            J. PCS STANDAR
-          </th>
-          <th colspan="4" class="text-center header-group bg-cyan-header">
-            J. METER STANDAR
+            KURANG {{ getSortIcon("jmlkurang") }}
           </th>
         </tr>
 
         <!-- Row 2: Sub Header Detail -->
         <tr class="header-sub">
           <th
-            :style="colStyles('lsbd_panjang', '90px')"
             class="text-right bg-cyan-sub cursor-pointer select-none"
-            @click="toggleSort('lsbd_panjang')"
+            @click="toggleSort('panjang')"
           >
-            PANJANG {{ getSortIcon("lsbd_panjang") }}
+            PANG {{ getSortIcon("panjang") }}
           </th>
           <th
-            :style="colStyles('lsbd_lebar', '90px')"
             class="text-right bg-cyan-sub cursor-pointer select-none"
-            @click="toggleSort('lsbd_lebar')"
+            @click="toggleSort('lebar')"
           >
-            LEBAR {{ getSortIcon("lsbd_lebar") }}
+            LEB {{ getSortIcon("lebar") }}
           </th>
 
           <th
-            :style="colStyles('sb01', '80px')"
             class="text-right bg-blue-sub cursor-pointer select-none"
-            @click="toggleSort('sb01')"
+            @click="toggleSort('pcs')"
           >
-            SB01 {{ getSortIcon("sb01") }}
+            PCS {{ getSortIcon("pcs") }}
           </th>
           <th
-            :style="colStyles('sb02', '80px')"
             class="text-right bg-blue-sub cursor-pointer select-none"
-            @click="toggleSort('sb02')"
+            @click="toggleSort('order_meter')"
           >
-            SB02 {{ getSortIcon("sb02") }}
-          </th>
-          <th
-            :style="colStyles('sb03', '80px')"
-            class="text-right bg-blue-sub cursor-pointer select-none"
-            @click="toggleSort('sb03')"
-          >
-            SB03 {{ getSortIcon("sb03") }}
-          </th>
-          <th
-            :style="colStyles('total_pcs_aktual', '95px')"
-            class="text-right bg-blue-sub font-weight-bold"
-          >
-            TOTAL
-          </th>
-
-          <th
-            :style="colStyles('sb01_m', '85px')"
-            class="text-right bg-teal-sub cursor-pointer select-none"
-            @click="toggleSort('sb01_m')"
-          >
-            SB01 {{ getSortIcon("sb01_m") }}
-          </th>
-          <th
-            :style="colStyles('sb02_m', '85px')"
-            class="text-right bg-teal-sub cursor-pointer select-none"
-            @click="toggleSort('sb02_m')"
-          >
-            SB02 {{ getSortIcon("sb02_m") }}
-          </th>
-          <th
-            :style="colStyles('sb03_m', '85px')"
-            class="text-right bg-teal-sub cursor-pointer select-none"
-            @click="toggleSort('sb03_m')"
-          >
-            SB03 {{ getSortIcon("sb03_m") }}
-          </th>
-          <th
-            :style="colStyles('total_mtr_aktual', '95px')"
-            class="text-right bg-teal-sub font-weight-bold"
-          >
-            TOTAL
-          </th>
-
-          <th
-            :style="colStyles('sb01_std', '85px')"
-            class="text-right bg-blue-sub cursor-pointer select-none"
-            @click="toggleSort('sb01_std')"
-          >
-            SB01 {{ getSortIcon("sb01_std") }}
-          </th>
-          <th
-            :style="colStyles('sb02_std', '85px')"
-            class="text-right bg-blue-sub cursor-pointer select-none"
-            @click="toggleSort('sb02_std')"
-          >
-            SB02 {{ getSortIcon("sb02_std") }}
-          </th>
-          <th
-            :style="colStyles('sb03_std', '85px')"
-            class="text-right bg-blue-sub cursor-pointer select-none"
-            @click="toggleSort('sb03_std')"
-          >
-            SB03 {{ getSortIcon("sb03_std") }}
-          </th>
-          <th
-            :style="colStyles('pcs_std', '95px')"
-            class="text-right bg-blue-sub font-weight-bold"
-          >
-            TOTAL
-          </th>
-
-          <th
-            :style="colStyles('sb01_std_m', '85px')"
-            class="text-right bg-cyan-sub cursor-pointer select-none"
-            @click="toggleSort('sb01_std_m')"
-          >
-            SB01 {{ getSortIcon("sb01_std_m") }}
-          </th>
-          <th
-            :style="colStyles('sb02_std_m', '85px')"
-            class="text-right bg-cyan-sub cursor-pointer select-none"
-            @click="toggleSort('sb02_std_m')"
-          >
-            SB02 {{ getSortIcon("sb02_std_m") }}
-          </th>
-          <th
-            :style="colStyles('sb03_std_m', '85px')"
-            class="text-right bg-cyan-sub cursor-pointer select-none"
-            @click="toggleSort('sb03_std_m')"
-          >
-            SB03 {{ getSortIcon("sb03_std_m") }}
-          </th>
-          <th
-            :style="colStyles('meter_std', '95px')"
-            class="text-right bg-cyan-sub font-weight-bold"
-          >
-            TOTAL
+            MTR {{ getSortIcon("order_meter") }}
           </th>
         </tr>
       </thead>
@@ -441,170 +322,137 @@
     <!-- Slot Row Baris Data Utama -->
     <template #row="{ item, formatNumber }">
       <tr class="table-row-item">
+        <!-- Perusahaan -->
         <td
-          :style="colStyles('poi_nomor', '140px')"
-          class="text-center font-weight-bold text-primary"
+          class="text-left sticky-col-1 font-weight-bold text-truncate"
+          style="max-width: 180px"
+          :title="item.perush"
         >
-          {{ item.poi_nomor || "-" }}
+          {{ item.perush || "-" }}
         </td>
-        <td :style="colStyles('poi_tanggal', '110px')" class="text-center">
-          {{ formatOnlyDate(item.poi_tanggal) }}
+
+        <!-- Tanggal LHK, SPK, Deadline -->
+        <td class="text-center">{{ formatDateDisplay(item.tglLhk) }}</td>
+        <td class="text-center">{{ formatDateDisplay(item.tglSpk) }}</td>
+        <td class="text-center font-weight-bold text-error">
+          {{ formatDateDisplay(item.deadline) }}
         </td>
+
+        <!-- Nama Order -->
         <td
-          :style="colStyles('poi_dateline', '110px')"
-          class="text-center text-error font-weight-bold"
-        >
-          {{ formatOnlyDate(item.poi_dateline) }}
-        </td>
-        <td :style="colStyles('poi_spk_nomor', '120px')" class="text-center">
-          {{ item.poi_spk_nomor || "-" }}
-        </td>
-        <td
-          :style="colStyles('poid_size', '80px')"
-          class="text-center font-weight-bold"
-        >
-          {{ item.poid_size || "-" }}
-        </td>
-        <td
-          :style="colStyles('poid_jumlah', '95px')"
-          class="text-right font-weight-bold"
-        >
-          {{ formatNumber(item.poid_jumlah, 0) }}
-        </td>
-        <td :style="colStyles('spk_perush_kode', '85px')" class="text-center">
-          {{ item.spk_perush_kode || "-" }}
-        </td>
-        <td :style="colStyles('spk_tanggal', '105px')" class="text-center">
-          {{ formatOnlyDate(item.spk_tanggal) }}
-        </td>
-        <td
-          :style="colStyles('spk_dateline', '105px')"
-          class="text-center text-error"
-        >
-          {{ formatOnlyDate(item.spk_dateline) }}
-        </td>
-        <td
-          :style="colStyles('spk_nama', '250px')"
-          class="text-left sticky-col-2 text-truncate"
-          :title="item.spk_nama"
-        >
-          {{ item.spk_nama || "-" }}
-        </td>
-        <td :style="colStyles('lsbd_panjang', '90px')" class="text-right">
-          {{ formatNumber(item.lsbd_panjang, 2) }}
-        </td>
-        <td :style="colStyles('lsbd_lebar', '90px')" class="text-right">
-          {{ formatNumber(item.lsbd_lebar, 2) }}
-        </td>
-        <td
-          :style="colStyles('lsbd_spk_nomor', '130px')"
-          class="text-center font-weight-bold text-primary"
-        >
-          {{ item.lsbd_spk_nomor || "-" }}
-        </td>
-        <td :style="colStyles('lsbd_jumlah_order', '90px')" class="text-right">
-          {{ formatNumber(item.lsbd_jumlah_order, 0) }}
-        </td>
-        <td :style="colStyles('meter_order', '105px')" class="text-right">
-          {{ formatNumber(item.meter_order, 2) }}
-        </td>
-        <td
-          :style="colStyles('spk_kain', '200px')"
           class="text-left text-truncate"
-          :title="item.spk_kain"
+          style="max-width: 220px"
+          :title="item.namaOrder"
         >
-          {{ item.spk_kain || "-" }}
-        </td>
-        <td :style="colStyles('spk_gramasi', '100px')" class="text-center">
-          {{ item.spk_gramasi || "-" }}
-        </td>
-        <td
-          :style="colStyles('kurang', '90px')"
-          class="text-right text-error font-weight-bold"
-        >
-          {{ formatNumber(item.kurang, 0) }}
+          {{ item.namaOrder || "-" }}
         </td>
 
-        <!-- SB01-03 Aktual -->
-        <td :style="colStyles('sb01', '80px')" class="text-right">
-          {{ formatNumber(item.sb01, 0) }}
-        </td>
-        <td :style="colStyles('sb02', '80px')" class="text-right">
-          {{ formatNumber(item.sb02, 0) }}
-        </td>
-        <td :style="colStyles('sb03', '80px')" class="text-right">
-          {{ formatNumber(item.sb03, 0) }}
-        </td>
-        <td
-          :style="colStyles('total_pcs_aktual', '95px')"
-          class="text-right font-weight-bold text-primary"
-        >
-          {{
-            formatNumber(
-              Number(item.sb01 || 0) +
-                Number(item.sb02 || 0) +
-                Number(item.sb03 || 0),
-              0,
-            )
-          }}
+        <!-- Ukuran -->
+        <td class="text-right">{{ formatNumber(item.panjang, 2) }}</td>
+        <td class="text-right">{{ formatNumber(item.lebar, 2) }}</td>
+
+        <!-- No SPK dengan Tombol Expand -->
+        <td class="text-center sticky-col-2 font-weight-bold text-primary">
+          <div class="d-flex align-center justify-space-between">
+            <v-btn
+              v-if="item.sizes && item.sizes.length > 0"
+              icon
+              variant="text"
+              size="x-small"
+              class="mr-1"
+              @click.stop="toggleExpand(item.noSpk)"
+            >
+              <v-icon size="16">
+                {{
+                  expanded.includes(item.noSpk)
+                    ? "mdi-chevron-down"
+                    : "mdi-chevron-right"
+                }}
+              </v-icon>
+            </v-btn>
+            <span>{{ item.noSpk || "-" }}</span>
+          </div>
         </td>
 
-        <!-- Meter Aktual -->
-        <td :style="colStyles('sb01_m', '85px')" class="text-right">
-          {{ formatNumber(item.sb01_m, 2) }}
-        </td>
-        <td :style="colStyles('sb02_m', '85px')" class="text-right">
-          {{ formatNumber(item.sb02_m, 2) }}
-        </td>
-        <td :style="colStyles('sb03_m', '85px')" class="text-right">
-          {{ formatNumber(item.sb03_m, 2) }}
-        </td>
-        <td
-          :style="colStyles('total_mtr_aktual', '95px')"
-          class="text-right font-weight-bold text-primary"
-        >
-          {{
-            formatNumber(
-              Number(item.sb01_m || 0) +
-                Number(item.sb02_m || 0) +
-                Number(item.sb03_m || 0),
-              2,
-            )
-          }}
+        <!-- Order SPK -->
+        <td class="text-right">{{ formatNumber(item.pcs, 0) }}</td>
+        <td class="text-right">{{ formatNumber(item.order_meter, 2) }}</td>
+
+        <!-- Jenis -->
+        <td class="text-center">{{ item.jenis || "-" }}</td>
+
+        <!-- Hasil Cetak RTR -->
+        <td class="text-right">{{ formatNumber(item.rtr, 0) }}</td>
+
+        <!-- Total Qty -->
+        <td class="text-right font-weight-bold bg-grey-lighten-4">
+          {{ formatNumber(item.total_qty, 0) }}
         </td>
 
-        <!-- PCS Standar -->
-        <td :style="colStyles('sb01_std', '85px')" class="text-right">
-          {{ formatNumber(item.sb01_std, 0) }}
-        </td>
-        <td :style="colStyles('sb02_std', '85px')" class="text-right">
-          {{ formatNumber(item.sb02_std, 0) }}
-        </td>
-        <td :style="colStyles('sb03_std', '85px')" class="text-right">
-          {{ formatNumber(item.sb03_std, 0) }}
-        </td>
-        <td
-          :style="colStyles('pcs_std', '95px')"
-          class="text-right font-weight-bold"
-        >
-          {{ formatNumber(item.pcs_std, 0) }}
-        </td>
+        <!-- Hasil Cetak Meter (JRTR) -->
+        <td class="text-right">{{ formatNumber(item.jrtr, 2) }}</td>
 
-        <!-- Meter Standar -->
-        <td :style="colStyles('sb01_std_m', '85px')" class="text-right">
-          {{ formatNumber(item.sb01_std_m, 2) }}
+        <!-- Kurang -->
+        <td class="text-right font-weight-bold text-error bg-red-lighten-5">
+          {{ formatNumber(item.jmlkurang, 0) }}
         </td>
-        <td :style="colStyles('sb02_std_m', '85px')" class="text-right">
-          {{ formatNumber(item.sb02_std_m, 2) }}
-        </td>
-        <td :style="colStyles('sb03_std_m', '85px')" class="text-right">
-          {{ formatNumber(item.sb03_std_m, 2) }}
-        </td>
-        <td
-          :style="colStyles('meter_std', '95px')"
-          class="text-right font-weight-bold"
-        >
-          {{ formatNumber(item.meter_std, 2) }}
+      </tr>
+
+      <!-- Baris Detail Expand: Size & Komponen -->
+      <tr v-if="expanded.includes(item.noSpk)">
+        <td :colspan="15" class="bg-grey-lighten-4 pa-3">
+          <div class="pa-2 border rounded bg-white">
+            <div class="text-subtitle-2 font-weight-bold text-primary mb-2">
+              Detail Ukuran & Komponen per Size: {{ item.noSpk }}
+            </div>
+            <v-table density="compact" class="elevation-0 size-detail-table">
+              <thead>
+                <tr class="bg-blue-lighten-5">
+                  <th class="text-center">Ukuran (Size)</th>
+                  <th class="text-right">Qty Order Size</th>
+                  <th class="text-left">Kode Komponen</th>
+                  <th class="text-left">Nama Komponen</th>
+                  <th class="text-right">Qty Cetak</th>
+                  <th class="text-right text-error">Kurang Cetak</th>
+                </tr>
+              </thead>
+              <tbody>
+                <template v-for="(sz, sIdx) in item.sizes" :key="sIdx">
+                  <template
+                    v-for="(comp, cIdx) in sz.komponen"
+                    :key="`${sIdx}-${cIdx}`"
+                  >
+                    <tr>
+                      <td
+                        v-if="cIdx === 0"
+                        :rowspan="sz.komponen.length"
+                        class="text-center font-weight-bold align-middle bg-grey-lighten-3 border-r"
+                      >
+                        {{ sz.size_name }}
+                      </td>
+                      <td
+                        v-if="cIdx === 0"
+                        :rowspan="sz.komponen.length"
+                        class="text-right align-middle bg-grey-lighten-3 border-r"
+                      >
+                        {{ formatNumber(sz.size_qty, 0) }}
+                      </td>
+                      <td class="text-left">{{ comp.komponen_code }}</td>
+                      <td class="text-left font-weight-medium">
+                        {{ comp.komponen_name }}
+                      </td>
+                      <td class="text-right">
+                        {{ formatNumber(comp.qty_cetak, 0) }}
+                      </td>
+                      <td class="text-right text-error font-weight-bold">
+                        {{ formatNumber(comp.size_krg_cetak, 0) }}
+                      </td>
+                    </tr>
+                  </template>
+                </template>
+              </tbody>
+            </v-table>
+          </div>
         </td>
       </tr>
     </template>
@@ -613,156 +461,40 @@
     <template #tfoot="{ formatNumber }">
       <tr class="table-footer-row">
         <td
-          colspan="5"
+          colspan="8"
           class="text-right font-weight-black text-uppercase sticky-footer-title"
         >
-          TOTAL SUM:
+          TOTAL (FILTERED):
         </td>
-        <td
-          :style="colStyles('poid_jumlah', '95px')"
-          class="text-right font-weight-black"
-        >
-          {{ formatNumber(sumField("poid_jumlah"), 0) }}
+
+        <!-- Order SPK -->
+        <td class="text-right font-weight-black">
+          {{ formatNumber(totals.pcs, 0) }}
         </td>
-        <td colspan="7"></td>
-        <td
-          :style="colStyles('lsbd_jumlah_order', '90px')"
-          class="text-right font-weight-black"
-        >
-          {{ formatNumber(sumField("lsbd_jumlah_order"), 0) }}
+        <td class="text-right font-weight-black">
+          {{ formatNumber(totals.order_meter, 2) }}
         </td>
-        <td
-          :style="colStyles('meter_order', '105px')"
-          class="text-right font-weight-black"
-        >
-          {{ formatNumber(sumField("meter_order"), 2) }}
+
+        <td></td>
+
+        <!-- Hasil Cetak RTR -->
+        <td class="text-right font-weight-black">
+          {{ formatNumber(totals.rtr, 0) }}
         </td>
-        <td colspan="2"></td>
-        <td
-          :style="colStyles('kurang', '90px')"
-          class="text-right font-weight-black text-error"
-        >
-          {{ formatNumber(sumField("kurang"), 0) }}
+
+        <!-- Total Qty -->
+        <td class="text-right font-weight-black bg-grey-lighten-2">
+          {{ formatNumber(totals.total_qty, 0) }}
         </td>
-        <td
-          :style="colStyles('sb01', '80px')"
-          class="text-right font-weight-black"
-        >
-          {{ formatNumber(sumField("sb01"), 0) }}
+
+        <!-- JRTR -->
+        <td class="text-right font-weight-black">
+          {{ formatNumber(totals.jrtr, 2) }}
         </td>
-        <td
-          :style="colStyles('sb02', '80px')"
-          class="text-right font-weight-black"
-        >
-          {{ formatNumber(sumField("sb02"), 0) }}
-        </td>
-        <td
-          :style="colStyles('sb03', '80px')"
-          class="text-right font-weight-black"
-        >
-          {{ formatNumber(sumField("sb03"), 0) }}
-        </td>
-        <td
-          :style="colStyles('total_pcs_aktual', '95px')"
-          class="text-right font-weight-black text-primary"
-        >
-          {{
-            formatNumber(
-              filteredData.reduce(
-                (a, b) =>
-                  a +
-                  (Number(b.sb01 || 0) +
-                    Number(b.sb02 || 0) +
-                    Number(b.sb03 || 0)),
-                0,
-              ),
-              0,
-            )
-          }}
-        </td>
-        <td
-          :style="colStyles('sb01_m', '85px')"
-          class="text-right font-weight-black"
-        >
-          {{ formatNumber(sumField("sb01_m"), 2) }}
-        </td>
-        <td
-          :style="colStyles('sb02_m', '85px')"
-          class="text-right font-weight-black"
-        >
-          {{ formatNumber(sumField("sb02_m"), 2) }}
-        </td>
-        <td
-          :style="colStyles('sb03_m', '85px')"
-          class="text-right font-weight-black"
-        >
-          {{ formatNumber(sumField("sb03_m"), 2) }}
-        </td>
-        <td
-          :style="colStyles('total_mtr_aktual', '95px')"
-          class="text-right font-weight-black text-primary"
-        >
-          {{
-            formatNumber(
-              filteredData.reduce(
-                (a, b) =>
-                  a +
-                  (Number(b.sb01_m || 0) +
-                    Number(b.sb02_m || 0) +
-                    Number(b.sb03_m || 0)),
-                0,
-              ),
-              2,
-            )
-          }}
-        </td>
-        <td
-          :style="colStyles('sb01_std', '85px')"
-          class="text-right font-weight-black"
-        >
-          {{ formatNumber(sumField("sb01_std"), 0) }}
-        </td>
-        <td
-          :style="colStyles('sb02_std', '85px')"
-          class="text-right font-weight-black"
-        >
-          {{ formatNumber(sumField("sb02_std"), 0) }}
-        </td>
-        <td
-          :style="colStyles('sb03_std', '85px')"
-          class="text-right font-weight-black"
-        >
-          {{ formatNumber(sumField("sb03_std"), 0) }}
-        </td>
-        <td
-          :style="colStyles('pcs_std', '95px')"
-          class="text-right font-weight-black"
-        >
-          {{ formatNumber(sumField("pcs_std"), 0) }}
-        </td>
-        <td
-          :style="colStyles('sb01_std_m', '85px')"
-          class="text-right font-weight-black"
-        >
-          {{ formatNumber(sumField("sb01_std_m"), 2) }}
-        </td>
-        <td
-          :style="colStyles('sb02_std_m', '85px')"
-          class="text-right font-weight-black"
-        >
-          {{ formatNumber(sumField("sb02_std_m"), 2) }}
-        </td>
-        <td
-          :style="colStyles('sb03_std_m', '85px')"
-          class="text-right font-weight-black"
-        >
-          {{ formatNumber(sumField("sb03_std_m"), 2) }}
-        </td>
-        <td
-          :style="colStyles('meter_std', '95px')"
-          class="text-right font-weight-black"
-        >
-          {{ formatNumber(sumField("meter_std"), 2) }}
+
+        <!-- Total Kurang -->
+        <td class="text-right font-weight-black text-error bg-red-lighten-5">
+          {{ formatNumber(totals.jmlkurang, 0) }}
         </td>
       </tr>
     </template>
@@ -773,10 +505,11 @@
 import { ref, reactive, computed, onMounted } from "vue";
 import BaseReportLayout from "@/components/BaseReportLayout.vue";
 import api from "@/services/api";
-import { format, parseISO, isValid } from "date-fns";
+import { parseISO, isValid, format } from "date-fns";
 import { id } from "date-fns/locale";
 import * as XLSX from "xlsx-js-style";
 
+// --- DATE HELPER UTILS ---
 const formatDate = (date: Date) => {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 };
@@ -788,80 +521,32 @@ const getDateDaysAgo = (days: number) => {
 };
 
 // --- STATE MANAGEMENT ---
-const API_URL = "/mmt/monitoring-sublim/sublim-monitoring";
+const API_URL = "mmt/monitoring-sublim/sublim-monitoring"; // Sesuaikan endpoint API Sublim/RTR Anda
 const endDate = ref(formatDate(new Date()));
 const startDate = ref(formatDate(getDateDaysAgo(7)));
 const searchQuery = ref("");
 const loading = reactive({ report: false });
 const allData = ref<any[]>([]);
+const expanded = ref<string[]>([]);
 
-// --- PERSISTENCE & RESIZING STATE ---
-const storageKey = "mmt_report_layout_Monitoring_Sublim";
-const loadColWidths = (): Record<string, string> => {
-  try {
-    const raw = localStorage.getItem(storageKey);
-    return raw ? JSON.parse(raw) : {};
-  } catch {
-    return {};
+const toggleExpand = (noSpk: string) => {
+  const index = expanded.value.indexOf(noSpk);
+  if (index > -1) {
+    expanded.value.splice(index, 1);
+  } else {
+    expanded.value.push(noSpk);
   }
-};
-const saveColWidths = (widths: Record<string, string>) => {
-  try {
-    localStorage.setItem(storageKey, JSON.stringify(widths));
-  } catch {}
-};
-
-const colWidths = ref<Record<string, string>>(loadColWidths());
-
-const colStyles = (key: string, defaultWidth?: string) => {
-  const w = colWidths.value[key] || defaultWidth;
-  return w ? { width: w, minWidth: w, maxWidth: w } : {};
-};
-
-const resizingKey = ref<string | null>(null);
-const startX = ref(0);
-const startWidth = ref(0);
-
-const startResize = (e: MouseEvent, key: string, defaultWidthPx = 120) => {
-  resizingKey.value = key;
-  startX.value = e.clientX;
-  const currentW = colWidths.value[key];
-  let w = currentW ? parseInt(currentW, 10) : defaultWidthPx;
-  if (isNaN(w)) w = defaultWidthPx;
-  startWidth.value = w;
-
-  window.addEventListener("mousemove", onMouseMove);
-  window.addEventListener("mouseup", onMouseUp);
-  e.stopPropagation();
-};
-
-const onMouseMove = (e: MouseEvent) => {
-  if (!resizingKey.value) return;
-  const diff = e.clientX - startX.value;
-  const newWidth = Math.max(50, startWidth.value + diff);
-  colWidths.value = {
-    ...colWidths.value,
-    [resizingKey.value]: `${newWidth}px`,
-  };
-};
-
-const onMouseUp = () => {
-  if (resizingKey.value) {
-    saveColWidths(colWidths.value);
-  }
-  resizingKey.value = null;
-  window.removeEventListener("mousemove", onMouseMove);
-  window.removeEventListener("mouseup", onMouseUp);
 };
 
 // --- COLUMN FILTERS & SORTING STATE ---
 const columnFilters = reactive({
-  poi_nomor: "",
-  poi_spk_nomor: "",
-  spk_nama: "",
+  perush: "",
+  noSpk: "",
+  namaOrder: "",
+  jenis: "SEMUA",
 });
 
-const sortKey = ref("poi_nomor");
+const sortKey = ref("noSpk");
 const sortOrder = ref<"asc" | "desc">("asc");
 
 const toggleSort = (key: string) => {
@@ -881,20 +566,27 @@ const getSortIcon = (key: string) => {
 const hasActiveFilter = computed(() => {
   return (
     Boolean(searchQuery.value) ||
-    Boolean(columnFilters.poi_nomor) ||
-    Boolean(columnFilters.poi_spk_nomor) ||
-    Boolean(columnFilters.spk_nama)
+    Boolean(columnFilters.perush) ||
+    Boolean(columnFilters.noSpk) ||
+    Boolean(columnFilters.namaOrder) ||
+    (columnFilters.jenis && columnFilters.jenis !== "SEMUA")
   );
 });
 
 const resetAllFilters = () => {
   searchQuery.value = "";
-  columnFilters.poi_nomor = "";
-  columnFilters.poi_spk_nomor = "";
-  columnFilters.spk_nama = "";
-  sortKey.value = "poi_nomor";
+  columnFilters.perush = "";
+  columnFilters.noSpk = "";
+  columnFilters.namaOrder = "";
+  columnFilters.jenis = "SEMUA";
+  sortKey.value = "noSpk";
   sortOrder.value = "asc";
 };
+
+const jenisOptions = computed(() => {
+  const list = allData.value.map((x) => x.jenis).filter(Boolean);
+  return ["SEMUA", ...new Set(list)];
+});
 
 // --- FETCH REPORT ---
 const fetchReport = async () => {
@@ -903,9 +595,32 @@ const fetchReport = async () => {
     const res = await api.get(API_URL, {
       params: { startDate: startDate.value, endDate: endDate.value },
     });
-    allData.value = res.data.data || res.data || [];
+
+    const rawList = res.data.data || res.data || [];
+    allData.value = rawList.map((row: any) => {
+      const jmlcetak = Number(row.JUMLAH_PCS || row.RTR || 0);
+      const cetakLuar = Number(row.CETAK_LUAR || 0);
+      return {
+        perush: row.PERUSH,
+        tglLhk: row.TANGGAL_LHK ? row.TANGGAL_LHK.substring(0, 10) : "",
+        tglSpk: row.TGL_SPK ? row.TGL_SPK.substring(0, 10) : "",
+        deadline: row.DEADLINE ? row.DEADLINE.substring(0, 10) : "",
+        namaOrder: row.NAMA_ORDER,
+        panjang: Number(row.PANJANG || 0),
+        lebar: Number(row.LEBAR || 0),
+        noSpk: row.NO_SPK,
+        pcs: Number(row.ORDER_SPK_PCS || 0),
+        order_meter: Number(row.ORDER_SPK_METER || 0),
+        jenis: row.JENIS_KAIN || "SUBLIM",
+        rtr: jmlcetak,
+        total_qty: jmlcetak + cetakLuar,
+        jrtr: Number(row.METER_RTR || row.JRTR || 0),
+        jmlkurang: Number(row.KURANG_VARIANT || row.krg_Cetak || 0),
+        sizes: row.sizes || [],
+      };
+    });
   } catch (error) {
-    console.error("Gagal memuat monitoring sublim:", error);
+    console.error("Gagal fetch laporan sublim:", error);
     allData.value = [];
   } finally {
     loading.report = false;
@@ -921,33 +636,16 @@ const getTimestamp = (val: any): number => {
   return isNaN(fallbackDate) ? 0 : fallbackDate;
 };
 
-const DATE_KEYS = [
-  "poi_tanggal",
-  "poi_dateline",
-  "spk_tanggal",
-  "spk_dateline",
-];
+const DATE_KEYS = ["tglLhk", "tglSpk", "deadline"];
 const NUMERIC_KEYS = [
-  "poid_jumlah",
-  "lsbd_panjang",
-  "lsbd_lebar",
-  "lsbd_jumlah_order",
-  "meter_order",
-  "kurang",
-  "sb01",
-  "sb02",
-  "sb03",
-  "sb01_m",
-  "sb02_m",
-  "sb03_m",
-  "sb01_std",
-  "sb02_std",
-  "sb03_std",
-  "pcs_std",
-  "sb01_std_m",
-  "sb02_std_m",
-  "sb03_std_m",
-  "meter_std",
+  "panjang",
+  "lebar",
+  "pcs",
+  "order_meter",
+  "rtr",
+  "total_qty",
+  "jrtr",
+  "jmlkurang",
 ];
 
 const filteredData = computed(() => {
@@ -957,11 +655,37 @@ const filteredData = computed(() => {
     const q = searchQuery.value.toLowerCase().trim();
     result = result.filter((item: any) => {
       return (
-        item.lsbd_spk_nomor?.toLowerCase().includes(q) ||
-        item.spk_nama?.toLowerCase().includes(q) ||
-        item.poi_nomor?.toLowerCase().includes(q)
+        item.noSpk?.toLowerCase().includes(q) ||
+        item.namaOrder?.toLowerCase().includes(q) ||
+        item.perush?.toLowerCase().includes(q) ||
+        item.jenis?.toLowerCase().includes(q)
       );
     });
+  }
+
+  if (columnFilters.perush) {
+    const q = columnFilters.perush.toLowerCase().trim();
+    result = result.filter((item: any) =>
+      item.perush?.toLowerCase().includes(q),
+    );
+  }
+
+  if (columnFilters.noSpk) {
+    const q = columnFilters.noSpk.toLowerCase().trim();
+    result = result.filter((item: any) =>
+      item.noSpk?.toLowerCase().includes(q),
+    );
+  }
+
+  if (columnFilters.namaOrder) {
+    const q = columnFilters.namaOrder.toLowerCase().trim();
+    result = result.filter((item: any) =>
+      item.namaOrder?.toLowerCase().includes(q),
+    );
+  }
+
+  if (columnFilters.jenis && columnFilters.jenis !== "SEMUA") {
+    result = result.filter((item: any) => item.jenis === columnFilters.jenis);
   }
 
   if (sortKey.value) {
@@ -969,18 +693,8 @@ const filteredData = computed(() => {
     const isAsc = sortOrder.value === "asc";
 
     result.sort((a, b) => {
-      let valA = a[key];
-      let valB = b[key];
-
-      if (key === "total_pcs_aktual") {
-        valA = Number(a.sb01 || 0) + Number(a.sb02 || 0) + Number(a.sb03 || 0);
-        valB = Number(b.sb01 || 0) + Number(b.sb02 || 0) + Number(b.sb03 || 0);
-      } else if (key === "total_mtr_aktual") {
-        valA =
-          Number(a.sb01_m || 0) + Number(a.sb02_m || 0) + Number(a.sb03_m || 0);
-        valB =
-          Number(b.sb01_m || 0) + Number(b.sb02_m || 0) + Number(b.sb03_m || 0);
-      }
+      const valA = a[key];
+      const valB = b[key];
 
       if (DATE_KEYS.includes(key)) {
         const timeA = getTimestamp(valA);
@@ -988,11 +702,7 @@ const filteredData = computed(() => {
         return isAsc ? timeA - timeB : timeB - timeA;
       }
 
-      if (
-        NUMERIC_KEYS.includes(key) ||
-        key === "total_pcs_aktual" ||
-        key === "total_mtr_aktual"
-      ) {
+      if (NUMERIC_KEYS.includes(key)) {
         const numA =
           valA !== null && valA !== undefined && valA !== "" ? Number(valA) : 0;
         const numB =
@@ -1015,24 +725,30 @@ const filteredData = computed(() => {
   return result;
 });
 
-const sumField = (fieldName: string) => {
-  return filteredData.value.reduce((sum, item) => {
-    const val = parseFloat(item[fieldName]);
-    return sum + (isNaN(val) ? 0 : val);
-  }, 0);
-};
+const totals = computed(() => {
+  return filteredData.value.reduce(
+    (acc, item: any) => {
+      acc.pcs += Number(item.pcs || 0);
+      acc.order_meter += Number(item.order_meter || 0);
+      acc.rtr += Number(item.rtr || 0);
+      acc.total_qty += Number(item.total_qty || 0);
+      acc.jrtr += Number(item.jrtr || 0);
+      acc.jmlkurang += Number(item.jmlkurang || 0);
+      return acc;
+    },
+    {
+      pcs: 0,
+      order_meter: 0,
+      rtr: 0,
+      total_qty: 0,
+      jrtr: 0,
+      jmlkurang: 0,
+    },
+  );
+});
 
-const formatNumber = (val: any, dec = 0) => {
-  if (val === null || val === undefined || isNaN(val))
-    return dec === 0 ? "0" : "0,00";
-  return parseFloat(val).toLocaleString("id-ID", {
-    minimumFractionDigits: dec,
-    maximumFractionDigits: dec,
-  });
-};
-
-const formatOnlyDate = (dateStr: string) => {
-  if (!dateStr || dateStr === "-") return "-";
+const formatDateDisplay = (dateStr: string) => {
+  if (!dateStr) return "-";
   const date = parseISO(dateStr);
   return isValid(date) ? format(date, "dd/MM/yyyy") : dateStr;
 };
@@ -1080,6 +796,20 @@ const exportToExcel = (dataToExport: any[]) => {
     border: borderThin,
   };
 
+  const styleDetailHeader = {
+    fill: { fgColor: { rgb: "BAE6FD" } },
+    font: { bold: true, sz: 9, color: { rgb: "0369A1" } },
+    alignment: { horizontal: "center", vertical: "center" },
+    border: borderThin,
+  };
+
+  const styleDetailCell = {
+    fill: { fgColor: { rgb: "F8FAFC" } },
+    font: { sz: 9, color: { rgb: "334155" } },
+    alignment: { vertical: "center" },
+    border: borderThin,
+  };
+
   const styleFooterCell = {
     fill: { fgColor: { rgb: "C7ECFE" } },
     font: { bold: true, sz: 10, color: { rgb: "000000" } },
@@ -1097,7 +827,7 @@ const exportToExcel = (dataToExport: any[]) => {
   const wsData: any[] = [
     [
       {
-        v: "LAPORAN MONITORING SUBLIM",
+        v: "LAPORAN MONITORING SUBLIM / RTR",
         s: { font: { bold: true, sz: 14 } },
       },
     ],
@@ -1106,436 +836,304 @@ const exportToExcel = (dataToExport: any[]) => {
   ];
 
   const headerRow1 = [
-    { v: "NOMOR POI", s: styleHeaderMain },
-    { v: "TGL POI", s: styleHeaderMain },
-    { v: "DEADLINE POI", s: styleHeaderMain },
-    { v: "SPK POI", s: styleHeaderMain },
-    { v: "SIZE", s: styleHeaderMain },
-    { v: "JUMLAH POI", s: styleHeaderMain },
-    { v: "PERUSH", s: styleHeaderMain },
+    { v: "PERUSAHAAN", s: styleHeaderMain },
+    { v: "TGL LHK", s: styleHeaderMain },
     { v: "TGL SPK", s: styleHeaderMain },
-    { v: "DEADLINE SPK", s: styleHeaderMain },
+    { v: "DEADLINE", s: styleHeaderMain },
     { v: "NAMA ORDER", s: styleHeaderMain },
     { v: "UKURAN", s: styleHeaderMain },
     "",
-    { v: "NOMOR SPK", s: styleHeaderMain },
-    { v: "ORDER", s: styleHeaderMain },
-    { v: "J. METER", s: styleHeaderMain },
-    { v: "JENIS BAHAN", s: styleHeaderMain },
-    { v: "GRAMASI", s: styleHeaderMain },
+    { v: "NO SPK", s: styleHeaderMain },
+    { v: "ORDER SPK", s: styleHeaderMain },
+    "",
+    { v: "JENIS", s: styleHeaderMain },
+    { v: "RTR", s: styleHeaderMain },
+    { v: "TOTAL QTY", s: styleHeaderMain },
+    { v: "JRTR", s: styleHeaderMain },
     { v: "KURANG", s: styleHeaderMain },
-    { v: "J. PCS AKTUAL", s: styleHeaderMain },
-    "",
-    "",
-    "",
-    { v: "J. METER AKTUAL", s: styleHeaderMain },
-    "",
-    "",
-    "",
-    { v: "J. PCS STANDAR", s: styleHeaderMain },
-    "",
-    "",
-    "",
-    { v: "J. METER STANDAR", s: styleHeaderMain },
-    "",
-    "",
-    "",
   ];
   wsData.push(headerRow1);
 
   const headerRow2 = [
-    { v: "", s: styleHeaderMain },
-    { v: "", s: styleHeaderMain },
-    { v: "", s: styleHeaderMain },
-    { v: "", s: styleHeaderMain },
-    { v: "", s: styleHeaderMain },
-    { v: "", s: styleHeaderMain },
-    { v: "", s: styleHeaderMain },
-    { v: "", s: styleHeaderMain },
-    { v: "", s: styleHeaderMain },
-    { v: "", s: styleHeaderMain },
+    "",
+    "",
+    "",
+    "",
+    "",
     { v: "PANG", s: styleHeaderSub },
     { v: "LEB", s: styleHeaderSub },
-    { v: "", s: styleHeaderMain },
-    { v: "", s: styleHeaderMain },
-    { v: "", s: styleHeaderMain },
-    { v: "", s: styleHeaderMain },
-    { v: "", s: styleHeaderMain },
-    { v: "", s: styleHeaderMain },
-    { v: "SB01", s: styleHeaderSub },
-    { v: "SB02", s: styleHeaderSub },
-    { v: "SB03", s: styleHeaderSub },
-    { v: "TOTAL", s: styleHeaderSub },
-    { v: "SB01", s: styleHeaderSub },
-    { v: "SB02", s: styleHeaderSub },
-    { v: "SB03", s: styleHeaderSub },
-    { v: "TOTAL", s: styleHeaderSub },
-    { v: "SB01", s: styleHeaderSub },
-    { v: "SB02", s: styleHeaderSub },
-    { v: "SB03", s: styleHeaderSub },
-    { v: "TOTAL", s: styleHeaderSub },
-    { v: "SB01", s: styleHeaderSub },
-    { v: "SB02", s: styleHeaderSub },
-    { v: "SB03", s: styleHeaderSub },
-    { v: "TOTAL", s: styleHeaderSub },
+    "",
+    { v: "PCS", s: styleHeaderSub },
+    { v: "MTR", s: styleHeaderSub },
+    "",
+    "",
+    "",
+    "",
+    "",
   ];
   wsData.push(headerRow2);
 
-  dataToExport.forEach((item: any) => {
-    const totPcsAktual =
-      Number(item.sb01 || 0) + Number(item.sb02 || 0) + Number(item.sb03 || 0);
-    const totMtrAktual =
-      Number(item.sb01_m || 0) +
-      Number(item.sb02_m || 0) +
-      Number(item.sb03_m || 0);
-
-    wsData.push([
-      {
-        v: item.poi_nomor || "",
-        s: { ...styleDataCell, alignment: { horizontal: "center" } },
-      },
-      {
-        v: formatOnlyDate(item.poi_tanggal),
-        s: { ...styleDataCell, alignment: { horizontal: "center" } },
-      },
-      {
-        v: formatOnlyDate(item.poi_dateline),
-        s: { ...styleDataCell, alignment: { horizontal: "center" } },
-      },
-      {
-        v: item.poi_spk_nomor || "",
-        s: { ...styleDataCell, alignment: { horizontal: "center" } },
-      },
-      {
-        v: item.poid_size || "",
-        s: { ...styleDataCell, alignment: { horizontal: "center" } },
-      },
-      {
-        v: num(item.poid_jumlah),
-        t: "n",
-        z: "#,##0",
-        s: { ...styleDataCell, alignment: { horizontal: "right" } },
-      },
-      {
-        v: item.spk_perush_kode || "",
-        s: { ...styleDataCell, alignment: { horizontal: "center" } },
-      },
-      {
-        v: formatOnlyDate(item.spk_tanggal),
-        s: { ...styleDataCell, alignment: { horizontal: "center" } },
-      },
-      {
-        v: formatOnlyDate(item.spk_dateline),
-        s: { ...styleDataCell, alignment: { horizontal: "center" } },
-      },
-      { v: item.spk_nama || "", s: styleDataCell },
-      {
-        v: num(item.lsbd_panjang),
-        t: "n",
-        z: "#,##0.00",
-        s: { ...styleDataCell, alignment: { horizontal: "right" } },
-      },
-      {
-        v: num(item.lsbd_lebar),
-        t: "n",
-        z: "#,##0.00",
-        s: { ...styleDataCell, alignment: { horizontal: "right" } },
-      },
-      {
-        v: item.lsbd_spk_nomor || "",
-        s: { ...styleDataCell, alignment: { horizontal: "center" } },
-      },
-      {
-        v: num(item.lsbd_jumlah_order),
-        t: "n",
-        z: "#,##0",
-        s: { ...styleDataCell, alignment: { horizontal: "right" } },
-      },
-      {
-        v: num(item.meter_order),
-        t: "n",
-        z: "#,##0.00",
-        s: { ...styleDataCell, alignment: { horizontal: "right" } },
-      },
-      { v: item.spk_kain || "", s: styleDataCell },
-      {
-        v: item.spk_gramasi || "",
-        s: { ...styleDataCell, alignment: { horizontal: "center" } },
-      },
-      {
-        v: num(item.kurang),
-        t: "n",
-        z: "#,##0",
-        s: { ...styleDataCell, alignment: { horizontal: "right" } },
-      },
-      {
-        v: num(item.sb01),
-        t: "n",
-        z: "#,##0",
-        s: { ...styleDataCell, alignment: { horizontal: "right" } },
-      },
-      {
-        v: num(item.sb02),
-        t: "n",
-        z: "#,##0",
-        s: { ...styleDataCell, alignment: { horizontal: "right" } },
-      },
-      {
-        v: num(item.sb03),
-        t: "n",
-        z: "#,##0",
-        s: { ...styleDataCell, alignment: { horizontal: "right" } },
-      },
-      {
-        v: num(totPcsAktual),
-        t: "n",
-        z: "#,##0",
-        s: { ...styleDataCell, alignment: { horizontal: "right" } },
-      },
-      {
-        v: num(item.sb01_m),
-        t: "n",
-        z: "#,##0.00",
-        s: { ...styleDataCell, alignment: { horizontal: "right" } },
-      },
-      {
-        v: num(item.sb02_m),
-        t: "n",
-        z: "#,##0.00",
-        s: { ...styleDataCell, alignment: { horizontal: "right" } },
-      },
-      {
-        v: num(item.sb03_m),
-        t: "n",
-        z: "#,##0.00",
-        s: { ...styleDataCell, alignment: { horizontal: "right" } },
-      },
-      {
-        v: num(totMtrAktual),
-        t: "n",
-        z: "#,##0.00",
-        s: { ...styleDataCell, alignment: { horizontal: "right" } },
-      },
-      {
-        v: num(item.sb01_std),
-        t: "n",
-        z: "#,##0",
-        s: { ...styleDataCell, alignment: { horizontal: "right" } },
-      },
-      {
-        v: num(item.sb02_std),
-        t: "n",
-        z: "#,##0",
-        s: { ...styleDataCell, alignment: { horizontal: "right" } },
-      },
-      {
-        v: num(item.sb03_std),
-        t: "n",
-        z: "#,##0",
-        s: { ...styleDataCell, alignment: { horizontal: "right" } },
-      },
-      {
-        v: num(item.pcs_std),
-        t: "n",
-        z: "#,##0",
-        s: { ...styleDataCell, alignment: { horizontal: "right" } },
-      },
-      {
-        v: num(item.sb01_std_m),
-        t: "n",
-        z: "#,##0.00",
-        s: { ...styleDataCell, alignment: { horizontal: "right" } },
-      },
-      {
-        v: num(item.sb02_std_m),
-        t: "n",
-        z: "#,##0.00",
-        s: { ...styleDataCell, alignment: { horizontal: "right" } },
-      },
-      {
-        v: num(item.sb03_std_m),
-        t: "n",
-        z: "#,##0.00",
-        s: { ...styleDataCell, alignment: { horizontal: "right" } },
-      },
-      {
-        v: num(item.meter_std),
-        t: "n",
-        z: "#,##0.00",
-        s: { ...styleDataCell, alignment: { horizontal: "right" } },
-      },
-    ]);
-  });
-
-  const totSumPcsAktual = filteredData.value.reduce(
-    (a, b) =>
-      a + (Number(b.sb01 || 0) + Number(b.sb02 || 0) + Number(b.sb03 || 0)),
-    0,
-  );
-  const totSumMtrAktual = filteredData.value.reduce(
-    (a, b) =>
-      a +
-      (Number(b.sb01_m || 0) + Number(b.sb02_m || 0) + Number(b.sb03_m || 0)),
-    0,
-  );
-
-  const footerRow = [
-    {
-      v: "TOTAL (FILTERED)",
-      s: { ...styleFooterCell, alignment: { horizontal: "center" } },
-    },
-    ...Array(4).fill({ v: "", s: styleFooterCell }),
-    {
-      v: num(sumField("poid_jumlah")),
-      t: "n",
-      z: "#,##0",
-      s: { ...styleFooterCell, alignment: { horizontal: "right" } },
-    },
-    ...Array(6).fill({ v: "", s: styleFooterCell }),
-    {
-      v: num(sumField("lsbd_jumlah_order")),
-      t: "n",
-      z: "#,##0",
-      s: { ...styleFooterCell, alignment: { horizontal: "right" } },
-    },
-    {
-      v: num(sumField("meter_order")),
-      t: "n",
-      z: "#,##0.00",
-      s: { ...styleFooterCell, alignment: { horizontal: "right" } },
-    },
-    ...Array(2).fill({ v: "", s: styleFooterCell }),
-    {
-      v: num(sumField("kurang")),
-      t: "n",
-      z: "#,##0",
-      s: { ...styleFooterCell, alignment: { horizontal: "right" } },
-    },
-    {
-      v: num(sumField("sb01")),
-      t: "n",
-      z: "#,##0",
-      s: { ...styleFooterCell, alignment: { horizontal: "right" } },
-    },
-    {
-      v: num(sumField("sb02")),
-      t: "n",
-      z: "#,##0",
-      s: { ...styleFooterCell, alignment: { horizontal: "right" } },
-    },
-    {
-      v: num(sumField("sb03")),
-      t: "n",
-      z: "#,##0",
-      s: { ...styleFooterCell, alignment: { horizontal: "right" } },
-    },
-    {
-      v: num(totSumPcsAktual),
-      t: "n",
-      z: "#,##0",
-      s: { ...styleFooterCell, alignment: { horizontal: "right" } },
-    },
-    {
-      v: num(sumField("sb01_m")),
-      t: "n",
-      z: "#,##0.00",
-      s: { ...styleFooterCell, alignment: { horizontal: "right" } },
-    },
-    {
-      v: num(sumField("sb02_m")),
-      t: "n",
-      z: "#,##0.00",
-      s: { ...styleFooterCell, alignment: { horizontal: "right" } },
-    },
-    {
-      v: num(sumField("sb03_m")),
-      t: "n",
-      z: "#,##0.00",
-      s: { ...styleFooterCell, alignment: { horizontal: "right" } },
-    },
-    {
-      v: num(totSumMtrAktual),
-      t: "n",
-      z: "#,##0.00",
-      s: { ...styleFooterCell, alignment: { horizontal: "right" } },
-    },
-    {
-      v: num(sumField("sb01_std")),
-      t: "n",
-      z: "#,##0",
-      s: { ...styleFooterCell, alignment: { horizontal: "right" } },
-    },
-    {
-      v: num(sumField("sb02_std")),
-      t: "n",
-      z: "#,##0",
-      s: { ...styleFooterCell, alignment: { horizontal: "right" } },
-    },
-    {
-      v: num(sumField("sb03_std")),
-      t: "n",
-      z: "#,##0",
-      s: { ...styleFooterCell, alignment: { horizontal: "right" } },
-    },
-    {
-      v: num(sumField("pcs_std")),
-      t: "n",
-      z: "#,##0",
-      s: { ...styleFooterCell, alignment: { horizontal: "right" } },
-    },
-    {
-      v: num(sumField("sb01_std_m")),
-      t: "n",
-      z: "#,##0.00",
-      s: { ...styleFooterCell, alignment: { horizontal: "right" } },
-    },
-    {
-      v: num(sumField("sb02_std_m")),
-      t: "n",
-      z: "#,##0.00",
-      s: { ...styleFooterCell, alignment: { horizontal: "right" } },
-    },
-    {
-      v: num(sumField("sb03_std_m")),
-      t: "n",
-      z: "#,##0.00",
-      s: { ...styleFooterCell, alignment: { horizontal: "right" } },
-    },
-    {
-      v: num(sumField("meter_std")),
-      t: "n",
-      z: "#,##0.00",
-      s: { ...styleFooterCell, alignment: { horizontal: "right" } },
-    },
-  ];
-
-  wsData.push(footerRow);
-
-  const ws = XLSX.utils.aoa_to_sheet(wsData);
-  ws["!merges"] = [
+  const merges: any[] = [
     { s: { r: 3, c: 0 }, e: { r: 4, c: 0 } },
     { s: { r: 3, c: 1 }, e: { r: 4, c: 1 } },
     { s: { r: 3, c: 2 }, e: { r: 4, c: 2 } },
     { s: { r: 3, c: 3 }, e: { r: 4, c: 3 } },
     { s: { r: 3, c: 4 }, e: { r: 4, c: 4 } },
-    { s: { r: 3, c: 5 }, e: { r: 4, c: 5 } },
-    { s: { r: 3, c: 6 }, e: { r: 4, c: 6 } },
+    { s: { r: 3, c: 5 }, e: { r: 3, c: 6 } },
     { s: { r: 3, c: 7 }, e: { r: 4, c: 7 } },
-    { s: { r: 3, c: 8 }, e: { r: 4, c: 8 } },
-    { s: { r: 3, c: 9 }, e: { r: 4, c: 9 } },
-    { s: { r: 3, c: 10 }, e: { r: 3, c: 11 } },
+    { s: { r: 3, c: 8 }, e: { r: 3, c: 9 } },
+    { s: { r: 3, c: 10 }, e: { r: 4, c: 10 } },
+    { s: { r: 3, c: 11 }, e: { r: 4, c: 11 } },
     { s: { r: 3, c: 12 }, e: { r: 4, c: 12 } },
     { s: { r: 3, c: 13 }, e: { r: 4, c: 13 } },
     { s: { r: 3, c: 14 }, e: { r: 4, c: 14 } },
-    { s: { r: 3, c: 15 }, e: { r: 4, c: 15 } },
-    { s: { r: 3, c: 16 }, e: { r: 4, c: 16 } },
-    { s: { r: 3, c: 17 }, e: { r: 4, c: 17 } },
-    { s: { r: 3, c: 18 }, e: { r: 3, c: 21 } },
-    { s: { r: 3, c: 22 }, e: { r: 3, c: 25 } },
-    { s: { r: 3, c: 26 }, e: { r: 3, c: 29 } },
-    { s: { r: 3, c: 30 }, e: { r: 3, c: 33 } },
-    { s: { r: wsData.length - 1, c: 0 }, e: { r: wsData.length - 1, c: 4 } },
   ];
+
+  dataToExport.forEach((item: any) => {
+    wsData.push([
+      { v: item.perush || "", s: styleDataCell },
+      {
+        v: formatDateDisplay(item.tglLhk),
+        s: { ...styleDataCell, alignment: { horizontal: "center" } },
+      },
+      {
+        v: formatDateDisplay(item.tglSpk),
+        s: { ...styleDataCell, alignment: { horizontal: "center" } },
+      },
+      {
+        v: formatDateDisplay(item.deadline),
+        s: { ...styleDataCell, alignment: { horizontal: "center" } },
+      },
+      { v: item.namaOrder || "", s: styleDataCell },
+      {
+        v: num(item.panjang),
+        t: "n",
+        z: "#,##0.00",
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+      },
+      {
+        v: num(item.lebar),
+        t: "n",
+        z: "#,##0.00",
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+      },
+      {
+        v: item.noSpk || "",
+        s: { ...styleDataCell, alignment: { horizontal: "center" } },
+      },
+      {
+        v: num(item.pcs),
+        t: "n",
+        z: "#,##0",
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+      },
+      {
+        v: num(item.order_meter),
+        t: "n",
+        z: "#,##0.00",
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+      },
+      {
+        v: item.jenis || "",
+        s: { ...styleDataCell, alignment: { horizontal: "center" } },
+      },
+      {
+        v: num(item.rtr),
+        t: "n",
+        z: "#,##0",
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+      },
+      {
+        v: num(item.total_qty),
+        t: "n",
+        z: "#,##0",
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+      },
+      {
+        v: num(item.jrtr),
+        t: "n",
+        z: "#,##0.00",
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+      },
+      {
+        v: num(item.jmlkurang),
+        t: "n",
+        z: "#,##0",
+        s: { ...styleDataCell, alignment: { horizontal: "right" } },
+      },
+    ]);
+
+    if (item.sizes && item.sizes.length > 0) {
+      const titleSubIdx = wsData.length;
+      wsData.push([
+        {
+          v: `DETAIL UKURAN & KOMPONEN: ${item.noSpk}`,
+          s: {
+            fill: { fgColor: { rgb: "E0F2FE" } },
+            font: { bold: true, sz: 9, color: { rgb: "0369A1" } },
+            border: borderThin,
+          },
+        },
+        ...Array(14).fill({
+          v: "",
+          s: { fill: { fgColor: { rgb: "E0F2FE" } }, border: borderThin },
+        }),
+      ]);
+      merges.push({
+        s: { r: titleSubIdx, c: 0 },
+        e: { r: titleSubIdx, c: 14 },
+      });
+
+      const headSubIdx = wsData.length;
+      wsData.push([
+        { v: "Ukuran (Size)", s: styleDetailHeader },
+        { v: "Qty Order Size", s: styleDetailHeader },
+        { v: "Kode Komponen", s: styleDetailHeader },
+        { v: "Nama Komponen", s: styleDetailHeader },
+        ...Array(7).fill({ v: "", s: styleDetailHeader }),
+        { v: "Qty Cetak", s: styleDetailHeader },
+        { v: "Kurang Cetak", s: styleDetailHeader },
+        ...Array(2).fill({ v: "", s: styleDetailHeader }),
+      ]);
+      merges.push(
+        { s: { r: headSubIdx, c: 0 }, e: { r: headSubIdx, c: 1 } },
+        { s: { r: headSubIdx, c: 2 }, e: { r: headSubIdx, c: 3 } },
+        { s: { r: headSubIdx, c: 4 }, e: { r: headSubIdx, c: 10 } },
+        { s: { r: headSubIdx, c: 11 }, e: { r: headSubIdx, c: 12 } },
+        { s: { r: headSubIdx, c: 13 }, e: { r: headSubIdx, c: 14 } },
+      );
+
+      item.sizes.forEach((sz: any) => {
+        if (sz.komponen && sz.komponen.length > 0) {
+          const startSizeRowIdx = wsData.length;
+          sz.komponen.forEach((comp: any) => {
+            const compRowIdx = wsData.length;
+            wsData.push([
+              {
+                v: sz.size_name || "",
+                s: {
+                  ...styleDetailCell,
+                  alignment: { horizontal: "center", vertical: "center" },
+                },
+              },
+              "",
+              {
+                v: num(sz.size_qty),
+                t: "n",
+                z: "#,##0",
+                s: {
+                  ...styleDetailCell,
+                  alignment: { horizontal: "right", vertical: "center" },
+                },
+              },
+              "",
+              {
+                v: comp.komponen_code || "",
+                s: {
+                  ...styleDetailCell,
+                  alignment: { horizontal: "left", vertical: "center" },
+                },
+              },
+              ...Array(6).fill({ v: "", s: styleDetailCell }),
+              {
+                v: comp.komponen_name || "",
+                s: {
+                  ...styleDetailCell,
+                  alignment: { horizontal: "left", vertical: "center" },
+                },
+              },
+              {
+                v: num(comp.qty_cetak),
+                t: "n",
+                z: "#,##0",
+                s: {
+                  ...styleDetailCell,
+                  alignment: { horizontal: "right", vertical: "center" },
+                },
+              },
+              {
+                v: num(comp.size_krg_cetak),
+                t: "n",
+                z: "#,##0",
+                s: {
+                  ...styleDetailCell,
+                  alignment: {
+                    horizontal: "right",
+                    vertical: "center",
+                    font: { bold: true, color: { rgb: "B91C1C" }, sz: 9 },
+                  },
+                },
+              },
+            ]);
+
+            merges.push(
+              { s: { r: compRowIdx, c: 4 }, e: { r: compRowIdx, c: 10 } },
+              { s: { r: compRowIdx, c: 11 }, e: { r: compRowIdx, c: 12 } },
+              { s: { r: compRowIdx, c: 13 }, e: { r: compRowIdx, c: 14 } },
+            );
+          });
+
+          const endSizeRowIdx = wsData.length - 1;
+          merges.push(
+            { s: { r: startSizeRowIdx, c: 0 }, e: { r: endSizeRowIdx, c: 1 } },
+            { s: { r: startSizeRowIdx, c: 2 }, e: { r: endSizeRowIdx, c: 3 } },
+          );
+        }
+      });
+    }
+  });
+
+  const footerRowIdx = wsData.length;
+  const footerRow = [
+    {
+      v: "TOTAL (FILTERED)",
+      s: { ...styleFooterCell, alignment: { horizontal: "center" } },
+    },
+    ...Array(7).fill({ v: "", s: styleFooterCell }),
+    {
+      v: num(totals.value.pcs),
+      t: "n",
+      z: "#,##0",
+      s: { ...styleFooterCell, alignment: { horizontal: "right" } },
+    },
+    {
+      v: num(totals.value.order_meter),
+      t: "n",
+      z: "#,##0.00",
+      s: { ...styleFooterCell, alignment: { horizontal: "right" } },
+    },
+    { v: "", s: styleFooterCell },
+    {
+      v: num(totals.value.rtr),
+      t: "n",
+      z: "#,##0",
+      s: { ...styleFooterCell, alignment: { horizontal: "right" } },
+    },
+    {
+      v: num(totals.value.total_qty),
+      t: "n",
+      z: "#,##0",
+      s: { ...styleFooterCell, alignment: { horizontal: "right" } },
+    },
+    {
+      v: num(totals.value.jrtr),
+      t: "n",
+      z: "#,##0.00",
+      s: { ...styleFooterCell, alignment: { horizontal: "right" } },
+    },
+    {
+      v: num(totals.value.jmlkurang),
+      t: "n",
+      z: "#,##0",
+      s: { ...styleFooterCell, alignment: { horizontal: "right" } },
+    },
+  ];
+
+  wsData.push(footerRow);
+  merges.push({ s: { r: footerRowIdx, c: 0 }, e: { r: footerRowIdx, c: 7 } });
+
+  const ws = XLSX.utils.aoa_to_sheet(wsData);
+  ws["!merges"] = merges;
 
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Sublim_Monitoring");
@@ -1582,13 +1180,11 @@ onMounted(fetchReport);
   background: #2563eb !important;
   font-size: 11px !important;
   border-right: 1px solid #60a5fa !important;
-  color: #ffffff !important;
 }
 
 .header-group {
   border-left: 1px solid #60a5fa !important;
   border-right: 1px solid #60a5fa !important;
-  color: #ffffff !important;
 }
 
 :deep(tfoot) {
@@ -1601,22 +1197,22 @@ onMounted(fetchReport);
   background-color: #c7ecfe !important;
   border-top: 2px solid #000 !important;
   border-bottom: 2px solid #000 !important;
-  color: #0f172a !important;
 }
 
 :deep(.sticky-col-1) {
   position: sticky !important;
   left: 0px !important;
-  width: 140px !important;
-  min-width: 140px !important;
+  width: 150px !important;
+  min-width: 150px !important;
+  max-width: 180px !important;
 }
 
 :deep(.sticky-col-2) {
   position: sticky !important;
-  left: 250px !important;
+  left: 150px !important;
   box-shadow: 3px 0px 5px -2px rgba(0, 0, 0, 0.15);
-  width: 250px !important;
-  min-width: 250px !important;
+  width: 140px !important;
+  min-width: 140px !important;
 }
 
 :deep(tbody .sticky-col-1),
@@ -1656,16 +1252,16 @@ onMounted(fetchReport);
 }
 
 .bg-blue-sub {
-  background-color: #1e40af !important;
-  color: white !important;
+  background-color: #93c5fd !important;
+  color: #000 !important;
 }
 .bg-cyan-sub {
-  background-color: #0e7490 !important;
-  color: white !important;
+  background-color: #a5f3fc !important;
+  color: #000 !important;
 }
 .bg-teal-sub {
-  background-color: #0f766e !important;
-  color: white !important;
+  background-color: #99f6e4 !important;
+  color: #000 !important;
 }
 
 .border-l {
@@ -1679,5 +1275,11 @@ onMounted(fetchReport);
 }
 .select-none {
   user-select: none;
+}
+.btn-filter-icon {
+  opacity: 0.85;
+}
+.btn-filter-icon:hover {
+  opacity: 1;
 }
 </style>

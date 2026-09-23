@@ -916,6 +916,21 @@ const exportToExcel = (dataToExport: any[]) => {
     border: borderThin,
   };
 
+  // Style untuk Header Sub-Tabel Detail Size & Komponen
+  const styleDetailHeader = {
+    fill: { fgColor: { rgb: "BAE6FD" } }, // soft blue / cyan header
+    font: { bold: true, sz: 9, color: { rgb: "0369A1" } },
+    alignment: { horizontal: "center", vertical: "center" },
+    border: borderThin,
+  };
+
+  const styleDetailCell = {
+    fill: { fgColor: { rgb: "F8FAFC" } },
+    font: { sz: 9, color: { rgb: "334155" } },
+    alignment: { vertical: "center" },
+    border: borderThin,
+  };
+
   const styleFooterCell = {
     fill: { fgColor: { rgb: "C7ECFE" } },
     font: { bold: true, sz: 10, color: { rgb: "000000" } },
@@ -995,7 +1010,24 @@ const exportToExcel = (dataToExport: any[]) => {
   ];
   wsData.push(headerRow2);
 
+  const merges: any[] = [
+    { s: { r: 3, c: 0 }, e: { r: 4, c: 0 } },
+    { s: { r: 3, c: 1 }, e: { r: 4, c: 1 } },
+    { s: { r: 3, c: 2 }, e: { r: 4, c: 2 } },
+    { s: { r: 3, c: 3 }, e: { r: 4, c: 3 } },
+    { s: { r: 3, c: 4 }, e: { r: 4, c: 4 } },
+    { s: { r: 3, c: 5 }, e: { r: 3, c: 6 } },
+    { s: { r: 3, c: 7 }, e: { r: 4, c: 7 } },
+    { s: { r: 3, c: 8 }, e: { r: 3, c: 9 } },
+    { s: { r: 3, c: 10 }, e: { r: 4, c: 10 } },
+    { s: { r: 3, c: 11 }, e: { r: 3, c: 15 } },
+    { s: { r: 3, c: 16 }, e: { r: 4, c: 16 } },
+    { s: { r: 3, c: 17 }, e: { r: 3, c: 21 } },
+    { s: { r: 3, c: 22 }, e: { r: 4, c: 22 } },
+  ];
+
   dataToExport.forEach((item: any) => {
+    // 1. Masukkan Baris Utama SPK
     wsData.push([
       { v: item.perush || "", s: styleDataCell },
       {
@@ -1116,8 +1148,160 @@ const exportToExcel = (dataToExport: any[]) => {
         s: { ...styleDataCell, alignment: { horizontal: "right" } },
       },
     ]);
+
+    // 2. Jika ada detail sizes & komponen, buat sub-header tabel rincian seperti di UI
+    if (item.sizes && item.sizes.length > 0) {
+      // Baris judul sub-tabel detail
+      const titleSubIdx = wsData.length;
+      wsData.push([
+        {
+          v: `DETAIL UKURAN & KOMPONEN: ${item.noSpk}`,
+          s: {
+            fill: { fgColor: { rgb: "E0F2FE" } },
+            font: { bold: true, sz: 9, color: { rgb: "0369A1" } },
+            border: borderThin,
+          },
+        },
+        ...Array(22).fill({
+          v: "",
+          s: { fill: { fgColor: { rgb: "E0F2FE" } }, border: borderThin },
+        }),
+      ]);
+      merges.push({
+        s: { r: titleSubIdx, c: 0 },
+        e: { r: titleSubIdx, c: 22 },
+      });
+
+      // Baris Header kolom Detail (Ukuran (Size) | Qty Order Size | Kode Komponen | Nama Komponen | Qty Cetak | Kurang Cetak)
+      const headSubIdx = wsData.length;
+      wsData.push([
+        { v: "Ukuran (Size)", s: styleDetailHeader },
+        { v: "Qty Order Size", s: styleDetailHeader },
+        { v: "Kode Komponen", s: styleDetailHeader },
+        { v: "Nama Komponen", s: styleDetailHeader },
+        ...Array(15).fill({ v: "", s: styleDetailHeader }), // Kolom kosong perantara
+        { v: "Qty Cetak", s: styleDetailHeader },
+        { v: "Kurang Cetak", s: styleDetailHeader },
+        ...Array(2).fill({ v: "", s: styleDetailHeader }),
+      ]);
+      // Mengatur merge header sub-tabel agar sesuai dengan layout UI
+      merges.push(
+        { s: { r: headSubIdx, c: 0 }, e: { r: headSubIdx, c: 1 } }, // Ukuran (Size)
+        { s: { r: headSubIdx, c: 2 }, e: { r: headSubIdx, c: 3 } }, // Qty Order Size
+        { s: { r: headSubIdx, c: 4 }, e: { r: headSubIdx, c: 8 } }, // Kode Komponen
+        { s: { r: headSubIdx, c: 9 }, e: { r: headSubIdx, c: 17 } }, // Nama Komponen
+        { s: { r: headSubIdx, c: 18 }, e: { r: headSubIdx, c: 19 } }, // Qty Cetak
+        { s: { r: headSubIdx, c: 20 }, e: { r: headSubIdx, c: 22 } }, // Kurang Cetak
+      );
+
+      // Looping data size dan komponen
+      item.sizes.forEach((sz: any) => {
+        if (sz.komponen && sz.komponen.length > 0) {
+          const startSizeRowIdx = wsData.length;
+          sz.komponen.forEach((comp: any) => {
+            const compRowIdx = wsData.length;
+            wsData.push([
+              {
+                v: sz.size_name || "",
+                s: {
+                  ...styleDetailCell,
+                  alignment: { horizontal: "center", vertical: "center" },
+                },
+              },
+              "",
+              {
+                v: num(sz.size_qty),
+                t: "n",
+                z: "#,##0",
+                s: {
+                  ...styleDetailCell,
+                  alignment: { horizontal: "right", vertical: "center" },
+                },
+              },
+              "",
+              {
+                v: comp.komponen_code || "",
+                s: {
+                  ...styleDetailCell,
+                  alignment: { horizontal: "left", vertical: "center" },
+                },
+              },
+              ...Array(4).fill({ v: "", s: styleDetailCell }),
+              {
+                v: comp.komponen_name || "",
+                s: {
+                  ...styleDetailCell,
+                  alignment: { horizontal: "left", vertical: "center" },
+                },
+              },
+              ...Array(8).fill({ v: "", s: styleDetailCell }),
+              {
+                v: num(comp.qty_cetak),
+                t: "n",
+                z: "#,##0",
+                s: {
+                  ...styleDetailCell,
+                  alignment: { horizontal: "right", vertical: "center" },
+                },
+              },
+              "",
+              {
+                v: num(comp.size_krg_cetak),
+                t: "n",
+                z: "#,##0",
+                s: {
+                  ...styleDetailCell,
+                  alignment: {
+                    horizontal: "right",
+                    vertical: "center",
+                    font: { bold: true, color: { rgb: "B91C1C" }, sz: 9 },
+                  },
+                },
+              },
+              ...Array(2).fill({ v: "", s: styleDetailCell }),
+            ]);
+
+            // Merge kolom horizontal per baris komponen
+            merges.push(
+              { s: { r: compRowIdx, c: 4 }, e: { r: compRowIdx, c: 8 } }, // Kode Komponen
+              { s: { r: compRowIdx, c: 9 }, e: { r: compRowIdx, c: 17 } }, // Nama Komponen
+              { s: { r: compRowIdx, c: 18 }, e: { r: compRowIdx, c: 19 } }, // Qty Cetak
+              { s: { r: compRowIdx, c: 20 }, e: { r: compRowIdx, c: 22 } }, // Kurang Cetak
+            );
+          });
+
+          // Jika komponen lebih dari 1, gabungkan (rowspan) kolom Ukuran dan Qty Size di sisi kiri layaknya tampilan UI frontend
+          const endSizeRowIdx = wsData.length - 1;
+          if (endSizeRowIdx > startSizeRowIdx) {
+            merges.push(
+              {
+                s: { r: startSizeRowIdx, c: 0 },
+                e: { r: endSizeRowIdx, c: 1 },
+              }, // Ukuran Size
+              {
+                s: { r: startSizeRowIdx, c: 2 },
+                e: { r: endSizeRowIdx, c: 3 },
+              }, // Qty Order Size
+            );
+          } else {
+            merges.push(
+              {
+                s: { r: startSizeRowIdx, c: 0 },
+                e: { r: startSizeRowIdx, c: 1 },
+              },
+              {
+                s: { r: startSizeRowIdx, c: 2 },
+                e: { r: startSizeRowIdx, c: 3 },
+              },
+            );
+          }
+        }
+      });
+    }
   });
 
+  // 3. Baris Footer Total
+  const footerRowIdx = wsData.length;
   const footerRow = [
     {
       v: "TOTAL (FILTERED)",
@@ -1212,25 +1396,10 @@ const exportToExcel = (dataToExport: any[]) => {
   ];
 
   wsData.push(footerRow);
+  merges.push({ s: { r: footerRowIdx, c: 0 }, e: { r: footerRowIdx, c: 7 } });
 
   const ws = XLSX.utils.aoa_to_sheet(wsData);
-
-  ws["!merges"] = [
-    { s: { r: 3, c: 0 }, e: { r: 4, c: 0 } },
-    { s: { r: 3, c: 1 }, e: { r: 4, c: 1 } },
-    { s: { r: 3, c: 2 }, e: { r: 4, c: 2 } },
-    { s: { r: 3, c: 3 }, e: { r: 4, c: 3 } },
-    { s: { r: 3, c: 4 }, e: { r: 4, c: 4 } },
-    { s: { r: 3, c: 5 }, e: { r: 3, c: 6 } },
-    { s: { r: 3, c: 7 }, e: { r: 4, c: 7 } },
-    { s: { r: 3, c: 8 }, e: { r: 3, c: 9 } },
-    { s: { r: 3, c: 10 }, e: { r: 4, c: 10 } },
-    { s: { r: 3, c: 11 }, e: { r: 3, c: 15 } },
-    { s: { r: 3, c: 16 }, e: { r: 4, c: 16 } },
-    { s: { r: 3, c: 17 }, e: { r: 3, c: 21 } },
-    { s: { r: 3, c: 22 }, e: { r: 4, c: 22 } },
-    { s: { r: wsData.length - 1, c: 0 }, e: { r: wsData.length - 1, c: 7 } },
-  ];
+  ws["!merges"] = merges;
 
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Paperprint_Monitoring");

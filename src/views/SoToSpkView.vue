@@ -110,17 +110,31 @@ const closeAlasan = ref<string>("");
 const isProcessingClose = ref<boolean>(false);
 
 // --- Helper custom sort kronologis untuk Vuetify 3 ---
+// --- Helper custom sort kronologis untuk Tanggal format DD/MM/YYYY ---
 const dateSortHelper = (valA: any, valB: any) => {
   const parseToNum = (val: any) => {
     if (!val || val === "-") return 0;
     const strVal = String(val).trim();
+
+    // Jika format sudah DD/MM/YYYY (hasil toIndoDate)
     const parts = strVal.split("/");
     if (parts.length === 3) {
       const day = parseInt(parts[0], 10) || 0;
       const month = parseInt(parts[1], 10) || 0;
       const year = parseInt(parts[2], 10) || 0;
+      // Menghasilkan angka integer misal: 20260925 (Tahun * 10000 + Bulan * 100 + Hari)
       return year * 10000 + month * 100 + day;
     }
+
+    // Fallback jika masih format YYYY-MM-DD
+    const partsDash = strVal.substring(0, 10).split("-");
+    if (partsDash.length === 3) {
+      const year = parseInt(partsDash[0], 10) || 0;
+      const month = parseInt(partsDash[1], 10) || 0;
+      const day = parseInt(partsDash[2], 10) || 0;
+      return year * 10000 + month * 100 + day;
+    }
+
     return 0;
   };
 
@@ -146,14 +160,12 @@ const masterHeaders = [
     key: "Tanggal",
     minWidth: "110px",
     width: "110px",
-    customSort: dateSortHelper,
   },
   {
     title: "Dateline",
     key: "Dateline",
     minWidth: "110px",
     width: "110px",
-    customSort: dateSortHelper,
   },
   { title: "Kepentingan", key: "Kepentingan", width: "120px" },
   { title: "Divisi", key: "Divisi", width: "90px" },
@@ -229,14 +241,35 @@ const detailHeaders = [
   { title: "Sisa Kurang", key: "Kurang", minWidth: "120px", align: "end" },
 ];
 
-// --- Helpers ---
-const formatDateDisplay = (dateStr: string | null | undefined) => {
-  if (!dateStr) return "-";
-  const d = parseISO(dateStr);
-  return isValid(d) ? format(d, "dd/MM/yyyy") : "-";
-};
+// Helper ubah format tanggal mentah ke dd/mm/yyyy
+const toIndoDate = (val: string | null | undefined): string => {
+  if (!val || val === "-" || val === "null" || val.startsWith("0000-00-00"))
+    return "-";
+  const str = String(val).trim();
 
-// --- Parse tanggal ke objek Date Excel ---
+  // Jika sudah format dd/mm/yyyy
+  if (/^\d{2}[\/\-]\d{2}[\/\-]\d{4}/.test(str)) {
+    return str.substring(0, 10).replace(/-/g, "/");
+  }
+
+  // Tangkap pola yyyy-mm-dd atau yyyy-mm-dd HH:mm:ss
+  const matchYmd = str.match(/^(\d{4})[\/\-](\d{2})[\/\-](\d{2})/);
+  if (matchYmd) {
+    const [, year, month, day] = matchYmd;
+    return `${day}/${month}/${year}`;
+  }
+
+  const d = new Date(str);
+  if (!isNaN(d.getTime())) {
+    const day = String(d.getDate()).padStart(2, "0");
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    const year = d.getFullYear();
+    return `${day}/${month}/${year}`;
+  }
+
+  return str;
+};
+// --- Update helper parseToExcelDate agar handal membaca format DD/MM/YYYY atau YYYY-MM-DD ---
 const parseToExcelDate = (dateValue?: string | Date | null): Date | null => {
   if (!dateValue || dateValue === "-") return null;
 
@@ -259,23 +292,14 @@ const parseToExcelDate = (dateValue?: string | Date | null): Date | null => {
       );
     }
 
-    // Tangkap format MySQL DATETIME / YYYY-MM-DD
-    const mysqlMatch = value.match(/^(\d{4})-(\d{2})-(\d{2})/);
-    if (mysqlMatch) {
-      const [, year, month, day] = mysqlMatch;
+    // Tangkap format YYYY-MM-DD
+    const ymdMatch = value.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (ymdMatch) {
+      const [, year, month, day] = ymdMatch;
       return new Date(
         parseInt(year, 10),
         parseInt(month, 10) - 1,
         parseInt(day, 10),
-      );
-    }
-
-    const isoDate = new Date(value);
-    if (!Number.isNaN(isoDate.getTime())) {
-      return new Date(
-        isoDate.getFullYear(),
-        isoDate.getMonth(),
-        isoDate.getDate(),
       );
     }
 
@@ -284,6 +308,17 @@ const parseToExcelDate = (dateValue?: string | Date | null): Date | null => {
     console.error("Gagal parse tanggal ke Date:", error);
     return null;
   }
+};
+
+// Pastikan fungsi display menggunakan format dd/MM/yyyy
+const formatDateDisplay = (dateStr: string | null | undefined) => {
+  if (!dateStr) return "-";
+  // Jika string dari backend sudah berformat YYYY-MM-DD atau ISO
+  const parsedDate = parseISO(dateStr);
+  if (isValid(parsedDate)) {
+    return format(parsedDate, "dd/MM/yyyy");
+  }
+  return dateStr;
 };
 
 const getStatusColor = (item: SpkHeader) => {
@@ -793,7 +828,6 @@ const fetchData = async () => {
 
     const result = res.data?.data ?? res.data;
 
-    // --- Di dalam fungsi fetchData() ---
     if (Array.isArray(result)) {
       const uniqueMap = new Map();
 
@@ -801,19 +835,19 @@ const fetchData = async () => {
         const soVal = String(item.SO || "").trim();
         const nomorVal = String(item.Nomor || item.SPK || "").trim();
 
-        // Lewati hanya jika keduanya benar-benar kosong
         if (!soVal && !nomorVal) return;
 
         const uniqueKey = soVal || nomorVal;
 
         if (!uniqueMap.has(uniqueKey)) {
           const spkVal = item.Nomor || item.SPK || "-";
-          uniqueMap.get(uniqueKey); // ... abaikan, gunakan logika di bawah setelah map terkumpul
 
           uniqueMap.set(uniqueKey, {
             ...item,
             SPK: spkVal,
             Nomor: spkVal,
+
+            // BIARKAN FORMAT ASLI DARI BACKEND (YYYY-MM-DD) UNTUK KEPERLUAN SORTING
             Tanggal: item.Tanggal || item.tanggal || item.Tgl || "",
             Dateline: item.Dateline || item.dateline || "",
             Deadline: item.Deadline || item.deadline || item.Dateline || "",
@@ -822,7 +856,6 @@ const fetchData = async () => {
         }
       });
 
-      // Ubah ke array, lalu urutkan: Belum ada SPK (di atas), Sudah ada SPK (di bawah)
       const processedItems = Array.from(uniqueMap.values()).sort((a, b) => {
         const spkA = String(a.SPK || a.Nomor || "").trim();
         const spkB = String(b.SPK || b.Nomor || "").trim();
@@ -830,12 +863,8 @@ const fetchData = async () => {
         const isAEmpty = !spkA || spkA === "-";
         const isBEmpty = !spkB || spkB === "-";
 
-        // Jika A belum ada SPK dan B sudah, A diprioritaskan di atas (-1)
         if (isAEmpty && !isBEmpty) return -1;
-        // Jika B belum ada SPK dan A sudah, B diprioritaskan di atas (1)
         if (!isAEmpty && isBEmpty) return 1;
-
-        // Jika status ketersediaan SPK sama, biarkan urutan aslinya atau urutkan berdasarkan tanggal
         return 0;
       });
 
@@ -1226,10 +1255,10 @@ watch([startDate, endDate], ([newStart, newEnd]) => {
       {{ value || item.Cabang || "-" }}
     </template>
 
+    <!-- Di template SPK -->
     <template #item.Tanggal="{ item }">
       {{ formatDateDisplay(item.Tanggal) }}
     </template>
-
     <template #item.Dateline="{ item }">
       {{ formatDateDisplay(item.Dateline) }}
     </template>

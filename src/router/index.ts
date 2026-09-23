@@ -130,6 +130,7 @@ import FormBastMmtView from "@/views/FormBastMmtView.vue";
 import LapKirimanView from "@/views/LapKirimanView.vue";
 import SuratJalanMapView from "@/views/SuratJalanMapView.vue";
 import UserManagementView from "@/views/UserManagementView.vue";
+import RelationshipMapView from "@/views/RelationshipMapView.vue";
 
 const routes: RouteRecordRaw[] = [
   {
@@ -712,6 +713,11 @@ const routes: RouteRecordRaw[] = [
         name: "BastMmtNew",
         component: FormBastMmtView,
       },
+      // {
+      //   path: "mmt/relationship-map",
+      //   name: "RelationshipMapView",
+      //   component: RelationshipMapView,
+      // },
       {
         path: "mmt/search-barcode",
         name: "SearchBarcodeBrowse",

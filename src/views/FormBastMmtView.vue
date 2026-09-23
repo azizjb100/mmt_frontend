@@ -130,7 +130,14 @@ const initialData: {
     mmpt_rencana_size: "",
     mmpt_keterangan: "",
   },
-  checklist: [],
+  // Checklist disesuaikan jadi 5 item
+  checklist: [
+    { no: 1, kesesuaian: "Bahan", status: "Y", keterangan: "-" },
+    { no: 2, kesesuaian: "Desain", status: "Y", keterangan: "-" },
+    { no: 3, kesesuaian: "Model Finishing", status: "Y", keterangan: "-" },
+    { no: 4, kesesuaian: "Ukuran", status: "Y", keterangan: "-" },
+    { no: 5, kesesuaian: "Babaran", status: "Y", keterangan: "-" },
+  ],
   komponen: [],
   aksesoris: [],
   obat: [],
@@ -186,6 +193,16 @@ const {
       }));
     }
 
+    if (!res.checklist || res.checklist.length === 0) {
+      res.checklist = [
+        { no: 1, kesesuaian: "Bahan", status: "Y", keterangan: "-" },
+        { no: 2, kesesuaian: "Desain", status: "Y", keterangan: "-" },
+        { no: 3, kesesuaian: "Model Finishing", status: "Y", keterangan: "-" },
+        { no: 4, kesesuaian: "Ukuran", status: "Y", keterangan: "-" },
+        { no: 5, kesesuaian: "Babaran", status: "Y", keterangan: "-" },
+      ];
+    }
+
     if (res.lock) {
       res.isLocked = true;
       res.isApproved = res.lock.apv === "Y";
@@ -215,12 +232,13 @@ watch(
   () => formData.value.komponen,
   () => {
     if (isSyncingBabaran.value) return;
-    const check8 = formData.value.checklist.find(
-      (c: any) => Number(c.no) === 8,
+    // Babaran sekarang adalah no: 5
+    const check5 = formData.value.checklist.find(
+      (c: any) => Number(c.no) === 5,
     );
-    if (!check8) return;
+    if (!check5) return;
     isSyncingBabaran.value = true;
-    check8.keterangan = buildKeteranganFromKomponen();
+    check5.keterangan = buildKeteranganFromKomponen();
     nextTick(() => {
       isSyncingBabaran.value = false;
     });
@@ -228,12 +246,12 @@ watch(
   { deep: true },
 );
 
-const onKeterangan8Blur = () => {
+const onKeterangan5Blur = () => {
   if (isSyncingBabaran.value) return;
-  const check8 = formData.value.checklist.find((c: any) => Number(c.no) === 8);
-  if (!check8 || !check8.keterangan || check8.keterangan === "-") return;
+  const check5 = formData.value.checklist.find((c: any) => Number(c.no) === 5);
+  if (!check5 || !check5.keterangan || check5.keterangan === "-") return;
 
-  const parts = check8.keterangan
+  const parts = check5.keterangan
     .split(",")
     .map((s: string) => s.trim())
     .filter(Boolean);
@@ -297,7 +315,6 @@ const onKomponenChange = async (k: any) => {
   await ensureSizeRowsForKomponen(komponenStr);
 };
 
-// Mengambil data langsung dari objek spk yang dipilih di SpkLookupView
 const handleSpkSelect = async (spk: any) => {
   isSpkLookupVisible.value = false;
   if (!spk) return;
@@ -306,13 +323,12 @@ const handleSpkSelect = async (spk: any) => {
     formData.value.header = {} as any;
   }
 
-  // Pemetaan data termasuk Nama2 (mmpt_nama2)
   formData.value.header.mmpt_nomor = spk.SPK || spk.Nomor || "";
   formData.value.header.mmpt_tanggal = formatDateLocal(
     spk.Tanggal || new Date(),
   );
   formData.value.header.mmpt_nama = spk.Nama || "";
-  formData.value.header.mmpt_nama2 = spk.Nama2 || ""; // [DITAMBAHKAN]
+  formData.value.header.mmpt_nama2 = spk.Nama2 || "";
   formData.value.header.mmpt_ukuran = spk.Ukuran || "";
   formData.value.header.mmpt_kain = spk.Bahan || "";
   formData.value.header.mmpt_finishing = spk.Finishing || "";
@@ -322,47 +338,14 @@ const handleSpkSelect = async (spk: any) => {
   formData.value.header.mmpt_rencana_size = spk.Ukuran || "";
   formData.value.header.mmpt_keterangan = spk.Pesan || "";
 
-  // Inisialisasi checklist kesesuaian
+  // Set ulang checklist menjadi 5 item
   if (!formData.value.checklist || formData.value.checklist.length === 0) {
     formData.value.checklist = [
-      {
-        no: 1,
-        kesesuaian: "Jenis & Ukuran Bahan",
-        status: "Y",
-        keterangan: "-",
-      },
-      {
-        no: 2,
-        kesesuaian: "Gramasi/Tebal Bahan",
-        status: "Y",
-        keterangan: spk.Gramasi || "-",
-      },
-      {
-        no: 3,
-        kesesuaian: "Finishing",
-        status: "Y",
-        keterangan: spk.Finishing || "-",
-      },
-      {
-        no: 4,
-        kesesuaian: "Jumlah Cetak",
-        status: "Y",
-        keterangan: String(spk.Jumlah || 0),
-      },
-      {
-        no: 5,
-        kesesuaian: "Kualitas Warna/Cetak",
-        status: "Y",
-        keterangan: "-",
-      },
-      {
-        no: 6,
-        kesesuaian: "Ketepatan Cutting/Potong",
-        status: "Y",
-        keterangan: "-",
-      },
-      { no: 7, kesesuaian: "Packing & Label", status: "Y", keterangan: "-" },
-      { no: 8, kesesuaian: "Babaran", status: "Y", keterangan: "-" },
+      { no: 1, kesesuaian: "Bahan", status: "Y", keterangan: "-" },
+      { no: 2, kesesuaian: "Desain", status: "Y", keterangan: "-" },
+      { no: 3, kesesuaian: "Model Finishing", status: "Y", keterangan: "-" },
+      { no: 4, kesesuaian: "Ukuran", status: "Y", keterangan: "-" },
+      { no: 5, kesesuaian: "Babaran", status: "Y", keterangan: "-" },
     ];
   }
 
@@ -490,9 +473,9 @@ const validateBeforeSave = () => {
     return false;
   }
 
-  const check8 = data.checklist.find((c: any) => Number(c.no) === 8);
-  if (check8 && keteranganBabaran) {
-    check8.keterangan = keteranganBabaran.slice(0, -2);
+  const check5 = data.checklist.find((c: any) => Number(c.no) === 5);
+  if (check5 && keteranganBabaran) {
+    check5.keterangan = keteranganBabaran.slice(0, -2);
   }
 
   if (isLocked) {
@@ -895,7 +878,7 @@ onMounted(() => {
                       class="cell-inp"
                       @focus="onKeteranganFocus(c)"
                       @blur="
-                        Number(c.no) === 8 ? onKeterangan8Blur() : undefined
+                        Number(c.no) === 5 ? onKeterangan5Blur() : undefined
                       "
                     />
                   </td>

@@ -391,6 +391,7 @@ const getCellValue = (item: any, key: string): string => {
   if (!item) return "-";
   let val = item[key];
 
+  // Tambahkan pengecekan ini agar pop-up filter ikut terformat DD/MM/YYYY
   if (
     [
       "Tanggal",
@@ -402,9 +403,11 @@ const getCellValue = (item: any, key: string): string => {
   ) {
     return val ? formatTanggal(val) || "-" : "-";
   }
+
   if (key === "Created") {
     return val ? formatTanggalJam(val) || "-" : "-";
   }
+
   if (
     [
       "Panjang",

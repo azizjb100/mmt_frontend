@@ -117,6 +117,18 @@
               >
                 Lookup PO Internal
               </v-btn>
+
+              <!-- 🌟 TOMBOL BARU LOOKUP PAPERPRINT -->
+              <v-btn
+                color="purple-darken-3"
+                size="small"
+                prepend-icon="mdi-printer"
+                style="height: 30px !important; text-transform: none"
+                @click="openPaperprintSearch"
+              >
+                Lookup LHK Paperprint
+              </v-btn>
+
               <v-btn
                 color="success"
                 size="small"
@@ -335,6 +347,14 @@
     @close="lookup.spk = false"
     @select="handleSpkSelect"
   />
+
+  <!-- 🌟 MODAL LOOKUP PAPERPRINT -->
+  <PaperprintLookupModal
+    :is-visible="lookup.paperprint"
+    @close="lookup.paperprint = false"
+    @select="handlePaperprintSelect"
+  />
+
   <GudangLookupModal
     :is-visible="lookup.gudang"
     @close="lookup.gudang = false"
@@ -363,6 +383,10 @@ import SpkLookupModal from "@/modal/SpkSublimLookupModal.vue";
 import GudangLookupModal from "@/modal/GudangLookupView.vue";
 import MesinLookupModal from "@/modal/MesinLookupModal.vue";
 
+// 🌟 Import Modal Lookup Paperprint
+// (Sesuaikan path-nya jika nama file/folder berbeda)
+import PaperprintLookupModal from "@/modal/LhkPaperprintLookupModal.vue";
+
 const route = useRoute();
 const router = useRouter();
 const toast = useToast();
@@ -373,6 +397,7 @@ const detailData = ref<any[]>([]);
 const lookup = reactive({
   poi: false,
   spk: false,
+  paperprint: false, // 🌟 Tambahkan State Paperprint
   gudang: false,
   mesin: false,
 });
@@ -521,6 +546,65 @@ const calculateSublimMeter = (item: any) => {
       `Peringatan: Hasil kerja SPK ${item.spk_nomor} (${qtyRtr} pcs) melebihi target order (${item.qty_order} pcs)!`,
     );
   }
+};
+
+// 🌟 FUNGSI HANDLE UNTUK PAPERPRINT
+const handlePaperprintSelect = (payload: any) => {
+  if (!payload) return;
+
+  // Tangkap data array dari objek payload (berdasarkan mapping emit di komponen Lookup)
+  const items: any[] = Array.isArray(payload?.data) ? payload.data : [];
+
+  items.forEach((item: any, index: number) => {
+    if (!item) return;
+
+    // Memetakan nilai properti dari Paperprint ke Format Form Sublim
+    const qtyPaperprint = parseFloat(item.jumlah_sublim || item.Jumlah || 0);
+    const panjang = ensureMeter(
+      parseFloat(item.Panjang || item.spk_panjang) || 0,
+    );
+    const lebar = ensureMeter(parseFloat(item.Lebar || item.spk_lebar) || 0);
+
+    const mappedData = {
+      poi_nomor: item.poi_nomor || item.Poi_Nomor || "",
+      poi_size: item.poid_size || item.Size || item.Poi_Size || "",
+      spk_nomor: item.spk_nomor || item.SPK || item.Nomor_SPK || "",
+      spk_nama: item.spk_nama || item.Nama || item.Nama_SPK || "",
+      nama_komponen: item.nama_komponen || item.Nama_Komponen || "ALL SET",
+      panjang: panjang,
+      lebar: lebar,
+
+      // Target Qty Sublim diambil dari Qty Paperprint
+      qty_order: qtyPaperprint,
+
+      // Default: Asumsikan jumlah yang berhasil di-sublim sama dengan target
+      // (Operator bisa menyesuaikan manual jika ada BS)
+      jumlah_rtr: qtyPaperprint,
+      jumlah_bs: 0,
+
+      barang_id: item.Barang_ID || "",
+      jenis_bahan: item.Nama_Bahan || item.jenis_bahan || "",
+      no_realisasi: item.Nomor_Realisasi || item.no_realisasi || "",
+      bahan_awal: parseFloat(item.Bahan_Awal || 0),
+      lokasi: "",
+      jumlah_meter: 0,
+      keterangan: item.lhk_asal ? `(Dari LHK: ${item.lhk_asal})` : "",
+    };
+
+    if (activeRowIdx.value !== -1 && index === 0) {
+      detailData.value[activeRowIdx.value] = {
+        ...detailData.value[activeRowIdx.value],
+        ...mappedData,
+      };
+      calculateSublimMeter(detailData.value[activeRowIdx.value]);
+    } else {
+      detailData.value.push(mappedData);
+      calculateSublimMeter(detailData.value[detailData.value.length - 1]);
+    }
+  });
+
+  activeRowIdx.value = -1;
+  lookup.paperprint = false;
 };
 
 const handleSpkSelect = (payload: any) => {
@@ -704,6 +788,12 @@ const handleMesinSelect = (m: any) => {
     detailData.value[activeRowIdx.value].lokasi = m.Kode || m.kode_mesin;
   }
   lookup.mesin = false;
+};
+
+// 🌟 FUNGSI OPEN LOOKUP PAPERPRINT
+const openPaperprintSearch = () => {
+  activeRowIdx.value = -1;
+  lookup.paperprint = true;
 };
 
 const openPoiSearch = () => {
