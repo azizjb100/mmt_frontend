@@ -3,33 +3,25 @@
  * Terima string "YYYY-MM-DD" atau "YYYY-MM-DD HH:mm:ss" (ambil 10
  * karakter pertama). Return "-" kalau kosong/null.
  */
-export const formatTanggal = (v: string | null | undefined): string => {
-  if (!v) return "-";
+export const formatTanggal = (
+  dateString: string | null | undefined,
+): string => {
+  if (!dateString) return "-";
 
-  const s = String(v);
+  // Ambil bagian tanggalnya saja (YYYY-MM-DD) sebelum terpengaruh timezone local
+  const datePart = String(dateString).split("T")[0];
+  const parts = datePart.split("-");
 
-  // sudah dd-MM-yyyy
-  if (/^\d{2}-\d{2}-\d{4}$/.test(s)) {
-    return s.replace(/-/g, "/");
+  if (parts.length === 3) {
+    const year = parts[0];
+    const month = parts[1];
+    const day = parts[2];
+
+    // Format langsung ke DD/MM/YYYY tanpa objek Date() agar aman dari pergeseran timezone
+    return `${day}/${month}/${year}`;
   }
 
-  // yyyy-MM-dd
-  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
-    const [y, m, d] = s.split("-");
-    return `${d}/${m}/${y}`;
-  }
-
-  // ISO
-  if (s.includes("T")) {
-    const d = new Date(s);
-    if (!isNaN(d.getTime())) {
-      return `${String(d.getDate()).padStart(2, "0")}/${String(
-        d.getMonth() + 1,
-      ).padStart(2, "0")}/${d.getFullYear()}`;
-    }
-  }
-
-  return s;
+  return "-";
 };
 /**
  * Sama seperti formatTanggal, tapi ikut nampilin jam:menit kalau ada
