@@ -20,8 +20,7 @@
         </button>
 
         <router-link to="/" class="navbar-brand" @click="closeAllMenus">
-          <img :src="logoSrc" alt="Logo" class="brand-logo" v-if="logoSrc" />
-          <span class="font-heading">MMT App</span>
+          <img src="@/assets/logo.png" alt="Logo" class="brand-logo" />
         </router-link>
       </div>
 
@@ -29,8 +28,15 @@
       <ul class="navbar-menu" :class="{ 'is-mobile-open': isMobileMenuOpen }">
         <!-- HEADER PROFILE UNTUK MOBILE -->
         <li class="mobile-profile-header">
-          <div class="mobile-avatar-circle" :class="userRoleConfig.color">
-            <component :is="userRoleConfig.icon" class="mobile-avatar-icon" />
+          <div
+            class="mobile-avatar-circle"
+            :style="{ backgroundColor: userRoleConfig.color }"
+          >
+            <component
+              :is="userRoleConfig.icon"
+              class="mobile-avatar-icon"
+              color="white"
+            />
           </div>
           <div class="mobile-profile-info">
             <h3>{{ currentUser?.nmUser || "ADMINISTRATOR" }}</h3>
@@ -64,15 +70,10 @@
                   'item-disabled': item.isDisabled,
                   'is-sub-active': activeSubMenu === item.name,
                 }"
-                @mouseleave="
-                  activeSubMenu = null;
-                  activeSubLevel4 = null;
-                "
               >
                 <a
                   v-if="!item.isDisabled"
                   class="sub-dropdown-toggle"
-                  @mouseenter="activeSubMenu = item.name"
                   @click.prevent.stop="toggleSubMenu(item.name)"
                 >
                   <span class="menu-title-wrapper">
@@ -82,11 +83,11 @@
                     />
                     {{ item.name }}
                   </span>
-                  <span
+                  <component
+                    :is="IconChevronDown"
                     class="icon-arrow"
                     :class="{ rotate: activeSubMenu === item.name }"
-                    >»</span
-                  >
+                  />
                 </a>
 
                 <span v-else class="disabled-link">
@@ -115,7 +116,6 @@
                       <a
                         v-if="!subItem.isDisabled"
                         class="sub-dropdown-toggle level-4-toggle"
-                        @mouseenter="activeSubLevel4 = subItem.name"
                         @click.prevent.stop="
                           activeSubLevel4 =
                             activeSubLevel4 === subItem.name
@@ -130,11 +130,13 @@
                           />
                           {{ subItem.name }}
                         </span>
-                        <span
+                        <component
+                          :is="IconChevronDown"
                           class="icon-arrow"
-                          :class="{ rotate: activeSubLevel4 === subItem.name }"
-                          >»</span
-                        >
+                          :class="{
+                            rotate: activeSubLevel4 === subItem.name,
+                          }"
+                        />
                       </a>
 
                       <span v-else class="disabled-link">
@@ -264,22 +266,79 @@
         </li>
       </ul>
 
-      <!-- USER INFO DESKTOP -->
+      <!-- USER MENU DESKTOP (Gaya Referensi) -->
       <div class="navbar-user hide-mobile">
-        <div class="user-profile-badge" :class="userRoleConfig.color">
-          <component :is="userRoleConfig.icon" class="role-icon" />
-          <span class="user-welcome">
-            Selamat datang,
-            <b class="font-semibold">{{
-              currentUser?.nmUser || "UserAdmin"
-            }}</b>
-          </span>
-        </div>
+        <v-menu location="bottom end" transition="fade-transition">
+          <template #activator="{ props }">
+            <button v-bind="props" class="user-btn">
+              <v-avatar :color="userRoleConfig.color" size="27" class="user-avatar">
+                <component
+                  :is="userRoleConfig.icon"
+                  :size="15"
+                  :stroke-width="1.6"
+                  color="white"
+                />
+              </v-avatar>
+              <span class="user-name">{{
+                currentUser?.nmUser || "UserAdmin"
+              }}</span>
+              <IconChevronDown
+                :size="12"
+                :stroke-width="2.2"
+                class="user-chev"
+              />
+            </button>
+          </template>
 
-        <button @click="handleLogout" class="logout-button">
-          <component :is="IconLogout" class="logout-icon" />
-          <span>Logout</span>
-        </button>
+          <v-card class="user-dropdown" elevation="6">
+            <v-list class="user-list">
+              <div class="user-profile">
+                <v-avatar
+                  :color="userRoleConfig.color"
+                  size="32"
+                  class="user-avatar up-avatar"
+                >
+                  <component
+                    :is="userRoleConfig.icon"
+                    :size="17"
+                    :stroke-width="1.5"
+                    color="white"
+                  />
+                </v-avatar>
+                <div>
+                  <div class="up-name">
+                    {{ currentUser?.nmUser || "UserAdmin" }}
+                  </div>
+                  <div class="up-sub">
+                    {{
+                      [currentUser?.cab, currentUser?.bagian || "STAFF"]
+                        .filter(Boolean)
+                        .join(" · ")
+                    }}
+                  </div>
+                </div>
+              </div>
+              <v-divider class="ud-divider" />
+              <v-list-item to="/file/ganti-password" class="ud-item">
+                <template #prepend>
+                  <IconLock :size="15" :stroke-width="1.5" class="ud-ic" />
+                </template>
+                <v-list-item-title class="nav-item-title"
+                  >Ganti Password</v-list-item-title
+                >
+              </v-list-item>
+              <v-divider class="ud-divider" />
+              <v-list-item class="ud-item ud-logout" @click="handleLogout">
+                <template #prepend>
+                  <IconLogout :size="15" :stroke-width="1.5" class="ud-ic" />
+                </template>
+                <v-list-item-title class="nav-item-title"
+                  >Logout</v-list-item-title
+                >
+              </v-list-item>
+            </v-list>
+          </v-card>
+        </v-menu>
       </div>
     </nav>
 
@@ -316,7 +375,7 @@
       </div>
     </div>
 
-    <div class="main-content-top">
+    <div class="main-content-top" ref="mainContentRef">
       <main class="content-area">
         <router-view />
       </main>
@@ -361,17 +420,18 @@ const tabStore = useTabStore();
 const currentUser = authStore.user;
 const router = useRouter();
 const route = useRoute();
-const logoSrc = ref("");
 
 const isMobileMenuOpen = ref(false);
 const activeMenu = ref<string | null>(null);
 const activeSubMenu = ref<string | null>(null);
 const activeSubLevel4 = ref<string | null>(null);
 const scrolled = ref(false);
+const mainContentRef = ref<HTMLElement | null>(null);
 
 const isScrolled = computed(() => scrolled.value);
 const handleScroll = () => {
-  scrolled.value = window.scrollY > 10;
+  const el = mainContentRef.value;
+  scrolled.value = (el ? el.scrollTop : window.scrollY) > 10;
 };
 
 const handleLogout = () => {
@@ -434,10 +494,12 @@ const handleClickOutside = (e: MouseEvent) => {
 onMounted(() => {
   window.addEventListener("scroll", handleScroll);
   window.addEventListener("click", handleClickOutside);
+  mainContentRef.value?.addEventListener("scroll", handleScroll);
 });
 onUnmounted(() => {
   window.removeEventListener("scroll", handleScroll);
   window.removeEventListener("click", handleClickOutside);
+  mainContentRef.value?.removeEventListener("scroll", handleScroll);
 });
 
 const getGroupIcon = (name: string) => {
@@ -479,12 +541,12 @@ const userRoleConfig = computed(() => {
   const name = currentUser?.nmUser?.toUpperCase() || "";
   const bagian = currentUser?.bagian?.toUpperCase() || "";
   if (name.includes("ADMIN") || name === "DEVELOPER")
-    return { icon: IconShield, color: "role-admin" };
+    return { icon: IconShield, color: "#c62828" }; // red-darken-2
   if (bagian === "MARKETING")
-    return { icon: IconSpeakerphone, color: "role-marketing" };
+    return { icon: IconSpeakerphone, color: "#ef6c00" }; // orange-darken-3
   if (bagian.includes("GUDANG"))
-    return { icon: IconBuildingWarehouse, color: "role-warehouse" };
-  return { icon: IconTie, color: "role-default" };
+    return { icon: IconBuildingWarehouse, color: "#00897b" }; // teal-darken-1
+  return { icon: IconTie, color: "#3949ab" }; // indigo-darken-2
 });
 
 const rolePermissions = {
@@ -817,8 +879,8 @@ const allMenuGroups = [
 ];
 
 const menuGroups = computed(() => {
-  const zdivisi = authStore.user?.divisi as keyof typeof rolePermissions;
   const menus = JSON.parse(JSON.stringify(allMenuGroups));
+  const zdivisi = authStore.user?.divisi as keyof typeof rolePermissions;
   const allowedTitles = rolePermissions[zdivisi];
   if (!allowedTitles) return menus;
   return menus.map((group: any) => {
@@ -870,7 +932,7 @@ const menuGroups = computed(() => {
   --color-danger-bg: #fef2f2;
   --radius-md: 10px;
   --transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-  --navbar-height: 68px;
+  --navbar-height: 60px;
 
   display: flex;
   flex-direction: column;
@@ -890,41 +952,45 @@ const menuGroups = computed(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background-color: white;
-  padding: 0 28px;
+  background-color: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  padding: 0 12px;
   height: var(--navbar-height);
   border-bottom: 1px solid var(--color-border);
   z-index: 1100;
   flex-shrink: 0;
-  transition: var(--transition);
+  transition: all 0.2s ease;
 }
 
 .top-navbar.scrolled-navbar {
-  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.08);
-  border-bottom-color: transparent;
+  background-color: rgba(255, 255, 255, 0.99);
+  box-shadow: 0 1px 10px rgba(0, 0, 0, 0.07);
 }
 
 .navbar-left {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 4px;
+  flex-shrink: 0;
 }
 
 .brand-logo {
-  height: 32px;
+  height: 34px;
   width: auto;
   object-fit: contain;
 }
 
 .navbar-brand {
-  color: var(--color-primary-dark);
-  font-family: "Poppins", sans-serif;
-  font-weight: 700;
-  font-size: 1.35rem;
   display: flex;
   align-items: center;
-  gap: 10px;
   text-decoration: none;
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: background 0.15s;
+}
+.navbar-brand:hover {
+  background: rgba(30, 120, 200, 0.05);
 }
 
 /* ==================== MULTI-TAB BAR STYLING (Gaya ERP Desktop) ==================== */
@@ -980,68 +1046,88 @@ const menuGroups = computed(() => {
 /* ==================== LANJUTAN NAVBAR MENU & DROPDOWN ==================== */
 .navbar-menu {
   display: flex;
+  align-items: center;
   list-style: none;
   margin: 0;
-  padding: 0 0 0 40px;
+  padding: 0;
   height: 100%;
-  flex-grow: 1;
-  gap: 6px;
+  flex: 1;
+  justify-content: center;
+  gap: 2px;
+  min-width: 0;
 }
 
 .dropdown {
   position: relative;
   height: 100%;
+  display: flex;
+  align-items: center;
 }
 
 .dropdown-toggle {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: space-between;
-  height: 100%;
-  padding: 0 16px;
+  height: 34px;
+  padding: 0 7px;
+  border: none;
+  background: transparent;
+  border-radius: 7px;
   color: var(--color-text-main);
   font-weight: 600;
-  font-size: 0.9rem;
+  font-size: 0.78rem;
+  font-family: inherit;
   text-decoration: none;
-  transition: var(--transition);
+  white-space: nowrap;
+  transition: background 0.15s, color 0.15s;
   cursor: pointer;
-  gap: 8px;
+  gap: 5px;
 }
 
 .menu-title-wrapper {
   display: flex;
-  font-size: 14px;
   align-items: center;
-  gap: 12px;
+  gap: 6px;
 }
 
 .dropdown-toggle:hover,
 .dropdown.is-active .dropdown-toggle {
-  background-color: var(--color-primary-light);
+  background-color: rgba(30, 120, 200, 0.08);
   color: var(--color-primary);
 }
 
-.nav-icon,
-.menu-icon,
-.sub-menu-icon {
+.nav-icon {
   width: 20px;
   height: 20px;
-  stroke-width: 1.8;
+  stroke-width: 1.5;
+}
+
+.menu-icon,
+.sub-menu-icon {
+  width: 15px;
+  height: 15px;
+  stroke-width: 1.6;
   color: var(--color-text-muted);
+  opacity: 0.65;
+  flex-shrink: 0;
 }
 .dropdown-toggle:hover .menu-icon,
 .dropdown.is-active .menu-icon {
   color: var(--color-primary);
+  opacity: 1;
 }
 
 .arrow-icon {
-  width: 16px;
-  height: 16px;
+  width: 12px;
+  height: 12px;
+  stroke-width: 2.2;
+  opacity: 0.45;
   transition: transform 0.2s ease;
 }
 
 .dropdown.is-active .arrow-icon {
   transform: rotate(180deg);
+  opacity: 0.7;
 }
 
 .dropdown-menu {
@@ -1050,15 +1136,45 @@ const menuGroups = computed(() => {
   position: absolute;
   top: 100%;
   left: 0;
-  background-color: white;
-  min-width: 250px;
-  padding: 8px;
+  list-style: none;
+  margin: 0;
+  background: rgba(255, 255, 255, 0.98);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  min-width: 230px;
+  padding: 4px;
   border: 1px solid var(--color-border);
-  border-radius: 0 0 var(--radius-md) var(--radius-md);
-  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
+  border-radius: 10px;
+  box-shadow:
+    0 31px 61px -7px rgba(0, 0, 0, 0.15),
+    0 46px 116px -14px rgba(0, 0, 0, 0.2);
   transform: translateY(8px);
   transition: var(--transition);
   z-index: 1200;
+
+  /* BATAS TINGGI + SCROLL (agar tidak keluar layar) */
+  max-height: calc(100vh - var(--navbar-height) - 16px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
+}
+
+.dropdown-menu::-webkit-scrollbar {
+  width: 8px;
+}
+.dropdown-menu::-webkit-scrollbar-track {
+  background: transparent;
+}
+.dropdown-menu::-webkit-scrollbar-thumb {
+  background-color: #cbd5e1;
+  border-radius: 8px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+.dropdown-menu::-webkit-scrollbar-thumb:hover {
+  background-color: #94a3b8;
+  background-clip: padding-box;
 }
 
 .dropdown:hover > .dropdown-menu,
@@ -1073,60 +1189,70 @@ const menuGroups = computed(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 5px 10px;
+  min-height: 32px;
+  padding: 4px 8px;
   color: var(--color-text-main);
   text-decoration: none;
-  font-size: 0.9rem;
+  font-size: 0.82rem;
   font-weight: 500;
-  border-radius: 8px;
-  transition: var(--transition);
+  border-radius: 6px;
+  transition: background 0.15s, color 0.15s;
   cursor: pointer;
 }
 
 .dropdown-menu li a:hover,
 .is-sub-active > .sub-dropdown-toggle {
-  background-color: var(--color-primary) !important;
-  color: white !important;
+  background-color: rgba(30, 120, 200, 0.09);
+  color: var(--color-primary);
 }
 
 .dropdown-menu li a:hover .sub-menu-icon,
 .is-sub-active > .sub-dropdown-toggle .sub-menu-icon {
-  color: white;
+  color: var(--color-primary);
+  opacity: 1;
 }
 
 .sub-dropdown {
   position: relative;
 }
 
+/* SUBMENU LEVEL 3 — inline, turun ke bawah (akordeon), bukan flyout kanan */
 .sub-menu-popup {
-  position: absolute;
-  left: 99%;
-  top: -6px;
-  min-width: 260px;
-  margin-left: -2px;
-  padding: 6px;
-  background-color: white;
-  z-index: 1300;
+  position: static;
   list-style: none;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  box-shadow: 6px 6px 25px rgba(15, 23, 42, 0.12);
+  margin: 0;
+  padding: 2px 0 6px 18px;
+  min-width: 0;
+  background: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  z-index: auto;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
 }
 
 .card-item a {
   display: flex !important;
   align-items: center;
-  padding: 10px 14px !important;
+  min-height: 32px;
+  padding: 4px 8px !important;
   color: var(--color-text-main) !important;
   background-color: transparent !important;
+  font-size: 0.82rem;
   font-weight: 500;
   border-radius: 6px;
-  transition: var(--transition);
+  transition: background 0.15s, color 0.15s;
 }
 
 .card-item a:hover {
-  background-color: var(--color-primary-light) !important;
+  background-color: rgba(30, 120, 200, 0.09) !important;
   color: var(--color-primary) !important;
+}
+
+.card-item a:hover .sub-menu-icon {
+  color: var(--color-primary) !important;
+  opacity: 1;
 }
 
 .level-4-toggle {
@@ -1136,12 +1262,11 @@ const menuGroups = computed(() => {
   width: 100%;
 }
 
+/* SUBMENU LEVEL 4 — juga inline, indent lebih dalam */
 .level-4-popup {
-  position: absolute;
-  left: 99%;
-  top: -6px;
-  margin-left: -2px;
-  z-index: 1400;
+  position: static;
+  padding-left: 18px;
+  z-index: auto;
 }
 
 .item-disabled {
@@ -1153,12 +1278,12 @@ const menuGroups = computed(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 10px 14px;
+  min-height: 32px;
+  padding: 4px 8px;
   color: var(--color-text-muted);
-  font-size: 0.9rem;
-  background-color: #f8fafc;
+  font-size: 0.82rem;
+  background-color: transparent;
   border-radius: 6px;
-  margin-bottom: 2px;
   cursor: not-allowed;
 }
 
@@ -1171,63 +1296,104 @@ const menuGroups = computed(() => {
 .navbar-user {
   display: flex;
   align-items: center;
-  gap: 16px;
+  flex-shrink: 0;
+  margin-left: 4px;
 }
 
-.user-profile-badge {
+.user-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 34px;
+  padding: 0 9px;
+  border: none;
+  background: transparent;
+  border-radius: 20px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s;
+  flex-shrink: 0;
+}
+.user-btn:hover {
+  background: rgba(30, 120, 200, 0.07);
+}
+
+.user-avatar {
+  color: #fff;
+}
+
+.user-name {
+  font-size: 0.84rem;
+  font-weight: 500;
+  color: var(--color-text-main);
+  max-width: clamp(80px, 15vw, 200px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.user-chev {
+  color: var(--color-text-muted);
+}
+
+/* Dropdown menu user */
+.user-dropdown {
+  min-width: 230px;
+  border-radius: 10px;
+  border: 1px solid var(--color-border);
+  overflow: hidden;
+}
+.user-list {
+  padding: 5px;
+}
+.user-profile {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 6px 14px;
-  border-radius: 30px;
-  font-size: 0.85rem;
+  padding: 9px 10px;
+  border-radius: 8px;
+  background: rgba(30, 120, 200, 0.05);
+  margin-bottom: 2px;
 }
-
-.role-icon {
-  width: 16px;
-  height: 16px;
+.up-avatar {
+  margin-right: 12px;
+  flex-shrink: 0;
 }
-
-.role-admin {
-  background-color: #fee2e2;
+.up-name {
+  font-size: 0.84rem;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--color-text-main);
+}
+.up-sub {
+  font-size: 0.73rem;
+  color: var(--color-text-muted);
+}
+.ud-divider {
+  margin: 4px 0;
+}
+.ud-item {
+  min-height: 33px;
+  border-radius: 6px;
+}
+.ud-item:hover {
+  background: rgba(30, 120, 200, 0.08);
+  color: var(--color-primary);
+}
+.nav-item-title {
+  font-size: 0.82rem;
+}
+.ud-ic {
+  color: var(--color-text-muted);
+}
+.ud-logout,
+.ud-logout:hover {
   color: #dc2626;
 }
-.role-marketing {
-  background-color: #ffedd5;
-  color: #ea580c;
+.ud-logout:hover {
+  background: #fee2e2;
 }
-.role-warehouse {
-  background-color: #ccfbf1;
-  color: #0d9488;
-}
-.role-default {
-  background-color: #e0e7ff;
-  color: #4f46e5;
-}
-
-.logout-button {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background-color: var(--color-danger-bg);
-  color: var(--color-danger);
-  border: 1px solid #fee2e2;
-  padding: 8px 16px;
-  border-radius: 8px;
-  font-weight: 600;
-  font-size: 0.875rem;
-  cursor: pointer;
-  transition: var(--transition);
-}
-
-.logout-button:hover {
-  background-color: var(--color-danger);
-  color: white;
-}
-
-.logout-icon {
-  width: 16px;
-  height: 16px;
+.ud-logout .ud-ic {
+  color: #dc2626;
 }
 
 .menu-overlay {
@@ -1251,9 +1417,16 @@ const menuGroups = computed(() => {
 .icon-arrow {
   transition: transform 0.3s;
   display: inline-block;
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  color: var(--color-text-muted);
 }
 .icon-arrow.rotate {
-  transform: rotate(90deg);
+  transform: rotate(180deg);
+}
+.is-sub-active > .sub-dropdown-toggle .icon-arrow {
+  color: var(--color-primary);
 }
 
 /* ==================== ANDROID / TABLET RESPONSIVE STYLE ==================== */
@@ -1261,10 +1434,19 @@ const menuGroups = computed(() => {
   .mobile-toggle {
     display: flex;
     align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
     background: none;
     border: none;
+    border-radius: 7px;
     cursor: pointer;
     color: var(--color-text-main);
+    transition: background 0.15s;
+  }
+  .mobile-toggle:hover {
+    background: rgba(30, 120, 200, 0.08);
+    color: var(--color-primary);
   }
 
   .hide-mobile {
@@ -1275,10 +1457,13 @@ const menuGroups = computed(() => {
     position: fixed;
     top: 0;
     left: -100%;
-    width: 340px;
+    width: 300px;
     height: 100vh;
     background: #ffffff;
     flex-direction: column;
+    justify-content: flex-start;
+    align-items: stretch;
+    gap: 0;
     padding: 0;
     transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     box-shadow: 8px 0 30px rgba(15, 23, 42, 0.15);
@@ -1294,57 +1479,71 @@ const menuGroups = computed(() => {
   .mobile-profile-header {
     display: flex;
     align-items: center;
-    gap: 16px;
-    padding: 24px 20px;
-    background-color: #f8fafc;
+    gap: 12px;
+    padding: 14px 16px;
+    background-color: rgba(30, 120, 200, 0.04);
     border-bottom: 1px solid var(--color-border);
+    min-height: 62px;
+    width: 100%;
+    flex-shrink: 0;
   }
 
   .mobile-avatar-circle {
-    width: 48px;
-    height: 48px;
+    width: 34px;
+    height: 34px;
+    color: #fff;
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
+    flex-shrink: 0;
   }
   .mobile-avatar-icon {
-    width: 24px;
-    height: 24px;
+    width: 18px;
+    height: 18px;
   }
 
   .mobile-profile-info h3 {
     margin: 0;
-    font-size: 1rem;
+    font-size: 0.87rem;
     font-weight: 700;
     color: #1e293b;
-    letter-spacing: 0.5px;
+    line-height: 1.2;
+    letter-spacing: 0;
   }
   .mobile-profile-info p {
-    margin: 4px 0 0 0;
-    font-size: 0.85rem;
+    margin: 3px 0 0 0;
+    font-size: 0.73rem;
     color: #64748b;
   }
 
   .dropdown {
+    display: block;
+    width: 100%;
     height: auto;
     border-bottom: 1px solid #f1f5f9;
   }
 
   .dropdown-toggle {
-    height: 54px;
-    padding: 0 20px;
-    font-size: 0.95rem;
+    width: 100%;
+    height: auto;
+    min-height: 40px;
+    padding: 8px 14px;
+    font-size: 0.875rem;
+    border-radius: 0;
+    background: transparent;
   }
 
   .menu-title-wrapper {
-    font-size: 0.95rem;
+    font-size: 0.875rem;
     color: #334155;
     font-weight: 500;
+    gap: 10px;
   }
 
   .menu-title-wrapper .menu-icon {
     color: #94a3b8;
+    opacity: 1;
   }
 
   .dropdown-menu {
@@ -1354,10 +1553,17 @@ const menuGroups = computed(() => {
     display: none;
     box-shadow: none;
     border: none;
-    padding: 4px 0 8px 16px;
-    background: #f8fafc;
+    padding: 2px 0 8px 14px;
+    background: transparent;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
     transform: none;
     border-radius: 0;
+    min-width: 0;
+    /* drawer sudah scroll sendiri — jangan buat scroll bersarang */
+    max-height: none;
+    overflow: visible;
+    overscroll-behavior: auto;
   }
 
   .dropdown.is-active > .dropdown-menu {
@@ -1366,8 +1572,9 @@ const menuGroups = computed(() => {
 
   .dropdown-menu li a,
   .sub-dropdown-toggle {
-    padding: 12px 16px;
-    font-size: 0.9rem;
+    min-height: 38px;
+    padding: 8px 14px;
+    font-size: 0.85rem;
     background-color: transparent !important;
     color: var(--color-text-main) !important;
   }
@@ -1375,32 +1582,40 @@ const menuGroups = computed(() => {
   .dropdown-menu li a:hover,
   .is-sub-active > .sub-dropdown-toggle {
     color: var(--color-primary) !important;
+    background-color: rgba(30, 120, 200, 0.07) !important;
   }
 
   .sub-menu-popup {
     position: static;
     box-shadow: none;
     border: none;
-    margin-left: 16px;
+    margin-left: 14px;
     border-left: 2px solid var(--color-primary);
     border-radius: 0;
-    background-color: transparent !important;
+    background: transparent !important;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
     padding: 0;
+    min-width: 0;
   }
 
   .level-4-popup {
     border-left: 2px dashed #cbd5e1;
-    margin-left: 16px;
+    margin-left: 14px;
   }
 
   .mobile-actions-footer {
     display: flex;
     flex-direction: column;
     margin-top: auto;
-    padding: 16px;
+    position: sticky;
+    bottom: 0;
+    padding: 8px;
     background-color: #ffffff;
     border-top: 1px solid var(--color-border);
-    gap: 8px;
+    gap: 2px;
+    width: 100%;
+    flex-shrink: 0;
   }
 
   .mobile-foot-btn {
@@ -1408,36 +1623,39 @@ const menuGroups = computed(() => {
     align-items: center;
     gap: 12px;
     width: 100%;
-    padding: 12px 16px;
-    border-radius: 8px;
-    font-size: 0.95rem;
-    font-weight: 600;
+    min-height: 38px;
+    padding: 8px 14px;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-weight: 500;
     text-decoration: none;
+    background: transparent;
     border: none;
     cursor: pointer;
     text-align: left;
-    transition: var(--transition);
+    transition: background 0.15s, color 0.15s;
   }
 
   .mobile-foot-btn.text-muted {
-    background-color: #f1f5f9;
-    color: #475569;
+    background: transparent;
+    color: var(--color-text-main);
   }
   .mobile-foot-btn.text-muted:hover {
-    background-color: #e2e8f0;
+    background-color: rgba(30, 120, 200, 0.08);
+    color: var(--color-primary);
   }
 
   .mobile-foot-btn.text-danger {
-    background-color: #fef2f2;
-    color: #ef4444;
+    background: transparent;
+    color: #dc2626;
   }
   .mobile-foot-btn.text-danger:hover {
     background-color: #fee2e2;
   }
 
   .foot-icon {
-    width: 20px;
-    height: 20px;
+    width: 17px;
+    height: 17px;
   }
 }
 </style>

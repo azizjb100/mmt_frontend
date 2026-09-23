@@ -68,13 +68,25 @@ export const useAuthStore = defineStore("auth", () => {
     router.replace("/login");
   }
 
+  // Dipanggil router guard saat token kedaluwarsa.
+  // Hanya bersihkan sesi; redirect ke Login dilakukan oleh guard.
+  function handleSessionExpired() {
+    token.value = null;
+    user.value = null;
+    permissions.value = [];
+
+    localStorage.clear();
+  }
+
   return {
     token,
     user,
     permissions,
     isAuthenticated,
+    isTokenExpired,
     login,
     register,
     logout,
+    handleSessionExpired,
   };
 });

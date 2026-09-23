@@ -853,6 +853,17 @@ const filteredItems = computed(() => {
   });
 });
 
+// Sinkronkan hasil filter tabel ke parent (v-model:filteredItems).
+// Tanpa ini, parent yang mengandalkan v-model:filteredItems (mis. SoToSpkView
+// untuk Export Excel) selalu menerima array kosong.
+watch(
+  filteredItems,
+  (val) => {
+    emit("update:filteredItems", val);
+  },
+  { immediate: true },
+);
+
 watch(
   () => props.headers,
   (newHeaders) => {
