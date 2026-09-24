@@ -176,25 +176,25 @@ const tryKaosanExt = (cabangKaosan: string, invdc: string, idx: number) => {
   img.src = url;
 };
 
-const tglIndo = (val: string) => {
-  if (!val) return "-";
-  const s = String(val).substring(0, 10);
-  const [y, m, d] = s.split("-");
-  const months = [
-    "Jan",
-    "Feb",
-    "Mar",
-    "Apr",
-    "May",
-    "Jun",
-    "Jul",
-    "Aug",
-    "Sep",
-    "Oct",
-    "Nov",
-    "Dec",
-  ];
-  return `${d} ${months[Number(m) - 1]} ${y}`;
+const tglIndo = (val: any) => {
+  if (!val || String(val).startsWith("0000")) return "-";
+  const str = String(val).trim();
+  const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  // Jika ISO dengan T (hasil JSON Date -> UTC), konversi ke lokal agar tidak geser -1 hari
+  if (str.includes("T")) {
+    const d = new Date(str);
+    if (!isNaN(d.getTime())) {
+      return `${String(d.getDate()).padStart(2,"0")} ${months[d.getMonth()]} ${d.getFullYear()}`;
+    }
+  }
+  // Jika YYYY-MM-DD atau YYYY-MM-DD HH:mm:ss → ambil Y-M-D mentah tanpa timezone
+  const m = str.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (m) return `${m[3]} ${months[Number(m[2])-1]} ${m[1]}`;
+  // fallback
+  const s = str.substring(0,10);
+  const [y, mo, d] = s.split("-");
+  if (y && mo && d) return `${d} ${months[Number(mo)-1]} ${y}`;
+  return "-";
 };
 
 const formatWaktu = (isoStr: string) => {

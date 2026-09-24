@@ -50,6 +50,10 @@ import PengajuanPermintaanPrintView from "@/views/PengajuanPermintaanPrintView.v
 import FormLhkFinishingView from "@/views/FormLhkFinishingView.vue";
 import PenerimaanBahanPrint from "@/views/PenerimaanBahanPrint.vue";
 import FormKoreksiStokView from "@/views/FormKoreksiStokView.vue";
+import PengajuanKoreksiStokView from "@/views/PengajuanKoreksiStokView.vue";
+import FormPengajuanKoreksiStokView from "@/views/FormPengajuanKoreksiStokView.vue";
+import KomitmenKirimView from "@/views/KomitmenKirimView.vue";
+import FormKomitmenKirimView from "@/views/FormKomitmenKirimView.vue";
 import FormLhkMesinCetakView from "@/views/FormLhkMesinCetakView.vue";
 import LhkMesinCetakView from "../views/LhkMesinCetakView.vue";
 import LhkCetakMmtView from "@/views/LhkCetakMmtView.vue";
@@ -524,6 +528,46 @@ const routes: RouteRecordRaw[] = [
         name: "KoreksiStokNew",
         component: FormKoreksiStokView,
         props: { isEditMode: false },
+      },
+      {
+        path: "mmt/pengajuan-koreksi-stok",
+        name: "PengajuanKoreksiStokBrowse",
+        component: PengajuanKoreksiStokView,
+      },
+      {
+        path: "mmt/pengajuan-koreksi-stok/new",
+        name: "PengajuanKoreksiStokNew",
+        component: FormPengajuanKoreksiStokView,
+      },
+      {
+        path: "mmt/komitmen-kirim",
+        name: "KomitmenKirim",
+        component: KomitmenKirimView,
+        meta: { title: "Komitmen Kirim" },
+      },
+      {
+        path: "mmt/komitmen-kirim/new",
+        name: "KomitmenKirimNew",
+        component: FormKomitmenKirimView,
+      },
+      {
+        path: "mmt/komitmen-kirim/:nomor",
+        name: "KomitmenKirimEdit",
+        component: FormKomitmenKirimView,
+        props: true,
+      },
+      // alias lama untuk kompatibilitas Form lama yang push ke /ppic/penjadwalan
+      {
+        path: "ppic/penjadwalan",
+        redirect: "/mmt/komitmen-kirim",
+      },
+      {
+        path: "ppic/penjadwalan/create",
+        redirect: "/mmt/komitmen-kirim/new",
+      },
+      {
+        path: "ppic/penjadwalan/edit/:nomor",
+        redirect: (to) => `/mmt/komitmen-kirim/${to.params.nomor}`,
       },
       {
         path: "mmt/permintaan-produksi",

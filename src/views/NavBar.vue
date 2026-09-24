@@ -559,9 +559,15 @@ const rolePermissions = {
     "Penerimaan Bahan",
     "Permintaan Produksi",
     "Realisasi Produksi",
+    "Barcode",
+    "Create Barcode",
+    "Search Barcode",
+    "Koreksi Stok",
+    "Pengajuan Koreksi Stok",
     "Memo Approval Produk (MAP)",
     "SO TO SPK (Surat Perintah Kerja)",
     "Planning Produksi",
+    "Komitmen Kirim",
     "Mutasi Bahan",
     "Stok Opname",
     "Surat Jalan",
@@ -613,8 +619,13 @@ const rolePermissions = {
     "Penerimaan Bahan",
     "Permintaan Produksi",
     "Realisasi Produksi",
+    "Barcode",
+    "Create Barcode",
+    "Search Barcode",
     "Stok Opname",
     "Koreksi Stok",
+    "Pengajuan Koreksi Stok",
+    "Komitmen Kirim",
     "LHK",
     "LHK Cetak (Mesin)",
     "LHK Approval Cetak",
@@ -703,9 +714,18 @@ const allMenuGroups = [
           { name: "Retur Beli", path: "/mmt/retur-beli" },
           { name: "Mutasi Bahan", path: "/mmt/mutasi-gudang" },
           { name: "Koreksi Stok", path: "/mmt/koreksi-stok" },
+          { name: "Pengajuan Koreksi Stok", path: "/mmt/pengajuan-koreksi-stok" },
           { name: "Stok Opname", path: "/mmt/stok-opname" },
           { name: "Permintaan Produksi", path: "/mmt/permintaan-produksi" },
           { name: "Realisasi Produksi", path: "/mmt/realisasi-produksi" },
+          {
+            name: "Barcode",
+            isSubGroup: true,
+            items: [
+              { name: "Create Barcode", path: "/mmt/create-barcode" },
+              { name: "Search Barcode", path: "/mmt/search-barcode" },
+            ],
+          },
         ],
       },
       {
@@ -724,6 +744,7 @@ const allMenuGroups = [
         ],
       },
       { name: "Planning Produksi", path: "/mmt/planning-produksi" },
+      { name: "Komitmen Kirim", path: "/mmt/komitmen-kirim" },
       { name: "Memo Approval Produk (MAP)", path: "/mmt/map" },
       { name: "BAST-MAP", path: "/mmt/bast-map" },
       { name: "SO TO SPK (Surat Perintah Kerja)", path: "/mmt/so-spk" },
@@ -1141,7 +1162,7 @@ const menuGroups = computed(() => {
   background: rgba(255, 255, 255, 0.98);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  min-width: 230px;
+  min-width: 280px;
   padding: 4px;
   border: 1px solid var(--color-border);
   border-radius: 10px;
@@ -1189,6 +1210,7 @@ const menuGroups = computed(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 16px;
   min-height: 32px;
   padding: 4px 8px;
   color: var(--color-text-main);
@@ -1198,6 +1220,8 @@ const menuGroups = computed(() => {
   border-radius: 6px;
   transition: background 0.15s, color 0.15s;
   cursor: pointer;
+  /* Teks menu satu baris — tidak bertumpuk seperti MAP/SPK */
+  white-space: nowrap;
 }
 
 .dropdown-menu li a:hover,
@@ -1243,6 +1267,7 @@ const menuGroups = computed(() => {
   font-weight: 500;
   border-radius: 6px;
   transition: background 0.15s, color 0.15s;
+  white-space: nowrap;
 }
 
 .card-item a:hover {
@@ -1577,6 +1602,8 @@ const menuGroups = computed(() => {
     font-size: 0.85rem;
     background-color: transparent !important;
     color: var(--color-text-main) !important;
+    /* Drawer mobile sempit (300px) — biarkan teks wrap */
+    white-space: normal;
   }
 
   .dropdown-menu li a:hover,

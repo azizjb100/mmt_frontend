@@ -310,15 +310,25 @@ const parseToExcelDate = (dateValue?: string | Date | null): Date | null => {
   }
 };
 
-// Pastikan fungsi display menggunakan format dd/MM/yyyy
+// Pastikan fungsi display menggunakan format dd/MM/yyyy — sinkron dengan tglIndo print
 const formatDateDisplay = (dateStr: string | null | undefined) => {
-  if (!dateStr) return "-";
-  // Jika string dari backend sudah berformat YYYY-MM-DD atau ISO
-  const parsedDate = parseISO(dateStr);
-  if (isValid(parsedDate)) {
-    return format(parsedDate, "dd/MM/yyyy");
+  if (!dateStr || String(dateStr).startsWith("0000")) return "-";
+  const str = String(dateStr).trim();
+  // ISO dengan T (mis. 2026-09-23T17:00:00.000Z) → parse sebagai Date lokal agar tidak geser
+  if (str.includes("T")) {
+    const d = new Date(str);
+    if (!isNaN(d.getTime()) && isValid(d)) return format(d, "dd/MM/yyyy");
+    const p = parseISO(str);
+    if (isValid(p)) return format(p, "dd/MM/yyyy");
   }
-  return dateStr;
+  // YYYY-MM-DD atau YYYY-MM-DD HH:mm:ss → ambil Y-M-D mentah (tanpa konversi timezone)
+  const m = str.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (m) return `${m[3]}/${m[2]}/${m[1]}`;
+  const p2 = parseISO(str);
+  if (isValid(p2)) return format(p2, "dd/MM/yyyy");
+  // sudah DD/MM/YYYY
+  if (/^\d{2}[\/-]\d{2}[\/-]\d{4}/.test(str)) return str.substring(0,10).replace(/-/g,"/");
+  return str;
 };
 
 const getStatusColor = (item: SpkHeader) => {

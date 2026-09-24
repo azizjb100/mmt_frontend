@@ -1306,91 +1306,72 @@ const openPoiSearchRow = (idx: number) => {
 
 const handlePoiSelect = (poiData: any) => {
   if (!poiData) return;
+  // Dukung 1 PO → banyak size (seperti SPK): data bisa array
+  const rawItems: any[] = Array.isArray(poiData)
+    ? poiData
+    : Array.isArray(poiData?.data)
+      ? poiData.data
+      : poiData?.data
+        ? [poiData.data]
+        : [poiData];
+  if (rawItems.length === 0 || !rawItems[0]) return;
 
-  const rawItem = Array.isArray(poiData)
-    ? poiData[0]
-    : poiData.data
-      ? poiData.data[0]
-      : poiData;
-  if (!rawItem) return;
-
-  const targetPoiNomor =
-    rawItem.poi_nomor || rawItem.Nomor_POI || rawItem.poiNomor;
-  const targetPoiSize =
-    rawItem.poid_size || rawItem.poi_size || rawItem.Size || "";
-  const targetSpkNomor =
-    rawItem.poi_spk_nomor || rawItem.spk_nomor || rawItem.Nomor_SPK;
-
-  const qtyOrder = parseInt(
-    rawItem.spk_qty ??
-      rawItem.poid_jumlah ??
-      rawItem.Jumlah ??
-      rawItem.J_Order ??
-      0,
-  );
-  const sdhCetak = parseFloat(
-    rawItem.Sudah_Cetak || rawItem.spk_sudah_cetak || rawItem.sudahcetak || 0,
-  );
-  const sisaQty = parseInt(
-    rawItem.sisa_qty ?? rawItem.Kurang_Cetak ?? qtyOrder - sdhCetak,
-  );
-
+  let added = 0;
+  let skipped = 0;
   const currentDetails = formData.value.details || [];
-  if (
-    activePoiRowIdx.value === -1 &&
-    targetSpkNomor &&
-    currentDetails.some((d: any) => d.spk_nomor === targetSpkNomor)
-  ) {
-    toast.warning(`SPK ${targetSpkNomor} sudah ada di daftar.`);
-    isPoiLookupVisible.value = false;
-    return;
-  }
 
-  const newRow = {
-    poi_nomor: targetPoiNomor,
-    poi_size: targetPoiSize,
-    spk_nomor: targetSpkNomor || "",
-    spk_nama: rawItem.spk_nama || rawItem.Nama_SPK || rawItem.Nama || "No Name",
-    spk_komponen:
-      rawItem.spk_komponen ||
-      rawItem.Nama_Komponen ||
-      rawItem.nama_komponen ||
-      rawItem.Bhn_Name ||
-      "ALL SET",
-    spk_panjang: parseFloat(rawItem.spk_panjang || rawItem.Panjang || 0),
-    spk_lebar: parseFloat(rawItem.spk_lebar || rawItem.Lebar || 0),
-    spk_jmlorder: qtyOrder,
-    spk_sudah_cetak: sdhCetak,
-    kurangcetak_asli: sisaQty > 0 ? sisaQty : qtyOrder,
-    spk_kurang_cetak: 0,
-    multiplier: 1,
-    jumlah_sublim: 0,
-    padding: "0.03",
-    orientasi: "lebar",
-    spk_jmlmeter: 0,
-  };
+  for (const rawItem of rawItems) {
+    if (!rawItem) continue;
+    const targetPoiNomor = rawItem.poi_nomor || rawItem.Nomor_POI || rawItem.poiNomor || rawItem.poi_nomor;
+    const targetPoiSize = rawItem.poid_size || rawItem.poi_size || rawItem.Size || "";
+    const targetSpkNomor = rawItem.poi_spk_nomor || rawItem.spk_nomor || rawItem.Nomor_SPK || "";
+    const targetKomponen = rawItem.spk_komponen || rawItem.Nama_Komponen || rawItem.nama_komponen || rawItem.Bhn_Name || "ALL SET";
 
-  newRow.spk_jmlmeter =
-    newRow.spk_panjang *
-    newRow.spk_lebar *
-    (newRow.jumlah_sublim * newRow.multiplier);
+    const qtyOrder = parseInt(rawItem.spk_qty ?? rawItem.poid_jumlah ?? rawItem.Jumlah ?? rawItem.J_Order ?? 0);
+    const sdhCetak = parseFloat(rawItem.Sudah_Cetak || rawItem.spk_sudah_cetak || rawItem.sudahcetak || 0);
+    const sisaQty = parseInt(rawItem.sisa_qty ?? rawItem.Kurang_Cetak ?? qtyOrder - sdhCetak);
 
-  if (
-    activePoiRowIdx.value !== -1 &&
-    formData.value.details[activePoiRowIdx.value]
-  ) {
-    formData.value.details[activePoiRowIdx.value] = {
-      ...formData.value.details[activePoiRowIdx.value],
-      ...newRow,
+    // Cek duplikat: PO + SPK + Size + Komponen (seperti SPK)
+    const dSize = targetPoiSize || "-";
+    const isDup = currentDetails.some((d: any) => d.poi_nomor === targetPoiNomor && (d.spk_nomor || "") === (targetSpkNomor || "") && (d.poi_size || "-") === dSize && (d.spk_komponen || "ALL SET") === targetKomponen);
+    // juga cek yang baru ditambahkan di loop ini
+    const isDupInBatch = added > 0 && formData.value.details.some((d: any) => d.poi_nomor === targetPoiNomor && (d.poi_size || "-") === dSize && (d.spk_komponen || "ALL SET") === targetKomponen);
+    if (isDup || isDupInBatch) { skipped++; continue; }
+
+    const newRow = {
+      poi_nomor: targetPoiNomor,
+      poi_size: targetPoiSize,
+      spk_nomor: targetSpkNomor || "",
+      spk_nama: rawItem.spk_nama || rawItem.Nama_SPK || rawItem.Nama || rawItem.spk_nama || "No Name",
+      spk_komponen: targetKomponen,
+      spk_panjang: parseFloat(rawItem.spk_panjang || rawItem.Panjang || rawItem.panjang || 0),
+      spk_lebar: parseFloat(rawItem.spk_lebar || rawItem.Lebar || rawItem.lebar || 0),
+      spk_jmlorder: qtyOrder,
+      spk_sudah_cetak: sdhCetak,
+      kurangcetak_asli: sisaQty > 0 ? sisaQty : qtyOrder,
+      spk_kurang_cetak: 0,
+      multiplier: 1,
+      jumlah_sublim: 0,
+      padding: "0.03",
+      orientasi: "lebar",
+      spk_jmlmeter: 0,
     };
-  } else {
-    formData.value.details.push(newRow);
+    newRow.spk_jmlmeter = newRow.spk_panjang * newRow.spk_lebar * (newRow.jumlah_sublim * newRow.multiplier);
+
+    if (activePoiRowIdx.value !== -1 && formData.value.details[activePoiRowIdx.value]) {
+      formData.value.details[activePoiRowIdx.value] = { ...formData.value.details[activePoiRowIdx.value], ...newRow };
+      activePoiRowIdx.value = -1;
+    } else {
+      formData.value.details.push(newRow);
+    }
+    added++;
   }
 
   recalculateCombine();
   isPoiLookupVisible.value = false;
   activePoiRowIdx.value = -1;
-  toast.success(`Berhasil menambahkan PO Internal ${targetPoiNomor}`);
+  if (added > 0) toast.success(`Berhasil menambahkan PO Internal ${rawItems[0]?.poi_nomor || ""} — ${added} baris (size/komponen)`);
+  if (skipped > 0) toast.warning(`${skipped} baris dilewati karena duplikat`);
 };
 
 const handleSpkScan = async () => {

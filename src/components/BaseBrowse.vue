@@ -122,19 +122,7 @@
           fixed-header
           return-object
           :show-expand="computedShowExpand"
-          :row-props="
-            (data) => {
-              const id = data.item[itemValue];
-              const isActive = activeRowId === id;
-              return {
-                class: { 'row-active': isActive },
-                onClick: (e) => {
-                  activeRowId = id;
-                  $emit('row-click', e, data);
-                },
-              };
-            }
-          "
+          :row-props="mergedRowProps"
           @scroll.passive="onTableScroll"
         >
           <template #headers="{ columns, isSorted, getSortIcon, toggleSort }">
@@ -957,6 +945,43 @@ const onEndDateChange = (val: string) => {
 };
 
 const isSingleSelected = computed(() => props.selected.length === 1);
+
+const activeRowId = ref<any>(null);
+
+const mergedRowProps = (data: any) => {
+  const parentResult: any = props.rowProps ? (props.rowProps(data) as any) || {} : {};
+  const id = data.item?.[props.itemValue];
+  const parentClass = parentResult.class;
+
+  // Cek apakah baris ini ada di selected (untuk background multi-select)
+  const isSelected = Array.isArray(props.selected) && props.selected.some((s: any) => String(s?.[props.itemValue] ?? s?.Nomor) === String(id));
+
+  const classes: any[] = [];
+  if (parentClass !== undefined && parentClass !== null && parentClass !== "") {
+    classes.push(parentClass);
+  }
+  // Tambahkan row-selected otomatis jika ter-select tapi parent belum menambahkannya
+  if (isSelected) {
+    let hasSelected = false;
+    if (typeof parentClass === "string") hasSelected = parentClass.includes("row-selected");
+    else if (Array.isArray(parentClass)) hasSelected = parentClass.some((c: any) => (typeof c === "string" && c.includes("row-selected")) || (typeof c === "object" && c?.["row-selected"]));
+    else if (typeof parentClass === "object" && parentClass) hasSelected = !!parentClass["row-selected"];
+    if (!hasSelected) classes.push("row-selected");
+  }
+  // Fallback single-active: tetap sinkronkan highlight dengan selected,
+  // bukan dengan activeRowId saja — agar deselect multi-select tidak meninggalkan highlight
+  // (row-active legacy tetap didukung via parent rowProps jika diperlukan)
+
+  return {
+    ...parentResult,
+    class: classes.length ? classes : parentResult.class,
+    onClick: (e: MouseEvent) => {
+      activeRowId.value = id;
+      if (typeof parentResult.onClick === "function") parentResult.onClick(e);
+      emit("row-click", e, data);
+    },
+  };
+};
 </script>
 
 <style scoped>
@@ -1064,5 +1089,9 @@ const isSingleSelected = computed(() => props.selected.length === 1);
 
 :deep(.v-data-table__tr.row-active) {
   background-color: #e8f4fd !important; /* Warna biru muda lembut */
+}
+:deep(.v-data-table__tr.row-selected),
+:deep(.row-selected td) {
+  background-color: #d8efff !important;
 }
 </style>
