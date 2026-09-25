@@ -569,68 +569,67 @@
     @select="injectSpkObject"
   />
 
-  <!-- MODAL BARCODE SISA SAMPING (AFAL BARU) -->
+  <!-- MODAL BARCODE SISA SAMPING (AFAL BARU) — bisa langsung Cetak & Download -->
   <v-dialog
     v-model="afalModal.show"
-    max-width="500px"
+    max-width="650px"
     persistent
     teleport="body"
     style="z-index: 99999 !important"
   >
-    <v-card color="indigo-lighten-5">
-      <v-card-title
-        class="bg-blue-darken-1 text-white d-flex align-center pa-3"
-      >
-        <v-icon start size="large">mdi-information-variant-box</v-icon>
-        <span class="font-weight-bold">Barcode Sisa Samping!</span>
+    <v-card>
+      <v-card-title class="bg-blue-darken-1 text-white d-flex align-center pa-3">
+        <v-icon start>mdi-information-variant-box</v-icon>
+        <span class="font-weight-bold">Barcode Sisa Samping (AFAL)!</span>
+        <v-spacer />
+        <v-btn icon="mdi-close" variant="text" size="small" color="white" @click="closeAfalModal" />
       </v-card-title>
 
-      <v-card-text class="pa-4 text-grey-darken-4">
-        <p class="mb-3 font-weight-medium">
-          Sistem mendeteksi adanya sisa bahan samping (Afal) yang masih layak
-          pakai. Data stok baru telah dibuat:
+      <v-card-text class="pa-4">
+        <p class="mb-3 text-body-2 text-grey-darken-1">
+          Sistem mendeteksi sisa bahan samping yang masih layak pakai. Stok afal baru telah dibuat — silakan cetak/download labelnya:
         </p>
 
         <v-table class="bg-white border rounded mb-4" density="compact">
           <tbody>
             <tr>
-              <td
-                class="font-weight-bold bg-blue-lighten-5 text-blue-darken-3"
-                width="40%"
-              >
-                Barcode Baru
-              </td>
-              <td class="text-blue-darken-2 font-weight-black text-subtitle-1">
-                {{ afalModal.data.barcode }}
-              </td>
+              <td class="font-weight-bold bg-blue-lighten-5 text-blue-darken-3" width="38%">Barcode Baru</td>
+              <td class="text-blue-darken-2 font-weight-black text-subtitle-1">{{ afalModal.data.barcode }}</td>
             </tr>
             <tr>
-              <td class="font-weight-bold bg-blue-lighten-5 text-blue-darken-3">
-                Ukuran (P x L)
-              </td>
-              <td>
-                {{ afalModal.data.panjang?.toFixed(2) }} M x
-                {{ afalModal.data.lebar?.toFixed(2) }} M
-              </td>
+              <td class="font-weight-bold bg-blue-lighten-5 text-blue-darken-3">Ukuran (P x L)</td>
+              <td>{{ afalModal.data.panjang?.toFixed(2) }} M x {{ afalModal.data.lebar?.toFixed(2) }} M</td>
             </tr>
           </tbody>
         </v-table>
 
-        <div
-          class="d-flex align-start ga-2 bg-blue-lighten-4 pa-3 rounded border border-blue-lighten-2 text-blue-darken-4"
-        >
-          <v-icon class="mt-0_5" color="blue-darken-2">mdi-printer-pos</v-icon>
-          <span class="text-body-2 font-weight-bold">
-            Silakan Hubungi Admin untuk melakukan cetak fisik label barcode ini
-            dan tempelkan pada bahan!
-          </span>
+        <!-- Preview Label Afal — mirip Create Barcode -->
+        <div class="d-flex flex-column align-center bg-grey-lighten-4 pa-4 rounded border">
+          <div v-if="afalModal.qrImage" class="label-box-preview bg-white">
+            <div class="border-inner">
+              <div class="top-row-preview">
+                <img :src="afalModal.qrImage" class="qr-img-preview" />
+                <div class="info-column">
+                  <div class="qr-text">{{ afalModal.data.barcode }}</div>
+                  <div class="dimens-text">Dimensi: {{ afalModal.data.panjang?.toFixed(2) }} x {{ afalModal.data.lebar?.toFixed(2) }} M</div>
+                  <div class="text-caption text-grey">AFAL — Sisa Samping</div>
+                </div>
+              </div>
+              <div class="divider-preview"></div>
+              <div class="product-name-preview">{{ formData.brg_nama || formData.bahan_nama || 'BAHAN AFAL' }}</div>
+            </div>
+          </div>
+          <div v-else class="text-caption text-grey">Memuat QR...</div>
+          <div class="d-flex ga-2 mt-3">
+            <v-btn color="primary" variant="elevated" prepend-icon="mdi-printer" :disabled="!afalModal.qrImage" @click="printAfalLabel">Cetak Label</v-btn>
+            <v-btn color="teal" variant="tonal" prepend-icon="mdi-download" :disabled="!afalModal.qrImage" @click="downloadAfalBarcode">Download PNG</v-btn>
+          </div>
         </div>
       </v-card-text>
 
-      <v-card-actions class="bg-grey-lighten-4 pa-2 justify-end">
-        <v-btn color="blue-darken-2" variant="elevated" @click="closeAfalModal">
-          Paham & Lanjutkan
-        </v-btn>
+      <v-card-actions class="bg-grey-lighten-4 pa-2 justify-space-between">
+        <span class="text-caption text-grey">Label akan dicetak 2× seperti di Create Barcode</span>
+        <v-btn color="blue-darken-2" variant="text" @click="closeAfalModal">Tutup</v-btn>
       </v-card-actions>
     </v-card>
   </v-dialog>
@@ -896,7 +895,9 @@ const {
         panjang: Number(afalInfo.panjang || 0),
         lebar: Number(afalInfo.lebar || 0),
       };
-
+      afalModal.qrImage = "";
+      // generate QR langsung agar preview siap
+      try { afalModal.qrImage = await QRCode.toDataURL(afalInfo.barcode, { width: 300, margin: 0, errorCorrectionLevel: "M" }); } catch {}
       await nextTick();
       afalModal.show = true;
 
@@ -958,11 +959,55 @@ const afalModal = reactive({
     panjang: 0,
     lebar: 0,
   },
+  qrImage: "" as string,
 });
 
 const closeAfalModal = () => {
   afalModal.show = false;
   router.push("/mmt/lhk/cetak");
+};
+
+const generateAfalQR = async () => {
+  if (!afalModal.data.barcode) { afalModal.qrImage = ""; return; }
+  try {
+    afalModal.qrImage = await QRCode.toDataURL(afalModal.data.barcode, { width: 300, margin: 0, errorCorrectionLevel: "M" });
+  } catch { afalModal.qrImage = ""; }
+};
+
+const printAfalLabel = () => {
+  if (!afalModal.qrImage || !afalModal.data.barcode) return;
+  const printItems = [
+    { qrValue: afalModal.data.barcode, qrImage: afalModal.qrImage, panjang: afalModal.data.panjang, lebar: afalModal.data.lebar, namaBahan: (formData as any).brg_nama || (formData as any).bahan_nama || "BAHAN AFAL" },
+    { qrValue: afalModal.data.barcode, qrImage: afalModal.qrImage, panjang: afalModal.data.panjang, lebar: afalModal.data.lebar, namaBahan: (formData as any).brg_nama || (formData as any).bahan_nama || "BAHAN AFAL" },
+  ];
+  const iframe = document.createElement("iframe");
+  Object.assign(iframe.style, { position: "fixed", right: "0", bottom: "0", width: "0", height: "0", border: "0" });
+  document.body.appendChild(iframe);
+  const doc = iframe.contentWindow?.document;
+  if (!doc) return;
+  const labelHtml = printItems.map(item=>`
+    <div class="label-box"><div class="border-inner"><div class="top-row"><img src="${item.qrImage}" class="qr-img" /><div class="info-column"><div class="qr-text">${item.qrValue}</div><div class="dimens-text">${Number(item.panjang).toFixed(2)} x ${Number(item.lebar).toFixed(2)}</div></div></div><div class="divider"></div><div class="product-name">${item.namaBahan}</div></div></div>
+  `).join("");
+  doc.open();
+  doc.write(`<html><head><style>
+    @page{size:101.2mm 101mm portrait;margin:0} body{margin:0;padding:0;font-family:Arial,sans-serif;display:flex;flex-direction:column;align-items:center;gap:5px;justify-content:center;min-height:100vh}
+    .label-box{width:70mm;height:50mm;padding:3mm;box-sizing:border-box} .label-box:nth-child(2n){page-break-after:always}
+    .border-inner{border:1pt solid black;height:100%;width:100%;padding:2mm;display:flex;flex-direction:column;box-sizing:border-box}
+    .top-row{display:flex;gap:10px;margin-bottom:4px} .qr-img{width:1.5cm;height:1.5cm} .qr-text{font-weight:bold;font-size:8pt;word-break:break-all} .dimens-text{font-size:11pt;font-weight:bold;margin-top:5px}
+    .divider{border-top:1pt solid black;width:100%;margin:4px 0} .product-name{font-size:13pt;font-weight:bold;text-align:center;flex-grow:1;display:flex;align-items:center;justify-content:center;overflow:hidden}
+  </style></head><body>${labelHtml}</body></html>`);
+  doc.close();
+  setTimeout(()=>{ iframe.contentWindow?.focus(); iframe.contentWindow?.print(); document.body.removeChild(iframe); }, 500);
+};
+
+const downloadAfalBarcode = () => {
+  if (!afalModal.qrImage) return;
+  const a = document.createElement("a");
+  a.href = afalModal.qrImage;
+  a.download = `${afalModal.data.barcode}.png`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
 };
 
 const validateStokBahan = () => {
@@ -1745,4 +1790,13 @@ onMounted(async () => {
     linear-gradient(#f0f0f0 1px, transparent 1px);
   background-size: 10px 10px;
 }
+/* Preview Afal — mirip CreateBarcode */
+.label-box-preview { width: 7cm; height: 5cm; padding: 2mm; box-sizing: border-box; border: 1px solid #ddd; }
+.border-inner { border: 1px solid black; height: 100%; display: flex; flex-direction: column; padding: 2mm; }
+.top-row-preview { display: flex; gap: 10px; }
+.qr-img-preview { width: 1.5cm; height: 1.5cm; }
+.qr-text { font-weight: bold; font-size: 8pt; word-break: break-all; }
+.dimens-text { font-size: 9pt; font-weight: bold; margin-top: 5px; }
+.divider-preview { border-top: 1px dashed #000; margin: 2mm 0; }
+.product-name-preview { font-size: 11pt; font-weight: bold; text-align: center; flex-grow: 1; display: flex; align-items: center; justify-content: center; text-transform: uppercase; }
 </style>

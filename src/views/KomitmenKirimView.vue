@@ -5,9 +5,9 @@ import { useRouter } from "vue-router";
 import { useToast } from "vue-toastification";
 import BaseBrowse from "@/components/BaseBrowse.vue";
 import {
-  penjadwalanPpicService,
+  komitmenKirimService,
   type PencapaianRow,
-} from "@/services/ppic/penjadwalanPpicService";
+} from "@/services/mmt/komitmenKirimService";
 import {
   IconCalendarWeek,
   IconLock,
@@ -145,7 +145,7 @@ const previewCabang = ref("");
 
 const loadCabang = async () => {
   try {
-    const res = await penjadwalanPpicService.getCabang();
+    const res = await komitmenKirimService.getCabang();
     cabangOptions.value = res.data.data.map((c: any) => ({
       value: c.Kode,
       title: `${c.Kode} - ${c.Nama}`,
@@ -170,7 +170,7 @@ const openPreview = async () => {
 
   previewLoading.value = true;
   try {
-    const res = await penjadwalanPpicService.getDetail(item.Nomor);
+    const res = await komitmenKirimService.getDetail(item.Nomor);
     previewDetail.value = res.data.data ?? [];
     detailCache.value = {
       ...detailCache.value,
@@ -231,7 +231,7 @@ const checkUnnotifiedMap = async () => {
   const bagian = authStore.user?.bagian?.toUpperCase();
   if (bagian === "MARKETING") return; // notifikasi ini buat non-Marketing (yg isi Kesepakatan)
   try {
-    const res = await penjadwalanPpicService.getUnnotifiedMap();
+    const res = await komitmenKirimService.getUnnotifiedMap();
     const list = res.data.data || [];
     if (list.length > 0) {
       notifPeriodeList.value = list;
@@ -249,7 +249,7 @@ const closeNotifDialog = async () => {
   showNotifDialog.value = false;
   if (allIds.length > 0) {
     try {
-      await penjadwalanPpicService.markMapNotified(allIds);
+      await komitmenKirimService.markMapNotified(allIds);
     } catch {
       // Best-effort â€” kalau gagal, akan muncul lagi next load, tidak fatal
     }
@@ -267,7 +267,7 @@ const fetchData = async () => {
   expandedRows.value = [];
   detailCache.value = {};
   try {
-    const res = await penjadwalanPpicService.getBrowse({
+    const res = await komitmenKirimService.getBrowse({
       startDate: filterStart.value,
       endDate: filterEnd.value,
       cabang: filterState.value.cabang,
@@ -290,7 +290,7 @@ const handleExpand = async (newExpanded: BrowseItem[]) => {
 
   detailLoading.value = new Set([...detailLoading.value, nomor]);
   try {
-    const res = await penjadwalanPpicService.getDetail(nomor);
+    const res = await komitmenKirimService.getDetail(nomor);
     detailCache.value = { ...detailCache.value, [nomor]: res.data.data ?? [] };
   } catch {
     toast.error(`Gagal memuat detail ${nomor}`);
@@ -324,8 +324,28 @@ const detailRowClass = (d: DetailRow) => {
 };
 
 const handleAdd = () => router.push("/mmt/komitmen-kirim/new");
-const handleEdit = (item: BrowseItem) =>
-  router.push(`/mmt/komitmen-kirim/${encodeURIComponent(item.Nomor)}`);
+const handleEdit = (item?: BrowseItem) => {
+  const target = item?.Nomor ? item : selected.value[0];
+  if (!target) {
+    toast.warning("Pilih 1 periode untuk diubah");
+    return;
+  }
+  if (target.Close === "Y") {
+    toast.warning("Periode sudah Close, tidak bisa diubah. Buka dulu.");
+    return;
+  }
+  router.push(`/mmt/komitmen-kirim/${encodeURIComponent(target.Nomor)}`);
+};
+const handleRowClick = (e: any, data: any) => {
+  const raw = data.item?.raw || data.item;
+  if (!raw?.Nomor) return;
+  selected.value = [raw];
+  if (e.detail === 2) handleEdit(raw);
+};
+const handleRowDblClick = (_e: any, data: any) => {
+  const raw = data.item?.raw || data.item;
+  if (raw?.Nomor) handleEdit(raw);
+};
 
 const openCloseDialog = () => {
   if (!selected.value.length) return;
@@ -355,7 +375,7 @@ const confirmClose = async () => {
   if (!selectedItem.value) return;
   isActioning.value = true;
   try {
-    await penjadwalanPpicService.toggleClose(selectedItem.value.Nomor, true);
+    await komitmenKirimService.toggleClose(selectedItem.value.Nomor, true);
     toast.success("Periode berhasil diclose.");
     showCloseDialog.value = false;
     fetchData();
@@ -369,7 +389,7 @@ const confirmOpen = async () => {
   if (!selectedItem.value) return;
   isActioning.value = true;
   try {
-    await penjadwalanPpicService.toggleClose(selectedItem.value.Nomor, false);
+    await komitmenKirimService.toggleClose(selectedItem.value.Nomor, false);
     toast.success("Periode berhasil dibuka.");
     showOpenDialog.value = false;
     fetchData();
@@ -383,7 +403,7 @@ const confirmDelete = async () => {
   if (!selectedItem.value) return;
   isActioning.value = true;
   try {
-    await penjadwalanPpicService.deleteData(selectedItem.value.Nomor);
+    await komitmenKirimService.deleteData(selectedItem.value.Nomor);
     toast.success("Periode berhasil dihapus.");
     showDeleteDialog.value = false;
     fetchData();
@@ -442,7 +462,7 @@ const openPencapaian = async () => {
   showPencapaianDialog.value = true;
   pencapaianLoading.value = true;
   try {
-    const res = await penjadwalanPpicService.getPencapaian(item.Nomor);
+    const res = await komitmenKirimService.getPencapaian(item.Nomor);
     pencapaianDataSo.value = res.data.data.So;
     pencapaianDataMap.value = res.data.data.Map;
     loadPencapaianTab("SO");
@@ -488,7 +508,7 @@ const removeTambahanRow = (i: number) => tambahanRows.value.splice(i, 1);
 const savePencapaian = async () => {
   pencapaianSaving.value = true;
   try {
-    await penjadwalanPpicService.savePencapaian(pencapaianNomor.value, {
+    await komitmenKirimService.savePencapaian(pencapaianNomor.value, {
       tidakTercapai: tidakTercapaiRows.value,
       tambahan: tambahanRows.value,
       group: activePencapaianTab.value === "MAP" ? "MAP" : undefined,
@@ -622,7 +642,7 @@ const onExportDetail = async () => {
     if (belumAda.length) {
       const results = await Promise.all(
         belumAda.map((r: BrowseItem) =>
-          penjadwalanPpicService.getDetail(r.Nomor).then((res) => ({
+          komitmenKirimService.getDetail(r.Nomor).then((res) => ({
             nomor: r.Nomor,
             data: res.data.data ?? [],
           })),
@@ -782,12 +802,16 @@ checkUnnotifiedMap();
     :can-delete="false"
     :can-export="false"
     item-value="Nomor"
-    :row-props-fn="rowPropsFn"
+    show-select
+    select-strategy="single"
+    :row-props="rowPropsFn"
     :filter-state="filterState"
     @update:filter-state="onFilterStateRestored"
     @refresh="fetchData"
     @add="handleAdd"
-    @edit="handleEdit"
+    @action:edit="handleEdit"
+    @row-click="handleRowClick"
+    @dblclick:row="handleRowDblClick"
   >
     <template #filter-left>
       <div class="date-filter">
@@ -1731,3 +1755,4 @@ checkUnnotifiedMap();
   border-color: #1565c0;
 }
 </style>
+

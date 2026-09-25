@@ -1,8 +1,8 @@
-import api from "@/services/api";
+﻿import api from "@/services/api";
 
 const BASE = "/mmt/komitmen-kirim";
 
-export const penjadwalanPpicService = {
+export const komitmenKirimService = {
   // Browse
   getBrowse: (params: any) => api.get(`${BASE}/browse`, { params }),
   // alias untuk kompatibilitas
@@ -59,4 +59,6 @@ export const penjadwalanPpicService = {
   getSoKandidat: (params: any) => api.get(`${BASE}/search/so`, { params }),
 };
 
-export default penjadwalanPpicService;
+export default komitmenKirimService;
+
+

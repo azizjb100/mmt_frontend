@@ -13,7 +13,7 @@ import {
 import { useAuthStore } from "@/stores/authStore";
 import { useRoute, useRouter } from "vue-router";
 import { useTabStore } from "@/stores/tabStore";
-import { penjadwalanPpicService } from "@/services/ppic/penjadwalanPpicService";
+import { komitmenKirimService } from "@/services/mmt/komitmenKirimService";
 import { useKomitmenKirimSocket } from "@/composables/useKomitmenKirimSocket";
 import { useToast } from "vue-toastification";
 import BaseForm from "@/components/BaseForm.vue";
@@ -179,7 +179,7 @@ const divisiOptions = ref<{ value: string; title: string }[]>([
 
 const loadCabang = async () => {
   try {
-    const res = await penjadwalanPpicService.getCabang();
+    const res = await komitmenKirimService.getCabang();
     cabangOptions.value = res.data.data.map((c: any) => ({
       value: c.Kode,
       title: `${c.Kode} - ${c.Nama}`,
@@ -190,7 +190,7 @@ const loadCabang = async () => {
 };
 const loadDivisi = async () => {
   try {
-    const res = await penjadwalanPpicService.getDivisi();
+    const res = await komitmenKirimService.getDivisi();
     divisiOptions.value = [
       { value: "0", title: "Semua Divisi" },
       ...res.data.data.map((d: any) => ({
@@ -231,7 +231,7 @@ const saveHeaderField = async (field: string, value: any) => {
   if (!header.pjw_nomor) return;
   savingHeaderField.value = field;
   try {
-    await penjadwalanPpicService.updateHeaderField(
+    await komitmenKirimService.updateHeaderField(
       header.pjw_nomor,
       field,
       value,
@@ -319,7 +319,7 @@ const mapDetailRow = (r: any): DetailRow => ({
 const loadExisting = async (nomor: string) => {
   isLoading.value = true;
   try {
-    const res = await penjadwalanPpicService.getFormDetail(nomor);
+    const res = await komitmenKirimService.getFormDetail(nomor);
     const d = res.data.data;
     header.pjw_nomor = d.header.pjw_nomor;
     header.pjw_tgl1 = d.header.pjw_tgl1;
@@ -348,7 +348,7 @@ const createNew = async () => {
   }
   isCreating.value = true;
   try {
-    const res = await penjadwalanPpicService.createHeader({
+    const res = await komitmenKirimService.createHeader({
       pjw_tgl1: header.pjw_tgl1,
       pjw_tgl2: header.pjw_tgl2,
       pjw_cab: header.pjw_cab,
@@ -473,7 +473,7 @@ const tarikSo = async () => {
 
   isTarikLoading.value = true;
   try {
-    const res = await penjadwalanPpicService.searchKandidatSo(
+    const res = await komitmenKirimService.searchKandidatSo(
       header.pjw_tgl1,
       header.pjw_tgl2,
       divisiTarik.value,
@@ -502,7 +502,7 @@ const tarikSo = async () => {
         Rencana: Number(k.Kurang) || 0,
         PermintaanKirim: k.DatelineAsli || "",
       };
-      const saveRes = await penjadwalanPpicService.addDetailRow(
+      const saveRes = await komitmenKirimService.addDetailRow(
         header.pjw_nomor,
         rowInput,
       );
@@ -525,7 +525,7 @@ const tarikPraOrder = async () => {
 
   isTarikPraOrderLoading.value = true;
   try {
-    const res = await penjadwalanPpicService.searchKandidatPraOrder(
+    const res = await komitmenKirimService.searchKandidatPraOrder(
       header.pjw_tgl1,
       header.pjw_tgl2,
       divisiTarik.value,
@@ -554,7 +554,7 @@ const tarikPraOrder = async () => {
         Rencana: isMapTab ? 0 : Number(k.QtyRencana) || 0,
         PermintaanKirim: k.TglKirim || "",
       };
-      const saveRes = await penjadwalanPpicService.addDetailRow(
+      const saveRes = await komitmenKirimService.addDetailRow(
         header.pjw_nomor,
         rowInput,
       );
@@ -576,7 +576,7 @@ const tarikMap = async () => {
 
   isTarikMapLoading.value = true;
   try {
-    const res = await penjadwalanPpicService.searchKandidatMap(
+    const res = await komitmenKirimService.searchKandidatMap(
       header.pjw_tgl1,
       header.pjw_tgl2,
       header.pjw_divisi,
@@ -603,7 +603,7 @@ const tarikMap = async () => {
         Rencana: Number(k.Kurang) || 0,
         PermintaanKirim: k.DatelineAsli || "",
       };
-      const saveRes = await penjadwalanPpicService.addDetailRow(
+      const saveRes = await komitmenKirimService.addDetailRow(
         header.pjw_nomor,
         rowInput,
       );
@@ -641,7 +641,7 @@ const tambahManual = async () => {
   if (jenis === "PENAWARAN") {
     isManualLoading.value = true;
     try {
-      const res = await penjadwalanPpicService.getPenawaranDetailList(nomor);
+      const res = await komitmenKirimService.getPenawaranDetailList(nomor);
       const d = res.data.data;
       if (!d || !d.items?.length) {
         toast.warning(
@@ -674,7 +674,7 @@ const tambahManual = async () => {
     let rowInput: any;
 
     if (jenis === "MH") {
-      const res = await penjadwalanPpicService.getMhInfo(
+      const res = await komitmenKirimService.getMhInfo(
         nomor,
         header.pjw_divisi,
         header.pjw_nomor,
@@ -699,7 +699,7 @@ const tambahManual = async () => {
         PermintaanKirim: "",
       };
     } else if (jenis === "MAP") {
-      const res = await penjadwalanPpicService.getMapInfo(
+      const res = await komitmenKirimService.getMapInfo(
         nomor,
         header.pjw_divisi,
         header.pjw_nomor,
@@ -726,7 +726,7 @@ const tambahManual = async () => {
         PermintaanKirim: k.DatelineAsli || "",
       };
     } else {
-      const res = await penjadwalanPpicService.getSoInfo(
+      const res = await komitmenKirimService.getSoInfo(
         nomor,
         header.pjw_divisi,
         header.pjw_nomor,
@@ -751,7 +751,7 @@ const tambahManual = async () => {
       };
     }
 
-    const saveRes = await penjadwalanPpicService.addDetailRow(
+    const saveRes = await komitmenKirimService.addDetailRow(
       header.pjw_nomor,
       rowInput,
     );
@@ -786,7 +786,7 @@ const pilihBarisPenawaran = async (item: any) => {
 
   isManualLoading.value = true;
   try {
-    const res = await penjadwalanPpicService.getPenawaranItemInfo(
+    const res = await komitmenKirimService.getPenawaranItemInfo(
       penawaranPickerNomor.value,
       item.PendId,
       header.pjw_divisi,
@@ -811,7 +811,7 @@ const pilihBarisPenawaran = async (item: any) => {
       Rencana: isMapTab ? 0 : Number(k.Kurang) || 0,
       PermintaanKirim: "",
     };
-    const saveRes = await penjadwalanPpicService.addDetailRow(
+    const saveRes = await komitmenKirimService.addDetailRow(
       header.pjw_nomor,
       rowInput,
     );
@@ -852,7 +852,7 @@ const tambahBarisManual = async () => {
       KirimManual: 0,
       RealisasiManual: 0,
     };
-    const saveRes = await penjadwalanPpicService.addDetailRow(
+    const saveRes = await komitmenKirimService.addDetailRow(
       header.pjw_nomor,
       rowInput,
     );
@@ -888,7 +888,7 @@ const onDetailFieldChange = (
     `row:${row.PjwdId}:${dbField}`,
     async () => {
       try {
-        const res = await penjadwalanPpicService.updateDetailField(
+        const res = await komitmenKirimService.updateDetailField(
           header.pjw_nomor,
           row.PjwdId!,
           dbField,
@@ -960,7 +960,7 @@ const doMove = async (row: DetailRow, tanggalBaru: string) => {
   if (!row.PjwdId) return;
   isMoving.value = true;
   try {
-    const res = await penjadwalanPpicService.moveDetailRow(
+    const res = await komitmenKirimService.moveDetailRow(
       header.pjw_nomor,
       row.PjwdId,
       tanggalBaru,
@@ -1005,7 +1005,7 @@ const onKesepakatanBlur = async (row: DetailRow) => {
   }
 
   try {
-    const res = await penjadwalanPpicService.checkTargetPeriod(
+    const res = await komitmenKirimService.checkTargetPeriod(
       row.PjwdId,
       row.Kesepakatan,
     );
@@ -1061,7 +1061,7 @@ const removeDetail = async (row: DetailRow) => {
     return;
   }
   try {
-    await penjadwalanPpicService.deleteDetailRow(header.pjw_nomor, row.PjwdId);
+    await komitmenKirimService.deleteDetailRow(header.pjw_nomor, row.PjwdId);
     const idx = detail.value.findIndex((d) => d.PjwdId === row.PjwdId);
     if (idx !== -1) detail.value.splice(idx, 1);
   } catch (e: any) {
@@ -2209,3 +2209,4 @@ const rowClass = (d: DetailRow) => {
   color: #c62828;
 }
 </style>
+

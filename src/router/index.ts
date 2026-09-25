@@ -556,19 +556,6 @@ const routes: RouteRecordRaw[] = [
         component: FormKomitmenKirimView,
         props: true,
       },
-      // alias lama untuk kompatibilitas Form lama yang push ke /ppic/penjadwalan
-      {
-        path: "ppic/penjadwalan",
-        redirect: "/mmt/komitmen-kirim",
-      },
-      {
-        path: "ppic/penjadwalan/create",
-        redirect: "/mmt/komitmen-kirim/new",
-      },
-      {
-        path: "ppic/penjadwalan/edit/:nomor",
-        redirect: (to) => `/mmt/komitmen-kirim/${to.params.nomor}`,
-      },
       {
         path: "mmt/permintaan-produksi",
         name: "PermintaanProduksiBrowse",
