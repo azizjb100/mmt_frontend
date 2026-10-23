@@ -157,11 +157,12 @@
 
 <script setup>
 import { ref, onMounted, computed } from "vue";
-import axios from "axios";
+import api from "@/services/api";
 import { format, subDays } from "date-fns";
 import DateRangeFilter from "@/components/DateRangeFilter.vue";
 
-const API_URL = "http://localhost:8003/api/mmt/laporan-stbj";
+// Pakai axios instance "api" (baseURL = server API aktif, mis. https://103.150.117.18/api).
+const API_URL = "/mmt/laporan-stbj";
 
 const endDate = ref(format(new Date(), "yyyy-MM-dd"));
 const startDate = ref(format(subDays(new Date(), 30), "yyyy-MM-dd"));
@@ -186,7 +187,7 @@ const fetchReport = async () => {
   loading.value = true;
   currentPage.value = 1;
   try {
-    const res = await axios.get(API_URL, {
+    const res = await api.get(API_URL, {
       params: { startDate: startDate.value, endDate: endDate.value },
     });
     reportData.value = res.data;

@@ -9,7 +9,6 @@ import BaseForm from "@/components/BaseForm.vue";
 // --- Import Modals Lookup ---
 import SPKLookupModal from "@/modal/SpkLookupModal.vue";
 import SupplierLookupModal from "@/modal/SupplierLookupModal.vue";
-import POLookupModal from "@/modal/POLookupModal.vue";
 
 // --- Interfaces ---
 interface CustomDetailItem {
@@ -86,7 +85,6 @@ const API_SUPPLIER_DETAIL = "/supplier/detail";
 // --- UI & Modal Controls ---
 const isEditMode = ref(false);
 const isSaving = ref(false);
-const isPoModalVisible = ref(false);
 const isSpkModalVisible = ref(false);
 const isSupplierModalVisible = ref(false);
 const activeTab = ref(0);
@@ -693,6 +691,12 @@ const saveForm = async () => {
     }
 
     refreshData();
+    // Tampilkan nomor hasil generate & lanjutkan sesi sebagai edit
+    // agar penyimpanan berikutnya meng-update dokumen yang sama.
+    if (nomorTersimpan) {
+      formData.nomor = nomorTersimpan;
+      isEditMode.value = true;
+    }
   } catch (err: any) {
     toast.error(err.response?.data?.message || "Gagal menyimpan transaksi.");
   } finally {
@@ -795,15 +799,21 @@ onUnmounted(() => {
             <v-row dense>
               <v-col cols="12">
                 <v-text-field
-                  label="Nomor PO (Browse)"
+                  label="Nomor PO (Otomatis)"
                   v-model="formData.nomor"
                   readonly
-                  append-inner-icon="mdi-magnify"
-                  placeholder="<-- Kosong = Baru"
-                  @click="isPoModalVisible = true"
+                  :placeholder="
+                    isEditMode
+                      ? ''
+                      : 'Dibuat otomatis saat data disimpan'
+                  "
+                  persistent-placeholder
+                  prepend-inner-icon="mdi-pound"
+                  bg-color="grey-lighten-4"
                   density="compact"
                   variant="outlined"
                   hide-details
+                  class="nomor-po-field"
                 />
               </v-col>
               <v-col cols="6">
@@ -1423,11 +1433,6 @@ onUnmounted(() => {
         />
 
       <!-- LOOKUP MODALS CHANNELS -->
-      <POLookupModal
-        :isVisible="isPoModalVisible"
-        @close="isPoModalVisible = false"
-        @select="loadDataAll"
-      />
       <SPKLookupModal
         :isVisible="isSpkModalVisible"
         @close="isSpkModalVisible = false"
@@ -1450,6 +1455,10 @@ onUnmounted(() => {
   font-weight: 700;
   line-height: 1.4;
   color: #37474f;
+}
+.nomor-po-field :deep(input) {
+  font-weight: 700;
+  letter-spacing: 0.5px;
 }
 .text-right-input :deep(input) {
   text-align: right !important;

@@ -275,11 +275,12 @@
 
 <script setup>
 import { ref, reactive, computed, onMounted, nextTick } from "vue";
-import axios from "axios";
+import api from "@/services/api";
 import * as XLSX from "xlsx";
 
 // Config & State
-const API_BASE = "http://localhost:8003/api/mmt/stok-opname";
+// Pakai axios instance "api" (baseURL = server API aktif, mis. https://103.150.117.18/api).
+const API_BASE = "/mmt/stok-opname";
 const sessionID = ref(localStorage.getItem("opn_session"));
 const filterSearch = ref("");
 const scanInput = ref("");
@@ -335,7 +336,7 @@ const filteredPending = computed(() => {
 const startOpname = async () => {
   if (!form.gdgKode) return alert("Pilih gudang dulu!");
   try {
-    const res = await axios.post(`${API_BASE}/start`, {
+    const res = await api.post(`${API_BASE}/start`, {
       gdgKode: form.gdgKode,
       user: form.user,
     });
@@ -356,7 +357,7 @@ const handleScan = async () => {
 
   try {
     // 1. Validasi dulu apakah barcode ada di sesi ini
-    const res = await axios.get(`${API_BASE}/scan`, {
+    const res = await api.get(`${API_BASE}/scan`, {
       params: { barcode: barcodeScanned, sessionID: sessionID.value },
     });
 
@@ -377,7 +378,7 @@ const handleScan = async () => {
     }
 
     // 2. Langsung Update ke Database (Tanpa Modal)
-    await axios.put(`${API_BASE}/update`, {
+    await api.put(`${API_BASE}/update`, {
       sessionID: sessionID.value,
       barcode: barcodeScanned,
       // Kita tidak kirim 'fisik' lagi karena backend sudah handle
@@ -399,7 +400,7 @@ const loadData = async () => {
   if (!sessionID.value) return;
   try {
     // Ambil SEMUA data barcode untuk sesi ini
-    const res = await axios.get(`${API_BASE}/pending/${sessionID.value}`);
+    const res = await api.get(`${API_BASE}/pending/${sessionID.value}`);
     const allItems = res.data.data;
 
     // LOGIKA PEMISAHAN KOLOM
@@ -450,7 +451,7 @@ const resetSession = () => {
 
 const generateReport = async () => {
   try {
-    const res = await axios.get(`${API_BASE}/report/${sessionID.value}`);
+    const res = await api.get(`${API_BASE}/report/${sessionID.value}`);
     reportData.value = res.data.data.details;
     showReport.value = true;
   } catch (e) {

@@ -56,6 +56,7 @@ import KomitmenKirimView from "@/views/KomitmenKirimView.vue";
 import FormKomitmenKirimView from "@/views/FormKomitmenKirimView.vue";
 import FormLhkMesinCetakView from "@/views/FormLhkMesinCetakView.vue";
 import LhkMesinCetakView from "../views/LhkMesinCetakView.vue";
+import MaklonBarangView from "@/views/MaklonBarangView.vue";
 import LhkCetakMmtView from "@/views/LhkCetakMmtView.vue";
 import PlanningProduksiView from "@/views/PlanningProduksiView.vue";
 import CreateBarcodeView from "@/views/CreateBarcodeView.vue";
@@ -211,6 +212,24 @@ const routes: RouteRecordRaw[] = [
         name: "LhkCetakEdit",
         component: FormLhkMesinCetakView,
         props: { isEditMode: false },
+      },
+
+      {
+        path: "mmt/maklon/barang",
+        name: "MaklonBarangView",
+        component: MaklonBarangView,
+      },
+      {
+        path: "mmt/maklon/barang/print-gabungan/:nomor/:sjkNomor?",
+        name: "MaklonGabunganPrint",
+        component: () => import("@/views/MaklonGabunganPrintView.vue"),
+        meta: { title: "Cetak Maklon Gabungan" },
+      },
+      {
+        path: "mmt/maklon/barang/print/:nomor",
+        name: "MaklonBarangPrint",
+        component: () => import("@/views/MaklonBarangPrintView.vue"),
+        meta: { title: "Cetak Maklon Barang" },
       },
       {
         path: "mmt/lhk/finishing",

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from "vue";
+import { useDataMode } from "@/services/dataMode";
 
 // --- Props ---
 interface Props {
@@ -33,6 +34,9 @@ const loadingModel = computed({
   get: () => props.loading,
   set: (value: boolean) => emit("update:loading", value),
 });
+
+// Mode data aktif: real (produksi) atau trial (latihan).
+const { mode: dataMode } = useDataMode();
 </script>
 
 <template>
@@ -46,6 +50,15 @@ const loadingModel = computed({
       <div class="header-actions">
         <slot name="header-actions" />
       </div>
+    </div>
+
+    <!-- Penanda mode trial agar user selalu sadar sedang tidak di data real -->
+    <div v-if="dataMode === 'trial'" class="trial-mode-banner">
+      <v-icon size="small" class="mr-1">mdi-flask-outline</v-icon>
+      <span>
+        <b>MODE TRIAL AKTIF</b> — transaksi disimpan ke database latihan dan
+        <b>tidak memengaruhi data real</b>.
+      </span>
     </div>
 
     <!-- Main Content Area -->
@@ -138,6 +151,20 @@ const loadingModel = computed({
 .header-actions {
   display: flex;
   gap: 8px;
+}
+
+/* Banner mode trial */
+.trial-mode-banner {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 4px;
+  border: 1px solid #ffb74d;
+  background: #fff3e0;
+  color: #e65100;
+  font-size: 11px;
+  line-height: 1.3;
 }
 
 /* Area Konten Utama */

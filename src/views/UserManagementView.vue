@@ -250,6 +250,7 @@ const allMenuGroups = [
           { name: "LHK Layout", path: "/mmt/lhk/layout" },
         ],
       },
+      { name: "Maklon Barang", path: "/mmt/maklon/barang" },
       { name: "Planning Produksi", path: "/mmt/planning-produksi" },
       { name: "Memo Approval Produk (MAP)", path: "/mmt/map" },
       { name: "SO TO SPK (Surat Perintah Kerja)", path: "/mmt/so-spk" },

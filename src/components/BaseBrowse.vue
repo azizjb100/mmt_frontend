@@ -2,10 +2,11 @@
   <PageLayout :title="title" :icon="icon">
     <!-- Header Action Buttons -->
     <template #header-actions>
-      <v-btn size="x-small" color="success" @click="$emit('action:new')">
+      <v-btn v-if="showActions" size="x-small" color="success" @click="$emit('action:new')">
         <v-icon start>mdi-plus</v-icon> Baru
       </v-btn>
       <v-btn
+        v-if="showActions"
         size="x-small"
         color="warning"
         :disabled="!isSingleSelected"
@@ -14,6 +15,7 @@
         <v-icon start>mdi-pencil</v-icon> Ubah
       </v-btn>
       <v-btn
+        v-if="showActions"
         size="x-small"
         color="error"
         :disabled="!isSingleSelected"
@@ -404,6 +406,9 @@ const props = defineProps({
   endDate: { type: String, default: "" },
   filters: { type: Object, default: null },
   hasDateFilter: { type: Boolean, default: true },
+
+  // Hide tombol aksi (Baru/Ubah/Hapus) untuk browse yang read-only.
+  showActions: { type: Boolean, default: true },
 
   selected: { type: Array, default: () => [] },
   expanded: { type: Array, default: () => [] },

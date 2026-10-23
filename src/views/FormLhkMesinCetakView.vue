@@ -231,6 +231,15 @@
                 >
                   Tambah SPK
                 </v-btn>
+                <v-btn
+                  size="x-small"
+                  color="deep-purple"
+                  prepend-icon="mdi-swap-horizontal-circle"
+                  style="height: 28px !important; text-transform: none"
+                  @click="lookup.maklon = true"
+                >
+                  Tambah Maklon
+                </v-btn>
                 <v-text-field
                   v-model="formData.barcode_spk"
                   placeholder="Scan Barcode SPK..."
@@ -606,6 +615,11 @@
     @close="lookup.spk = false"
     @select="injectSpkObject"
   />
+  <MaklonLookupView
+    :is-visible="lookup.maklon"
+    @close="lookup.maklon = false"
+    @select="injectMaklonObject"
+  />
 
   <!-- MODAL BARCODE SISA SAMPING (AFAL BARU) — bisa langsung Cetak & Download -->
   <v-dialog
@@ -746,6 +760,7 @@ import api from "@/services/api";
 import BaseForm from "@/components/BaseForm.vue";
 import MesinLookupView from "@/modal/MesinLookupModal.vue";
 import SpkLookupView from "@/modal/SpkMesinLookupModal.vue";
+import MaklonLookupView from "@/modal/MaklonLookupModal.vue";
 import { useAuthStore } from "@/stores/authStore";
 import {
   IconSearch,
@@ -1028,7 +1043,7 @@ const {
   },
 });
 
-const lookup = reactive({ mesin: false, spk: false });
+const lookup = reactive({ mesin: false, spk: false, maklon: false });
 const manualOffsets = reactive<
   Record<number, { x: number; y: number; rotation: number }>
 >({});
@@ -2113,6 +2128,59 @@ const injectSpkObject = (spk: any, fallbackCode: string = "") => {
 
   recalculateCombine();
 };
+
+// === TAMBAH MAKLON dari lookup ===
+// Maklon dari Manksi ditambahkan sebagai baris daftar produksi seperti SPK:
+// nomor & nama maklon + progress (Rencana = estimasi barang jadi,
+// SudahHasil = hasil DTF maklon). Tidak ada panjang/lebar SPK di maklon,
+// jadi diset 0 agar tidak mengganggu kalkulasi layout estamasi.
+const injectMaklonObject = (maklon: any) => {
+  if (!maklon || !maklon.Nomor) return;
+
+  const nomorMaklon = String(maklon.Nomor).trim();
+
+  // Guard duplikat memakai daftar baris yang sama dengan SPK.
+  if (isDuplicateSpk(nomorMaklon)) {
+    toast.warning(`Maklon ${nomorMaklon} sudah ada di list.`);
+    return;
+  }
+
+  const namaMaklon = maklon.Nama || maklon.mkl_keterangan || maklon.Nomor;
+  const rencana = Number(maklon.Rencana ?? 0);
+  const sudahHasil = Number(maklon.SudahHasil ?? 0);
+
+  const newEntry: any = {
+    nomor_spk: nomorMaklon,
+    nama_spk: namaMaklon,
+    is_maklon: true,
+    cab_tujuan: maklon.CabTujuan || "",
+    panjang_spk: 0,
+    lebar_spk: 0,
+    jumlah: rencana,
+    sudahcetak: sudahHasil,
+    kurangcetak_asli: Math.max(0, rencana - sudahHasil),
+
+    padding_atas: null,
+    padding_samping: null,
+
+    tile: 1,
+    orientasi: "lebar",
+    totalcetak: 0,
+    kurangcetak: Math.max(0, rencana - sudahHasil),
+    luas_satuan: 0,
+    total_luas: 0,
+  };
+
+  for (let i = 1; i <= 7; i++) {
+    newEntry[`cetak${i}`] = 0;
+  }
+
+  formData.value.details.push(newEntry);
+
+  recalculateCombine();
+  toast.success(`Maklon ${nomorMaklon} ditambahkan ke daftar produksi`);
+};
+
 
 // Fungsi validasi padding yang dimasukkan ke tombol simpan & ACC
 const validatePaddingDetails = () => {

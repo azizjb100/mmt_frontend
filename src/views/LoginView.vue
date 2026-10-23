@@ -11,6 +11,43 @@
       <div class="form-side">
         <div class="form-wrapper">
           <form @submit.prevent="handleLogin">
+            <div class="mode-group">
+              <label>Mode Data</label>
+              <div class="mode-switch" role="radiogroup" aria-label="Pilih mode data">
+                <button
+                  type="button"
+                  class="mode-btn real"
+                  :class="{ active: dataMode === 'real' }"
+                  :aria-pressed="dataMode === 'real'"
+                  :disabled="loading"
+                  @click="dataMode = 'real'"
+                >
+                  <span class="mode-name">REAL</span>
+                  <span class="mode-sub">Produksi</span>
+                </button>
+                <button
+                  type="button"
+                  class="mode-btn trial"
+                  :class="{ active: dataMode === 'trial' }"
+                  :aria-pressed="dataMode === 'trial'"
+                  :disabled="loading || (trialChecked && !trialAvailable)"
+                  @click="dataMode = 'trial'"
+                >
+                  <span class="mode-name">TRIAL</span>
+                  <span class="mode-sub">Latihan</span>
+                </button>
+              </div>
+              <p
+                class="mode-note"
+                :class="{
+                  trial: dataMode === 'trial',
+                  error: trialChecked && !trialAvailable,
+                }"
+              >
+                {{ modeNote }}
+              </p>
+            </div>
+
             <div class="input-group">
               <label for="username">User name</label>
               <input
@@ -72,9 +109,11 @@
 </template>
 
 <script setup>
-import { ref } from "vue";
+import { ref, computed, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import { useAuthStore } from "@/stores/authStore";
+import api from "@/services/api";
+import { getDataMode, setDataMode } from "@/services/dataMode";
 
 // Inisialisasi Store dan Router
 const auth = useAuthStore();
@@ -88,11 +127,72 @@ const error = ref(null);
 const message = ref(null);
 const loading = ref(false);
 
+// ── Pilihan mode data (hanya di halaman login) ──────────────────────
+// REAL  : database produksi (DB_NAME)
+// TRIAL : database latihan (DB_NAME_TRIAL)
+// Pilihan disimpan di localStorage lalu dikirim sebagai header
+// X-Data-Mode pada setiap request setelah login.
+const dataMode = ref(getDataMode());
+const trialAvailable = ref(true);
+const trialChecked = ref(false);
+const trialDatabase = ref(null);
+const trialError = ref(null);
+
+const modeNote = computed(() => {
+  if (dataMode.value === "trial") {
+    const db = trialDatabase.value ? ` (${trialDatabase.value})` : "";
+    return `Database latihan${db} — data real tidak terpengaruh.`;
+  }
+  if (trialChecked.value && !trialAvailable.value) {
+    return "Mode TRIAL tidak tersedia saat ini.";
+  }
+  return "Database produksi — transaksi langsung tersimpan permanen.";
+});
+
+const fetchModeInfo = async () => {
+  try {
+    const { data } = await api.get("/system/data-mode");
+    const info = data?.data || data || {};
+    trialAvailable.value = Boolean(info.trialAvailable);
+    trialDatabase.value = info.trialDatabase || null;
+    trialError.value = info.trialError || null;
+
+    // Jangan biarkan tetap di trial kalau DB trial tidak siap.
+    if (!trialAvailable.value && dataMode.value === "trial") {
+      dataMode.value = "real";
+      setDataMode("real");
+    }
+  } catch (err) {
+    trialAvailable.value = false;
+    trialError.value =
+      err.response?.data?.message || "Tidak dapat memeriksa database trial.";
+    if (dataMode.value === "trial") {
+      dataMode.value = "real";
+      setDataMode("real");
+    }
+  } finally {
+    trialChecked.value = true;
+  }
+};
+
+onMounted(fetchModeInfo);
+
 // Fungsi Login
 const handleLogin = async () => {
   loading.value = true;
   error.value = null;
   message.value = null;
+
+  if (dataMode.value === "trial" && trialChecked.value && !trialAvailable.value) {
+    error.value =
+      trialError.value || "Database trial tidak tersedia. Pilih mode REAL.";
+    loading.value = false;
+    return;
+  }
+
+  // Simpan pilihan SEBELUM login karena store langsung mengarahkan ke
+  // dashboard setelah autentikasi berhasil.
+  setDataMode(dataMode.value);
 
   try {
     // Memanggil fungsi login dari Pinia store Anda
@@ -194,7 +294,7 @@ const handleRegister = async () => {
   flex: 1;
   /* Transparansi disesuaikan (0.85 agak pekat tapi masih tembus sedikit) */
   background: rgba(51, 65, 85, 0.95);
-  padding: 60px 40px;
+  padding: 36px 40px;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -226,6 +326,92 @@ const handleRegister = async () => {
 
 .input-group input::placeholder {
   color: #94a3b8;
+}
+
+/* Pilihan mode data (REAL / TRIAL) */
+.mode-group {
+  margin-bottom: 20px;
+}
+
+.mode-group > label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 0.85rem;
+  color: #cbd5e1;
+}
+
+.mode-switch {
+  display: flex;
+  gap: 8px;
+}
+
+.mode-btn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  padding: 8px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.06);
+  color: #cbd5e1;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.mode-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.mode-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.mode-btn .mode-name {
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+.mode-btn .mode-sub {
+  font-size: 0.7rem;
+  color: #94a3b8;
+}
+
+.mode-btn.real.active {
+  border-color: #3b82f6;
+  background: rgba(59, 130, 246, 0.25);
+  color: #ffffff;
+  box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.5);
+}
+
+.mode-btn.trial.active {
+  border-color: #fb923c;
+  background: rgba(251, 146, 60, 0.22);
+  color: #ffffff;
+  box-shadow: 0 0 0 1px rgba(251, 146, 60, 0.5);
+}
+
+.mode-btn.active .mode-sub {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.mode-note {
+  margin: 6px 0 0;
+  font-size: 0.72rem;
+  line-height: 1.35;
+  color: #94a3b8;
+}
+
+.mode-note.trial {
+  color: #fdba74;
+}
+
+.mode-note.error {
+  color: #fb7185;
 }
 
 .remember-me {
