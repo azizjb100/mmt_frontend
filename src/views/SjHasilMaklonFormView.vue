@@ -1,274 +1,15 @@
-<template>
-  <div class="pa-4 bg-white rounded elevation-1">
-    <!-- Header Title -->
-    <div class="d-flex align-center justify-space-between mb-4 border-b pb-3">
-      <div class="d-flex align-center">
-        <v-icon color="primary" size="28" class="mr-2">mdi-truck-delivery</v-icon>
-        <div>
-          <h2 class="text-h6 font-weight-bold">Buat Surat Jalan Hasil Maklon</h2>
-          <span class="text-caption text-grey-darken-1">
-            Konfirmasi penerimaan barang jadi dari proses maklon (P05 Mesin Cetak MMT & DTF)
-          </span>
-        </div>
-      </div>
-      <div class="d-flex ga-2">
-        <v-btn
-          variant="outlined"
-          color="grey-darken-1"
-          size="small"
-          @click="onCancel"
-        >
-          <v-icon start size="16">mdi-arrow-left</v-icon> Batal
-        </v-btn>
-        <v-btn
-          color="primary"
-          size="small"
-          :loading="isSaving"
-          :disabled="isLoading || !formData.Items.length"
-          @click="onClickSave"
-        >
-          <v-icon start size="16">mdi-content-save</v-icon> Simpan SJ
-        </v-btn>
-      </div>
-    </div>
-
-    <!-- Loading State -->
-    <v-progress-linear v-if="isLoading" indeterminate color="primary" class="mb-4" />
-
-    <!-- Error State -->
-    <v-alert v-if="errorMessage" type="error" variant="tonal" class="mb-4" closable @click:close="errorMessage = ''">
-      {{ errorMessage }}
-    </v-alert>
-
-    <!-- Pemilihan Maklon (Mode Input Baru / Ganti Maklon) -->
-    <v-card
-      v-if="!formData.MklNomor || isDirectInput"
-      variant="outlined"
-      class="pa-4 mb-4 bg-blue-grey-lighten-5"
-    >
-      <div class="text-subtitle-2 font-weight-bold mb-2 d-flex align-center">
-        <v-icon size="18" color="primary" class="mr-1">mdi-clipboard-text-search</v-icon>
-        Pilih Nomor Maklon Induk
-      </div>
-      <v-row dense align="center">
-        <v-col cols="12" md="8">
-          <v-autocomplete
-            v-model="selectedMklNomor"
-            :items="availableMaklons"
-            item-title="label"
-            item-value="MklNomor"
-            label="Cari No. Maklon / Cabang / Keterangan..."
-            placeholder="Pilih Maklon yang memiliki LHK selesai..."
-            density="compact"
-            variant="outlined"
-            hide-details
-            clearable
-            :loading="isLoadingAvailable"
-            @update:model-value="onSelectMaklon"
-          >
-            <template #item="{ props: itemProps, item }">
-              <v-list-item v-bind="itemProps" :subtitle="item.raw.subtitle">
-                <template #prepend>
-                  <v-chip
-                    size="x-small"
-                    :color="item.raw.Sumber === 'P05' ? 'purple-darken-1' : 'blue-darken-1'"
-                    variant="flat"
-                    class="mr-2"
-                  >
-                    {{ item.raw.Sumber }}
-                  </v-chip>
-                </template>
-              </v-list-item>
-            </template>
-          </v-autocomplete>
-        </v-col>
-        <v-col cols="12" md="4">
-          <v-btn
-            size="small"
-            variant="text"
-            color="primary"
-            :loading="isLoadingAvailable"
-            @click="fetchAvailableMaklons"
-          >
-            <v-icon start size="16">mdi-refresh</v-icon> Muat Ulang Daftar Maklon
-          </v-btn>
-        </v-col>
-      </v-row>
-      <div v-if="availableMaklons.length === 0 && !isLoadingAvailable" class="text-caption text-grey-darken-2 mt-2">
-        <v-icon size="14" color="warning" class="mr-1">mdi-alert-circle-outline</v-icon>
-        Tidak ada Maklon dengan LHK outstanding saat ini.
-      </div>
-    </v-card>
-
-    <!-- Form Content -->
-    <div v-if="!isLoading && formData.MklNomor" class="form-content">
-      <!-- Section Info Maklon -->
-      <v-card variant="outlined" class="pa-4 mb-4 bg-grey-lighten-5">
-        <v-row dense align="center">
-          <v-col cols="12" md="4">
-            <div class="text-caption text-grey-darken-1">No. Maklon Induk</div>
-            <div class="text-subtitle-1 font-weight-bold text-primary d-flex align-center">
-              {{ formData.MklNomor }}
-              <v-chip size="x-small" color="primary" variant="tonal" class="ml-2 font-weight-bold">
-                {{ formData.Sumber }}
-              </v-chip>
-            </div>
-          </v-col>
-          <v-col cols="12" md="4">
-            <div class="text-caption text-grey-darken-1">Gudang Penerima (Cabang Asal)</div>
-            <div class="text-subtitle-1 font-weight-medium">
-              {{ formData.CabAsal }} — {{ formData.NamaCabAsal }}
-              <v-chip size="x-small" color="blue-grey" variant="tonal" class="ml-2">
-                Wajib kembali ke asal
-              </v-chip>
-            </div>
-          </v-col>
-          <v-col cols="12" md="4">
-            <v-text-field
-              v-model="formData.Tanggal"
-              label="Tanggal SJ / Terima"
-              type="date"
-              density="compact"
-              variant="outlined"
-              hide-details
-              style="max-width: 200px"
-            />
-          </v-col>
-        </v-row>
-      </v-card>
-
-      <!-- Section Tabel Item Hasil Maklon -->
-      <div class="mb-2 d-flex align-center justify-space-between">
-        <div>
-          <h3 class="text-subtitle-2 font-weight-bold">
-            Daftar Item Barang Jadi Hasil Maklon
-          </h3>
-          <span class="text-caption text-grey-darken-1">
-            Silakan periksa atau sesuaikan Qty Diterima dan BS / Afval aktual jika diperlukan.
-          </span>
-        </div>
-        <span class="text-caption text-grey">
-          {{ formData.Items.length }} item barang
-        </span>
-      </div>
-
-      <v-table density="compact" class="border rounded mb-4">
-        <thead>
-          <tr class="bg-grey-lighten-3">
-            <th style="width: 40px" class="text-center font-weight-bold">No.</th>
-            <th class="font-weight-bold">Item Barang Jadi</th>
-            <th class="font-weight-bold text-right" style="width: 150px">Qty Diterima</th>
-            <th class="font-weight-bold text-right" style="width: 130px">BS / Afval</th>
-            <th class="font-weight-bold text-center" style="width: 90px">Satuan</th>
-            <th class="font-weight-bold" style="width: 220px">No. LHK</th>
-            <th style="width: 60px" class="text-center">Aksi</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="(item, idx) in formData.Items" :key="idx">
-            <td class="text-center">{{ idx + 1 }}</td>
-            <td>
-              <div class="font-weight-bold text-purple-darken-3">{{ item.KodeHasil }}</div>
-              <div class="text-caption text-grey-darken-2">{{ item.NamaHasil }}</div>
-              <div v-if="item.NamaPolos && item.NamaPolos !== item.NamaHasil" class="text-caption text-grey">
-                Bahan: {{ item.NamaPolos }}
-              </div>
-            </td>
-            <td class="text-right">
-              <v-text-field
-                v-model.number="item.QtyHasil"
-                type="number"
-                min="0"
-                density="compact"
-                variant="outlined"
-                hide-details
-                class="qty-field"
-              />
-            </td>
-            <td class="text-right">
-              <v-text-field
-                v-model.number="item.BsAfval"
-                type="number"
-                min="0"
-                density="compact"
-                variant="outlined"
-                hide-details
-                class="qty-field"
-              />
-            </td>
-            <td class="text-center">{{ item.Satuan || "PCS" }}</td>
-            <td>
-              <div class="font-weight-medium text-caption text-blue-grey-darken-2">
-                {{ item.LhkNomor || "-" }}
-                <v-chip
-                  v-if="item.Sumber"
-                  size="x-small"
-                  :color="item.Sumber === 'P05' ? 'purple-darken-1' : 'blue-darken-1'"
-                  variant="tonal"
-                  class="ml-1"
-                >
-                  {{ item.Sumber }}
-                </v-chip>
-              </div>
-            </td>
-            <td class="text-center">
-              <v-btn
-                icon="mdi-delete-outline"
-                variant="text"
-                color="error"
-                size="x-small"
-                title="Hapus baris dari Surat Jalan ini"
-                @click="removeItem(idx)"
-              />
-            </td>
-          </tr>
-          <tr v-if="formData.Items.length === 0">
-            <td colspan="7" class="text-center pa-4 text-grey">
-              Tidak ada item barang dalam daftar.
-            </td>
-          </tr>
-        </tbody>
-        <tfoot v-if="formData.Items.length > 0">
-          <tr class="bg-grey-lighten-4 font-weight-bold">
-            <td colspan="2" class="text-right">TOTAL:</td>
-            <td class="text-right text-success">{{ formatNumber(totalQtyHasil) }}</td>
-            <td class="text-right text-error">{{ formatNumber(totalBs) }}</td>
-            <td colspan="3"></td>
-          </tr>
-        </tfoot>
-      </v-table>
-    </div>
-
-    <!-- Dialog Konfirmasi Simpan -->
-    <v-dialog v-model="showSaveDialog" max-width="440">
-      <v-card>
-        <v-card-title class="text-subtitle-1 font-weight-bold">
-          Konfirmasi Simpan Surat Jalan
-        </v-card-title>
-        <v-card-text>
-          Apakah Anda yakin ingin membuat Surat Jalan Hasil Maklon untuk
-          <strong>{{ formData.Items.length }} item</strong> dari No. Maklon
-          <strong>{{ formData.MklNomor }}</strong> dengan total terima
-          <strong class="text-success">{{ formatNumber(totalQtyHasil) }} pcs</strong>
-          <span v-if="totalBs > 0"> dan BS <strong>{{ formatNumber(totalBs) }}</strong></span>?
-        </v-card-text>
-        <v-card-actions class="justify-end">
-          <v-btn variant="text" @click="showSaveDialog = false">Batal</v-btn>
-          <v-btn color="primary" :loading="isSaving" @click="executeSave">
-            Ya, Simpan SJ
-          </v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
-  </div>
-</template>
-
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useToast } from "vue-toastification";
 import { format } from "date-fns";
+import BaseForm from "@/components/BaseForm.vue";
 import { sjHasilMaklonService } from "@/services/sjHasilMaklonService";
+import {
+  IconTruckDelivery,
+  IconDeviceFloppy,
+  IconX,
+} from "@tabler/icons-vue";
 
 interface SjHasilItem {
   DtfMaklonId?: number | string;
@@ -299,7 +40,10 @@ const isDirectInput = ref(initialIds.length === 0);
 const isLoading = ref(false);
 const isLoadingAvailable = ref(false);
 const isSaving = ref(false);
+
 const showSaveDialog = ref(false);
+const showCancelDialog = ref(false);
+const showCloseDialog = ref(false);
 const errorMessage = ref("");
 
 const availableMaklons = ref<any[]>([]);
@@ -351,7 +95,6 @@ const fetchAvailableMaklons = async () => {
   }
 };
 
-// Ketika user memilih nomor maklon dari autocomplete
 const onSelectMaklon = async (nomor: string | null) => {
   if (!nomor) {
     formData.MklNomor = "";
@@ -363,7 +106,6 @@ const onSelectMaklon = async (nomor: string | null) => {
   await loadData({ mklNomor: nomor });
 };
 
-// Muat data create dari ids atau mklNomor
 const loadData = async ({ ids = [] as (string | number)[], mklNomor = "" }) => {
   isLoading.value = true;
   errorMessage.value = "";
@@ -408,15 +150,15 @@ const loadData = async ({ ids = [] as (string | number)[], mklNomor = "" }) => {
 
 onMounted(async () => {
   if (initialIds.length > 0) {
-    // Mode dengan ID dari tabel browse
     await loadData({ ids: initialIds });
   } else {
-    // Mode input baru langsung
     await fetchAvailableMaklons();
   }
 });
 
 const onCancel = () => {
+  showCancelDialog.value = false;
+  showCloseDialog.value = false;
   router.push("/mmt/sj-hasil-maklon");
 };
 
@@ -445,10 +187,12 @@ const executeSave = async () => {
       mklNomor: formData.MklNomor,
       ids: formData.Items.map((i) => i.DtfMaklonHasilId || i.DtfMaklonId),
       items: formData.Items.map((i) => ({
-        dtf_maklon_hasil_id: i.Sumber === "DTF" ? Number(i.DtfMaklonHasilId) : null,
-        dtf_maklon_id: i.Sumber === "DTF" ? Number(i.DtfMaklonId) : null,
+        dtf_maklon_hasil_id: i.Sumber === "DTF" && typeof i.DtfMaklonHasilId === "number" ? i.DtfMaklonHasilId : null,
+        dtf_maklon_id: i.Sumber === "DTF" && typeof i.DtfMaklonId === "number" ? i.DtfMaklonId : null,
         mkld_id: i.MkldId || null,
         kode_jadi: i.KodeHasil,
+        KodePolos: i.KodePolos || "",
+        Satuan: i.Satuan || "PCS",
         qty_terima: Number(i.QtyHasil) || 0,
         qty_bs: Number(i.BsAfval) || 0,
         lhk_nomor: i.LhkNomor || "",
@@ -478,13 +222,365 @@ const executeSave = async () => {
 };
 </script>
 
+<template>
+  <BaseForm
+    title="Buat Surat Jalan Hasil Maklon"
+    menu-id="182"
+    :icon="IconTruckDelivery"
+    :is-loading="isLoading"
+    :is-saving="isSaving"
+    item-name="Surat Jalan Hasil Maklon"
+    v-model:showSaveDialog="showSaveDialog"
+    v-model:showCancelDialog="showCancelDialog"
+    v-model:showCloseDialog="showCloseDialog"
+    @validate-save="onClickSave"
+    @confirm-save="executeSave"
+    @confirm-cancel="onCancel"
+    @confirm-close="onCancel"
+  >
+    <!-- Header Actions -->
+    <template #header-actions>
+      <v-btn
+        size="small"
+        color="primary"
+        @click="onClickSave"
+        :loading="isSaving"
+        :disabled="isLoading || !formData.Items.length"
+      >
+        <template #prepend>
+          <span class="d-flex align-center">
+            <IconDeviceFloppy :size="15" :stroke-width="1.7" />
+          </span>
+        </template>
+        Simpan SJ
+      </v-btn>
+      <v-btn
+        size="small"
+        variant="outlined"
+        class="mx-1"
+        @click="showCancelDialog = true"
+      >
+        Batal
+      </v-btn>
+      <v-btn
+        size="small"
+        variant="tonal"
+        color="error"
+        @click="showCloseDialog = true"
+      >
+        <template #prepend>
+          <span class="d-flex align-center">
+            <IconX :size="15" :stroke-width="2" />
+          </span>
+        </template>
+        Tutup
+      </v-btn>
+    </template>
+
+    <!-- Kolom Kiri: Header Info Maklon Induk -->
+    <template #left-column>
+      <div class="desktop-form-section header-section">
+        <div class="text-caption font-weight-bold mb-3 text-primary d-flex align-center">
+          <v-icon size="16" class="mr-1" color="primary">mdi-truck-delivery</v-icon>
+          INFO MAKLON INDUK
+        </div>
+
+        <div v-if="isDirectInput || !initialIds.length" class="mb-3">
+          <v-autocomplete
+            v-model="selectedMklNomor"
+            :items="availableMaklons"
+            item-title="label"
+            item-value="MklNomor"
+            label="Pilih No. Maklon..."
+            placeholder="Cari Maklon yang selesai LHK..."
+            density="compact"
+            variant="outlined"
+            hide-details
+            clearable
+            :loading="isLoadingAvailable"
+            @update:model-value="onSelectMaklon"
+          >
+            <template #item="{ props: itemProps, item }">
+              <v-list-item v-bind="itemProps" :subtitle="item.raw.subtitle">
+                <template #prepend>
+                  <v-chip
+                    size="x-small"
+                    :color="item.raw.Sumber === 'P05' ? 'purple-darken-1' : 'blue-darken-1'"
+                    variant="flat"
+                    class="mr-2"
+                  >
+                    {{ item.raw.Sumber }}
+                  </v-chip>
+                </template>
+              </v-list-item>
+            </template>
+          </v-autocomplete>
+        </div>
+
+        <v-text-field
+          label="No. Maklon Induk"
+          v-model="formData.MklNomor"
+          readonly
+          variant="filled"
+          density="compact"
+          hide-details
+          class="mb-2 font-weight-bold"
+        />
+
+        <v-text-field
+          label="Gudang Penerima (Cabang Asal)"
+          :model-value="formData.CabAsal ? `${formData.CabAsal} — ${formData.NamaCabAsal}` : '-'"
+          readonly
+          variant="filled"
+          density="compact"
+          hide-details
+          class="mb-2"
+        />
+
+        <v-text-field
+          v-model="formData.Tanggal"
+          label="Tanggal SJ / Terima"
+          type="date"
+          density="compact"
+          variant="outlined"
+          hide-details
+          class="mb-2"
+        />
+
+        <v-text-field
+          label="Divisi / Sumber"
+          :model-value="formData.Sumber || 'P05'"
+          readonly
+          variant="filled"
+          density="compact"
+          hide-details
+          class="mb-2"
+        />
+
+        <v-text-field
+          label="Total Qty Diterima"
+          :model-value="formatNumber(totalQtyHasil)"
+          readonly
+          variant="filled"
+          density="compact"
+          hide-details
+          class="text-right-input font-weight-bold text-success mb-2"
+        />
+
+        <v-text-field
+          label="Total BS / Afval"
+          :model-value="formatNumber(totalBs)"
+          readonly
+          variant="filled"
+          density="compact"
+          hide-details
+          class="text-right-input font-weight-bold text-error"
+        />
+      </div>
+    </template>
+
+    <!-- Kolom Kanan: Tabel Detail Hasil Maklon -->
+    <template #right-column>
+      <v-card elevation="1" rounded="lg" border class="items-table-card">
+        <v-toolbar color="primary" density="compact" flat style="height: 38px;">
+          <v-icon start class="ml-3" size="18">mdi-format-list-checks</v-icon>
+          <span class="text-caption font-weight-bold">
+            Daftar Item Barang Jadi Hasil Maklon
+          </span>
+          <v-spacer></v-spacer>
+          <v-chip
+            size="x-small"
+            color="white"
+            variant="flat"
+            class="mr-3 text-primary font-weight-bold"
+          >
+            {{ formData.Items.length }} Item Barang
+          </v-chip>
+        </v-toolbar>
+
+        <div class="items-table-scroll-wrap">
+          <table class="manksi-table">
+            <thead>
+              <tr>
+                <th style="width: 40px" class="text-center">No.</th>
+                <th>Item Barang Jadi</th>
+                <th style="width: 140px" class="text-right">Qty Diterima</th>
+                <th style="width: 120px" class="text-right">BS / Afval</th>
+                <th style="width: 80px" class="text-center">Satuan</th>
+                <th style="width: 220px">No. LHK</th>
+                <th style="width: 50px" class="text-center">Aksi</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="(item, idx) in formData.Items" :key="idx">
+                <td class="text-center text-grey-darken-1">{{ idx + 1 }}</td>
+                <td>
+                  <div class="font-weight-bold text-purple-darken-3">{{ item.KodeHasil }}</div>
+                  <div class="text-caption text-grey-darken-2">{{ item.NamaHasil }}</div>
+                  <div v-if="item.NamaPolos && item.NamaPolos !== item.NamaHasil" class="text-caption text-grey">
+                    Bahan: {{ item.NamaPolos }}
+                  </div>
+                </td>
+                <td class="text-right bg-green-lighten-5">
+                  <input
+                    type="number"
+                    min="0"
+                    v-model.number="item.QtyHasil"
+                    class="cell-input tr font-weight-bold text-success"
+                  />
+                </td>
+                <td class="text-right bg-red-lighten-5">
+                  <input
+                    type="number"
+                    min="0"
+                    v-model.number="item.BsAfval"
+                    class="cell-input tr font-weight-bold text-error"
+                  />
+                </td>
+                <td class="text-center">{{ item.Satuan || "PCS" }}</td>
+                <td>
+                  <span class="font-weight-medium text-caption">{{ item.LhkNomor || "-" }}</span>
+                  <v-chip
+                    v-if="item.Sumber"
+                    size="x-small"
+                    :color="item.Sumber === 'P05' ? 'purple-darken-1' : 'blue-darken-1'"
+                    variant="tonal"
+                    class="ml-1 font-weight-bold"
+                  >
+                    {{ item.Sumber }}
+                  </v-chip>
+                </td>
+                <td class="text-center">
+                  <v-btn
+                    icon="mdi-delete-outline"
+                    variant="text"
+                    color="error"
+                    size="x-small"
+                    title="Hapus baris dari Surat Jalan ini"
+                    @click="removeItem(idx)"
+                  />
+                </td>
+              </tr>
+              <tr v-if="formData.Items.length === 0">
+                <td colspan="7" class="text-center pa-4 text-grey">
+                  {{ formData.MklNomor ? 'Tidak ada item barang dalam daftar.' : 'Silakan pilih No. Maklon terlebih dahulu.' }}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Sticky Footer Summary -->
+        <div class="d-flex align-center justify-space-between px-4 py-2 bg-grey-lighten-4 border-t">
+          <span class="text-caption text-grey-darken-1">
+            * Kolom Qty Diterima dan BS / Afval dapat diedit sesuai hasil fisik yang diterima.
+          </span>
+          <div class="d-flex ga-4 align-center">
+            <span class="text-caption font-weight-bold">
+              Total Terima: <span class="text-success text-subtitle-2 font-weight-bold ml-1">{{ formatNumber(totalQtyHasil) }}</span>
+            </span>
+            <span class="text-caption font-weight-bold">
+              Total BS: <span class="text-error text-subtitle-2 font-weight-bold ml-1">{{ formatNumber(totalBs) }}</span>
+            </span>
+          </div>
+        </div>
+      </v-card>
+    </template>
+  </BaseForm>
+</template>
+
 <style scoped>
-.form-content {
-  max-width: 1100px;
+.header-section {
+  border-top: 3px solid #1976d2 !important;
 }
-.qty-field :deep(.v-field__input) {
-  text-align: right;
-  font-weight: bold;
+
+.items-table-card {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 420px;
+  overflow: hidden;
+}
+
+.items-table-scroll-wrap {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  overflow-x: auto;
+  max-height: calc(100vh - 350px);
+  min-height: 250px;
+  scrollbar-width: thin;
+}
+
+.items-table-scroll-wrap::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.items-table-scroll-wrap::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+.items-table-scroll-wrap::-webkit-scrollbar-thumb {
+  background: #b0bec5;
+  border-radius: 3px;
+}
+.items-table-scroll-wrap::-webkit-scrollbar-thumb:hover {
+  background: #78909c;
+}
+
+.manksi-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+
+.manksi-table th {
+  background: #f5f5f5 !important;
+  color: #424242;
+  font-weight: 600;
+  padding: 8px 10px;
+  border-bottom: 1px solid #e0e0e0;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  text-align: left;
+}
+
+.manksi-table td {
   padding: 4px 8px;
+  border-bottom: 1px solid #f0f0f0;
+  height: 38px;
+  vertical-align: middle;
+}
+
+.manksi-table tr:hover {
+  background-color: #fafafa;
+}
+
+.cell-input {
+  width: 100%;
+  height: 100%;
+  border: 1px solid #c8e6c9;
+  border-radius: 4px;
+  padding: 4px 8px;
+  outline: none;
+  background: white;
+  font-size: 12px;
+  box-sizing: border-box;
+}
+
+.cell-input:focus {
+  border-color: #1976d2;
+  box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.2);
+}
+
+.tr {
+  text-align: right;
+}
+
+.text-right-input :deep(input) {
+  text-align: right !important;
+}
+
+:deep(.v-text-field--readonly .v-field) {
+  background-color: #f5f5f5 !important;
 }
 </style>
