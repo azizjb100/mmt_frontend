@@ -268,8 +268,8 @@
                   <th width="28">No</th>
                   <th width="95">Nomor SPK</th>
                   <th>Nama Produk</th>
-                  <th width="46">P (M)</th>
-                  <th width="46">L (M)</th>
+                  <th width="54">P (M)</th>
+                  <th width="54">L (M)</th>
                   <th width="95">Orientasi</th>
                   <th width="46">Pad Atas</th>
                   <th width="46">Pad Smp</th>
@@ -288,6 +288,15 @@
                   <td class="text-center">{{ index + 1 }}</td>
                   <td class="fw-bold text-blue-darken-4 px-2">
                     {{ item.nomor_spk }}
+                    <v-chip
+                      v-if="isItemMaklon(item)"
+                      size="x-small"
+                      color="purple-darken-2"
+                      variant="tonal"
+                      class="ml-1"
+                    >
+                      MKL
+                    </v-chip>
                   </td>
                   <td
                     class="px-2 text-truncate"
@@ -296,11 +305,43 @@
                   >
                     {{ item.nama_spk }}
                   </td>
-                  <td class="text-right px-2">
-                    {{ Number(item.panjang_spk || 0).toFixed(2) }}
+                  <td
+                    :class="isItemMaklon(item) ? 'bg-amber-lighten-5 px-1' : 'text-right px-2'"
+                  >
+                    <input
+                      v-if="isItemMaklon(item)"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      v-model.number="item.panjang_spk"
+                      class="cell-input tr font-weight-bold"
+                      placeholder="0.00"
+                      title="Ubah Panjang Maklon (M)"
+                      @input="recalculateCombine"
+                      @wheel="$event.target.blur()"
+                    />
+                    <span v-else>
+                      {{ Number(item.panjang_spk || 0).toFixed(2) }}
+                    </span>
                   </td>
-                  <td class="text-right px-2">
-                    {{ Number(item.lebar_spk || 0).toFixed(2) }}
+                  <td
+                    :class="isItemMaklon(item) ? 'bg-amber-lighten-5 px-1' : 'text-right px-2'"
+                  >
+                    <input
+                      v-if="isItemMaklon(item)"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      v-model.number="item.lebar_spk"
+                      class="cell-input tr font-weight-bold"
+                      placeholder="0.00"
+                      title="Ubah Lebar Maklon (M)"
+                      @input="recalculateCombine"
+                      @wheel="$event.target.blur()"
+                    />
+                    <span v-else>
+                      {{ Number(item.lebar_spk || 0).toFixed(2) }}
+                    </span>
                   </td>
                   <td>
                     <select
@@ -861,8 +902,10 @@ const {
       lstatus: h.lth_status || "DRAFT",
 
       details: details.map((d: any) => {
-        const qtyOrder = parseFloat(d.jumlah || d.spk_qty || 0);
-        const sdhCetak = parseFloat(d.sudahcetak || d.spk_sudah_cetak || 0);
+        const qtyOrder = parseFloat(d.jumlah || d.spk_qty || d.qty_order || 0);
+        const sdhCetak = parseFloat(
+          d.sudahcetak || d.spk_sudah_cetak || d.sudah_cetak_sebelumnya || d.total_cetak_sebelumnya || 0,
+        );
         const currentTotalInput = parseFloat(d.totalcetak || 0);
 
         const detailObj: any = {
@@ -870,6 +913,11 @@ const {
           nama_spk: d.nama_spk || d.spk_nama,
           panjang_spk: parseFloat(d.spk_panjang || 0),
           lebar_spk: parseFloat(d.spk_lebar || 0),
+          is_maklon:
+            d.is_maklon ||
+            String(d.spk_nomor || d.ltd_spk_nomor || "")
+              .toUpperCase()
+              .startsWith("MKL"),
           jumlah: qtyOrder,
           sudahcetak: sdhCetak,
           // Sisa order SEBELUM input LHK ini (order - total cetak LHK sebelumnya)
@@ -954,6 +1002,9 @@ const {
 
     const formattedDetails = formData.value.details.map((d) => ({
       nomor_spk: d.nomor_spk,
+      panjang_spk: d.panjang_spk,
+      lebar_spk: d.lebar_spk,
+      is_maklon: d.is_maklon,
       tile: d.tile,
       jumlah: d.jumlah,
       luasm2: d.total_luas,
@@ -1992,6 +2043,22 @@ const handleSpkScan = async () => {
   if (!code) return;
 
   try {
+    if (code.toUpperCase().startsWith("MKL")) {
+      const res = await api.get(`/mmt/maklon-barang/lookup`, {
+        params: { keyword: code },
+      });
+      const list = res.data?.data || res.data || [];
+      const maklon =
+        list.find(
+          (m: any) => normalizeSpkNo(m.Nomor) === normalizeSpkNo(code),
+        ) || list[0];
+      if (maklon) {
+        injectMaklonObject(maklon);
+        formData.value.barcode_spk = "";
+        return;
+      }
+    }
+
     const res = await api.get(`/mmt/SPK/${code}`);
     let spkData = res.data?.data?.data || res.data?.data || res.data;
     if (Array.isArray(spkData)) {
@@ -2002,11 +2069,11 @@ const handleSpkScan = async () => {
       injectSpkObject(spkData, code);
       formData.value.barcode_spk = "";
     } else {
-      toast.error("Data SPK tidak ditemukan!");
+      toast.error("Data SPK / Maklon tidak ditemukan!");
     }
   } catch (e: any) {
-    console.error("Error scan SPK:", e);
-    toast.error(e.response?.data?.message || "Gagal memuat barcode SPK");
+    console.error("Error scan SPK/Maklon:", e);
+    toast.error(e.response?.data?.message || "Gagal memuat barcode SPK/Maklon");
   }
 };
 
@@ -2129,11 +2196,19 @@ const injectSpkObject = (spk: any, fallbackCode: string = "") => {
   recalculateCombine();
 };
 
+// Cek apakah item adalah Maklon
+const isItemMaklon = (item: any) => {
+  return (
+    !!item?.is_maklon ||
+    String(item?.nomor_spk || "").toUpperCase().startsWith("MKL")
+  );
+};
+
 // === TAMBAH MAKLON dari lookup ===
 // Maklon dari Manksi ditambahkan sebagai baris daftar produksi seperti SPK:
 // nomor & nama maklon + progress (Rencana = estimasi barang jadi,
-// SudahHasil = hasil DTF maklon). Tidak ada panjang/lebar SPK di maklon,
-// jadi diset 0 agar tidak mengganggu kalkulasi layout estamasi.
+// SudahHasil = hasil DTF maklon). Panjang dan lebar SPK di maklon dapat
+// diubah/diisi langsung oleh operator pada tabel daftar produksi.
 const injectMaklonObject = (maklon: any) => {
   if (!maklon || !maklon.Nomor) return;
 
@@ -2146,22 +2221,24 @@ const injectMaklonObject = (maklon: any) => {
   }
 
   const namaMaklon = maklon.Nama || maklon.mkl_keterangan || maklon.Nomor;
-  const rencana = Number(maklon.Rencana ?? 0);
-  const sudahHasil = Number(maklon.SudahHasil ?? 0);
+  const rencana = Number(maklon.Rencana ?? maklon.jumlah ?? 0);
+  const sudahHasil = Number(
+    maklon.SudahHasil ?? maklon.sudahcetak ?? maklon.SudahCetak ?? 0,
+  );
 
   const newEntry: any = {
     nomor_spk: nomorMaklon,
     nama_spk: namaMaklon,
     is_maklon: true,
     cab_tujuan: maklon.CabTujuan || "",
-    panjang_spk: 0,
-    lebar_spk: 0,
+    panjang_spk: Number(maklon.Panjang ?? maklon.spk_panjang ?? maklon.panjang_spk ?? 0),
+    lebar_spk: Number(maklon.Lebar ?? maklon.spk_lebar ?? maklon.lebar_spk ?? 0),
     jumlah: rencana,
     sudahcetak: sudahHasil,
     kurangcetak_asli: Math.max(0, rencana - sudahHasil),
 
-    padding_atas: null,
-    padding_samping: null,
+    padding_atas: 1,
+    padding_samping: 1,
 
     tile: 1,
     orientasi: "lebar",
@@ -2178,7 +2255,7 @@ const injectMaklonObject = (maklon: any) => {
   formData.value.details.push(newEntry);
 
   recalculateCombine();
-  toast.success(`Maklon ${nomorMaklon} ditambahkan ke daftar produksi`);
+  toast.success(`Maklon ${nomorMaklon} ditambahkan (Nilai P & L dapat diisi/diubah)`);
 };
 
 

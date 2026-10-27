@@ -232,6 +232,24 @@ const routes: RouteRecordRaw[] = [
         meta: { title: "Cetak Maklon Barang" },
       },
       {
+        path: "mmt/sj-hasil-maklon",
+        name: "SjHasilMaklonBrowse",
+        component: () => import("@/views/SjHasilMaklonView.vue"),
+        meta: { title: "SJ Hasil Maklon" },
+      },
+      {
+        path: "mmt/sj-hasil-maklon/create",
+        name: "SjHasilMaklonCreate",
+        component: () => import("@/views/SjHasilMaklonFormView.vue"),
+        meta: { title: "Buat SJ Hasil Maklon" },
+      },
+      {
+        path: "mmt/sj-hasil-maklon/print/:nomor",
+        name: "SjHasilMaklonPrint",
+        component: () => import("@/views/SjHasilMaklonPrintView.vue"),
+        meta: { title: "Cetak SJ Hasil Maklon" },
+      },
+      {
         path: "mmt/lhk/finishing",
         name: "LHK Finishing MMT",
         component: LhkFinishingView,

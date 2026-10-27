@@ -77,6 +77,16 @@
 
       <v-btn
         size="x-small"
+        variant="tonal"
+        color="purple-darken-2"
+        class="mr-2"
+        @click="router.push('/mmt/sj-hasil-maklon')"
+      >
+        <v-icon start size="14">mdi-truck-delivery</v-icon> SJ Hasil Maklon
+      </v-btn>
+
+      <v-btn
+        size="x-small"
         color="info"
         :disabled="masterData.length === 0"
         @click="exportToExcel"
@@ -438,8 +448,18 @@ const getRowProps = ({ item }: any) => {
   };
 };
 
-const handleRowClick = (item: MaklonHeader) => {
-  selected.value = [item];
+// BaseBrowse memancarkan event `row-click` dengan dua argumen:
+// (MouseEvent, { item, index, ... }). Ambil `row.item`, bukan argumen
+// pertama — sebelumnya yang tersimpan adalah MouseEvent sehingga
+// tombol Cetak membuka nomor "undefined".
+const handleRowClick = (_event: any, row: any) => {
+  const item = row?.item as MaklonHeader | undefined;
+  if (!item) return;
+  selected.value = selected.value.some(
+    (s) => s.mkl_nomor === item.mkl_nomor,
+  )
+    ? []
+    : [item];
 };
 
 const formatDateCell = (val?: string) => {

@@ -24,6 +24,7 @@
           { title: 'MX', value: '1' },
           { title: 'PAPERPRINT', value: '2' },
           { title: 'SUBLIM', value: '3' },
+          { title: 'MAKLON', value: '4' },
         ]"
         label="Kategori"
         density="compact"
@@ -1182,6 +1183,15 @@ const handlePreview = (nomorSpk: string) => {
     alert("SPK belum dibuat atau nomor SPK tidak valid.");
     return;
   }
+  // Baris Maklon bukan SPK, jadi jangan dibuka ke halaman cetak SPK.
+  // Arahkan ke dokumen Maklon Barang yang sesuai.
+  if (jenisIndex.value === "4") {
+    window.open(
+      `/mmt/maklon/barang/print/${encodeURIComponent(nomorSpk)}`,
+      "_blank",
+    );
+    return;
+  }
   previewSpkNomor.value = nomorSpk;
   isIframeLoading.value = true;
   previewUrl.value = `/mmt/so-spk/print/${encodeURIComponent(nomorSpk)}?preview=1`;
@@ -1210,6 +1220,7 @@ const jenisLabel = computed(() => {
   if (jenisIndex.value === "1") return "MX";
   if (jenisIndex.value === "2") return "PAPERPRINT";
   if (jenisIndex.value === "3") return "SUBLIM";
+  if (jenisIndex.value === "4") return "MAKLON";
   return "MT";
 });
 
@@ -1235,6 +1246,13 @@ const subPcs = computed(() => {
       { label: "Order", key: "spk_jumlah" },
       { label: "K-Cetak", key: "krg_Cetak" },
       { label: "K-Mutasi P04", key: "krg_mutasi_p04" },
+    ];
+  }
+  if (jenisIndex.value === "4") {
+    // Maklon: Order = estimasi barang jadi; K-Cetak = Order - total LHK Cetak.
+    return [
+      { label: "Order", key: "spk_jumlah" },
+      { label: "K-Cetak", key: "krg_Cetak" },
     ];
   }
   return [

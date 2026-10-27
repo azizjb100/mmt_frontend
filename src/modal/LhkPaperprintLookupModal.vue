@@ -303,7 +303,10 @@ const confirmSelection = (item: PaperprintItem) => {
     Lebar: item.Lebar,
     spk_lebar: item.Lebar,
     jumlah_sublim: item.Jumlah,
-    spk_jmlorder: item.Jumlah, // Mengambil QTY dari Paperprint
+    spk_jmlorder: item.Jumlah_Order || item.Jumlah,
+    Jumlah_Order: item.Jumlah_Order || item.Jumlah,
+    Sudah_Cetak: item.Sudah_Cetak || 0,
+    sudah_cetak: item.Sudah_Cetak || 0,
 
     // Referensi asal usul data
     lhk_asal: item.Nomor_Paperprint,

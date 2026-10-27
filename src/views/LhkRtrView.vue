@@ -124,14 +124,15 @@ const masterHeaders = [
 
 const detailHeaders = [
   { title: "No. Urut", key: "No_Urut", width: "80px" },
-  { title: "Nomor SPK", key: "Nomor_SPK", width: "150px" },
+  { title: "PO Internal", key: "No_PO_Internal", width: "170px" },
+  { title: "Nomor SPK", key: "Nomor_SPK", width: "170px" },
+  { title: "No. LHK Paperprint", key: "Lhk_Paperprint", width: "170px" },
   { title: "Nama SPK", key: "Nama_SPK", width: "250px" },
   { title: "P", key: "Panjang", align: "end" as const },
   { title: "L", key: "Lebar", align: "end" as const },
   { title: "Jumlah", key: "Jumlah", align: "end" as const },
   { title: "Total (m²)", key: "Jumlah_meter", align: "end" as const },
   { title: "Size", key: "Size", align: "center" as const },
-  { title: "PO Internal", key: "No_PO_Internal", width: "150px" },
 ];
 
 const isSingleSelected = computed(() => selected.value.length === 1);

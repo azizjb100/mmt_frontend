@@ -145,49 +145,53 @@
             <table class="manksi-table">
               <thead>
                 <tr>
-                  <th width="35">No</th>
-                  <th width="110">PO Internal</th>
-                  <th width="60">Size</th>
-                  <th width="110">Komponen</th>
-                  <th width="110">No. SPK</th>
-                  <th>Nama Order</th>
-                  <th width="130">Bahan Keluar</th>
-                  <th width="90">Bahan Awal</th>
-                  <th width="70">Panjang</th>
-                  <th width="70">Lebar</th>
-                  <th width="60">Target</th>
-                  <th width="80">Jml RTR</th>
-                  <th width="80">Jml BS</th>
-                  <th width="90">Total m²</th>
-                  <th width="90">Mesin</th>
-                  <th width="130">Keterangan</th>
-                  <th width="45"></th>
+                  <th style="width: 35px; min-width: 35px">No</th>
+                  <th style="white-space: nowrap; min-width: 110px">PO Internal</th>
+                  <th style="width: 55px; min-width: 55px" class="text-center">Size</th>
+                  <th style="width: 110px; min-width: 110px">Komponen</th>
+                  <th style="white-space: nowrap; min-width: 110px">No. SPK</th>
+                  <th style="white-space: nowrap; min-width: 120px">No. LHK Paperprint</th>
+                  <th style="min-width: 220px">Nama Order</th>
+                  <th style="width: 130px; min-width: 130px">Bahan Keluar</th>
+                  <th style="width: 80px; min-width: 80px" class="text-right">Bahan Awal</th>
+                  <th style="width: 65px; min-width: 65px" class="text-right">Panjang</th>
+                  <th style="width: 65px; min-width: 65px" class="text-right">Lebar</th>
+                  <th style="white-space: nowrap; min-width: 85px" class="text-right">Jumlah Order</th>
+                  <th style="white-space: nowrap; min-width: 85px" class="text-right">Sudah Cetak</th>
+                  <th style="white-space: nowrap; min-width: 105px" class="text-right">Jumlah Cetak RTR</th>
+                  <th style="width: 70px; min-width: 70px" class="text-right">Jml BS</th>
+                  <th style="width: 85px; min-width: 85px" class="text-right">Total m²</th>
+                  <th style="width: 85px; min-width: 85px">Mesin</th>
+                  <th style="width: 120px; min-width: 120px">Keterangan</th>
+                  <th style="width: 40px; min-width: 40px"></th>
                 </tr>
               </thead>
               <tbody>
                 <tr v-for="(item, index) in detailData" :key="index">
                   <td class="text-center">{{ index + 1 }}</td>
 
-                  <td class="cell-yellow px-1">
+                  <td class="cell-yellow px-1" style="white-space: nowrap">
                     <input
                       type="text"
                       v-model="item.poi_nomor"
                       readonly
                       placeholder="Pilih PO..."
-                      class="cell-input cursor-pointer fw-bold text-amber-darken-4"
+                      :title="item.poi_nomor || 'Pilih PO...'"
+                      :style="{ minWidth: getDynamicColWidth(item.poi_nomor, 12) }"
+                      class="cell-input cursor-pointer fw-bold text-amber-darken-4 font-mono"
                       @click="openPoiSearchRow(index)"
                     />
                   </td>
 
-                  <td class="text-center bg-grey-lighten-4">
+                  <td class="text-center bg-grey-lighten-4" style="width: 55px; min-width: 55px">
                     <input
                       type="text"
                       v-model="item.poi_size"
-                      class="cell-input text-center"
+                      class="cell-input text-center font-weight-bold"
                     />
                   </td>
 
-                  <td>
+                  <td style="width: 110px; min-width: 110px">
                     <input
                       type="text"
                       v-model="item.nama_komponen"
@@ -196,22 +200,37 @@
                     />
                   </td>
 
-                  <td class="cell-yellow px-1">
+                  <td class="cell-yellow px-1" style="white-space: nowrap">
                     <input
                       type="text"
                       v-model="item.spk_nomor"
                       readonly
                       placeholder="Pilih SPK..."
-                      class="cell-input cursor-pointer fw-bold text-blue-darken-4"
+                      :title="item.spk_nomor || 'Pilih SPK...'"
+                      :style="{ minWidth: getDynamicColWidth(item.spk_nomor, 12) }"
+                      class="cell-input cursor-pointer fw-bold text-blue-darken-4 font-mono"
                       @click="openSpkSearchRow(index)"
                     />
                   </td>
 
-                  <td class="px-2 text-truncate" :title="item.spk_nama">
+                  <td class="cell-yellow px-1" style="white-space: nowrap">
+                    <input
+                      type="text"
+                      v-model="item.lhk_paperprint"
+                      readonly
+                      placeholder="Pilih LHK Paperprint..."
+                      :title="item.lhk_paperprint || 'Pilih LHK Paperprint...'"
+                      :style="{ minWidth: getDynamicColWidth(item.lhk_paperprint, 14) }"
+                      class="cell-input cursor-pointer fw-bold text-purple-darken-3 font-mono"
+                      @click="openPaperprintSearchRow(index)"
+                    />
+                  </td>
+
+                  <td class="px-2 text-truncate" :title="item.spk_nama" style="min-width: 220px">
                     {{ item.spk_nama }}
                   </td>
 
-                  <td class="px-1">
+                  <td class="px-1" style="width: 130px; min-width: 130px">
                     <div
                       v-if="item.barang_id"
                       class="text-xxs text-grey-darken-3 font-weight-bold"
@@ -228,6 +247,7 @@
 
                   <td
                     class="text-right px-2 font-weight-bold text-teal-darken-2"
+                    style="width: 80px; min-width: 80px"
                   >
                     {{
                       item.bahan_awal
@@ -237,7 +257,7 @@
                     M
                   </td>
 
-                  <td>
+                  <td style="width: 65px; min-width: 65px">
                     <input
                       type="number"
                       v-model.number="item.panjang"
@@ -247,7 +267,7 @@
                     />
                   </td>
 
-                  <td>
+                  <td style="width: 65px; min-width: 65px">
                     <input
                       type="number"
                       v-model.number="item.lebar"
@@ -257,13 +277,21 @@
                     />
                   </td>
 
-                  <td class="text-right px-2 font-weight-medium">
-                    {{ item.qty_order || 0 }}
+                  <!-- 1. JUMLAH ORDER -->
+                  <td class="text-right px-2 font-weight-bold bg-grey-lighten-4" style="min-width: 85px">
+                    {{ formatNumber(item.qty_order) }}
                   </td>
 
+                  <!-- 2. SUDAH CETAK -->
+                  <td class="text-right px-2 font-weight-medium bg-grey-lighten-4 text-blue-grey-darken-2" style="min-width: 85px">
+                    {{ formatNumber(item.sudah_cetak) }}
+                  </td>
+
+                  <!-- 3. JUMLAH CETAK RTR -->
                   <td
+                    style="min-width: 105px"
                     :class="
-                      item.jumlah_rtr > item.qty_order
+                      item.qty_order > 0 && item.jumlah_rtr > (item.qty_order - (item.sudah_cetak || 0))
                         ? 'bg-red-lighten-5'
                         : 'bg-yellow-lighten-5'
                     "
@@ -273,7 +301,7 @@
                       v-model.number="item.jumlah_rtr"
                       class="cell-input tr font-weight-bold"
                       :class="
-                        item.jumlah_rtr > item.qty_order
+                        item.qty_order > 0 && item.jumlah_rtr > (item.qty_order - (item.sudah_cetak || 0))
                           ? 'text-red font-weight-black'
                           : ''
                       "
@@ -282,7 +310,7 @@
                     />
                   </td>
 
-                  <td class="cell-yellow">
+                  <td class="cell-yellow" style="width: 70px; min-width: 70px">
                     <input
                       type="number"
                       v-model.number="item.jumlah_bs"
@@ -294,6 +322,7 @@
 
                   <td
                     class="text-right font-weight-bold px-2 text-blue-darken-2"
+                    style="width: 85px; min-width: 85px"
                   >
                     {{ Number(item.jumlah_meter || 0).toFixed(2) }}
                   </td>
@@ -414,25 +443,46 @@ const ensureMeter = (val: any) => {
   return num > 10 ? parseFloat((num / 100).toFixed(2)) : num;
 };
 
+const getDynamicColWidth = (val?: string, minChars = 11) => {
+  const str = String(val || "").trim();
+  const len = Math.max(minChars, str.length + 1);
+  return `${Math.round(len * 8.2 + 14)}px`;
+};
+
+const formatNumber = (val?: any) => {
+  const n = Number(val);
+  return Number.isFinite(n) ? n.toLocaleString("id-ID") : "0";
+};
+
 // --- FETCH API UNTUK MODE EDIT ---
 const fetchApi = async () => {
   const nomorParams = route.params.nomor as string;
   if (!nomorParams) return initialData;
 
   const response = await api.get(`/mmt/lhk-sublim/detail/${nomorParams}`);
-  const rawDetails = response.data.data || response.data || [];
+  const headerData = response.data?.header;
+  const rawDetails = response.data?.data || response.data?.details || response.data || [];
 
-  if (!Array.isArray(rawDetails) || rawDetails.length === 0) {
+  if (!headerData && (!Array.isArray(rawDetails) || rawDetails.length === 0)) {
     toast.error("Data LHK Sublim tidak ditemukan.");
     return initialData;
   }
 
-  const firstRow = rawDetails[0];
+  const firstRow = Array.isArray(rawDetails) && rawDetails.length > 0 ? rawDetails[0] : {};
+
+  // Ambil tanggal dari header atau firstRow
+  const rawTanggal = headerData?.Tanggal || headerData?.tanggal || firstRow.Tanggal || firstRow.tanggal;
   let tanggalTerformat = format(new Date(), "yyyy-MM-dd");
-  if (firstRow.Tanggal || firstRow.tanggal) {
-    const parsed = new Date(firstRow.Tanggal || firstRow.tanggal);
-    if (!isNaN(parsed.getTime())) {
-      tanggalTerformat = format(parsed, "yyyy-MM-dd");
+
+  if (rawTanggal) {
+    const s = String(rawTanggal).trim();
+    if (/^\d{4}-\d{2}-\d{2}/.test(s)) {
+      tanggalTerformat = s.substring(0, 10);
+    } else {
+      const parsed = new Date(rawTanggal);
+      if (!isNaN(parsed.getTime())) {
+        tanggalTerformat = format(parsed, "yyyy-MM-dd");
+      }
     }
   }
 
@@ -442,6 +492,7 @@ const fetchApi = async () => {
     panjang: ensureMeter(parseFloat(d.Panjang || d.panjang) || 0),
     lebar: ensureMeter(parseFloat(d.Lebar || d.lebar) || 0),
     qty_order: parseFloat(d.J_Order || d.qty_order) || 0,
+    sudah_cetak: parseFloat(d.Sudah_Cetak || d.sudah_cetak) || 0,
     jumlah_rtr: parseFloat(d.Jumlah || d.jumlah_rtr) || 0,
     jumlah_bs: parseFloat(d.Jumlah_bs || d.jumlah_bs) || 0,
     jumlah_meter: parseFloat(d.Jumlah_meter || d.jumlah_meter) || 0,
@@ -452,16 +503,20 @@ const fetchApi = async () => {
     no_realisasi: d.No_Realisasi || d.no_realisasi || "",
     bahan_awal: parseFloat(d.Bahan_Awal || d.bahan_awal) || 0,
     nama_komponen: d.Nama_Komponen || d.nama_komponen || "ALL SET",
+    lhk_paperprint: d.Lhk_Paperprint || d.lhk_paperprint || "",
     keterangan: d.Keterangan || d.keterangan || "",
   }));
 
-  return {
-    nomor: firstRow.Nomor || firstRow.nomor || nomorParams,
+  const resultHeader = {
+    nomor: headerData?.nomor || firstRow.Nomor || firstRow.nomor || nomorParams,
     tanggal: tanggalTerformat,
-    gdgKode: firstRow.Kode_Gudang || firstRow.gdgKode || "GPM",
+    gdgKode: headerData?.Kode_Gudang || firstRow.Kode_Gudang || firstRow.gdgKode || "GPM",
     gdgNama:
-      firstRow.Nama_Gudang || firstRow.gdgNama || "GUDANG PRODUKSI SUBLIM",
+      headerData?.Nama_Gudang || firstRow.Nama_Gudang || firstRow.gdgNama || "GUDANG PRODUKSI SUBLIM",
   };
+
+  formData.value = { ...resultHeader };
+  return resultHeader;
 };
 
 // --- SUBMIT API PENYIMPANAN DATA ---
@@ -474,6 +529,7 @@ const submitApi = async () => {
       panjang: item.panjang,
       lebar: item.lebar,
       j_order: item.qty_order,
+      sudah_cetak: item.sudah_cetak || 0,
       jumlah_rtr: item.jumlah_rtr,
       jumlah_bs: item.jumlah_bs,
       lokasi: item.lokasi,
@@ -483,6 +539,7 @@ const submitApi = async () => {
       poi_nomor: item.poi_nomor,
       poi_size: item.poi_size,
       nama_komponen: item.nama_komponen,
+      lhk_paperprint: item.lhk_paperprint || "",
       keterangan: item.keterangan,
     })),
     existingNomor: isEditMode.value ? formData.value.nomor : null,
@@ -541,9 +598,10 @@ const calculateSublimMeter = (item: any) => {
 
   item.jumlah_meter = p * l * (qtyRtr + qtyBs);
 
-  if (item.qty_order !== undefined && qtyRtr > item.qty_order) {
+  const sisa = (item.qty_order || 0) - (item.sudah_cetak || 0);
+  if (sisa > 0 && qtyRtr > sisa) {
     toast.warning(
-      `Peringatan: Hasil kerja SPK ${item.spk_nomor} (${qtyRtr} pcs) melebihi target order (${item.qty_order} pcs)!`,
+      `Peringatan: Jumlah cetak RTR (${qtyRtr} pcs) melebihi sisa order (${sisa} pcs)!`,
     );
   }
 };
@@ -559,11 +617,23 @@ const handlePaperprintSelect = (payload: any) => {
     if (!item) return;
 
     // Memetakan nilai properti dari Paperprint ke Format Form Sublim
-    const qtyPaperprint = parseFloat(item.jumlah_sublim || item.Jumlah || 0);
+    const qtyOrder = parseFloat(
+      item.spk_jmlorder || item.Qty_Order || item.Jumlah_Order || item.Jumlah || 0,
+    );
+    const sdhCetak = parseFloat(
+      item.Sudah_Cetak || item.sudah_cetak || item.sudah_sublim || 0,
+    );
+    const sisa = qtyOrder - sdhCetak;
+    const qtyPaperprint = parseFloat(
+      item.jumlah_sublim || item.Jumlah || (sisa > 0 ? sisa : qtyOrder) || 0,
+    );
+
     const panjang = ensureMeter(
       parseFloat(item.Panjang || item.spk_panjang) || 0,
     );
     const lebar = ensureMeter(parseFloat(item.Lebar || item.spk_lebar) || 0);
+
+    const lhkNo = item.lhk_asal || item.Nomor_Paperprint || item.no_paperprint || item.Nomor || "";
 
     const mappedData = {
       poi_nomor: item.poi_nomor || item.Poi_Nomor || "",
@@ -571,14 +641,12 @@ const handlePaperprintSelect = (payload: any) => {
       spk_nomor: item.spk_nomor || item.SPK || item.Nomor_SPK || "",
       spk_nama: item.spk_nama || item.Nama || item.Nama_SPK || "",
       nama_komponen: item.nama_komponen || item.Nama_Komponen || "ALL SET",
+      lhk_paperprint: lhkNo,
       panjang: panjang,
       lebar: lebar,
 
-      // Target Qty Sublim diambil dari Qty Paperprint
-      qty_order: qtyPaperprint,
-
-      // Default: Asumsikan jumlah yang berhasil di-sublim sama dengan target
-      // (Operator bisa menyesuaikan manual jika ada BS)
+      qty_order: qtyOrder || qtyPaperprint,
+      sudah_cetak: sdhCetak,
       jumlah_rtr: qtyPaperprint,
       jumlah_bs: 0,
 
@@ -685,9 +753,15 @@ const handleSpkSelect = (payload: any) => {
       spk_nomor: nomorSpk,
       spk_nama: namaSpk,
       nama_komponen: namaKomponen,
+      lhk_paperprint:
+        spkItem.Nomor_Paperprint ||
+        spkItem.lhk_asal ||
+        spkItem.lhk_paperprint ||
+        "",
       panjang: ensureMeter(rawP),
       lebar: ensureMeter(rawL),
       qty_order: qtyOrderSpk,
+      sudah_cetak: sdhCetak,
       jumlah_rtr: kurangAsli > 0 ? kurangAsli : qtyOrderSpk,
       jumlah_bs: parseFloat(spkItem.jumlah_bs || 0),
       barang_id: spkItem.Barang_ID || spkItem.barang_id || "",
@@ -731,17 +805,23 @@ const handlePoiSelect = async (payload: any) => {
 
   const rawP = parseFloat(poi.spk_panjang || poi.Panjang || 0);
   const rawL = parseFloat(poi.spk_lebar || poi.Lebar || 0);
+  const qtyOrder = parseFloat(poi.poid_jumlah ?? poi.Qty_Order ?? poi.Jumlah ?? poi.sisa_qty ?? 0);
+  const sdhCetak = parseFloat(poi.sudah_cetak || poi.Sudah_Cetak || 0);
+  const sisa = parseFloat(poi.sisa_qty) || (qtyOrder - sdhCetak > 0 ? qtyOrder - sdhCetak : qtyOrder);
 
   const newRow = {
     poi_nomor: poi.poi_nomor || poi.Nomor_POI || "",
     poi_size: poi.poid_size || poi.poi_size || poi.Size || "",
     nama_komponen: poi.nama_komponen || poi.Nama_Komponen || "ALL SET",
+    lhk_paperprint:
+      poi.Nomor_Paperprint || poi.lhk_asal || poi.lhk_paperprint || "",
     spk_nomor: poi.poi_spk_nomor || poi.spk_nomor || "",
     spk_nama: poi.spk_nama || poi.Nama_SPK || "",
     panjang: ensureMeter(rawP),
     lebar: ensureMeter(rawL),
-    qty_order: parseFloat(poi.sisa_qty ?? poi.poid_jumlah ?? poi.Jumlah) || 0,
-    jumlah_rtr: 0,
+    qty_order: qtyOrder,
+    sudah_cetak: sdhCetak,
+    jumlah_rtr: sisa > 0 ? sisa : 0,
     jumlah_bs: 0,
     jumlah_meter: 0,
     lokasi: "",
@@ -795,6 +875,10 @@ const openPaperprintSearch = () => {
   activeRowIdx.value = -1;
   lookup.paperprint = true;
 };
+const openPaperprintSearchRow = (idx: number) => {
+  activeRowIdx.value = idx;
+  lookup.paperprint = true;
+};
 
 const openPoiSearch = () => {
   activeRowIdx.value = -1;
@@ -823,33 +907,41 @@ onMounted(async () => {
 
 <style scoped>
 .manksi-table {
-  width: 100%;
+  width: max-content;
+  min-width: 100%;
   border-collapse: collapse;
   font-size: 11px;
 }
 .manksi-table th {
   background: #1565c0;
   color: white;
-  padding: 6px;
+  padding: 6px 8px;
   position: sticky;
   top: 0;
   z-index: 1;
   border: 1px solid rgba(255, 255, 255, 0.2);
   text-transform: uppercase;
   font-weight: bold;
+  white-space: nowrap;
 }
 .manksi-table td {
   border: 1px solid #e0e0e0;
   padding: 0;
   height: 28px;
+  white-space: nowrap;
 }
 .cell-input {
   width: 100%;
   height: 100%;
   border: none;
-  padding: 0 4px;
+  padding: 0 6px;
   outline: none;
   background: transparent;
+  box-sizing: border-box;
+}
+.font-mono {
+  font-family: monospace, Consolas, "Courier New", sans-serif;
+  letter-spacing: -0.2px;
 }
 .cell-input:focus {
   background: #e3f2fd;

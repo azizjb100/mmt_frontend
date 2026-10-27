@@ -123,6 +123,7 @@
                     <v-data-table
                       :headers="detailColumns"
                       :items="item.details || []"
+                      :items-per-page="-1"
                       density="compact"
                       hide-default-footer
                       show-select
