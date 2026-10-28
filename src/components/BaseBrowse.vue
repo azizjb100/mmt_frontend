@@ -117,6 +117,8 @@
                   :style="{ width: header.width, minWidth: header.minWidth }"
                   :class="[
                     'base-th position-relative',
+                    header.class || '',
+                    header.headerProps?.class || '',
                     header.align ? `text-${header.align}` : '',
                     dragOverKey === header.key && dragSrcKey !== header.key
                       ? 'col-drag-over'

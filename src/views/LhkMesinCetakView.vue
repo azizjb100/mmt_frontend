@@ -72,6 +72,32 @@
     </template>
 
     <!-- Custom Template Kolom Tabel Utama -->
+    <template #item.Nomor="{ item }">
+      <span class="font-weight-bold text-blue-darken-3" :class="getRowTextColor(item)">
+        {{ item.Nomor }}
+      </span>
+    </template>
+
+    <template #item.NomorSPK="{ item }">
+      <span :title="item.NomorSPK" class="font-weight-medium" :class="getRowTextColor(item)">
+        {{ item.NomorSPK || "-" }}
+      </span>
+    </template>
+
+    <template #item.StatusAcc="{ item }">
+      <v-chip
+        size="x-small"
+        :color="item.StatusAcc === 'APPROVED' ? 'success' : 'grey-darken-1'"
+        variant="flat"
+        class="font-weight-bold"
+        :title="item.NomorAcc ? `Sudah di-ACC di LHK Approval (${item.NomorAcc})` : 'Belum di-ACC di LHK Approval Cetak'"
+      >
+        <v-icon start size="12" v-if="item.StatusAcc === 'APPROVED'">mdi-check-decagram</v-icon>
+        <v-icon start size="12" v-else>mdi-clock-outline</v-icon>
+        {{ item.StatusAcc === 'APPROVED' ? 'APPROVED' : 'BELUM ACC' }}
+      </v-chip>
+    </template>
+
     <template #item.Tanggal="{ item }">
       {{ safeFormatDate(item.Tanggal) }}
     </template>
@@ -83,10 +109,6 @@
       >
         {{ item.Status || "DRAFT" }}
       </v-chip>
-    </template>
-
-    <template #item.Nomor="{ item }">
-      <span :class="getRowTextColor(item)">{{ item.Nomor }}</span>
     </template>
 
     <template #item.cetak_meter="{ item }">
@@ -117,12 +139,6 @@
         SISA {{ item.SisaMeterAkhir.toFixed(1) }}m
       </span>
       <span v-else class="text-grey font-weight-bold"> PAS </span>
-    </template>
-
-    <template #item.NomorSPK="{ item }">
-      <span :title="item.NomorSPK" :class="getRowTextColor(item)">
-        {{ truncateString(item.NomorSPK || "", 20) }}
-      </span>
     </template>
 
     <!-- Slot Expanded Content untuk Menampilkan Detail -->
@@ -172,6 +188,8 @@ interface LhkCetakHeader {
   Nama_Gudang?: string;
   Shift?: string;
   Operator?: string;
+  StatusAcc?: string;
+  NomorAcc?: string;
   Lengkap?: "Y" | "N";
   cetak_meter?: number;
   [key: string]: any;
@@ -213,7 +231,29 @@ let filters = reactive({
 
 // --- Headers ---
 const masterHeaders = [
-  { title: "Nomor", key: "Nomor", minWidth: "250px", width: "250px" },
+  {
+    title: "Nomor LHK",
+    key: "Nomor",
+    minWidth: "200px",
+    width: "200px",
+    class: "sticky-col-nomor",
+    cellProps: { class: "sticky-col-nomor" },
+  },
+  {
+    title: "Nomor SPK",
+    key: "NomorSPK",
+    minWidth: "170px",
+    width: "170px",
+    class: "sticky-col-spk",
+    cellProps: { class: "sticky-col-spk" },
+  },
+  {
+    title: "Status ACC",
+    key: "StatusAcc",
+    minWidth: "115px",
+    width: "115px",
+    align: "center",
+  },
   {
     title: "Status",
     key: "Status",
@@ -221,45 +261,44 @@ const masterHeaders = [
     width: "90px",
     align: "center",
   },
-  { title: "Shift", key: "Shift", minWidth: "70px", width: "70px" },
-  { title: "Tanggal", key: "Tanggal", minWidth: "110px", width: "110px" },
-  { title: "Mesin", key: "Mesin", minWidth: "100px", width: "100px" },
-  { title: "Nomor SPK", key: "NomorSPK", minWidth: "150px", width: "150px" },
+  { title: "Shift", key: "Shift", minWidth: "70px", width: "70px", align: "center" },
+  { title: "Tanggal", key: "Tanggal", minWidth: "110px", width: "110px", align: "center" },
+  { title: "Mesin", key: "Mesin", minWidth: "90px", width: "90px", align: "center" },
   { title: "Nama SPK", key: "NamaOrder", minWidth: "200px", width: "200px" },
   {
     title: "Panjang",
     key: "spk_panjang",
     align: "end",
-    minWidth: "100px",
-    width: "100px",
+    minWidth: "90px",
+    width: "90px",
   },
   {
     title: "Lebar",
     key: "spk_lebar",
     align: "end",
-    minWidth: "100px",
-    width: "100px",
+    minWidth: "90px",
+    width: "90px",
   },
   {
     title: "Jml Order",
     key: "JumlahOrder",
     align: "end",
-    minWidth: "110px",
-    width: "110px",
+    minWidth: "100px",
+    width: "100px",
   },
   {
     title: "Jml Cetak",
     key: "TotalCetak",
     align: "end",
-    minWidth: "110px",
-    width: "110px",
+    minWidth: "100px",
+    width: "100px",
   },
   {
     title: "Bahan Awal",
     key: "PanjangBahanAwal",
     align: "end",
-    minWidth: "120px",
-    width: "120px",
+    minWidth: "110px",
+    width: "110px",
   },
   {
     title: "Sisa",
@@ -460,11 +499,12 @@ const exportToExcel = async () => {
 
     const headers = [
       { v: "NOMOR LHK", s: styleHeaderMain },
+      { v: "NOMOR SPK", s: styleHeaderMain },
+      { v: "STATUS ACC", s: styleHeaderMain },
       { v: "STATUS", s: styleHeaderMain },
       { v: "SHIFT", s: styleHeaderMain },
       { v: "TANGGAL", s: styleHeaderMain },
       { v: "MESIN", s: styleHeaderMain },
-      { v: "NOMOR SPK", s: styleHeaderMain },
       { v: "NAMA SPK / ORDER", s: styleHeaderMain },
       { v: "PANJANG", s: styleHeaderMain },
       { v: "LEBAR", s: styleHeaderMain },
@@ -517,6 +557,14 @@ const exportToExcel = async () => {
 
           worksheetData.push([
             { v: isFirstRow ? header.Nomor : "-", s: styleDataCellCenter },
+            {
+              v: isFirstRow ? header.NomorSPK || "-" : "-",
+              s: styleDataCellCenter,
+            },
+            {
+              v: isFirstRow ? header.StatusAcc || "BELUM ACC" : "-",
+              s: styleDataCellCenter,
+            },
             { v: isFirstRow ? statusHeader : "-", s: styleDataCellCenter },
             {
               v: isFirstRow ? header.Shift || "-" : "-",
@@ -525,10 +573,6 @@ const exportToExcel = async () => {
             { v: isFirstRow ? tglHeader : "-", s: styleDataCellCenter },
             {
               v: isFirstRow ? header.Mesin || "-" : "-",
-              s: styleDataCellCenter,
-            },
-            {
-              v: isFirstRow ? header.NomorSPK || "-" : "-",
               s: styleDataCellCenter,
             },
             { v: isFirstRow ? header.NamaOrder || "-" : "-", s: styleDataCell },
@@ -625,11 +669,12 @@ const exportToExcel = async () => {
 
         worksheetData.push([
           { v: header.Nomor, s: styleDataCellCenter },
+          { v: header.NomorSPK || "-", s: styleDataCellCenter },
+          { v: header.StatusAcc || "BELUM ACC", s: styleDataCellCenter },
           { v: statusHeader, s: styleDataCellCenter },
           { v: header.Shift || "-", s: styleDataCellCenter },
           { v: tglHeader, s: styleDataCellCenter },
           { v: header.Mesin || "-", s: styleDataCellCenter },
-          { v: header.NomorSPK || "-", s: styleDataCellCenter },
           { v: header.NamaOrder || "-", s: styleDataCell },
           {
             v: parseNum(header.spk_panjang),
@@ -889,6 +934,86 @@ watch(
 }
 
 :deep(.v-data-table__tr.selected-row:hover > td) {
+  background-color: #c0e4ff !important;
+}
+
+/* ======================================================== */
+/* STICKY / FROZEN COLUMNS (Expand, Nomor LHK, Nomor SPK)   */
+/* Kolom tidak akan bergeser saat tabel di-scroll horizontal */
+/* ======================================================== */
+
+/* Kolom 0: Expand Chevron */
+:deep(th[data-col-key="data-table-expand"]),
+:deep(td.v-data-table__td--expanded-row),
+:deep(td.v-data-table__td:first-child) {
+  position: sticky !important;
+  left: 0 !important;
+  z-index: 4 !important;
+  background-color: #ffffff !important;
+  width: 48px !important;
+  min-width: 48px !important;
+  max-width: 48px !important;
+}
+:deep(th[data-col-key="data-table-expand"]) {
+  z-index: 11 !important;
+  background-color: #eceff1 !important;
+}
+
+/* Kolom 1: Nomor LHK */
+:deep(th.sticky-col-nomor),
+:deep(th[data-col-key="Nomor"]),
+:deep(td.sticky-col-nomor) {
+  position: sticky !important;
+  left: 48px !important;
+  z-index: 4 !important;
+  background-color: #ffffff !important;
+  width: 200px !important;
+  min-width: 200px !important;
+}
+:deep(th.sticky-col-nomor),
+:deep(th[data-col-key="Nomor"]) {
+  z-index: 11 !important;
+  background-color: #eceff1 !important;
+}
+
+/* Kolom 2: Nomor SPK */
+:deep(th.sticky-col-spk),
+:deep(th[data-col-key="NomorSPK"]),
+:deep(td.sticky-col-spk) {
+  position: sticky !important;
+  left: 248px !important; /* 48px + 200px */
+  z-index: 4 !important;
+  background-color: #ffffff !important;
+  width: 170px !important;
+  min-width: 170px !important;
+  box-shadow: 3px 0 6px -2px rgba(0, 0, 0, 0.18) !important;
+}
+:deep(th.sticky-col-spk),
+:deep(th[data-col-key="NomorSPK"]) {
+  z-index: 11 !important;
+  background-color: #eceff1 !important;
+  box-shadow: 3px 0 6px -2px rgba(0, 0, 0, 0.18) !important;
+}
+
+/* Sinkronisasi warna saat baris di-hover atau di-select */
+:deep(tr.selected-row td.sticky-col-nomor),
+:deep(tr.selected-row td.sticky-col-spk),
+:deep(tr.selected-row td.v-data-table__td:first-child),
+:deep(tr.row-selected td.sticky-col-nomor),
+:deep(tr.row-selected td.sticky-col-spk),
+:deep(tr.row-selected td.v-data-table__td:first-child) {
+  background-color: #d8efff !important;
+}
+
+:deep(tr:hover td.sticky-col-nomor),
+:deep(tr:hover td.sticky-col-spk),
+:deep(tr:hover td.v-data-table__td:first-child) {
+  background-color: #f0f7ff !important;
+}
+
+:deep(tr.selected-row:hover td.sticky-col-nomor),
+:deep(tr.selected-row:hover td.sticky-col-spk),
+:deep(tr.selected-row:hover td.v-data-table__td:first-child) {
   background-color: #c0e4ff !important;
 }
 </style>
