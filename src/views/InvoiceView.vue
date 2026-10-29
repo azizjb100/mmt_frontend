@@ -334,19 +334,30 @@ watch(filters, fetchData, { deep: true });
 }
 
 /* Detail Expand Style */
+:deep(.detail-container),
 .detail-container {
-  padding: 10px 0;
-  background-color: #f7f7f7;
-  border-top: 1px solid #ddd;
-  border-bottom: 1px solid #ddd;
+  display: flex !important;
+  justify-content: flex-start !important;
+  align-items: flex-start !important;
+  padding: 6px 0 !important;
+  background-color: transparent !important;
+  border-top: none !important;
+  width: 100% !important;
 }
+:deep(.detail-table-wrapper),
 .detail-table-wrapper {
-  padding: 0 20px 0 60px;
+  padding: 0 !important;
+  width: auto !important;
+  max-width: 100% !important;
+  overflow-x: auto !important;
+  margin-left: 0 !important;
+  margin-right: auto !important;
 }
+:deep(.detail-table),
 .detail-table {
   background-color: white !important;
-  font-size: 0.8rem;
-  border: 1px solid #eee;
+  font-size: 0.8rem !important;
+  width: auto !important;
 }
 
 /* Highlight Selected Row */

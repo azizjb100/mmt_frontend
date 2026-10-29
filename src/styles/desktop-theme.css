@@ -122,10 +122,48 @@
   overflow: hidden;
 }
 
-.desktop-table td,
-.desktop-table th {
+.desktop-table th,
+.desktop-table thead th,
+.desktop-table .v-data-table-header th,
+.desktop-table .v-data-table__th {
+  font-size: 11px !important;
+  height: 36px !important;
+  font-weight: bold !important;
+  background-color: #83c6fc !important;
+  color: white !important;
+  user-select: none !important;
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 10;
+  padding: 0 8px !important;
+}
+
+.desktop-table td {
   padding: 0 8px !important;
   height: 28px !important;
+  font-size: 11px !important;
+}
+
+/* Hover & Selected Row Styling */
+.desktop-table tbody tr:hover > td,
+.desktop-table .v-data-table__tr:hover > td {
+  background-color: #f0f7ff !important;
+}
+
+.desktop-table tbody tr.row-selected > td,
+.desktop-table tbody tr.selected-row > td,
+.desktop-table .v-data-table__tr.row-selected > td,
+.desktop-table .v-data-table__tr.selected-row > td,
+.desktop-table .row-selected td,
+.desktop-table .selected-row td {
+  background-color: #d8efff !important;
+}
+
+.desktop-table tbody tr.row-selected:hover > td,
+.desktop-table tbody tr.selected-row:hover > td,
+.desktop-table .v-data-table__tr.row-selected:hover > td,
+.desktop-table .v-data-table__tr.selected-row:hover > td {
+  background-color: #c0e4ff !important;
 }
 
 .desktop-table input {
@@ -153,25 +191,25 @@
   overflow-y: auto;
 }
 
-.desktop-table :deep(.v-table) {
+.desktop-table .v-table {
   display: flex;
   flex-direction: column;
   height: 100%;
 }
 
-.desktop-table :deep(.v-table__wrapper) {
-  overflow-x: scroll !important;
+.desktop-table .v-table__wrapper {
+  overflow-x: auto !important;
   overflow-y: auto !important;
   flex-grow: 1;
 }
 
-.desktop-table :deep(.v-data-table-footer) {
+.desktop-table .v-data-table-footer {
   flex-shrink: 0;
   overflow-x: visible !important;
   border-top: 1px solid #e0e0e0;
 }
 
-.desktop-table :deep(.v-table__wrapper table) {
+.desktop-table .v-table__wrapper table {
   min-width: max-content !important;
 }
 
@@ -207,32 +245,53 @@
    👇 TAMBAHKAN BLOK BARU DI SINI 👇
    ========================================================================== */
 
-/* Styling Detail Table (Expanded Row)
+/* Styling Detail Table (Expanded Row) - Konsisten Rata Kiri Dekat Chevron
    ========================================================================== */
 .detail-container {
-  display: flex;
-  justify-content: flex-end; /* Mendorong tabel detail ke kanan */
-  padding: 8px;
-  background-color: #f7f7f7;
+  display: flex !important;
+  justify-content: flex-start !important;
+  align-items: flex-start !important;
+  padding: 6px 0 !important;
+  background-color: transparent !important;
+  border-top: none !important;
+  width: 100% !important;
 }
 
 .detail-table-wrapper {
-  width: 100%;
-  max-width: 900px; /* Lebar tabel detail, bisa disesuaikan */
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  overflow: hidden;
-  background-color: white;
+  padding: 0 !important;
+  width: auto !important;
+  max-width: 100% !important;
+  overflow-x: auto !important;
+  margin-left: 0 !important;
+  margin-right: auto !important;
+  border: 1px solid #e0e0e0 !important;
+  border-radius: 4px !important;
+  background-color: white !important;
 }
 
 .detail-table {
+  background-color: white !important;
   font-size: 10px !important; /* Font lebih kecil untuk detail */
+  width: auto !important;
+}
+
+.detail-table th,
+.detail-table thead th,
+.detail-table .v-data-table-header th,
+.detail-table .v-data-table__th {
+  background-color: #eceff1 !important;
+  color: #37474f !important;
+  font-weight: 700 !important;
+  font-size: 11px !important;
+  height: 30px !important;
+  padding: 0 8px !important;
 }
 
 .detail-table td,
-.detail-table th {
+.detail-table .v-data-table__td {
   padding: 0 8px !important;
-  height: 26px !important; /* Baris sedikit lebih pendek */
+  height: 28px !important;
+  font-size: 11px !important;
 }
 
 .text-right input {

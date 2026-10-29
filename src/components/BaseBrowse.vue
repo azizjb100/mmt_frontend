@@ -2,7 +2,12 @@
   <PageLayout :title="title" :icon="icon">
     <!-- Header Action Buttons -->
     <template #header-actions>
-      <v-btn v-if="showActions" size="x-small" color="success" @click="$emit('action:new')">
+      <v-btn
+        v-if="showActions"
+        size="x-small"
+        color="success"
+        @click="$emit('action:new')"
+      >
         <v-icon start>mdi-plus</v-icon> Baru
       </v-btn>
       <v-btn
@@ -107,6 +112,7 @@
           return-object
           :show-expand="computedShowExpand"
           :row-props="mergedRowProps"
+          :cell-props="mergedCellProps"
           @scroll.passive="onTableScroll"
         >
           <template #headers="{ columns, isSorted, getSortIcon, toggleSort }">
@@ -114,9 +120,9 @@
               <template v-for="header in internalHeaders" :key="header.key">
                 <th
                   :data-col-key="header.key"
-                  :style="{ width: header.width, minWidth: header.minWidth }"
+                  :style="getHeaderStyle(header)"
                   :class="[
-                    'base-th position-relative',
+                    'base-th',
                     header.class || '',
                     header.headerProps?.class || '',
                     header.align ? `text-${header.align}` : '',
@@ -319,7 +325,13 @@
               >
                 <div
                   class="expanded-container ml-0 pa-3 bg-white rounded-lg elevation-2 border"
-                  style="width: 80%; border-left: 4px solid #1976d2 !important"
+                  style="
+                    position: sticky;
+                    left: 12px;
+                    width: fit-content;
+                    max-width: calc(100% - 24px);
+                    border-left: 4px solid #1976d2 !important;
+                  "
                 >
                   <div class="d-flex align-center mb-2 px-1">
                     <v-icon size="small" color="primary" class="mr-2"
@@ -339,42 +351,42 @@
             </tr>
           </template>
 
-          <!-- Footer Total (Grand Total) Dinamis -->
-          <template #body.append>
-            <tr
-              v-if="summaryFields && summaryFields.length > 0"
-              class="summary-row"
-            >
-              <td
-                v-for="(header, index) in internalHeaders"
-                :key="'summary-' + header.key"
-                :class="[
-                  header.align === 'end' || header.align === 'right'
-                    ? 'text-right'
-                    : header.align === 'center'
-                      ? 'text-center'
-                      : 'text-left',
-                ]"
-              >
-                <!-- Menampilkan teks GRAND TOTAL di kolom pertama data -->
-                <template
-                  v-if="
-                    index ===
-                    (internalHeaders[0]?.key === 'data-table-expand' ? 1 : 0)
-                  "
+          <!-- Footer Total (Grand Total) DIPINDAH KE TFOOT AGAR STICKY SEMPURNA -->
+          <template #tfoot>
+            <tfoot v-if="summaryFields && summaryFields.length > 0">
+              <tr class="summary-row">
+                <td
+                  v-for="(header, index) in internalHeaders"
+                  :key="'summary-' + header.key"
+                  :style="getSummaryCellStyle(header)"
+                  :class="[
+                    header.align === 'end' || header.align === 'right'
+                      ? 'text-right'
+                      : header.align === 'center'
+                        ? 'text-center'
+                        : 'text-left',
+                  ]"
                 >
-                  <span class="font-weight-black text-primary"
-                    >GRAND TOTAL</span
+                  <!-- Menampilkan teks GRAND TOTAL di kolom pertama data -->
+                  <template
+                    v-if="
+                      index ===
+                      (internalHeaders[0]?.key === 'data-table-expand' ? 1 : 0)
+                    "
                   >
-                </template>
-                <!-- Menampilkan Hasil Kalkulasi Sum -->
-                <template v-else-if="summaryFields.includes(header.key)">
-                  <span class="font-weight-black text-primary">{{
-                    formatTotal(calculateTotal(header.key))
-                  }}</span>
-                </template>
-              </td>
-            </tr>
+                    <span class="font-weight-black text-primary"
+                      >GRAND TOTAL</span
+                    >
+                  </template>
+                  <!-- Menampilkan Hasil Kalkulasi Sum -->
+                  <template v-else-if="summaryFields.includes(header.key)">
+                    <span class="font-weight-black text-primary">{{
+                      formatTotal(calculateTotal(header.key))
+                    }}</span>
+                  </template>
+                </td>
+              </tr>
+            </tfoot>
           </template>
 
           <!-- Forward Semua Dynamic Custom Slots Lainnya -->
@@ -420,6 +432,7 @@ const props = defineProps({
   showExpand: { type: Boolean, default: false },
   hasPrint: { type: Boolean, default: false },
   rowProps: { type: Function, default: () => ({}) },
+  cellProps: { type: [Object, Function], default: () => ({}) },
   summaryFields: { type: Array, default: () => [] },
 });
 
@@ -440,9 +453,15 @@ const emit = defineEmits([
 
 const slots = useSlots();
 
+const computedShowExpand = computed(() => {
+  return (
+    props.showExpand || !!slots["expanded-row"] || !!slots["expanded-content"]
+  );
+});
+
 // --- STATE & PERSISTENCE UNTUK URUTAN KOLOM (LOCALSTORAGE) ---
 const colOrderKey = computed(
-  () => `mmt_browse_colorder_${props.title.replace(/\s+/g, "_")}`,
+  () => `mmt_browse_colorder_${props.title.replace(/\s+/g, "_")}_v5`,
 );
 
 const loadColOrder = (): string[] => {
@@ -463,32 +482,11 @@ const saveColOrder = (order: string[]) => {
 const colOrder = ref<string[]>(loadColOrder());
 const internalHeaders = ref<any[]>([]);
 
-watch(
-  () => props.headers,
-  (newHeaders) => {
-    if (!newHeaders) return;
-    let baseHeaders = JSON.parse(JSON.stringify(newHeaders));
-
-    if (colOrder.value.length > 0) {
-      const map = new Map(baseHeaders.map((h: any) => [h.key, h]));
-      const ordered: any[] = [];
-      for (const key of colOrder.value) {
-        if (map.has(key)) ordered.push(map.get(key));
-      }
-      for (const h of baseHeaders) {
-        if (!colOrder.value.includes(h.key)) ordered.push(h);
-      }
-      baseHeaders = ordered;
-    }
-
-    internalHeaders.value = baseHeaders;
-  },
-  { immediate: true, deep: true },
-);
-
 const resetColOrder = () => {
   colOrder.value = [];
-  localStorage.removeItem(colOrderKey.value);
+  try {
+    localStorage.removeItem(colOrderKey.value);
+  } catch {}
   internalHeaders.value = JSON.parse(JSON.stringify(props.headers));
 };
 
@@ -843,8 +841,8 @@ watch(
 );
 
 watch(
-  () => props.headers,
-  (newHeaders) => {
+  [() => props.headers, computedShowExpand],
+  ([newHeaders]) => {
     if (!newHeaders) return;
     let baseHeaders = JSON.parse(JSON.stringify(newHeaders));
 
@@ -864,16 +862,70 @@ watch(
       return h;
     });
 
+    // 1. OTOMATIS TAMBAHKAN KOLOM EXPAND KE HEADER JIKA ADA EXPANDED ROW/CONTENT
+    if (
+      computedShowExpand.value &&
+      !baseHeaders.some((h: any) => h.key === "data-table-expand")
+    ) {
+      baseHeaders.unshift({
+        title: "",
+        key: "data-table-expand",
+        width: "44px",
+        minWidth: "44px",
+        maxWidth: "44px",
+        sortable: false,
+        fixed: true,
+      });
+    }
+
+    // 2. OTOMATIS JADIKAN KOLOM PERTAMA DATA FIXED (STICKY HORIZONTAL) JIKA BELUM ADA FIXED
+    const hasFixedColumn = baseHeaders.some(
+      (h: any) => h.fixed && h.key !== "data-table-expand",
+    );
+    if (!hasFixedColumn && baseHeaders.length > 0) {
+      const firstCol = baseHeaders.find(
+        (h: any) => h.key !== "data-table-expand",
+      );
+      if (firstCol) {
+        firstCol.fixed = true;
+        if (!firstCol.width && !firstCol.minWidth) {
+          firstCol.width = "170px";
+          firstCol.minWidth = "170px";
+        }
+      }
+    }
+
     if (colOrder.value.length > 0) {
-      const map = new Map(baseHeaders.map((h: any) => [h.key, h]));
-      const ordered: any[] = [];
-      for (const key of colOrder.value) {
-        if (map.has(key)) ordered.push(map.get(key));
+      const hasAllKeys = baseHeaders.every((h: any) =>
+        colOrder.value.includes(h.key),
+      );
+      if (!hasAllKeys) {
+        colOrder.value = [];
+        try {
+          localStorage.removeItem(colOrderKey.value);
+        } catch {}
+      } else {
+        const map = new Map(baseHeaders.map((h: any) => [h.key, h]));
+        const ordered: any[] = [];
+        for (const key of colOrder.value) {
+          if (map.has(key)) ordered.push(map.get(key));
+        }
+        for (const h of baseHeaders) {
+          if (!colOrder.value.includes(h.key)) ordered.push(h);
+        }
+        baseHeaders = ordered;
       }
-      for (const h of baseHeaders) {
-        if (!colOrder.value.includes(h.key)) ordered.push(h);
+    }
+
+    // Pastikan data-table-expand selalu di posisi pertama jika ada
+    if (baseHeaders.some((h: any) => h.key === "data-table-expand")) {
+      const expIdx = baseHeaders.findIndex(
+        (h: any) => h.key === "data-table-expand",
+      );
+      if (expIdx > 0) {
+        const [exp] = baseHeaders.splice(expIdx, 1);
+        baseHeaders.unshift(exp);
       }
-      baseHeaders = ordered;
     }
 
     internalHeaders.value = baseHeaders;
@@ -895,12 +947,6 @@ const formatTotal = (val: number) => {
     maximumFractionDigits: 2,
   }).format(val);
 };
-
-const computedShowExpand = computed(() => {
-  return (
-    props.showExpand || !!slots["expanded-row"] || !!slots["expanded-content"]
-  );
-});
 
 const customSlots = computed(() => {
   const {
@@ -936,15 +982,139 @@ const onEndDateChange = (val: string) => {
 
 const isSingleSelected = computed(() => props.selected.length === 1);
 
+// --- STICKY / FIXED COLUMN Z-INDEX & CALCULATIONS ---
+const getStickyLeft = (key: string): number | null => {
+  if (!key) return null;
+  let offset = 0;
+  for (const h of internalHeaders.value) {
+    if (h.key === key) {
+      return h.fixed ? offset : null;
+    }
+    if (h.fixed) {
+      const w = parseInt(h.width || h.minWidth || "120", 10);
+      offset += isNaN(w) ? 120 : w;
+    }
+  }
+  return null;
+};
+
+const isLastFixed = (key: string): boolean => {
+  const fixedHeaders = internalHeaders.value.filter((h) => h.fixed);
+  return (
+    fixedHeaders.length > 0 && fixedHeaders[fixedHeaders.length - 1].key === key
+  );
+};
+
+// PENGATURAN Z-INDEX HIERARKI MUTHLAQ
+// 50: Header Kiri (Sticky Top + Left)
+// 40: Header Atas Normal (Sticky Top)
+// 35: Footer Kiri (Sticky Bottom + Left)
+// 30: Footer Bawah Normal (Sticky Bottom)
+// 20: Kolom Data Kiri (Sticky Left) - Di bawah header, di atas data biasa.
+
+const getHeaderStyle = (header: any) => {
+  const styleObj: Record<string, string> = {
+    width: header.width || "auto",
+    minWidth: header.minWidth || header.width || "auto",
+    position: "sticky",
+    top: "0px",
+    backgroundColor: "#83c6fc",
+    color: "white",
+    userSelect: "none",
+    zIndex: "40", // Header normal selalu di atas data
+  };
+
+  if (header.maxWidth) styleObj.maxWidth = header.maxWidth;
+
+  const stickyLeft = getStickyLeft(header.key);
+  if (stickyLeft !== null) {
+    styleObj.left = `${stickyLeft}px`;
+    styleObj.zIndex = "50"; // Header kiri wajib di posisi paling atas (Overlap Kiri + Atas)
+    if (isLastFixed(header.key)) {
+      styleObj.borderRight = "2px solid #90caf9";
+      styleObj.boxShadow = "4px 0 8px -2px rgba(0, 0, 0, 0.22)";
+    }
+  }
+
+  return styleObj;
+};
+
+const getSummaryCellStyle = (header: any) => {
+  const styleObj: Record<string, string> = {
+    position: "sticky",
+    bottom: "0px",
+    backgroundColor: "#e3f2fd",
+    borderTop: "2px solid #90caf9",
+    zIndex: "30", // Footer biasa
+  };
+
+  const stickyLeft = getStickyLeft(header.key);
+  if (stickyLeft !== null) {
+    styleObj.left = `${stickyLeft}px`;
+    styleObj.zIndex = "35"; // Footer Kiri
+    if (isLastFixed(header.key)) {
+      styleObj.borderRight = "2px solid #90caf9";
+      styleObj.boxShadow = "4px 0 8px -2px rgba(0, 0, 0, 0.22)";
+    }
+  }
+  return styleObj;
+};
+
+const mergedCellProps = (data: any) => {
+  const parentResult = props.cellProps
+    ? typeof props.cellProps === "function"
+      ? (props.cellProps as any)(data)
+      : props.cellProps
+    : {};
+
+  const column = data.column;
+  if (!column || !column.key) return parentResult;
+
+  const stickyLeft = getStickyLeft(column.key);
+  if (stickyLeft === null) return parentResult;
+
+  const styleObj: Record<string, string> = {
+    position: "sticky",
+    left: `${stickyLeft}px`,
+    zIndex: "20", // Data kiri harus di bawah Header (40/50), tapi di atas data biasa
+    backgroundColor: "#ffffff",
+    boxSizing: "border-box",
+    ...(parentResult.style || {}),
+  };
+
+  const targetHeader = internalHeaders.value.find((h) => h.key === column.key);
+  if (targetHeader) {
+    if (targetHeader.width) styleObj.width = targetHeader.width;
+    if (targetHeader.minWidth) styleObj.minWidth = targetHeader.minWidth;
+    if (targetHeader.maxWidth) styleObj.maxWidth = targetHeader.maxWidth;
+  }
+
+  if (isLastFixed(column.key)) {
+    styleObj.borderRight = "2px solid #90caf9";
+    styleObj.boxShadow = "4px 0 8px -2px rgba(0, 0, 0, 0.22)";
+  }
+
+  return {
+    ...parentResult,
+    style: styleObj,
+  };
+};
+
 const activeRowId = ref<any>(null);
 
 const mergedRowProps = (data: any) => {
-  const parentResult: any = props.rowProps ? (props.rowProps(data) as any) || {} : {};
+  const parentResult: any = props.rowProps
+    ? (props.rowProps(data) as any) || {}
+    : {};
   const id = data.item?.[props.itemValue];
   const parentClass = parentResult.class;
 
   // Cek apakah baris ini ada di selected (untuk background multi-select)
-  const isSelected = Array.isArray(props.selected) && props.selected.some((s: any) => String(s?.[props.itemValue] ?? s?.Nomor) === String(id));
+  const isSelected =
+    Array.isArray(props.selected) &&
+    props.selected.some(
+      (s: any) => String(s?.[props.itemValue] ?? s?.Nomor) === String(id),
+    );
 
   const classes: any[] = [];
   if (parentClass !== undefined && parentClass !== null && parentClass !== "") {
@@ -953,14 +1123,18 @@ const mergedRowProps = (data: any) => {
   // Tambahkan row-selected otomatis jika ter-select tapi parent belum menambahkannya
   if (isSelected) {
     let hasSelected = false;
-    if (typeof parentClass === "string") hasSelected = parentClass.includes("row-selected");
-    else if (Array.isArray(parentClass)) hasSelected = parentClass.some((c: any) => (typeof c === "string" && c.includes("row-selected")) || (typeof c === "object" && c?.["row-selected"]));
-    else if (typeof parentClass === "object" && parentClass) hasSelected = !!parentClass["row-selected"];
+    if (typeof parentClass === "string")
+      hasSelected = parentClass.includes("row-selected");
+    else if (Array.isArray(parentClass))
+      hasSelected = parentClass.some(
+        (c: any) =>
+          (typeof c === "string" && c.includes("row-selected")) ||
+          (typeof c === "object" && c?.["row-selected"]),
+      );
+    else if (typeof parentClass === "object" && parentClass)
+      hasSelected = !!parentClass["row-selected"];
     if (!hasSelected) classes.push("row-selected");
   }
-  // Fallback single-active: tetap sinkronkan highlight dengan selected,
-  // bukan dengan activeRowId saja — agar deselect multi-select tidak meninggalkan highlight
-  // (row-active legacy tetap didukung via parent rowProps jika diperlukan)
 
   return {
     ...parentResult,
@@ -979,14 +1153,12 @@ const mergedRowProps = (data: any) => {
   font-size: 11px !important;
   display: flex !important;
   flex-direction: column !important;
-  /* Tinggi tetap = mengisi area tabel yang tersedia. min-height: 0 mencegah
-     tabel memanjang mengikuti jumlah baris (mis. saat items-per-page = 100),
-     sehingga hanya isi tabel yang scroll. */
   height: 100% !important;
   min-height: 0 !important;
   max-height: none !important;
 }
 
+/* Memastikan wrapper scroll bekerja maksimal */
 :deep(.v-table__wrapper) {
   flex: 1 1 auto !important;
   overflow-y: auto !important;
@@ -995,17 +1167,40 @@ const mergedRowProps = (data: any) => {
   min-height: 0 !important;
 }
 
-:deep(.v-data-table-header th) {
+/* =============================================================== */
+/* PENGATURAN TUMPUKAN UTAMA (STACKING CONTEXT) UNTUK VUETIFY 3    */
+/* =============================================================== */
+
+/* 1. Paksa THEAD Berada Di Atas Seluruh Elemen Tabel */
+:deep(.v-table__wrapper > table > thead) {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 40 !important;
+}
+
+/* 2. Paksa TBODY Berada Di Bawah THEAD dan TFOOT */
+:deep(.v-table__wrapper > table > tbody) {
+  z-index: 10 !important;
+}
+
+/* 3. Paksa TFOOT (Grand Total) Selalu Mengambang di Bawah */
+:deep(.v-table__wrapper > table > tfoot) {
+  position: sticky !important;
+  bottom: 0 !important;
+  z-index: 30 !important;
+}
+
+/* Bersihkan styling lawas dari .base-th agar inline-style Vue bebas bekerja */
+:deep(.v-data-table-header th),
+:deep(.base-th),
+.base-th,
+:deep(.v-data-table thead th) {
   font-size: 11px !important;
   height: 36px !important;
   font-weight: bold !important;
-  background-color: #f8f9fa !important;
-  color: #333 !important;
-  position: sticky !important;
-  top: 0 !important;
-  z-index: 5 !important;
   user-select: none;
 }
+/* =============================================================== */
 
 :deep(.v-data-table td) {
   font-size: 11px !important;
@@ -1018,8 +1213,6 @@ const mergedRowProps = (data: any) => {
 
 .browse-content {
   padding-top: 4px;
-  /* Buat area browse mengisi tinggi konten yang tersedia, sehingga hanya
-     bagian tabel (isi) yang scroll — toolbar filter & tombol tetap diam. */
   display: flex;
   flex-direction: column;
   height: 100%;
@@ -1027,12 +1220,10 @@ const mergedRowProps = (data: any) => {
   box-sizing: border-box;
 }
 
-/* Toolbar filter tidak boleh ikut menyusut / ter-scroll */
 .filter-card {
   flex-shrink: 0;
 }
 
-/* Wadah tabel mengambil sisa tinggi yang tersedia lalu scroll di dalamnya */
 .table-container {
   flex: 1 1 auto;
   min-height: 0;
@@ -1094,20 +1285,36 @@ const mergedRowProps = (data: any) => {
 }
 
 .summary-row td {
-  position: sticky !important;
-  bottom: 0 !important;
-  z-index: 4 !important;
-  background-color: #e3f2fd !important;
-  border-top: 2px solid #90caf9 !important;
   font-size: 12px !important;
   padding: 6px 8px !important;
 }
 
 :deep(.v-data-table__tr.row-active) {
-  background-color: #e8f4fd !important; /* Warna biru muda lembut */
+  background-color: #e8f4fd !important;
 }
 :deep(.v-data-table__tr.row-selected),
-:deep(.row-selected td) {
+:deep(.v-data-table__tr.selected-row),
+:deep(.row-selected td),
+:deep(.selected-row td) {
   background-color: #d8efff !important;
+}
+
+:deep(.v-data-table__tr:hover td),
+:deep(.v-data-table__tr:hover td[style*="position: sticky"]) {
+  background-color: #f0f7ff !important;
+}
+:deep(.v-data-table__tr.row-selected td),
+:deep(.v-data-table__tr.selected-row td),
+:deep(.v-data-table__tr.row-selected td[style*="position: sticky"]),
+:deep(.v-data-table__tr.selected-row td[style*="position: sticky"]),
+:deep(.row-selected td[style*="position: sticky"]),
+:deep(.selected-row td[style*="position: sticky"]) {
+  background-color: #d8efff !important;
+}
+:deep(.v-data-table__tr.row-selected:hover td),
+:deep(.v-data-table__tr.selected-row:hover td),
+:deep(.v-data-table__tr.row-selected:hover td[style*="position: sticky"]),
+:deep(.v-data-table__tr.selected-row:hover td[style*="position: sticky"]) {
+  background-color: #c0e4ff !important;
 }
 </style>

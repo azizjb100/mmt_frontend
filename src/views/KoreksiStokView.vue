@@ -258,16 +258,4 @@ watch([startDate, endDate], fetchData);
 :deep(.v-data-table-footer) {
   border-top: 1px solid rgba(0, 0, 0, 0.12);
 }
-
-/* Styling ala Desktop App */
-:deep(.v-data-table__th) {
-  background-color: #f5f5f5 !important;
-  font-weight: bold !important;
-  text-transform: uppercase !important;
-  font-size: 0.75rem !important;
-}
-
-.detail-table :deep(.v-data-table__th) {
-  background-color: #eeeeee !important;
-}
 </style>

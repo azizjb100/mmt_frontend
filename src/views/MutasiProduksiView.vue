@@ -731,14 +731,6 @@ watch([startDate, endDate], fetchData);
   font-size: 11px !important;
 }
 
-:deep(.v-data-table-header th) {
-  font-size: 11px !important;
-  height: 36px !important;
-  font-weight: bold !important;
-  background-color: #f8f9fa !important;
-  color: #333 !important;
-}
-
 :deep(.v-data-table td) {
   font-size: 11px !important;
   height: 32px !important;
@@ -763,17 +755,30 @@ watch([startDate, endDate], fetchData);
 }
 
 /* 3. CONTAINER DETAIL */
+:deep(.detail-container),
 .detail-container {
-  padding: 8px 40px !important;
-  background-color: #fcfcfc;
-  border-top: 1px solid #eee;
-  border-bottom: 1px solid #eee;
+  display: flex !important;
+  justify-content: flex-start !important;
+  align-items: flex-start !important;
+  padding: 6px 0 !important;
+  background-color: transparent !important;
+  border-top: none !important;
+  width: 100% !important;
 }
-
+:deep(.detail-table-wrapper),
+.detail-table-wrapper {
+  padding: 0 !important;
+  width: auto !important;
+  max-width: 100% !important;
+  overflow-x: auto !important;
+  margin-left: 0 !important;
+  margin-right: auto !important;
+}
+:deep(.detail-table),
 .detail-table {
   background-color: white !important;
-  border-radius: 4px;
-  box-shadow: inset 0 0 4px rgba(0, 0, 0, 0.05);
+  font-size: 0.8rem !important;
+  width: auto !important;
 }
 
 /* 4. UTILITY */

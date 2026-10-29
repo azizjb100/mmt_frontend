@@ -337,11 +337,6 @@ onMounted(() => {
   height: calc(100vh - 220px);
 }
 
-:deep(.v-data-table-header th) {
-  background-color: #f5f5f5 !important;
-  font-weight: bold !important;
-}
-
 .text-error {
   color: #ff5252 !important;
 }

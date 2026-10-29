@@ -7,6 +7,7 @@
     :loading="loading.headers"
     v-model:selected="selected"
     v-model:expanded="expanded"
+    :show-expand="true"
     v-model:filters="filters"
     v-model:startDate="filters.startDate"
     v-model:endDate="filters.endDate"
@@ -73,14 +74,24 @@
 
     <!-- Custom Template Kolom Tabel Utama -->
     <template #item.Nomor="{ item }">
-      <span class="font-weight-bold text-blue-darken-3" :class="getRowTextColor(item)">
+      <span
+        :title="item.Nomor"
+        class="font-weight-bold text-blue-darken-3 d-inline-block text-truncate"
+        style="max-width: 100%"
+        :class="getRowTextColor(item)"
+      >
         {{ item.Nomor }}
       </span>
     </template>
 
     <template #item.NomorSPK="{ item }">
-      <span :title="item.NomorSPK" class="font-weight-medium" :class="getRowTextColor(item)">
-        {{ item.NomorSPK || "-" }}
+      <span
+        :title="item.NomorSPK"
+        class="font-weight-medium d-inline-block text-truncate"
+        style="max-width: 100%"
+        :class="getRowTextColor(item)"
+      >
+        {{ truncateString(item.NomorSPK || "", 25) }}
       </span>
     </template>
 
@@ -90,11 +101,17 @@
         :color="item.StatusAcc === 'APPROVED' ? 'success' : 'grey-darken-1'"
         variant="flat"
         class="font-weight-bold"
-        :title="item.NomorAcc ? `Sudah di-ACC di LHK Approval (${item.NomorAcc})` : 'Belum di-ACC di LHK Approval Cetak'"
+        :title="
+          item.NomorAcc
+            ? `Sudah di-ACC di LHK Approval (${item.NomorAcc})`
+            : 'Belum di-ACC di LHK Approval Cetak'
+        "
       >
-        <v-icon start size="12" v-if="item.StatusAcc === 'APPROVED'">mdi-check-decagram</v-icon>
+        <v-icon start size="12" v-if="item.StatusAcc === 'APPROVED'"
+          >mdi-check-decagram</v-icon
+        >
         <v-icon start size="12" v-else>mdi-clock-outline</v-icon>
-        {{ item.StatusAcc === 'APPROVED' ? 'APPROVED' : 'BELUM ACC' }}
+        {{ item.StatusAcc === "APPROVED" ? "APPROVED" : "BELUM ACC" }}
       </v-chip>
     </template>
 
@@ -156,6 +173,7 @@
             :items="details[item.Nomor]"
             density="compact"
             hide-default-footer
+            :items-per-page="-1"
             class="detail-table border"
           >
             <template #item.totalcetak="{ value }">
@@ -232,38 +250,63 @@ let filters = reactive({
 // --- Headers ---
 const masterHeaders = [
   {
+    title: "",
+    key: "data-table-expand",
+    width: "44px",
+    minWidth: "44px",
+    maxWidth: "44px",
+    sortable: false,
+    fixed: true,
+  },
+  {
     title: "Nomor LHK",
     key: "Nomor",
-    minWidth: "200px",
-    width: "200px",
-    class: "sticky-col-nomor",
-    cellProps: { class: "sticky-col-nomor" },
+    minWidth: "176px",
+    width: "176px",
+    fixed: true,
   },
   {
     title: "Nomor SPK",
     key: "NomorSPK",
-    minWidth: "170px",
-    width: "170px",
-    class: "sticky-col-spk",
-    cellProps: { class: "sticky-col-spk" },
+    minWidth: "220px",
+    width: "240px",
+    fixed: true,
   },
   {
-    title: "Status ACC",
+    title: "Status Approve",
     key: "StatusAcc",
-    minWidth: "115px",
-    width: "115px",
+    minWidth: "125px",
+    width: "125px",
     align: "center",
   },
   {
     title: "Status",
     key: "Status",
+    minWidth: "95px",
+    width: "95px",
+    align: "center",
+  },
+  {
+    title: "Shift",
+    key: "Shift",
+    minWidth: "70px",
+    width: "70px",
+    align: "center",
+  },
+  {
+    title: "Tanggal",
+    key: "Tanggal",
+    minWidth: "110px",
+    width: "110px",
+    align: "center",
+  },
+  {
+    title: "Mesin",
+    key: "Mesin",
     minWidth: "90px",
     width: "90px",
     align: "center",
   },
-  { title: "Shift", key: "Shift", minWidth: "70px", width: "70px", align: "center" },
-  { title: "Tanggal", key: "Tanggal", minWidth: "110px", width: "110px", align: "center" },
-  { title: "Mesin", key: "Mesin", minWidth: "90px", width: "90px", align: "center" },
   { title: "Nama SPK", key: "NamaOrder", minWidth: "200px", width: "200px" },
   {
     title: "Panjang",
@@ -500,7 +543,7 @@ const exportToExcel = async () => {
     const headers = [
       { v: "NOMOR LHK", s: styleHeaderMain },
       { v: "NOMOR SPK", s: styleHeaderMain },
-      { v: "STATUS ACC", s: styleHeaderMain },
+      { v: "STATUS APPROVE", s: styleHeaderMain },
       { v: "STATUS", s: styleHeaderMain },
       { v: "SHIFT", s: styleHeaderMain },
       { v: "TANGGAL", s: styleHeaderMain },
@@ -893,20 +936,31 @@ watch(
 .text-grey {
   color: #757575 !important;
 }
+:deep(.detail-container),
 .detail-container {
-  padding: 8px 0;
-  background-color: #f7f7f7;
-  border-top: 1px solid #ddd;
+  display: flex !important;
+  justify-content: flex-start !important;
+  align-items: flex-start !important;
+  padding: 6px 0 !important;
+  background-color: transparent !important;
+  border-top: none !important;
+  width: 100% !important;
 }
+:deep(.detail-table-wrapper),
 .detail-table-wrapper {
-  padding: 0 12px;
-  width: 100%;
-  overflow-x: auto;
+  padding: 0 !important;
+  width: auto !important;
+  max-width: 100% !important;
+  overflow-x: auto !important;
+  margin-left: 0 !important;
+  margin-right: auto !important;
 }
+:deep(.detail-table),
 .detail-table {
   background-color: white !important;
-  font-size: 0.8rem;
-  width: 100% !important;
+  font-size: 0.8rem !important;
+  width: auto !important;
+  min-width: 780px !important;
 }
 .total-bold {
   font-weight: 700;
@@ -934,86 +988,6 @@ watch(
 }
 
 :deep(.v-data-table__tr.selected-row:hover > td) {
-  background-color: #c0e4ff !important;
-}
-
-/* ======================================================== */
-/* STICKY / FROZEN COLUMNS (Expand, Nomor LHK, Nomor SPK)   */
-/* Kolom tidak akan bergeser saat tabel di-scroll horizontal */
-/* ======================================================== */
-
-/* Kolom 0: Expand Chevron */
-:deep(th[data-col-key="data-table-expand"]),
-:deep(td.v-data-table__td--expanded-row),
-:deep(td.v-data-table__td:first-child) {
-  position: sticky !important;
-  left: 0 !important;
-  z-index: 4 !important;
-  background-color: #ffffff !important;
-  width: 48px !important;
-  min-width: 48px !important;
-  max-width: 48px !important;
-}
-:deep(th[data-col-key="data-table-expand"]) {
-  z-index: 11 !important;
-  background-color: #eceff1 !important;
-}
-
-/* Kolom 1: Nomor LHK */
-:deep(th.sticky-col-nomor),
-:deep(th[data-col-key="Nomor"]),
-:deep(td.sticky-col-nomor) {
-  position: sticky !important;
-  left: 48px !important;
-  z-index: 4 !important;
-  background-color: #ffffff !important;
-  width: 200px !important;
-  min-width: 200px !important;
-}
-:deep(th.sticky-col-nomor),
-:deep(th[data-col-key="Nomor"]) {
-  z-index: 11 !important;
-  background-color: #eceff1 !important;
-}
-
-/* Kolom 2: Nomor SPK */
-:deep(th.sticky-col-spk),
-:deep(th[data-col-key="NomorSPK"]),
-:deep(td.sticky-col-spk) {
-  position: sticky !important;
-  left: 248px !important; /* 48px + 200px */
-  z-index: 4 !important;
-  background-color: #ffffff !important;
-  width: 170px !important;
-  min-width: 170px !important;
-  box-shadow: 3px 0 6px -2px rgba(0, 0, 0, 0.18) !important;
-}
-:deep(th.sticky-col-spk),
-:deep(th[data-col-key="NomorSPK"]) {
-  z-index: 11 !important;
-  background-color: #eceff1 !important;
-  box-shadow: 3px 0 6px -2px rgba(0, 0, 0, 0.18) !important;
-}
-
-/* Sinkronisasi warna saat baris di-hover atau di-select */
-:deep(tr.selected-row td.sticky-col-nomor),
-:deep(tr.selected-row td.sticky-col-spk),
-:deep(tr.selected-row td.v-data-table__td:first-child),
-:deep(tr.row-selected td.sticky-col-nomor),
-:deep(tr.row-selected td.sticky-col-spk),
-:deep(tr.row-selected td.v-data-table__td:first-child) {
-  background-color: #d8efff !important;
-}
-
-:deep(tr:hover td.sticky-col-nomor),
-:deep(tr:hover td.sticky-col-spk),
-:deep(tr:hover td.v-data-table__td:first-child) {
-  background-color: #f0f7ff !important;
-}
-
-:deep(tr.selected-row:hover td.sticky-col-nomor),
-:deep(tr.selected-row:hover td.sticky-col-spk),
-:deep(tr.selected-row:hover td.v-data-table__td:first-child) {
   background-color: #c0e4ff !important;
 }
 </style>

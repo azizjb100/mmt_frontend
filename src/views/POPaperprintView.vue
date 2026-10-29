@@ -963,13 +963,6 @@ onMounted(fetchData);
   max-height: 550px !important;
 }
 
-:deep(.v-data-table__thead) {
-  position: sticky !important;
-  top: 0 !important;
-  z-index: 10 !important;
-  background-color: #ffffff !important;
-}
-
 :deep(.v-data-table-footer) {
   flex: 0 0 auto !important;
   border-top: 1px solid rgba(0, 0, 0, 0.12);

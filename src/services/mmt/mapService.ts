@@ -68,6 +68,14 @@ export const mapService = {
     );
     return response.data;
   },
+
+  // 8. GET PRINT DATA
+  async getPrintData(nomor: string) {
+    const response = await api.get(
+      `${BASE_URL}/${encodeURIComponent(nomor)}/print`,
+    );
+    return response.data;
+  },
 };
 
 export default mapService;

@@ -312,12 +312,6 @@ watch([startDate, endDate], fetchData);
   font-size: 11px !important;
   background-color: #ffffff !important;
 }
-:deep(.v-data-table-header th) {
-  font-size: 11px !important;
-  height: 32px !important;
-  font-weight: bold !important;
-  background-color: #f5f5f5 !important;
-}
 :deep(.v-data-table td) {
   font-size: 11px !important;
   height: 32px !important;
@@ -331,11 +325,6 @@ watch([startDate, endDate], fetchData);
 }
 :deep(.v-data-table__tr) {
   cursor: pointer;
-}
-.detail-container {
-  padding: 0 !important;
-  background-color: #f9f9f9;
-  border-top: 1px solid rgba(0, 0, 0, 0.12);
 }
 
 /* CLASS WARNA SPESIFIK TEKS NOMOR SPK */

@@ -1977,13 +1977,6 @@ watch([startDate, endDate], ([newStart, newEnd]) => {
   background-color: #ffffff !important;
 }
 
-:deep(.v-data-table__thead) {
-  position: sticky !important;
-  top: 0 !important;
-  z-index: 10 !important;
-  background-color: #ffffff !important;
-}
-
 :deep(.v-data-table__th--fixed),
 :deep(.v-data-table__td--fixed) {
   box-sizing: border-box !important;

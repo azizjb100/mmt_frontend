@@ -1841,14 +1841,6 @@ const confirmToggleClose = async () => {
   overflow-y: auto !important;
 }
 
-:deep(.v-data-table thead th),
-:deep(.v-table thead th) {
-  position: sticky !important;
-  top: 0 !important;
-  z-index: 2 !important;
-  background-color: #72cfee !important;
-}
-
 :deep(.v-data-table-footer),
 :deep(.v-data-table__footer) {
   position: sticky !important;

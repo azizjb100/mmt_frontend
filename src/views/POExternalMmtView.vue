@@ -614,19 +614,30 @@ watch([() => filters.startDate, () => filters.endDate], fetchData);
 }
 
 /* Detail Expanded Layout Container */
+:deep(.detail-container),
 .detail-container {
-  padding: 10px 0;
-  background-color: #fafafa;
-  border-top: 1px solid #e0e0e0;
+  display: flex !important;
+  justify-content: flex-start !important;
+  align-items: flex-start !important;
+  padding: 6px 0 !important;
+  background-color: transparent !important;
+  border-top: none !important;
+  width: 100% !important;
 }
+:deep(.detail-table-wrapper),
 .detail-table-wrapper {
-  padding: 0 16px;
-  width: 100%;
+  padding: 0 !important;
+  width: auto !important;
+  max-width: 100% !important;
+  overflow-x: auto !important;
+  margin-left: 0 !important;
+  margin-right: auto !important;
 }
+:deep(.detail-table),
 .detail-table {
   background-color: white !important;
-  font-size: 0.78rem;
-  width: 100% !important;
+  font-size: 0.8rem !important;
+  width: auto !important;
 }
 :deep(.v-data-table__table) {
   font-size: 0.8rem;

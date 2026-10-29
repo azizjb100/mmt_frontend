@@ -274,26 +274,10 @@ watch([startDate, endDate], fetchData);
   font-size: 11px !important;
 }
 
-/* 2. Atur Header Tabel (Master & Detail) */
-:deep(.v-data-table-header th) {
-  font-size: 11px !important;
-  height: 32px !important;
-  font-weight: bold !important;
-  background-color: #f8f9fa !important;
-  text-transform: uppercase;
-}
-
 /* 3. Atur Baris Tabel */
 :deep(.v-data-table td) {
   font-size: 11px !important;
   height: 32px !important;
-}
-
-/* 4. Container Detail */
-.detail-container {
-  padding: 8px 12px !important;
-  background-color: #f1f3f4;
-  border-top: 1px solid rgba(0, 0, 0, 0.05);
 }
 
 .table-container {
