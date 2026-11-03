@@ -4,6 +4,7 @@ import { useRouter } from "vue-router";
 import { useToast } from "vue-toastification";
 import api from "@/services/api";
 import { format, subDays } from "date-fns";
+import * as XLSX from "xlsx";
 import BaseBrowse from "@/components/BaseBrowse.vue";
 
 const toast = useToast();
@@ -27,6 +28,7 @@ interface MasterSJ {
   Ngedit?: string; // 'WAIT' | 'ACC' | 'TOLAK' | ''
   Created?: string;
   Modified?: string;
+  ListSPK?: string;
 }
 
 interface DetailSJ {
@@ -45,12 +47,17 @@ interface DetailSJ {
 const masterData = ref<MasterSJ[]>([]);
 const details = ref<Record<string, DetailSJ[]>>({});
 const loading = ref(true);
+const loadingExport = ref(false);
 const loadingDetails = ref(new Set<string>());
 const selected = ref<MasterSJ[]>([]);
 const expanded = ref<any[]>([]);
 
 const startDate = ref(format(subDays(new Date(), 30), "yyyy-MM-dd"));
 const endDate = ref(format(new Date(), "yyyy-MM-dd"));
+
+// State Filter Search SPK
+const searchSpk = ref("");
+const allPeriodSpk = ref(false);
 
 // State Dialog Pengajuan Edit
 const dialogPengajuan = ref(false);
@@ -143,9 +150,32 @@ const fetchData = async () => {
         endDate: endDate.value,
         zcus: userConfig.zcus,
         zdivisi: userConfig.zdivisi,
+        spk: searchSpk.value?.trim() || undefined,
+        allPeriod:
+          searchSpk.value?.trim() && allPeriodSpk.value ? true : undefined,
       },
     });
     masterData.value = res.data.data || res.data || [];
+
+    // Jika sedang mencari nomor SPK, otomatis buka detail agar nomor SPK langsung terlihat di detail
+    if (searchSpk.value.trim() && masterData.value.length > 0) {
+      expanded.value = masterData.value.map((m) => m.Nomor);
+      const unCached = masterData.value
+        .map((m) => m.Nomor)
+        .filter((nomor) => !details.value[nomor]);
+      if (unCached.length > 0) {
+        api
+          .post(`${API_SURAT_JALAN}/detail-bulk`, { nomorList: unCached })
+          .then((resDtl) => {
+            const dtls = resDtl.data.data || [];
+            dtls.forEach((d: DetailSJ) => {
+              if (!details.value[d.Nomor]) details.value[d.Nomor] = [];
+              details.value[d.Nomor].push(d);
+            });
+          })
+          .catch((e) => console.error("Auto fetch detail error:", e));
+      }
+    }
   } catch (error: any) {
     toast.error(
       error.response?.data?.message || "Gagal mengambil data Surat Jalan",
@@ -153,6 +183,11 @@ const fetchData = async () => {
   } finally {
     loading.value = false;
   }
+};
+
+const handleClearSearchSpk = () => {
+  searchSpk.value = "";
+  fetchData();
 };
 
 const handleExpandUpdate = async (expandedKeys: any[]) => {
@@ -232,6 +267,166 @@ const handlePrint = () => {
   });
 
   window.open(routeData.href, "_blank");
+};
+
+// =========================================================================
+// FITUR: EXPORT DATA EXCEL (RINGKASAN & DETAIL ITEM SPK)
+// =========================================================================
+const handleExportExcel = async () => {
+  if (masterData.value.length === 0) {
+    toast.warning("Tidak ada data Surat Jalan untuk di-export.");
+    return;
+  }
+
+  loadingExport.value = true;
+  try {
+    // 1. Kumpulkan semua nomor SJ yang sedang tampil
+    const nomorList = masterData.value.map((m) => m.Nomor);
+
+    // 2. Ambil detail untuk semua nomor SJ secara bulk
+    let allDetails: DetailSJ[] = [];
+    try {
+      const resDetail = await api.post(`${API_SURAT_JALAN}/detail-bulk`, {
+        nomorList,
+      });
+      allDetails = resDetail.data.data || [];
+    } catch (err) {
+      console.warn("Gagal mengambil bulk detail, gunakan cached:", err);
+      allDetails = Object.values(details.value).flat();
+    }
+
+    // Map detail per nomor SJ untuk lookup cepat
+    const detailsByNomor: Record<string, DetailSJ[]> = {};
+    allDetails.forEach((d) => {
+      if (!detailsByNomor[d.Nomor]) detailsByNomor[d.Nomor] = [];
+      detailsByNomor[d.Nomor].push(d);
+    });
+
+    // 3. Bangun Sheet 1: Detail Item SPK (Nomor SPK berada di detail)
+    const detailData: any[] = [];
+    let detailIdx = 1;
+
+    masterData.value.forEach((m) => {
+      const items = detailsByNomor[m.Nomor] || [];
+      if (items.length > 0) {
+        items.forEach((d) => {
+          detailData.push({
+            No: detailIdx++,
+            "Nomor SJ": m.Nomor,
+            Tanggal: m.Tanggal || "",
+            Customer: m.Customer || "-",
+            Gudang: m.Gudang || "-",
+            "Nomor SPK": d.SPK || "-",
+            "Nama SPK / Barang": d.Nama || "-",
+            Ukuran: d.Ukuran || "-",
+            Panjang: Number(d.Panjang || 0),
+            Lebar: Number(d.Lebar || 0),
+            "Jumlah (Pcs)": Number(d.Jumlah || 0),
+            Koli: Number(d.Koli || 0),
+            "Keterangan Item": d.Keterangan || "-",
+            "Keterangan SJ": m.Keterangan || "-",
+            Invoice: m.Invoice || "-",
+          });
+        });
+      } else {
+        detailData.push({
+          No: detailIdx++,
+          "Nomor SJ": m.Nomor,
+          Tanggal: m.Tanggal || "",
+          Customer: m.Customer || "-",
+          Gudang: m.Gudang || "-",
+          "Nomor SPK": "-",
+          "Nama SPK / Barang": "-",
+          Ukuran: "-",
+          Panjang: 0,
+          Lebar: 0,
+          "Jumlah (Pcs)": Number(m.QtyKirim || 0),
+          Koli: 0,
+          "Keterangan Item": "-",
+          "Keterangan SJ": m.Keterangan || "-",
+          Invoice: m.Invoice || "-",
+        });
+      }
+    });
+
+    // 4. Bangun Sheet 2: Ringkasan Header Surat Jalan
+    const headerData = masterData.value.map((m, idx) => ({
+      No: idx + 1,
+      "Nomor SJ": m.Nomor,
+      Tanggal: m.Tanggal || "",
+      "Status Edit": getNgeditBadge(m.Ngedit || "").text,
+      Approved: m.Approved || "Pending",
+      Gudang: m.Gudang || "-",
+      "Total Qty": Number(m.QtyKirim || 0),
+      ...(userConfig.zcus === 1
+        ? {
+            "Kode Cus": m.KdCus || "-",
+            Customer: m.Customer || "-",
+            Alamat: m.Alamat || "-",
+            Kota: m.Kota || "-",
+          }
+        : {}),
+      Keterangan: m.Keterangan || "-",
+      Invoice: m.Invoice || "-",
+      Created: m.Created || "-",
+    }));
+
+    // 5. Buat workbook Excel
+    const wb = XLSX.utils.book_new();
+
+    const wsDetail = XLSX.utils.json_to_sheet(detailData);
+    wsDetail["!cols"] = [
+      { wch: 6 },
+      { wch: 22 },
+      { wch: 14 },
+      { wch: 26 },
+      { wch: 22 },
+      { wch: 22 },
+      { wch: 30 },
+      { wch: 14 },
+      { wch: 10 },
+      { wch: 10 },
+      { wch: 14 },
+      { wch: 10 },
+      { wch: 26 },
+      { wch: 26 },
+      { wch: 16 },
+    ];
+    XLSX.utils.book_append_sheet(wb, wsDetail, "Detail Item SPK");
+
+    const wsHeader = XLSX.utils.json_to_sheet(headerData);
+    wsHeader["!cols"] = [
+      { wch: 6 },
+      { wch: 22 },
+      { wch: 14 },
+      { wch: 18 },
+      { wch: 14 },
+      { wch: 22 },
+      { wch: 12 },
+      { wch: 12 },
+      { wch: 26 },
+      { wch: 30 },
+      { wch: 16 },
+      { wch: 26 },
+      { wch: 16 },
+      { wch: 20 },
+    ];
+    XLSX.utils.book_append_sheet(wb, wsHeader, "Ringkasan SJ");
+
+    // 6. Simpan file
+    const spkSuffix = searchSpk.value?.trim()
+      ? `_SPK_${searchSpk.value.trim().replace(/[^a-zA-Z0-9-_]/g, "_")}`
+      : "";
+    const fileName = `Surat_Jalan_${startDate.value}_sd_${endDate.value}${spkSuffix}.xlsx`;
+    XLSX.writeFile(wb, fileName);
+
+    toast.success("Export Excel Berhasil!");
+  } catch (error: any) {
+    console.error("Export Excel error:", error);
+    toast.error("Gagal melakukan export Excel.");
+  } finally {
+    loadingExport.value = false;
+  }
 };
 
 // =========================================================================
@@ -360,6 +555,19 @@ onMounted(fetchData);
           Cetak SJ
         </v-btn>
 
+        <!-- Tombol Export Excel -->
+        <v-btn
+          size="small"
+          color="success"
+          class="mr-2 text-none"
+          :loading="loadingExport"
+          :disabled="masterData.length === 0"
+          @click="handleExportExcel"
+        >
+          <v-icon start>mdi-file-excel</v-icon>
+          Export Excel
+        </v-btn>
+
         <!-- Tombol Pengajuan Edit -->
         <v-btn
           size="small"
@@ -383,6 +591,48 @@ onMounted(fetchData);
           <v-icon start>mdi-delete</v-icon>
           Hapus
         </v-btn>
+      </template>
+
+      <!-- Filter Tambahan: Cari SPK -->
+      <template #filter-fields>
+        <div class="d-flex align-center ga-2 flex-wrap">
+          <v-text-field
+            v-model="searchSpk"
+            label="Cari SPK"
+            placeholder="Ketik No. SPK..."
+            density="compact"
+            hide-details
+            variant="outlined"
+            prepend-inner-icon="mdi-magnify"
+            style="min-width: 200px; max-width: 280px"
+            clearable
+            @keyup.enter="fetchData"
+            @click:clear="handleClearSearchSpk"
+          />
+
+          <v-checkbox
+            v-model="allPeriodSpk"
+            label="Semua Periode"
+            density="compact"
+            hide-details
+            color="primary"
+            class="ma-0 pa-0"
+            title="Abaikan filter tanggal saat mencari SPK"
+            @update:model-value="searchSpk ? fetchData() : null"
+          />
+
+          <v-btn
+            size="small"
+            color="primary"
+            variant="flat"
+            class="text-none"
+            :loading="loading"
+            @click="fetchData"
+          >
+            <v-icon start>mdi-magnify</v-icon>
+            Cari
+          </v-btn>
+        </div>
       </template>
 
       <!-- Custom Column Formatters -->

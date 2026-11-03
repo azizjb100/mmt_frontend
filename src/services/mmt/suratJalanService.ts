@@ -42,6 +42,10 @@ export const suratJalanService = {
     return api.get(`${BASE_URL}/detail`, { params: p });
   },
 
+  // Mengambil detail untuk banyak nomor SJ sekaligus (bulk)
+  getDetailBulk: (nomorList: string[]) =>
+    api.post(`${BASE_URL}/detail-bulk`, { nomorList }),
+
   // Helper alias untuk kompatibilitas pencetakan/view
   getDataCetak: (nomor: string) =>
     api.get(`${BASE_URL}/detail`, { params: { nomor } }),
