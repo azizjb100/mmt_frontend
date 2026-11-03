@@ -118,10 +118,13 @@
             100,
             { title: 'Semua', value: -1 },
           ]"
-          show-expand
+          :show-expand="showExpand"
           v-model:expanded="expandedRows"
           @update:expanded="onRowExpand"
         >
+          <!-- Mencegah header default Vuetify merender baris ekstra di atas custom thead -->
+          <template #headers></template>
+
           <!-- Custom Header Slot -->
           <template #thead>
             <slot
@@ -209,6 +212,7 @@ const props = defineProps({
   disableSort: { type: Boolean, default: false },
   disableFilter: { type: Boolean, default: false },
   activeFilterOverride: { type: Boolean, default: undefined },
+  showExpand: { type: Boolean, default: false },
 });
 
 const emit = defineEmits([
@@ -361,11 +365,15 @@ const onColPointerUp = (allDefaultKeys: string[]) => {
 };
 
 // --- RESIZING KOLOM ---
+const isResizing = ref(false);
+const hasResized = ref(false);
 const resizingKey = ref<string | null>(null);
 const startX = ref(0);
 const startWidth = ref(0);
 
 const startResize = (e: MouseEvent, key: string, defaultWidthPx = 120) => {
+  isResizing.value = true;
+  hasResized.value = false;
   resizingKey.value = key;
   startX.value = e.clientX;
 
@@ -382,6 +390,9 @@ const startResize = (e: MouseEvent, key: string, defaultWidthPx = 120) => {
 const onMouseMove = (e: MouseEvent) => {
   if (!resizingKey.value) return;
   const diff = e.clientX - startX.value;
+  if (Math.abs(diff) > 2) {
+    hasResized.value = true;
+  }
   const newWidth = Math.max(50, startWidth.value + diff);
 
   colWidths.value = {
@@ -395,8 +406,14 @@ const onMouseUp = () => {
     saveLayoutState();
   }
   resizingKey.value = null;
+  isResizing.value = false;
   window.removeEventListener("mousemove", onMouseMove);
   window.removeEventListener("mouseup", onMouseUp);
+
+  // Kunci flag hasResized sesaat agar click event setelah mouseup tidak memicu sort
+  setTimeout(() => {
+    hasResized.value = false;
+  }, 250);
 };
 
 // --- LOGIKA UTAMA LAPORAN (Sama Seperti Sebelumnya) ---
@@ -507,6 +524,7 @@ const currentSortColumn = ref(props.defaultSortCol);
 const currentSortDir = ref<"ASC" | "DESC">("ASC");
 
 const toggleSort = (columnKey: string) => {
+  if (isResizing.value || hasResized.value) return;
   if (currentSortColumn.value === columnKey) {
     currentSortDir.value = currentSortDir.value === "ASC" ? "DESC" : "ASC";
   } else {
@@ -705,6 +723,14 @@ const handleExportExcel = () => {
   border-collapse: separate;
   border-spacing: 0;
   width: 100%;
+}
+
+.custom-modern-table :deep(.v-data-table-headers),
+.custom-modern-table :deep(.v-data-table__th--expand) {
+  display: none !important;
+  height: 0 !important;
+  padding: 0 !important;
+  border: none !important;
 }
 
 .custom-modern-table :deep(thead th) {

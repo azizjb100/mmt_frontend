@@ -837,7 +837,8 @@ onMounted(async () => {
             <thead>
               <tr>
                 <th style="width: 40px" class="text-center-so">No</th>
-                <th class="text-left-so">Alokasi Tujuan / Alamat</th>
+                <th class="text-left-so" style="width: 250px">Nama Toko</th>
+                <th class="text-left-so">Kota / Alamat</th>
                 <th style="width: 120px" class="text-center-so">
                   Jumlah (Pcs)
                 </th>
@@ -846,6 +847,7 @@ onMounted(async () => {
             <tbody>
               <tr v-for="(a, idx) in alokasi" :key="`alokasi-p01-${idx}`">
                 <td class="text-center-so">{{ idx + 1 }}</td>
+                <td>{{ a.toko || "-" }}</td>
                 <td>{{ a.kota || a.alamat || a.tujuan || "-" }}</td>
                 <td class="text-center-so">
                   {{ Number(a.jumlah || 0).toLocaleString("id-ID") }}
@@ -855,7 +857,7 @@ onMounted(async () => {
             <tfoot>
               <tr>
                 <td
-                  colspan="2"
+                  colspan="3"
                   class="fw-so text-right"
                   style="padding-right: 15px"
                 >
@@ -1055,14 +1057,16 @@ Keterangan Komponen :&#10;{{ formattedKeterangan }}</pre
             <table class="alokasi-table-side-simple">
               <thead>
                 <tr>
-                  <th style="width: 30px" class="text-center-so">No</th>
-                  <th class="text-left-so">Alokasi Tujuan / Alamat</th>
-                  <th style="width: 70px" class="text-center-so">Jumlah</th>
+                  <th style="width: 28px" class="text-center-so">No</th>
+                  <th class="text-left-so" style="width: 48%">Nama Toko</th>
+                  <th class="text-left-so">Kota</th>
+                  <th style="width: 60px" class="text-center-so">Jumlah</th>
                 </tr>
               </thead>
               <tbody>
                 <tr v-for="(a, idx) in alokasi" :key="`alokasi-side-${idx}`">
                   <td class="text-center-so">{{ idx + 1 }}</td>
+                  <td>{{ a.toko || "-" }}</td>
                   <td>{{ a.kota || a.alamat || a.tujuan || "-" }}</td>
                   <td class="text-center-so">
                     {{ Number(a.jumlah || 0).toLocaleString("id-ID") }}
@@ -1072,7 +1076,7 @@ Keterangan Komponen :&#10;{{ formattedKeterangan }}</pre
               <tfoot>
                 <tr>
                   <td
-                    colspan="2"
+                    colspan="3"
                     class="fw-so text-right"
                     style="padding-right: 8px"
                   >
@@ -1280,9 +1284,10 @@ Keterangan Komponen :&#10;{{ formattedKeterangan }}</pre
             >
               <thead>
                 <tr>
-                  <th style="width: 40px" class="text-center-so">No</th>
-                  <th class="text-left-so">Alokasi Tujuan / Alamat</th>
-                  <th style="width: 120px" class="text-center-so">Jumlah</th>
+                  <th style="width: 35px" class="text-center-so">No</th>
+                  <th class="text-left-so" style="width: 45%">Nama Toko</th>
+                  <th class="text-left-so">Kota</th>
+                  <th style="width: 80px" class="text-center-so">Jumlah</th>
                 </tr>
               </thead>
               <tbody>
@@ -1291,6 +1296,9 @@ Keterangan Komponen :&#10;{{ formattedKeterangan }}</pre
                   :key="`alokasi-flow-${col.start + idx}`"
                 >
                   <td class="text-center-so">{{ col.start + idx + 1 }}</td>
+                  <td style="overflow-wrap: anywhere; word-break: break-word">
+                    {{ a.toko || "-" }}
+                  </td>
                   <td style="overflow-wrap: anywhere; word-break: break-word">
                     {{ a.kota || a.alamat || a.tujuan || "-" }}
                   </td>
@@ -1302,7 +1310,7 @@ Keterangan Komponen :&#10;{{ formattedKeterangan }}</pre
               <tfoot v-if="col.isLast">
                 <tr>
                   <td
-                    colspan="2"
+                    colspan="3"
                     class="fw-so text-right"
                     style="padding-right: 8px"
                   >
@@ -2106,13 +2114,15 @@ Keterangan Komponen :&#10;{{ formattedKeterangan }}</pre
           <thead>
             <tr>
               <th style="width: 40px" class="text-center-so">No</th>
-              <th class="text-left-so">Alokasi Tujuan / Alamat</th>
+              <th class="text-left-so" style="width: 250px">Nama Toko</th>
+              <th class="text-left-so">Kota</th>
               <th style="width: 120px" class="text-center-so">Jumlah (Pcs)</th>
             </tr>
           </thead>
           <tbody>
             <tr v-for="(a, idx) in alokasi" :key="`alokasi-new-${idx}`">
               <td class="text-center-so">{{ idx + 1 }}</td>
+              <td>{{ a.toko || "-" }}</td>
               <td>{{ a.kota || a.alamat || a.tujuan || "-" }}</td>
               <td class="text-center-so">
                 {{ Number(a.jumlah || 0).toLocaleString("id-ID") }}
@@ -2122,7 +2132,7 @@ Keterangan Komponen :&#10;{{ formattedKeterangan }}</pre
           <tfoot>
             <tr>
               <td
-                colspan="2"
+                colspan="3"
                 class="fw-so text-right"
                 style="padding-right: 15px"
               >

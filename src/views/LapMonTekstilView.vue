@@ -15,21 +15,21 @@
     @refresh="fetchReport"
     @reset-filter="resetAllFilters"
   >
-    <!-- Slot Filter Utama Tambahan -->
+    <!-- Slot Filter Utama Tambahan (Search) -->
     <template #extra-filters>
       <v-text-field
         v-model="searchQuery"
-        label="Cari SPK / Order / Perush..."
+        label="Cari No. SPK, Nama Order, Perusahaan..."
         prepend-inner-icon="mdi-magnify"
         density="compact"
         hide-details
         variant="outlined"
         clearable
-        style="max-width: 260px"
+        style="max-width: 280px"
       />
     </template>
 
-    <!-- Slot Header Tabel Berkelompok Custom -->
+    <!-- Slot Header Tabel Berkelompok Custom dengan Support Drag & Drop & Resize -->
     <template #thead>
       <thead>
         <!-- Row 1: Header Utama & Grouping Header -->
@@ -37,11 +37,12 @@
           <!-- 1. PERUSH (Sticky Left 1) -->
           <th
             rowspan="2"
-            class="text-center sticky-col-1 cursor-pointer select-none"
+            :style="colStyles('spk_perush_kode', '120px')"
+            class="text-center sticky-col-1 cursor-pointer select-none position-relative"
             @click="toggleSort('spk_perush_kode')"
           >
-            <div class="d-flex align-center justify-space-between px-1">
-              <span class="font-weight-bold">
+            <div class="d-flex align-center justify-space-between px-1 w-100">
+              <span class="font-weight-bold text-truncate">
                 PERUSH {{ getSortIcon("spk_perush_kode") }}
               </span>
               <v-menu :close-on-content-click="false">
@@ -78,41 +79,45 @@
                 </v-card>
               </v-menu>
             </div>
+            <div
+              class="column-resizer"
+              @mousedown.stop.prevent="startResize($event, 'spk_perush_kode', 120)"
+              @click.stop.prevent
+            ></div>
           </th>
 
-          <!-- 2. TGL SPK -->
+          <!-- 2-4. KOLOM BASE DINAMIS -->
           <th
+            v-for="col in orderedBaseCols"
+            :key="col.key"
             rowspan="2"
-            class="text-center cursor-pointer select-none"
-            @click="toggleSort('spk_tanggal')"
+            :style="colStyles(col.key, col.width)"
+            :class="[
+              col.align === 'center'
+                ? 'text-center'
+                : col.align === 'right'
+                  ? 'text-right'
+                  : 'text-left',
+              'cursor-pointer select-none position-relative draggable-th',
+              { 'col-drag-over': dragOverColKey === col.key && draggedGroup === 'base' }
+            ]"
+            draggable="true"
+            @dragstart="onColDragStart($event, col.key, 'base')"
+            @dragover="onColDragOver($event, col.key, 'base')"
+            @dragenter="onColDragEnter(col.key, 'base')"
+            @dragleave="onColDragLeave($event, col.key)"
+            @dragend="onColDragEnd"
+            @drop="onColDrop($event, col.key, 'base')"
+            @click="toggleSort(col.key)"
           >
-            <span class="font-weight-bold">
-              TGL SPK {{ getSortIcon("spk_tanggal") }}
-            </span>
-          </th>
-
-          <!-- 3. DEADLINE -->
-          <th
-            rowspan="2"
-            class="text-center cursor-pointer select-none"
-            @click="toggleSort('spk_dateline')"
-          >
-            <span class="font-weight-bold">
-              DEADLINE {{ getSortIcon("spk_dateline") }}
-            </span>
-          </th>
-
-          <!-- 4. NAMA ORDER -->
-          <th
-            rowspan="2"
-            class="text-left cursor-pointer select-none"
-            @click="toggleSort('spk_nama')"
-          >
-            <div class="d-flex align-center justify-space-between px-1">
-              <span class="font-weight-bold">
-                NAMA ORDER {{ getSortIcon("spk_nama") }}
-              </span>
-              <v-menu :close-on-content-click="false">
+            <div class="d-flex align-center justify-space-between px-1 w-100">
+              <div class="d-flex align-center overflow-hidden w-100">
+                <span class="col-drag-handle mr-1" title="Geser kolom">⠿</span>
+                <span class="font-weight-bold text-truncate">
+                  {{ col.label }} {{ getSortIcon(col.key) }}
+                </span>
+              </div>
+              <v-menu v-if="col.hasFilter" :close-on-content-click="false">
                 <template #activator="{ props }">
                   <v-btn
                     v-bind="props"
@@ -125,7 +130,7 @@
                     <v-icon
                       size="14"
                       :color="
-                        columnFilters.spk_nama ? 'amber-accent-2' : 'white'
+                        columnFilters[col.key] ? 'amber-accent-2' : 'white'
                       "
                     >
                       mdi-filter-variant
@@ -134,8 +139,8 @@
                 </template>
                 <v-card min-width="220" class="pa-2 rounded-lg" @click.stop>
                   <v-text-field
-                    v-model="columnFilters.spk_nama"
-                    label="Filter Nama Order..."
+                    v-model="columnFilters[col.key]"
+                    :label="`Filter ${col.label}...`"
                     density="compact"
                     hide-details
                     variant="outlined"
@@ -144,21 +149,27 @@
                 </v-card>
               </v-menu>
             </div>
+            <div
+              class="column-resizer"
+              @mousedown.stop.prevent="startResize($event, col.key, parseInt(col.width || '100'))"
+              @click.stop.prevent
+            ></div>
           </th>
 
           <!-- GROUP UKURAN -->
-          <th colspan="2" class="text-center header-group bg-cyan-header">
+          <th :colspan="orderedUkuranCols.length" class="text-center header-group bg-cyan-header">
             UKURAN
           </th>
 
-          <!-- 5. NO SPK (Sticky Left 2) -->
+          <!-- 5. NO SPK -->
           <th
             rowspan="2"
-            class="text-center sticky-col-2 cursor-pointer select-none"
+            :style="colStyles('spk_nomor', '130px')"
+            class="text-center cursor-pointer select-none position-relative"
             @click="toggleSort('spk_nomor')"
           >
-            <div class="d-flex align-center justify-space-between px-1">
-              <span class="font-weight-bold">
+            <div class="d-flex align-center justify-space-between px-1 w-100">
+              <span class="font-weight-bold text-truncate">
                 NO SPK {{ getSortIcon("spk_nomor") }}
               </span>
               <v-menu :close-on-content-click="false">
@@ -193,21 +204,27 @@
                 </v-card>
               </v-menu>
             </div>
+            <div
+              class="column-resizer"
+              @mousedown.stop.prevent="startResize($event, 'spk_nomor', 130)"
+              @click.stop.prevent
+            ></div>
           </th>
 
           <!-- GROUP ORDER SPK -->
-          <th colspan="2" class="text-center header-group bg-blue-header">
+          <th :colspan="orderedOrderCols.length" class="text-center header-group bg-blue-header">
             ORDER SPK
           </th>
 
           <!-- 6. JENIS KAIN -->
           <th
             rowspan="2"
-            class="text-left cursor-pointer select-none"
+            :style="colStyles('spk_kain', '140px')"
+            class="text-left cursor-pointer select-none position-relative"
             @click="toggleSort('spk_kain')"
           >
-            <div class="d-flex align-center justify-space-between px-1 ga-1">
-              <span class="font-weight-bold">
+            <div class="d-flex align-center justify-space-between px-1 ga-1 w-100">
+              <span class="font-weight-bold text-truncate">
                 JENIS KAIN {{ getSortIcon("spk_kain") }}
               </span>
               <v-menu :close-on-content-click="false">
@@ -244,108 +261,157 @@
                 </v-card>
               </v-menu>
             </div>
+            <div
+              class="column-resizer"
+              @mousedown.stop.prevent="startResize($event, 'spk_kain', 140)"
+              @click.stop.prevent
+            ></div>
           </th>
 
           <!-- 7. KURANG -->
           <th
             rowspan="2"
-            class="text-right cursor-pointer select-none bg-red-header"
+            :style="colStyles('jmlkurang', '85px')"
+            class="text-right cursor-pointer select-none bg-red-header position-relative"
             @click="toggleSort('jmlkurang')"
           >
-            KURANG {{ getSortIcon("jmlkurang") }}
+            <span class="font-weight-bold text-truncate">
+              KURANG {{ getSortIcon("jmlkurang") }}
+            </span>
+            <div
+              class="column-resizer"
+              @mousedown.stop.prevent="startResize($event, 'jmlkurang', 85)"
+              @click.stop.prevent
+            ></div>
           </th>
 
           <!-- GROUP HASIL CETAK (PCS) -->
-          <th colspan="4" class="text-center header-group bg-blue-header">
+          <th :colspan="orderedPcsCols.length" class="text-center header-group bg-blue-header">
             HASIL CETAK (PCS)
           </th>
 
           <!-- GROUP HASIL CETAK (METER) -->
-          <th colspan="4" class="text-center header-group bg-teal-header">
+          <th :colspan="orderedMeterCols.length" class="text-center header-group bg-teal-header">
             HASIL CETAK (METER)
           </th>
         </tr>
 
         <!-- Row 2: Sub Header Detail -->
         <tr class="header-sub">
-          <!-- Ukuran -->
+          <!-- Ukuran Sub -->
           <th
-            class="text-right bg-cyan-sub cursor-pointer select-none"
-            @click="toggleSort('spk_panjang')"
+            v-for="col in orderedUkuranCols"
+            :key="col.key"
+            :style="colStyles(col.key, col.width)"
+            class="text-right bg-cyan-sub cursor-pointer select-none position-relative draggable-th"
+            :class="{ 'col-drag-over': dragOverColKey === col.key && draggedGroup === 'ukuran' }"
+            draggable="true"
+            @dragstart="onColDragStart($event, col.key, 'ukuran')"
+            @dragover="onColDragOver($event, col.key, 'ukuran')"
+            @dragenter="onColDragEnter(col.key, 'ukuran')"
+            @dragleave="onColDragLeave($event, col.key)"
+            @dragend="onColDragEnd"
+            @drop="onColDrop($event, col.key, 'ukuran')"
+            @click="toggleSort(col.key)"
           >
-            PANJANG {{ getSortIcon("spk_panjang") }}
-          </th>
-          <th
-            class="text-right bg-cyan-sub cursor-pointer select-none"
-            @click="toggleSort('spk_lebar')"
-          >
-            LEBAR {{ getSortIcon("spk_lebar") }}
-          </th>
-
-          <!-- Order SPK -->
-          <th
-            class="text-right bg-blue-sub cursor-pointer select-none"
-            @click="toggleSort('spk_jumlah')"
-          >
-            PCS {{ getSortIcon("spk_jumlah") }}
-          </th>
-          <th
-            class="text-right bg-blue-sub cursor-pointer select-none"
-            @click="toggleSort('order_meter')"
-          >
-            METER {{ getSortIcon("order_meter") }}
-          </th>
-
-          <!-- Hasil Cetak PCS -->
-          <th
-            class="text-right bg-blue-sub cursor-pointer select-none"
-            @click="toggleSort('mx01')"
-          >
-            MX01 {{ getSortIcon("mx01") }}
-          </th>
-          <th
-            class="text-right bg-blue-sub cursor-pointer select-none"
-            @click="toggleSort('mx02')"
-          >
-            MX02 {{ getSortIcon("mx02") }}
-          </th>
-          <th
-            class="text-right bg-blue-sub cursor-pointer select-none"
-            @click="toggleSort('mx03')"
-          >
-            MX03 {{ getSortIcon("mx03") }}
-          </th>
-          <th
-            class="text-right bg-blue-sub cursor-pointer select-none"
-            @click="toggleSort('total_pcs_aktual')"
-          >
-            TOTAL {{ getSortIcon("total_pcs_aktual") }}
+            <div class="d-flex align-center justify-space-between px-1 w-100">
+              <div class="d-flex align-center overflow-hidden w-100 justify-end">
+                <span class="col-drag-handle mr-1" title="Geser kolom">⠿</span>
+                <span class="font-weight-bold text-truncate">{{ col.label }} {{ getSortIcon(col.key) }}</span>
+              </div>
+            </div>
+            <div
+              class="column-resizer"
+              @mousedown.stop.prevent="startResize($event, col.key, parseInt(col.width || '75'))"
+              @click.stop.prevent
+            ></div>
           </th>
 
-          <!-- Hasil Cetak Meter -->
+          <!-- Order SPK Sub -->
           <th
-            class="text-right bg-teal-sub cursor-pointer select-none"
-            @click="toggleSort('jmx01')"
+            v-for="col in orderedOrderCols"
+            :key="col.key"
+            :style="colStyles(col.key, col.width)"
+            class="text-right bg-blue-sub cursor-pointer select-none position-relative draggable-th"
+            :class="{ 'col-drag-over': dragOverColKey === col.key && draggedGroup === 'order' }"
+            draggable="true"
+            @dragstart="onColDragStart($event, col.key, 'order')"
+            @dragover="onColDragOver($event, col.key, 'order')"
+            @dragenter="onColDragEnter(col.key, 'order')"
+            @dragleave="onColDragLeave($event, col.key)"
+            @dragend="onColDragEnd"
+            @drop="onColDrop($event, col.key, 'order')"
+            @click="toggleSort(col.key)"
           >
-            MX01 {{ getSortIcon("jmx01") }}
+            <div class="d-flex align-center justify-space-between px-1 w-100">
+              <div class="d-flex align-center overflow-hidden w-100 justify-end">
+                <span class="col-drag-handle mr-1" title="Geser kolom">⠿</span>
+                <span class="font-weight-bold text-truncate">{{ col.label }} {{ getSortIcon(col.key) }}</span>
+              </div>
+            </div>
+            <div
+              class="column-resizer"
+              @mousedown.stop.prevent="startResize($event, col.key, parseInt(col.width || '75'))"
+              @click.stop.prevent
+            ></div>
           </th>
+
+          <!-- Hasil Cetak PCS Sub -->
           <th
-            class="text-right bg-teal-sub cursor-pointer select-none"
-            @click="toggleSort('jmx02')"
+            v-for="col in orderedPcsCols"
+            :key="col.key"
+            :style="colStyles(col.key, col.width)"
+            class="text-right bg-blue-sub cursor-pointer select-none position-relative draggable-th"
+            :class="{ 'col-drag-over': dragOverColKey === col.key && draggedGroup === 'pcs' }"
+            draggable="true"
+            @dragstart="onColDragStart($event, col.key, 'pcs')"
+            @dragover="onColDragOver($event, col.key, 'pcs')"
+            @dragenter="onColDragEnter(col.key, 'pcs')"
+            @dragleave="onColDragLeave($event, col.key)"
+            @dragend="onColDragEnd"
+            @drop="onColDrop($event, col.key, 'pcs')"
+            @click="toggleSort(col.key)"
           >
-            MX02 {{ getSortIcon("jmx02") }}
+            <div class="d-flex align-center justify-space-between px-1 w-100">
+              <div class="d-flex align-center overflow-hidden w-100 justify-end">
+                <span class="col-drag-handle mr-1" title="Geser kolom">⠿</span>
+                <span class="font-weight-bold text-truncate">{{ col.label }} {{ getSortIcon(col.key) }}</span>
+              </div>
+            </div>
+            <div
+              class="column-resizer"
+              @mousedown.stop.prevent="startResize($event, col.key, parseInt(col.width || '70'))"
+              @click.stop.prevent
+            ></div>
           </th>
+
+          <!-- Hasil Cetak MTR Sub -->
           <th
-            class="text-right bg-teal-sub cursor-pointer select-none"
-            @click="toggleSort('jmx03')"
+            v-for="col in orderedMeterCols"
+            :key="col.key"
+            :style="colStyles(col.key, col.width)"
+            class="text-right bg-teal-sub cursor-pointer select-none position-relative draggable-th"
+            :class="{ 'col-drag-over': dragOverColKey === col.key && draggedGroup === 'meter' }"
+            draggable="true"
+            @dragstart="onColDragStart($event, col.key, 'meter')"
+            @dragover="onColDragOver($event, col.key, 'meter')"
+            @dragenter="onColDragEnter(col.key, 'meter')"
+            @dragleave="onColDragLeave($event, col.key)"
+            @dragend="onColDragEnd"
+            @drop="onColDrop($event, col.key, 'meter')"
+            @click="toggleSort(col.key)"
           >
-            MX03 {{ getSortIcon("jmx03") }}
-          </th>
-          <th
-            class="text-right bg-teal-sub cursor-pointer select-none"
-            @click="toggleSort('total_mtr_aktual')"
-          >
-            TOTAL {{ getSortIcon("total_mtr_aktual") }}
+            <div class="d-flex align-center justify-space-between px-1 w-100">
+              <div class="d-flex align-center overflow-hidden w-100 justify-end">
+                <span class="col-drag-handle mr-1" title="Geser kolom">⠿</span>
+                <span class="font-weight-bold text-truncate">{{ col.label }} {{ getSortIcon(col.key) }}</span>
+              </div>
+            </div>
+            <div
+              class="column-resizer"
+              @mousedown.stop.prevent="startResize($event, col.key, parseInt(col.width || '75'))"
+              @click.stop.prevent
+            ></div>
           </th>
         </tr>
       </thead>
@@ -354,67 +420,110 @@
     <!-- Slot Row Baris Data Utama -->
     <template #row="{ item, formatNumber }">
       <tr class="table-row-item">
-        <!-- Sticky Left Col 1: Perusahaan -->
-        <td class="text-center sticky-col-1 font-weight-bold">
+        <!-- 1. Perush (Sticky 1) -->
+        <td
+          :style="colStyles('spk_perush_kode', '120px')"
+          class="text-center sticky-col-1 text-truncate"
+          :title="item.spk_perush_kode"
+        >
           {{ item.spk_perush_kode || "-" }}
         </td>
 
-        <!-- Tanggal SPK & Deadline -->
-        <td class="text-center">{{ formatDateDisplay(item.spk_tanggal) }}</td>
-        <td class="text-center font-weight-bold text-error">
-          {{ formatDateDisplay(item.spk_dateline) }}
-        </td>
-
-        <!-- Nama Order -->
+        <!-- Base Cols Dinamis -->
         <td
-          class="text-left text-truncate"
-          style="max-width: 250px"
-          :title="item.spk_nama"
+          v-for="col in orderedBaseCols"
+          :key="col.key"
+          :style="colStyles(col.key, col.width)"
+          :class="[
+            col.align === 'center' ? 'text-center' : col.align === 'right' ? 'text-right' : 'text-left',
+            col.isDeadline ? 'font-weight-bold text-error' : '',
+            col.type === 'text' ? 'text-truncate' : ''
+          ]"
+          :title="col.type === 'text' ? item[col.key] : ''"
         >
-          {{ item.spk_nama || "-" }}
+          <template v-if="col.type === 'date'">
+            {{ formatDateDisplay(item[col.key]) }}
+          </template>
+          <template v-else>
+            {{ item[col.key] || "-" }}
+          </template>
         </td>
 
-        <!-- Ukuran -->
-        <td class="text-right">{{ formatNumber(item.spk_panjang, 2) }}</td>
-        <td class="text-right">{{ formatNumber(item.spk_lebar, 2) }}</td>
-
-        <!-- Sticky Left Col 2: No SPK -->
-        <td class="text-center sticky-col-2 font-weight-bold text-primary">
-          {{ item.spk_nomor || "-" }}
+        <!-- Ukuran Sub Dinamis -->
+        <td
+          v-for="col in orderedUkuranCols"
+          :key="col.key"
+          :style="colStyles(col.key, col.width)"
+          class="text-right"
+        >
+          {{ formatNumber(item[col.key], col.dec ?? 2) }}
         </td>
 
-        <!-- Order SPK -->
-        <td class="text-right">{{ formatNumber(item.spk_jumlah, 0) }}</td>
-        <td class="text-right">{{ formatNumber(item.order_meter, 2) }}</td>
+        <!-- No SPK -->
+        <td
+          :style="colStyles('spk_nomor', '130px')"
+          class="text-center font-weight-bold text-primary cursor-pointer text-truncate"
+          @click.stop="handlePreview(item.spk_nomor)"
+        >
+          <span class="text-decoration-underline">{{ item.spk_nomor || "-" }}</span>
+        </td>
+
+        <!-- Order SPK Sub Dinamis -->
+        <td
+          v-for="col in orderedOrderCols"
+          :key="col.key"
+          :style="colStyles(col.key, col.width)"
+          class="text-right"
+        >
+          {{ formatNumber(item[col.key], col.dec ?? 0) }}
+        </td>
 
         <!-- Jenis Kain -->
         <td
+          :style="colStyles('spk_kain', '140px')"
           class="text-left text-truncate"
-          style="max-width: 180px"
           :title="item.spk_kain"
         >
           {{ item.spk_kain || "-" }}
         </td>
 
         <!-- Kurang -->
-        <td class="text-right font-weight-bold text-error bg-red-lighten-5">
+        <td
+          :style="colStyles('jmlkurang', '85px')"
+          class="text-right font-weight-bold"
+          :class="item.jmlkurang > 0 ? 'text-error' : 'text-success'"
+        >
           {{ formatNumber(item.jmlkurang, 0) }}
         </td>
 
-        <!-- Hasil Cetak PCS (MX01 - MX03 & TOTAL) -->
-        <td class="text-right">{{ formatNumber(item.mx01, 0) }}</td>
-        <td class="text-right">{{ formatNumber(item.mx02, 0) }}</td>
-        <td class="text-right">{{ formatNumber(item.mx03, 0) }}</td>
-        <td class="text-right font-weight-bold bg-grey-lighten-4">
-          {{ formatNumber(item.total_pcs_aktual, 0) }}
+        <!-- Hasil Cetak PCS Sub Dinamis -->
+        <td
+          v-for="col in orderedPcsCols"
+          :key="col.key"
+          :style="colStyles(col.key, col.width)"
+          class="text-right"
+          :class="{
+            'font-weight-bold text-primary':
+              col.key !== 'total_pcs_aktual' && item[col.key] > 0,
+            'font-weight-bold bg-grey-lighten-4':
+              col.key === 'total_pcs_aktual',
+          }"
+        >
+          {{ formatNumber(item[col.key], col.dec ?? 0) }}
         </td>
 
-        <!-- Hasil Cetak Meter (JMX01 - JMX03 & TOTAL) -->
-        <td class="text-right">{{ formatNumber(item.jmx01, 2) }}</td>
-        <td class="text-right">{{ formatNumber(item.jmx02, 2) }}</td>
-        <td class="text-right">{{ formatNumber(item.jmx03, 2) }}</td>
-        <td class="text-right font-weight-bold bg-grey-lighten-4">
-          {{ formatNumber(item.total_mtr_aktual, 2) }}
+        <!-- Hasil Cetak MTR Sub Dinamis -->
+        <td
+          v-for="col in orderedMeterCols"
+          :key="col.key"
+          :style="colStyles(col.key, col.width)"
+          class="text-right"
+          :class="{
+            'font-weight-bold bg-teal-lighten-5':
+              col.key === 'total_mtr_aktual',
+          }"
+        >
+          {{ formatNumber(item[col.key], col.dec ?? 2) }}
         </td>
       </tr>
     </template>
@@ -423,66 +532,180 @@
     <template #tfoot="{ formatNumber }">
       <tr class="table-footer-row">
         <td
-          colspan="7"
+          :colspan="1 + orderedBaseCols.length + orderedUkuranCols.length + 1"
           class="text-right font-weight-black text-uppercase sticky-footer-title"
         >
           TOTAL (FILTERED):
         </td>
 
         <!-- Order SPK -->
-        <td class="text-right font-weight-black">
-          {{ formatNumber(totals.spk_jumlah, 0) }}
-        </td>
-        <td class="text-right font-weight-black">
-          {{ formatNumber(totals.order_meter, 2) }}
+        <td
+          v-for="col in orderedOrderCols"
+          :key="col.key"
+          :style="colStyles(col.key, col.width)"
+          class="text-right font-weight-black"
+        >
+          {{ formatNumber(totals[col.key], col.dec ?? 0) }}
         </td>
 
-        <td></td>
+        <!-- Jenis Kain Blank -->
+        <td :style="colStyles('spk_kain', '140px')"></td>
 
-        <!-- Total Kurang -->
-        <td class="text-right font-weight-black text-error bg-red-lighten-5">
+        <!-- Kurang -->
+        <td
+          :style="colStyles('jmlkurang', '85px')"
+          class="text-right font-weight-black"
+          :class="totals.jmlkurang > 0 ? 'text-error' : 'text-success'"
+        >
           {{ formatNumber(totals.jmlkurang, 0) }}
         </td>
 
         <!-- Hasil Cetak PCS -->
-        <td class="text-right font-weight-black">
-          {{ formatNumber(totals.mx01, 0) }}
-        </td>
-        <td class="text-right font-weight-black">
-          {{ formatNumber(totals.mx02, 0) }}
-        </td>
-        <td class="text-right font-weight-black">
-          {{ formatNumber(totals.mx03, 0) }}
-        </td>
-        <td class="text-right font-weight-black bg-grey-lighten-2">
-          {{ formatNumber(totals.total_pcs_aktual, 0) }}
+        <td
+          v-for="col in orderedPcsCols"
+          :key="col.key"
+          :style="colStyles(col.key, col.width)"
+          class="text-right font-weight-black"
+        >
+          {{ formatNumber(totals[col.key], col.dec ?? 0) }}
         </td>
 
-        <!-- Hasil Cetak Meter -->
-        <td class="text-right font-weight-black">
-          {{ formatNumber(totals.jmx01, 2) }}
-        </td>
-        <td class="text-right font-weight-black">
-          {{ formatNumber(totals.jmx02, 2) }}
-        </td>
-        <td class="text-right font-weight-black">
-          {{ formatNumber(totals.jmx03, 2) }}
-        </td>
-        <td class="text-right font-weight-black bg-grey-lighten-2">
-          {{ formatNumber(totals.total_mtr_aktual, 2) }}
+        <!-- Hasil Cetak MTR -->
+        <td
+          v-for="col in orderedMeterCols"
+          :key="col.key"
+          :style="colStyles(col.key, col.width)"
+          class="text-right font-weight-black"
+        >
+          {{ formatNumber(totals[col.key], col.dec ?? 2) }}
         </td>
       </tr>
     </template>
   </BaseReportLayout>
+
+  <!-- Summary Card Tambahan di Bawah Tabel -->
+  <div class="d-flex justify-end mt-3 px-2">
+    <v-card
+      flat
+      class="border rounded-lg overflow-hidden"
+      style="min-width: 600px"
+    >
+      <v-table density="compact" class="summary-table">
+        <tbody>
+          <tr>
+            <td class="sum-label" style="width: 25%">Kekurangan Meter:</td>
+            <td
+              class="sum-value text-error text-subtitle-2 font-weight-bold"
+              style="width: 25%"
+            >
+              {{ formatNumber(totals.jmlkurang, 0) }}
+            </td>
+            <td class="sum-label text-center" style="width: 25%">
+              Output / Hari:
+            </td>
+            <td
+              class="sum-value text-center font-weight-bold bg-blue-lighten-5"
+              style="width: 25%"
+            >
+              {{ formatNumber(summary.outputPerHari, 0) }}
+            </td>
+          </tr>
+          <tr>
+            <td class="sum-label">Estimasi Selesai:</td>
+            <td
+              colspan="3"
+              class="sum-value text-primary text-subtitle-2 font-weight-bold"
+            >
+              {{ formatNumber(summary.estimasiSelesaiHari, 2) }} Hari
+            </td>
+          </tr>
+        </tbody>
+      </v-table>
+    </v-card>
+  </div>
+
+  <!-- Preview Dialog -->
+  <v-dialog
+    v-model="showPreviewDialog"
+    max-width="1200px"
+    width="95vw"
+    height="92vh"
+    scrollable
+    transition="dialog-bottom-transition"
+  >
+    <v-card class="d-flex flex-column" style="height: 92vh; max-height: 92vh">
+      <v-toolbar
+        color="grey-darken-4"
+        density="compact"
+        class="flex-grow-0 flex-shrink-0"
+      >
+        <v-icon class="ml-3 mr-2" color="teal-lighten-2"
+          >mdi-file-eye-outline</v-icon
+        >
+        <v-toolbar-title class="text-subtitle-1 font-weight-bold">
+          Preview SPK — {{ previewSpkNomor }}
+        </v-toolbar-title>
+        <v-chip
+          color="error"
+          size="x-small"
+          label
+          class="mr-3 font-weight-bold"
+        >
+          PREVIEW MODE (DILARANG DICETAK)
+        </v-chip>
+        <v-spacer />
+        <v-btn icon variant="text" @click="showPreviewDialog = false">
+          <v-icon>mdi-close</v-icon>
+        </v-btn>
+      </v-toolbar>
+      <v-card-text
+        class="pa-0 flex-grow-1 position-relative bg-grey-lighten-3 iframe-wrapper"
+      >
+        <div
+          v-if="isIframeLoading"
+          class="preview-loading-overlay d-flex flex-column align-center justify-center"
+        >
+          <v-progress-circular indeterminate color="primary" size="48" />
+          <span class="text-caption text-grey-darken-2 mt-3 font-weight-medium">
+            Memuat dokumen preview SPK...
+          </span>
+        </div>
+        <iframe
+          v-if="previewUrl"
+          :src="previewUrl"
+          class="preview-iframe"
+          @load="handleIframeLoaded"
+        />
+      </v-card-text>
+      <v-divider />
+      <v-card-actions
+        class="bg-white py-2 px-4 justify-space-between flex-grow-0 flex-shrink-0"
+      >
+        <span class="text-caption text-grey-darken-1">
+          * Mode preview untuk pengecekan data visual &amp; layout SPK.
+        </span>
+        <v-btn
+          color="grey-darken-1"
+          variant="tonal"
+          size="small"
+          class="px-4 font-weight-bold"
+          @click="showPreviewDialog = false"
+        >
+          Tutup
+        </v-btn>
+      </v-card-actions>
+    </v-card>
+  </v-dialog>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from "vue";
 import BaseReportLayout from "@/components/BaseReportLayout.vue";
 import api from "@/services/api";
-import { parseISO, isValid, format } from "date-fns";
+import { format, parseISO, isValid } from "date-fns";
 import { id } from "date-fns/locale";
 import * as XLSX from "xlsx-js-style";
+import { useReportTable, type ColDef } from "@/composables/useReportTable";
 
 const formatDate = (date: Date) => {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
@@ -492,14 +715,117 @@ const getStartOfMonth = (date: Date) => {
   return new Date(date.getFullYear(), date.getMonth(), 1);
 };
 
-// --- STATE MANAGEMENT ---
 const endDate = ref(formatDate(new Date()));
 const startDate = ref(formatDate(getStartOfMonth(new Date())));
 const searchQuery = ref("");
 const loading = reactive({ report: false });
 const allData = ref<any[]>([]);
+const summary = ref({ outputPerHari: "0", estimasiSelesaiHari: "0" });
+const showPreviewDialog = ref<boolean>(false);
+const previewUrl = ref<string>("");
+const previewSpkNomor = ref<string>("");
+const isIframeLoading = ref<boolean>(true);
 
-// --- COLUMN FILTERS & SORTING STATE ---
+// --- DEFINISI KOLOM BASE & GROUPS ---
+const defaultBaseCols: ColDef[] = [
+  { key: "spk_tanggal", label: "TGL SPK", width: "95px", align: "center", type: "date" },
+  { key: "spk_dateline", label: "DEADLINE", width: "95px", align: "center", type: "date", isDeadline: true },
+  { key: "spk_nama", label: "NAMA ORDER", width: "200px", align: "left", type: "text", hasFilter: true },
+];
+
+const defaultUkuranCols: ColDef[] = [
+  { key: "spk_panjang", label: "PANJANG", width: "75px", align: "right", type: "number", dec: 2 },
+  { key: "spk_lebar", label: "LEBAR", width: "75px", align: "right", type: "number", dec: 2 },
+];
+
+const defaultOrderCols: ColDef[] = [
+  { key: "spk_jumlah", label: "PCS", width: "75px", align: "right", type: "number", dec: 0 },
+  { key: "order_meter", label: "METER", width: "80px", align: "right", type: "number", dec: 2 },
+];
+
+const defaultPcsCols: ColDef[] = [
+  { key: "mx01", label: "MX01", width: "70px", align: "right", type: "number", dec: 0 },
+  { key: "mx02", label: "MX02", width: "70px", align: "right", type: "number", dec: 0 },
+  { key: "mx03", label: "MX03", width: "70px", align: "right", type: "number", dec: 0 },
+  { key: "total_pcs_aktual", label: "TOTAL", width: "75px", align: "right", type: "number", dec: 0 },
+];
+
+const defaultMeterCols: ColDef[] = [
+  { key: "jmx01", label: "MX01", width: "75px", align: "right", type: "number", dec: 2 },
+  { key: "jmx02", label: "MX02", width: "75px", align: "right", type: "number", dec: 2 },
+  { key: "jmx03", label: "MX03", width: "75px", align: "right", type: "number", dec: 2 },
+  { key: "total_mtr_aktual", label: "TOTAL", width: "80px", align: "right", type: "number", dec: 2 },
+];
+
+const {
+  colWidths,
+  colStyles,
+  loadOrder,
+  saveOrder,
+  startResize,
+  draggedColKey,
+  dragOverColKey,
+  draggedGroup,
+  onColDragStart,
+  onColDragOver,
+  onColDragEnter,
+  onColDragLeave,
+  onColDragEnd,
+  sortKey,
+  sortOrder,
+  toggleSort,
+  getSortIcon,
+} = useReportTable({
+  tableKey: "LAP_MON_TEKSTIL",
+  defaultSortKey: "spk_perush_kode",
+});
+
+const orderedBaseCols = ref<ColDef[]>(loadOrder("base", defaultBaseCols));
+const orderedUkuranCols = ref<ColDef[]>(loadOrder("ukuran", defaultUkuranCols));
+const orderedOrderCols = ref<ColDef[]>(loadOrder("order", defaultOrderCols));
+const orderedPcsCols = ref<ColDef[]>(loadOrder("pcs", defaultPcsCols));
+const orderedMeterCols = ref<ColDef[]>(loadOrder("meter", defaultMeterCols));
+
+const reorderCols = (colsRef: any, sourceKey: string, targetKey: string) => {
+  const list = [...colsRef.value];
+  const srcIdx = list.findIndex((c: any) => c.key === sourceKey);
+  const tgtIdx = list.findIndex((c: any) => c.key === targetKey);
+  if (srcIdx !== -1 && tgtIdx !== -1) {
+    const [moved] = list.splice(srcIdx, 1);
+    list.splice(tgtIdx, 0, moved);
+    colsRef.value = list;
+  }
+};
+
+const onColDrop = (e: DragEvent, targetKey: string, group: string) => {
+  e.preventDefault();
+  e.stopPropagation();
+  const sourceKey = draggedColKey.value;
+  draggedColKey.value = null;
+  dragOverColKey.value = null;
+  draggedGroup.value = null;
+
+  if (!sourceKey || sourceKey === targetKey) return;
+
+  if (group === "base") {
+    reorderCols(orderedBaseCols, sourceKey, targetKey);
+    saveOrder("base", orderedBaseCols.value);
+  } else if (group === "ukuran") {
+    reorderCols(orderedUkuranCols, sourceKey, targetKey);
+    saveOrder("ukuran", orderedUkuranCols.value);
+  } else if (group === "order") {
+    reorderCols(orderedOrderCols, sourceKey, targetKey);
+    saveOrder("order", orderedOrderCols.value);
+  } else if (group === "pcs") {
+    reorderCols(orderedPcsCols, sourceKey, targetKey);
+    saveOrder("pcs", orderedPcsCols.value);
+  } else if (group === "meter") {
+    reorderCols(orderedMeterCols, sourceKey, targetKey);
+    saveOrder("meter", orderedMeterCols.value);
+  }
+};
+
+// --- FILTER STATE ---
 const columnFilters = reactive({
   spk_perush_kode: "",
   spk_nomor: "",
@@ -507,27 +833,6 @@ const columnFilters = reactive({
   spk_kain: "SEMUA",
 });
 
-const sortKey = ref("spk_nomor"); // Default sorting awal
-const sortOrder = ref<"asc" | "desc">("asc");
-
-const toggleSort = (key: string) => {
-  if (sortKey.value === key) {
-    sortOrder.value = sortOrder.value === "asc" ? "desc" : "asc";
-  } else {
-    sortKey.value = key;
-    sortOrder.value = "asc";
-  }
-};
-
-const getSortIcon = (key: string) => {
-  // Jika kolom ini tidak sedang di-sort, jangan tampilkan ikon apa pun
-  if (sortKey.value !== key) return "";
-
-  // Jika sedang aktif di-sort, tampilkan arah panahnya
-  return sortOrder.value === "asc" ? " ▲" : " ▼";
-};
-
-// State Active Filter
 const hasActiveFilter = computed(() => {
   return (
     Boolean(searchQuery.value) ||
@@ -538,83 +843,115 @@ const hasActiveFilter = computed(() => {
   );
 });
 
+const handlePreview = (nomorSpk: string) => {
+  if (!nomorSpk || nomorSpk === "-") {
+    alert("SPK belum dibuat atau nomor SPK tidak valid.");
+    return;
+  }
+  previewSpkNomor.value = nomorSpk;
+  isIframeLoading.value = true;
+  previewUrl.value = `/mmt/so-spk/print/${encodeURIComponent(nomorSpk)}?preview=1`;
+  showPreviewDialog.value = true;
+};
+
+const handleIframeLoaded = () => {
+  isIframeLoading.value = false;
+};
+
 const resetAllFilters = () => {
   searchQuery.value = "";
   columnFilters.spk_perush_kode = "";
   columnFilters.spk_nomor = "";
   columnFilters.spk_nama = "";
   columnFilters.spk_kain = "SEMUA";
-  sortKey.value = "spk_nomor";
+  sortKey.value = "spk_perush_kode";
   sortOrder.value = "asc";
 };
 
-// --- OPTIONS FOR DROPDOWN FILTER ---
 const kainOptions = computed(() => {
   const list = allData.value.map((x) => x.spk_kain).filter(Boolean);
   return ["SEMUA", ...new Set(list)];
 });
 
-// --- FETCH REPORT ---
 const fetchReport = async () => {
   loading.report = true;
   try {
-    const res = await api.get("/mmt/monitoring-tekstil", {
-      params: { startDate: startDate.value, endDate: endDate.value },
-    });
+    let res: any;
+    try {
+      res = await api.get("mmt/monitoring/laporan-tekstil/tekstil", {
+        params: {
+          startDate: startDate.value,
+          endDate: endDate.value,
+        },
+      });
+    } catch (err: any) {
+      if (err.response?.status === 404) {
+        res = await api.get("mmt/monitoring-tekstil", {
+          params: {
+            startDate: startDate.value,
+            endDate: endDate.value,
+          },
+        });
+      } else {
+        throw err;
+      }
+    }
 
-    const rawList = res.data || [];
-    allData.value = rawList.map((row: any) => {
-      const mx01 = Number(row.mx01 || 0);
-      const mx02 = Number(row.mx02 || 0);
-      const mx03 = Number(row.mx03 || 0);
-      const jmx01 = Number(row.jmx01 || 0);
-      const jmx02 = Number(row.jmx02 || 0);
-      const jmx03 = Number(row.jmx03 || 0);
+    const rawData = Array.isArray(res.data)
+      ? res.data
+      : Array.isArray(res.data?.data)
+        ? res.data.data
+        : [];
 
-      return {
-        ...row,
-        spk_panjang: Number(row.spk_panjang || 0),
-        spk_lebar: Number(row.spk_lebar || 0),
-        spk_jumlah: Number(row.spk_jumlah || 0),
-        order_meter: Number(row.order_meter || 0),
-        jmlkurang: Number(row.jmlkurang || 0),
-        mx01,
-        mx02,
-        mx03,
-        total_pcs_aktual: mx01 + mx02 + mx03,
-        jmx01,
-        jmx02,
-        jmx03,
-        total_mtr_aktual: jmx01 + jmx02 + jmx03,
-      };
-    });
+    allData.value = rawData.map((row: any) => ({
+      ...row,
+      spk_perush_kode: row.spk_perush_kode ?? row.PERUSH ?? row.perush ?? "",
+      spk_tanggal: row.spk_tanggal ?? row.TGL_SPK ?? row.tgl_spk ?? "",
+      spk_dateline: row.spk_dateline ?? row.DEADLINE ?? row.deadline ?? "",
+      spk_nomor: row.spk_nomor ?? row.NO_SPK ?? row.no_spk ?? row.Nomor_SPK ?? "",
+      spk_nama: row.spk_nama ?? row.NAMA_ORDER ?? row.nama_order ?? "",
+      spk_panjang: Number(row.spk_panjang ?? row.PANJANG ?? 0),
+      spk_lebar: Number(row.spk_lebar ?? row.LEBAR ?? 0),
+      spk_jumlah: Number(row.spk_jumlah ?? row.ORDER_SPK_PCS ?? 0),
+      spk_kain: row.spk_kain ?? row.KAIN ?? "-",
+      order_meter: Number(row.order_meter ?? row.ORDER_SPK_METER ?? (Number(row.spk_jumlah || 0) * Number(row.spk_panjang || 0))),
+      mx01: Number(row.mx01 ?? 0),
+      mx02: Number(row.mx02 ?? 0),
+      mx03: Number(row.mx03 ?? 0),
+      jmx01: Number(row.jmx01 ?? 0),
+      jmx02: Number(row.jmx02 ?? 0),
+      jmx03: Number(row.jmx03 ?? 0),
+      total_pcs_aktual: Number(row.total_pcs_aktual ?? row.jmlcetak ?? (Number(row.mx01 || 0) + Number(row.mx02 || 0) + Number(row.mx03 || 0))),
+      total_mtr_aktual: Number(row.total_mtr_aktual ?? row.cetak_meter ?? (Number(row.jmx01 || 0) + Number(row.jmx02 || 0) + Number(row.jmx03 || 0))),
+      jmlkurang: Number(row.jmlkurang ?? Math.max(0, Number(row.spk_jumlah || 0) - Number(row.jmlcetak || 0))),
+    }));
+
+    if (res.data?.summary) {
+      summary.value = res.data.summary;
+    }
   } catch (error) {
-    console.error("Gagal load data tekstil:", error);
+    console.error("Gagal memuat laporan monitoring tekstil:", error);
     allData.value = [];
   } finally {
     loading.report = false;
   }
 };
 
-// --- HELPER PARSING TANGGAL UTK SORTING ---
 const getTimestamp = (val: any): number => {
   if (!val) return 0;
   const strVal = String(val).trim();
   const parsedISO = parseISO(strVal);
   if (isValid(parsedISO)) return parsedISO.getTime();
-
   const fallbackDate = new Date(strVal).getTime();
   return isNaN(fallbackDate) ? 0 : fallbackDate;
 };
 
-// --- KLASIFIKASI KUNCI KOLOM UNTUK SORTING ---
 const DATE_KEYS = ["spk_tanggal", "spk_dateline"];
 const NUMERIC_KEYS = [
   "spk_panjang",
   "spk_lebar",
   "spk_jumlah",
   "order_meter",
-  "jmlkurang",
   "mx01",
   "mx02",
   "mx03",
@@ -623,26 +960,23 @@ const NUMERIC_KEYS = [
   "jmx02",
   "jmx03",
   "total_mtr_aktual",
+  "jmlkurang",
 ];
 
-// --- FILTERED & SORTED DATA ---
 const filteredData = computed(() => {
   let result = [...allData.value];
 
-  // 1. Filter Global Search
   if (searchQuery.value) {
     const q = searchQuery.value.toLowerCase().trim();
     result = result.filter((item: any) => {
       return (
         item.spk_nomor?.toLowerCase().includes(q) ||
         item.spk_nama?.toLowerCase().includes(q) ||
-        item.spk_perush_kode?.toLowerCase().includes(q) ||
-        item.spk_kain?.toLowerCase().includes(q)
+        item.spk_perush_kode?.toLowerCase().includes(q)
       );
     });
   }
 
-  // 2. Filter Per Kolom (PERUSH)
   if (columnFilters.spk_perush_kode) {
     const q = columnFilters.spk_perush_kode.toLowerCase().trim();
     result = result.filter((item: any) =>
@@ -650,7 +984,6 @@ const filteredData = computed(() => {
     );
   }
 
-  // 3. Filter Per Kolom (NO SPK)
   if (columnFilters.spk_nomor) {
     const q = columnFilters.spk_nomor.toLowerCase().trim();
     result = result.filter((item: any) =>
@@ -658,7 +991,6 @@ const filteredData = computed(() => {
     );
   }
 
-  // 4. Filter Per Kolom (NAMA ORDER)
   if (columnFilters.spk_nama) {
     const q = columnFilters.spk_nama.toLowerCase().trim();
     result = result.filter((item: any) =>
@@ -666,14 +998,12 @@ const filteredData = computed(() => {
     );
   }
 
-  // 5. Filter Per Kolom (JENIS KAIN)
   if (columnFilters.spk_kain && columnFilters.spk_kain !== "SEMUA") {
     result = result.filter(
       (item: any) => item.spk_kain === columnFilters.spk_kain,
     );
   }
 
-  // 6. Logic Sorting Presisi
   if (sortKey.value) {
     const key = sortKey.value;
     const isAsc = sortOrder.value === "asc";
@@ -682,14 +1012,12 @@ const filteredData = computed(() => {
       const valA = a[key];
       const valB = b[key];
 
-      // A. Sorting Kolom Tanggal
       if (DATE_KEYS.includes(key)) {
         const timeA = getTimestamp(valA);
         const timeB = getTimestamp(valB);
         return isAsc ? timeA - timeB : timeB - timeA;
       }
 
-      // B. Sorting Kolom Angka
       if (NUMERIC_KEYS.includes(key)) {
         const numA =
           valA !== null && valA !== undefined && valA !== "" ? Number(valA) : 0;
@@ -698,7 +1026,6 @@ const filteredData = computed(() => {
         return isAsc ? numA - numB : numB - numA;
       }
 
-      // C. Sorting Kolom Teks / Alfanumerik
       const strA = valA !== null && valA !== undefined ? String(valA) : "";
       const strB = valB !== null && valB !== undefined ? String(valB) : "";
 
@@ -714,13 +1041,11 @@ const filteredData = computed(() => {
   return result;
 });
 
-// --- TOTAL CALCULATIONS ---
 const totals = computed(() => {
   return filteredData.value.reduce(
     (acc, item: any) => {
       acc.spk_jumlah += Number(item.spk_jumlah || 0);
       acc.order_meter += Number(item.order_meter || 0);
-      acc.jmlkurang += Number(item.jmlkurang || 0);
       acc.mx01 += Number(item.mx01 || 0);
       acc.mx02 += Number(item.mx02 || 0);
       acc.mx03 += Number(item.mx03 || 0);
@@ -729,12 +1054,12 @@ const totals = computed(() => {
       acc.jmx02 += Number(item.jmx02 || 0);
       acc.jmx03 += Number(item.jmx03 || 0);
       acc.total_mtr_aktual += Number(item.total_mtr_aktual || 0);
+      acc.jmlkurang += Number(item.jmlkurang || 0);
       return acc;
     },
     {
       spk_jumlah: 0,
       order_meter: 0,
-      jmlkurang: 0,
       mx01: 0,
       mx02: 0,
       mx03: 0,
@@ -743,11 +1068,21 @@ const totals = computed(() => {
       jmx02: 0,
       jmx03: 0,
       total_mtr_aktual: 0,
+      jmlkurang: 0,
     },
   );
 });
 
-// --- HELPER FORMAT DISPLAY ---
+const formatNumber = (val: any, dec = 0) => {
+  if (val === null || val === undefined || val === "") return "0";
+  const num = parseFloat(val);
+  if (isNaN(num)) return val;
+  return num.toLocaleString("id-ID", {
+    minimumFractionDigits: dec,
+    maximumFractionDigits: dec,
+  });
+};
+
 const formatDateDisplay = (dateStr: string) => {
   if (!dateStr) return "-";
   const date = parseISO(dateStr);
@@ -821,248 +1156,154 @@ const exportToExcel = (dataToExport: any[]) => {
   // Header Row 1
   const headerRow1 = [
     { v: "PERUSH", s: styleHeaderMain },
-    { v: "TGL SPK", s: styleHeaderMain },
-    { v: "DEADLINE", s: styleHeaderMain },
-    { v: "NAMA ORDER", s: styleHeaderMain },
+    ...orderedBaseCols.value.map((col) => ({ v: col.label, s: styleHeaderMain })),
     { v: "UKURAN", s: styleHeaderMain },
-    "",
+    ...Array(Math.max(0, orderedUkuranCols.value.length - 1)).fill({ v: "", s: styleHeaderMain }),
     { v: "NO SPK", s: styleHeaderMain },
     { v: "ORDER SPK", s: styleHeaderMain },
-    "",
+    ...Array(Math.max(0, orderedOrderCols.value.length - 1)).fill({ v: "", s: styleHeaderMain }),
     { v: "JENIS KAIN", s: styleHeaderMain },
     { v: "KURANG", s: styleHeaderMain },
     { v: "HASIL CETAK (PCS)", s: styleHeaderMain },
-    "",
-    "",
-    "",
+    ...Array(Math.max(0, orderedPcsCols.value.length - 1)).fill({ v: "", s: styleHeaderMain }),
     { v: "HASIL CETAK (METER)", s: styleHeaderMain },
-    "",
-    "",
-    "",
+    ...Array(Math.max(0, orderedMeterCols.value.length - 1)).fill({ v: "", s: styleHeaderMain }),
   ];
   wsData.push(headerRow1);
 
   // Header Row 2
   const headerRow2 = [
-    "",
-    "",
-    "",
-    "",
-    { v: "PANJANG", s: styleHeaderSub },
-    { v: "LEBAR", s: styleHeaderSub },
-    "",
-    { v: "PCS", s: styleHeaderSub },
-    { v: "METER", s: styleHeaderSub },
-    "",
-    "",
-    { v: "MX01", s: styleHeaderSub },
-    { v: "MX02", s: styleHeaderSub },
-    { v: "MX03", s: styleHeaderSub },
-    { v: "TOTAL", s: styleHeaderSub },
-    { v: "MX01", s: styleHeaderSub },
-    { v: "MX02", s: styleHeaderSub },
-    { v: "MX03", s: styleHeaderSub },
-    { v: "TOTAL", s: styleHeaderSub },
+    { v: "", s: styleHeaderMain },
+    ...orderedBaseCols.value.map(() => ({ v: "", s: styleHeaderMain })),
+    ...orderedUkuranCols.value.map((col) => ({ v: col.label, s: styleHeaderSub })),
+    { v: "", s: styleHeaderMain },
+    ...orderedOrderCols.value.map((col) => ({ v: col.label, s: styleHeaderSub })),
+    { v: "", s: styleHeaderMain },
+    { v: "", s: styleHeaderMain },
+    ...orderedPcsCols.value.map((col) => ({ v: col.label, s: styleHeaderSub })),
+    ...orderedMeterCols.value.map((col) => ({ v: col.label, s: styleHeaderSub })),
   ];
   wsData.push(headerRow2);
 
-  // Loop Data
   dataToExport.forEach((item: any) => {
-    wsData.push([
-      {
-        v: item.spk_perush_kode || "",
-        s: { ...styleDataCell, alignment: { horizontal: "center" } },
-      },
-      {
-        v: formatDateDisplay(item.spk_tanggal),
-        s: { ...styleDataCell, alignment: { horizontal: "center" } },
-      },
-      {
-        v: formatDateDisplay(item.spk_dateline),
-        s: { ...styleDataCell, alignment: { horizontal: "center" } },
-      },
-      { v: item.spk_nama || "", s: styleDataCell },
-      {
-        v: num(item.spk_panjang),
+    const row: any[] = [{ v: item.spk_perush_kode || "", s: styleDataCell }];
+
+    orderedBaseCols.value.forEach((col) => {
+      if (col.type === "date") {
+        row.push({
+          v: item[col.key] ? new Date(item[col.key]) : "",
+          t: item[col.key] ? "d" : "s",
+          z: "dd/mm/yyyy",
+          s: { ...styleDataCell, alignment: { horizontal: "center" } },
+        });
+      } else {
+        row.push({ v: item[col.key] || "", s: styleDataCell });
+      }
+    });
+
+    orderedUkuranCols.value.forEach((col) => {
+      row.push({
+        v: num(item[col.key]),
         t: "n",
         z: "#,##0.00",
         s: { ...styleDataCell, alignment: { horizontal: "right" } },
-      },
-      {
-        v: num(item.spk_lebar),
+      });
+    });
+
+    row.push({
+      v: item.spk_nomor || "",
+      s: { ...styleDataCell, alignment: { horizontal: "center" } },
+    });
+
+    orderedOrderCols.value.forEach((col) => {
+      row.push({
+        v: num(item[col.key]),
         t: "n",
-        z: "#,##0.00",
+        z: col.dec === 0 ? "#,##0" : "#,##0.00",
         s: { ...styleDataCell, alignment: { horizontal: "right" } },
-      },
-      {
-        v: item.spk_nomor || "",
-        s: { ...styleDataCell, alignment: { horizontal: "center" } },
-      },
-      {
-        v: num(item.spk_jumlah),
+      });
+    });
+
+    row.push({
+      v: item.spk_kain || "",
+      s: { ...styleDataCell, alignment: { horizontal: "left" } },
+    });
+
+    row.push({
+      v: num(item.jmlkurang),
+      t: "n",
+      z: "#,##0",
+      s: { ...styleDataCell, alignment: { horizontal: "right" } },
+    });
+
+    orderedPcsCols.value.forEach((col) => {
+      row.push({
+        v: num(item[col.key]),
         t: "n",
         z: "#,##0",
         s: { ...styleDataCell, alignment: { horizontal: "right" } },
-      },
-      {
-        v: num(item.order_meter),
+      });
+    });
+
+    orderedMeterCols.value.forEach((col) => {
+      row.push({
+        v: num(item[col.key]),
         t: "n",
         z: "#,##0.00",
         s: { ...styleDataCell, alignment: { horizontal: "right" } },
-      },
-      { v: item.spk_kain || "", s: styleDataCell },
-      {
-        v: num(item.jmlkurang),
-        t: "n",
-        z: "#,##0",
-        s: { ...styleDataCell, alignment: { horizontal: "right" } },
-      },
-      {
-        v: num(item.mx01),
-        t: "n",
-        z: "#,##0",
-        s: { ...styleDataCell, alignment: { horizontal: "right" } },
-      },
-      {
-        v: num(item.mx02),
-        t: "n",
-        z: "#,##0",
-        s: { ...styleDataCell, alignment: { horizontal: "right" } },
-      },
-      {
-        v: num(item.mx03),
-        t: "n",
-        z: "#,##0",
-        s: { ...styleDataCell, alignment: { horizontal: "right" } },
-      },
-      {
-        v: num(item.total_pcs_aktual),
-        t: "n",
-        z: "#,##0",
-        s: { ...styleDataCell, alignment: { horizontal: "right" } },
-      },
-      {
-        v: num(item.jmx01),
-        t: "n",
-        z: "#,##0.00",
-        s: { ...styleDataCell, alignment: { horizontal: "right" } },
-      },
-      {
-        v: num(item.jmx02),
-        t: "n",
-        z: "#,##0.00",
-        s: { ...styleDataCell, alignment: { horizontal: "right" } },
-      },
-      {
-        v: num(item.jmx03),
-        t: "n",
-        z: "#,##0.00",
-        s: { ...styleDataCell, alignment: { horizontal: "right" } },
-      },
-      {
-        v: num(item.total_mtr_aktual),
-        t: "n",
-        z: "#,##0.00",
-        s: { ...styleDataCell, alignment: { horizontal: "right" } },
-      },
-    ]);
+      });
+    });
+
+    wsData.push(row);
   });
 
-  // Footer Total
-  const footerRow = [
+  const footerRow: any[] = [
     {
       v: "TOTAL (FILTERED)",
       s: { ...styleFooterCell, alignment: { horizontal: "center" } },
     },
-    ...Array(6).fill({ v: "", s: styleFooterCell }),
-    {
-      v: num(totals.value.spk_jumlah),
-      t: "n",
-      z: "#,##0",
-      s: { ...styleFooterCell, alignment: { horizontal: "right" } },
-    },
-    {
-      v: num(totals.value.order_meter),
-      t: "n",
-      z: "#,##0.00",
-      s: { ...styleFooterCell, alignment: { horizontal: "right" } },
-    },
-    { v: "", s: styleFooterCell },
-    {
-      v: num(totals.value.jmlkurang),
-      t: "n",
-      z: "#,##0",
-      s: { ...styleFooterCell, alignment: { horizontal: "right" } },
-    },
-    {
-      v: num(totals.value.mx01),
-      t: "n",
-      z: "#,##0",
-      s: { ...styleFooterCell, alignment: { horizontal: "right" } },
-    },
-    {
-      v: num(totals.value.mx02),
-      t: "n",
-      z: "#,##0",
-      s: { ...styleFooterCell, alignment: { horizontal: "right" } },
-    },
-    {
-      v: num(totals.value.mx03),
-      t: "n",
-      z: "#,##0",
-      s: { ...styleFooterCell, alignment: { horizontal: "right" } },
-    },
-    {
-      v: num(totals.value.total_pcs_aktual),
-      t: "n",
-      z: "#,##0",
-      s: { ...styleFooterCell, alignment: { horizontal: "right" } },
-    },
-    {
-      v: num(totals.value.jmx01),
-      t: "n",
-      z: "#,##0.00",
-      s: { ...styleFooterCell, alignment: { horizontal: "right" } },
-    },
-    {
-      v: num(totals.value.jmx02),
-      t: "n",
-      z: "#,##0.00",
-      s: { ...styleFooterCell, alignment: { horizontal: "right" } },
-    },
-    {
-      v: num(totals.value.jmx03),
-      t: "n",
-      z: "#,##0.00",
-      s: { ...styleFooterCell, alignment: { horizontal: "right" } },
-    },
-    {
-      v: num(totals.value.total_mtr_aktual),
-      t: "n",
-      z: "#,##0.00",
-      s: { ...styleFooterCell, alignment: { horizontal: "right" } },
-    },
+    ...Array(orderedBaseCols.value.length + orderedUkuranCols.value.length + 1).fill({ v: "", s: styleFooterCell }),
   ];
+
+  orderedOrderCols.value.forEach((col) => {
+    footerRow.push({
+      v: num(totals.value[col.key]),
+      t: "n",
+      z: col.dec === 0 ? "#,##0" : "#,##0.00",
+      s: { ...styleFooterCell, alignment: { horizontal: "right" } },
+    });
+  });
+
+  footerRow.push({ v: "", s: styleFooterCell });
+
+  footerRow.push({
+    v: num(totals.value.jmlkurang),
+    t: "n",
+    z: "#,##0",
+    s: { ...styleFooterCell, alignment: { horizontal: "right" } },
+  });
+
+  orderedPcsCols.value.forEach((col) => {
+    footerRow.push({
+      v: num(totals.value[col.key]),
+      t: "n",
+      z: "#,##0",
+      s: { ...styleFooterCell, alignment: { horizontal: "right" } },
+    });
+  });
+
+  orderedMeterCols.value.forEach((col) => {
+    footerRow.push({
+      v: num(totals.value[col.key]),
+      t: "n",
+      z: "#,##0.00",
+      s: { ...styleFooterCell, alignment: { horizontal: "right" } },
+    });
+  });
 
   wsData.push(footerRow);
 
   const ws = XLSX.utils.aoa_to_sheet(wsData);
-
-  ws["!merges"] = [
-    { s: { r: 4, c: 0 }, e: { r: 5, c: 0 } }, // Perush
-    { s: { r: 4, c: 1 }, e: { r: 5, c: 1 } }, // Tgl Spk
-    { s: { r: 4, c: 2 }, e: { r: 5, c: 2 } }, // Deadline
-    { s: { r: 4, c: 3 }, e: { r: 5, c: 3 } }, // Nama Order
-    { s: { r: 4, c: 4 }, e: { r: 4, c: 5 } }, // Ukuran (Panjang, Lebar)
-    { s: { r: 4, c: 6 }, e: { r: 5, c: 6 } }, // No SPK
-    { s: { r: 4, c: 7 }, e: { r: 4, c: 8 } }, // Order SPK (Pcs, Meter)
-    { s: { r: 4, c: 9 }, e: { r: 5, c: 9 } }, // Jenis Kain
-    { s: { r: 4, c: 10 }, e: { r: 5, c: 10 } }, // Kurang
-    { s: { r: 4, c: 11 }, e: { r: 4, c: 14 } }, // Hasil Cetak PCS
-    { s: { r: 4, c: 15 }, e: { r: 4, c: 18 } }, // Hasil Cetak MTR
-    { s: { r: wsData.length - 1, c: 0 }, e: { r: wsData.length - 1, c: 6 } }, // Title Footer
-  ];
-
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Tekstil_Monitoring");
   XLSX.writeFile(wb, fileName);
@@ -1072,7 +1313,22 @@ onMounted(fetchReport);
 </script>
 
 <style scoped>
-/* 1. CONTAINER WRAPPER UNTUK OVERFLOW SCROLL */
+/* Warna Teks Seluruh Header Menjadi Putih */
+:deep(.custom-modern-table th),
+:deep(.header-main th),
+:deep(.header-sub th),
+:deep(.header-group),
+:deep(thead th),
+:deep(thead span),
+:deep(thead .v-icon) {
+  color: #ffffff !important;
+}
+
+/* Pastikan ikon filter dan sorting di header juga putih, kecuali jika aktif */
+:deep(thead .btn-filter-icon .v-icon:not(.text-amber-accent-2)) {
+  color: #ffffff !important;
+}
+
 :deep(.v-table__wrapper),
 :deep(.v-data-table__wrapper) {
   max-height: calc(100vh - 280px) !important;
@@ -1080,7 +1336,6 @@ onMounted(fetchReport);
   overflow-x: auto !important;
 }
 
-/* 2. STANDARISASI SELURUH TABEL & FONT SIZE KE 12PX */
 :deep(table) {
   border-collapse: separate !important;
   border-spacing: 0 !important;
@@ -1094,7 +1349,6 @@ onMounted(fetchReport);
   padding: 6px 8px !important;
 }
 
-/* 3. STICKY HEADER */
 :deep(thead) {
   position: sticky !important;
   top: 0 !important;
@@ -1104,7 +1358,6 @@ onMounted(fetchReport);
 .header-main th {
   background: linear-gradient(180deg, #142f7b 0%, #3b82f6 100%) !important;
   border-right: 1px solid #3b82f6 !important;
-  color: #ffffff !important;
 }
 
 .header-sub th {
@@ -1118,7 +1371,6 @@ onMounted(fetchReport);
   border-right: 1px solid #60a5fa !important;
 }
 
-/* 4. STICKY FOOTER */
 :deep(tfoot) {
   position: sticky !important;
   bottom: 0 !important;
@@ -1129,51 +1381,79 @@ onMounted(fetchReport);
   background-color: #c7ecfe !important;
   border-top: 2px solid #000 !important;
   border-bottom: 2px solid #000 !important;
+  color: #0f172a !important;
 }
 
-/* 5. STICKY LEFT COLUMNS */
 :deep(.sticky-col-1) {
   position: sticky !important;
   left: 0px !important;
-  width: 90px !important;
-  min-width: 90px !important;
-  max-width: 90px !important;
 }
 
-:deep(.sticky-col-2) {
-  position: sticky !important;
-  left: 90px !important;
-  box-shadow: 3px 0px 5px -2px rgba(0, 0, 0, 0.15);
-  width: 130px !important;
-  min-width: 130px !important;
-}
-
-:deep(tbody .sticky-col-1),
-:deep(tbody .sticky-col-2) {
+:deep(tbody .sticky-col-1) {
   z-index: 5 !important;
   background-color: #ffffff !important;
 }
 
-:deep(thead .sticky-col-1),
-:deep(thead .sticky-col-2) {
+:deep(thead .sticky-col-1) {
   z-index: 12 !important;
   background-color: #1e3a8a !important;
 }
 
 :deep(tfoot .sticky-col-1),
-:deep(tfoot .sticky-col-2),
 :deep(tfoot .sticky-footer-title) {
   z-index: 12 !important;
   background-color: #fef3c7 !important;
 }
 
-/* 6. BACKGROUND COLOR GROUP HEADER & SUB HEADER */
-.bg-blue-header {
-  background-color: #1d4ed8 !important;
-  color: white !important;
+/* Styling Drag & Drop & Resizer */
+:deep(.draggable-th) {
+  cursor: grab !important;
 }
+:deep(.draggable-th:active) {
+  cursor: grabbing !important;
+}
+:deep(.col-dragging) {
+  opacity: 0.4;
+  background-color: #cbd5e1 !important;
+}
+:deep(.col-drag-over) {
+  background-color: rgba(25, 118, 210, 0.4) !important;
+  box-shadow: inset 4px 0 0 #f59e0b !important;
+  outline: 2px dashed #f59e0b !important;
+}
+:deep(.col-drag-handle) {
+  cursor: grab;
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 13px;
+  user-select: none;
+  touch-action: none;
+  flex-shrink: 0;
+}
+:deep(.col-drag-handle:active) {
+  cursor: grabbing;
+}
+
+:deep(.column-resizer) {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 8px;
+  height: 100%;
+  cursor: col-resize;
+  background-color: transparent;
+  z-index: 25;
+}
+:deep(.column-resizer:hover),
+:deep(th:hover .column-resizer) {
+  background-color: rgba(255, 255, 255, 0.5);
+}
+
 .bg-cyan-header {
   background-color: #0891b2 !important;
+  color: white !important;
+}
+.bg-blue-header {
+  background-color: #1d4ed8 !important;
   color: white !important;
 }
 .bg-teal-header {
@@ -1181,40 +1461,74 @@ onMounted(fetchReport);
   color: white !important;
 }
 .bg-red-header {
-  background-color: #b91c1c !important;
+  background-color: #dc2626 !important;
   color: white !important;
 }
 
-.bg-blue-sub {
-  background-color: #93c5fd !important;
-  color: #000 !important;
-}
 .bg-cyan-sub {
-  background-color: #a5f3fc !important;
-  color: #000 !important;
+  background-color: #0e7490 !important;
+  color: white !important;
+}
+.bg-blue-sub {
+  background-color: #1e40af !important;
+  color: white !important;
 }
 .bg-teal-sub {
-  background-color: #99f6e4 !important;
-  color: #000 !important;
+  background-color: #0f766e !important;
+  color: white !important;
 }
 
-/* 7. UTILITY BORDERS & BUTTONS */
-.border-l {
-  border-left: 1px solid #cbd5e1 !important;
+/* Summary Table Styling */
+.summary-table td {
+  padding: 6px 12px !important;
+  font-size: 12px !important;
+  border-bottom: 1px solid #e2e8f0;
 }
-.border-r {
-  border-right: 1px solid #cbd5e1 !important;
+
+.sum-label {
+  background: #f8fafc;
+  font-weight: 600;
+  color: #334155;
 }
-.cursor-pointer {
-  cursor: pointer;
+
+.sum-value {
+  color: #0f172a;
 }
-.select-none {
-  user-select: none;
+
+/* Preview Modal Styling */
+.iframe-wrapper {
+  height: calc(92vh - 100px) !important;
+  min-height: 500px;
+  width: 100% !important;
+  position: relative;
+  overflow: hidden;
 }
-.btn-filter-icon {
-  opacity: 0.85;
+
+.preview-iframe {
+  width: 100% !important;
+  height: 100% !important;
+  border: none;
+  display: block;
 }
-.btn-filter-icon:hover {
-  opacity: 1;
+
+.preview-loading-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.85);
+  z-index: 10;
+}
+
+/* Sembunyikan elemen header default/expand bawaan Vuetify agar tidak ada space biru muda di atas */
+:deep(.v-data-table-headers),
+:deep(.v-data-table__th--expand),
+:deep(thead:not(:has(.header-main))),
+:deep(tr:not(.header-main):not(.header-sub):not(.table-row-item):not(.table-footer-row)) {
+  display: none !important;
+  height: 0 !important;
+  padding: 0 !important;
+  border: none !important;
 }
 </style>

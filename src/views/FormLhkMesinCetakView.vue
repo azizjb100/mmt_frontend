@@ -169,7 +169,7 @@
         <v-text-field
           label="Scan Barcode Roll"
           v-model="formData.barcode_input"
-          @keyup.enter="handleBarcodeScan"
+          @keyup.enter="handleBarcodeScan()"
           density="compact"
           variant="outlined"
           class="mb-2"
@@ -1905,7 +1905,17 @@ const handleBsLebarInput = (event: any) => {
   formData.value.lebar_bs = val;
 };
 
-const handleBarcodeScan = async (fromLoad = false) => {
+const clearBahan = () => {
+  formData.value.barcode_input = "";
+  formData.value.sku_aktif = "";
+  formData.value.kode_bahan_aktif = "";
+  formData.value.Lebar_bahan = 0;
+  formData.value.Panjang_bahan = 0;
+  recalculateCombine();
+};
+
+const handleBarcodeScan = async (fromLoad: boolean | any = false) => {
+  const isLoad = fromLoad === true;
   const rawCode = String(formData.value.barcode_input || "");
   if (!rawCode.trim()) return;
 
@@ -1914,6 +1924,7 @@ const handleBarcodeScan = async (fromLoad = false) => {
     toast.error(
       "Barcode mengandung karakter aneh / tidak valid (spasi, slash, simbol)!",
     );
+    clearBahan();
     return;
   }
 
@@ -1932,7 +1943,8 @@ const handleBarcodeScan = async (fromLoad = false) => {
     const responsePayload = res.data;
 
     if (!responsePayload || !responsePayload.success || !responsePayload.data) {
-      toast.error("Barcode tidak terdaftar!");
+      toast.error("Barcode tidak terdaftar atau tidak ditemukan!");
+      clearBahan();
       return;
     }
 
@@ -1940,16 +1952,18 @@ const handleBarcodeScan = async (fromLoad = false) => {
 
     if (!info) {
       toast.error("Detail data material kosong!");
+      clearBahan();
       return;
     }
 
     const gdgBahan = String(info?.Kode_Gudang || "")
       .trim()
       .toUpperCase();
-    if (!fromLoad && gdgBahan !== "GPM") {
+    if (!isLoad && gdgBahan !== "GPM") {
       toast.error(
         `⛔ Barang masih di gudang ${info?.Kode_Gudang || gdgBahan || "lain"}! Silahkan masukkan ke gudang produksi (GPM) terlebih dahulu.`,
       );
+      clearBahan();
       return;
     }
 
@@ -1993,6 +2007,7 @@ const handleBarcodeScan = async (fromLoad = false) => {
   } catch (e: any) {
     console.error("Error scan barcode:", e);
     toast.error(e.response?.data?.message || "Gagal scan barcode material");
+    clearBahan();
   }
 };
 
@@ -2009,6 +2024,17 @@ const handleSyncStokBahan = async () => {
       `/mmt/stok-gudang/${formData.value.barcode_input}`,
     );
     const resData = res.data?.data?.data;
+
+    if (resData) {
+      const gdgBahan = String(resData?.Kode_Gudang || "").trim().toUpperCase();
+      if (gdgBahan !== "GPM") {
+        toast.error(
+          `⛔ Barang masih di gudang ${resData?.Kode_Gudang || gdgBahan || "lain"}! Silahkan masukkan ke gudang produksi (GPM) terlebih dahulu.`,
+        );
+        clearBahan();
+        return;
+      }
+    }
 
     if (resData && resData.Sisa_Panjang !== undefined) {
       const stokTerbaru = parseFloat(resData.Sisa_Panjang || 0);

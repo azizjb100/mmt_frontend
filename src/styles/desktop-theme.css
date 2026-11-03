@@ -138,6 +138,50 @@
   padding: 0 8px !important;
 }
 
+/* Styling Kolom Draggable & Resizable di Tabel Laporan */
+.draggable-th {
+  cursor: grab !important;
+}
+.draggable-th:active {
+  cursor: grabbing !important;
+}
+.col-dragging {
+  opacity: 0.4;
+  background-color: #cbd5e1 !important;
+}
+.col-drag-over {
+  background-color: rgba(25, 118, 210, 0.4) !important;
+  box-shadow: inset 4px 0 0 #f59e0b !important;
+  outline: 2px dashed #f59e0b !important;
+}
+.col-drag-handle {
+  cursor: grab;
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 13px;
+  user-select: none;
+  touch-action: none;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+}
+.col-drag-handle:active {
+  cursor: grabbing;
+}
+.column-resizer {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 8px;
+  height: 100%;
+  cursor: col-resize;
+  background-color: transparent;
+  z-index: 25;
+}
+.column-resizer:hover,
+th:hover .column-resizer {
+  background-color: rgba(255, 255, 255, 0.5);
+}
+
 .desktop-table td {
   padding: 0 8px !important;
   height: 28px !important;

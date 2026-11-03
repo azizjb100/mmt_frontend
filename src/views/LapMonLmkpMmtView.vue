@@ -46,12 +46,12 @@
       />
     </template>
 
-    <!-- Slot Header Tabel Berkelompok Custom dengan Support Drag & Drop -->
+    <!-- Slot Header Tabel Berkelompok Custom dengan Support Drag & Drop & Resize -->
     <template #thead>
       <thead>
         <!-- Row 1: Header Utama & Grouping Header -->
         <tr class="header-main">
-          <!-- 1. NOMOR SPK -->
+          <!-- 1. NOMOR SPK (Sticky 1) -->
           <th
             rowspan="2"
             :style="colStyles('NOMOR', '140px')"
@@ -60,7 +60,6 @@
           >
             <div class="d-flex align-center justify-space-between px-1 w-100">
               <div class="d-flex align-center overflow-hidden w-100">
-                <span class="col-drag-handle mr-1" title="Geser kolom">⠿</span>
                 <span class="font-weight-bold text-truncate">
                   NOMOR SPK {{ getSortIcon("NOMOR") }}
                 </span>
@@ -98,19 +97,19 @@
             <div
               class="column-resizer"
               @mousedown.stop.prevent="startResize($event, 'NOMOR', 140)"
+              @click.stop.prevent
             ></div>
           </th>
 
-          <!-- 2. NAMA ORDER -->
+          <!-- 2. NAMA ORDER (Sticky 2) -->
           <th
             rowspan="2"
-            :style="colStyles('spk_nama', '220px')"
+            :style="[colStyles('spk_nama', '220px'), { left: stickyCol2Left }]"
             class="text-left sticky-col-2 cursor-pointer select-none position-relative"
             @click="toggleSort('spk_nama')"
           >
             <div class="d-flex align-center justify-space-between px-1 w-100">
               <div class="d-flex align-center overflow-hidden w-100">
-                <span class="col-drag-handle mr-1" title="Geser kolom">⠿</span>
                 <span class="font-weight-bold text-truncate">
                   NAMA ORDER {{ getSortIcon("spk_nama") }}
                 </span>
@@ -150,81 +149,54 @@
             <div
               class="column-resizer"
               @mousedown.stop.prevent="startResize($event, 'spk_nama', 220)"
+              @click.stop.prevent
             ></div>
           </th>
 
-          <!-- 3. TANGGAL -->
+          <!-- 3-9. KOLOM BASE DINAMIS (Bisa digeser antar kolom) -->
           <th
+            v-for="col in orderedBaseCols"
+            :key="col.key"
             rowspan="2"
-            :style="colStyles('spk_tanggal', '110px')"
-            class="text-center cursor-pointer select-none position-relative"
-            @click="toggleSort('spk_tanggal')"
+            :style="colStyles(col.key, col.width)"
+            :class="[
+              col.align === 'center'
+                ? 'text-center'
+                : col.align === 'right'
+                  ? 'text-right'
+                  : 'text-left',
+              'cursor-pointer select-none position-relative draggable-th',
+              { 'col-drag-over': dragOverColKey === col.key && draggedGroup === 'base' }
+            ]"
+            draggable="true"
+            @dragstart="onColDragStart($event, col.key, 'base')"
+            @dragover="onColDragOver($event, col.key, 'base')"
+            @dragenter="onColDragEnter(col.key, 'base')"
+            @dragleave="onColDragLeave(col.key)"
+            @drop="onColDrop($event, col.key, 'base')"
+            @click="toggleSort(col.key)"
           >
             <div class="d-flex align-center justify-space-between px-1 w-100">
               <div class="d-flex align-center overflow-hidden w-100">
                 <span class="col-drag-handle mr-1" title="Geser kolom">⠿</span>
                 <span class="font-weight-bold text-truncate">
-                  TANGGAL {{ getSortIcon("spk_tanggal") }}
+                  {{ col.label }} {{ getSortIcon(col.key) }}
                 </span>
               </div>
-            </div>
-            <div
-              class="column-resizer"
-              @mousedown.stop.prevent="startResize($event, 'spk_tanggal', 110)"
-            ></div>
-          </th>
-
-          <!-- 4. DEADLINE -->
-          <th
-            rowspan="2"
-            :style="colStyles('deadline', '110px')"
-            class="text-center cursor-pointer select-none position-relative"
-            @click="toggleSort('deadline')"
-          >
-            <div class="d-flex align-center justify-space-between px-1 w-100">
-              <div class="d-flex align-center overflow-hidden w-100">
-                <span class="col-drag-handle mr-1" title="Geser kolom">⠿</span>
-                <span class="font-weight-bold text-truncate">
-                  DEADLINE {{ getSortIcon("deadline") }}
-                </span>
-              </div>
-            </div>
-            <div
-              class="column-resizer"
-              @mousedown.stop.prevent="startResize($event, 'deadline', 110)"
-            ></div>
-          </th>
-
-          <!-- 5. BAHAN -->
-          <th
-            rowspan="2"
-            :style="colStyles('KAIN', '140px')"
-            class="text-left border cursor-pointer select-none position-relative"
-            @click="toggleSort('KAIN')"
-          >
-            <div
-              class="d-flex align-center justify-space-between px-1 ga-1 w-100"
-            >
-              <div class="d-flex align-center overflow-hidden w-100">
-                <span class="col-drag-handle mr-1" title="Geser kolom">⠿</span>
-                <span class="font-weight-bold text-truncate">
-                  BAHAN {{ getSortIcon("KAIN") }}
-                </span>
-              </div>
-              <v-menu :close-on-content-click="false">
+              <v-menu v-if="col.hasFilter" :close-on-content-click="false">
                 <template #activator="{ props }">
                   <v-btn
                     v-bind="props"
                     icon
                     variant="text"
                     size="x-small"
-                    class="btn-filter-icon"
+                    class="btn-filter-icon ml-1"
                     @click.stop
                   >
                     <v-icon
                       size="14"
                       :color="
-                        columnFilters.KAIN !== 'SEMUA'
+                        columnFilters[col.key] && columnFilters[col.key] !== 'SEMUA'
                           ? 'amber-accent-2'
                           : 'white'
                       "
@@ -235,6 +207,7 @@
                 </template>
                 <v-card min-width="200" class="pa-2 rounded-lg" @click.stop>
                   <v-select
+                    v-if="col.key === 'KAIN'"
                     v-model="columnFilters.KAIN"
                     :items="kainOptions"
                     label="Pilih Bahan"
@@ -247,97 +220,14 @@
             </div>
             <div
               class="column-resizer"
-              @mousedown.stop.prevent="startResize($event, 'KAIN', 140)"
-            ></div>
-          </th>
-
-          <!-- 6. GRAMASI -->
-          <th
-            rowspan="2"
-            :style="colStyles('spk_gramasi', '90px')"
-            class="text-center cursor-pointer select-none position-relative"
-            @click="toggleSort('spk_gramasi')"
-          >
-            <div class="d-flex align-center justify-space-between px-1 w-100">
-              <div class="d-flex align-center overflow-hidden w-100">
-                <span class="col-drag-handle mr-1" title="Geser kolom">⠿</span>
-                <span class="font-weight-bold text-truncate">
-                  GRAMASI {{ getSortIcon("spk_gramasi") }}
-                </span>
-              </div>
-            </div>
-            <div
-              class="column-resizer"
-              @mousedown.stop.prevent="startResize($event, 'spk_gramasi', 90)"
-            ></div>
-          </th>
-
-          <!-- 7. PANJANG -->
-          <th
-            rowspan="2"
-            :style="colStyles('PANJANG', '90px')"
-            class="text-center cursor-pointer select-none position-relative"
-            @click="toggleSort('PANJANG')"
-          >
-            <div class="d-flex align-center justify-space-between px-1 w-100">
-              <div class="d-flex align-center overflow-hidden w-100">
-                <span class="col-drag-handle mr-1" title="Geser kolom">⠿</span>
-                <span class="font-weight-bold text-truncate">
-                  PANJANG {{ getSortIcon("PANJANG") }}
-                </span>
-              </div>
-            </div>
-            <div
-              class="column-resizer"
-              @mousedown.stop.prevent="startResize($event, 'PANJANG', 90)"
-            ></div>
-          </th>
-
-          <!-- 8. LEBAR -->
-          <th
-            rowspan="2"
-            :style="colStyles('LEBAR', '90px')"
-            class="text-center cursor-pointer select-none position-relative"
-            @click="toggleSort('LEBAR')"
-          >
-            <div class="d-flex align-center justify-space-between px-1 w-100">
-              <div class="d-flex align-center overflow-hidden w-100">
-                <span class="col-drag-handle mr-1" title="Geser kolom">⠿</span>
-                <span class="font-weight-bold text-truncate">
-                  LEBAR {{ getSortIcon("LEBAR") }}
-                </span>
-              </div>
-            </div>
-            <div
-              class="column-resizer"
-              @mousedown.stop.prevent="startResize($event, 'LEBAR', 90)"
-            ></div>
-          </th>
-
-          <!-- 9. FINISHING -->
-          <th
-            rowspan="2"
-            :style="colStyles('FINISHING', '130px')"
-            class="text-left cursor-pointer select-none position-relative"
-            @click="toggleSort('FINISHING')"
-          >
-            <div class="d-flex align-center justify-space-between px-1 w-100">
-              <div class="d-flex align-center overflow-hidden w-100">
-                <span class="col-drag-handle mr-1" title="Geser kolom">⠿</span>
-                <span class="font-weight-bold text-truncate">
-                  FINISHING {{ getSortIcon("FINISHING") }}
-                </span>
-              </div>
-            </div>
-            <div
-              class="column-resizer"
-              @mousedown.stop.prevent="startResize($event, 'FINISHING', 130)"
+              @mousedown.stop.prevent="startResize($event, col.key, parseInt(col.width))"
+              @click.stop.prevent
             ></div>
           </th>
 
           <!-- GROUP PRODUKSI (PCS) -->
           <th
-            :colspan="subPcs.length"
+            :colspan="orderedSubPcs.length"
             class="text-center header-group bg-blue-header"
           >
             PRODUKSI (PCS)
@@ -352,7 +242,6 @@
           >
             <div class="d-flex align-center justify-space-between px-1 w-100">
               <div class="d-flex align-center overflow-hidden w-100">
-                <span class="col-drag-handle mr-1" title="Geser kolom">⠿</span>
                 <span class="font-weight-bold text-truncate">
                   CTK L. {{ getSortIcon("cetak_luarx") }}
                 </span>
@@ -361,30 +250,42 @@
             <div
               class="column-resizer"
               @mousedown.stop.prevent="startResize($event, 'cetak_luarx', 90)"
+              @click.stop.prevent
             ></div>
           </th>
 
+          <!-- GROUP MESIN -->
           <th
-            v-if="mesinColumns.length > 0"
-            :colspan="mesinColumns.length"
+            v-if="orderedMesinCols.length > 0"
+            :colspan="orderedMesinCols.length"
             class="text-center header-group bg-cyan-header"
           >
             MESIN
           </th>
 
-          <th colspan="3" class="text-center header-group bg-teal-header">
+          <!-- GROUP PRODUKSI (METER) -->
+          <th :colspan="orderedMeterCols.length" class="text-center header-group bg-teal-header">
             PRODUKSI (METER)
           </th>
         </tr>
 
-        <!-- Row 2: Sub Header Detail (Drag Target Utama) -->
+        <!-- Row 2: Sub Header Detail (Drag & Drop Antar Kolom Sub) -->
         <tr class="header-sub">
-          <!-- DINAMIS SUB HEADER PCS -->
+          <!-- DINAMIS SUB HEADER PCS (Bisa digeser antar kolom) -->
           <th
-            v-for="sub in subPcs"
+            v-for="sub in orderedSubPcs"
             :key="sub.key"
             :style="colStyles(sub.key, '90px')"
-            class="text-right bg-blue-sub cursor-pointer select-none position-relative draggable-th"
+            :class="[
+              'text-right bg-blue-sub cursor-pointer select-none position-relative draggable-th',
+              { 'col-drag-over': dragOverColKey === sub.key && draggedGroup === 'pcs' }
+            ]"
+            draggable="true"
+            @dragstart="onColDragStart($event, sub.key, 'pcs')"
+            @dragover="onColDragOver($event, sub.key, 'pcs')"
+            @dragenter="onColDragEnter(sub.key, 'pcs')"
+            @dragleave="onColDragLeave(sub.key)"
+            @drop="onColDrop($event, sub.key, 'pcs')"
             @click="toggleSort(sub.key)"
           >
             <div class="d-flex align-center justify-space-between px-1 w-100">
@@ -398,15 +299,25 @@
             <div
               class="column-resizer"
               @mousedown.stop.prevent="startResize($event, sub.key, 90)"
+              @click.stop.prevent
             ></div>
           </th>
 
-          <!-- DINAMIS SUB HEADER MESIN -->
+          <!-- DINAMIS SUB HEADER MESIN (Bisa digeser antar kolom) -->
           <th
-            v-for="m in mesinColumns"
+            v-for="m in orderedMesinCols"
             :key="m.key"
             :style="colStyles(m.key, '80px')"
-            class="text-center bg-cyan-sub cursor-pointer select-none position-relative draggable-th"
+            :class="[
+              'text-center bg-cyan-sub cursor-pointer select-none position-relative draggable-th',
+              { 'col-drag-over': dragOverColKey === m.key && draggedGroup === 'mesin' }
+            ]"
+            draggable="true"
+            @dragstart="onColDragStart($event, m.key, 'mesin')"
+            @dragover="onColDragOver($event, m.key, 'mesin')"
+            @dragenter="onColDragEnter(m.key, 'mesin')"
+            @dragleave="onColDragLeave(m.key)"
+            @drop="onColDrop($event, m.key, 'mesin')"
             @click="toggleSort(m.key)"
           >
             <div class="d-flex align-center justify-space-between px-1 w-100">
@@ -420,77 +331,49 @@
             <div
               class="column-resizer"
               @mousedown.stop.prevent="startResize($event, m.key, 80)"
+              @click.stop.prevent
             ></div>
           </th>
 
-          <!-- Produksi Meter -->
+          <!-- PRODUKSI METER (Bisa digeser antar kolom) -->
           <th
-            :style="colStyles('krg_kirim_meter', '90px')"
-            class="text-right bg-teal-sub cursor-pointer select-none position-relative draggable-th"
-            @click="toggleSort('krg_kirim_meter')"
+            v-for="mtr in orderedMeterCols"
+            :key="mtr.key"
+            :style="colStyles(mtr.key, '90px')"
+            :class="[
+              'text-right bg-teal-sub cursor-pointer select-none position-relative draggable-th',
+              { 'col-drag-over': dragOverColKey === mtr.key && draggedGroup === 'meter' }
+            ]"
+            draggable="true"
+            @dragstart="onColDragStart($event, mtr.key, 'meter')"
+            @dragover="onColDragOver($event, mtr.key, 'meter')"
+            @dragenter="onColDragEnter(mtr.key, 'meter')"
+            @dragleave="onColDragLeave(mtr.key)"
+            @drop="onColDrop($event, mtr.key, 'meter')"
+            @click="toggleSort(mtr.key)"
           >
             <div class="d-flex align-center justify-space-between px-1 w-100">
               <div class="d-flex align-center overflow-hidden w-100">
                 <span class="col-drag-handle mr-1" title="Geser kolom">⠿</span>
                 <span class="font-weight-bold text-truncate">
-                  K-KRM {{ getSortIcon("krg_kirim_meter") }}
+                  {{ mtr.label }} {{ getSortIcon(mtr.key) }}
                 </span>
               </div>
             </div>
             <div
               class="column-resizer"
-              @mousedown.stop.prevent="
-                startResize($event, 'krg_kirim_meter', 90)
-              "
-            ></div>
-          </th>
-          <th
-            :style="colStyles('krg_Cetak_meter', '90px')"
-            class="text-right bg-teal-sub cursor-pointer select-none position-relative draggable-th"
-            @click="toggleSort('krg_Cetak_meter')"
-          >
-            <div class="d-flex align-center justify-space-between px-1 w-100">
-              <div class="d-flex align-center overflow-hidden w-100">
-                <span class="col-drag-handle mr-1" title="Geser kolom">⠿</span>
-                <span class="font-weight-bold text-truncate">
-                  K-CTK {{ getSortIcon("krg_Cetak_meter") }}
-                </span>
-              </div>
-            </div>
-            <div
-              class="column-resizer"
-              @mousedown.stop.prevent="
-                startResize($event, 'krg_Cetak_meter', 90)
-              "
-            ></div>
-          </th>
-          <th
-            :style="colStyles('krg_coly_meter', '90px')"
-            class="text-right bg-teal-sub cursor-pointer select-none position-relative draggable-th"
-            @click="toggleSort('krg_coly_meter')"
-          >
-            <div class="d-flex align-center justify-space-between px-1 w-100">
-              <div class="d-flex align-center overflow-hidden w-100">
-                <span class="col-drag-handle mr-1" title="Geser kolom">⠿</span>
-                <span class="font-weight-bold text-truncate">
-                  K-CLY {{ getSortIcon("krg_coly_meter") }}
-                </span>
-              </div>
-            </div>
-            <div
-              class="column-resizer"
-              @mousedown.stop.prevent="
-                startResize($event, 'krg_coly_meter', 90)
-              "
+              @mousedown.stop.prevent="startResize($event, mtr.key, 90)"
+              @click.stop.prevent
             ></div>
           </th>
         </tr>
       </thead>
     </template>
 
-    <!-- Slot Row Baris Data Utama -->
+    <!-- Slot Row Baris Data Utama (Mengikuti Susunan Kolom yang Digeser) -->
     <template #row="{ item, formatNumber }">
       <tr class="table-row-item">
+        <!-- 1. NOMOR SPK (Sticky 1) -->
         <td
           :style="colStyles('NOMOR', '140px')"
           class="text-center sticky-col-1 font-weight-bold d-flex align-center justify-between"
@@ -525,61 +408,58 @@
           </span>
           <span v-else>-</span>
         </td>
+
+        <!-- 2. NAMA ORDER (Sticky 2) -->
         <td
-          :style="colStyles('spk_nama', '220px')"
+          :style="[colStyles('spk_nama', '220px'), { left: stickyCol2Left }]"
           class="text-left sticky-col-2 text-truncate"
           :title="item.spk_nama"
         >
           {{ item.spk_nama || "-" }}
         </td>
-        <td :style="colStyles('spk_tanggal', '110px')" class="text-center">
-          {{ formatDateDisplay(item.spk_tanggal) }}
-        </td>
+
+        <!-- 3-9. KOLOM BASE DINAMIS -->
         <td
-          :style="colStyles('deadline', '110px')"
-          class="text-center font-weight-bold text-error"
+          v-for="col in orderedBaseCols"
+          :key="col.key"
+          :style="colStyles(col.key, col.width)"
+          :class="[
+            col.align === 'center'
+              ? 'text-center'
+              : col.align === 'right'
+                ? 'text-right'
+                : 'text-left',
+            col.isDeadline ? 'font-weight-bold text-error' : '',
+            col.type === 'text' ? 'text-truncate' : ''
+          ]"
+          :title="col.type === 'text' ? item[col.key] : ''"
         >
-          {{ formatDateDisplay(item.deadline) }}
-        </td>
-        <td
-          :style="colStyles('KAIN', '140px')"
-          class="text-left text-truncate"
-          :title="item.KAIN"
-        >
-          {{ item.KAIN || "-" }}
-        </td>
-        <td :style="colStyles('spk_gramasi', '90px')" class="text-center">
-          {{ item.spk_gramasi || "-" }}
-        </td>
-        <td :style="colStyles('PANJANG', '90px')" class="text-center">
-          {{ formatNumber(item.PANJANG, 2) }}
-        </td>
-        <td :style="colStyles('LEBAR', '90px')" class="text-center">
-          {{ formatNumber(item.LEBAR, 2) }}
-        </td>
-        <td
-          :style="colStyles('FINISHING', '130px')"
-          class="text-left text-truncate"
-          :title="item.FINISHING"
-        >
-          {{ item.FINISHING || "-" }}
+          <template v-if="col.type === 'date'">
+            {{ formatDateDisplay(item[col.key]) }}
+          </template>
+          <template v-else-if="col.type === 'number'">
+            {{ formatNumber(item[col.key], col.dec ?? 2) }}
+          </template>
+          <template v-else>
+            {{ item[col.key] || "-" }}
+          </template>
         </td>
 
         <!-- DINAMIS DATA PRODUKSI PCS -->
-        <template v-for="sub in subPcs" :key="sub.key">
-          <td
-            :style="colStyles(sub.key, '90px')"
-            class="text-right"
-            :class="{
-              'text-error font-weight-bold':
-                sub.key === 'krg_Cetak' ||
-                (sub.key === 'krg_mutasi_p04' && item[sub.key] > 0),
-              'text-success font-weight-bold': sub.key === 'spk_jumlah_kirim',
-            }"
-          >
-            {{ formatNumber(item[sub.key], 0) }}
-          </td>
-        </template>
+        <td
+          v-for="sub in orderedSubPcs"
+          :key="sub.key"
+          :style="colStyles(sub.key, '90px')"
+          class="text-right"
+          :class="{
+            'text-error font-weight-bold':
+              sub.key === 'krg_Cetak' ||
+              (sub.key === 'krg_mutasi_p04' && item[sub.key] > 0),
+            'text-success font-weight-bold': sub.key === 'spk_jumlah_kirim',
+          }"
+        >
+          {{ formatNumber(item[sub.key], 0) }}
+        </td>
 
         <!-- Cetak Luar -->
         <td
@@ -591,7 +471,7 @@
 
         <!-- DINAMIS DATA MESIN -->
         <td
-          v-for="m in mesinColumns"
+          v-for="m in orderedMesinCols"
           :key="m.key"
           :style="colStyles(m.key, '80px')"
           class="text-center"
@@ -600,24 +480,24 @@
           {{ formatNumber(item[m.key] || 0, 0) }}
         </td>
 
-        <!-- Produksi Meter -->
-        <td :style="colStyles('krg_kirim_meter', '90px')" class="text-right">
-          {{ formatNumber(item.krg_kirim_meter, 2) }}
-        </td>
+        <!-- PRODUKSI METER -->
         <td
-          :style="colStyles('krg_Cetak_meter', '90px')"
-          class="text-right text-error font-weight-bold bg-red-lighten-5"
+          v-for="mtr in orderedMeterCols"
+          :key="mtr.key"
+          :style="colStyles(mtr.key, '90px')"
+          class="text-right"
+          :class="{
+            'text-error font-weight-bold bg-red-lighten-5': mtr.key === 'krg_Cetak_meter',
+          }"
         >
-          {{ formatNumber(item.krg_Cetak_meter, 2) }}
-        </td>
-        <td :style="colStyles('krg_coly_meter', '90px')" class="text-right">
-          {{ formatNumber(item.krg_coly_meter, 2) }}
+          {{ formatNumber(item[mtr.key], 2) }}
         </td>
       </tr>
 
       <!-- Expanded Row: Detail Ukuran & Komponen (Format Tabel) -->
       <tr
         v-if="['2', '3'].includes(jenisIndex) && expanded.includes(item.NOMOR)"
+        class="expanded-detail-row"
       >
         <td colspan="100" class="bg-grey-lighten-4 pa-3">
           <div
@@ -787,24 +667,24 @@
     <template #tfoot="{ formatNumber }">
       <tr class="table-footer-row">
         <td
-          colspan="9"
+          :colspan="2 + orderedBaseCols.length"
           class="text-right font-weight-black text-uppercase sticky-footer-title"
         >
           TOTAL (FILTERED):
         </td>
 
-        <template v-for="sub in subPcs" :key="sub.key">
-          <td
-            :style="colStyles(sub.key, '90px')"
-            class="text-right font-weight-black"
-            :class="{
-              'text-error': sub.key === 'krg_Cetak',
-              'text-success': sub.key === 'spk_jumlah_kirim',
-            }"
-          >
-            {{ formatNumber(totals[sub.key], 0) }}
-          </td>
-        </template>
+        <td
+          v-for="sub in orderedSubPcs"
+          :key="sub.key"
+          :style="colStyles(sub.key, '90px')"
+          class="text-right font-weight-black"
+          :class="{
+            'text-error': sub.key === 'krg_Cetak',
+            'text-success': sub.key === 'spk_jumlah_kirim',
+          }"
+        >
+          {{ formatNumber(totals[sub.key], 0) }}
+        </td>
 
         <td
           :style="colStyles('cetak_luarx', '90px')"
@@ -814,7 +694,7 @@
         </td>
 
         <td
-          v-for="m in mesinColumns"
+          v-for="m in orderedMesinCols"
           :key="m.key"
           :style="colStyles(m.key, '80px')"
           class="text-center font-weight-black"
@@ -823,22 +703,15 @@
         </td>
 
         <td
-          :style="colStyles('krg_kirim_meter', '90px')"
+          v-for="mtr in orderedMeterCols"
+          :key="mtr.key"
+          :style="colStyles(mtr.key, '90px')"
           class="text-right font-weight-black"
+          :class="{
+            'text-error bg-red-lighten-5': mtr.key === 'krg_Cetak_meter',
+          }"
         >
-          {{ formatNumber(totals.krg_kirim_meter, 2) }}
-        </td>
-        <td
-          :style="colStyles('krg_Cetak_meter', '90px')"
-          class="text-right font-weight-black text-error bg-red-lighten-5"
-        >
-          {{ formatNumber(totals.krg_Cetak_meter, 2) }}
-        </td>
-        <td
-          :style="colStyles('krg_coly_meter', '90px')"
-          class="text-right font-weight-black"
-        >
-          {{ formatNumber(totals.krg_coly_meter, 2) }}
+          {{ formatNumber(totals[mtr.key], 2) }}
         </td>
       </tr>
     </template>
@@ -982,7 +855,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, nextTick } from "vue";
+import { ref, reactive, computed, onMounted, watch } from "vue";
 import BaseReportLayout from "@/components/BaseReportLayout.vue";
 import api from "@/services/api";
 import { format, parseISO, isValid } from "date-fns";
@@ -1010,6 +883,67 @@ const previewSpkNomor = ref<string>("");
 const isIframeLoading = ref<boolean>(true);
 const expanded = ref<string[]>([]);
 
+// --- DEFINISI KOLOM BASE & METER ---
+interface ColDef {
+  key: string;
+  label: string;
+  width?: string;
+  align?: "left" | "center" | "right";
+  type?: "text" | "date" | "number";
+  dec?: number;
+  isDeadline?: boolean;
+  hasFilter?: boolean;
+}
+
+const defaultBaseCols: ColDef[] = [
+  { key: "spk_tanggal", label: "TANGGAL", width: "110px", align: "center", type: "date" },
+  { key: "deadline", label: "DEADLINE", width: "110px", align: "center", type: "date", isDeadline: true },
+  { key: "KAIN", label: "BAHAN", width: "140px", align: "left", type: "text", hasFilter: true },
+  { key: "spk_gramasi", label: "GRAMASI", width: "90px", align: "center", type: "text" },
+  { key: "PANJANG", label: "PANJANG", width: "90px", align: "center", type: "number", dec: 2 },
+  { key: "LEBAR", label: "LEBAR", width: "90px", align: "center", type: "number", dec: 2 },
+  { key: "FINISHING", label: "FINISHING", width: "130px", align: "left", type: "text" },
+];
+
+const defaultMeterCols: ColDef[] = [
+  { key: "krg_kirim_meter", label: "K-KRM" },
+  { key: "krg_Cetak_meter", label: "K-CTK" },
+  { key: "krg_coly_meter", label: "K-CLY" },
+];
+
+// Helper load / save urutan kolom dari localStorage
+const loadOrder = (storageKeyName: string, defaultCols: any[]) => {
+  try {
+    const raw = localStorage.getItem(storageKeyName);
+    if (!raw) return [...defaultCols];
+    const savedKeys: string[] = JSON.parse(raw);
+    const reordered: any[] = [];
+    savedKeys.forEach((k) => {
+      const found = defaultCols.find((c) => c.key === k);
+      if (found) reordered.push(found);
+    });
+    defaultCols.forEach((c) => {
+      if (!reordered.some((x) => x.key === c.key)) reordered.push(c);
+    });
+    return reordered;
+  } catch {
+    return [...defaultCols];
+  }
+};
+
+const saveOrder = (storageKeyName: string, cols: any[]) => {
+  try {
+    const keys = cols.map((c) => c.key);
+    localStorage.setItem(storageKeyName, JSON.stringify(keys));
+  } catch {}
+};
+
+// --- STATE REAKTIF KOLOM TERURUT ---
+const orderedBaseCols = ref<ColDef[]>(loadOrder("mmt_col_order_base", defaultBaseCols));
+const orderedMeterCols = ref<ColDef[]>(loadOrder("mmt_col_order_meter", defaultMeterCols));
+const orderedSubPcs = ref<any[]>([]);
+const orderedMesinCols = ref<any[]>([]);
+
 // --- PERSISTENCE & LAYOUT STATE (Resizing) ---
 const storageKey = computed(() => `mmt_report_layout_LMKP_${jenisIndex.value}`);
 const loadColWidths = (): Record<string, string> => {
@@ -1033,11 +967,22 @@ const colStyles = (key: string, defaultWidth?: string) => {
   return w ? { width: w, minWidth: w, maxWidth: w } : {};
 };
 
+// Hitung posisi sticky left kolom 2 (spk_nama) sesuai lebar kolom 1 (NOMOR)
+const stickyCol2Left = computed(() => {
+  const w = colWidths.value["NOMOR"];
+  return w || "140px";
+});
+
+// State untuk Resizing
+const isResizing = ref(false);
+const hasResized = ref(false);
 const resizingKey = ref<string | null>(null);
 const startX = ref(0);
 const startWidth = ref(0);
 
 const startResize = (e: MouseEvent, key: string, defaultWidthPx = 120) => {
+  isResizing.value = true;
+  hasResized.value = false;
   resizingKey.value = key;
   startX.value = e.clientX;
   const currentW = colWidths.value[key];
@@ -1053,6 +998,9 @@ const startResize = (e: MouseEvent, key: string, defaultWidthPx = 120) => {
 const onMouseMove = (e: MouseEvent) => {
   if (!resizingKey.value) return;
   const diff = e.clientX - startX.value;
+  if (Math.abs(diff) > 2) {
+    hasResized.value = true;
+  }
   const newWidth = Math.max(50, startWidth.value + diff);
   colWidths.value = {
     ...colWidths.value,
@@ -1065,88 +1013,93 @@ const onMouseUp = () => {
     saveColWidths(colWidths.value);
   }
   resizingKey.value = null;
+  isResizing.value = false;
   window.removeEventListener("mousemove", onMouseMove);
   window.removeEventListener("mouseup", onMouseUp);
+
+  // Kunci flag hasResized sesaat agar click event setelah mouseup tidak memicu sort
+  setTimeout(() => {
+    hasResized.value = false;
+  }, 250);
 };
 
-// --- HTML5 NATIVE DRAG & DROP REORDER SETUP ---
-const setupTableReorder = () => {
-  nextTick(() => {
-    setTimeout(() => {
-      const table = document.querySelector(".custom-modern-table table");
-      if (!table) return;
+// --- DRAG & DROP ANTAR KOLOM REAKTIF ---
+const draggedColKey = ref<string | null>(null);
+const dragOverColKey = ref<string | null>(null);
+const draggedGroup = ref<string | null>(null);
 
-      const thead = table.querySelector("thead");
-      if (!thead) return;
-      const headerRows = thead.querySelectorAll("tr");
-      if (headerRows.length < 2) return;
+const onColDragStart = (e: DragEvent, key: string, group: string) => {
+  if (isResizing.value || hasResized.value) {
+    e.preventDefault();
+    return;
+  }
+  draggedColKey.value = key;
+  draggedGroup.value = group;
+  if (e.dataTransfer) {
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", key);
+  }
+};
 
-      // Ambil baris sub-header bawah sebagai pemicu drag kolom individual
-      const subHeaderRow = headerRows[headerRows.length - 1];
-      const subThs = subHeaderRow.querySelectorAll("th");
+const onColDragOver = (e: DragEvent, key: string, group: string) => {
+  if (draggedGroup.value === group && draggedColKey.value !== key) {
+    e.preventDefault();
+    if (e.dataTransfer) {
+      e.dataTransfer.dropEffect = "move";
+    }
+  }
+};
 
-      subThs.forEach((th: any, subIndex: number) => {
-        th.setAttribute("draggable", "true");
+const onColDragEnter = (key: string, group: string) => {
+  if (draggedGroup.value === group && draggedColKey.value !== key) {
+    dragOverColKey.value = key;
+  }
+};
 
-        th.addEventListener("dragstart", (e: DragEvent) => {
-          th.classList.add("col-dragging");
-          if (e.dataTransfer) {
-            e.dataTransfer.effectAllowed = "move";
-            e.dataTransfer.setData("text/plain", String(subIndex));
-          }
-          e.stopPropagation();
-        });
+const onColDragLeave = (key: string) => {
+  if (dragOverColKey.value === key) {
+    dragOverColKey.value = null;
+  }
+};
 
-        th.addEventListener("dragend", () => {
-          th.classList.remove("col-dragging");
-          table.querySelectorAll("th, td").forEach((el) => {
-            el.classList.remove("col-drag-over");
-          });
-        });
+const reorderCols = (colsRef: any, sourceKey: string, targetKey: string) => {
+  const list = [...colsRef.value];
+  const srcIdx = list.findIndex((c) => c.key === sourceKey);
+  const tgtIdx = list.findIndex((c) => c.key === targetKey);
+  if (srcIdx !== -1 && tgtIdx !== -1) {
+    const [moved] = list.splice(srcIdx, 1);
+    list.splice(tgtIdx, 0, moved);
+    colsRef.value = list;
+  }
+};
 
-        th.addEventListener("dragover", (e: DragEvent) => {
-          e.preventDefault();
-          if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
-        });
+const onColDrop = (e: DragEvent, targetKey: string, group: string) => {
+  e.preventDefault();
+  e.stopPropagation();
+  const sourceKey = draggedColKey.value;
+  draggedColKey.value = null;
+  dragOverColKey.value = null;
+  draggedGroup.value = null;
 
-        th.addEventListener("dragenter", () => {
-          th.classList.add("col-drag-over");
-        });
+  if (!sourceKey || sourceKey === targetKey) return;
 
-        th.addEventListener("dragleave", () => {
-          th.classList.remove("col-drag-over");
-        });
-
-        th.addEventListener("drop", (e: DragEvent) => {
-          e.preventDefault();
-          e.stopPropagation();
-          const srcIdxStr = e.dataTransfer?.getData("text/plain");
-          if (srcIdxStr === undefined) return;
-          const srcIdx = parseInt(srcIdxStr, 10);
-          const targetIdx = subIndex;
-
-          if (isNaN(srcIdx) || srcIdx === targetIdx) return;
-
-          // Pindahkan sel secara serentak di semua baris tabel (header, tbody, tfoot)
-          const allRows = table.querySelectorAll("tr");
-          allRows.forEach((row) => {
-            const cells = row.children;
-            if (cells[srcIdx] && cells[targetIdx]) {
-              if (srcIdx < targetIdx) {
-                row.insertBefore(cells[srcIdx], cells[targetIdx].nextSibling);
-              } else {
-                row.insertBefore(cells[srcIdx], cells[targetIdx]);
-              }
-            }
-          });
-        });
-      });
-    }, 500);
-  });
+  if (group === "base") {
+    reorderCols(orderedBaseCols, sourceKey, targetKey);
+    saveOrder(`mmt_col_order_base`, orderedBaseCols.value);
+  } else if (group === "pcs") {
+    reorderCols(orderedSubPcs, sourceKey, targetKey);
+    saveOrder(`mmt_col_order_pcs_${jenisIndex.value}`, orderedSubPcs.value);
+  } else if (group === "mesin") {
+    reorderCols(orderedMesinCols, sourceKey, targetKey);
+    saveOrder(`mmt_col_order_mesin_${jenisIndex.value}`, orderedMesinCols.value);
+  } else if (group === "meter") {
+    reorderCols(orderedMeterCols, sourceKey, targetKey);
+    saveOrder(`mmt_col_order_meter`, orderedMeterCols.value);
+  }
 };
 
 // --- SORTING & FILTERING STATE ---
-const columnFilters = reactive({
+const columnFilters = reactive<Record<string, string>>({
   NOMOR: "",
   spk_nama: "",
   KAIN: "SEMUA",
@@ -1156,6 +1109,8 @@ const sortKey = ref("NOMOR");
 const sortOrder = ref<"asc" | "desc">("asc");
 
 const toggleSort = (key: string) => {
+  // Cegah sort saat sedang atau baru saja resize kolom
+  if (isResizing.value || hasResized.value) return;
   if (sortKey.value === key) {
     sortOrder.value = sortOrder.value === "asc" ? "desc" : "asc";
   } else {
@@ -1183,8 +1138,6 @@ const handlePreview = (nomorSpk: string) => {
     alert("SPK belum dibuat atau nomor SPK tidak valid.");
     return;
   }
-  // Baris Maklon bukan SPK, jadi jangan dibuka ke halaman cetak SPK.
-  // Arahkan ke dokumen Maklon Barang yang sesuai.
   if (jenisIndex.value === "4") {
     window.open(
       `/mmt/maklon/barang/print/${encodeURIComponent(nomorSpk)}`,
@@ -1249,7 +1202,6 @@ const subPcs = computed(() => {
     ];
   }
   if (jenisIndex.value === "4") {
-    // Maklon: Order = estimasi barang jadi; K-Cetak = Order - total LHK Cetak.
     return [
       { label: "Order", key: "spk_jumlah" },
       { label: "K-Cetak", key: "krg_Cetak" },
@@ -1287,6 +1239,29 @@ const mesinColumns = computed(() => {
   return [];
 });
 
+// Watcher untuk menyelaraskan urutan kolom dinamis saat kategori (jenisIndex) berubah
+watch(
+  subPcs,
+  (newSub) => {
+    orderedSubPcs.value = loadOrder(
+      `mmt_col_order_pcs_${jenisIndex.value}`,
+      newSub,
+    );
+  },
+  { immediate: true },
+);
+
+watch(
+  mesinColumns,
+  (newMesin) => {
+    orderedMesinCols.value = loadOrder(
+      `mmt_col_order_mesin_${jenisIndex.value}`,
+      newMesin,
+    );
+  },
+  { immediate: true },
+);
+
 const fetchReport = async () => {
   loading.report = true;
   try {
@@ -1299,7 +1274,6 @@ const fetchReport = async () => {
     });
     allData.value = res.data.data || [];
     summary.value = res.data.summary || summary.value;
-    setupTableReorder();
   } catch (error) {
     console.error("Gagal memuat laporan LMKP:", error);
     allData.value = [];
@@ -1309,6 +1283,7 @@ const fetchReport = async () => {
 };
 
 const onJenisChange = () => {
+  expanded.value = [];
   fetchReport();
   colWidths.value = loadColWidths();
 };
@@ -1355,6 +1330,7 @@ const NUMERIC_KEYS = [
   "sb03",
   "sb04",
   "sb05",
+  "rtr",
 ];
 
 const filteredData = computed(() => {
@@ -1459,6 +1435,7 @@ const totals = computed(() => {
       acc.sb03 += Number(item.sb03 || 0);
       acc.sb04 += Number(item.sb04 || 0);
       acc.sb05 += Number(item.sb05 || 0);
+      acc.rtr += Number(item.rtr || 0);
 
       acc.krg_kirim_meter += Number(item.krg_kirim_meter || 0);
       acc.krg_Cetak_meter += Number(item.krg_Cetak_meter || 0);
@@ -1492,6 +1469,7 @@ const totals = computed(() => {
       sb03: 0,
       sb04: 0,
       sb05: 0,
+      rtr: 0,
       krg_kirim_meter: 0,
       krg_Cetak_meter: 0,
       krg_coly_meter: 0,
@@ -1544,7 +1522,7 @@ const formatDateFull = (dateStr: string) => {
   return format(date, "dd MMMM yyyy", { locale: id });
 };
 
-// --- EXPORT TO EXCEL DENGAN DETAIL UKURAN & KOMPONEN MEMANJANG KE KANAN ---
+// --- EXPORT TO EXCEL SESUAI SUSUNAN KOLOM ---
 const exportToExcel = (dataToExport: any[]) => {
   if (!dataToExport || dataToExport.length === 0) {
     alert("Tidak ada data untuk diekspor");
@@ -1558,10 +1536,10 @@ const exportToExcel = (dataToExport: any[]) => {
     const str = String(dateStr).trim();
     if (/^\d{4}-\d{2}-\d{2}/.test(str)) {
       const parsed = parseISO(str);
-      if (isValid(parsed)) return parsed;
+      return isValid(parsed) ? parsed : null;
     }
-    const fallback = new Date(str);
-    return isValid(fallback) ? fallback : null;
+    const d = new Date(str);
+    return isNaN(d.getTime()) ? null : d;
   };
 
   const borderThin = {
@@ -1572,48 +1550,44 @@ const exportToExcel = (dataToExport: any[]) => {
   };
 
   const styleHeaderMain = {
-    fill: { fgColor: { rgb: "1E3A8A" } },
-    font: { bold: true, color: { rgb: "FFFFFF" }, sz: 10 },
+    fill: { fgColor: { rgb: "1D4ED8" } },
+    font: { color: { rgb: "FFFFFF" }, bold: true, sz: 10 },
     alignment: { horizontal: "center", vertical: "center", wrapText: true },
     border: borderThin,
   };
 
   const styleHeaderSub = {
-    fill: { fgColor: { rgb: "2563EB" } },
-    font: { bold: true, color: { rgb: "FFFFFF" }, sz: 10 },
-    alignment: { horizontal: "center", vertical: "center", wrapText: true },
-    border: borderThin,
-  };
-
-  const styleDataCell = {
-    font: { sz: 9, color: { rgb: "0F172A" } },
-    alignment: { vertical: "center" },
-    border: borderThin,
-  };
-
-  const styleDetailHeader = {
-    fill: { fgColor: { rgb: "DBEAFE" } },
-    font: { bold: true, sz: 9, color: { rgb: "1E3A8A" } },
+    fill: { fgColor: { rgb: "1E40AF" } },
+    font: { color: { rgb: "FFFFFF" }, bold: true, sz: 9 },
     alignment: { horizontal: "center", vertical: "center" },
     border: borderThin,
   };
 
-  const styleDetailCell = {
-    fill: { fgColor: { rgb: "F8FAFC" } },
-    font: { sz: 8.5, color: { rgb: "334155" } },
+  const styleDataCell = {
+    font: { sz: 9 },
     alignment: { vertical: "center" },
     border: borderThin,
   };
 
   const styleFooterCell = {
-    fill: { fgColor: { rgb: "c7ecfe" } },
+    fill: { fgColor: { rgb: "FEF3C7" } },
     font: { bold: true, sz: 10, color: { rgb: "000000" } },
-    border: {
-      top: { style: "double", color: { rgb: "000000" } },
-      bottom: { style: "thick", color: { rgb: "000000" } },
-      left: { style: "thin", color: { rgb: "000000" } },
-      right: { style: "thin", color: { rgb: "000000" } },
-    },
+    alignment: { vertical: "center" },
+    border: borderThin,
+  };
+
+  const styleDetailHeader = {
+    fill: { fgColor: { rgb: "1E3A8A" } },
+    font: { color: { rgb: "FFFFFF" }, bold: true, sz: 9 },
+    alignment: { horizontal: "center", vertical: "center" },
+    border: borderThin,
+  };
+
+  const styleDetailCell = {
+    fill: { fgColor: { rgb: "F1F5F9" } },
+    font: { sz: 9 },
+    alignment: { vertical: "center" },
+    border: borderThin,
   };
 
   const formattedStart = formatDateFull(startDate.value);
@@ -1629,88 +1603,81 @@ const exportToExcel = (dataToExport: any[]) => {
   const headerRow1 = [
     { v: "NOMOR SPK", s: styleHeaderMain },
     { v: "NAMA ORDER", s: styleHeaderMain },
-    { v: "TANGGAL", s: styleHeaderMain },
-    { v: "DEADLINE", s: styleHeaderMain },
-    { v: "BAHAN", s: styleHeaderMain },
-    { v: "GRAMASI", s: styleHeaderMain },
-    { v: "PANJANG", s: styleHeaderMain },
-    { v: "LEBAR", s: styleHeaderMain },
-    { v: "FINISHING", s: styleHeaderMain },
+    ...orderedBaseCols.value.map((col) => ({ v: col.label, s: styleHeaderMain })),
     { v: "PRODUKSI (PCS)", s: styleHeaderMain },
   ];
 
-  for (let i = 1; i < subPcs.value.length; i++) {
+  for (let i = 1; i < orderedSubPcs.value.length; i++) {
     headerRow1.push({ v: "", s: styleHeaderMain });
   }
 
   headerRow1.push({ v: "CTK L.", s: styleHeaderMain });
-  if (mesinColumns.value.length > 0) {
+  if (orderedMesinCols.value.length > 0) {
     headerRow1.push({ v: "MESIN", s: styleHeaderMain });
-    for (let i = 1; i < mesinColumns.value.length; i++) {
+    for (let i = 1; i < orderedMesinCols.value.length; i++) {
       headerRow1.push({ v: "", s: styleHeaderMain });
     }
   }
 
-  headerRow1.push({ v: "PRODUKSI (METER)", s: styleHeaderMain }, "", "");
+  headerRow1.push({ v: "PRODUKSI (METER)", s: styleHeaderMain });
+  for (let i = 1; i < orderedMeterCols.value.length; i++) {
+    headerRow1.push({ v: "", s: styleHeaderMain });
+  }
   wsData.push(headerRow1);
 
-  const subMeter = ["K-KRM", "K-CTK", "K-CLY"];
-  const headerRow2 = Array(9).fill({ v: "", s: styleHeaderMain });
-  subPcs.value.forEach((sub) =>
+  const baseColCount = 2 + orderedBaseCols.value.length;
+  const headerRow2 = Array(baseColCount).fill({ v: "", s: styleHeaderMain });
+  orderedSubPcs.value.forEach((sub) =>
     headerRow2.push({ v: sub.label, s: styleHeaderSub }),
   );
   headerRow2.push({ v: "", s: styleHeaderMain });
 
-  mesinColumns.value.forEach((m) => {
+  orderedMesinCols.value.forEach((m) => {
     headerRow2.push({ v: m.label, s: styleHeaderSub });
   });
 
-  subMeter.forEach((h) => headerRow2.push({ v: h, s: styleHeaderSub }));
+  orderedMeterCols.value.forEach((mtr) =>
+    headerRow2.push({ v: mtr.label, s: styleHeaderSub }),
+  );
   wsData.push(headerRow2);
 
   dataToExport.forEach((item: any) => {
-    const tglDate = excelDate(item.spk_tanggal);
-    const deadlineDate = excelDate(item.deadline);
-
-    const row = [
+    const row: any[] = [
       {
         v: item.NOMOR || "",
         s: { ...styleDataCell, alignment: { horizontal: "center" } },
       },
       { v: item.spk_nama || "", s: styleDataCell },
-      {
-        v: tglDate || "",
-        t: "d",
-        z: "dd/mm/yyyy",
-        s: { ...styleDataCell, alignment: { horizontal: "center" } },
-      },
-      {
-        v: deadlineDate || "",
-        t: "d",
-        z: "dd/mm/yyyy",
-        s: { ...styleDataCell, alignment: { horizontal: "center" } },
-      },
-      { v: item.KAIN || "", s: styleDataCell },
-      {
-        v: item.spk_gramasi || "",
-        s: { ...styleDataCell, alignment: { horizontal: "center" } },
-      },
-      {
-        v: num(item.PANJANG),
-        t: "n",
-        z: "#,##0.00",
-        s: { ...styleDataCell, alignment: { horizontal: "center" } },
-      },
-      {
-        v: num(item.LEBAR),
-        t: "n",
-        z: "#,##0.00",
-        s: { ...styleDataCell, alignment: { horizontal: "center" } },
-      },
-      { v: item.FINISHING || "", s: styleDataCell },
     ];
 
-    subPcs.value.forEach((sub) => {
+    orderedBaseCols.value.forEach((col) => {
+      if (col.type === "date") {
+        const d = excelDate(item[col.key]);
+        row.push({
+          v: d || "",
+          t: "d",
+          z: "dd/mm/yyyy",
+          s: { ...styleDataCell, alignment: { horizontal: "center" } },
+        });
+      } else if (col.type === "number") {
+        row.push({
+          v: num(item[col.key]),
+          t: "n",
+          z: col.dec === 0 ? "#,##0" : "#,##0.00",
+          s: { ...styleDataCell, alignment: { horizontal: "center" } },
+        });
+      } else {
+        row.push({
+          v: item[col.key] || "",
+          s: {
+            ...styleDataCell,
+            alignment: { horizontal: col.align || "left" },
+          },
+        });
+      }
+    });
+
+    orderedSubPcs.value.forEach((sub) => {
       row.push({
         v: num(item[sub.key]),
         t: "n",
@@ -1726,7 +1693,7 @@ const exportToExcel = (dataToExport: any[]) => {
       s: { ...styleDataCell, alignment: { horizontal: "right" } },
     });
 
-    mesinColumns.value.forEach((m) => {
+    orderedMesinCols.value.forEach((m) => {
       row.push({
         v: num(item[m.key]),
         t: "n",
@@ -1735,36 +1702,23 @@ const exportToExcel = (dataToExport: any[]) => {
       });
     });
 
-    row.push(
-      {
-        v: num(item.krg_kirim_meter),
+    orderedMeterCols.value.forEach((mtr) => {
+      row.push({
+        v: num(item[mtr.key]),
         t: "n",
         z: "#,##0.00",
         s: { ...styleDataCell, alignment: { horizontal: "right" } },
-      },
-      {
-        v: num(item.krg_Cetak_meter),
-        t: "n",
-        z: "#,##0.00",
-        s: { ...styleDataCell, alignment: { horizontal: "right" } },
-      },
-      {
-        v: num(item.krg_coly_meter),
-        t: "n",
-        z: "#,##0.00",
-        s: { ...styleDataCell, alignment: { horizontal: "right" } },
-      },
-    );
+      });
+    });
 
     wsData.push(row);
 
-    // --- TAMBAHKAN BARIS DETAIL FORMAT TABEL MEMANJANG KE KANAN ---
+    // Baris Detail Ukuran & Komponen
     if (
       ["2", "3"].includes(jenisIndex.value) &&
       item.sizes &&
       item.sizes.length > 0
     ) {
-      // Baris Header Sub-Tabel Detail
       const isSublimDetail = jenisIndex.value === "3";
       const detailColumnCount = isSublimDetail ? 9 : 7;
       wsData.push([
@@ -1903,15 +1857,15 @@ const exportToExcel = (dataToExport: any[]) => {
   });
 
   // Footer Total Excel
-  const footerRow = [
+  const footerRow: any[] = [
     {
       v: "TOTAL (FILTERED)",
       s: { ...styleFooterCell, alignment: { horizontal: "center" } },
     },
-    ...Array(8).fill({ v: "", s: styleFooterCell }),
+    ...Array(1 + orderedBaseCols.value.length).fill({ v: "", s: styleFooterCell }),
   ];
 
-  subPcs.value.forEach((sub) => {
+  orderedSubPcs.value.forEach((sub) => {
     footerRow.push({
       v: num(totals.value[sub.key]),
       t: "n",
@@ -1927,7 +1881,7 @@ const exportToExcel = (dataToExport: any[]) => {
     s: { ...styleFooterCell, alignment: { horizontal: "right" } },
   });
 
-  mesinColumns.value.forEach((m) => {
+  orderedMesinCols.value.forEach((m) => {
     footerRow.push({
       v: num(totals.value[m.key]),
       t: "n",
@@ -1936,26 +1890,14 @@ const exportToExcel = (dataToExport: any[]) => {
     });
   });
 
-  footerRow.push(
-    {
-      v: num(totals.value.krg_kirim_meter),
+  orderedMeterCols.value.forEach((mtr) => {
+    footerRow.push({
+      v: num(totals.value[mtr.key]),
       t: "n",
       z: "#,##0.00",
       s: { ...styleFooterCell, alignment: { horizontal: "right" } },
-    },
-    {
-      v: num(totals.value.krg_Cetak_meter),
-      t: "n",
-      z: "#,##0.00",
-      s: { ...styleFooterCell, alignment: { horizontal: "right" } },
-    },
-    {
-      v: num(totals.value.krg_coly_meter),
-      t: "n",
-      z: "#,##0.00",
-      s: { ...styleFooterCell, alignment: { horizontal: "right" } },
-    },
-  );
+    });
+  });
 
   wsData.push(footerRow);
 
@@ -1997,6 +1939,47 @@ onMounted(fetchReport);
   border-collapse: separate !important;
   border-spacing: 0 !important;
   font-size: 12px !important;
+}
+
+/* Sembunyikan elemen header default/expand bawaan Vuetify agar tidak ada space biru muda di atas */
+:deep(.v-data-table-headers),
+:deep(.v-data-table__th--expand),
+:deep(thead:not(:has(.header-main))),
+:deep(tbody > tr:not(.table-row-item):not(.expanded-detail-row):not(.table-footer-row)) {
+  display: none !important;
+  height: 0 !important;
+  padding: 0 !important;
+  border: none !important;
+}
+
+:deep(.expanded-detail-row) {
+  display: table-row !important;
+}
+
+:deep(.expanded-detail-row > td) {
+  white-space: normal !important;
+}
+
+:deep(.clean-detail-table),
+:deep(.inner-sub-table) {
+  display: table !important;
+  width: 100% !important;
+}
+
+:deep(.clean-detail-table thead tr),
+:deep(.clean-detail-table tbody tr),
+:deep(.inner-sub-table thead tr),
+:deep(.inner-sub-table tbody tr),
+:deep(.detail-row),
+:deep(.sub-row) {
+  display: table-row !important;
+}
+
+:deep(.clean-detail-table th),
+:deep(.clean-detail-table td),
+:deep(.inner-sub-table th),
+:deep(.inner-sub-table td) {
+  white-space: normal !important;
 }
 
 :deep(th),
@@ -2048,7 +2031,6 @@ onMounted(fetchReport);
 
 :deep(.sticky-col-2) {
   position: sticky !important;
-  left: 140px !important;
   box-shadow: 3px 0px 5px -2px rgba(0, 0, 0, 0.15);
 }
 
@@ -2091,12 +2073,13 @@ onMounted(fetchReport);
   background-color: #cbd5e1 !important;
 }
 :deep(.col-drag-over) {
-  background-color: rgba(25, 118, 210, 0.3) !important;
-  box-shadow: inset 3px 0 0 #1976d2;
+  background-color: rgba(25, 118, 210, 0.4) !important;
+  box-shadow: inset 4px 0 0 #f59e0b !important;
+  outline: 2px dashed #f59e0b !important;
 }
 :deep(.col-drag-handle) {
   cursor: grab;
-  color: rgba(255, 255, 255, 0.8);
+  color: rgba(255, 255, 255, 0.85);
   font-size: 13px;
   user-select: none;
   touch-action: none;
@@ -2110,7 +2093,7 @@ onMounted(fetchReport);
   position: absolute;
   top: 0;
   right: 0;
-  width: 6px;
+  width: 8px;
   height: 100%;
   cursor: col-resize;
   background-color: transparent;
@@ -2118,7 +2101,7 @@ onMounted(fetchReport);
 }
 :deep(.column-resizer:hover),
 :deep(th:hover .column-resizer) {
-  background-color: rgba(255, 255, 255, 0.4);
+  background-color: rgba(255, 255, 255, 0.5);
 }
 
 .bg-blue-header {
@@ -2147,50 +2130,22 @@ onMounted(fetchReport);
   color: white !important;
 }
 
-.border-l {
-  border-left: 1px solid #cbd5e1 !important;
-}
-.border-r {
-  border-right: 1px solid #cbd5e1 !important;
-}
-.cursor-pointer {
-  cursor: pointer;
-}
-.select-none {
-  user-select: none;
-}
-.btn-filter-icon {
-  opacity: 0.85;
-}
-.btn-filter-icon:hover {
-  opacity: 1;
-}
-
-.summary-table td {
-  padding: 6px 12px !important;
-  font-size: 12px !important;
-  border-bottom: 1px solid #e2e8f0;
-}
-.sum-label {
-  background: #f8fafc;
-  font-weight: 600;
-  color: #334155;
-}
-.sum-value {
-  text-align: right;
-  color: #0f172a;
-}
+/* Preview Modal Styling */
 .iframe-wrapper {
   height: calc(92vh - 100px) !important;
   min-height: 500px;
+  width: 100% !important;
+  position: relative;
   overflow: hidden;
 }
+
 .preview-iframe {
-  width: 100%;
-  height: 100%;
+  width: 100% !important;
+  height: 100% !important;
   border: none;
   display: block;
 }
+
 .preview-loading-overlay {
   position: absolute;
   top: 0;
@@ -2199,39 +2154,5 @@ onMounted(fetchReport);
   bottom: 0;
   background: rgba(255, 255, 255, 0.85);
   z-index: 10;
-}
-
-/* Styling Tambahan untuk Tabel Detail Clean */
-.clean-detail-table th {
-  background-color: #1e3a8a !important;
-  font-size: 11px !important;
-  letter-spacing: 0.3px;
-}
-
-.clean-detail-table td {
-  border-bottom: 1px solid #e2e8f0 !important;
-  vertical-align: middle !important;
-}
-
-.inner-sub-table {
-  border-collapse: collapse !important;
-  background: transparent !important;
-}
-.inner-sub-table th,
-.inner-sub-table :deep(th) {
-  background-color: #81afe8 !important; /* Warna latar header sub-tabel lebih kontras */
-  color: #0f172a !important; /* Warna teks hitam gelap pekat */
-  font-weight: 700 !important;
-  font-size: 11px !important;
-  opacity: 1 !important;
-}
-
-.inner-sub-table td {
-  border-bottom: 1px dashed #e2e8f0 !important;
-  font-size: 11px !important;
-}
-
-.sub-row:last-child td {
-  border-bottom: none !important;
 }
 </style>
