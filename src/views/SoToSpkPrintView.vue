@@ -206,11 +206,26 @@ const formatWaktu = (isoStr: string) => {
 };
 
 const formattedKeterangan = computed(() => {
-  const ket = spk.value.spk_keterangan || "";
-  const memo = spk.value.spk_memo || "";
+  const ket = (spk.value.spk_keterangan || "").trim();
+  const memo = (spk.value.spk_memo || "").trim();
+  const repeat = (
+    spk.value.spk_repeat ||
+    spk.value.Repeat ||
+    spk.value.so_repeat ||
+    ""
+  ).trim();
+
+  const prefixes: string[] = [];
   if (memo) {
-    const prefix = `Acc seperti Memo : ${memo}`;
-    return ket ? `${prefix}\n${ket}` : prefix;
+    prefixes.push(`Acc seperti Memo : ${memo}`);
+  }
+  if (repeat) {
+    prefixes.push(`SO Repeat : ${repeat}`);
+  }
+
+  const prefixText = prefixes.join("\n");
+  if (prefixText) {
+    return ket ? `${prefixText}\n${ket}` : prefixText;
   }
   return ket;
 });

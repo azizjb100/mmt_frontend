@@ -598,13 +598,13 @@ onMounted(fetchData);
         <div class="d-flex align-center ga-2 flex-wrap">
           <v-text-field
             v-model="searchSpk"
-            label="Cari SPK"
-            placeholder="Ketik No. SPK..."
+            label="Cari SPK (No / Nama)"
+            placeholder="Ketik No. atau Nama SPK..."
             density="compact"
             hide-details
             variant="outlined"
             prepend-inner-icon="mdi-magnify"
-            style="min-width: 200px; max-width: 280px"
+            style="min-width: 240px; max-width: 340px"
             clearable
             @keyup.enter="fetchData"
             @click:clear="handleClearSearchSpk"

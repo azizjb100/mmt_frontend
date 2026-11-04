@@ -450,15 +450,17 @@
           v-for="sub in orderedSubPcs"
           :key="sub.key"
           :style="colStyles(sub.key, '90px')"
-          class="text-right"
-          :class="{
-            'text-error font-weight-bold':
-              sub.key === 'krg_Cetak' ||
-              (sub.key === 'krg_mutasi_p04' && item[sub.key] > 0),
-            'text-success font-weight-bold': sub.key === 'spk_jumlah_kirim',
-          }"
+          :class="[
+            item[sub.key] === '-' ? 'text-center text-grey' : 'text-right',
+            {
+              'text-error font-weight-bold':
+                (sub.key === 'krg_Cetak' && item[sub.key] !== '-') ||
+                (sub.key === 'krg_mutasi_p04' && Number(item[sub.key]) > 0),
+              'text-success font-weight-bold': sub.key === 'spk_jumlah_kirim',
+            }
+          ]"
         >
-          {{ formatNumber(item[sub.key], 0) }}
+          {{ item[sub.key] === '-' ? '-' : formatNumber(item[sub.key], 0) }}
         </td>
 
         <!-- Cetak Luar -->
@@ -1381,10 +1383,20 @@ const filteredData = computed(() => {
       }
 
       if (NUMERIC_KEYS.includes(key)) {
-        const numA =
-          valA !== null && valA !== undefined && valA !== "" ? Number(valA) : 0;
-        const numB =
-          valB !== null && valB !== undefined && valB !== "" ? Number(valB) : 0;
+        const isNumA =
+          valA !== null &&
+          valA !== undefined &&
+          valA !== "" &&
+          valA !== "-" &&
+          !isNaN(Number(valA));
+        const isNumB =
+          valB !== null &&
+          valB !== undefined &&
+          valB !== "" &&
+          valB !== "-" &&
+          !isNaN(Number(valB));
+        const numA = isNumA ? Number(valA) : -999999;
+        const numB = isNumB ? Number(valB) : -999999;
         return isAsc ? numA - numB : numB - numA;
       }
 
@@ -1409,9 +1421,18 @@ const totals = computed(() => {
       acc.spk_jumlah += Number(item.spk_jumlah || 0);
       acc.spk_jumlah_kirim += Number(item.spk_jumlah_kirim || 0);
       acc.krg_kirim += Number(item.krg_kirim || 0);
-      acc.krg_Seaming += Number(item.krg_Seaming || 0);
-      acc.krg_Jahit += Number(item.krg_Jahit || 0);
-      acc.krg_mataayam += Number(item.krg_mataayam || 0);
+      acc.krg_Seaming +=
+        item.krg_Seaming !== "-" && !isNaN(Number(item.krg_Seaming))
+          ? Number(item.krg_Seaming)
+          : 0;
+      acc.krg_Jahit +=
+        item.krg_Jahit !== "-" && !isNaN(Number(item.krg_Jahit))
+          ? Number(item.krg_Jahit)
+          : 0;
+      acc.krg_mataayam +=
+        item.krg_mataayam !== "-" && !isNaN(Number(item.krg_mataayam))
+          ? Number(item.krg_mataayam)
+          : 0;
       acc.krg_Cetak += Number(item.krg_Cetak || 0);
       acc.krg_mutasi_p04 += Number(item.krg_mutasi_p04 || 0);
       acc.krg_coly += Number(item.krg_coly || 0);
@@ -1678,12 +1699,21 @@ const exportToExcel = (dataToExport: any[]) => {
     });
 
     orderedSubPcs.value.forEach((sub) => {
-      row.push({
-        v: num(item[sub.key]),
-        t: "n",
-        z: "#,##0",
-        s: { ...styleDataCell, alignment: { horizontal: "right" } },
-      });
+      const val = item[sub.key];
+      if (val === "-" || isNaN(Number(val))) {
+        row.push({
+          v: "-",
+          t: "s",
+          s: { ...styleDataCell, alignment: { horizontal: "center" } },
+        });
+      } else {
+        row.push({
+          v: num(val),
+          t: "n",
+          z: "#,##0",
+          s: { ...styleDataCell, alignment: { horizontal: "right" } },
+        });
+      }
     });
 
     row.push({

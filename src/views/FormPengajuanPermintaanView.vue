@@ -266,7 +266,7 @@ const loaddataall = async (nomor: string) => {
     formData.keteranganHeader = d.Keterangan || "";
 
     if (d.Status_Acc === "Y" || (d.Acc_SPV && d.Acc_SPV !== "")) {
-      formData.accSpv = d.Acc_SPV || "EKAMMT";
+      formData.accSpv = d.Acc_SPV || "ACC";
     } else {
       formData.accSpv = "-";
     }
