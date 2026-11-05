@@ -145,11 +145,11 @@
             <table class="manksi-table">
               <thead>
                 <tr>
-                  <th style="width: 35px; min-width: 35px">No</th>
-                  <th style="white-space: nowrap; min-width: 110px">PO Internal</th>
-                  <th style="width: 55px; min-width: 55px" class="text-center">Size</th>
-                  <th style="width: 110px; min-width: 110px">Komponen</th>
-                  <th style="white-space: nowrap; min-width: 110px">No. SPK</th>
+                  <th class="sticky-col-1 text-center">No</th>
+                  <th class="sticky-col-2">PO Internal</th>
+                  <th class="sticky-col-3 text-center">Size</th>
+                  <th class="sticky-col-4">Komponen</th>
+                  <th class="sticky-col-5">No. SPK</th>
                   <th style="white-space: nowrap; min-width: 120px">No. LHK Paperprint</th>
                   <th style="min-width: 220px">Nama Order</th>
                   <th style="width: 130px; min-width: 130px">Bahan Keluar</th>
@@ -168,22 +168,21 @@
               </thead>
               <tbody>
                 <tr v-for="(item, index) in detailData" :key="index">
-                  <td class="text-center">{{ index + 1 }}</td>
+                  <td class="text-center sticky-col-1">{{ index + 1 }}</td>
 
-                  <td class="cell-yellow px-1" style="white-space: nowrap">
+                  <td class="cell-yellow px-1 sticky-col-2">
                     <input
                       type="text"
                       v-model="item.poi_nomor"
                       readonly
                       placeholder="Pilih PO..."
                       :title="item.poi_nomor || 'Pilih PO...'"
-                      :style="{ minWidth: getDynamicColWidth(item.poi_nomor, 12) }"
-                      class="cell-input cursor-pointer fw-bold text-amber-darken-4 font-mono"
+                      class="cell-input cursor-pointer fw-bold text-amber-darken-4 font-mono text-truncate"
                       @click="openPoiSearchRow(index)"
                     />
                   </td>
 
-                  <td class="text-center bg-grey-lighten-4" style="width: 55px; min-width: 55px">
+                  <td class="text-center bg-grey-lighten-4 sticky-col-3">
                     <input
                       type="text"
                       v-model="item.poi_size"
@@ -191,7 +190,7 @@
                     />
                   </td>
 
-                  <td style="width: 110px; min-width: 110px">
+                  <td class="sticky-col-4">
                     <input
                       type="text"
                       v-model="item.nama_komponen"
@@ -200,15 +199,14 @@
                     />
                   </td>
 
-                  <td class="cell-yellow px-1" style="white-space: nowrap">
+                  <td class="cell-yellow px-1 sticky-col-5">
                     <input
                       type="text"
                       v-model="item.spk_nomor"
                       readonly
                       placeholder="Pilih SPK..."
                       :title="item.spk_nomor || 'Pilih SPK...'"
-                      :style="{ minWidth: getDynamicColWidth(item.spk_nomor, 12) }"
-                      class="cell-input cursor-pointer fw-bold text-blue-darken-4 font-mono"
+                      class="cell-input cursor-pointer fw-bold text-blue-darken-4 font-mono text-truncate"
                       @click="openSpkSearchRow(index)"
                     />
                   </td>
@@ -909,7 +907,8 @@ onMounted(async () => {
 .manksi-table {
   width: max-content;
   min-width: 100%;
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0;
   font-size: 11px;
 }
 .manksi-table th {
@@ -918,18 +917,113 @@ onMounted(async () => {
   padding: 6px 8px;
   position: sticky;
   top: 0;
-  z-index: 1;
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  z-index: 2;
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+  border-right: 1px solid rgba(255, 255, 255, 0.2);
   text-transform: uppercase;
   font-weight: bold;
   white-space: nowrap;
+  box-sizing: border-box;
+}
+.manksi-table th:first-child {
+  border-left: 1px solid rgba(255, 255, 255, 0.2);
 }
 .manksi-table td {
-  border: 1px solid #e0e0e0;
+  border-bottom: 1px solid #e0e0e0;
+  border-right: 1px solid #e0e0e0;
   padding: 0;
   height: 28px;
   white-space: nowrap;
+  box-sizing: border-box;
 }
+.manksi-table td:first-child {
+  border-left: 1px solid #e0e0e0;
+}
+
+/* Sticky Freeze Columns (No, PO Internal, Size, Komponen, No. SPK) */
+.sticky-col-1 {
+  position: sticky !important;
+  left: 0px !important;
+  width: 35px !important;
+  min-width: 35px !important;
+  max-width: 35px !important;
+}
+
+.sticky-col-2 {
+  position: sticky !important;
+  left: 35px !important;
+  width: 130px !important;
+  min-width: 130px !important;
+  max-width: 130px !important;
+}
+
+.sticky-col-3 {
+  position: sticky !important;
+  left: 165px !important; /* 35 + 130 */
+  width: 55px !important;
+  min-width: 55px !important;
+  max-width: 55px !important;
+}
+
+.sticky-col-4 {
+  position: sticky !important;
+  left: 220px !important; /* 165 + 55 */
+  width: 110px !important;
+  min-width: 110px !important;
+  max-width: 110px !important;
+}
+
+.sticky-col-5 {
+  position: sticky !important;
+  left: 330px !important; /* 220 + 110 */
+  width: 140px !important;
+  min-width: 140px !important;
+  max-width: 140px !important;
+  box-shadow: 4px 0 6px -2px rgba(0, 0, 0, 0.22);
+}
+
+/* Layering z-index & backgrounds */
+thead th.sticky-col-1,
+thead th.sticky-col-2,
+thead th.sticky-col-3,
+thead th.sticky-col-4,
+thead th.sticky-col-5 {
+  top: 0 !important;
+  z-index: 15 !important;
+  background-color: #1565c0 !important;
+}
+
+thead th.sticky-col-5 {
+  border-right: 2px solid #0d47a1 !important;
+}
+
+tbody td.sticky-col-1 {
+  z-index: 5 !important;
+  background-color: #ffffff !important;
+}
+
+tbody td.sticky-col-2 {
+  z-index: 5 !important;
+  background-color: #fcf8e3 !important;
+}
+
+tbody td.sticky-col-3 {
+  z-index: 5 !important;
+  background-color: #f5f5f5 !important;
+}
+
+tbody td.sticky-col-4 {
+  z-index: 5 !important;
+  background-color: #ffffff !important;
+}
+
+tbody td.sticky-col-5 {
+  z-index: 5 !important;
+  background-color: #fcf8e3 !important;
+  border-right: 2px solid #1976d2 !important;
+}
+
 .cell-input {
   width: 100%;
   height: 100%;

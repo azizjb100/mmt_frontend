@@ -20,6 +20,7 @@
       'PanjangBahanAwal',
       'SisaMeterAkhir',
     ]"
+    :summary-calculators="summaryCalculators"
     @refresh="fetchMasterData"
     @action:new="handleNewEdit('new')"
     @action:edit="handleEditClick"
@@ -246,6 +247,27 @@ let filters = reactive({
   search: "",
   mesin: [] as string[],
 });
+
+// Kalkulasi Grand Total khusus: JumlahOrder di-group by SPK agar SPK yang muncul di beberapa LHK hanya dihitung 1x
+const summaryCalculators = {
+  JumlahOrder: (items: LhkCetakHeader[]) => {
+    const seenSpk = new Set<string>();
+    let total = 0;
+    for (const item of items) {
+      const spk = String(item.NomorSPK || "").trim().toUpperCase();
+      const qty = Number(item.JumlahOrder || 0);
+      if (spk && spk !== "-") {
+        if (!seenSpk.has(spk)) {
+          seenSpk.add(spk);
+          total += isNaN(qty) ? 0 : qty;
+        }
+      } else {
+        total += isNaN(qty) ? 0 : qty;
+      }
+    }
+    return total;
+  },
+};
 
 // --- Headers ---
 const masterHeaders = [
@@ -572,6 +594,7 @@ const exportToExcel = async () => {
     let grandTotalJumlahOrderMaster = 0;
     let grandTotalCetakMaster = 0;
     let grandTotalDetailCetak = 0;
+    const seenSpkExport = new Set<string>();
 
     masterData.value.forEach((header) => {
       const targetDetails = details.value[header.Nomor] || [];
@@ -587,13 +610,25 @@ const exportToExcel = async () => {
 
       const statusHeader = header.Status || "DRAFT";
 
+      const addJumlahOrderExport = () => {
+        const spk = String(header.NomorSPK || "").trim().toUpperCase();
+        if (spk && spk !== "-") {
+          if (!seenSpkExport.has(spk)) {
+            seenSpkExport.add(spk);
+            grandTotalJumlahOrderMaster += parseNum(header.JumlahOrder);
+          }
+        } else {
+          grandTotalJumlahOrderMaster += parseNum(header.JumlahOrder);
+        }
+      };
+
       if (targetDetails.length > 0) {
         targetDetails.forEach((dtl, index) => {
           const isFirstRow = index === 0;
           const totalCetakDetail = parseNum(dtl.totalcetak || dtl.TotalCetak);
 
           if (isFirstRow) {
-            grandTotalJumlahOrderMaster += parseNum(header.JumlahOrder);
+            addJumlahOrderExport();
             grandTotalCetakMaster += parseNum(header.TotalCetak);
           }
           grandTotalDetailCetak += totalCetakDetail;
@@ -707,7 +742,7 @@ const exportToExcel = async () => {
           ]);
         });
       } else {
-        grandTotalJumlahOrderMaster += parseNum(header.JumlahOrder);
+        addJumlahOrderExport();
         grandTotalCetakMaster += parseNum(header.TotalCetak);
 
         worksheetData.push([

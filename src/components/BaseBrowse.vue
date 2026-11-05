@@ -380,9 +380,16 @@
                   </template>
                   <!-- Menampilkan Hasil Kalkulasi Sum -->
                   <template v-else-if="summaryFields.includes(header.key)">
-                    <span class="font-weight-black text-primary">{{
-                      formatTotal(calculateTotal(header.key))
-                    }}</span>
+                    <slot
+                      :name="`summary.${header.key}`"
+                      :total="calculateTotal(header.key)"
+                      :items="filteredItems"
+                      :formatTotal="formatTotal"
+                    >
+                      <span class="font-weight-black text-primary">{{
+                        formatTotal(calculateTotal(header.key))
+                      }}</span>
+                    </slot>
                   </template>
                 </td>
               </tr>
@@ -434,6 +441,7 @@ const props = defineProps({
   rowProps: { type: Function, default: () => ({}) },
   cellProps: { type: [Object, Function], default: () => ({}) },
   summaryFields: { type: Array, default: () => [] },
+  summaryCalculators: { type: Object, default: () => ({}) },
 });
 
 const emit = defineEmits([
@@ -935,8 +943,14 @@ watch(
 
 // --- SUMMARY / GRAND TOTAL CALCULATIONS ---
 const calculateTotal = (key: string) => {
+  if (
+    props.summaryCalculators &&
+    typeof (props.summaryCalculators as any)[key] === "function"
+  ) {
+    return (props.summaryCalculators as any)[key](filteredItems.value);
+  }
   return filteredItems.value.reduce((sum, item) => {
-    const val = Number(item[key]);
+    const val = Number((item as any)[key]);
     return sum + (isNaN(val) ? 0 : val);
   }, 0);
 };
@@ -949,14 +963,19 @@ const formatTotal = (val: number) => {
 };
 
 const customSlots = computed(() => {
-  const {
-    "extra-actions": _,
-    "filter-fields": __,
-    "expanded-row": ___,
-    "expanded-content": ____,
-    ...rest
-  } = slots;
-  return rest;
+  const s: Record<string, any> = {};
+  for (const [key, val] of Object.entries(slots)) {
+    if (
+      key !== "extra-actions" &&
+      key !== "filter-fields" &&
+      key !== "expanded-row" &&
+      key !== "expanded-content" &&
+      !key.startsWith("summary.")
+    ) {
+      s[key] = val;
+    }
+  }
+  return s;
 });
 
 const startDateVal = computed(

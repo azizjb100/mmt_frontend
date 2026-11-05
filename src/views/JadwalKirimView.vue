@@ -122,24 +122,39 @@
             {{ safeFormatDate(item.Tanggal) }}
           </template>
 
+          <template #item.Qty_Order="{ item }">
+            <span class="font-weight-medium">
+              {{ Number(item.Qty_Order || 0).toLocaleString("id-ID") }}
+            </span>
+          </template>
+
+          <template #item.Jumlah="{ item }">
+            <span class="font-weight-medium">
+              {{ Number(item.Jumlah || 0).toLocaleString("id-ID") }}
+            </span>
+          </template>
+
           <template #item.Realisasi="{ item }">
             <v-chip
-              size="x-x-small"
-              :color="item.Realisasi >= item.Jumlah ? 'success' : 'warning'"
+              size="x-small"
+              :color="Number(item.Realisasi || 0) >= Number(item.Jumlah || 0) ? 'success' : 'warning'"
+              variant="flat"
             >
-              {{ item.Realisasi }}
+              {{ Number(item.Realisasi || 0).toLocaleString("id-ID") }}
             </v-chip>
           </template>
 
           <template #item.Selisih_Jumlah="{ item }">
             <span
               :class="
-                item.Selisih_Jumlah < 0
-                  ? 'text-error font-weight-bold'
-                  : 'text-success font-weight-bold'
+                Number(item.Selisih_Jumlah || 0) === 0
+                  ? 'text-success font-weight-bold'
+                  : Number(item.Selisih_Jumlah || 0) > 0
+                    ? 'text-warning font-weight-bold'
+                    : 'text-error font-weight-bold'
               "
             >
-              {{ item.Selisih_Jumlah }}
+              {{ Number(item.Selisih_Jumlah || 0).toLocaleString("id-ID") }}
             </span>
           </template>
 
@@ -166,8 +181,26 @@
                     >
                       <template #item.Jumlah="{ value }">
                         <strong class="total-bold text-blue-darken-3">{{
-                          value
+                          Number(value || 0).toLocaleString("id-ID")
                         }}</strong>
+                      </template>
+                      <template #item.Realisasi="{ value }">
+                        <span class="font-weight-medium">{{
+                          Number(value || 0).toLocaleString("id-ID")
+                        }}</span>
+                      </template>
+                      <template #item.Selisih="{ value }">
+                        <span
+                          :class="
+                            Number(value || 0) === 0
+                              ? 'text-success font-weight-bold'
+                              : Number(value || 0) > 0
+                                ? 'text-warning font-weight-bold'
+                                : 'text-error font-weight-bold'
+                          "
+                        >
+                          {{ Number(value || 0).toLocaleString("id-ID") }}
+                        </span>
                       </template>
                     </v-data-table>
 
@@ -238,10 +271,11 @@ const masterHeaders = [
   { title: "Tanggal", key: "Tanggal", width: "110px" },
   { title: "No. SPK", key: "No_SPK", width: "150px" },
   { title: "Nama Barang", key: "Nama_Spk", minWidth: "220px" },
-  { title: "Qty Rencana", key: "Jumlah", align: "end" },
-  { title: "Koli", key: "Koli", align: "end" },
-  { title: "Realisasi", key: "Realisasi", align: "end" },
-  { title: "Selisih", key: "Selisih_Jumlah", align: "end" },
+  { title: "Qty SPK Order", key: "Qty_Order", align: "end", width: "130px" },
+  { title: "Qty Rencana", key: "Jumlah", align: "end", width: "120px" },
+  { title: "Koli", key: "Koli", align: "end", width: "80px" },
+  { title: "Realisasi", key: "Realisasi", align: "end", width: "110px" },
+  { title: "Selisih", key: "Selisih_Jumlah", align: "end", width: "100px" },
   { title: "User", key: "usr_create", width: "100px" },
 ] as const;
 
@@ -250,7 +284,9 @@ const detailHeaders = [
   { title: "Kota Tujuan", key: "kota", minWidth: "150px" },
   { title: "Uraian Barang", key: "uraian", minWidth: "250px" },
   { title: "Size", key: "size", width: "100px" },
-  { title: "Qty", key: "Jumlah", align: "end" },
+  { title: "Qty Rencana", key: "Jumlah", align: "end" },
+  { title: "Realisasi", key: "Realisasi", align: "end" },
+  { title: "Selisih", key: "Selisih", align: "end" },
   { title: "Koli", key: "Koli", align: "end" },
   { title: "Ekspedisi", key: "expedisi", minWidth: "150px" },
 ];
@@ -468,6 +504,7 @@ const handleExportExcel = async () => {
       { v: "NAMA BARANG", s: styleHeaderMain, t: "s" },
       { v: "UKURAN", s: styleHeaderMain, t: "s" },
       { v: "KAIN", s: styleHeaderMain, t: "s" },
+      { v: "QTY SPK ORDER", s: styleHeaderMain, t: "s" },
       { v: "QTY RENCANA", s: styleHeaderMain, t: "s" },
       { v: "KOLI", s: styleHeaderMain, t: "s" },
       { v: "REALISASI", s: styleHeaderMain, t: "s" },
@@ -541,6 +578,11 @@ const handleExportExcel = async () => {
             },
             // Kolom angka master (t: "n")
             {
+              v: idxDtl === 0 ? Number(master.Qty_Order || 0) : 0,
+              s: styleDataCellRight,
+              t: "n",
+            },
+            {
               v: idxDtl === 0 ? Number(master.Jumlah || 0) : 0,
               s: styleDataCellRight,
               t: "n",
@@ -593,6 +635,7 @@ const handleExportExcel = async () => {
           { v: master.Nama_Spk, s: styleDataCell, t: "s" },
           { v: master.Ukuran || "-", s: styleDataCellCenter, t: "s" },
           { v: master.Kain || "-", s: styleDataCell, t: "s" },
+          { v: Number(master.Qty_Order || 0), s: styleDataCellRight, t: "n" },
           { v: Number(master.Jumlah || 0), s: styleDataCellRight, t: "n" },
           { v: Number(master.Koli || 0), s: styleDataCellRight, t: "n" },
           { v: Number(master.Realisasi || 0), s: styleDataCellRight, t: "n" },
@@ -625,7 +668,7 @@ const handleExportExcel = async () => {
     // ==========================================
     // 3. BARIS TOTAL (SUM) DENGAN TIPE NUMERIK (`t: 'n'`)
     // ==========================================
-    const totalRow = new Array(21)
+    const totalRow = new Array(22)
       .fill(null)
       .map(() => ({ v: "", s: styleTotalCell, t: "s" }));
 
@@ -657,14 +700,19 @@ const handleExportExcel = async () => {
       f: `SUM(M${startRowIndex}:M${endRowIndex})`,
       s: styleTotalCell,
     };
-    totalRow[18] = {
+    totalRow[13] = {
       t: "n",
-      f: `SUM(S${startRowIndex}:S${endRowIndex})`,
+      f: `SUM(N${startRowIndex}:N${endRowIndex})`,
       s: styleTotalCell,
     };
     totalRow[19] = {
       t: "n",
       f: `SUM(T${startRowIndex}:T${endRowIndex})`,
+      s: styleTotalCell,
+    };
+    totalRow[20] = {
+      t: "n",
+      f: `SUM(U${startRowIndex}:U${endRowIndex})`,
       s: styleTotalCell,
     };
 
@@ -676,7 +724,7 @@ const handleExportExcel = async () => {
     const worksheet = XLSX.utils.aoa_to_sheet(wsData);
 
     worksheet["!merges"] = [
-      { s: { r: 0, c: 0 }, e: { r: 0, c: 20 } },
+      { s: { r: 0, c: 0 }, e: { r: 0, c: 21 } },
       { s: { r: endRowIndex + 1, c: 0 }, e: { r: endRowIndex + 1, c: 7 } },
     ];
 
@@ -689,6 +737,7 @@ const handleExportExcel = async () => {
       { wch: 30 },
       { wch: 12 },
       { wch: 15 },
+      { wch: 16 },
       { wch: 15 },
       { wch: 12 },
       { wch: 12 },
